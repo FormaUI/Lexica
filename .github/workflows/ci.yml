@@ -1,0 +1,43 @@
+name: CI
+
+# The gate on every change, on a clean Linux machine of a fixed release, so a new image never changes a result unasked: the tests, the bundle, the package project's build with no warnings, and the format check.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to a pull request supersedes the older run; every commit on main keeps its own result.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Each action is pinned to the commit of the release named in its comment.
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-24.04
+    steps:
+      # The whole history, since the package's alpha is numbered by its commits.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            tests/package-lock.json
+
+      # The SDK nuget/global.json pins, which the build requires exactly.
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: nuget/global.json
+
+      - name: Gate
+        shell: pwsh
+        run: ./build.ps1

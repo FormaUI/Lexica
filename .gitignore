@@ -1,0 +1,23 @@
+# Dependencies, installed by npm in the repository root and in tests/.
+node_modules/
+
+# The package project's build output and the packed packages.
+nuget/bin/
+nuget/obj/
+artifacts/
+
+# The bundle that publish.ps1 makes from src/.
+nuget/wwwroot/
+
+# Work that belongs to a person: experiments, spikes and notes.
+.local/
+
+# npm's logs.
+npm-debug.log*
+
+# Editors and the operating system.
+.vs/
+.idea/
+*.user
+.DS_Store
+Thumbs.db

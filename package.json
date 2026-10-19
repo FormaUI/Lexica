@@ -1,0 +1,31 @@
+{
+    "name": "@formaui/lexica",
+    "version": "1.0.0-alpha",
+    "description": "Lexica is an extensible expression language: its expressions, names, types, functions and result shapes are the language's, and the vocabulary a host registers says what they can read or request.",
+    "license": "Apache-2.0",
+    "author": "Eyal Alon",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/FormaUI/Lexica.git"
+    },
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./src/lexica.d.ts",
+            "default": "./src/lexica.js"
+        },
+        "./*": "./src/*"
+    },
+    "files": [
+        "src",
+        "LICENSE",
+        "NOTICE",
+        "README.md"
+    ],
+    "scripts": {
+        "bundle": "node scripts/bundle.mjs"
+    },
+    "devDependencies": {
+        "esbuild": "^0.25.0"
+    }
+}
