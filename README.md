@@ -23,7 +23,7 @@ return {
 
 ## Status
 
-Lexica is in preview: its specification is `1.0.0-alpha`, and it is being separated from DOMQL, where it began. It reads text into definitions, checks definitions, writes canonical text, creates modules, and resolves an expression against a registry of its built-in vocabulary and the modules a host registers. Evaluating an expression runs through DOMQL until Lexica's evaluator and its host contract are separated from it, as the [implementation plan](docs/lexica-implementation-plan.md) records.
+Lexica is in alpha: its specification is `1.0.0-alpha`, and it is being separated from DOMQL, where it began. It reads text into definitions, checks definitions, writes canonical text, creates modules, and resolves an expression against a registry of its built-in vocabulary and the modules a host registers. Evaluating an expression runs through DOMQL until Lexica's evaluator and its host contract are separated from it, as the [implementation plan](docs/lexica-implementation-plan.md) records.
 
 ## Use it
 

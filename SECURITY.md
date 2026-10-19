@@ -13,7 +13,7 @@ We will reply after reviewing your report. Reports remain private until a fix is
 
 ## Supported versions
 
-Lexica is in preview. Only the latest version receives fixes.
+Lexica is in alpha. Only the latest version receives fixes.
 
 ## Scope
 
