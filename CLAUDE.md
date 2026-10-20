@@ -1,6 +1,6 @@
 # Working on Lexica
 
-Lexica is an extensible expression language: its grammar, definitions, types, resolution, functions and vocabulary contracts are the language's, and a host registers the vocabulary its expressions read. It knows no domain; [DOMQL](https://github.com/FormaUI/DOMQL), its first host, adds the DOM. Source ES modules live in `src/`; the build produces one minified bundle, distributed by the `formaui-net.Lexica` NuGet package, and the npm package `@formaui/lexica` ships the sources.
+Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its grammar, definitions, types, resolution, functions and vocabulary contracts are the language's, and a host registers the vocabulary its expressions read. It knows no domain of its own; [DOMQL](https://github.com/FormaUI/DOMQL), its first host, adds the DOM. Source ES modules live in `src/`; the build produces one minified bundle, distributed by the `formaui-net.Lexica` NuGet package, and the npm package `@formaui/lexica` ships the sources.
 
 ## Before making a change
 

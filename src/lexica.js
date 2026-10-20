@@ -1,5 +1,5 @@
 /**
- * Lexica — an extensible expression language: reads, checks and writes source and definitions, creates the modules that declare a vocabulary and the registries a host resolves expressions against,
+ * Lexica — a general-purpose, embeddable language whose domain each application defines: reads, checks and writes source and definitions, creates the modules that declare a vocabulary and the registries a host resolves expressions against,
  * binds values, and evaluates a resolved expression for its host, describing its result; and says which build it is and which specification it follows
  */
 

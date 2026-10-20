@@ -14,7 +14,7 @@
         <PackageId>formaui-net.Lexica</PackageId>
         <VersionPrefix>1.0.0</VersionPrefix>
         <Authors>Eyal Alon</Authors>
-        <Description>Lexica is an extensible expression language. Its expressions, names, types, functions and result shapes are the language's, and the vocabulary a host registers says what they can read or request.</Description>
+        <Description>Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host.</Description>
         <PackageTags>lexica;expression;language;javascript;dotnet;forma;formaui</PackageTags>
         <PackageProjectUrl>https://github.com/FormaUI/Lexica</PackageProjectUrl>
         <RepositoryUrl>https://github.com/FormaUI/Lexica</RepositoryUrl>

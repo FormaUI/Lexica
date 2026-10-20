@@ -1,6 +1,6 @@
 # Lexica Specification v1.0.0-alpha
 
-Lexica is an extensible expression language: it defines expressions, names, types, functions and result shapes, and a vocabulary a host registers defines what those expressions can read or request. Adding vocabulary does not change the grammar. Lexica knows no application domain. Modules declare the domain types and members available to an expression.
+Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host. Lexica knows no application domain of its own: modules declare the types and members available to an expression, and adding them never changes the grammar.
 
 This specification defines the language, its vocabulary contracts and its JSON definition format. An implementation may cover only part of it; the [README's status](../README.md#status) states what this one implements, and the [Lexica design](lexica-design.md) describes its modules and tooling.
 

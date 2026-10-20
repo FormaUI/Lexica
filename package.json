@@ -1,7 +1,7 @@
 {
     "name": "@formaui/lexica",
     "version": "1.0.0-alpha",
-    "description": "Lexica is an extensible expression language: its expressions, names, types, functions and result shapes are the language's, and the vocabulary a host registers says what they can read or request.",
+    "description": "Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language.",
     "license": "Apache-2.0",
     "author": "Eyal Alon",
     "repository": {

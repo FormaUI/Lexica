@@ -1,6 +1,6 @@
 # Lexica
 
-Lexica is an extensible expression language. Its expressions, names, types, functions and result shapes are the language's; a vocabulary a host registers says what those expressions can read or request. Adding vocabulary never changes the grammar.
+Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host.
 
 Lexica is a FormaUI product. [DOMQL](https://github.com/FormaUI/DOMQL) uses it to query the DOM and observe the results.
 
