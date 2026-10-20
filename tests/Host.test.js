@@ -17,17 +17,12 @@ const { property, valueParameter } = lexica.declarations;
 /** A plain host's module, of no domain: an order's total within a cent, a discount by code, and a product's stock, maintained by an observation the host samples. */
 const createShop = () => lexica.createModule('shop', {
     types: [{ name: 'price', fields: { amount: 'number', currency: 'string' } }],
-    observationTypes: [{ name: 'stock', contract: 'maintained', function: 'watchStock' }],
+    observationTypes: [{ name: 'stock', contract: 'maintained', implementation: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 0 }) }) }],
     members: [
-        property('total', 'string', 'price', { changes: 'constant', tolerance: 0.01 }),
-        lexica.declarations.function('discount', 'string', 'number', { changes: 'constant', parameters: [valueParameter('code', 'string')] }),
-        property('stock', 'string', 'number?', { changes: 'observable', reads: 'maintained', observations: [{ type: 'stock', of: 'receiver' }] }),
+        property('total', 'string', 'price', { updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 }, implementation: ({ receiver, env }) => ({ amount: env.prices[receiver], currency: 'EUR' }) }),
+        lexica.declarations.function('discount', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('code', 'string')], implementation: ({ args }) => (args.code === 'TEN' ? 10 : 0) }),
+        property('stock', 'string', 'number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'stock', of: 'receiver' }] }, implementation: ({ samples: [count] }) => count }),
     ],
-}, {
-    total: (order, _args, env) => ({ amount: env.prices[order], currency: 'EUR' }),
-    discount: (_order, { code }) => (code === 'TEN' ? 10 : 0),
-    stock: (_product, _args, _env, [count]) => count,
-    watchStock: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 0 }) }),
 });
 
 describe('a host of plain data', () => {
@@ -120,5 +115,94 @@ describe('a host of plain data', () => {
     it('checks a result path and reads the value it reaches', () => {
         expect(lexica.paths.valueAt({ total: { amount: 3 } }, ['total', 'amount'])).toBe(3);
         expect(getError(() => lexica.paths.check(['total', -1]))).toMatchObject({ kind: 'structure' });
+    });
+});
+
+describe('the declaration shape', () => {
+    const { property, valueParameter } = lexica.declarations;
+
+    /** A module of a cafe's menu, each implementation recording the one object it was given. */
+    const createMenu = (received = []) => lexica.createModule('menu', {
+        members: [
+            property('price', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: input => (received.push(input), input.receiver.length) }),
+            lexica.declarations.function('discounted', 'string', 'number', {
+                updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('percent', 'number')],
+                implementation: ({ receiver, args, env }) => receiver.length * (1 - args.percent / 100) * env.rate,
+            }),
+            property('special', 'string', 'string', { updates: { changes: 'constant', reads: 'fresh' } }),
+        ],
+        predicates: [lexica.declarations.predicate('vegan', 'string', ({ receiver, args }) => (received.push(args), receiver.startsWith('oat')), { updates: { changes: 'constant', reads: 'fresh' } })],
+    });
+
+    it('gives each implementation one object it reads by name: the receiver, the arguments by parameter name and the environment', () => {
+        const received = [];
+        const resolution = lexica.createRegistry([createMenu(received)]).resolve('{ price = item.price, discounted = item.discounted(50) }', { item: 'latte' });
+        const { value } = resolution.createEvaluator({ item: 'latte' }, { rate: 2 }).evaluate();
+
+        expect(value).toEqual({ price: 5, discounted: 5 });
+        expect(received).toEqual([{ receiver: 'latte', args: {}, env: { rate: 2 } }]);
+    });
+
+    it('carries a predicate out by its own implementation, which its verb selects, given its name as its argument', () => {
+        const received = [];
+        const registry = lexica.createRegistry([createMenu(received)]);
+        const evaluate = item => registry.resolve('item.is("vegan")', { item }).createEvaluator({ item }).evaluate().value;
+
+        expect([evaluate('oat latte'), evaluate('latte')]).toEqual([true, false]);
+        expect(received).toEqual([{ name: 'vegan' }, { name: 'vegan' }]);
+    });
+
+    it('resolves an expression that uses a declaration without an implementation, and refuses to evaluate it, naming the declaration, its module and the field', () => {
+        const resolution = lexica.createRegistry([createMenu()]).resolve('item.special', { item: 'latte' });
+
+        expect(resolution.type).toBe('string');
+        expect(getError(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', location: { module: 'menu', declaration: 'special', field: 'implementation' } });
+    });
+
+    it('decides before anything is evaluated, so a branch evaluation would not take refuses its expression too', () => {
+        const resolution = lexica.createRegistry([createMenu()]).resolve('if item.is("vegan") then item.price else item.special.price end', { item: 'oat latte' });
+
+        expect(getError(() => resolution.createEvaluator({ item: 'oat latte' }))).toMatchObject({ kind: 'module', location: { declaration: 'special' } });
+    });
+
+    it('reads a required parameter whose default holds undefined as one that declares none, so its argument is still required', () => {
+        const percent = { ...valueParameter('percent', 'number'), default: undefined };
+        const registry = lexica.createRegistry([lexica.createModule('cut', {
+            members: [lexica.declarations.function('cut', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [percent], implementation: ({ args }) => args.percent })],
+        })]);
+
+        expect(registry.resolve('item.cut(5)', { item: 'latte' }).createEvaluator({ item: 'latte' }).evaluate().value).toBe(5);
+        expect(getError(() => registry.resolve('item.cut()', { item: 'latte' }))).toBeInstanceOf(LexicaError);
+    });
+
+    it('refuses a function call written as an indexer, giving the call to write', () => {
+        expect(getError(() => lexica.createRegistry([createMenu()]).resolve('item:discounted[50]', { item: 'latte' })).message).toContain("'discounted' uses call syntax: write 'item.discounted(50)'");
+    });
+
+    it('evaluates an expression of a mixed module that uses its implemented declarations alone', () => {
+        const resolution = lexica.createRegistry([createMenu()]).resolve('if item.is("vegan") then item.price else 0 end', { item: 'oat latte' });
+
+        expect(resolution.createEvaluator({ item: 'oat latte' }).evaluate().value).toBe(9);
+    });
+
+    it('refuses to evaluate an expression that converts through a conversion without an implementation, in a branch it may not take as well', () => {
+        const cups = lexica.createModule('cups', { types: [{ name: 'cup', fields: { size: 'number' } }], conversions: [{ from: 'string', to: 'cup' }] });
+        const resolution = lexica.createRegistry([cups]).resolve('if large then (order to "cup").size else 0 end', { order: 'tall', large: false });
+
+        expect(getError(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'string to cup', field: 'implementation' } });
+    });
+
+    it('registers a module member, which has no target, beside the members of a type, and no receiver answers it', () => {
+        const registry = lexica.createRegistry([lexica.createModule('clock', {
+            members: [
+                property('now', null, 'number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: () => 0 }),
+                property('now', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver.length }),
+                property('zone', null, 'string', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: () => 'UTC' }),
+            ],
+        })]);
+
+        expect(registry.moduleNames).toEqual(['lexica', 'clock']);
+        expect(registry.resolve('item.now', { item: 'latte' }).createEvaluator({ item: 'latte' }).evaluate().value).toBe(5);
+        expect(getError(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);
     });
 });

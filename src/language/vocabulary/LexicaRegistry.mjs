@@ -24,8 +24,8 @@ export class LexicaRegistry {
     /** @type {Map<string, object>} */
     #observationTypes = new Map();
 
-    /** Each condition, by its name, a name naming one for each of the receivers it applies to. @type {Map<string, object[]>} */
-    #conditions = new Map();
+    /** Each predicate, by its name, a name naming one for each of the receivers it applies to. @type {Map<string, object[]>} */
+    #predicates = new Map();
 
     /** Each conversion, by its source type and then its target. @type {Map<string, Map<string, object>>} */
     #conversions = new Map();
@@ -54,7 +54,9 @@ export class LexicaRegistry {
             throw LexicaError.module('A module is registered as createModule makes it', { module: String(module?.name) });
         }
 
-        const fail = (message, declaration) => { throw LexicaError.module(message, declaration === undefined ? { module: module.name } : { module: module.name, declaration }); };
+        const fail = (message, declaration, field) => {
+            throw LexicaError.module(message, { module: module.name, ...(declaration === undefined ? {} : { declaration }), ...(field === undefined ? {} : { field }) });
+        };
 
         if (this.#modules.has(module.name)) {
             fail('A module is registered once, and this name is taken');
@@ -87,25 +89,35 @@ export class LexicaRegistry {
 
         LexicaRegistry.#checkTypeNames(module, types, fail);
 
-        for (const declaration of [...module.members, ...module.conditions]) {
+        for (const declaration of [...module.members, ...module.predicates]) {
             LexicaRegistry.#validateObservations(declaration, observationTypes, fail);
         }
 
-        // A module declares members and conditions on any type, its own or another module's, by any name.
-        module.conditions.forEach((condition, index) => {
-            this.#checkCollision(condition, [...this.getConditions(condition.name), ...module.conditions.slice(0, index).filter(other => other.name === condition.name)], fail, 'condition');
+        // A module declares members and predicates on any type, its own or another module's, by any name, and module members, which have no target, by any name its own module members do not take.
+        module.predicates.forEach((predicate, index) => {
+            this.#checkCollision(predicate, [...this.getPredicates(predicate.name), ...module.predicates.slice(0, index).filter(other => other.name === predicate.name)], fail, 'predicate');
         });
 
         module.members.forEach((declaration, index) => {
-            this.#checkCollision(declaration, [...this.getMembers(declaration.name), ...module.members.slice(0, index).filter(other => other.name === declaration.name)], fail);
+            const earlier = module.members.slice(0, index).filter(other => other.name === declaration.name);
+
+            if (declaration.target === undefined) {
+                if (earlier.some(other => other.target === undefined)) {
+                    fail(`The module member '${declaration.name}' is declared already`, declaration.name, 'name');
+                }
+
+                return;
+            }
+
+            this.#checkCollision(declaration, [...this.getMembers(declaration.name), ...earlier], fail);
 
             // A receiver has one default indexer at most, so `:[…]` names one indexer for it.
             if (declaration.default === true) {
-                for (const other of [...this.getDefaultIndexers(), ...module.members.slice(0, index).filter(earlier => earlier.default === true)]) {
-                    const overlapping = [declaration.on].flat().find(mine => [other.on].flat().some(theirs => LexicaRegistry.#overlap(mine, theirs)));
+                for (const other of [...this.getDefaultIndexers(), ...module.members.slice(0, index).filter(member => member.default === true)]) {
+                    const overlapping = [declaration.target].flat().find(mine => [other.target].flat().some(theirs => LexicaRegistry.#overlap(mine, theirs)));
 
                     if (overlapping !== undefined) {
-                        fail(`'${other.name}' is the default indexer of ${overlapping} already`, declaration.name);
+                        fail(`'${other.name}' is the default indexer of ${overlapping} already`, declaration.name, 'default');
                     }
                 }
             }
@@ -146,14 +158,18 @@ export class LexicaRegistry {
             this.#owners.set(type, module.name);
         }
 
+        // A module member has no receiver, so no receiver's member of its name finds it.
         for (const declaration of module.members) {
-            this.#members.set(declaration.name, [...(this.#members.get(declaration.name) ?? []), declaration]);
+            if (declaration.target !== undefined) {
+                this.#members.set(declaration.name, [...this.getMembers(declaration.name), declaration]);
+            }
+
             this.#owners.set(declaration, module.name);
         }
 
-        for (const condition of module.conditions) {
-            this.#conditions.set(condition.name, [...this.getConditions(condition.name), condition]);
-            this.#owners.set(condition, module.name);
+        for (const predicate of module.predicates) {
+            this.#predicates.set(predicate.name, [...this.getPredicates(predicate.name), predicate]);
+            this.#owners.set(predicate, module.name);
         }
 
         for (const conversion of module.conversions) {
@@ -168,14 +184,14 @@ export class LexicaRegistry {
         return this;
     }
 
-    /** The declarations named so, across every module. */
+    /** The members named so that receivers answer, across every module. */
     getMembers(name) {
         return this.#members.get(name) ?? [];
     }
 
-    /** The conditions named so, across every module, each for the receivers it applies to. */
-    getConditions(name) {
-        return this.#conditions.get(name) ?? [];
+    /** The predicates named so, across every module, each for the receivers it applies to. */
+    getPredicates(name) {
+        return this.#predicates.get(name) ?? [];
     }
 
     /** The names of every member declared, across every module. */
@@ -183,9 +199,9 @@ export class LexicaRegistry {
         return [...this.#members.keys()];
     }
 
-    /** The names of every condition declared, across every module. */
-    get conditionNames() {
-        return [...this.#conditions.keys()];
+    /** The names of every predicate declared, across every module. */
+    get predicateNames() {
+        return [...this.#predicates.keys()];
     }
 
     /** The indexers declared the default of their receivers, across every module. */
@@ -233,9 +249,9 @@ export class LexicaRegistry {
         return this.#owners.get(declaration);
     }
 
-    /** The function that carries out the member or the conversion, or undefined where its module supplies none. */
-    getFunction(declaration) {
-        return this.#modules.get(this.#owners.get(declaration))?.functions?.[declaration.function];
+    /** The implementation that carries the declaration out, or undefined where its module gives it none. */
+    getImplementation(declaration) {
+        return declaration.implementation;
     }
 
     /** Refuses a type notation in the module's declarations that names a type neither Lexica nor a module declares. */
@@ -254,13 +270,20 @@ export class LexicaRegistry {
 
         module.eventTypes.forEach(eventType => check(eventType.data, eventType.name));
 
-        for (const condition of module.conditions) {
-            [condition.on].flat().filter(notation => notation !== 'any').forEach(notation => check(notation, condition.name));
+        for (const predicate of module.predicates) {
+            [predicate.target].flat().filter(notation => notation !== 'any').forEach(notation => check(notation, predicate.name));
         }
 
         for (const declaration of module.members) {
-            (Array.isArray(declaration.on) ? declaration.on : [declaration.on]).filter(notation => notation !== 'any').forEach(notation => check(notation, declaration.name));
+            [declaration.target ?? []].flat().filter(notation => notation !== 'any').forEach(notation => check(notation, declaration.name));
             check(declaration.result, declaration.name);
+
+            // A tolerance applies to a numeric result, or to the numbers a structured result holds, which only now, every type known, is told apart from a reference type.
+            const resultType = Type.parse(declaration.result);
+
+            if (declaration.updates?.tolerance !== undefined && resultType.name !== 'number' && !types.has(resultType.name)) {
+                fail('A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', declaration.name, 'updates.tolerance');
+            }
 
             for (const parameter of declaration.parameters) {
                 check(parameter.type, declaration.name);
@@ -340,35 +363,41 @@ export class LexicaRegistry {
 
     /** Refuses an observation of a type no module declares, a maintained observation of a receiver's roots, and a member that reads maintained values without a maintained observation, or any other that has one. */
     static #validateObservations(declaration, observationTypes, fail) {
+        const { updates } = declaration;
+
+        if (updates === undefined) {
+            return;
+        }
+
         let hasMaintained = false;
 
-        for (const observationDeclaration of declaration.observations) {
+        for (const observationDeclaration of updates.observations) {
             const type = observationTypes.get(observationDeclaration.type);
 
             if (type === undefined) {
-                fail(`The observation type '${observationDeclaration.type}' is declared by no module`, declaration.name);
+                fail(`The observation type '${observationDeclaration.type}' is declared by no module`, declaration.name, 'updates.observations');
             }
 
             // A maintained observation gives the member one sample, and a receiver's roots are as many as its ancestry has.
             if (type.contract === 'maintained' && observationDeclaration.of === 'roots') {
-                fail(`The maintained observation '${observationDeclaration.type}' gives one sample, so it observes one target, never a receiver's roots`, declaration.name);
+                fail(`The maintained observation '${observationDeclaration.type}' gives one sample, so it observes one target, never a receiver's roots`, declaration.name, 'updates.observations');
             }
 
             hasMaintained ||= type.contract === 'maintained';
         }
 
-        if ((declaration.reads === 'maintained') !== hasMaintained) {
-            fail(declaration.reads === 'maintained' ? 'It reads maintained values, so it names a maintained observation' : 'It names a maintained observation, so it reads maintained values', declaration.name);
+        if ((updates.reads === 'maintained') !== hasMaintained) {
+            fail(updates.reads === 'maintained' ? 'It reads maintained values, so it names a maintained observation' : 'It names a maintained observation, so it reads maintained values', declaration.name, 'updates');
         }
     }
 
-    /** Refuses a member, or a condition, that a registered one of its name already answers on one of the same receivers. */
+    /** Refuses a member, or a predicate, that a registered one of its name already answers on one of the same receivers; a module member, which has no target, answers on none. */
     #checkCollision(declaration, others, fail, what = 'member') {
-        for (const other of others) {
-            for (const mine of Array.isArray(declaration.on) ? declaration.on : [declaration.on]) {
-                for (const theirs of Array.isArray(other.on) ? other.on : [other.on]) {
+        for (const other of others.filter(candidate => candidate.target !== undefined)) {
+            for (const mine of [declaration.target].flat()) {
+                for (const theirs of [other.target].flat()) {
                     if (LexicaRegistry.#overlap(mine, theirs)) {
-                        fail(`${what === 'condition' ? 'The condition ' : ''}'${declaration.name}' is declared already for ${theirs}`, declaration.name);
+                        fail(`${what === 'predicate' ? 'The predicate ' : ''}'${declaration.name}' is declared already for ${theirs}`, declaration.name, 'target');
                     }
                 }
             }

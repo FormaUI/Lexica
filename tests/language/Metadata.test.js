@@ -15,19 +15,15 @@ const createPart = id => ({ nodeType: 1, id });
 const parts = [createPart('a'), createPart('b')];
 
 /** A plain host's module on names: a size measured within half a unit, a length, a list of references and each reference's label. */
+const constant = { changes: 'constant', reads: 'fresh' };
 const shapes = new LexicaModule('shapes', {
     types: [{ name: 'size', fields: { width: 'number', height: 'number' } }],
     members: [
-        property('size', 'string', 'size', { changes: 'constant', tolerance: 0.5 }),
-        property('length', 'string', 'number', { changes: 'constant' }),
-        property('parts', 'string', 'list<element>', { changes: 'constant' }),
-        property('label', 'element', 'string', { changes: 'constant' }),
+        property('size', 'string', 'size', { updates: { ...constant, tolerance: 0.5 }, implementation: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
+        property('length', 'string', 'number', { updates: constant, implementation: ({ receiver }) => receiver.length }),
+        property('parts', 'string', 'list<element>', { updates: constant, implementation: () => parts }),
+        property('label', 'element', 'string', { updates: constant, implementation: ({ receiver }) => receiver.id }),
     ],
-}, {
-    size: name => ({ width: name.length, height: 1 }),
-    length: name => name.length,
-    parts: () => parts,
-    label: part => part.id,
 });
 
 /** The resolution of the text against a registry of Lexica's own module and the shapes, and an evaluation of it with the bindings given. */

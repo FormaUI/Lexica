@@ -48,8 +48,8 @@ describe('lexica', () => {
 
     it('creates a module from the vocabulary it declares', () => {
         const module = lexica.createModule('price', {
-            members: [{ name: 'price', function: 'price', kind: 'property', on: 'string', parameters: [], result: 'number', changes: 'constant', reads: 'fresh' }],
-        }, { price: () => 1 });
+            members: [{ name: 'price', kind: 'property', target: 'string', result: 'number', updates: { changes: 'constant', reads: 'fresh' }, implementation: () => 1 }],
+        });
 
         expect(module.name).toBe('price');
         expect(getError(() => lexica.createModule('price', { members: [{ name: 'other' }] }))).toMatchObject({ kind: 'module' });
@@ -58,7 +58,7 @@ describe('lexica', () => {
     it('resolves an expression against a registry of its built-in vocabulary and the modules a host registers, each registry its own', () => {
         const prices = lexica.createModule('price', {
             types: [{ name: 'item', fields: { price: 'number', quantity: 'number' } }],
-            members: [{ name: 'price', function: 'price', kind: 'property', on: 'string', parameters: [], result: 'number', changes: 'constant', reads: 'fresh' }],
+            members: [{ name: 'price', kind: 'property', target: 'string', result: 'number', updates: { changes: 'constant', reads: 'fresh' } }],
         });
         const registry = lexica.createRegistry([prices]);
         const items = [{ price: 2, quantity: 3 }];
@@ -74,7 +74,7 @@ describe('lexica', () => {
         const registry = lexica.createRegistry();
 
         registry.registerModule(lexica.createModule('double', {
-            members: [{ name: 'double', function: 'double', kind: 'property', on: 'number', parameters: [], result: 'number', changes: 'constant', reads: 'fresh' }],
+            members: [{ name: 'double', kind: 'property', target: 'number', result: 'number', updates: { changes: 'constant', reads: 'fresh' } }],
         }));
 
         expect(registry.resolve('(2).double')).toMatchObject({ kind: 'value', type: 'number' });

@@ -95,6 +95,10 @@ export class LexicaError extends Error {
             parts.push(`in the declaration '${location.declaration}'`);
         }
 
+        if (location.field !== undefined) {
+            parts.push(`at its field '${location.field}'`);
+        }
+
         return parts.join(', ');
     }
 }

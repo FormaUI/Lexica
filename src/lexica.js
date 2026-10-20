@@ -92,6 +92,21 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
         requireCurrent();
 
+        // A declaration without an implementation is resolved against and never invoked, so an expression that uses one, in a branch it may not take among them, is refused before anything is evaluated.
+        const unimplemented = usedDeclarations.find(use => use.declaration.implementation === undefined);
+
+        if (unimplemented !== undefined) {
+            throw LexicaError.module(`'${unimplemented.name}' has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
+        }
+
+        const unimplementedConversion = resolved.usedConversions.find(conversion => conversion.implementation === undefined);
+
+        if (unimplementedConversion !== undefined) {
+            const name = LexicaModule.conversionNameOf(unimplementedConversion);
+
+            throw LexicaError.module(`The conversion from ${name} has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplementedConversion), declaration: name, field: 'implementation' });
+        }
+
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);
         let isEvaluating = false;
 
@@ -150,7 +165,7 @@ const registryOf = modules => {
         },
         getObservationType: name => registry.getObservationType(name),
         getOwner: declaration => registry.getOwner(declaration),
-        getFunction: declaration => registry.getFunction(declaration),
+        getImplementation: declaration => registry.getImplementation(declaration),
         resolve: (source, bindings = {}) => resolutionOf(registry, definitionOf(source), parameterBindingsOf(bindings)),
     });
 };
@@ -159,7 +174,7 @@ const registryOf = modules => {
 const declarations = Object.freeze({
     property: Declarations.property,
     function: Declarations.function,
-    condition: Declarations.condition,
+    predicate: Declarations.predicate,
     valueParameter: Declarations.valueParameter,
     expressionParameter: Declarations.expressionParameter,
     predicateParameter: Declarations.predicateParameter,
@@ -184,7 +199,7 @@ export const lexica = Object.freeze({
     format: source => DefinitionWriter.format(definitionOf(source).expression),
     quote: source => DefinitionWriter.write(definitionOf(source).expression),
     locate,
-    createModule: (name, contents, functions = null) => new LexicaModule(name, contents, functions),
+    createModule: (name, contents) => new LexicaModule(name, contents),
     declarations,
     createRegistry: (modules = []) => registryOf(modules),
     bind,

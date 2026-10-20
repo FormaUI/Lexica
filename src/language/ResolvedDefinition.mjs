@@ -78,6 +78,11 @@ export class ResolvedDefinition {
         return this.#usedDeclarations;
     }
 
+    /** The conversions the request uses, each once, a branch evaluation may not take among them. */
+    get usedConversions() {
+        return [...new Set([...this.#resolutions.values()].filter(resolution => resolution.kind === 'conversion' && resolution.declaration !== null).map(resolution => resolution.declaration))];
+    }
+
     /** What the member node at the pointer resolved to. */
     getResolution(pointer) {
         return this.#resolutions.get(pointer);

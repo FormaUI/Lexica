@@ -282,10 +282,10 @@ export class Evaluator {
 
         const args = receiver === null ? null : this.#evaluateArguments(resolution, null);
 
-        const implementation = this.#moduleRegistry.getFunction(declaration);
+        const implementation = this.#moduleRegistry.getImplementation(declaration);
 
         if (implementation === undefined) {
-            this.#fail(`The module '${this.#moduleRegistry.getOwner(declaration)}' supplies no function for '${declaration.name}'`, pointer);
+            this.#fail(`The module '${this.#moduleRegistry.getOwner(declaration)}' gives '${declaration.name}' no implementation`, pointer);
         }
 
         return { declaration, name: declaration.name, implementation, receiver, args, environment: this.#environment, location: this.#locate(pointer), node };
@@ -716,13 +716,13 @@ export class Evaluator {
      */
     static #compileConversionAttempt(declaration, type, moduleRegistry) {
         const name = LexicaModule.conversionNameOf(declaration);
-        const convert = moduleRegistry.getFunction(declaration);
+        const convert = moduleRegistry.getImplementation(declaration);
         const conforms = Evaluator.#compileTypeCheck(type, moduleRegistry);
         const copyStructure = Evaluator.#compileStructureCopy(type, moduleRegistry);
 
         return (evaluator, value, node) => {
             if (convert === undefined) {
-                evaluator.#fail(`The module '${moduleRegistry.getOwner(declaration)}' supplies no function for the conversion from ${name}`, evaluator.#pointerOf(node));
+                evaluator.#fail(`The module '${moduleRegistry.getOwner(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#pointerOf(node));
             }
 
             const rejection = { isRejected: false, reason: null };
@@ -735,7 +735,7 @@ export class Evaluator {
             let converted;
 
             try {
-                converted = convert(value, { reject });
+                converted = convert({ value, reject });
             } catch (error) {
                 if (error !== rejection) {
                     throw LexicaError.evaluation(`The conversion from ${name} failed: ${error?.message ?? String(error)}`, evaluator.#locate(evaluator.#pointerOf(node)), { cause: error });
@@ -792,9 +792,9 @@ export class Evaluator {
         }
 
         const { type } = resolution;
-        // A condition the request selects carries it out as it declares itself.
+        // A predicate the request selects carries it out as it declares itself.
         const declaration = resolution.contract ?? resolution.declaration;
-        const implementation = this.#moduleRegistry.getFunction(declaration);
+        const implementation = this.#moduleRegistry.getImplementation(declaration);
         const conforms = Evaluator.#compileTypeCheck(type, this.#moduleRegistry);
         const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
         const evaluateArguments = this.#compileArguments(resolution);
@@ -828,7 +828,7 @@ export class Evaluator {
         }
 
         const { buildsObjectRoot } = resolution;
-        const isOptions = resolution.declaration.input === 'options';
+        const isOptions = resolution.declaration.arguments === 'options';
         const argumentPlans = resolution.arguments.map((argument, index) => {
             const { parameter } = argument;
             const isOption = isOptions && !argument.isDefault && parameter.kind !== 'expression' && parameter.kind !== 'predicate';
@@ -1392,15 +1392,15 @@ export class Evaluator {
         return evaluateArguments(this, context);
     }
 
-    /** Carries out a declaration's function, checking that its result is of the declared type. */
+    /** Carries out a declaration's implementation, checking that its result is of the declared type. */
     #invokeMember(declaration, receiver, args, type, node) {
-        return this.#invokeImplementation(declaration, this.#moduleRegistry.getFunction(declaration), value => this.#conforms(value, type), Evaluator.#compileStructureCopy(type, this.#moduleRegistry), receiver, args, type, node);
+        return this.#invokeImplementation(declaration, this.#moduleRegistry.getImplementation(declaration), value => this.#conforms(value, type), Evaluator.#compileStructureCopy(type, this.#moduleRegistry), receiver, args, type, node);
     }
 
-    /** Carries out the function of a declaration whose function, check of its result and copy of the structures it holds are found already. */
+    /** Carries out the implementation of a declaration whose implementation, check of its result and copy of the structures it holds are found already, giving it one object it reads by name. */
     #invokeImplementation(declaration, implementation, conforms, copyStructures, receiver, args, type, node) {
         if (implementation === undefined) {
-            this.#fail(`The module '${this.#moduleRegistry.getOwner(declaration)}' supplies no function for ${Evaluator.#isCondition(declaration) ? `the condition '${declaration.name}'` : `'${declaration.name}'`}`, this.#pointerOf(node));
+            this.#fail(`The module '${this.#moduleRegistry.getOwner(declaration)}' gives ${Evaluator.#isPredicate(declaration) ? `the predicate '${declaration.name}'` : `'${declaration.name}'`} no implementation`, this.#pointerOf(node));
         }
 
         const request = this.#host === null ? null : { declaration, receiver, args, pointer: this.#pointerOf(node) };
@@ -1413,7 +1413,7 @@ export class Evaluator {
         let value;
 
         try {
-            value = implementation(receiver, args, this.#environment, samples);
+            value = implementation({ receiver, args, env: this.#environment, ...(declaration.updates?.reads === 'maintained' ? { samples } : {}) });
         } catch (error) {
             if (this.#callbackErrors.has(error)) {
                 throw error;
@@ -1432,7 +1432,7 @@ export class Evaluator {
         }
 
         if (!conforms(value)) {
-            this.#fail(`${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and ${Evaluator.#isCondition(declaration) ? 'a condition answers' : 'it declares'} ${type}`, this.#pointerOf(node));
+            this.#fail(`${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and ${Evaluator.#isPredicate(declaration) ? 'a predicate answers' : 'it declares'} ${type}`, this.#pointerOf(node));
         }
 
         if (request !== null && this.#host.afterInvoke !== undefined) {
@@ -1446,15 +1446,15 @@ export class Evaluator {
         return copyStructures === null ? value : copyStructures(value);
     }
 
-    /** Whether the declaration carrying a request out is a condition, which a call's fixed argument selects, rather than a member. */
-    static #isCondition(declaration) {
+    /** Whether the declaration carrying a request out is a predicate, which a verb's fixed argument selects, rather than a member. */
+    static #isPredicate(declaration) {
         return declaration.kind === undefined;
     }
 
-    /** What a message names as carrying the request out: the member, or the condition the call selects, with the module that declares it. */
+    /** What a message names as carrying the request out: the member, or the predicate the verb selects, with the module that declares it. */
     #subjectOf(declaration, node) {
-        return Evaluator.#isCondition(declaration)
-            ? `The condition '${declaration.name}' that '${node.name}' selects, declared by the module '${this.#moduleRegistry.getOwner(declaration)}',`
+        return Evaluator.#isPredicate(declaration)
+            ? `The predicate '${declaration.name}' that '${node.name}' selects, declared by the module '${this.#moduleRegistry.getOwner(declaration)}',`
             : `The member '${declaration.name}'`;
     }
 
@@ -1464,7 +1464,7 @@ export class Evaluator {
      */
     #beforeInvoke(request, declaration, node) {
         if (request === null || this.#host.beforeInvoke === undefined) {
-            if (declaration.reads === 'maintained') {
+            if (declaration.updates?.reads === 'maintained') {
                 this.#fail(`${this.#subjectOf(declaration, node)} is maintained by an observation, and reading it waits for the first sample, which a synchronous evaluation cannot`, this.#pointerOf(node));
             }
 
@@ -1821,7 +1821,7 @@ export class Evaluator {
                         return whole.fields?.[candidate ?? resolution.name] ?? Evaluator.#inherited(whole);
                     }
 
-                    return this.#recordOf(node, candidate, resolution?.declaration?.tolerance ?? null);
+                    return this.#recordOf(node, candidate, resolution?.declaration?.updates?.tolerance ?? null);
                 }
                 case 'context':
                     return contextRecord ?? this.#recordOf(node, null, null);

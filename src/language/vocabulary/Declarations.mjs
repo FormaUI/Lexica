@@ -1,5 +1,5 @@
 /**
- * Declarations — the helpers that write a vocabulary's declarations: its parameters, members and conditions, each with the defaults the declaration contract gives it
+ * Declarations — the helpers that write a vocabulary's declarations: its parameters, members and predicates, each in the declaration shape with the defaults its contract gives it
  */
 
 export class Declarations {
@@ -19,20 +19,24 @@ export class Declarations {
         return { name: 'expression', kind: 'expression', type, context: 'item', required: true, fixed: false, nulls: 'accept' };
     }
 
-    /** A required predicate, an expression evaluated against each item whose truthiness its function receives. */
+    /** A required predicate parameter, an expression evaluated against each item whose truthiness its implementation receives. */
     static predicateParameter() {
         return { name: 'expression', kind: 'predicate', type: 'boolean', context: 'item', required: true, fixed: false, nulls: 'accept' };
     }
 
-    /** A property or a function; a function is a call unless it says it is named, and takes its parameters by position unless it says it takes options. */
-    static member(kind, name, on, result, { function: implementation = name, parameters = [], changes = 'observable', reads = 'fresh', misses, tolerance, observations, form, input, isDefault = false } = {}) {
-        const declaration = { name, function: implementation, kind, on, parameters, result, changes, reads };
+    /**
+     * A member of the kind: a property, or a member written with arguments, a function call unless it says it is an indexer, whose arguments are positional unless it says they are options.
+     * Its updates are observable and fresh unless it says otherwise, and a member without a target, which a null target gives, is a module member.
+     */
+    static member(kind, name, target, result, { implementation, parameters = [], updates = { changes: 'observable', reads: 'fresh' }, syntax, arguments: argumentForm, isDefault = false } = {}) {
+        const declaration = { name, kind, ...(target === null ? {} : { target }), result };
 
         if (kind !== 'property') {
-            declaration.form = form ?? 'call';
+            declaration.syntax = syntax ?? 'function-call';
+            declaration.parameters = parameters;
 
             if (parameters.length > 0) {
-                declaration.input = input ?? 'positional';
+                declaration.arguments = argumentForm ?? 'positional';
             }
         }
 
@@ -40,46 +44,29 @@ export class Declarations {
             declaration.default = true;
         }
 
-        if (observations !== undefined) {
-            declaration.observations = observations;
+        if (kind !== 'action' && kind !== 'behavior') {
+            declaration.updates = updates;
         }
 
-        if (implementation === null) {
-            delete declaration.function;
-        }
-
-        if (misses !== undefined) {
-            declaration.misses = misses;
-        }
-
-        if (tolerance !== undefined) {
-            declaration.tolerance = tolerance;
+        if (implementation !== undefined) {
+            declaration.implementation = implementation;
         }
 
         return declaration;
     }
 
     /** A property, a member read without arguments. */
-    static property(name, on, result, options) {
-        return Declarations.member('property', name, on, result, options);
+    static property(name, target, result, options) {
+        return Declarations.member('property', name, target, result, options);
     }
 
     /** A function, a member called or named as an indexer with its arguments. */
-    static function(name, on, result, options) {
-        return Declarations.member('function', name, on, result, options);
+    static function(name, target, result, options) {
+        return Declarations.member('function', name, target, result, options);
     }
 
-    /** A condition: a Boolean of its receivers that its verb, `is` unless it says otherwise, asks by name, carried out by its own function under its own contract, observable unless it says otherwise. */
-    static condition(name, on, implementation, { verb = 'is', changes = 'observable', reads = 'fresh', misses, observations = [] } = {}) {
-        return {
-            name,
-            verb,
-            function: implementation,
-            on,
-            changes,
-            reads,
-            ...(misses === undefined ? {} : { misses }),
-            observations,
-        };
+    /** A predicate: a Boolean of its receivers that its verb, `is` unless it says otherwise, asks by name, carried out by its own implementation under its own updates, observable unless it says otherwise. */
+    static predicate(name, target, implementation, { verb = 'is', updates = { changes: 'observable', reads: 'fresh' } } = {}) {
+        return { name, verb, target, updates, ...(implementation === undefined ? {} : { implementation }) };
     }
 }

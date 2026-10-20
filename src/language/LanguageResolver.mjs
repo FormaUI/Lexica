@@ -11,7 +11,7 @@ import { Type } from './Type.mjs';
 const DATA_TYPE_NAMES = new Set(['number', 'string', 'boolean']);
 
 /** How each form of a declaration is written, and the node that writes it. */
-const FORM_NODE_KINDS = { access: 'member', call: 'call', indexer: 'indexer' };
+const FORM_NODE_KINDS = { access: 'member', 'function-call': 'call', indexer: 'indexer' };
 
 /** No facts, the set a scope starts with: what narrows a stable reference on a path. */
 const NO_FACTS = new Map();
@@ -227,8 +227,8 @@ export class LanguageResolver {
     }
 
     /**
-     * For an equality of a value and a string that names one of the value's Boolean members or one of its conditions, as `input == "disabled"` or `input == state` writes one, the test to write, negated for `!=`: the member, or the condition asked with its verb; nothing for any other.
-     * The name is read exactly, and the member or the condition is one the value's type has.
+     * For an equality of a value and a string that names one of the value's Boolean members or one of its predicates, as `input == "disabled"` or `input == state` writes one, the test to write, negated for `!=`: the member, or the predicate asked with its verb; nothing for any other.
+     * The name is read exactly, and the member or the predicate is one the value's type has.
      */
     #testOf(node, left, right, isNegated) {
         if (!right.isFixed || typeof right.value !== 'string' || (node.right.kind !== 'literal' && node.right.kind !== 'parameter')) {
@@ -237,15 +237,15 @@ export class LanguageResolver {
 
         const receiverType = left.type.toNonNullable();
         const declares = this.#moduleRegistry.getMembers(right.value).some(candidate => candidate.kind === 'property' && candidate.result === 'boolean' && LanguageResolver.#matchesReceiver(candidate, receiverType, new Map()));
-        const condition = declares ? undefined : this.#moduleRegistry.getConditions(right.value).find(candidate => LanguageResolver.#matchesAny(candidate.on, receiverType));
+        const predicate = declares ? undefined : this.#moduleRegistry.getPredicates(right.value).find(candidate => LanguageResolver.#matchesAny(candidate.target, receiverType));
 
-        if (!declares && condition === undefined) {
+        if (!declares && predicate === undefined) {
             return '';
         }
 
         const optional = left.type.isNullable ? { optional: true } : {};
         const name = node.right.kind === 'literal' ? right.value : node.right;
-        const test = declares ? { kind: 'member', target: node.left, name, ...optional } : { kind: 'call', target: node.left, name: condition.verb, arguments: [node.right], ...optional };
+        const test = declares ? { kind: 'member', target: node.left, name, ...optional } : { kind: 'call', target: node.left, name: predicate.verb, arguments: [node.right], ...optional };
 
         return `: a test is the member that answers it, so write '${DefinitionWriter.write(isNegated ? { kind: 'not', operand: test } : test)}'`;
     }
@@ -847,7 +847,7 @@ export class LanguageResolver {
             return `${receiver}.${name}`;
         }
 
-        return declaration.form === 'indexer' ? `${receiver}:${name}[…]` : `${receiver}.${name}(…)`;
+        return declaration.syntax === 'indexer' ? `${receiver}:${name}[…]` : `${receiver}.${name}(…)`;
     }
 
     #resolveLiteral(node) {
@@ -928,7 +928,7 @@ export class LanguageResolver {
 
         // The vocabulary declares one default indexer for any receiver, so only a type holding never fits more than one.
         if (matching.length > 1) {
-            this.#fail(`Default indexers are declared for ${matching.flatMap(declaration => [declaration.on].flat()).join(' and ')}, and ${receiverType.toNonNullable()} fits more than one, so which applies is ambiguous`, pointer);
+            this.#fail(`Default indexers are declared for ${matching.flatMap(declaration => [declaration.target].flat()).join(' and ')}, and ${receiverType.toNonNullable()} fits more than one, so which applies is ambiguous`, pointer);
         }
 
         return this.#resolveMemberOf({ ...node, name: matching[0].name }, pointer, scope, receiverType);
@@ -1124,12 +1124,12 @@ export class LanguageResolver {
         const matching = candidates.filter(candidate => LanguageResolver.#matchesReceiver(candidate, receiverType, new Map()));
 
         if (matching.length === 0) {
-            this.#fail(`'${node.name}' is not available on ${receiverType.toNonNullable()}; it is available on ${candidates.flatMap(candidate => [candidate.on].flat()).join(', ')}`, pointer);
+            this.#fail(`'${node.name}' is not available on ${receiverType.toNonNullable()}; it is available on ${candidates.flatMap(candidate => [candidate.target].flat()).join(', ')}`, pointer);
         }
 
         // The vocabulary declares a name once for any receiver, so only a type holding never fits more than one declaration.
         if (matching.length > 1) {
-            this.#fail(`'${node.name}' is declared for ${matching.flatMap(candidate => [candidate.on].flat()).join(' and ')}, and ${receiverType.toNonNullable()} fits more than one, so which applies is ambiguous`, pointer);
+            this.#fail(`'${node.name}' is declared for ${matching.flatMap(candidate => [candidate.target].flat()).join(' and ')}, and ${receiverType.toNonNullable()} fits more than one, so which applies is ambiguous`, pointer);
         }
 
         const [declaration] = matching;
@@ -1149,7 +1149,7 @@ export class LanguageResolver {
 
         const declared = Type.parse(declaration.result).resolveTypeParameters(resultTypeArguments);
 
-        // A condition carries the request out as it declares itself, so its contract is the one a watch checks and the evaluation follows, beside the declaration the request invokes.
+        // A predicate carries the request out as it declares itself, so its contract is the one a host checks and the evaluation follows, beside the declaration the request invokes.
         const contract = resolved.selected?.contract ?? null;
         const used = contract === null ? { declaration, name: LanguageResolver.#qualifiedNameOf(declaration, receiverType) } : { declaration: contract, name: `${declaration.name}("${contract.name}")` };
 
@@ -1168,7 +1168,7 @@ export class LanguageResolver {
     #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#moduleRegistry.getMembers(node.name)) {
         const isAccess = node.kind === 'member';
         const fields = isAccess ? this.#moduleRegistry.getFieldTypes(node.name) : [];
-        const written = candidates.filter(candidate => FORM_NODE_KINDS[candidate.kind === 'property' ? 'access' : candidate.form] === node.kind);
+        const written = candidates.filter(candidate => FORM_NODE_KINDS[candidate.kind === 'property' ? 'access' : candidate.syntax] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
             this.#fail(this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#accessOf(node))}'` : `'${node.name}' is no member of the vocabulary`, pointer);
@@ -1240,13 +1240,13 @@ export class LanguageResolver {
 
     /** Refuses a member written in a form its declaration does not take, with the form it does: a property is accessed, and a function called or named as its declaration says. */
     #checkForm(declaration, node, pointer) {
-        const form = declaration.kind === 'property' ? 'access' : declaration.form;
+        const form = declaration.kind === 'property' ? 'access' : declaration.syntax;
 
         if (FORM_NODE_KINDS[form] === node.kind) {
             return;
         }
 
-        const described = { access: 'is a property', call: 'uses call syntax', indexer: 'is an indexer' }[form];
+        const described = { access: 'is a property', 'function-call': 'uses call syntax', indexer: 'is an indexer' }[form];
 
         // An indexer takes one key in brackets, which a node written another way may not give.
         if (form === 'indexer' && node.arguments?.length !== 1) {
@@ -1264,7 +1264,7 @@ export class LanguageResolver {
         switch (form) {
             case 'access':
                 return LanguageResolver.#accessOf(node);
-            case 'call':
+            case 'function-call':
                 return { kind: 'call', target, name, arguments: node.kind === 'indexer' ? [node.argument] : [], ...optional };
             default:
                 return { kind: 'indexer', target, name, argument: node.arguments[0], ...optional };
@@ -1290,7 +1290,7 @@ export class LanguageResolver {
             this.#fail(`'${declaration.name}' takes no argument`, given[0].pointer);
         }
 
-        if (declaration.input !== 'options') {
+        if (declaration.arguments !== 'options') {
             if (given.length > parameters.length) {
                 const count = parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`;
 
@@ -1334,7 +1334,7 @@ export class LanguageResolver {
         let selected;
 
         // An options object is an object expression: one no other encloses builds the outermost object, whose fields are its options, and any other builds within the one enclosing it; each option is in scope after its value, as a field is.
-        const optionsObject = declaration.input === 'options' && supplied.size > 0 ? (node.kind === 'indexer' ? node.argument : node.arguments[0]) : null;
+        const optionsObject = declaration.arguments === 'options' && supplied.size > 0 ? (node.kind === 'indexer' ? node.argument : node.arguments[0]) : null;
         const objectExpression = optionsObject !== null && scope.objectRoot === null ? optionsObject : null;
         let argumentScope = scope;
 
@@ -1493,51 +1493,51 @@ export class LanguageResolver {
                 return { selected: { name, type: Type.parse(event.data) } };
             }
             default:
-                return { selected: { name, type: Type.createNamedType('boolean'), contract: this.#conditionFor(name, declaration, receiverType, pointer) } };
+                return { selected: { name, type: Type.createNamedType('boolean'), contract: this.#predicateFor(name, declaration, receiverType, pointer) } };
         }
     }
 
     /**
-     * The condition of the name that applies to the receiver and that the verb asks, the call's name, whose declaration carries the request out: its function, how it changes and the observations that cover it.
-     * A receiver of unknown type selects none, and takes any name a condition of the verb has; a name no condition of the verb has, one the receiver's type answers to another verb, and one no condition of the receiver's type has, are refused, naming those it has.
+     * The predicate of the name that applies to the receiver and that the verb asks, the call's name, whose declaration carries the request out: its implementation, how it changes and the observations that cover it.
+     * A receiver of unknown type selects none, and takes any name a predicate of the verb has; a name no predicate of the verb has, one the receiver's type answers to another verb, and one no predicate of the receiver's type has, are refused, naming those it has.
      */
-    #conditionFor(name, declaration, receiverType, pointer) {
+    #predicateFor(name, declaration, receiverType, pointer) {
         const verb = declaration.name;
         const written = `'${verb}'`;
-        const namesOf = predicate => this.#moduleRegistry.conditionNames.filter(other => this.#moduleRegistry.getConditions(other).some(predicate));
-        const all = this.#moduleRegistry.getConditions(name);
-        const conditions = all.filter(candidate => candidate.verb === verb);
+        const namesOf = test => this.#moduleRegistry.predicateNames.filter(other => this.#moduleRegistry.getPredicates(other).some(test));
+        const all = this.#moduleRegistry.getPredicates(name);
+        const predicates = all.filter(candidate => candidate.verb === verb);
         const isOfUnknownType = LanguageResolver.#isOfUnknownType(receiverType);
 
-        // A condition another verb asks of the receiver is written with that verb, the one question it is.
-        const asked = all.find(candidate => candidate.verb !== verb && (isOfUnknownType || LanguageResolver.#matchesAny(candidate.on, receiverType)));
+        // A predicate another verb asks of the receiver is written with that verb, the one question it is.
+        const asked = all.find(candidate => candidate.verb !== verb && (isOfUnknownType || LanguageResolver.#matchesAny(candidate.target, receiverType)));
 
-        if (asked !== undefined && !conditions.some(candidate => isOfUnknownType || LanguageResolver.#matchesAny(candidate.on, receiverType))) {
+        if (asked !== undefined && !predicates.some(candidate => isOfUnknownType || LanguageResolver.#matchesAny(candidate.target, receiverType))) {
             this.#fail(`'${name}' is asked with '${asked.verb}', not ${written}: write '.${asked.verb}(${DefinitionWriter.write({ kind: 'literal', value: name })})'`, pointer);
         }
 
-        if (conditions.length === 0) {
+        if (predicates.length === 0) {
             const names = namesOf(candidate => candidate.verb === verb);
 
-            this.#fail(`'${name}' is no condition ${written} asks${names.length === 0 ? '' : `; it asks ${names.join(', ')}`}${this.#presenceMemberOf(verb, name, receiverType)}`, pointer);
+            this.#fail(`'${name}' is no predicate ${written} asks${names.length === 0 ? '' : `; it asks ${names.join(', ')}`}${this.#presenceMemberOf(verb, name, receiverType)}`, pointer);
         }
 
         if (isOfUnknownType) {
             return null;
         }
 
-        const [condition] = conditions.filter(candidate => LanguageResolver.#matchesAny(candidate.on, receiverType));
+        const [predicate] = predicates.filter(candidate => LanguageResolver.#matchesAny(candidate.target, receiverType));
 
-        if (condition === undefined) {
-            const available = namesOf(candidate => candidate.verb === verb && LanguageResolver.#matchesAny(candidate.on, receiverType));
+        if (predicate === undefined) {
+            const available = namesOf(candidate => candidate.verb === verb && LanguageResolver.#matchesAny(candidate.target, receiverType));
 
-            this.#fail(`'${name}' is a condition of ${conditions.flatMap(candidate => [candidate.on].flat()).join(', ')}, not of ${receiverType.toNonNullable()}${available.length === 0 ? `, which has no condition ${written} asks` : `, whose conditions ${written} asks are ${available.join(', ')}`}`, pointer);
+            this.#fail(`'${name}' is a predicate of ${predicates.flatMap(candidate => [candidate.target].flat()).join(', ')}, not of ${receiverType.toNonNullable()}${available.length === 0 ? `, which has no predicate ${written} asks` : `, whose predicates ${written} asks are ${available.join(', ')}`}`, pointer);
         }
 
-        return condition;
+        return predicate;
     }
 
-    /** For a name `has` asks that no condition has, the Boolean member the receiver's type declares for the presence it names, as `children` names `hasChildren`; nothing for any other verb, name or receiver. */
+    /** For a name `has` asks that no predicate has, the Boolean member the receiver's type declares for the presence it names, as `children` names `hasChildren`; nothing for any other verb, name or receiver. */
     #presenceMemberOf(verb, name, receiverType) {
         if (verb !== 'has' || !/^[a-z]/.test(name)) {
             return '';
@@ -1856,7 +1856,7 @@ export class LanguageResolver {
      */
     static #qualifiedNameOf(declaration, receiverType) {
         const base = receiverType.toNonNullable();
-        const on = [declaration.on].flat().find(text => text !== 'any' && Type.tryMatchType(Type.parse(text), base, new Map()));
+        const on = [declaration.target].flat().find(text => text !== 'any' && Type.tryMatchType(Type.parse(text), base, new Map()));
 
         if (on === undefined) {
             return declaration.name;
@@ -1879,7 +1879,7 @@ export class LanguageResolver {
 
     /** Whether the declaration applies to the receiver, recording the arguments of the type parameters its types write. */
     static #matchesReceiver(declaration, receiverType, typeArguments) {
-        return LanguageResolver.#matchesAny(declaration.on, receiverType, typeArguments);
+        return LanguageResolver.#matchesAny(declaration.target, receiverType, typeArguments);
     }
 
     static #matchesAny(on, receiverType, typeArguments = new Map()) {

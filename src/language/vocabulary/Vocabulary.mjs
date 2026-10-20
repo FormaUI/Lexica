@@ -1,6 +1,6 @@
 /**
  * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the members of lists, the conversions between strings, numbers and Booleans,
- * and the verbs that ask the conditions a host declares, with the functions that carry them out
+ * and the verbs that ask the predicates a host declares, each carrying its implementation
  */
 
 import { Declarations } from './Declarations.mjs';
@@ -22,76 +22,69 @@ export class Vocabulary {
     static #module;
 
     /**
-     * Lexica's own module, with the functions that carry its members and conversions out: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's types no other module may declare.
+     * Lexica's own module, each member and conversion carrying its implementation: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's types no other module may declare.
      * A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
      */
     static get module() {
+        const derived = { changes: 'derived', reads: 'derived' };
+
         return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
             members: [
-                property('count', 'list<T>', 'number', { changes: 'derived', reads: 'derived' }),
-                property('first', 'list<T>', 'T?', { changes: 'derived', reads: 'derived' }),
-                property('last', 'list<T>', 'T?', { changes: 'derived', reads: 'derived' }),
-                Declarations.function('item', 'list<T>', 'T?', { form: 'indexer', isDefault: true, changes: 'derived', reads: 'derived', parameters: [valueParameter('index', 'number')] }),
-                // The verbs that ask a condition: the condition's own declaration carries it out, its function, how it changes and the observations that cover it, so declaring each on any receiver selects the condition's own receivers.
-                Declarations.function('is', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
-                Declarations.function('has', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
-                Declarations.function('supports', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
-                Declarations.function('max', 'list<T>', 'number?', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
-                Declarations.function('min', 'list<T>', 'number?', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
-                Declarations.function('sum', 'list<T>', 'number', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
-                Declarations.function('where', 'list<T>', 'list<T>', { changes: 'derived', reads: 'derived', parameters: [predicateParameter()] }),
+                property('count', 'list<T>', 'number', { updates: derived, implementation: ({ receiver }) => receiver.length }),
+                property('first', 'list<T>', 'T?', { updates: derived, implementation: ({ receiver }) => receiver.at(0) ?? null }),
+                property('last', 'list<T>', 'T?', { updates: derived, implementation: ({ receiver }) => receiver.at(-1) ?? null }),
+                // The item at a whole index from zero, null for any other index, a negative one included, which never counts from the end.
+                Declarations.function('item', 'list<T>', 'T?', {
+                    syntax: 'indexer', isDefault: true, updates: derived, parameters: [valueParameter('index', 'number')],
+                    implementation: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
+                }),
+                // The verbs that ask a predicate: the predicate's own declaration carries it out, its implementation, how it changes and the observations that cover it, so declaring each on any receiver selects the predicate's own receivers.
+                Declarations.function('is', 'any', 'boolean', { updates: derived, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
+                Declarations.function('has', 'any', 'boolean', { updates: derived, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
+                Declarations.function('supports', 'any', 'boolean', { updates: derived, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
+                Declarations.function('max', 'list<T>', 'number?', { updates: derived, parameters: [expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
+                Declarations.function('min', 'list<T>', 'number?', { updates: derived, parameters: [expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
+                Declarations.function('sum', 'list<T>', 'number', { updates: derived, parameters: [expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
+                Declarations.function('where', 'list<T>', 'list<T>', { updates: derived, parameters: [predicateParameter()], implementation: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
             ],
 
+            // Each conversion takes the value, never null, and `reject`, which stops it for a value it does not convert.
             conversions: [
-                { from: 'string', to: 'number', function: 'stringToNumber' },
-                { from: 'number', to: 'string', function: 'numberToString' },
-                { from: 'boolean', to: 'string', function: 'booleanToString' },
-                { from: 'string', to: 'boolean', function: 'stringToBoolean' },
+                {
+                    from: 'string',
+                    to: 'number',
+                    implementation: ({ value, reject }) => {
+                        const trimmed = value.replace(SURROUNDING_ASCII_WHITESPACE, '');
+
+                        if (!VALID_FLOATING_POINT_NUMBER.test(trimmed)) {
+                            reject(`${JSON.stringify(value)} is no number, which is written as HTML's valid floating-point number, as -12, 3.5, .5 or 1e3 are`);
+                        }
+
+                        const number = Number(trimmed);
+
+                        if (!Number.isFinite(number)) {
+                            reject(`${JSON.stringify(value)} is too large a number to be finite`);
+                        }
+
+                        return number;
+                    },
+                },
+                // The shortest text that reads back as the same number, as ECMAScript writes it, and negative zero as "0".
+                { from: 'number', to: 'string', implementation: ({ value }) => String(value) },
+                { from: 'boolean', to: 'string', implementation: ({ value }) => String(value) },
+                {
+                    from: 'string',
+                    to: 'boolean',
+                    implementation: ({ value, reject }) => {
+                        if (value !== 'true' && value !== 'false') {
+                            reject(`${JSON.stringify(value)} is no Boolean, which is written "true" or "false"`);
+                        }
+
+                        return value === 'true';
+                    },
+                },
             ],
-        }, Vocabulary.functions);
-    }
-
-    /**
-     * The functions of Lexica's built-in members and conversions: each takes the receiver and the arguments by parameter name; a conversion takes the value, never null, and `reject`, which stops it for a value it does not convert.
-     * @type {Record<string, Function>}
-     */
-    static get functions() {
-        return {
-            stringToNumber: (text, { reject }) => {
-                const trimmed = text.replace(SURROUNDING_ASCII_WHITESPACE, '');
-
-                if (!VALID_FLOATING_POINT_NUMBER.test(trimmed)) {
-                    reject(`${JSON.stringify(text)} is no number, which is written as HTML's valid floating-point number, as -12, 3.5, .5 or 1e3 are`);
-                }
-
-                const number = Number(trimmed);
-
-                if (!Number.isFinite(number)) {
-                    reject(`${JSON.stringify(text)} is too large a number to be finite`);
-                }
-
-                return number;
-            },
-            // The shortest text that reads back as the same number, as ECMAScript writes it, and negative zero as "0".
-            numberToString: number => String(number),
-            booleanToString: value => String(value),
-            stringToBoolean: (text, { reject }) => {
-                if (text !== 'true' && text !== 'false') {
-                    reject(`${JSON.stringify(text)} is no Boolean, which is written "true" or "false"`);
-                }
-
-                return text === 'true';
-            },
-            count: items => items.length,
-            first: items => items.at(0) ?? null,
-            last: items => items.at(-1) ?? null,
-            // The item at a whole index from zero, null for any other index, a negative one included, which never counts from the end.
-            item: (items, { index }) => (Number.isInteger(index) && index >= 0 && index < items.length ? items[index] : null),
-            max: (items, { expression }) => Vocabulary.#extreme(items, expression, Math.max),
-            min: (items, { expression }) => Vocabulary.#extreme(items, expression, Math.min),
-            sum: (items, { expression }) => Vocabulary.#numbers(items, expression).reduce((total, number) => total + number, 0),
-            where: (items, { expression }) => items.filter(item => expression(item) === true),
-        };
+        });
     }
 
     /** The greatest or the least of the numbers an expression produces for the items, or null where it produces none. */

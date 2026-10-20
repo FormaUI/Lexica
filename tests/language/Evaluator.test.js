@@ -26,17 +26,12 @@ const getError = call => {
  * Every implementation records its receiver, so a test sees which invocations ran.
  */
 const createPrices = invoked => new LexicaModule('prices', {
-    observationTypes: [{ name: 'quote', contract: 'maintained', function: 'startQuote' }],
+    observationTypes: [{ name: 'quote', contract: 'maintained', implementation: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
     members: [
-        property('price', 'string', 'number', { changes: 'constant', reads: 'fresh' }),
-        property('rate', 'string', 'number', { changes: 'constant', reads: 'fresh' }),
-        property('quoted', 'string', 'number?', { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }),
+        property('price', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`price:${receiver}`), receiver.length) }),
+        property('rate', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ env }) => env.rate }),
+        property('quoted', 'string', 'number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, implementation: ({ samples: [quote] }) => quote }),
     ],
-}, {
-    price: name => (invoked.push(`price:${name}`), name.length),
-    rate: (_name, _args, env) => env.rate,
-    quoted: (_name, _args, _env, [quote]) => quote,
-    startQuote: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }),
 });
 
 /** An evaluator of the text against a registry holding Lexica's own module and the prices module, with the bindings and the environment given. */
