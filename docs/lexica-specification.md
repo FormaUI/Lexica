@@ -856,7 +856,7 @@ An indexer is selected by the owner of its receiver's type, as a member is, and 
 - **A named indexer**, `x:name[key]`, resolves as an unqualified member does: the owner's indexer of that name wins over every extension's, one applicable extension's indexer resolves, and several are refused as ambiguous when the expression is resolved, the error naming the indexer, its receiver's type and the competing modules.
 - **A default indexer**, `x:[key]`, selects the named indexer designated as the default for its receiver's type: the owner's designated indexer wins, one extension's resolves where the owner designates none, and several are refused as ambiguous, as named ones are. So `device:["mode"]` reads `home`'s `setting`, whatever an extension declares.
 
-Selecting an extension's indexer explicitly, where the owner's wins or several extensions compete, is not specified: no qualified form of an indexer is defined, and an extension's indexer is reached only where unqualified selection gives it.
+Version 32 has no qualified form of an indexer, and selecting an extension's indexer explicitly is deferred beyond it. An extension's indexer is reached only where unqualified selection gives it: one that the owner's indexer of its name outranks is never reached, and one that another extension's competes with is refused as ambiguous wherever it is written.
 
 <a id="namespaces-a-modules-own-collisions"></a>
 
