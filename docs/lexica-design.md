@@ -45,7 +45,7 @@ Lexica evaluates an expression it has resolved against a registry, once and sync
 
 ```js
 const result = registry.evaluate(source, bindings, {
-    environment: { window, document },
+    env: { window, document },
     beforeInvoke(request) { /* observe the read; answer a maintained member's samples */ },
     afterInvoke(request, value) { /* note the value read */ },
     afterEvaluation(outcome) { /* keep or close what the evaluation opened */ },
@@ -53,7 +53,7 @@ const result = registry.evaluate(source, bindings, {
 ```
 
 - **The evaluator.** Lexica evaluates each node of the resolution, invokes each member's implementation with its receiver, its arguments and the environment, checks the value it answers against the member's result type, and fails the evaluation at the member's location with an evaluation error where an implementation throws or answers a value not of that type.
-- **The environment** is whatever the host gives one evaluation that does not belong in the expression, as DOMQL gives the window and the document a query runs against. Lexica passes it to every implementation and never reads it.
+- **The environment**, the host's `env`, is whatever the host gives one evaluation that does not belong in the expression, as DOMQL gives the window and the document a query runs against. Lexica passes it to every implementation and never reads it.
 - **`beforeInvoke(request)`** is called before a member's implementation is invoked, with the request: the member's declaration, its receiver and arguments, and where it stands. It reports every invocation an evaluation attempts, whether it then succeeds, fails or is pending, so an observation covers a read whose implementation throws. For a member that reads maintained values it answers their samples, or that one is pending, and a member whose sample is pending is not invoked and reads as null.
 - **`afterInvoke(request, value)`** is called only after an implementation answered a value of its result type.
 - **`afterEvaluation(outcome)`** is called once, in a `finally`, with the evaluation completed, pending where a sample it read was pending, or failed. The evaluation runs to one of the three synchronously, so none is cancelled while it runs.
