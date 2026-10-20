@@ -15,8 +15,9 @@ describe('Vocabulary', () => {
         }
     };
 
-    it('is a built-in module of its own name, carrying its functions', () => {
-        expect(Vocabulary.module).toMatchObject({ name: 'lexica', isBuiltIn: true });
+    it('is Lexica\'s own module, one module of its own name carrying its functions', () => {
+        expect(Vocabulary.module.name).toBe('lexica');
+        expect(Vocabulary.module).toBe(Vocabulary.module);
         expect(Vocabulary.module.functions).not.toBeNull();
     });
 

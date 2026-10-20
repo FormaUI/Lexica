@@ -36,10 +36,10 @@ describe('LexicaModule', () => {
         expect(messageOf(() => new LexicaModule('charts', { members: [declaration({ name: 'charts' })] }, {}))).toContain("'zoom'");
     });
 
-    it('is built in only where createBuiltIn makes it, whatever its name', () => {
-        expect(new LexicaModule('builtIn', {}).isBuiltIn).toBe(false);
-        expect(LexicaModule.createBuiltIn('host', {}).isBuiltIn).toBe(true);
-        expect(Vocabulary.module.isBuiltIn).toBe(true);
+    it('offers no way to make a module exempt from the registry\'s rules, whatever its name', () => {
+        expect(LexicaModule.createBuiltIn).toBeUndefined();
+        expect('isBuiltIn' in new LexicaModule('lexica', {})).toBe(false);
+        expect(Vocabulary.module).toBe(Vocabulary.module);
     });
 
     it('refuses a declaration without its observation coverage', () => {

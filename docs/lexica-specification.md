@@ -2154,13 +2154,13 @@ A member may declare a tolerance for its numeric result and every number within 
 
 ### Extensions
 
-An extension adds members under one name of its own, a member of a built-in type whose value carries the extension's members: `viewport.scroll({ axis = "inline" })` is a scroll extension's view of an element along an axis, and `canScrollForward` is one of its members.
+An extension adds members to the types it declares and to any other module's, a view whose value carries further members among them: `viewport.scroll({ axis = "inline" })` is a scroll extension's view of an element along an axis, and `canScrollForward` is one of its members.
 
-The name is the extension's namespace: a member it declares on a type it does not own is named for the extension, and on a type of its own it names its members freely. A member whose name is already declared for an overlapping receiver, by the built-in vocabulary or by another module, is refused at registration, so a module named as a built-in member or condition cannot add it on that member's or condition's receivers.
+It names its members freely, on its own types and on any other. A member whose name is already declared for an overlapping receiver, by Lexica, by the host's module or by any other, is refused at registration.
 
-Its conditions follow the same rule: on a type it does not own it names a condition for itself, and on its own types it names them freely; a name already declared for an overlapping receiver is refused, whatever its verb.
+Its conditions follow the same rule: it names them freely on any type, and a name already declared for an overlapping receiver is refused, whatever its verb.
 
-Types, event types and observation types each share one namespace across every module, the built-in one included, and a name already declared there is refused at registration too.
+Types, event types and observation types are each named once across every module, Lexica's own included, and a name already declared is refused at registration too.
 
 An extension is a module, made by `createModule` from its name, its declarations and the functions that carry them out, and registered with `registerModule`; a declaration that breaks the contract is a module error, raised when the module is created or when it is registered.
 
@@ -2733,7 +2733,7 @@ In this section: [Queries and values](#queries-and-values) · [Chains and member
 | --- | --- | --- |
 | Vocabulary | A set of types and their declared members | [Vocabulary contracts](#vocabulary-contracts) |
 | Built-in vocabulary | The vocabulary supplied with DOMQL | [Built-in vocabulary](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#built-in-vocabulary) |
-| Extension | A vocabulary registered under its own name | [Extensions](#extensions) |
+| Extension | A module that adds vocabulary to the types it declares and to any other module's | [Extensions](#extensions) |
 | Module | An extension's unit of registration, made by `createModule` and registered with `registerModule` | [Extensions](#extensions) |
 | Condition | A Boolean question of a receiver under a name of its own, asked with its verb | [Conditions](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#conditions) |
 | Verb | `is`, `has` or `supports`, the call that asks a condition by its name | [Conditions](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#conditions) |

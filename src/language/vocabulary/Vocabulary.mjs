@@ -15,12 +15,18 @@ const VALID_FLOATING_POINT_NUMBER = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][
 const SURROUNDING_ASCII_WHITESPACE = /^[\t\n\f\r ]+|[\t\n\f\r ]+$/g;
 
 export class Vocabulary {
-    /** The name of Lexica's built-in module. */
+    /** The name of Lexica's own module. */
     static moduleName = 'lexica';
 
-    /** Lexica's built-in module, with the functions that carry its members and conversions out. */
+    /** @type {LexicaModule | undefined} */
+    static #module;
+
+    /**
+     * Lexica's own module, with the functions that carry its members and conversions out: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's types no other module may declare.
+     * A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
+     */
     static get module() {
-        return LexicaModule.createBuiltIn(Vocabulary.moduleName, {
+        return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
             members: [
                 property('count', 'list<T>', 'number', { changes: 'derived', reads: 'derived' }),
                 property('first', 'list<T>', 'T?', { changes: 'derived', reads: 'derived' }),

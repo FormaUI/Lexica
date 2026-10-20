@@ -6,6 +6,7 @@ import { ObjectUtils } from '../../common/ObjectUtils.mjs';
 import { LexicaError } from '../LexicaError.mjs';
 import { Type } from '../Type.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
+import { Vocabulary } from './Vocabulary.mjs';
 
 export class LexicaRegistry {
     /** @type {Map<string, import('./LexicaModule.mjs').LexicaModule>} */
@@ -47,7 +48,7 @@ export class LexicaRegistry {
         return [...this.#modules.keys()];
     }
 
-    /** Registers a module's declarations, refusing a module whose names are taken or which declares outside its namespace. */
+    /** Registers a module's declarations, refusing a module whose names are taken or whose declarations break the registry's rules, before registering any of them. */
     registerModule(module) {
         if (!LexicaModule.isModule(module)) {
             throw LexicaError.module('A module is registered as createModule makes it', { module: String(module?.name) });
@@ -90,17 +91,12 @@ export class LexicaRegistry {
             LexicaRegistry.#validateObservations(declaration, observationTypes, fail);
         }
 
+        // A module declares members and conditions on any type, its own or another module's, by any name.
         module.conditions.forEach((condition, index) => {
-            // A module adds conditions to its own types, and conditions named for itself to any other, as it does members.
-            if (!module.isBuiltIn && ![condition.on].flat().every(text => ownTypes.has(LexicaRegistry.#outerTypeNameOf(text))) && condition.name !== module.name) {
-                fail(`A condition outside its module's own types is named for the module, '${module.name}'`, condition.name);
-            }
-
             this.#checkCollision(condition, [...this.getConditions(condition.name), ...module.conditions.slice(0, index).filter(other => other.name === condition.name)], fail, 'condition');
         });
 
         module.members.forEach((declaration, index) => {
-            this.#checkNamespace(module, declaration, ownTypes, fail);
             this.#checkCollision(declaration, [...this.getMembers(declaration.name), ...module.members.slice(0, index).filter(other => other.name === declaration.name)], fail);
 
             // A receiver has one default indexer at most, so `:[…]` names one indexer for it.
@@ -124,9 +120,9 @@ export class LexicaRegistry {
                 }
             }
 
-            // A module outside the built-in one converts to or from a type of its own.
-            if (!module.isBuiltIn && !ownTypes.has(conversion.from) && !ownTypes.has(conversion.to)) {
-                fail("A conversion outside the built-in module converts to or from one of its module's own types", name);
+            // A module converts to or from a type of its own; Lexica's own module alone converts between the language's types.
+            if (module !== Vocabulary.module && !ownTypes.has(conversion.from) && !ownTypes.has(conversion.to)) {
+                fail("A conversion converts to or from one of its module's own types", name);
             }
 
             // A conversion is declared once across the registry, whatever its module owns; types of data have no subtypes, so two sources overlap where they are one type.
@@ -240,20 +236,6 @@ export class LexicaRegistry {
     /** The function that carries out the member or the conversion, or undefined where its module supplies none. */
     getFunction(declaration) {
         return this.#modules.get(this.#owners.get(declaration))?.functions?.[declaration.function];
-    }
-
-    /** A module outside the built-in module adds members to its own types, and members named for itself to any other. */
-    #checkNamespace(module, declaration, ownTypes, fail) {
-        if (module.isBuiltIn) {
-            return;
-        }
-
-        const on = Array.isArray(declaration.on) ? declaration.on : [declaration.on];
-        const isOwn = on.every(text => ownTypes.has(LexicaRegistry.#outerTypeNameOf(text)));
-
-        if (!isOwn && declaration.name !== module.name) {
-            fail(`A member outside its module's own types is named for the module, '${module.name}'`, declaration.name);
-        }
     }
 
     /** Refuses a type notation in the module's declarations that names a type neither Lexica nor a module declares. */
@@ -391,10 +373,6 @@ export class LexicaRegistry {
                 }
             }
         }
-    }
-
-    static #outerTypeNameOf(text) {
-        return Type.parse(text)?.name ?? text;
     }
 
     static #overlap(first, second) {

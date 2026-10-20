@@ -210,7 +210,7 @@ export interface LexicaModuleContents {
     eventTypes?: { name: string; data: string }[];
     /** The types of observation it declares. */
     observationTypes?: LexicaObservationTypeDeclaration[];
-    /** The conversions it declares, each to or from one of its own types outside the built-in module, and one for each source and target. */
+    /** The conversions it declares, each to or from one of its own types, and one for each source and target. */
     conversions?: LexicaConversionDeclaration[];
     /** The conditions it declares, each asked by name with its verb. */
     conditions?: LexicaConditionDeclaration[];

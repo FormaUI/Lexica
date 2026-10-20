@@ -69,13 +69,9 @@ export class LexicaModule {
     #conversions;
     #conditions;
     #functions;
-    #isBuiltIn;
-
-    /** Proves a module is built in, which only its own factory can. */
-    static #builtInToken = Symbol('built-in');
 
     /**
-     * @param {string} name The module's name, which names its namespace.
+     * @param {string} name The module's name.
      * @param {object} contents What the module declares.
      * @param {object[]} [contents.members] The properties, operations, sources, actions and behaviors it adds.
      * @param {object[]} [contents.types] The structured types it declares, each with its fields.
@@ -84,9 +80,8 @@ export class LexicaModule {
      * @param {object[]} [contents.conversions] The conversions it declares, each from a type of data to another, with the function that converts.
      * @param {object[]} [contents.conditions] The conditions it declares, each a Boolean of its receivers that its verb asks by its name, with the function that tests it and the observations that cover its changes.
      * @param {Record<string, Function> | null} [functions] The functions that carry the members out, by the key each member names.
-     * @param {symbol} [builtInToken] Held by a built-in module alone.
      */
-    constructor(name, contents = {}, functions = null, builtInToken = undefined) {
+    constructor(name, contents = {}, functions = null) {
         if (!Names.isName(name)) {
             throw LexicaError.module('A module is named as a name is', { module: String(name) });
         }
@@ -133,20 +128,6 @@ export class LexicaModule {
         }
 
         this.#functions = functions;
-        this.#isBuiltIn = builtInToken === LexicaModule.#builtInToken;
-    }
-
-    /**
-     * A built-in module: one of the vocabulary every expression has, Lexica's own or the one its host gives it, whose members stand without a namespace and whose conversions convert between types it does not declare.
-     * A module `createModule` makes is never one, so only the language and its host declare the built-in vocabulary.
-     */
-    static createBuiltIn(name, contents, functions = null) {
-        return new LexicaModule(name, contents, functions, LexicaModule.#builtInToken);
-    }
-
-    /** Whether the module is built in. */
-    get isBuiltIn() {
-        return this.#isBuiltIn;
     }
 
     /** The module's name. */
