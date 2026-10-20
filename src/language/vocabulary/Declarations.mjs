@@ -25,7 +25,7 @@ export class Declarations {
     }
 
     /** A property or an operation; an operation is a call unless it says it is named, and takes its parameters by position unless it says it takes options. */
-    static member(kind, name, on, result, { function: implementation = name, parameters = [], changes = 'observable', reads = 'fresh', misses, observations, form, input, isDefault = false } = {}) {
+    static member(kind, name, on, result, { function: implementation = name, parameters = [], changes = 'observable', reads = 'fresh', misses, tolerance, observations, form, input, isDefault = false } = {}) {
         const declaration = { name, function: implementation, kind, on, parameters, result, changes, reads };
 
         if (kind !== 'property') {
@@ -50,6 +50,10 @@ export class Declarations {
 
         if (misses !== undefined) {
             declaration.misses = misses;
+        }
+
+        if (tolerance !== undefined) {
+            declaration.tolerance = tolerance;
         }
 
         return declaration;

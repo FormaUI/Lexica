@@ -21,6 +21,13 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
  */
 
 /**
+ * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution, with one candidate selected, produced two values;
+ * the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the record of each field of an object an object expression built and of each item of a list a projection built;
+ * and the value each projected item came from where it is a reference. A part with no record inherits its parent's origin and tolerance.
+ * @typedef {{ origin: object, tolerance: number | null, fields?: Record<string, ResultMetadata>, items?: ResultMetadata[], sources?: unknown[] | null }} ResultMetadata
+ */
+
+/**
  * The host an evaluation is carried out for, each hook optional.
  * @typedef {object} Host
  * @property {(request: InvocationRequest) => unknown[] | { pending: true } | undefined} [beforeInvoke] Called before a member's implementation is invoked: answers the samples of a member that reads maintained values, that one is pending, or nothing.
@@ -40,6 +47,12 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
 /** The arguments of a call that takes none. */
 const NO_ARGUMENTS = Object.freeze({});
+
+/** The kinds of expression whose value is the value of one of the expressions it holds, which it selected as it was evaluated. */
+const SELECTING_KINDS = new Set(['conditional', 'coalescing', 'and', 'or']);
+
+/** How many of the records an object expression gave last it keeps for objects whose fields give the same records to share. */
+const RECENT_FIELD_RECORDS = 4;
 
 /** The samples of a call that reads none. */
 const NO_SAMPLES = Object.freeze([]);
@@ -61,6 +74,28 @@ const COMPARISONS = Object.freeze({
     '>=': (a, b) => a >= b,
 });
 
+/** What an evaluation answers: its value and whether a member it read was pending, and the metadata that describes the value, described from the identities its evaluation left where it is first read. */
+class EvaluationResult {
+    #describe;
+    #metadata;
+
+    constructor(value, isPending, describe) {
+        this.value = value;
+        this.isPending = isPending;
+        this.#describe = describe;
+    }
+
+    /** The metadata of the value, frozen, the same each time it is read. */
+    get metadata() {
+        if (this.#describe !== null) {
+            this.#metadata = this.#describe();
+            this.#describe = null;
+        }
+
+        return this.#metadata;
+    }
+}
+
 export class Evaluator {
     /** The fields of each declared structure, each with its type parsed, by the structure: valid for as long as the structure, which is frozen, and released with it. @type {WeakMap<object, [string, Type][]>} */
     static #fieldTypesByStructure = new WeakMap();
@@ -71,6 +106,15 @@ export class Evaluator {
      * @type {WeakMap<object, { registry: object, functions: Map<object, (evaluator: Evaluator, current: unknown) => unknown>, arguments: Map<object, (evaluator: Evaluator, current: unknown) => object | null> }>}
      */
     static #compilationCache = new WeakMap();
+
+    /** The record of each expression that produces a value itself, holding its origin token, by the definition, then the node, then the candidate it selected, or null: a record lives as long as its resolution, and its evaluations share it. @type {WeakMap<object, Map<object, Map<string | null, object>>>} */
+    static #recordsByDefinition = new WeakMap();
+
+    /** The record a part with none of its own takes from each whole record, made once. @type {WeakMap<object, object>} */
+    static #inheritedRecords = new WeakMap();
+
+    /** The records each object expression gave last, the latest first, with the context and the records of the fields each was made of, so an object whose fields give the same records shares one, as items that alternate between branches do. @type {WeakMap<object, { context: object | null, fields: object[], record: object }[]>} */
+    static #recentFieldRecords = new WeakMap();
 
     /** The functions this evaluator's nodes compile to. @type {Map<object, (evaluator: Evaluator, evaluationContext: unknown) => unknown>} */
     #compiledFunctions;
@@ -151,7 +195,7 @@ export class Evaluator {
     }
 
     /**
-     * Evaluates the expression once, synchronously, for the host given, answering the detached result, the identities of what its lists were projected from, and whether a member it read was pending.
+     * Evaluates the expression once, synchronously, for the host given, answering the detached result, the metadata that describes it, and whether a member it read was pending.
      * Without a host, or without its `beforeInvoke`, a member that reads maintained values fails the evaluation, since nothing answers its samples.
      * @param {Host | null} [host] What the evaluation is carried out for.
      */
@@ -275,20 +319,28 @@ export class Evaluator {
 
         let outcome = null;
 
+        // The outcome is made only for a host that is told it, and the metadata only where it is read.
+        const isTold = host?.afterEvaluation !== undefined;
+
         try {
-            const { value, identities } = produce();
+            const result = produce();
+            const isPending = this.#isPending;
 
-            outcome = { kind: this.#isPending ? 'pending' : 'completed', value };
+            if (isTold) {
+                outcome = { kind: isPending ? 'pending' : 'completed', value: result.value };
+            }
 
-            return { value, identities, isPending: this.#isPending };
+            return new EvaluationResult(result.value, isPending, () => this.#metadataOf(result.node, result.value, result.identities, null));
         } catch (error) {
-            outcome = { kind: 'failed', error };
+            if (isTold) {
+                outcome = { kind: 'failed', error };
+            }
 
             throw error;
         } finally {
             this.#host = null;
 
-            if (host?.afterEvaluation !== undefined) {
+            if (isTold) {
                 try {
                     host.afterEvaluation(Object.freeze(outcome));
                 } catch (cleanupError) {
@@ -307,7 +359,7 @@ export class Evaluator {
         }
     }
 
-    /** The detached result, and the identities of the elements its lists were projected from, which the result itself never holds. */
+    /** The detached result, and the metadata that describes it, which the result itself never holds. */
     #evaluateValue() {
         if (this.#resolvedDefinition.kind !== 'value') {
             this.#fail(`A ${this.#resolvedDefinition.kind} request is not evaluated`, '/expression');
@@ -735,9 +787,7 @@ export class Evaluator {
                     return evaluator.#projectionContext.value;
                 }
 
-                const receiver = target(evaluator, evaluationContext);
-
-                return receiver === null ? null : receiver[name] ?? null;
+                return evaluator.#readField(target(evaluator, evaluationContext), name);
             };
         }
 
@@ -1262,7 +1312,7 @@ export class Evaluator {
     /** Reads the member the resolution names of the receiver: a field of its data, a field of the outermost object, or the declaration's function with the arguments it is given. */
     #readResolvedMember(resolution, receiver, node, evaluationContext) {
         if (resolution.kind === 'field') {
-            return receiver[resolution.name] ?? null;
+            return this.#readField(receiver, resolution.name);
         }
 
         if (resolution.kind === 'objectRootField') {
@@ -1272,6 +1322,23 @@ export class Evaluator {
         const args = this.#evaluateArguments(resolution, evaluationContext);
 
         return args === null ? null : this.#invokeMember(resolution.contract ?? resolution.declaration, receiver, args, resolution.type, node);
+    }
+
+    /** A field of a value, the selections that its value's evaluation made, where an object expression of this evaluation built the value, recorded where it is read; null for no receiver. */
+    #readField(receiver, name) {
+        if (receiver === null) {
+            return null;
+        }
+
+        const selections = this.#fieldSelectionsByObject.get(receiver)?.get(name) ?? null;
+
+        if (selections !== null) {
+            const recorded = (this.#selections ??= new Map());
+
+            selections.forEach((selection, node) => recorded.set(node, selection));
+        }
+
+        return receiver[name] ?? null;
     }
 
     /** A completed field of the outermost object, read through a reference to it as the value its evaluation gave, the selections it made recorded where it is read; null for no root, where a reference that can be null is. */
@@ -1620,16 +1687,18 @@ export class Evaluator {
         }
     }
 
-    /** The expression evaluated and detached, with its identities, which the evaluator lets go of once it hands them over, so it holds no element between evaluations. */
+    /** The expression evaluated and detached, with the metadata that describes it, built from the identities the copy left, which the evaluator lets go of once it hands them over, so it holds no element between evaluations. */
     #evaluateResult() {
         this.#sourceElementsByList = new WeakMap();
         this.#fieldSelectionsByObject = new WeakMap();
         this.#selections = null;
 
         try {
-            const value = this.#copyResult(this.#evaluateNode(this.#resolvedDefinition.definition.expression, null));
+            const node = this.#resolvedDefinition.definition.expression;
+            const value = this.#copyResult(this.#evaluateNode(node, null));
 
-            return { value, identities: Evaluator.#withSelections(this.#copiedIdentities, this.#selections) };
+            // The metadata is described where it is first read, from identities no later evaluation changes, so a caller that reads the value alone pays nothing for it.
+            return { node, value, identities: Evaluator.#withSelections(this.#copiedIdentities, this.#selections) };
         } finally {
             this.#copiedIdentities = null;
             this.#selections = null;
@@ -1689,6 +1758,190 @@ export class Evaluator {
         this.#copiedIdentities = null;
 
         return value;
+    }
+
+    /**
+     * The metadata of the value an expression gave at its place in the result, read from the identities its copy left there: the record of the expression that produced it, followed through locals, bodies, `do` blocks, function calls,
+     * object-root fields, the branch or operand a selecting expression selected and the property a bracket property access selected; a field read keeps the record its whole has for that field, or its whole's own.
+     * An object expression's value records each field, and a projection's each item and the reference it came from. The value is undefined where the expression is described for a part read from it, and nothing beyond its record is described then.
+     * The context is the record of the value `context` stands for where the expression stands, the value an object expression follows or the item it projects, or null where there is none.
+     */
+    #metadataOf(node, value, identities, context) {
+        const branches = identities?.branches ?? null;
+
+        for (;;) {
+            switch (node.kind) {
+                case 'local':
+                    node = this.#resolvedDefinition.resolutionOf(node).value;
+                    continue;
+                case 'optionalChain':
+                    node = node.target;
+                    continue;
+                case 'body':
+                    node = node.result;
+                    continue;
+                case 'do':
+                    node = node.body;
+                    continue;
+                case 'functionCall': {
+                    const { targets } = this.#resolvedDefinition.resolutionOf(node);
+                    const called = targets.length === 1 ? targets[0] : targets.find(target => target.function === branches?.get(node));
+
+                    if (called === undefined) {
+                        return this.#recordOf(node, null, null);
+                    }
+
+                    node = called.body;
+                    continue;
+                }
+                case 'member':
+                case 'call':
+                case 'indexer': {
+                    let resolution = this.#resolvedDefinition.resolutionOf(node);
+                    let candidate = null;
+
+                    if (resolution?.kind === 'bracketPropertyAccess') {
+                        candidate = branches?.get(node) ?? null;
+
+                        if (candidate === null) {
+                            return this.#recordOf(node, null, null);
+                        }
+
+                        resolution = resolution.candidates.get(candidate);
+                    }
+
+                    if (resolution?.kind === 'objectRootField') {
+                        node = resolution.value;
+                        continue;
+                    }
+
+                    if (resolution?.kind === 'field') {
+                        const whole = this.#metadataOf(node.target, undefined, identities, context);
+
+                        return whole.fields?.[candidate ?? resolution.name] ?? Evaluator.#inherited(whole);
+                    }
+
+                    return this.#recordOf(node, candidate, resolution?.declaration?.tolerance ?? null);
+                }
+                case 'context':
+                    return context ?? this.#recordOf(node, null, null);
+                case 'object':
+                    return this.#metadataOfObject(node, value, identities, context);
+                default:
+                    if (SELECTING_KINDS.has(node.kind)) {
+                        const selected = branches?.get(node);
+
+                        if (selected === undefined) {
+                            return this.#recordOf(node, null, null);
+                        }
+
+                        node = selected;
+                        continue;
+                    }
+
+                    return this.#recordOf(node, null, null);
+            }
+        }
+    }
+
+    /** The metadata of an object expression's value: an object's record of each field, a projected list's record of each item with the reference each came from, or its own record alone where it gave null or is described for a part read from it. */
+    #metadataOfObject(node, value, identities, context) {
+        // The fields read `context` as the value the expression follows, each item of it where it projects a list, and as the enclosing one where it follows none.
+        const followed = node.target === undefined ? null : this.#metadataOf(node.target, undefined, identities, context);
+
+        if (Array.isArray(value)) {
+            const itemContext = followed === null ? context : Evaluator.#inherited(followed);
+            const items = value.map((item, index) => this.#metadataOfFields(node, item, identities?.items?.[index] ?? null, itemContext));
+            const sources = identities?.elements ?? null;
+
+            return Object.freeze({ origin: this.#recordOf(node, null, null).origin, tolerance: null, items: Object.freeze(items), sources: sources === null ? null : Object.freeze([...sources]) });
+        }
+
+        return value === null ? this.#recordOf(node, null, null) : this.#metadataOfFields(node, value, identities, followed ?? context);
+    }
+
+    /** The record of an object an object expression built, with each field's, by its name in the order written; a field described for a part read from it is described from the selections of the place it is read. */
+    #metadataOfFields(node, object, identities, context) {
+        const { fields } = node;
+        const records = new Array(fields.length);
+
+        for (let index = 0; index < fields.length; index++) {
+            const field = fields[index];
+
+            records[index] = this.#metadataOf(field.value, object === undefined ? undefined : object?.[field.name], object === undefined ? identities : identities?.fields?.[field.name] ?? null, context);
+        }
+
+        // An object whose fields give the records a recent one did, as the items of a list mostly do, shares its record.
+        let recent = Evaluator.#recentFieldRecords.get(node);
+
+        if (recent === undefined) {
+            recent = [];
+            Evaluator.#recentFieldRecords.set(node, recent);
+        }
+
+        for (const kept of recent) {
+            if (kept.context === context && records.every((record, index) => record === kept.fields[index])) {
+                return kept.record;
+            }
+        }
+
+        const byName = Object.create(null);
+
+        for (let index = 0; index < fields.length; index++) {
+            byName[fields[index].name] = records[index];
+        }
+
+        const record = Object.freeze({ origin: this.#recordOf(node, null, null).origin, tolerance: null, fields: Object.freeze(byName) });
+
+        recent.unshift({ context, fields: records, record });
+
+        if (recent.length > RECENT_FIELD_RECORDS) {
+            recent.pop();
+        }
+
+        return record;
+    }
+
+    /** The record of a value an expression produced itself, with the candidate it selected and the tolerance that expression applies: made once for this resolution, its origin a token every evaluation of it shares. */
+    #recordOf(node, candidate, tolerance) {
+        let records = Evaluator.#recordsByDefinition.get(this.#resolvedDefinition);
+
+        if (records === undefined) {
+            records = new Map();
+            Evaluator.#recordsByDefinition.set(this.#resolvedDefinition, records);
+        }
+
+        let byCandidate = records.get(node);
+
+        if (byCandidate === undefined) {
+            byCandidate = new Map();
+            records.set(node, byCandidate);
+        }
+
+        let record = byCandidate.get(candidate);
+
+        if (record === undefined) {
+            record = Object.freeze({ origin: Object.freeze(Object.create(null)), tolerance });
+            byCandidate.set(candidate, record);
+        }
+
+        return record;
+    }
+
+    /** The record a part with none of its own takes: its whole's origin and tolerance, made once for each whole. */
+    static #inherited(whole) {
+        if (whole.fields === undefined && whole.items === undefined) {
+            return whole;
+        }
+
+        let inherited = Evaluator.#inheritedRecords.get(whole);
+
+        if (inherited === undefined) {
+            inherited = Object.freeze({ origin: whole.origin, tolerance: whole.tolerance });
+            Evaluator.#inheritedRecords.set(whole, inherited);
+        }
+
+        return inherited;
     }
 
     /** The identities of a value with the selections made for it beside them, as their `branches`, or the identities alone where none were made. */

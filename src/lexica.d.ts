@@ -51,19 +51,20 @@ export interface LexicaDefinitionField {
 }
 
 /** The values supplied by parameter name, each typed from the value itself. */
-export interface LexicaBindings {
+export interface LexicaBindingValues {
     [name: string]: unknown;
 }
 
-/** A Lexica type: a named type, a list, an event source, an object type or a type parameter, each nullable or not, the type of null, or the type no value has. */
-export interface LexicaType {
-    readonly kind: 'named' | 'list' | 'event' | 'object' | 'typeParameter' | 'null' | 'never';
-    readonly name: string | null;
-    readonly itemType: LexicaType | null;
-    readonly fieldTypes: ReadonlyMap<string, LexicaType> | null;
-    readonly isNullable: boolean;
-    /** The type in Lexica's notation, such as `number?` or `list<string>`. */
-    toString(): string;
+/** Bindings as `lexica.bind` makes them: data a frozen copy of the data given, each reference itself, and the resolution key that says which resolutions they may reuse. */
+export interface LexicaBindings {
+    /** Each binding's type, with each primitive binding's value, which a resolution is reused with. */
+    readonly resolutionKey: string;
+    /** Whether a value is bound to the name. */
+    has(name: string): boolean;
+    /** The value bound to the name: data as a frozen copy, a reference as itself. */
+    get(name: string): unknown;
+    /** The type the value bound to the name gives it, in type notation, as `list<number?>`. */
+    typeOf(name: string): string | undefined;
 }
 
 /** Where a failure is. */
@@ -84,6 +85,12 @@ export declare class LexicaError extends Error {
     readonly name: 'LexicaError';
     readonly kind: 'syntax' | 'structure' | 'validation' | 'module' | 'evaluation';
     readonly location: LexicaErrorLocation;
+    /** A failure of what a caller gave: bindings, a definition's structure or a host's use of the API. */
+    static structure(message: string, location: LexicaErrorLocation): LexicaError;
+    /** A request that does not follow the vocabulary, failing before anything is evaluated. */
+    static validation(message: string, location: LexicaErrorLocation): LexicaError;
+    /** A failure while evaluating, with what caused it. */
+    static evaluation(message: string, location: LexicaErrorLocation, options?: { cause?: unknown }): LexicaError;
 }
 
 /** How a member changes. */
@@ -262,14 +269,112 @@ export interface LexicaModule {
     readonly functions: LexicaModuleFunctions | null;
 }
 
-/** A registry a host resolves expressions against: Lexica's built-in vocabulary and the modules the host registers. No registry is shared. */
+/**
+ * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution,
+ * with one candidate selected, produced two values; the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the records of the fields
+ * an object expression built and of the items a projection built, with the reference each item came from. A part with no record inherits its parent's origin and tolerance, and a record's null tolerance overrides it.
+ */
+export interface LexicaResultMetadata {
+    readonly origin: object;
+    readonly tolerance: number | null;
+    readonly fields?: Readonly<Record<string, LexicaResultMetadata>>;
+    readonly items?: readonly LexicaResultMetadata[];
+    readonly sources?: readonly unknown[] | null;
+}
+
+/** A member's invocation, as the hooks receive it: its declaration as its module declared it, its receiver, its arguments by parameter name, and where it stands. */
+export interface LexicaInvocationRequest {
+    readonly declaration: object;
+    readonly receiver: unknown;
+    readonly args: Readonly<Record<string, unknown>>;
+    readonly pointer: string;
+}
+
+/** How an evaluation ended: completed, pending where a sample a member read was pending, or failed. */
+export type LexicaEvaluationOutcome = { readonly kind: 'completed' | 'pending'; readonly value: unknown } | { readonly kind: 'failed'; readonly error: unknown };
+
+/** What a host gives an evaluation's hooks, each optional. */
+export interface LexicaHost {
+    /** Called before a member's implementation is invoked: answers a maintained member's samples, that one is pending, the implementation then not invoked, or nothing. */
+    beforeInvoke?(request: LexicaInvocationRequest): readonly unknown[] | { readonly pending: true } | undefined;
+    /** Called after an implementation answered a value of its member's result type. */
+    afterInvoke?(request: LexicaInvocationRequest, value: unknown): void;
+    /** Called once as the evaluation ends; its failure after a success fails the evaluation, and after a failure is recorded on it as its `suppressed`. */
+    afterEvaluation?(outcome: LexicaEvaluationOutcome): void;
+}
+
+/** What an evaluation answers: the detached value, whether a member it read was pending, and the metadata that describes the value. */
+export interface LexicaEvaluation {
+    readonly value: unknown;
+    readonly isPending: boolean;
+    readonly metadata: LexicaResultMetadata;
+}
+
+/** An evaluator of a resolution: one binding set and the environment the host owns, evaluating one evaluation at a time while its registry stays at the resolution's revision. */
+export interface LexicaEvaluator {
+    evaluate(host?: LexicaHost | null): LexicaEvaluation;
+    project(event: unknown, host?: LexicaHost | null): LexicaEvaluation;
+    resolveSource(): object | null;
+    resolveAction(): object | null;
+    resolveBehavior(): object;
+    projectResult(result: unknown, execution?: { wasExecuted?: boolean }): unknown;
+}
+
+/** A declaration a resolution uses, with the name a message gives it and where it is used. */
+export interface LexicaUsedDeclaration {
+    readonly declaration: object;
+    readonly name: string;
+    readonly pointer: string;
+}
+
+/** An expression resolved against a registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at. */
+export interface LexicaResolution {
+    readonly definition: LexicaDefinition;
+    readonly kind: 'value' | 'subscription' | 'action' | 'behavior';
+    /** The type of the result, in type notation. */
+    readonly type: string;
+    readonly usedDeclarations: readonly LexicaUsedDeclaration[];
+    /** The type a result path reaches, in type notation, refusing a path the type does not hold. */
+    typeAt(path: readonly (string | number)[]): string;
+    /** Where a pointer stands in the source the definition was read from. */
+    locate(pointer: string): LexicaErrorLocation;
+    /** An evaluator holding bindings of this resolution's key and the environment the host gives it. */
+    createEvaluator(bindings: LexicaBindings | LexicaBindingValues, env?: unknown): LexicaEvaluator;
+}
+
+/** A registry a host resolves expressions against: Lexica's own module and the modules the host registers. No registry is shared. */
 export interface LexicaRegistry {
     /** Registers a module's vocabulary, which every expression resolved afterwards may use. */
     registerModule(module: LexicaModule): void;
-    /** The names of the modules registered, Lexica's built-in one first. */
+    /** The names of the modules registered, Lexica's own first. */
     readonly moduleNames: readonly string[];
-    /** Resolves a text or a definition against the registered vocabulary and the bindings, answering its request kind and the type of its result, or throwing where it does not resolve. */
-    resolve(source: string | LexicaDefinition, bindings?: LexicaBindings): { readonly kind: 'value' | 'subscription' | 'action' | 'behavior'; readonly type: string };
+    /** A number that changes whenever the registry's vocabulary does, so a host that keeps resolutions knows when to resolve again. */
+    readonly revision: number;
+    /** The observation type of the name, as the module that declares it declared it. */
+    getObservationType(name: string): object | undefined;
+    /** The name of the module that declares the declaration. */
+    getOwner(declaration: object): string | undefined;
+    /** The function that carries the declaration out, as its module supplies it. */
+    getFunction(declaration: object): ((...args: any[]) => unknown) | undefined;
+    /** Resolves a source against the registered vocabulary and the bindings, or throws where it does not resolve. */
+    resolve(source: string | LexicaDefinition, bindings?: LexicaBindings | LexicaBindingValues): LexicaResolution;
+}
+
+/** The declaration helpers, each giving a declaration as a module declares it. */
+export interface LexicaDeclarations {
+    property(name: string, on: string | readonly string[], result: string, options?: object): LexicaMemberDeclaration;
+    /** A member the expression calls with arguments. */
+    function(name: string, on: string | readonly string[], result: string, options?: object): LexicaMemberDeclaration;
+    condition(name: string, on: string | readonly string[], implementation: string, options?: object): LexicaConditionDeclaration;
+    valueParameter(name: string, type: string, options?: object): LexicaParameterDeclaration;
+    expressionParameter(type: string, options?: object): LexicaParameterDeclaration;
+    predicateParameter(options?: object): LexicaParameterDeclaration;
+}
+
+/** Result paths: a path's shape checked, and the value it reaches in a result. */
+export interface LexicaPaths {
+    check(path: readonly (string | number)[]): void;
+    valueAt(value: unknown, path: readonly (string | number)[]): unknown;
 }
 
 /** Which build this is and which specification it follows. */
@@ -289,10 +394,18 @@ export interface Lexica {
     validate(definition: unknown): LexicaDefinition;
     /** The canonical text of a text or a definition. */
     format(source: string | LexicaDefinition): string;
+    /** The canonical text of a text or a definition on one line, as a diagnostic quotes it. */
+    quote(source: string | LexicaDefinition): string;
+    /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
+    locate(definition: LexicaDefinition, pointer: string): LexicaErrorLocation;
     /** Creates a module from the vocabulary it declares and the functions that carry its members out. */
     createModule(name: string, contents: LexicaModuleContents, functions?: LexicaModuleFunctions | null): LexicaModule;
-    /** Creates a registry of Lexica's built-in vocabulary and the modules given, which the host registers more modules with. */
+    readonly declarations: LexicaDeclarations;
+    /** Creates a registry of Lexica's own module and the modules given, which the host registers more modules with. */
     createRegistry(modules?: readonly LexicaModule[]): LexicaRegistry;
+    /** Binds values by name: data as a frozen copy, each reference as itself. */
+    bind(values?: LexicaBindingValues): LexicaBindings;
+    readonly paths: LexicaPaths;
     readonly info: LexicaInfo;
 }
 

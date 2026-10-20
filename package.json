@@ -13,8 +13,7 @@
         ".": {
             "types": "./src/lexica.d.ts",
             "default": "./src/lexica.js"
-        },
-        "./*": "./src/*"
+        }
     },
     "files": [
         "src",

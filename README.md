@@ -23,7 +23,7 @@ return {
 
 ## Status
 
-Lexica is in alpha: its specification is `1.0.0-alpha`, and it is being separated from DOMQL, where it began. It reads text into definitions, checks definitions, writes canonical text, creates modules, and resolves an expression against a registry of its built-in vocabulary and the modules a host registers. Evaluating an expression runs through DOMQL until Lexica's evaluator and its host contract are separated from it, as the [implementation plan](docs/lexica-implementation-plan.md) records.
+Lexica is in alpha: its specification is `1.0.0-alpha`, and it is being separated from DOMQL, where it began, as the [implementation plan](docs/lexica-implementation-plan.md) records. It reads text into definitions, checks definitions, writes canonical text, creates modules, binds values, resolves an expression against a registry of its built-in vocabulary and the modules a host registers, and evaluates it for any host, describing the result beside its value.
 
 ## Use it
 
@@ -34,6 +34,13 @@ const source = lexica.parse('{ total = price * quantity }');
 
 lexica.format(source); // '{ total = price * quantity }'
 lexica.info.version; // the version of the language
+
+const registry = lexica.createRegistry();
+const bindings = lexica.bind({ price: 4, quantity: 3 });
+const resolution = registry.resolve(source, bindings);
+
+resolution.type; // '{ total: number }'
+resolution.createEvaluator(bindings).evaluate().value; // { total: 12 }
 ```
 
 Lexica ships as the npm package `@formaui/lexica` and the NuGet package `formaui-net.Lexica`, which serves the bundle as `_content/lexica/lexica.js`. Neither is published yet.

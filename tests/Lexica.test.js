@@ -64,8 +64,8 @@ describe('lexica', () => {
         const items = [{ price: 2, quantity: 3 }];
 
         expect(registry.moduleNames).toEqual(['lexica', 'price']);
-        expect(registry.resolve('items { total = context.price * context.quantity }.count', { items })).toEqual({ kind: 'value', type: 'number' });
-        expect(registry.resolve('"10".price + 1')).toEqual({ kind: 'value', type: 'number' });
+        expect(registry.resolve('items { total = context.price * context.quantity }.count', { items })).toMatchObject({ kind: 'value', type: 'number' });
+        expect(registry.resolve('"10".price + 1')).toMatchObject({ kind: 'value', type: 'number' });
         expect(lexica.createRegistry().moduleNames).toEqual(['lexica']);
         expect(getError(() => lexica.createRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
@@ -77,7 +77,7 @@ describe('lexica', () => {
             members: [{ name: 'double', function: 'double', kind: 'property', on: 'number', parameters: [], result: 'number', changes: 'constant', reads: 'fresh' }],
         }));
 
-        expect(registry.resolve('(2).double')).toEqual({ kind: 'value', type: 'number' });
+        expect(registry.resolve('(2).double')).toMatchObject({ kind: 'value', type: 'number' });
     });
 
     it('says which build it is and which specification it follows', () => {

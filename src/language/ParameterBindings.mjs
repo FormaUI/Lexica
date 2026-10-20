@@ -41,7 +41,7 @@ export class ParameterBindings {
             }
 
             this.#types.set(name, type);
-            this.#values.set(name, value);
+            this.#values.set(name, ParameterBindings.#copyOf(value));
         }
     }
 
@@ -50,7 +50,7 @@ export class ParameterBindings {
         return this.#values.has(name);
     }
 
-    /** The value bound to the name. */
+    /** The value bound to the name: its data a frozen copy of the data given, and each reference the reference itself. */
     get(name) {
         return this.#values.get(name);
     }
@@ -121,6 +121,25 @@ export class ParameterBindings {
         }
 
         return Type.createObjectType(fieldTypes);
+    }
+
+    /** A frozen copy of bound data, through its lists and objects, each reference within it kept as it is and never copied or frozen; an object keeps every own field, `__proto__` among them, as an ordinary field. */
+    static #copyOf(value) {
+        if (value === null || typeof value !== 'object' || ParameterBindings.#nodeKindOf(value) !== null) {
+            return value;
+        }
+
+        if (Array.isArray(value)) {
+            return Object.freeze(value.map(item => ParameterBindings.#copyOf(item)));
+        }
+
+        const copy = {};
+
+        for (const [name, field] of Object.entries(value)) {
+            ObjectUtils.defineDataProperty(copy, name, ParameterBindings.#copyOf(field));
+        }
+
+        return Object.freeze(copy);
     }
 
     /** The kind of node the value is, element, document, documentFragment or shadowRoot, or null where it is none of them. */

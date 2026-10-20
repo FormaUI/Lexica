@@ -75,6 +75,9 @@ export class DefinitionValidator {
     /** Where in the definition its caller supplied each part of a canonical copy came from, for each copy whose validation moved a part. @type {WeakMap<object, DefinitionLocations>} */
     static #suppliedLocations = new WeakMap();
 
+    /** Every canonical definition validation gave, which validating again answers as it is. @type {WeakSet<object>} */
+    static #canonical = new WeakSet();
+
     #locations;
 
     /** The index each part of an interpolated string had in the definition being validated, by the canonical node, for each node whose parts validation moved. @type {WeakMap<object, number[]>} */
@@ -114,8 +117,12 @@ export class DefinitionValidator {
         this.#callerBindingParameters = callerBindingParameters;
     }
 
-    /** Checks the definition's structure, returning its canonical, frozen copy. */
+    /** Checks the definition's structure, returning its canonical, frozen copy; a canonical definition validation already gave is answered as it is, keeping the locations it has. */
     validate(definition) {
+        if (DefinitionValidator.#canonical.has(definition)) {
+            return definition;
+        }
+
         this.#requireProperties(definition, '', { properties: ['version', 'expression'], required: ['version', 'expression'] });
 
         if (definition.version !== Specification.definitionVersion) {
@@ -128,6 +135,8 @@ export class DefinitionValidator {
         if (this.#locations === null && this.#hasMovedParts) {
             DefinitionValidator.#suppliedLocations.set(validated, new DefinitionLocations(validated, this.#partIndexes));
         }
+
+        DefinitionValidator.#canonical.add(validated);
 
         return validated;
     }

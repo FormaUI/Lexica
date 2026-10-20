@@ -20,7 +20,6 @@ export class LanguageResolver {
     #moduleRegistry;
     #bindings;
     #locations;
-    #options;
 
     /** @type {Map<string, object>} */
     #resolutions = new Map();
@@ -35,13 +34,11 @@ export class LanguageResolver {
      * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} moduleRegistry The vocabulary to resolve against.
      * @param {import('./ParameterBindings.mjs').ParameterBindings} bindings What the request's parameters are bound to.
      * @param {import('./TextLocations.mjs').TextLocations | null} locations Where in a text each part of the definition came from.
-     * @param {{ watch?: boolean, acceptPartialObservation?: boolean }} options How the request will be carried out.
      */
-    constructor(moduleRegistry, bindings, locations, options) {
+    constructor(moduleRegistry, bindings, locations) {
         this.#moduleRegistry = moduleRegistry;
         this.#bindings = bindings;
         this.#locations = locations;
-        this.#options = options;
     }
 
     /** Resolves and types the definition, answering what it resolved to or throwing where it cannot. */
@@ -56,10 +53,6 @@ export class LanguageResolver {
 
         if (result.kind !== 'behavior' && !this.#isData(resultType)) {
             this.#fail(`The result would hold ${resultType}, which is no data; read the facts it needs through an object expression`, '/expression');
-        }
-
-        if (this.#options.watch === true && result.kind === 'value') {
-            this.#checkWatch();
         }
 
         return new ResolvedDefinition(definition, result.kind, result.type, this.#resolutions, this.#usedDeclarations, this.#instances);
@@ -1658,22 +1651,6 @@ export class LanguageResolver {
         }
 
         return { type: isNullable ? objectType.toNullable() : objectType, kind, isFixed: false };
-    }
-
-    #checkWatch() {
-        const unobserved = this.#usedDeclarations.filter(use => use.declaration.changes === 'unobserved');
-
-        if (unobserved.length > 0) {
-            this.#fail(`A watch cannot follow ${unobserved.map(use => `'${use.name}'`).join(', ')}, which name no observations`, unobserved[0].pointer);
-        }
-
-        const partlyObservableUses = this.#usedDeclarations.filter(use => use.declaration.changes === 'partly-observable');
-
-        if (partlyObservableUses.length > 0 && this.#options.acceptPartialObservation !== true) {
-            const missesByName = [...new Map(partlyObservableUses.map(use => [use.name, use.declaration.misses])).entries()];
-
-            this.#fail(`A watch over ${missesByName.map(([name, misses]) => `'${name}' (which misses ${misses})`).join(', ')} is refused unless the watch accepts partial observation`, partlyObservableUses[0].pointer);
-        }
     }
 
     /** Resolves the object root, a reference to the outermost object: its type identifies the object expression that builds it and the fields completed where it is written, the fields it reads. */

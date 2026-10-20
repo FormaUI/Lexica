@@ -156,7 +156,9 @@ A binding takes its type from its value, and a caller declares none. It is named
 - Null is a `null`.
 - A list is a `list<T>`, `T` the type its items share, `node` for nodes of different kinds, made nullable where one of them is null: `[element, null]` is a `list<element?>`. A list of nulls alone, `[null]` or `[null, null]`, is a `list<null>`, whose items can only be null, and the empty list is a `list<never>`, which holds no item.
 - An object is of the object type of its fields' types, each typed as a binding is.
-- A list whose items share no type has no type, because DOMQL has no union types and a list holds items of one type, so binding `[1, "two"]` is a structure error.
+- A list whose items share no type has no type, because Lexica has no union types and a list holds items of one type, so binding `[1, "two"]` is a structure error.
+
+Binding keeps a frozen copy of the data it is given, through its lists and objects, and each node as itself, never copied or frozen, a node within data among them. A caller that changes its data afterwards changes nothing bound, and binds anew to supply new data.
 
 A tool that checks an expression without running it takes the same values, or values of the same types, for the bindings, since vocabulary declarations alone cannot establish the type of `panel`.
 

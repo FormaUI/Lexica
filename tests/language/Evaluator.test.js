@@ -45,7 +45,7 @@ const createEvaluator = (text, values, { env = {}, invoked = [] } = {}) => {
     const definition = ParsedTexts.parse(text);
     const bindings = new ParameterBindings(values);
     const locations = ParsedTexts.locationsOf(definition);
-    const resolved = new LanguageResolver(registry, bindings, locations, {}).resolveDefinition(definition);
+    const resolved = new LanguageResolver(registry, bindings, locations).resolveDefinition(definition);
 
     return new Evaluator(registry, resolved, bindings, env, locations);
 };
