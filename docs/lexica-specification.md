@@ -2664,7 +2664,7 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Body | What the root expression, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](#bodies) |
 | Do block | `do … end`, a body evaluated where it stands, giving its result | [Bodies](#bodies) |
 | Local | A name declared with `let` in a body or an object expression, visible after its declaration through its scope, holding a value or a function | [Locals](#locals) |
-| Function | A calculation a call evaluates, a regular function or an arrow function, held by a local and passed as a value | [Functions](#functions) |
+| Function | A calculation evaluated by a call. A module declares a member function; an expression declares a regular or arrow function that can be held by a local or passed as an argument value. | [Functions](#functions), [What a member declares](#what-a-member-declares) |
 | Regular function | `function(…) … end`, whose body is a body | [Functions](#functions-declaring-one) |
 | Arrow function | `parameters => expression`, whose body is one simple expression, a local's initializer or an argument | [Functions](#functions-declaring-one) |
 | Function value | A function read by its name without a call, or an arrow function written as an argument, used within the expression and never part of its result | [Functions as values](#functions-as-values) |
