@@ -77,6 +77,8 @@ A setting is a string, so an example that needs a number converts it, as `device
 | `presence` | The receiver | Invalidation | A room becoming occupied or empty |
 | `reading` | The receiver | Maintained | Each temperature a sensor reports, kept as its sample |
 
+`home` declares the observation target `home`, the home itself, which `placement` observes.
+
 **Events, actions and behaviors.**
 
 | Member | Signature | Data or result |
@@ -2357,14 +2359,16 @@ The categories are facts a host reads: whether a request over an unobserved or a
 
 ### Observations
 
-An **observation type** is a declaration of a module, named once across every module: its name, what it is an observation of, and its contract, which is one of two.
+An **observation type** is a declaration of a module, named once across every module: its name and its contract, which is one of two.
 
 | Contract | What it reports |
 | --- | --- |
 | Invalidation | That a result it covers may have changed, so the host evaluates again, as `state` reports a device's new report. |
 | Maintained | Each sample it keeps, which the member that names it reads as its latest, as `reading` keeps each temperature a sensor reports. |
 
-A member names its observations by type, each of its receiver, of an argument, or of what the observation type declares it is an observation of, as `placement` is of the home. An observable member names observations that cover every change to its result, a partly observable one those it can make, and a member of any other category names none. A member that reads maintained values names a maintained observation, whose sample it reads; no other member does.
+An **observation target** is what a module declares an observation may observe besides the receiver and an argument, by a name of its own: a target independent of any receiver, as the home is, or one found from the receiver, `from: 'receiver'`; and one target, or several, `count: 'many'`. A target that omits `from` is independent of the receiver, and one that omits `count` is one target. Lexica validates the declarations and every reference to them, and the host resolves each target when it starts an observation. `receiver` names the receiver alone, so no module declares a target by that name, and an argument is named as `{ argument }`, never by a bare name, so a target and an argument are never mistaken for each other.
+
+A member names its observations by type, each of its receiver, of an argument, or of an observation target its observation type's module declares, as `placement` is of the home; a target the observation type's module does not declare is refused when the module is registered. A module member, which has no receiver, observes no target found from one, and a maintained observation, which gives one sample, observes no target of several. An observable member names observations that cover every change to its result, a partly observable one those it can make, and a member of any other category names none. A member that reads maintained values names a maintained observation, whose sample it reads; no other member does.
 
 An observation is started where an evaluation's host follows what it read, and stopped where the host no longer does; how a host shares and ends observations is its own.
 
@@ -2434,7 +2438,7 @@ Within one module, a name declared twice for overlapping receivers, a type and i
 
 An extension is a module, made by `createModule` from its name and its declarations, and registered with `registerModule`; a declaration that breaks a contract is a module error, raised when the module is created or when it is registered.
 
-A module can declare types of its own, reference and structured, properties, functions written as function calls or as named indexers, predicates, event sources, event types, observation types, actions and behaviors, and conversions to and from its own types, one for each source type and target, and follows these contracts throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating an expression stays read-only and synchronous.
+A module can declare types of its own, reference and structured, properties, functions written as function calls or as named indexers, predicates, event sources, event types, observation types, observation targets, actions and behaviors, and conversions to and from its own types, one for each source type and target, and follows these contracts throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating an expression stays read-only and synchronous.
 
 <a id="definition"></a>
 
@@ -3016,6 +3020,7 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Verb | `is`, `has` or `supports`, the call that asks a predicate by its name | [Predicates](#predicates) |
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](#observations) |
 | Observation type | A module's declaration of an observation, its contract an invalidation or maintained | [Observations](#observations) |
+| Observation target | What a module declares its observations may observe besides the receiver and an argument, independent of the receiver or found from it, one target or several | [Observations](#observations) |
 | Watch | A host's value request kept current, evaluated again when an observation reports a change | [Observations](#observations) |
 | Event source | A member producing a stream of events | [Events](#events) |
 | Event | Something that happened, delivered by a source | [Events](#events) |
