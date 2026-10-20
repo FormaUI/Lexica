@@ -36,7 +36,7 @@ describe('Vocabulary', () => {
         const [declaration] = registry.getMembers(verb);
 
         expect(registry.getMembers(verb)).toHaveLength(1);
-        expect(declaration).toMatchObject({ kind: 'operation', form: 'call', on: 'any', result: 'boolean', changes: 'derived', reads: 'derived' });
+        expect(declaration).toMatchObject({ kind: 'function', form: 'call', on: 'any', result: 'boolean', changes: 'derived', reads: 'derived' });
         expect(declaration.parameters[0]).toMatchObject({ name: 'name', type: 'string', fixed: true, selects: 'condition' });
     });
 

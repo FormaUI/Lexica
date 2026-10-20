@@ -180,7 +180,7 @@ A name written as a property is accepted whatever it is, since the fields of a b
 
 #### Known calls alone
 
-A name written as a call or an indexer is a member's, written in the form, and given the arguments, that at least one of its declarations takes; a name no member has, one written as a call where every declaration is a property, and one given an argument none takes are validation errors, since data names no operation.
+A name written as a call or an indexer is a member's, written in the form, and given the arguments, that at least one of its declarations takes; a name no member has, one written as a call where every declaration is a property, and one given an argument none takes are validation errors, since data names no function.
 
 <a id="receivers-of-unknown-type-the-request-keeps-its-kind"></a>
 
@@ -212,7 +212,7 @@ Whether the name applies to its receiver is checked once the receiver's type is 
 
 An object expression following such a receiver, or applied to the items of a `list<never>`, resolves its fields against a `never`, so a call in it is still checked; its type is the object type of its fields, made nullable after a null, and a list of it after an empty list, which answers the empty list.
 
-An operation on a `list<never>` runs, as on any list, so it resolves to one declaration as any receiver does: the vocabulary declares a name once for any receiver, and where more than one of its declarations takes a `list<never>`, as only a type holding `never` allows, the request is refused as ambiguous.
+A member read on a `list<never>` runs, as on any list, so it resolves to one declaration as any receiver does: the vocabulary declares a name once for any receiver, and where more than one of its declarations takes a `list<never>`, as only a type holding `never` allows, the request is refused as ambiguous.
 
 <a id="null"></a>
 
@@ -568,7 +568,7 @@ Every name in Lexica is case-sensitive, and nothing normalizes one: `size` and `
 
 #### Members
 
-Members are named in camelCase, properties and operations alike: `size`, `clientSize`, `devicePixelRatio`, `rectRelativeTo`. A member has one name, the same in a text and a definition. `context["clientSize"]` reads that property by the same name.
+Members are named in camelCase, properties and functions alike: `size`, `clientSize`, `devicePixelRatio`, `rectRelativeTo`. A member has one name, the same in a text and a definition. `context["clientSize"]` reads that property by the same name.
 
 <a id="case-sensitive-names-field-names-and-bindings"></a>
 
@@ -582,7 +582,7 @@ Field names and bindings keep the exact spelling their author gave them, so `has
 
 Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a bracket property access, which reads the one its string names, exactly, a data field whose key is no DOMQL name among them, as `o["data-key"]` reads a bound object's field `data-key`. A value passed to a browser API, such as a selector, an attribute's name or value, or an event type, follows that API's own case rules.
 
-A field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `hasFocus` from `hasfocus` reports the ambiguity, and the language is unaffected. How a module names an operation in DOMQL, and which function carries it out, is the module's declaration.
+A field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `hasFocus` from `hasfocus` reports the ambiguity, and the language is unaffected. How a module names a member, and which JavaScript function carries it out, is the module's declaration.
 
 <a id="access-and-calls"></a>
 
@@ -702,7 +702,7 @@ Omitting the indexer name selects the receiver type's default indexer:
 
 #### Member form and parsing
 
-A property must be read as a property. Operations, event sources, actions and behaviors use calls, and only an operation can be declared an indexer, which is invoked as one.
+A property must be read as a property. Functions, event sources, actions and behaviors use calls, and only a function can be declared an indexer, which is invoked as one.
 
 Using another form is a validation error that gives the required form:
 
@@ -786,7 +786,7 @@ A watch follows both what computing the name reads and the selected property's d
 
 #### One property at a time
 
-A name selects one property. `context["grid.columns"]` does not follow a path. Operations require calls; numeric list indexing uses the default indexer, `list:[2]`.
+A name selects one property. `context["grid.columns"]` does not follow a path. Functions require calls; numeric list indexing uses the default indexer, `list:[2]`.
 
 A field is always named, as in `bounds = context["rect"]`.
 
@@ -994,7 +994,7 @@ input.is(state)
 
 #### Members
 
-A test is a property or an operation whose result is a `boolean` or a `boolean?`: `context.is("disabled")` asks whether an element is disabled, and `context.matches(".toolbar > button:first-child")` whether it matches a selector. A test of presence is named with `has`, as `hasChildren` and `hasSelection` are, since `children` and `selection` read what is present.
+A test is a property or a function whose result is a `boolean` or a `boolean?`: `context.is("disabled")` asks whether an element is disabled, and `context.matches(".toolbar > button:first-child")` whether it matches a selector. A test of presence is named with `has`, as `hasChildren` and `hasSelection` are, since `children` and `selection` read what is present.
 
 A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `boolean?`, and `input[state]` reads the Boolean property a binding names, such as `hasChildren`, as the section on bracket property access sets out. The built-in vocabulary's tests are in its table of properties, and a module declares a test as it declares any member.
 
@@ -1988,7 +1988,7 @@ Its function parameters are names of the function, two of one function never the
 
 `name(argument, …)` calls the function a local or a function parameter of that name holds, with as many arguments as it declares function parameters, `seven()` with none, each a [simple expression](#simple-expressions) or an arrow function; each argument is evaluated once, from left to right, in the caller's scope, and the body then evaluates with each function parameter holding its argument. A call is a value a chain continues from, as `first(panel).children.count` does.
 
-An operation of a vocabulary keeps its own form, `context.closest(".row")`, with the arguments its signature takes. A name no local function has is a validation error, which gives the form with `context` where the evaluation context has a member of that name, and so is a call of a local that holds a value, and a call given the wrong number of arguments.
+A function of a vocabulary keeps its own form, `context.closest(".row")`, with the arguments its signature takes. A name no local function has is a validation error, which gives the form with `context` where the evaluation context has a member of that name, and so is a call of a local that holds a value, and a call given the wrong number of arguments.
 
 <a id="functions-as-values"></a>
 
@@ -2096,7 +2096,7 @@ In this section: [What a member declares](#what-a-member-declares) · [Extension
 
 ### What a member declares
 
-A member declares its kind, its signature and its runtime contract. Its kind is `property`, `operation`, `eventSource`, `action` or `behavior`, and the kind of the request a chain ending in it makes follows from it: a property or an operation makes a value request, an event source a subscription, an action an action and a behavior a behavior request. The signature supplies enough information to validate a request before evaluation.
+A member declares its kind, its signature and its runtime contract. Its kind is `property`, `function`, `eventSource`, `action` or `behavior`, and the kind of the request a chain ending in it makes follows from it: a property or a function makes a value request, an event source a subscription, an action an action and a behavior a behavior request. The signature supplies enough information to validate a request before evaluation.
 
 <a id="what-a-member-declares-signature"></a>
 
@@ -2107,7 +2107,7 @@ A member declares its kind, its signature and its runtime contract. Its kind is 
 | Receiver type | Which values have this member |
 | Form | Property access, call or named indexer |
 | Input | Positional arguments or one options object |
-| Parameters | Order, name, type, argument kind, required status or default, null policy, whether it is fixed and, for a fixed one, what it selects, an event type or a condition, for an expression or a predicate, its evaluation context, each item, and for a function, the types of the arguments it is called with, its type being its result's; only an operation declares a function parameter, which is required, has no null policy and is given to no observation |
+| Parameters | Order, name, type, argument kind, required status or default, null policy, whether it is fixed and, for a fixed one, what it selects, an event type or a condition, for an expression or a predicate, its evaluation context, each item, and for a function, the types of the arguments it is called with, its type being its result's; only a function declares a function parameter, which is required, has no null policy and is given to no observation |
 | Result type | The type the member must return |
 
 Optional and nullable are separate. An optional parameter can be omitted; a nullable parameter can receive null. Unless a vocabulary table marks a parameter optional, it is required.
@@ -2118,13 +2118,13 @@ Omitting a required argument is a validation error. Supplying null follows the p
 
 #### Call and indexer forms
 
-An operation, an event source, an action or a behavior is written as a call. An operation may instead declare an indexer with exactly one required value parameter, supplied as its bracketed key. Its input is positional, and its key has the declared parameter type.
+A function, an event source, an action or a behavior is written as a call. A function may instead declare an indexer with exactly one required value parameter, supplied as its bracketed key. Its input is positional, and its key has the declared parameter type.
 
 An indexer may be the default for its receivers. Registration refuses a second default for the same receiver.
 
 Positional input lists parameters in order, with required parameters before optional ones; creating the module checks this order. Options input takes one object whose fields supply the declared parameters.
 
-Changing a member's input is a breaking change, like renaming it. An operation expected to grow uses options from the start.
+Changing a member's input is a breaking change, like renaming it. A function expected to grow uses options from the start.
 
 <a id="what-a-member-declares-evaluation-contract"></a>
 
@@ -2134,7 +2134,7 @@ In addition to the signature, a member declares how it reads, how its result cha
 
 An expression parameter declares the item type it evaluates against and the result type it requires. A predicate accepts a value expression and receives its truthiness as a Boolean.
 
-| List operation | Contract |
+| List function | Contract |
 | --- | --- |
 | `where`, `:[index]`, `first`, `last` | Preserve `T` from a `list<T>` |
 | `where` | Evaluate a predicate against each `T`; the predicate may produce any value |
@@ -2168,7 +2168,7 @@ An extension is a module, made by `createModule` from its name, its declarations
 
 The built-in vocabulary declares the native event types its callers need, and an extension can declare more. A subscription observes an event as it reaches its target and leaves its course to the page.
 
-An extension can define types of its own, properties, operations written as calls or as named indexers, conditions, event sources, event types, observation types, actions and behaviors, and conversions to and from its own types, one for each source type and target, and follows the built-in vocabulary's contract throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating an expression stays read-only and synchronous.
+An extension can define types of its own, properties, functions written as calls or as named indexers, conditions, event sources, event types, observation types, actions and behaviors, and conversions to and from its own types, one for each source type and target, and follows the built-in vocabulary's contract throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating an expression stays read-only and synchronous.
 
 <a id="definition"></a>
 
@@ -2690,10 +2690,10 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Chain input | What a chain starts from: the evaluation context, a literal, a root, a name, a reserved reference, a caller binding, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](#syntax) |
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](#expression-structure-and-precedence) |
 | Receiver | The value before a member access, call or indexer | [Access and calls](#access-and-calls) |
-| Member | A property, operation or other declared facility of a type | [Vocabulary contracts](#vocabulary-contracts) |
+| Member | A property, function or other declared facility of a type | [Vocabulary contracts](#vocabulary-contracts) |
 | Property access | A property read using a dot or brackets | [Property access, calls and indexers](#property-access-calls-and-indexers) |
-| Call | `name(…)`, written after a receiver to invoke an operation, an event source, an action or a behavior, which stay distinct member kinds, or after a local function's name to call it | [Arguments](#arguments) |
-| Named indexer | A keyed operation written after a colon | [Property access, calls and indexers](#property-access-calls-and-indexers) |
+| Call | `name(…)`, written after a receiver to invoke a function, an event source, an action or a behavior, which stay distinct member kinds, or after a local function's name to call it | [Arguments](#arguments) |
+| Named indexer | A keyed function written after a colon | [Property access, calls and indexers](#property-access-calls-and-indexers) |
 | Default indexer | `:[key]`, the indexer a receiver's type declares its default | [Property access, calls and indexers](#property-access-calls-and-indexers-default-indexers) |
 | Argument | An expression supplied to a call, or an indexer's key | [Arguments](#arguments) |
 | Positional and options inputs | What a member's arguments supply: its parameters in order, or one options object whose fields name them | [Arguments](#arguments) |

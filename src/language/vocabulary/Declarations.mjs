@@ -24,7 +24,7 @@ export class Declarations {
         return { name: 'expression', kind: 'predicate', type: 'boolean', context: 'item', required: true, fixed: false, nulls: 'accept' };
     }
 
-    /** A property or an operation; an operation is a call unless it says it is named, and takes its parameters by position unless it says it takes options. */
+    /** A property or a function; a function is a call unless it says it is named, and takes its parameters by position unless it says it takes options. */
     static member(kind, name, on, result, { function: implementation = name, parameters = [], changes = 'observable', reads = 'fresh', misses, tolerance, observations, form, input, isDefault = false } = {}) {
         const declaration = { name, function: implementation, kind, on, parameters, result, changes, reads };
 
@@ -64,9 +64,9 @@ export class Declarations {
         return Declarations.member('property', name, on, result, options);
     }
 
-    /** An operation, a member called or named as an indexer with its arguments. */
-    static operation(name, on, result, options) {
-        return Declarations.member('operation', name, on, result, options);
+    /** A function, a member called or named as an indexer with its arguments. */
+    static function(name, on, result, options) {
+        return Declarations.member('function', name, on, result, options);
     }
 
     /** A condition: a Boolean of its receivers that its verb, `is` unless it says otherwise, asks by name, carried out by its own function under its own contract, observable unless it says otherwise. */

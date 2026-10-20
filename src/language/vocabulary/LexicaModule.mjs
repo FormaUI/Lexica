@@ -7,7 +7,7 @@ import { LexicaError } from '../LexicaError.mjs';
 import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 
-const MEMBER_KINDS = ['property', 'operation', 'eventSource', 'action', 'behavior'];
+const MEMBER_KINDS = ['property', 'function', 'eventSource', 'action', 'behavior'];
 
 /** How a member that is no property is written: called, `context.closest(".row")`, or a named indexer, `context:attribute["data-key"]`. */
 const FORMS = ['call', 'indexer'];
@@ -73,7 +73,7 @@ export class LexicaModule {
     /**
      * @param {string} name The module's name.
      * @param {object} contents What the module declares.
-     * @param {object[]} [contents.members] The properties, operations, sources, actions and behaviors it adds.
+     * @param {object[]} [contents.members] The properties, functions, sources, actions and behaviors it adds.
      * @param {object[]} [contents.types] The structured types it declares, each with its fields.
      * @param {object[]} [contents.eventTypes] The event types it declares, each with the type of its event data.
      * @param {object[]} [contents.observationTypes] The types of observation it declares, each with the function that starts one.
@@ -474,9 +474,9 @@ export class LexicaModule {
         for (const parameter of parameters) {
             LexicaModule.#validateParameter(parameter, name, fail);
 
-            // A function a member is given is called while the member's invocation lasts, which only an operation carries out at once.
-            if (parameter.kind === 'function' && member.kind !== 'operation') {
-                fail(`The function parameter '${parameter.name}' is an operation's, which calls it while its own invocation lasts`, name);
+            // Only a member of kind `function` calls what it is given while its own invocation lasts.
+            if (parameter.kind === 'function' && member.kind !== 'function') {
+                fail(`The parameter '${parameter.name}' belongs to a member of kind 'function', which calls it while its own invocation lasts`, name);
             }
 
             if (parameterNames.has(parameter.name)) {
@@ -494,7 +494,7 @@ export class LexicaModule {
 
     /**
      * Checks how the member is written and what its arguments supply: a property is accessed and takes none, and any other member is a call by default, whose input is positional, its arguments supplying its parameters in order,
-     * so none that is required follows one that is optional, or an options object; or an indexer, an operation whose one key is its one parameter, a required value parameter, so its input is positional.
+     * so none that is required follows one that is optional, or an options object; or an indexer, a function whose one key is its one parameter, a required value parameter, so its input is positional.
      */
     static #validateForm(member, parameters, name, fail) {
         if (member.default !== undefined && member.form !== 'indexer') {
@@ -521,8 +521,8 @@ export class LexicaModule {
         if (member.form === 'indexer') {
             const [parameter] = parameters;
 
-            if (member.kind !== 'operation' || parameters.length !== 1 || parameter.kind !== 'value' || !parameter.required) {
-                fail('An indexer is an operation whose key is its one parameter, a required value parameter', name);
+            if (member.kind !== 'function' || parameters.length !== 1 || parameter.kind !== 'value' || !parameter.required) {
+                fail('An indexer is a function whose key is its one parameter, a required value parameter', name);
             }
 
             if (member.input !== undefined && member.input !== 'positional') {

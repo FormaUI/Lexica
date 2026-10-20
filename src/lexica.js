@@ -158,7 +158,7 @@ const registryOf = modules => {
 /** The declaration helpers, each giving a declaration as a module declares it; `function` declares a member the expression calls. */
 const declarations = Object.freeze({
     property: Declarations.property,
-    function: Declarations.operation,
+    function: Declarations.function,
     condition: Declarations.condition,
     valueParameter: Declarations.valueParameter,
     expressionParameter: Declarations.expressionParameter,

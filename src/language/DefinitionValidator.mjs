@@ -149,7 +149,7 @@ export class DefinitionValidator {
     #validateNode(node, pointer, evaluationContextAvailability) {
         // A member that takes an argument is written as a call or an indexer, so an infix call is no node, and the message says which nodes take its place.
         if (ObjectUtils.isNonArrayObject(node) && node.kind === 'infixCall') {
-            this.#fail(pointer, 'An infixCall is no node: an operation is a call node, or an indexer node for a named or default indexer');
+            this.#fail(pointer, 'An infixCall is no node: a function is a call node, or an indexer node for a named or default indexer');
         }
 
         if (!ObjectUtils.isNonArrayObject(node) || !Object.hasOwn(NODE_PROPERTIES, node.kind)) {

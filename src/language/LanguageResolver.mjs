@@ -1238,7 +1238,7 @@ export class LanguageResolver {
         }
     }
 
-    /** Refuses a member written in a form its declaration does not take, with the form it does: a property is accessed, and an operation called or named as its declaration says. */
+    /** Refuses a member written in a form its declaration does not take, with the form it does: a property is accessed, and a function called or named as its declaration says. */
     #checkForm(declaration, node, pointer) {
         const form = declaration.kind === 'property' ? 'access' : declaration.form;
 

@@ -29,7 +29,7 @@ describe('LexicaRegistry', () => {
         expect(failing({ members: [declaration({ name: 'charts', result: 'list<chart?>' })] })).toContain("'list<chart?>' names the type 'chart'");
         expect(failing({ types: [{ name: 'chart', fields: { axis: 'axis' } }] })).toContain("names the type 'axis'");
         expect(failing({ eventTypes: [{ name: 'chartclick', data: 'chartEvent' }] })).toContain("names the type 'chartEvent'");
-        expect(failing({ members: [declaration({ name: 'charts', kind: 'operation', input: 'positional', parameters: [{ name: 'range', kind: 'value', type: 'range', required: true, nulls: 'propagate' }] })] })).toContain("names the type 'range'");
+        expect(failing({ members: [declaration({ name: 'charts', kind: 'function', input: 'positional', parameters: [{ name: 'range', kind: 'value', type: 'range', required: true, nulls: 'propagate' }] })] })).toContain("names the type 'range'");
     });
 
     it('takes a type the module declares wherever it declares it, and one an earlier module declares, whatever the order of the declarations', () => {
@@ -46,7 +46,7 @@ describe('LexicaRegistry', () => {
     it('refuses a default its parameter does not admit, by its type, its nullability and a structure\'s fields', () => {
         const range = new LexicaModule('ranges', { types: [{ name: 'range', fields: { start: 'number', end: 'number?' } }] });
         const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, range, new LexicaModule('charts', {
-            members: [declaration({ name: 'charts', kind: 'operation', input: 'positional', parameters: [{ name: 'value', kind: 'value', type, required: false, default: value, nulls: 'propagate' }] })],
+            members: [declaration({ name: 'charts', kind: 'function', input: 'positional', parameters: [{ name: 'value', kind: 'value', type, required: false, default: value, nulls: 'propagate' }] })],
         })]);
 
         expect(messageOf(registering('number', 'many'))).toContain("The default of 'value' is no number");

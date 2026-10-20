@@ -6,7 +6,7 @@
 import { Declarations } from './Declarations.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
 
-const { valueParameter, expressionParameter, predicateParameter, property, operation } = Declarations;
+const { valueParameter, expressionParameter, predicateParameter, property } = Declarations;
 
 /** The text a conversion to a number takes: HTML's valid floating-point number, an optional minus, digits with an optional fraction or a fraction alone, and an optional exponent whose sign is optional. */
 const VALID_FLOATING_POINT_NUMBER = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?$/;
@@ -31,15 +31,15 @@ export class Vocabulary {
                 property('count', 'list<T>', 'number', { changes: 'derived', reads: 'derived' }),
                 property('first', 'list<T>', 'T?', { changes: 'derived', reads: 'derived' }),
                 property('last', 'list<T>', 'T?', { changes: 'derived', reads: 'derived' }),
-                operation('item', 'list<T>', 'T?', { form: 'indexer', isDefault: true, changes: 'derived', reads: 'derived', parameters: [valueParameter('index', 'number')] }),
+                Declarations.function('item', 'list<T>', 'T?', { form: 'indexer', isDefault: true, changes: 'derived', reads: 'derived', parameters: [valueParameter('index', 'number')] }),
                 // The verbs that ask a condition: the condition's own declaration carries it out, its function, how it changes and the observations that cover it, so declaring each on any receiver selects the condition's own receivers.
-                operation('is', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
-                operation('has', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
-                operation('supports', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
-                operation('max', 'list<T>', 'number?', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
-                operation('min', 'list<T>', 'number?', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
-                operation('sum', 'list<T>', 'number', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
-                operation('where', 'list<T>', 'list<T>', { changes: 'derived', reads: 'derived', parameters: [predicateParameter()] }),
+                Declarations.function('is', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
+                Declarations.function('has', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
+                Declarations.function('supports', 'any', 'boolean', { function: null, changes: 'derived', reads: 'derived', parameters: [valueParameter('name', 'string', { fixed: true, selects: 'condition' })] }),
+                Declarations.function('max', 'list<T>', 'number?', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
+                Declarations.function('min', 'list<T>', 'number?', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
+                Declarations.function('sum', 'list<T>', 'number', { changes: 'derived', reads: 'derived', parameters: [expressionParameter('number?')] }),
+                Declarations.function('where', 'list<T>', 'list<T>', { changes: 'derived', reads: 'derived', parameters: [predicateParameter()] }),
             ],
 
             conversions: [
