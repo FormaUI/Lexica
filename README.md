@@ -1,8 +1,6 @@
 # Lexica
 
-Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host.
-
-Lexica is a FormaUI product. [DOMQL](https://github.com/FormaUI/DOMQL) uses it to query the DOM and observe the results.
+Lexica is a general-purpose, embeddable language that evaluates scripts against what a host binds, through a vocabulary its modules declare for the domain, and produces immutable data.
 
 ```lexica
 let shown = rows.where(context.visible)

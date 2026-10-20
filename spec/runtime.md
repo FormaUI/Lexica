@@ -130,4 +130,4 @@ The runtime resolves every [kind of request](members.md#members-member-kinds-and
 | Action | Executes it once, receiving its result |
 | Behavior request | Applies it, updates it with new bindings, and disposes it |
 
-Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, snapshots, and the lifetimes of subscriptions, actions and behaviors are the host's. DOMQL carries them out over the runtime, as [its design](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-design.md) sets out.
+Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, snapshots, and the lifetimes of subscriptions, actions and behaviors are the host's. DOMQL carries them out over the runtime, as [its specification](https://github.com/FormaUI/DOMQL/blob/main/spec/README.md) sets out.
