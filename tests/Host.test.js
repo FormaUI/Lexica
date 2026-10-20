@@ -64,6 +64,16 @@ describe('a host of plain data', () => {
         expect(first.metadata.fields.total.origin).not.toBe(first.metadata.fields.cut.origin);
     });
 
+    it('answers a result that is frozen through its value and its metadata, so nothing a caller does changes what an evaluation produced', () => {
+        const result = lexica.createRegistry([createShop()]).resolve('{ total = order.total, codes = codes.where(context != "x") }', { order: 'a', codes: ['TEN', 'x'] })
+            .createEvaluator({ order: 'a', codes: ['TEN', 'x'] }, { prices: { a: 3 } })
+            .evaluate();
+
+        expect([result, result.value, result.value.total, result.value.codes, result.metadata].every(part => Object.isFrozen(part))).toBe(true);
+        expect(() => { result.value = null; }).toThrow(TypeError);
+        expect(result.value.codes).toEqual(['TEN']);
+    });
+
     it('reads a maintained member through the samples its host answers', () => {
         const resolution = lexica.createRegistry([createShop()]).resolve('product.stock', { product: 'p' });
 

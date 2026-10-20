@@ -319,7 +319,7 @@ export interface LexicaHost {
     afterEvaluation?(outcome: LexicaEvaluationOutcome): void;
 }
 
-/** What an evaluation answers: the detached value, whether a member it read was pending, and the metadata that describes the value. */
+/** What an evaluation answers, frozen through its value and its metadata: the detached value, whether a member it read was pending, and the metadata that describes the value. */
 export interface LexicaEvaluation {
     readonly value: unknown;
     readonly isPending: boolean;

@@ -74,7 +74,7 @@ const COMPARISONS = Object.freeze({
     '>=': (a, b) => a >= b,
 });
 
-/** What an evaluation answers: its value and whether a member it read was pending, and the metadata that describes the value, described from the identities its evaluation left where it is first read. */
+/** What an evaluation answers, frozen: its value and whether a member it read was pending, and the metadata that describes the value, described from the identities its evaluation left where it is first read. */
 class EvaluationResult {
     #describe;
     #metadata;
@@ -83,6 +83,7 @@ class EvaluationResult {
         this.value = value;
         this.isPending = isPending;
         this.#describe = describe;
+        Object.freeze(this);
     }
 
     /** The metadata of the value, frozen, the same each time it is read. */
