@@ -2,7 +2,7 @@
 
 <a id="the-examples-vocabulary"></a>
 
-Every example reads one fictional smart home, through the vocabulary of two modules a host registers, `home` and `energy`. Lexica ships neither; they exist so the examples share one model whose types, names and relationships build on each other. A section that needs a declaration this table lacks adds it to the same home.
+Every example reads one fictional smart home, through the vocabulary of two modules a host registers, `home` and `energy`. They are no part of the language, and no part of [Lexica's own vocabulary](vocabulary.md#vocabulary-lexicas-own): Lexica ships neither; they exist so the examples share one model whose types, names and relationships build on each other. A section that needs a declaration this table lacks adds it to the same home.
 
 An example's bindings are supplied parameters, each bound by the host to a value of the type its name suggests: `room` is a `room`, `device` a `device`, `light` a `light`, `thermostat` a `thermostat`, `sensor` a `sensor`, `rooms` a `list<room>`, `name` a `string`, `property` a `string?`, `metered` a `boolean` and `limit` a `number`; any other name an example reads without declaring it is a binding of the type its use requires, as `preferred` and `fallback` are devices, `lamp` a light, and `living` and `bedroom` rooms. Declaring a type supplies no value of it, so an example that reads `room` reads the room its host bound. The examples' home holds those values as fixtures, among them a device whose `level` setting is `"40"`.
 

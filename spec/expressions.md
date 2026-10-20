@@ -4,7 +4,21 @@
 
 Expressions read values, compute new values and choose which values to read. All expressions are typed before evaluation. A branch that is not reached is still validated, but is not evaluated or observed.
 
-In this document: [Expression structure and precedence](#expression-structure-and-precedence) · [Tests](#tests) · [Truthiness](#truthiness) · [Equalities](#equalities) · [Arithmetic](#arithmetic) · [Comparisons](#comparisons) · [Logical expressions, negations and groups](#logical-expressions-negations-and-groups) · [Conditionals](#conditionals) · [Coalescing operators](#coalescing-operators) · [Interpolated strings](#interpolated-strings).
+In this document:
+
+1. [Expression structure and precedence](#expression-structure-and-precedence)
+2. [Tests](#tests)
+3. [Truthiness](#truthiness)
+4. [Equalities](#equalities)
+5. [Arithmetic](#arithmetic)
+6. [Comparisons](#comparisons)
+7. [Logical expressions, negations and groups](#logical-expressions-negations-and-groups)
+8. [Conditionals](#conditionals)
+9. [Do expressions](#do-expressions)
+10. [Coalescing operators](#coalescing-operators)
+11. [Attempts](#attempts)
+12. [Interpolated strings](#interpolated-strings)
+13. [Simple expressions](#simple-expressions)
 
 <a id="expression-structure-and-precedence"></a>
 
@@ -50,7 +64,7 @@ Numeric comparisons may form a chain only when every operator points the same wa
 | --- | --- |
 | Field | `{ from = 1, to = 2 }` |
 | Local | `{ let to = "3", value = @to to "number" }` |
-| Caller binding | `~to` |
+| Parameter reference | `~to` |
 | Property | `range.to` |
 | Call | `range.to()` |
 | Indexer | `range:to[1]` |
@@ -67,7 +81,7 @@ Numeric comparisons may form a chain only when every operator points the same wa
 
 <a id="expression-structure-and-precedence-conditional-bindings"></a>
 
-### Conditional bindings
+### Where a conditional binding stands
 
 A conditional binding exists only where `let` follows `if` or `elseif`. It binds the whole condition after `=`. See [Conditionals](#conditionals).
 
@@ -96,7 +110,7 @@ device.is(state)
 
 <a id="tests-members"></a>
 
-### Members
+### Tests are members
 
 A test is a property or a function whose result is a `boolean` or a `boolean?`, or a predicate, asked with its verb: `it.is("occupied")` asks whether a room is occupied, and `it.has("battery")` whether a device has a battery. A test of presence is asked with `has`, and a state with `is`.
 
@@ -178,27 +192,27 @@ count != 0
 
 <a id="equalities-comparison"></a>
 
-### Comparison
+### How values compare
 
 Strings compare exactly, by code unit; numbers numerically, so `-0 == 0` is true; Booleans by value; and reference values by identity, so `a == b` asks whether they are the same value. Nothing is converted.
 
 <a id="equalities-null"></a>
 
-### Null
+### Equality with null
 
 Null equals only null, and a value of any type is compared with null, one that cannot be null included, so `room.device(name) == null` asks whether the room has a device of that name.
 
 <a id="equalities-types"></a>
 
-### Types
+### Types an equality compares
 
 Two values whose types fit neither way, as `"1" == 1` or a `room` with a `device`, reference types of two hierarchies, are a validation error naming both; a `light` and a `device` fit, as do a `number` and a `number?`. A structured value, a list and an object are compared with null alone, and an event source, an action or a behavior is no operand of `==` or `!=`.
 
 <a id="equalities-results"></a>
 
-### Results
+### What an equality answers
 
-An equality answers a `boolean`, never null, evaluating both operands once, from left to right, and a watch follows what both read. Where it decides a path, a comparison with null [narrows](#truthiness) a stable reference, so `a != null and a.battery` reads a local `a` that is not null; it narrows no member, which is read anew wherever it is written.
+An equality answers a `boolean`, never null, evaluating both operands once, from left to right, and reading what both read. Where it decides a path, a comparison with null [narrows](#truthiness) a stable reference, so `a != null and a.battery` reads a local `a` that is not null; it narrows no member, which is read anew wherever it is written.
 
 <a id="equalities-"></a>
 
@@ -208,7 +222,7 @@ An equality answers a `boolean`, never null, evaluating both operands once, from
 
 <a id="equalities-binding"></a>
 
-### Binding
+### How an equality binds
 
 A dot binds tighter than `==`, and so do an indexer, a cast, a conversion, an attempt and arithmetic, so `device:["mode"] == null` tests the setting and `device.is("active") == false` tests the predicate.
 
@@ -239,13 +253,13 @@ thermostat {
 
 <a id="arithmetic-numbers-alone"></a>
 
-### Numbers alone
+### Arithmetic takes numbers alone
 
 Both operands are numbers, and nothing converts to one but `to`, so `"2" + 1` is a validation error and `+` joins no text. An operand that can be null is a validation error too, so missing data never becomes zero: give it a fallback, `(… ?? 0)`, or test it first.
 
 <a id="arithmetic-precedence"></a>
 
-### Precedence
+### Arithmetic precedence
 
 An arithmetic negation binds tightest of them, then `*`, `/` and `%`, then `+` and `-`; operators of one level associate to the left, so `10 - 3 - 2` is 5, and parentheses group as they do anywhere.
 
@@ -253,7 +267,7 @@ Arithmetic binds tighter than an equality and a comparison and looser than a con
 
 <a id="arithmetic-attempts"></a>
 
-### Attempts
+### Attempts in arithmetic
 
 `try` applies to the conversion or the cast written after it, and that attempt is an operand of arithmetic, so `try x to "number" + 1` is `(try x to "number") + 1`, a validation error since its left operand can be null; `(try x to "number" ?? 0) + 1` gives its fallback first.
 
@@ -265,13 +279,13 @@ Arithmetic binds tighter than an equality and a comparison and looser than a con
 
 <a id="arithmetic-literals"></a>
 
-### Literals
+### Negative literals
 
 An arithmetic negation of a numeric literal is that negative literal in a definition, `-0` included, as the parsed text holds it, so `-5 to "string"` negates a conversion, a validation error since what `-` negates is a number, and `(-5) to "string"` converts the literal `-5`, giving `"-5"`.
 
 <a id="arithmetic-evaluation"></a>
 
-### Evaluation
+### Evaluating arithmetic
 
 The left operand is evaluated, then the right; arithmetic does not short-circuit, and an operand that fails fails it. Numbers are IEEE 754 doubles, so `0.1 + 0.2` is `0.30000000000000004`, and `%` is the remainder with the sign of the dividend, so `-5 % 3` is `-2`.
 
@@ -279,9 +293,9 @@ A division or a remainder by zero, and a result no finite number holds, are eval
 
 <a id="arithmetic-watching"></a>
 
-### Watching
+### What arithmetic reads
 
-Arithmetic reads what its operands read, and observes nothing of its own. A computed number is compared exactly, whatever tolerance a member it reads declares, since a product or a quotient changes the scale a tolerance was set for.
+Arithmetic reads what its operands read, and names no observation of its own. A computed number has no tolerance of its own, whatever tolerance a member it reads declares, since a product or a quotient changes the scale a tolerance was set for.
 
 <a id="comparisons"></a>
 
@@ -298,13 +312,13 @@ room {
 
 <a id="comparisons-numbers-alone"></a>
 
-### Numbers alone
+### Comparisons take numbers alone
 
 Every operand is a number, as arithmetic's are, and nothing converts to one but `to`, so `"a" < "b"` is a validation error and text is ordered by no comparison. An operand that can be null is a validation error too: give it a fallback, `(w ?? 0) < 600`, or test it first. A comparison answers a `boolean`, never null.
 
 <a id="comparisons-chains"></a>
 
-### Chains
+### Comparison chains
 
 `0 < width <= 600` is `0 < width and width <= 600`, its middle operand evaluated once.
 
@@ -314,7 +328,7 @@ A comparison in parentheses is a Boolean, so `(a < b) < c` is a validation error
 
 <a id="comparisons-binding"></a>
 
-### Binding
+### How a comparison binds
 
 Arithmetic binds tighter than a comparison, and a comparison tighter than `not`, `and` and `or`, so `0 < width - padding * 2 <= 600 and enabled` reads as written and `not a < b` is `not (a < b)`.
 
@@ -322,7 +336,7 @@ A comparison stands at an equality's level and apart from it, one of them groupe
 
 <a id="comparisons-evaluation"></a>
 
-### Evaluation
+### Evaluating a comparison
 
 Operands are evaluated from left to right, each at most once, and the first comparison that is false answers false without evaluating the operands after it, as an `and` stops at a falsey operand.
 
@@ -330,9 +344,9 @@ Numbers compare as IEEE 754 doubles, so `-0 < 0` is false; every number an expre
 
 <a id="comparisons-watching"></a>
 
-### Watching
+### What a comparison reads
 
-A watch follows what the operands it evaluated read, and an operand a false comparison left unevaluated contributes nothing. A comparison answers a Boolean, which a snapshot compares exactly, so a member's tolerance does not soften its boundary: `width >= 600` changes each time a width crosses 600, and a boundary that should hold until a value moves further is the vocabulary's to declare.
+An evaluation reads what the operands it evaluated read, and an operand a false comparison left unevaluated reads nothing. A comparison answers a Boolean, which carries no tolerance, so a member's tolerance does not soften its boundary: `(sensor.temperature ?? 0) >= 21` changes each time the temperature crosses 21, and a boundary that should hold until a value moves further is the vocabulary's to declare.
 
 <a id="logical-expressions-negations-and-groups"></a>
 
@@ -350,19 +364,19 @@ device:["label"] or "untitled"
 
 <a id="logical-expressions-negations-and-groups-operands"></a>
 
-### Operands
+### Logical operands
 
 An operand of `and` and `or`, and what `not` negates, is any value, an event source, an action or a behavior being a validation error; each later operand sees what the operands before it guarantee where it is reached, as [narrowing](#truthiness) sets out.
 
 <a id="logical-expressions-negations-and-groups-binding"></a>
 
-### Binding
+### How logical expressions bind
 
 An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighter than `or`, so `device.is("active") or not lamp == null and enabled` combines the negation of the lamp's equality and `enabled` before the device's test. `not` associates to the right, so `not not a` negates `a` twice, and `and not` and `or not` are `and` and `or` of a negation.
 
 <a id="logical-expressions-negations-and-groups-results"></a>
 
-### Results
+### What a logical expression answers
 
 `and` answers its first falsey operand, or its last where every one before it is truthy, and `or` its first truthy operand, or its last where every one before it is falsey, each as it is, never copied or converted: `null and "value"` is null, `0 or 10` is 0 and `"" or "fallback"` is the empty string.
 
@@ -370,7 +384,7 @@ An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighte
 
 <a id="logical-expressions-negations-and-groups-type"></a>
 
-### Type
+### The type of a logical expression
 
 `and` is of the falsey part of each operand before its last, merged with its last, and `or` of the truthy part, merged with its last: a value that can be null has null for its falsey part and itself without null for its truthy part, a Boolean is a Boolean in both, and any other value is truthy only.
 
@@ -386,15 +400,15 @@ Values no one type holds are a validation error, as `it.is("active") and it` in 
 
 <a id="logical-expressions-negations-and-groups-evaluation"></a>
 
-### Evaluation
+### Evaluating a logical expression
 
 Operands are evaluated from left to right, each once, and evaluation stops at the first that decides the result, a falsey one for `and` and a truthy one for `or`, so the operands after it are unreached: they are still validated, but are not evaluated or observed and cannot produce runtime failures.
 
-A watch follows the operands evaluation reached, so it holds what an operand reads only while evaluation reaches it.
+An evaluation reads what the operands it reaches read, and nothing of the others.
 
 <a id="logical-expressions-negations-and-groups-groups"></a>
 
-### Groups
+### Parenthesized expressions
 
 A parenthesized expression holds an expression and adds nothing of its own, so `((room))` is `room`, and as a chain input it can start a chain: `(room).devices.count`.
 
@@ -404,7 +418,7 @@ A parenthesized expression holds an expression and adds nothing of its own, so `
 
 A conditional chooses a branch by truthiness. It starts with `if`, has a `then` branch and an `else` branch, and closes with `end`. Optional `elseif` clauses are tested in order.
 
-Each branch is a [body](bodies-and-functions.md#bodies): one expression, or locals followed by `return`. Every branch of one conditional must use the same result style.
+Each branch is a [body](scripts.md#bodies): one expression, or locals followed by `return`. Every branch of one conditional must use the same result style.
 
 ```lexica
 if metered then light else thermostat end
@@ -441,9 +455,9 @@ The name has the value's type without null. A Boolean remains a Boolean. A value
 
 The name is visible throughout its consequent, including nested expressions. It is absent from its own initializer, the alternative and later `elseif` clauses.
 
-Where no local, field or function parameter of that name is in scope, using the name in its own initializer is a structure error rather than a caller-binding reference: `if let k = k then …` is refused, and `if let k = ~k then …` reads the caller's binding. Where one is in scope, the initializer reads it. In the alternative and later clauses, the name again reads what it reads outside the conditional.
+Where no local, field or function parameter of that name is in scope, using the name in its own initializer is a structure error rather than a read of the script parameter: `if let k = k then …` is refused, and `if let k = ~k then …` reads the script parameter. Where one is in scope, the initializer reads it. In the alternative and later clauses, the name again reads what it reads outside the conditional.
 
-The name follows local naming rules, and may hide an outer local, field or caller binding. Event sources, actions and behaviors cannot be bound as conditional values. `elseif let` follows the same rules.
+The name follows local naming rules, and may hide an outer local, field or script parameter. Event sources, actions and behaviors cannot be bound as conditional values. `elseif let` follows the same rules.
 
 <a id="conditionals-branch-types"></a>
 
@@ -461,11 +475,11 @@ All branches are required. Their types must merge, with object types compared st
 
 <a id="conditionals-evaluation-and-watching"></a>
 
-### Evaluation and watching
+### Evaluating a conditional
 
 Only the selected branch is evaluated. Its value is returned unchanged, including false or null. Every other branch is validated, but not evaluated or observed.
 
-A watch follows each tested condition or bound value through the selected clause, then the selected branch.
+An evaluation reads each tested condition or bound value through the selected clause, then the selected branch.
 
 <a id="conditionals-grouping-and-chain-receivers"></a>
 
@@ -478,6 +492,29 @@ A conditional used as a condition or as an operand of any operator, arithmetic, 
 A conditional cannot be a chain receiver, even when grouped. `(if metered then light else thermostat end).power` is a syntax error. Bind the conditional to a local first, then continue from the local.
 
 There is no `?:` conditional form. Each `elseif` writes its entire condition or binding; it inherits nothing from the previous clause.
+
+<a id="bodies-conditional-branch-style"></a>
+
+### Conditional branch style
+
+Within one conditional, either every branch uses `return` or none does. If one branch declares locals, all its sibling branches must use `return`.
+
+Mixing the styles is a syntax error:
+
+> All branches of this conditional must give their results with return, or none of them
+
+A nested conditional chooses its own style. An `else` whose expression is a conditional, `else if … end`, may follow branches of expressions with a conditional of either style, and may follow branches that use `return` with one whose branches use `return` too, the definition an `elseif` gives, which the canonical text writes as `elseif`. After branches that use `return`, an `else if … end` of expression branches is a syntax error.
+
+<a id="do-expressions"></a>
+<a id="bodies-using-a-bodys-value"></a>
+
+## Do expressions
+
+`do … end` is a [body](scripts.md#bodies) evaluated where it stands, giving its result: `doubled = do let half = warmth / 2 return half * 4 end`.
+
+A `do` block or conditional must be grouped when used as an operand. Neither can be a chain receiver, grouped or not. Bind its value to a local before continuing a chain.
+
+A [simple expression](#simple-expressions) cannot contain a `do` block or a full conditional. An argument that needs such a calculation uses a local holding its value.
 
 <a id="coalescing-operators"></a>
 
@@ -493,9 +530,9 @@ room.device("lamp")?.is("active") ?? true
 
 <a id="coalescing-operators-evaluation"></a>
 
-### Evaluation
+### Evaluating a coalescing operator
 
-The value is evaluated once, and the fallback only where the value is null, so a watch follows what the fallback reads while the value is null alone. False, zero and the empty string are values, which the fallback never replaces.
+The value is evaluated once, and the fallback only where the value is null, so the fallback's reads are made only while the value is null. False, zero and the empty string are values, which the fallback never replaces.
 
 A fallback that evaluation does not reach is still validated, but is not evaluated or observed and cannot produce runtime failures, and a failure of either side that evaluation does reach stays a failure.
 
@@ -507,7 +544,7 @@ A fallback that evaluation does not reach is still validated, but is not evaluat
 
 <a id="coalescing-operators-type"></a>
 
-### Type
+### The type of a coalescing operator
 
 The value and the fallback are of one type, compared as a conditional's branches are, and the whole is of the value's type made non-null where the fallback's is, so `sensor.temperature ?? 0` is a `number`.
 
@@ -521,15 +558,87 @@ A value of the type `null` gives the fallback's type, and `??` after a value tha
 
 <a id="coalescing-operators-grouping"></a>
 
-### Grouping
+### Grouping a coalescing operator
 
 A coalescing operator stands beside `not`, `and`, `or`, an equality and a comparison only where a group holds one of them, so `enabled ?? false and ready` and `a ?? b == null` are syntax errors, while `(enabled ?? false) and ready` and `enabled ?? (ready and visible)` each say what they mean.
+
+<a id="attempts"></a>
+
+## Attempts
+
+`try` attempts the one conversion or cast written after it, and answers null where that operation rejects its value: `try value to "type"` answers the converted value where the conversion accepts the value, and `try target as "type"` answers its target where it is of the type. Its type is the operation's, made nullable.
+
+It handles a value its operation rejects without failing, as `??` handles a missing one, so the two together give a value either way:
+
+```lexica
+device { level = try it:["level"] to "number" ?? 0 }
+(try room.device(name) as "light")?.brightness
+```
+
+A missing setting is null, which converts to null, and malformed text is rejected, so both give zero, and text that converts gives its number; a device that is no light is rejected, so the brightness is null for it, as it is for a missing device.
+
+A [conditional binding](#conditionals) gives the converted value a name where a script uses it more than once, `if let level = try it:["level"] to "number" then … else … end`.
+
+<a id="attempts-one-operation"></a>
+
+### One operation
+
+`try` attempts the one conversion or cast written after it, and nothing else, so it is no general catch of errors: a failure while its value is evaluated, a rejection by a conversion or a strict cast that value holds among them, fails the evaluation as it would anywhere, so `try (device as "light").room.device(name) as "light"` attempts the outer cast alone.
+
+A conversion of a conversion or of a cast is grouped to say which one is attempted, `try (a to "string") to "number"`, so `try a to "string" to "number"` and `try device as "light" to "string"` are syntax errors, as is `try` before anything that is neither, another `try` among them.
+
+<a id="attempts-one-set-of-rules"></a>
+
+### One set of rules
+
+An attempt resolves as its operation does strictly, so a cast to a name that is no reference type or of a target that can never be of it, a conversion to a target no type has, a pair no conversion is declared for, and a nullable value whose type has no conversion are validation errors for both.
+
+It answers a value already of the type as it is, and null for null.
+
+<a id="attempts-a-rejection-alone-is-null"></a>
+
+### A rejection alone is null
+
+A cast rejects a value of another type, and a conversion the value it calls `reject` for. A conversion that throws, rejects with a reason that is no string, rejects and then answers, or answers a value not of its type has a fault, which fails the evaluation whether or not the conversion is attempted.
+
+<a id="attempts-null-means-a-rejection"></a>
+
+### Null means a rejection
+
+For a non-null input, a successful conversion returns a non-null value of its declared target type. A conversion returning null is a fault, including under `try`. Consequently, for a stable bound value, `value != null and try value to "type" == null` is true exactly when the conversion rejects that value.
+
+A cast answers its target itself, so the same holds for `try target as "type"`. Faults remain errors.
+
+<a id="attempts-evaluation"></a>
+
+### Evaluating an attempt
+
+Its value is evaluated once and its operation carried out once, so it reads what its value reads.
+
+<a id="attempts-binding"></a>
+
+### How an attempt binds
+
+`try` binds tighter than `==`, `!=` and `??`, and looser than the operation it attempts, so `try v to "number" == 5` compares the converted value, `(try device as "light") != null` asks whether the device is a light, and `try v to "number" ?? 0` gives its fallback for both null and a rejection.
+
+It stands where an equality operand stands; a conversion of its result groups it, `(try v to "number") to "string"`, and a cast takes none as its target, so `(try a as "device") as "light"` is a syntax error.
+
+A result that keeps the converted number and tells a missing value from a malformed one says which it is beside the value, reading the setting once through a local:
+
+```lexica
+device {
+    let level = it:["level"],
+    level = if let n = try level to "number" then { status = "valid", value = n }
+    elseif level == null then { status = "missing", value = null }
+    else { status = "malformed", value = null } end
+}
+```
 
 <a id="interpolated-strings"></a>
 
 ## Interpolated strings
 
-`$"…"` joins text and inserted values, and so do `$'…'` and the interpolated blocks, `$"""…"""` and `$'''…'''`. Each interpolation is `{`, one [simple expression](access-and-calls.md#simple-expressions), then `}`. Arithmetic `+` does not join text.
+`$"…"` joins text and inserted values, and so do `$'…'` and the interpolated blocks, `$"""…"""` and `$'''…'''`. Each interpolation is `{`, one [simple expression](#simple-expressions), then `}`. Arithmetic `+` does not join text.
 
 ```lexica
 room {
@@ -583,10 +692,65 @@ It cannot settle a fixed argument or a bracket property's possible names, even i
 
 Interpolations evaluate once each, from left to right. A shared local is evaluated once under the local's rules. A failed interpolation fails the entire string; no partial text is returned.
 
-A watch follows the interpolations' dependencies and compares the resulting text exactly. A member's numeric tolerance does not carry into a number inserted as text.
+An evaluation reads what its interpolations read. The string has no tolerance: a member's numeric tolerance does not carry into a number inserted as text.
 
-<a id="interpolated-strings-canonical-text"></a>
+<a id="simple-expressions"></a>
 
-### Canonical text
+## Simple expressions
 
-Canonical text always uses `$"…"`, with text escaped as an ordinary string and braces doubled. Each interpolation's expression is on one line, with no padding inside the braces, and one that begins with an object expression is grouped in parentheses.
+A **simple expression** is an expression allowed in a delimited value position:
+
+- A member call's or local function call's argument.
+- An indexer's key.
+- The name expression in bracket property access.
+- An interpolation in an interpolated string.
+
+Simple expressions include values, references, arithmetic, comparisons, logical expressions, property accesses, indexers, function calls, and object expressions or interpolated strings whose contents are also simple. They also include a simple conditional: one `if` branch and one `else` branch, each containing one simple value.
+
+```lexica
+let calculate = function(degrees, offset) degrees - offset end
+let adjusted = do
+    let doubled = (sensor.temperature ?? 0) * 2
+    return doubled + 1
+end
+return calculate(adjusted, if metered then 10 else 20 end)
+```
+
+<a id="simple-expressions-excluded-constructs"></a>
+
+### Excluded constructs
+
+A simple expression cannot contain a `do` block, a local declaration, a conditional binding, `return`, a function declaration, or a conditional beyond the simple form.
+
+A function declaration is a syntax error there, as anywhere a function stands other than alone as a local's initializer, and so are a local declaration and `return` written where the value itself stands. The others are structure errors that ask for the value to be bound to a local first:
+
+| Invalid expression | Reason |
+| --- | --- |
+| `calculate(do return 10 end)` | Contains a `do` block |
+| `calculate(if let t = sensor.temperature then t else 0 end)` | Contains a conditional binding |
+| `calculate(if metered then return 10 else return 20 end)` | Contains `return` |
+| `$"Total: {do return 10 end}"` | Contains a `do` block |
+
+<a id="simple-expressions-recursive-restrictions"></a>
+
+### Recursive restrictions
+
+The restrictions apply through parentheses, conditional tests and branches, nested calls, indexers, bracket property access, object fields and interpolations. Adding parentheses or line breaks does not change them.
+
+`calculate((do return 10 end))` is refused. `calculate((if metered then 10 else 20 end))` is allowed.
+
+A simple conditional cannot contain another conditional anywhere within it. An `elseif`, a nested conditional in a branch, and a conditional inside a call or interpolation within that branch are all refused.
+
+<a id="simple-expressions-calling-a-function"></a>
+
+### Calling a function in an argument
+
+The restriction applies to what is written at the argument position. A function called there may use locals, `do` blocks, full conditionals and `return` in its own body.
+
+`calculate(double(degrees))` can therefore be valid. `calculate(double)` passes a function itself and is a validation error.
+
+<a id="simple-expressions-validation"></a>
+
+### Validating simple expressions
+
+The grammar names these positions with `simple-expression`. Its productions can reach a parenthesized full expression, so structural validation also enforces the restrictions. It applies equally to parsed text and directly created definitions, and identifies the construct that violates them.

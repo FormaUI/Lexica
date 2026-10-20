@@ -1,13 +1,41 @@
-# Syntax
+# Grammar
 
 <a id="syntax"></a>
 
-This appendix gives the formal grammar. The explanations in [Names and scope](names-and-scope.md#names-and-scope), [Access and calls](access-and-calls.md#access-and-calls), [Expressions](expressions.md#expressions) and [Calculations and reuse](bodies-and-functions.md#calculations-and-reuse) define its rules and restrictions.
+The grammar gives every form a script's source can take. It says what text is well formed, and nothing of what it means: each production's meaning, and the restrictions no grammar can state, are in the document its group names.
 
 In this notation, `[...]` means optional, `{...}` means repetition, `|` separates alternatives, `-` means exclusion, and `? ... ?` describes a special sequence. Each name describes a written form or the category a position holds. Trivia never stands inside a token: `@word`, `~name`, `(?` and `$"` are each written whole, with nothing between their characters.
 
+In this document:
+
+1. [The productions](#grammar-productions)
+2. [The grammar](#grammar-the-grammar)
+3. [Grammar terminology](#grammar-terminology)
+
+<a id="grammar-productions"></a>
+
+## The productions
+
+| Group | Productions | Meaning in |
+| --- | --- | --- |
+| A script and its bodies | `script`, `body`, `local`, `local-initializer`, `do-expression` | [Scripts](scripts.md) |
+| Conditionals | `conditional-expression`, `conditional-clause`, `conditional-binding`, `simple-conditional-expression` | [Conditionals](expressions.md#conditionals) |
+| Functions | `function-expression`, `function-parameter-list`, `function-parameter`, `arrow-function`, `arrow-parameters`, `function-call` | [Functions](functions.md) |
+| Operators | `coalescing`, `disjunction`, `conjunction`, `negation`, `equality`, `comparison`, `additive`, `multiplicative`, `arithmetic-negation` and their operands | [Expressions](expressions.md) |
+| Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation` | [Casts](types.md#casts), [conversions](values.md#conversions), [attempts](expressions.md#attempts) |
+| Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `bracket-property-access`, `member-call`, `indexer`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
+| Simple expressions | `simple-expression`, `simple-value-expression` | [Simple expressions](expressions.md#simple-expressions) |
+| Names and references | `value`, `identifier`, `reserved-reference`, `parameter-reference`, `namespace-access`, `module-name`, `name`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
+| Objects | `object`, `object-content`, `field` | [Objects](values.md#objects) |
+| Literals and strings | `literal`, `number`, `string` and its forms, `interpolated-string` and its parts | [Lexical structure](lexical-structure.md), [interpolated strings](expressions.md#interpolated-strings) |
+| Trivia | `trivia`, `whitespace`, `line-comment`, `block-comment` | [Comments](lexical-structure.md#comments) |
+
+<a id="grammar-the-grammar"></a>
+
+## The grammar
+
 ```ebnf
-source                        = body end-of-input
+script                        = body end-of-input
 
 body                          = { local } "return" expression
                               | expression
@@ -89,10 +117,10 @@ optional-enclosed-access      = "(?" member-chain ")"
 receiver                      = input | "(" cast ")"
 
 input                         = value | object | identifier | interpolated-string
-                              | reserved-reference | caller-binding
+                              | reserved-reference | parameter-reference
                               | function-call | namespace-access
 reserved-reference            = "@" reserved-word
-caller-binding                = "~" name
+parameter-reference           = "~" name
 function-call                 = ( identifier | reserved-reference )
                                 "(" [ argument-list ] ")"
 argument-list                 = argument { "," argument }
@@ -208,4 +236,4 @@ The grammar uses several terms more narrowly than the prose:
 | `equality-operand` | A chain, cast, conversion or attempt, used within the arithmetic productions |
 | `coalescing-operand` | An arithmetic negation or an equality operand, never binary arithmetic, which stands apart from `??` unless one of them is grouped |
 
-In the prose, **value** means any value an expression has; type resolution determines its type. A member's **input declaration** is a separate concept: it declares what the member's arguments supply. See [Arguments](access-and-calls.md#arguments).
+In the prose, **value** means any value an expression has; type resolution determines its type. A member's **argument form** is a separate concept: it declares what the member's arguments supply. See [parameters and arguments](members.md#arguments).

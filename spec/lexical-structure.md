@@ -1,12 +1,22 @@
 # Lexical structure
 
-In this document: [Tokens and whitespace](#tokens-and-whitespace) · [Strings and escapes](#strings-and-escapes) · [Comments](#comments) · [Case-sensitive names](#case-sensitive-names).
+<a id="lexical-structure"></a>
+
+A script's source is text, which the tokenizer reads into tokens: names, numbers, strings and punctuation, with whitespace and comments between them. This document gives the tokens and how each is spelled; [the grammar](grammar.md) gives how they combine.
+
+In this document:
+
+1. [Tokens and whitespace](#tokens-and-whitespace)
+2. [Names and reserved words](#names-and-reserved-words)
+3. [Strings and escapes](#strings-and-escapes)
+4. [Comments](#comments)
+5. [Case-sensitive names](#case-sensitive-names)
 
 <a id="tokens-and-whitespace"></a>
 
 ## Tokens and whitespace
 
-Tokens are names, numbers, strings and the punctuation shown in the [grammar](syntax.md#syntax). The tokenizer uses the longest match.
+Tokens are names, numbers, strings and the punctuation shown in the [grammar](grammar.md#syntax). The tokenizer uses the longest match.
 
 The following forms are each one token and cannot contain whitespace:
 
@@ -58,6 +68,74 @@ A name containing a hyphen is written as a string: `device:["night-mode"]`.
 ### Interpolated-string prefix
 
 `$"` begins an [interpolated string](expressions.md#interpolated-strings). The dollar sign must be directly before the quote. `$` elsewhere is a syntax error; `$ "…"` specifically reports that no space may separate them.
+
+<a id="names-and-reserved-words"></a>
+
+## Names and reserved words
+
+A name starts with an ASCII letter and continues with ASCII letters or digits. For example, `floorArea` is a name. Names contain no hyphens and are also valid JavaScript identifiers.
+
+An **identifier** is a name that is not reserved. Reserved words are:
+
+| Category | Words |
+| --- | --- |
+| Literals | `true`, `false`, `null` |
+| The object root | `root` |
+| The implicit parameter and operators | `it`, `not`, `try`, `as`, `to`, `and`, `or` |
+| Control flow and declarations | `if`, `then`, `elseif`, `else`, `let`, `do`, `end`, `return`, `function` |
+
+Reserved words match whole names, exactly. `isVisible` and `nullable` are identifiers. All names are case-sensitive, so `TRUE` and `It` are identifiers too.
+
+The **keywords** are the reserved words other than the literals' words and `root`: `it` and the words of operators, control flow and declarations.
+
+In text read through a registry, the name of each module registered with it is reserved as well, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out; text read without a registry reserves no module's name.
+
+<a id="names-and-reserved-words-declaring-and-accessing-a-reserved-name"></a>
+
+### Declaring a reserved name
+
+A declaration accepts any name, including a reserved word. This applies to fields, locals, functions, function parameters and conditional bindings. Write the name without `@`:
+
+```lexica
+light { true = true, it = it.is("active") }
+```
+
+The same rule applies to member and indexer names after `.`, `?.`, `:` and `?:`. For example, `value.null` reads a member named `null`, and `device:end["key"]` invokes an indexer named `end`.
+
+`let @to = 1`, `{ @true = 1 }` and `value.@null` are syntax errors.
+
+<a id="names-and-reserved-words-referring-to-a-reserved-local-or-field"></a>
+
+### Reserved references
+
+In a script, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and after `let home = 1`, an unprefixed `home` still begins the module's namespace.
+
+Write `@` directly before a reserved word to read the nearest local or field of that name:
+
+```lexica
+{ let to = "3", value = @to to "number" }
+```
+
+A reserved reference with no such local or field is a structure error:
+
+> No local or field named 'it' is in scope. Use '~it' to read the script parameter.
+
+`@` is valid only directly before a reserved word, and a keyword alone reads no local or field. These are syntax errors:
+
+| Form | Diagnostic guidance |
+| --- | --- |
+| `@room` | Use `room`; the name is not reserved, and a module's name is reserved only in text read with its registry. |
+| `@ it` or `@` | A reserved word must follow `@` directly. |
+| `to` in a value position | `Found 'to', a keyword: write '@to' for the local or field of that name`. |
+
+<a id="names-and-reserved-words-reserved-words-in-strings"></a>
+
+### Reserved words in strings
+
+A string containing a reserved word remains an ordinary string:
+
+- `device:["null"]` reads a setting named `null`.
+- `value["null"]` is bracket property access and resolves the member `value.null`.
 
 <a id="strings-and-escapes"></a>
 
@@ -150,25 +228,6 @@ A block is opened by three or more matching quotes, `$` directly before them whe
 
 Every form that does not interpolate stands wherever the grammar requires a string literal, a cast's or a conversion's type name among them, so `device as 'light'` is `device as "light"`. An interpolated form is an expression and stands in none of them, even with text alone.
 
-<a id="strings-and-escapes-canonical-spelling-of-strings"></a>
-
-### Canonical spelling of strings
-
-Canonical text writes every string as an inline string, `"…"`, and every interpolated one as `$"…"`, whatever form it was written in, escaping what it must: a raw string and a block give the same value written so. Formatting source keeps each string's family and its inline or block form, and its value, significant whitespace included.
-
-It writes a double quote and a backslash as `\"` and `\\`, and line feed, carriage return, tab and escape as `\n`, `\r`, `\t` and `\e`.
-
-Other invisible characters use `\u{…}` with uppercase hexadecimal digits and no leading zeros:
-
-| Unicode category | Characters escaped | Examples |
-| --- | --- | --- |
-| Cc | Control characters | `\u{0}`, `\u{7F}` |
-| Cf | Format characters | `\u{200B}` |
-| Zl, Zp | Line and paragraph separators | Unicode line and paragraph separators |
-| Zs | Space separators other than U+0020 | No-break space, `\u{A0}` |
-
-All other characters appear as themselves, including accented letters and emoji. A zero-width joiner is still escaped, so the joined emoji is written `"👩\u{200D}💻"`. Its value is unchanged, and its composition is visible.
-
 <a id="comments"></a>
 
 ## Comments
@@ -187,19 +246,19 @@ Every name in Lexica is case-sensitive, and nothing normalizes one: `name` and `
 
 <a id="case-sensitive-names-members"></a>
 
-### Members
+### Member names
 
 Members are named in camelCase, properties and functions alike: `name`, `floorArea`, `brightness`, `device`. A member has one name, the same in a text and a definition. `it["floorArea"]` reads that property by the same name.
 
 <a id="case-sensitive-names-field-names-and-bindings"></a>
 
-### Field names and bindings
+### Field names and script parameters
 
-Field names and bindings keep the exact spelling their author gave them, so `isOn` and `ison` are two fields, and a binding `room` is not a binding `Room`.
+Field names and script parameters keep the exact spelling their author gave them, so `isOn` and `ison` are two fields, and a script parameter `room` is not a parameter `Room`.
 
 <a id="case-sensitive-names-strings"></a>
 
-### Strings
+### Strings are preserved
 
 Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a bracket property access, which reads the one its string names, exactly, a data field whose key is no Lexica name among them, as `o["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or an event type, follows that module's own case rules.
 

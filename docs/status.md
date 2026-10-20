@@ -18,40 +18,41 @@ The specification describes definition version 32. **The implementation reads de
 
 | Area | Status | What remains | Contract |
 | --- | --- | --- | --- |
-| Text, definitions and canonical text | Implemented, version 31 | Version 32's nodes | [Definition](../spec/definition.md), [Syntax](../spec/syntax.md) |
-| Lexical structure: strings, raw strings, blocks, escapes, comments | Implemented | | [Lexical structure](../spec/lexical-structure.md) |
-| Names, bindings and reserved words | Partial | The implicit parameter is still `context`, with `~` alone as a second spelling; version 32 writes `it`, and reads module names through a registry | [Names and scope](../spec/names-and-scope.md) |
-| Values, types and nullability | Partial | Reference types declared by modules; the DOM's node types are still built into Lexica | [Values and types](../spec/values-and-types.md) |
-| Access, calls, indexers and arguments | Implemented | | [Access and calls](../spec/access-and-calls.md) |
-| Operators, conditionals, coalescing and interpolated strings | Implemented | | [Expressions](../spec/expressions.md) |
-| Casts, conversions and attempts | Partial | A cast takes only `node` and its kinds until reference types land | [Casts, conversions and attempts](../spec/casts-and-conversions.md) |
-| Bodies, locals, the object root and functions | Implemented | | [Bodies, locals and functions](../spec/bodies-and-functions.md) |
-| Requests: values, subscriptions, actions and behaviors | Implemented | Lexica resolves each kind; carrying it out is the host's | [Requests](../spec/requests.md) |
-| Errors and diagnostics | Implemented | | [Errors and diagnostics](../spec/errors.md) |
+| Scripts: parameters, bindings, names, bodies and locals | Partial | The implicit parameter is still `context`, with `~` alone as a second spelling; version 32 writes `it`, and reads module names through a registry | [Scripts](../spec/scripts.md) |
+| Lexical structure: tokens, names, strings, comments | Implemented | | [Lexical structure](../spec/lexical-structure.md) |
+| Values: objects, the object root, lists, null, results and conversions | Implemented | | [Values](../spec/values.md) |
+| Types | Partial | Reference types declared by modules; the DOM's node types are still built into Lexica, and a cast takes only `node` and its kinds | [Types](../spec/types.md) |
+| Expressions: operators, conditionals, coalescing, attempts, interpolated strings | Implemented | | [Expressions](../spec/expressions.md) |
+| Functions: regular and arrow functions, function values | Implemented | | [Functions](../spec/functions.md) |
+| Members: forms, bracket property access, arguments, kinds and requests | Implemented | | [Members](../spec/members.md) |
+| Definition and canonical text | Implemented, version 31 | Version 32's nodes | [Definition](../spec/definition.md), [Grammar](../spec/grammar.md) |
+| Diagnostics: kinds, messages and locations | Implemented | Stable codes are [proposed](proposals/diagnostic-codes.md) | [Diagnostics and errors](../spec/diagnostics-and-errors.md) |
 
 ### Modules and vocabulary
 
 | Area | Status | What remains | Contract |
 | --- | --- | --- | --- |
-| Module declarations in one shape, with their implementations | Implemented | | [Vocabulary contracts](../spec/vocabulary-contracts.md), [design](lexica-design.md#declarations) |
-| Registries: registration checked whole, revisions | Implemented | Reading text with the registry's module names | [Design](lexica-design.md#registries) |
-| Observation targets declared by modules | Planned | Lexica still knows `window`, `document`, `root` and `roots` by name | [Vocabulary contracts](../spec/vocabulary-contracts.md#observations) |
-| Namespaces and module members | Planned | Module members are registered but nothing reads them yet | [Modules and namespaces](../spec/modules-and-namespaces.md#namespaces) |
-| Qualified access, a null receiver propagating | Planned | | [Qualified access](../spec/modules-and-namespaces.md#namespaces-qualified-access) |
-| Owner precedence and extension ambiguity | Planned | Two modules declaring one name on overlapping receivers are refused at registration until it lands | [Owners and extensions](../spec/modules-and-namespaces.md#namespaces-owners-and-extensions) |
-| Reference types, classification and declared binding types | Planned | | [Reference types](../spec/values-and-types.md#reference-types) |
-| Qualified extension indexers | Deferred | Beyond version 32, until a use needs one | [Indexers](../spec/modules-and-namespaces.md#namespaces-indexers) |
+| Module declarations in one shape, with their implementations | Implemented | | [Creating a module](../spec/modules.md#modules-declarations), [declaring a member](../spec/members.md#members-declaring-a-member) |
+| Registries: registration checked whole, revisions | Implemented | Reading text with the registry's module names | [Registries](../spec/modules.md#modules-registries) |
+| Lexica's own vocabulary: list members, verbs, conversions | Implemented | | [Lexica's own vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own) |
+| Predicates, event types and observation types | Implemented | | [Vocabulary](../spec/vocabulary.md) |
+| Observation targets declared by modules | Planned | Lexica still knows `window`, `document`, `root` and `roots` by name | [Observation targets](../spec/vocabulary.md#observations-targets) |
+| Namespaces and module members | Planned | Module members are registered but nothing reads them yet | [Namespaces](../spec/modules.md#namespaces) |
+| Qualified access, a null receiver propagating | Planned | | [Qualified access](../spec/modules.md#namespaces-qualified-access) |
+| Owner precedence and extension ambiguity | Planned | Two modules declaring one name on overlapping receivers are refused at registration until it lands | [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions) |
+| Reference types, classification and declared binding types | Planned | | [Reference types](../spec/types.md#reference-types) |
+| Qualified extension indexers | Deferred | Beyond version 32, until a use needs one | [Indexer selection](../spec/modules.md#namespaces-indexers) |
 
-### The host API
+### The runtime
 
 | Area | Status | What remains | Contract |
 | --- | --- | --- | --- |
-| Parse, validate, format, quote and locate | Implemented | | [Design](lexica-design.md#tooling) |
-| Bindings, resolution and reuse by resolution key | Implemented | | [Design](lexica-design.md#evaluation) |
-| Evaluation for any host, with its hooks | Implemented | | [Design](lexica-design.md#evaluation) |
-| Frozen results and result metadata | Partial | A projected item's source is recorded only where the item is a DOM node, until reference types land | [Design](lexica-design.md#evaluation) |
+| Parse, validate, format, quote and locate | Implemented | | [Definition](../spec/definition.md) |
+| Bindings, resolution and reuse by resolution key | Implemented | | [Runtime](../spec/runtime.md#runtime-bindings) |
+| Evaluation for any host, with its hooks | Implemented | | [Evaluation](../spec/runtime.md#runtime-evaluation) |
+| Frozen results and result metadata | Partial | A projected item's source is recorded only where the item is a DOM node, until reference types land | [Results and their metadata](../spec/runtime.md#runtime-results) |
 
-### Delivery
+### Delivery and tooling
 
 | Area | Status | What remains | Contract |
 | --- | --- | --- | --- |
@@ -59,7 +60,9 @@ The specification describes definition version 32. **The implementation reads de
 | npm and NuGet packages | Planned | Both are packed locally and neither is published; DOMQL depends on a local checkout | [Packages](#packages) |
 | Beta | Partial | The documents and the module API are audited; the changelog and the beta version remain | [Beta](#beta) |
 | Syntax tree for tooling | Partial | The lossless tree and the tolerant tokenizer are built and internal; error recovery and a public tooling API remain | [Design](lexica-design.md#the-syntax-tree) |
+| Formatting that keeps a script's source | Planned | Tokens keep each string's form for it; the operation itself is not built | [Design](lexica-design.md#the-syntax-tree) |
 | Editor tooling | Planned | Diagnostics and completion through the syntax tree, without running a capability | [Design](lexica-design.md#tooling) |
+| Diagnostic codes | Proposed | Not accepted; the questions it lists are open | [Proposal](proposals/diagnostic-codes.md) |
 
 ## Definition version 32
 
@@ -82,6 +85,7 @@ Version 32 separates the language from the DOM: Lexica knows no domain, and DOMQ
 | `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria` and `window` are built-in types, recognized by a value's `nodeType` | DOMQL declares them as reference types with tests of its own | Slice 3 |
 | A projected item's source is recorded only for a DOM node | Every projected item records its source | Slice 3 |
 | Two modules declaring one name on overlapping receivers are refused at registration | Both register, and resolution refuses an ambiguous use | Slice 3 |
+| The implementation's own names are version 31's: the syntax tree's root is `source`, its tokens include `caller-binding` and `context`, and its messages say "the caller's binding" | Version 32 names a script, its root `script`, a parameter reference and a script parameter | Slice 2 |
 
 **Dependencies.** Owner precedence waits for slice 3 because DOMQL can only own the types it extends once it declares them as reference types. A version 32 implementation reads version 32 alone, so the switch from version 31 is one coordinated change in Lexica and DOMQL: DOMQL moves its queries, examples and READMEs to `it` and `domql.document` in the commit that follows Lexica's.
 

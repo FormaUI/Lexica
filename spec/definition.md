@@ -2,14 +2,27 @@
 
 <a id="definition"></a>
 
-An expression's **definition** is a JSON document recording its meaning, its **expression tree** with the version of its format: every expression, read from its source or created directly, is one definition, and validation, resolution and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
+A script's **definition** is a JSON document recording its meaning, its **expression tree** with the version of its format: every script, read from its source or created directly, has one definition, and validation, resolution and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
 
-A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version changes whenever the definition's shape or meaning does, and a definition of a version other than the one an implementation reads is a structure error. Each node is an object whose `kind` says what it is:
+A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version changes whenever the definition's shape or meaning does, and a definition of a version other than the one an implementation reads is a structure error.
+
+In this document:
+
+1. [Nodes](#definition-nodes)
+2. [Structural validation](#validation)
+3. [Canonical text](#definition-canonical-text)
+
+<a id="definition-nodes"></a>
+<a id="functions-definition"></a>
+
+## Nodes
+
+Each node is an object whose `kind` says what it is:
 
 | Kind | Properties | Records |
 | --- | --- | --- |
 | `literal` | `value`, a JSON string, a finite number, a Boolean or null | A literal |
-| `parameter` | `name` | A parameter, the caller's binding of the name; text writes it alone where its name is no reserved word, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and after `~` otherwise |
+| `parameter` | `name` | A script parameter; text writes it alone where its name is no reserved word, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and as a parameter reference, `~` and its name, otherwise |
 | `it` | None | The implicit parameter |
 | `root` | None | The object root |
 | `namespace` | `name`, the module's name | A module's namespace, the target of a `member` or a `call` node that reads one of the module's members or calls a qualified form through it |
@@ -21,7 +34,7 @@ A document holds the definition's `version` and the `expression` node, the root 
 | `equality` | `left` and `right`, the two expressions it compares | An equality; `!=` is a `not` holding one |
 | `body` | `locals`, each its `name` and its `value`, in order, and `result`, the value the body gives | A body: the root expression's, a `do` block's, a function's or a conditional branch's, and nowhere else |
 | `do` | `body`, an expression alone or a `body` node | A do block |
-| `function` | `parameters`, the names it declares, and `body`, the body a call evaluates | A function, a local's initializer alone |
+| `function` | `parameters`, the names it declares; `body`, the body a call evaluates; and `arrow`, true, for an arrow function, whose body is its one expression, validated as a simple expression | A function: a local's initializer, or an arrow function written as an argument |
 | `functionCall` | `name`, the local function's name, and `arguments`, as many as its parameters | A call of a local function |
 | `interpolatedString` | `parts`, its text and its interpolations in order: each `{ "kind": "text", "value": … }`, the characters the text stands for, or `{ "kind": "expression", "expression": … }` | An interpolated string; adjacent text is one part and empty text none, and a diagnostic names a part by the index the definition it was created from gave it |
 | `comparison` | `operands`, two or more expressions, and `operators`, one of `<`, `<=`, `>` and `>=` between each two | A comparison, or a chain of them |
@@ -82,11 +95,19 @@ A chain is recorded as a succession of targets: in `room.device("lamp").power`, 
 
 A definition names its parameters and never holds their values. A value is bound to its name by the host, through whatever mechanism its environment offers, so the same definition serves every binding.
 
+<a id="definition-bodies"></a>
+
+### Bodies and conditionals
+
+A body with explicit `return` is a `body` node containing ordered `locals` and a `result`. A body containing just an expression is that expression's own node, except a `do` block's: a `do` block is always a `do` node holding its body, so `do 7 end` is a `do` node whose body is the literal's node. A `body` node stands only as the script's, a `do` block's, a function's or a conditional branch's body.
+
+Within one conditional, branches are all `body` nodes or none are; a branch that is a `do` block is an implicit branch, whose result is its `do` node. The alternative may itself be a conditional: after branches that use `return`, one whose branches use `return` too, as an `elseif` gives; after expression branches, one of either style.
+
 <a id="validation"></a>
 
-## Validation
+## Structural validation
 
-Validation happens before evaluation. Structure is checked when the request is created; vocabulary and types are checked when it is prepared.
+Validation happens before evaluation. Structure is checked when a script is read or its definition created, by these rules; vocabulary and types are checked when it is resolved, as [what resolution checks](runtime.md#validation-vocabulary-and-types) sets out.
 
 <a id="validation-syntax-and-structure"></a>
 
@@ -98,14 +119,14 @@ Text must follow the syntax. A directly created definition must follow the same 
 | --- | --- |
 | Fields | Every field has a name and value; names are unique within an object expression; an object expression has at least one field. |
 | Locals | Each has a name and value; names are unique within a body or object expression; references name an in-scope local or field. |
-| Declaration order | No reference uses a local before its declaration or within its own initializer. A name written alone cannot fall back to a caller binding when that local is declared later in the same scope. |
-| Explicit parameters | A definition's `parameter` node, written as `~name` when necessary, reads the caller's binding regardless of local declarations. |
+| Declaration order | No reference uses a local before its declaration or within its own initializer. A name written alone cannot fall back to a script parameter when that local is declared later in the same scope. |
+| Script parameters | A definition's `parameter` node, written as a parameter reference when necessary, reads the script parameter regardless of local declarations. |
 | Simple expressions | Arguments, indexer keys, bracket property names and interpolations obey the restrictions recursively; an object expression within one, as an options object, declares no locals, though it may use those in scope. |
 | Members | Every property access, call and indexer has a receiver. |
 | Equality | Both operands are present. |
 | Comparisons | At least two operands; exactly one operator between each pair; every operator is one of `<`, `<=`, `>`, `>=` and points in the same direction. |
 | Interpolated strings | Every part is text containing a string, or an expression part. |
-| Bodies | Locals and one result are present; local names are unique and are not used before declaration; a body stands only as the root expression's, a do block's, a function's or a conditional branch's. |
+| Bodies | Locals and one result are present; local names are unique and are not used before declaration; a body stands only as the script's, a do block's, a function's or a conditional branch's. |
 | Chain receivers | A conditional or body cannot be a chain receiver. |
 | Functions | Each is a local initializer, or an arrow function that is also an argument, with unique parameter names; an arrow function's body is a simple expression; a function cannot be called before its local is declared. |
 | Optional access | Each optional access is within an optional chain, following the targets of property accesses, calls, indexers and object expressions; each optional chain contains an optional access. |
@@ -116,44 +137,65 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Casts | The type is a string and the whole target has the form text writes a cast's target in. |
 | Literals | A literal is a string, a finite number, a Boolean or null, so a number no finite number holds, as `1e999`, is refused in text as in a definition. |
 
-A cast's target is checked whole: a receiver, which is the implicit parameter, a parameter, `root`, a namespace's member, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](casts-and-conversions.md#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
+A cast's target is checked whole: a receiver, which is the implicit parameter, a script parameter, `root`, a namespace's member, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](types.md#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
 
-A binding may be named `it`, `root` or a module's name, as any name can, and an expression reads it as `~it`, `~root` or `~home`.
+A script parameter may be named `it`, `root` or a module's name, as any name can, and a script reads it as `~it`, `~root` or `~home`.
 
-<a id="validation-vocabulary-and-types"></a>
+<a id="definition-canonical-text"></a>
 
-### Vocabulary and types
+## Canonical text
 
-Preparation checks the following contracts:
+Every definition has one canonical text, which `lexica.format` and `lexica.quote` write: text that reads back as the same definition, whether the definition came from text or was created directly. A comment and the layout a source was written in leave no trace in it.
 
-| Area | Required contract |
+`lexica.format(source)` takes a text or a definition, and both give the same canonical text.
+
+- **What it keeps.** The definition's meaning, and the order of its locals and fields as declared; comments and the original layout are discarded, as a definition holds neither.
+- **What it needs.** Neither bindings nor a registered vocabulary: it parses and checks structure as `lexica.parse` does, and resolves nothing. A registry writes text with its own module names, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
+- **The layout.** Four spaces of indentation for each level of an object expression; an object expression of one field and no locals on one line where its value is, `{ name = it.name }`, and any other with one line for each entry; a conditional with an `elseif`, or whose branches give their results with `return`, on one line for each clause and one for its `end`, each branch's locals and result a level within it; a body's locals and result each on a line of their own, a `do` block's a level within its `do` and its `end`; a string's line feed, carriage return, tab and escape character as `\n`, `\r`, `\t` and `\e`, and every other control, format or separator character in it but the space as `\u{…}`; an interpolated string's text as a string's with each brace doubled, and each interpolation's expression on one line, grouped in parentheses where it begins with one; one space on each side of `and`, `or`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `??`, `+`, `-`, `*`, `/`, `%`, `as` and `to`, and none between a negation's `-` and what it negates; and no trailing comma.
+- **It is stable.** Formatting text already formatted gives the same text.
+
+<a id="names-and-reserved-words-canonical-spelling-of-names"></a>
+
+### Canonical names
+
+| Name position | Canonical text |
 | --- | --- |
-| Member resolution | Every member and extension exists and uses its declared form. |
-| Arguments | Positional arguments match the signature's order and count; options use one object whose fields name the member's parameters; every required parameter is supplied. |
-| Types and kinds | Receivers, arguments, expressions and bindings fit their declared types; each argument uses its declared argument kind. |
-| Required access | Access written with `.` has a receiver that cannot be null. Other required access forms follow the same nullability rule. |
-| Fixed arguments | Preparation settles each to a non-null string without evaluating a member: a literal, a bound parameter, or a local, a conditional binding, a conditional, a `??`, an `and` or an `or` that settles to one, a function parameter within a call's body where the call's argument settles, and a `do` block whose locals and result settle, as [Arguments](access-and-calls.md#arguments) and [Bodies](bodies-and-functions.md#bodies-fixed-arguments) set out. |
-| Bracket property access | Preparation determines every possible property name; each names a property of the receiver and their types merge. |
-| Local use | Each reference is in scope; a value local is used as a value, a function local as a call. |
-| Casts | The target type is `node` or a node kind, and the operand can be of that type. |
-| Conversions and attempts | The target type and conversion pair are valid; an attempt follows the same validation rules as its strict operation. |
-| Equality | Operand types fit in at least one direction. Values other than strings, numbers, Booleans and nodes compare only with null. |
-| Arithmetic and comparisons | Every operand is a non-null number. |
-| Interpolation | Every interpolation gives a non-null string or number. |
-| Function calls | The local or function parameter holds a function, never null; the argument count matches each function it may be, whose body resolves against that call's argument types, their results merging; no call reaches a function within its own call. |
-| Conditions and logical operands | Each is a value. Truthiness determines the branch; an event source, action or behavior cannot be used as that value. |
-| Coalescing | Value and fallback have compatible types. |
-| Conditionals | Branch result types are compatible. |
-| Implicit parameter | Each expression is valid with the implicit parameter its member declares. |
-| Request kind | The caller uses the request as its declared kind. |
-| Output | A result contains data alone. |
+| Declaration, field name or member name | The name as written, without a prefix |
+| Reference to a local or field | Its name; `@name` if reserved |
+| Reference to a script parameter | Its name if not reserved or hidden; a parameter reference otherwise |
+| The object root | `root` |
+| The implicit parameter | `it` |
+| A namespace | The module's name |
 
-All branches and operands are validated even when evaluation will not reach them, and a resolution lists every declaration the expression may use, one only an unreached branch uses included, so a host's policy over them, as whether a request may be watched, concerns them all before anything is evaluated.
+These rules also apply to extension declarations and definitions created directly. A definition stores names without `@` or `~`; its node kind distinguishes a local reference from a parameter, and `it` produces an `it` node.
 
-<a id="validation-diagnostics"></a>
+<a id="strings-and-escapes-canonical-spelling-of-strings"></a>
 
-### Diagnostics
+### Canonical strings
 
-A syntax error identifies its position in the text, its offset, line and column. A structure, validation or evaluation error identifies its node in the definition, expressed as a JSON Pointer, and, where the request was made from text, its position in the text as well. An error in a binding names the binding, and a module error the module and the declaration, located by neither.
+Canonical text writes every string as an inline string, `"…"`, and every interpolated one as `$"…"`, whatever form it was written in, escaping what it must: a raw string and a block give the same value written so.
 
-An evaluation error fails the entire result and is delivered to the caller in its place. See [Errors and diagnostics](errors.md#errors-and-diagnostics).
+It writes a double quote and a backslash as `\"` and `\\`, and line feed, carriage return, tab and escape as `\n`, `\r`, `\t` and `\e`.
+
+Other invisible characters use `\u{…}` with uppercase hexadecimal digits and no leading zeros:
+
+| Unicode category | Characters escaped | Examples |
+| --- | --- | --- |
+| Cc | Control characters | `\u{0}`, `\u{7F}` |
+| Cf | Format characters | `\u{200B}` |
+| Zl, Zp | Line and paragraph separators | Unicode line and paragraph separators |
+| Zs | Space separators other than U+0020 | No-break space, `\u{A0}` |
+
+All other characters appear as themselves, including accented letters and emoji. A zero-width joiner is still escaped, so the joined emoji is written `"👩\u{200D}💻"`. Its value is unchanged, and its composition is visible.
+
+<a id="interpolated-strings-canonical-text"></a>
+
+### Canonical interpolated strings
+
+Canonical text always uses `$"…"`, with text escaped as an ordinary string and braces doubled. Each interpolation's expression is on one line, with no padding inside the braces, and one that begins with an object expression is grouped in parentheses.
+
+<a id="bodies-definition-and-canonical-text"></a>
+
+### Canonical bodies and conditionals
+
+Canonical text places each body local and its result on separate lines. A conditional with implicit results and no `elseif` stays on one line, and a `do` block as its branch is written without parentheses: `if w then do 1 end else 2 end`. Explicit-return branches are indented within their clauses, and `end` stands on its own line.

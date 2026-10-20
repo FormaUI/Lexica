@@ -49,7 +49,7 @@ const shop = lexica.createModule('shop', {
 });
 ```
 
-An implementation receives one object and reads what it needs by name: its `receiver`, its `args` by parameter name, and the `env` the host supplies. Each kind of declaration, and the fields it takes, is set out in [declarations](lexica-design.md#declarations); what `updates` means is in the [vocabulary contracts](../spec/vocabulary-contracts.md).
+An implementation receives one object and reads what it needs by name: its `receiver`, its `args` by parameter name, and the `env` the host supplies. Each kind of declaration, and the fields it takes, is set out in [declarations](../spec/modules.md#modules-declarations); what `updates` means is in [updates](../spec/members.md#members-updates).
 
 ## Resolve an expression
 
@@ -112,4 +112,4 @@ try {
 }
 ```
 
-The kinds, `syntax`, `structure`, `validation`, `module` and `evaluation`, and what each reports, are in [errors and diagnostics](../spec/errors.md).
+The kinds, `syntax`, `structure`, `validation`, `module` and `evaluation`, and what each reports, are in [diagnostics and errors](../spec/diagnostics-and-errors.md).
