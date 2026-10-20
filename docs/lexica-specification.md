@@ -560,7 +560,7 @@ Comment markers inside a string are text: `"https://example.com"` and `"/* */"` 
 
 ### Case-sensitive names
 
-Every name in DOMQL is case-sensitive, and nothing normalizes one: `size` and `Size` are different names, and so are `panel` and `Panel`. A name is resolved exactly as it is written, and each kind of name is spelled by its own convention:
+Every name in Lexica is case-sensitive, and nothing normalizes one: `size` and `Size` are different names, and so are `panel` and `Panel`. A name is resolved exactly as it is written, and each kind of name is spelled by its own convention:
 
 <a id="case-sensitive-names-members"></a>
 
