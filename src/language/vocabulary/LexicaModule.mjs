@@ -597,7 +597,7 @@ export class LexicaModule {
         }
 
         if ((parameter.kind === 'expression' || parameter.kind === 'predicate') && parameter.context !== 'item') {
-            fail(`The ${parameter.kind} parameter '${parameter.name}' declares its evaluation context, item`, memberName);
+            fail(`The ${parameter.kind} parameter '${parameter.name}' declares its implicit parameter as context: 'item'`, memberName);
         }
 
         // A predicate's expression gives any value, and its function receives that value's truthiness.

@@ -90,8 +90,8 @@ describe('LexicaModule', () => {
         expect(messageOf(() => new LexicaModule('charts', { members: [declaration({ parameters: [parameter({ fixed: true })] })] }))).toContain('what it selects');
     });
 
-    it('refuses an expression parameter without its evaluation context', () => {
-        expect(messageOf(() => new LexicaModule('charts', { members: [declaration({ parameters: [parameter({ kind: 'expression' })] })] }))).toContain('evaluation context');
+    it('refuses an expression parameter without its implicit parameter', () => {
+        expect(messageOf(() => new LexicaModule('charts', { members: [declaration({ parameters: [parameter({ kind: 'expression' })] })] }))).toContain('implicit parameter');
     });
 
     it('refuses a type that is not written as a type', () => {
@@ -114,6 +114,13 @@ describe('LexicaModule', () => {
         expect(messageOf(() => new LexicaModule('charts', { types: [{ name: 'chart', fields: { size: 'number' }, field: {} }] }))).toContain("'field' is none of them");
         expect(messageOf(() => new LexicaModule('charts', { eventTypes: [{ name: 'chartclick', data: 'domEvent', payload: 'domEvent' }] }))).toContain("'payload' is none of them");
         expect(messageOf(() => new LexicaModule('charts', { observationTypes: [{ name: 'chartWatch', contract: 'invalidation', function: 'watch', share: false }] }))).toContain("'share' is none of them");
+    });
+
+    it('refuses an expression or a predicate parameter that declares no item as its implicit parameter, saying the key that declares it', () => {
+        const declaring = kind => declaration({ name: 'charts', kind: 'function', input: 'positional', parameters: [parameter({ name: 'by', kind, type: kind === 'predicate' ? 'boolean' : 'number', nulls: 'accept' })] });
+
+        expect(messageOf(() => new LexicaModule('charts', { members: [declaring('expression')] }))).toContain("The expression parameter 'by' declares its implicit parameter as context: 'item'");
+        expect(messageOf(() => new LexicaModule('charts', { members: [declaring('predicate')] }))).toContain("The predicate parameter 'by' declares its implicit parameter as context: 'item'");
     });
 
     it('refuses contents, lists and functions of the wrong shape with an error that names them', () => {

@@ -232,36 +232,36 @@ In this section: [Names and resolution](#names-and-resolution) · [Names and res
 
 ### Names and resolution
 
-A name at the start of a chain reads the nearest visible local or field of that name. If none is in scope, it reads the parameter of that name, the caller's binding. A bare name read before a local of that name declared later in the same scope is a structure error, since it reads no binding there; a field of that name written later leaves it reading the binding. `context`, or bare `~`, reads the evaluation context.
+A name at the start of a chain reads the nearest visible local or field of that name. If none is in scope, it reads the parameter of that name, the caller's binding. A bare name read before a local of that name declared later in the same scope is a structure error, since it reads no binding there; a field of that name written later leaves it reading the binding. `context`, or bare `~`, reads the implicit parameter.
 
 Members always have an explicit receiver. Equality always has both operands. The reader does not need vocabulary knowledge to decide what a name applies to.
 
-<a id="names-and-resolution-evaluation-context-by-position"></a>
+<a id="names-and-resolution-implicit-parameter-by-position"></a>
 
-#### Evaluation context by position
+#### Implicit parameter by position
 
 | Position | What `context` means |
 | --- | --- |
-| Outermost expression | No evaluation context is available |
+| Outermost expression | No implicit parameter is available |
 | Object expression following a value | The value it follows |
 | Object expression following a list | The current item |
-| Object expression following no value | The surrounding evaluation context, if one exists |
-| Value argument | The evaluation context where the call is written |
-| Expression or predicate argument | The context declared by the member |
+| Object expression following no value | The surrounding implicit parameter, if one exists |
+| Value argument | The implicit parameter where the call is written |
+| Expression or predicate argument | The one the member declares |
 
 In `viewport { width = context.rect?.width }`, `context` is the viewport.
 
-In `panel { layout = { width = context.size?.width, height = context.size?.height } }`, both nested fields still read the panel. The nested object groups fields without changing the context.
+In `panel { layout = { width = context.size?.width, height = context.size?.height } }`, both nested fields still read the panel. The nested object groups fields without changing the implicit parameter.
 
-At the top level, `{ anchor = anchor.rect, open = popup.is("popover-open") }` has no evaluation context. Each field reads a binding, a literal or another expression that does not require one.
+At the top level, `{ anchor = anchor.rect, open = popup.is("popover-open") }` has no implicit parameter. Each field reads a binding, a literal or another expression that does not require one.
 
-`context.size`, `{ size = context.size }` and `target.intersects({ root = context })` at the top level are errors because there is no evaluation context.
+`context.size`, `{ size = context.size }` and `target.intersects({ root = context })` at the top level are errors because there is no implicit parameter.
 
 <a id="names-and-resolution-explicit-receivers"></a>
 
 #### Explicit receivers
 
-Writing a member without its receiver is an error. If the evaluation context has that member, the diagnostic suggests the form with `context`:
+Writing a member without its receiver is an error. If the implicit parameter has that member, the diagnostic suggests the form with `context`:
 
 | Written | Suggested form |
 | --- | --- |
@@ -354,7 +354,7 @@ A reserved reference with no such local or field is a structure error:
 
 `~name` reads the caller's binding regardless of any local or field with the same name. Reserved names are allowed: `~as` and `~window` read the bindings `as` and `window`.
 
-The name must follow `~` directly. With no name directly after it, bare `~` reads the evaluation context, so `~.size` is `context.size`. Canonical text writes `context`.
+The name must follow `~` directly. With no name directly after it, bare `~` reads the implicit parameter, so `~.size` is `context.size`. Canonical text writes `context`.
 
 <a id="names-and-reserved-words-names-in-strings-and-supplied-data"></a>
 
@@ -377,7 +377,7 @@ The name restrictions apply to declarations in an expression. Supplied data keep
 | Reference to a local or field | Its name; `@name` if reserved |
 | Reference to a caller's binding | Its name if not reserved or hidden; `~name` otherwise |
 | Root | `document`, `window` or `root` |
-| Evaluation context | `context` |
+| Implicit parameter | `context` |
 
 These rules also apply to extension declarations and definitions created directly. A definition stores names without `@` or `~`; its node kind distinguishes a local reference from a parameter. `context` and bare `~` both produce a `context` node.
 
@@ -816,14 +816,14 @@ Each field follows its parameter's rules; a field the member has no parameter fo
 
 An object means options only by its member's input: the object a positional member is given is its parameter's value.
 
-An options object follows the ordinary rules of an object expression. Its options are evaluated once each, in the order they are written, whatever order the member declares its parameters in. Each written option is in scope by its name after its initializer, as [a field is](#locals-fields-as-names), so in `sentinel.intersects({ margin = 200, root = if margin > 100 then panel else null end })` the `root` option reads the `margin` written before it. Where no object expression encloses it, an options object builds the [object root](#locals-the-object-root), each option a field of it after its initializer, of the value and type it was given, an element included; inside one, `root` keeps the enclosing object root, whose fields the options never join. A default the member supplies introduces no name and no field. An option the member declares as an expression or a predicate is evaluated by the member, against the context it supplies, with the names and the object root of the place it is written; it has no single value, so reading it by its name or through `root` after its initializer is a validation error, which no enclosing name of its spelling escapes.
+An options object follows the ordinary rules of an object expression. Its options are evaluated once each, in the order they are written, whatever order the member declares its parameters in. Each written option is in scope by its name after its initializer, as [a field is](#locals-fields-as-names), so in `sentinel.intersects({ margin = 200, root = if margin > 100 then panel else null end })` the `root` option reads the `margin` written before it. Where no object expression encloses it, an options object builds the [object root](#locals-the-object-root), each option a field of it after its initializer, of the value and type it was given, an element included; inside one, `root` keeps the enclosing object root, whose fields the options never join. A default the member supplies introduces no name and no field. An option the member declares as an expression or a predicate is evaluated by the member, against the implicit parameter it supplies, with the names and the object root of the place it is written; it has no single value, so reading it by its name or through `root` after its initializer is a validation error, which no enclosing name of its spelling escapes.
 
 Every parameter of a member is declared as one of four kinds, and the evaluator treats them differently; a parameter an options object supplies is the same.
 
-- A **value argument** is evaluated once, where the call is written, against the same evaluation context as the chain it appears in, so its `context` is that evaluation context. In `viewport { intersects = context.first(".item")?.intersects({ root = context.parent as "element" }) }`, `context.parent` is the viewport's parent, not the item's. At the top level, where there is no evaluation context, a value argument starts from a parameter, a root, a local, a literal, an object expression or another input: `target.intersects({ root = target.parent as "element" })`.
+- A **value argument** is evaluated once, where the call is written, against the same implicit parameter as the chain it appears in, so its `context` is that implicit parameter. In `viewport { intersects = context.first(".item")?.intersects({ root = context.parent as "element" }) }`, `context.parent` is the viewport's parent, not the item's. At the top level, where there is no implicit parameter, a value argument starts from a parameter, a root, a local, a literal, an object expression or another input: `target.intersects({ root = target.parent as "element" })`.
 - An **expression argument** is evaluated by the member against each item of the list the member follows, which is its `context`. In `table.all("tbody tr").max(context.rect?.height)`, `context` is each row. The built-in vocabulary's expression parameters are those of `max`, `min` and `sum`.
 - A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against: in `panel.children.where(context:["data-key"])`, the element's attribute is truthy wherever it is present, empty or not. The built-in vocabulary's predicate is that of `where`.
-- A **function argument** is a function value, an arrow function written as the argument or a function passed by its name, which the member calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type. Preparation checks each function the value may be against the contract, and evaluation checks the member's arguments and the function's result. The member calls it only while its own invocation lasts, and a call after that fails. The built-in vocabulary has no function parameters, so `where`, `max`, `min` and `sum` take contextual expressions, and an arrow function given to one is a validation error saying its parameter takes a contextual expression, as `rows.where(context.visible)`; a module declares them.
+- A **function argument** is a function value, an arrow function written as the argument or a function passed by its name, which the member calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type. Preparation checks each function the value may be against the contract, and evaluation checks the member's arguments and the function's result. The member calls it only while its own invocation lasts, and a call after that fails. The built-in vocabulary has no function parameters, so `where`, `max`, `min` and `sum` take expression arguments, and an arrow function given to one is a validation error saying its parameter takes an expression argument, as `rows.where(context.visible)`; a module declares them.
 
 A value argument can be declared **fixed**, where it selects something validation needs before evaluation, such as the event type whose members `on` offers or the condition `is`, `has` or `supports` asks.
 
@@ -1026,7 +1026,7 @@ A member declared to return `boolean` must return a Boolean. Truthiness does not
 
 #### Stable references and narrowing
 
-A condition or a logical operand can establish facts about a stable reference: a local, conditional binding, parameter or evaluation context. Each is tracked by identity, not spelling. A local in one object expression says nothing about a same-named local in another, and each nested evaluation context has its own identity.
+A condition or a logical operand can establish facts about a stable reference: a local, conditional binding, parameter or implicit parameter. Each is tracked by identity, not spelling. A local in one object expression says nothing about a same-named local in another, and each nested implicit parameter has its own identity.
 
 | Outcome | Guaranteed fact |
 | --- | --- |
@@ -1641,7 +1641,7 @@ A lone `}` is a syntax error. `\{` is not an escape. Without `$`, every brace is
 
 #### Interpolation expressions
 
-An interpolation uses the scope and evaluation context where the interpolated string appears. It may contain its own strings, objects, comments and interpolated strings, subject to the simple-expression restrictions.
+An interpolation uses the scope and implicit parameter where the interpolated string appears. It may contain its own strings, objects, comments and interpolated strings, subject to the simple-expression restrictions.
 
 An interpolation stands on one source line, its `{`, its expression and its `}`, in a block as inline: a line break in the expression, its comments or its strings is a syntax error, so no block stands in an interpolation, and a longer calculation belongs in a local whose name is interpolated.
 
@@ -1849,9 +1849,9 @@ A local in a sibling or unrelated scope does not hide a caller binding. In `{ a 
 
 An [identifier](#names-and-reserved-words) reads the nearest visible local, field, conditional binding or function parameter of that name. If none is visible, it reads the value the caller passed under that name, and preparation fails if the caller passed none; a reference before a local of its name declared later in the same scope is refused instead, as [sequential scope](#locals-sequential-scope) sets out.
 
-When the evaluation context has a member of that name, the diagnostic suggests its receiver:
+When the implicit parameter has a member of that name, the diagnostic suggests its receiver:
 
-> No local in scope or binding is named 'rect'; write 'context.rect' for the member of the evaluation context
+> No local in scope or binding is named 'rect'; write 'context.rect' for the member of the implicit parameter
 
 <a id="locals-duplicate-names-and-shadowing"></a>
 
@@ -1917,11 +1917,11 @@ A function's result keeps the fields of the reference it returns. After `let ide
 
 Where a conditional or `??` can give either of two references, both must refer to the same object root with the same fields available; nullability combines as usual, so `if wide then root else null end` gives a reference that can be null, whose fields are read with `?.`. Any other pair is a validation error, as branches of different types are.
 
-<a id="locals-captured-context"></a>
+<a id="locals-captured-implicit-parameter"></a>
 
-#### Captured context
+#### Captured implicit parameter
 
-A local's `context` is the evaluation context of the object expression declaring it, regardless of where the local is used. In the example, `context` inside `rows` is the current row, while `items` remains the panel's list.
+A local's `context` is the implicit parameter of the object expression declaring it, regardless of where the local is used. In the example, `context` inside `rows` is the current row, while `items` remains the panel's list.
 
 <a id="locals-lazy-evaluation-in-objects"></a>
 
@@ -1988,7 +1988,7 @@ Its function parameters are names of the function, two of one function never the
 
 `name(argument, …)` calls the function a local or a function parameter of that name holds, with as many arguments as it declares function parameters, `seven()` with none, each a [simple expression](#simple-expressions) or an arrow function; each argument is evaluated once, from left to right, in the caller's scope, and the body then evaluates with each function parameter holding its argument. A call is a value a chain continues from, as `first(panel).children.count` does.
 
-A function of a vocabulary keeps its own form, `context.closest(".row")`, with the arguments its signature takes. A name no local function has is a validation error, which gives the form with `context` where the evaluation context has a member of that name, and so is a call of a local that holds a value, and a call given the wrong number of arguments.
+A function of a vocabulary keeps its own form, `context.closest(".row")`, with the arguments its signature takes. A name no local function has is a validation error, which gives the form with `context` where the implicit parameter has a member of that name, and so is a call of a local that holds a value, and a call given the wrong number of arguments.
 
 <a id="functions-as-values"></a>
 
@@ -2013,7 +2013,7 @@ A function value is used within the expression, and the expression's result hold
 
 #### What it sees
 
-A function captures the locals, the evaluation context and the object root where it is declared: its body reads them, its function parameters and its own locals, and never the caller's locals, so in `let a = 1`, `let f = function() a end` and a `do` block whose local `a` is 2 and that calls `f()`, the call gives 1. Its function parameters are ordinary ones, so an argument never replaces the evaluation context or the object root it captured. A watch's evaluation captures them anew each time.
+A function captures the locals, the implicit parameter and the object root where it is declared: its body reads them, its function parameters and its own locals, and never the caller's locals, so in `let a = 1`, `let f = function() a end` and a `do` block whose local `a` is 2 and that calls `f()`, the call gives 1. Its function parameters are ordinary ones, so an argument never replaces the implicit parameter or the object root it captured. A watch's evaluation captures them anew each time.
 
 <a id="functions-never-recursive"></a>
 
@@ -2070,7 +2070,7 @@ viewport.scroll({ axis = "inline" }).wheelPaging({ modifier = "shift" })
 
 ### Events
 
-A chain that ends in an event source is subscribed to, in two stages. The source hands each event to the evaluator, which evaluates the object expression following it at once, in the task the source delivers it in, with that event as its evaluation context.
+A chain that ends in an event source is subscribed to, in two stages. The source hands each event to the evaluator, which evaluates the object expression following it at once, in the task the source delivers it in, with that event as its implicit parameter.
 
 The result is immutable data, and that result, never the browser's live event object or the object expression still to evaluate, is what reaches the caller, by the caller's own delivery. An event in DOMQL is what its source delivers, read through the event data it captured; the browser's own event object is never a value of the language.
 
@@ -2107,7 +2107,7 @@ A member declares its kind, its signature and its runtime contract. Its kind is 
 | Receiver type | Which values have this member |
 | Form | Property access, call or named indexer |
 | Input | Positional arguments or one options object |
-| Parameters | Order, name, type, argument kind, required status or default, null policy, whether it is fixed and, for a fixed one, what it selects, an event type or a condition, for an expression or a predicate, its evaluation context, each item, and for a function, the types of the arguments it is called with, its type being its result's; only a function declares a function parameter, which is required, has no null policy and is given to no observation |
+| Parameters | Order, name, type, argument kind, required status or default, null policy, whether it is fixed and, for a fixed one, what it selects, an event type or a condition, for an expression or a predicate, its implicit parameter, each item, and for a function, the types of the arguments it is called with, its type being its result's; only a function declares a function parameter, which is required, has no null policy and is given to no observation |
 | Result type | The type the member must return |
 
 Optional and nullable are separate. An optional parameter can be omitted; a nullable parameter can receive null. Unless a vocabulary table marks a parameter optional, it is required.
@@ -2182,13 +2182,13 @@ A document holds the definition's `version` and the `expression` node, the root 
 | --- | --- | --- |
 | `literal` | `value`, a JSON string, a finite number, a Boolean or null | A literal |
 | `parameter` | `name` | A parameter, the caller's binding of the name; text writes it alone where its name is no reserved word, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and after `~` otherwise |
-| `context` | None | The evaluation context |
+| `context` | None | The implicit parameter |
 | `root` | `name`, `document`, `window` or `root` | A root |
 | `local` | `name` | A use of a local, a function parameter or a field, one in scope where it stands |
 | `member` | `name`, the member's name, or for a bracket property access whose expression is no string literal that is a name, that expression's node; `target`, the receiver; and `optional`, true, where it is written with `?.` or `?[` | A property access, or a bracket property access |
 | `call` | `name`; `arguments`, its arguments in order, empty where it is given none; `target`, the receiver; and `optional`, true, where it is written with `?.` | A call |
 | `indexer` | `name`, left out for the default indexer; `argument`, its key; `target`, the receiver; and `optional`, true, where it is written with `?:` | A named indexer, or the receiver's default indexer |
-| `object` | `fields`; `locals`, where it has any; and `target`, the node the object expression follows | An object expression; without a target, one keeping the evaluation context around it, which at the top level is absent |
+| `object` | `fields`; `locals`, where it has any; and `target`, the node the object expression follows | An object expression; without a target, one keeping the implicit parameter around it, which at the top level is absent |
 | `equality` | `left` and `right`, the two expressions it compares | An equality; `!=` is a `not` holding one |
 | `body` | `locals`, each its `name` and its `value`, in order, and `result`, the value the body gives | A body: the root expression's, a `do` block's, a function's or a conditional branch's, and nowhere else |
 | `do` | `body`, an expression alone or a `body` node | A do block |
@@ -2280,14 +2280,14 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Chain receivers | A conditional or body cannot be a chain receiver. |
 | Functions | Each is a local initializer, or an arrow function that is also an argument, with unique parameter names; an arrow function's body is a simple expression; a function cannot be called before its local is declared. |
 | Optional access | Each optional access is within an optional chain, following the targets of property accesses, calls, indexers and object expressions; each optional chain contains an optional access. |
-| Context | `context` cannot appear where no evaluation context is available, including a top-level object's unqualified fields. |
+| `context` | `context` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. |
 | Logical expressions | `and` and `or` have at least two operands; `not` has its operand. |
 | Arithmetic | An arithmetic node has a supported operator and both operands; a `negate` node has its operand. |
 | Coalescing | Both value and fallback are present. |
 | Casts | The type is a string and the whole target has the form text writes a cast's target in. |
 | Literals | A literal is a string, a finite number, a Boolean or null, so a number no finite number holds, as `1e999`, is refused in text as in a definition. |
 
-A cast's target is checked whole: a receiver, which is the evaluation context, a parameter, a root, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
+A cast's target is checked whole: a receiver, which is the implicit parameter, a parameter, a root, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
 
 A binding may be named `document` or `window`, as any name can, and an expression reads it as `~document` or `~window`.
 
@@ -2315,7 +2315,7 @@ Preparation checks the following contracts:
 | Conditions and logical operands | Each is a value. Truthiness determines the branch; an event source, action or behavior cannot be used as that value. |
 | Coalescing | Value and fallback have compatible types. |
 | Conditionals | Branch result types are compatible. |
-| Evaluation context | Each expression is valid in the context declared by its member. |
+| Implicit parameter | Each expression is valid with the implicit parameter its member declares. |
 | Request kind | The caller uses the request as its declared kind. |
 | Output | A result contains data alone. |
 | Watching | Every member the expression may read has an observation contract the watch accepts. |
@@ -2398,7 +2398,7 @@ A module whose declarations break the declaration contract, or whose names regis
 | A misspelled member or extension, or a parameter the caller did not bind | A validation error, with its location |
 | A fixed argument preparation cannot settle | A validation error: `The argument 'name' of 'is' selects from the vocabulary, so it is a string the expression's resolution settles without reading the document, …` |
 | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
-| A name no local or field in scope has | A validation error, giving the form with `context` where the evaluation context has a member of that name |
+| A name no local or field in scope has | A validation error, giving the form with `context` where the implicit parameter has a member of that name |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
 | A cast to a type that is no node, or of a target that can never be of its type | A validation error naming the types |
 | An equality of two values whose types fit neither way, or of a value that is no string, number, Boolean or node with one that is not null | A validation error naming the types, and the test to write where a value is compared with the name of one of its Boolean members |
@@ -2407,7 +2407,7 @@ A module whose declarations break the declaration contract, or whose names regis
 | A call no local function answers, a call of a local holding a value or a function that may be null, a call given the wrong number of arguments, or one whose functions give no one type | A validation error naming the function |
 | A call that reaches a function within its own call, through a function passed to it | A validation error |
 | A field or a result that would hold a function, or a function given to a member's value parameter | A validation error |
-| A function given to a function parameter of another number of parameters, of a result of another type, or that may be null, or an arrow function given to a contextual-expression parameter | A validation error naming the parameter |
+| A function given to a function parameter of another number of parameters, of a result of another type, or that may be null, or an arrow function given to an expression parameter | A validation error naming the parameter |
 | An interpolation of a value that can be null, or of no string or number | A validation error naming the interpolation, and the fallback or the conversion to give it |
 | A comparison operand that can be null, or that is no number | A validation error naming the operand, and the fallback to give it |
 | An `and` or an `or` whose operands give values no one type holds | A validation error naming them, and the conditional to write where null is an acceptable alternative |
@@ -2632,7 +2632,7 @@ The grammar uses several terms more narrowly than the prose:
 
 | Grammar rule | Meaning |
 | --- | --- |
-| `value` | The forms listed by that production: the evaluation context, a literal or a root |
+| `value` | The forms listed by that production: the implicit parameter, a literal or a root |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
 | `equality-operand` | A chain, cast, conversion or attempt, used within the arithmetic productions |
@@ -2644,7 +2644,7 @@ In the prose, **value** means any value an expression has; type resolution deter
 
 ## Terms
 
-In this section: [Expressions and results](#expressions-and-results) · [Chains and members](#chains-and-members) · [Expressions](#expressions-1) · [Vocabulary and requests](#vocabulary-and-requests).
+In this section: [Expressions and results](#expressions-and-results) · [Chains and members](#chains-and-members) · [Expressions](#expressions-1) · [Vocabulary and requests](#vocabulary-and-requests) · [Names for implementations](#names-for-implementations).
 
 <a id="expressions-and-results"></a>
 
@@ -2679,7 +2679,7 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Reserved word | A word that keeps its meaning where an expression stands: a literal's word, a keyword or a root's name | [Names and reserved words](#names-and-reserved-words) |
 | Keyword | A reserved word other than the literals' words and the roots' names, as `let`, `if` and `context` | [Names and reserved words](#names-and-reserved-words) |
 | Reserved reference | `@word`, reading the local or the field a reserved word names | [Names and reserved words](#names-and-reserved-words-referring-to-a-reserved-local-or-field) |
-| Evaluation context | The value against which the current expression runs, read as `context` or bare `~` | [Names and resolution](#names-and-resolution) |
+| Implicit parameter | The value against which the current expression runs, read as `context` or bare `~` | [Names and resolution](#names-and-resolution) |
 
 <a id="chains-and-members"></a>
 
@@ -2687,7 +2687,7 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Chain input | What a chain starts from: the evaluation context, a literal, a root, a name, a reserved reference, a caller binding, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](#syntax) |
+| Chain input | What a chain starts from: the implicit parameter, a literal, a root, a name, a reserved reference, a caller binding, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](#syntax) |
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](#expression-structure-and-precedence) |
 | Receiver | The value before a member access, call or indexer | [Access and calls](#access-and-calls) |
 | Member | A property, function or other declared facility of a type | [Vocabulary contracts](#vocabulary-contracts) |
@@ -2698,7 +2698,7 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Argument | An expression supplied to a call, or an indexer's key | [Arguments](#arguments) |
 | Positional and options inputs | What a member's arguments supply: its parameters in order, or one options object whose fields name them | [Arguments](#arguments) |
 | Options object | The one object expression given to a member that takes options, whose fields supply its parameters | [Arguments](#arguments-options) |
-| Value, expression and predicate arguments | An argument evaluated once where the call is written; one the member evaluates against each context its signature declares; and one of those whose truthiness the member receives | [Arguments](#arguments) |
+| Value, expression and predicate arguments | An argument evaluated once where the call is written; one the member evaluates against each implicit parameter its signature declares; and one of those whose truthiness the member receives | [Arguments](#arguments) |
 | Fixed argument | A value argument the expression's resolution settles to a string that selects a declaration, as those of `is` and `on` do | [Arguments](#arguments) |
 | Optional chain | A chain whose optional access stops it with null for a null receiver | [Property access, calls and indexers](#property-access-calls-and-indexers) |
 | Optional enclosed access | `(? … )`, shorthand making every access in a member chain optional | [Property access, calls and indexers](#property-access-calls-and-indexers) |
@@ -2751,3 +2751,19 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Behavior | A member kind of its own, which its module starts when the caller applies the request and which runs until updated or disposed | [Requests](#requests) |
 | Request | A value, subscription, action or behavior request | [Requests](#requests) |
 | Definition | The JSON document recording a request's meaning | [Definition](#definition) |
+
+<a id="names-for-implementations"></a>
+
+### Names for implementations
+
+The specification names concepts, and an implementation names its own code. The names below are suggested wherever they read well, so implementations, and the modules written for them, read alike.
+
+When naming the implicit parameter or concepts associated with it, implementations may use **context**, either on its own or within compound names. This convention does not reserve the word: **context** may also describe other concepts where its meaning is clear.
+
+| Concept | Name in code | As in |
+| --- | --- | --- |
+| [Implicit parameter](#names-and-resolution) | `context` | `context`, `contextType`, `projectionContext`, a parameter declaration's `context: 'item'` |
+| A member's code | `implementation` | the function that carries a member out |
+| What the host supplies an evaluation | `env` | an implementation's `env`, as DOMQL's window and document |
+| [Receiver](#access-and-calls) | `receiver` | an implementation's `receiver` |
+| A call's arguments, by parameter name | `args` | an implementation's `args` |

@@ -40,7 +40,7 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
  * a call of a local function, its parameters holding its arguments, or a field the fields after it read, holding its value.
  * @typedef {object} LocalsFrame
  * @property {{ locals: { name: string, value?: object }[] }} node What declares the names: the object expression or the body, or for a call's parameters and a field, a list of them alone.
- * @property {unknown} item The evaluation context the scope runs against, which a local evaluated at its first use is evaluated against.
+ * @property {unknown} item The implicit parameter the scope runs against, which a local evaluated at its first use is evaluated against.
  * @property {Map<string, { value: unknown, selections: Map<object, object | string> | null }>} values Each name's value evaluated so far, with the selections its evaluation made.
  * @property {LocalsFrame | null} enclosing The frame of the scope enclosing this one, or null for the outermost.
  */
@@ -101,7 +101,7 @@ export class Evaluator {
     static #fieldTypesByStructure = new WeakMap();
 
     /**
-     * The function each node of a resolved definition compiles to, by the definition and then the node, with the registry they were compiled against: built once, it holds what the node's evaluation needs that no evaluation changes, and takes the evaluator, which holds what one does, and the evaluation context.
+     * The function each node of a resolved definition compiles to, by the definition and then the node, with the registry they were compiled against: built once, it holds what the node's evaluation needs that no evaluation changes, and takes the evaluator, which holds what one does, and the implicit parameter.
      * Beside them, the function each member's arguments compile to, by the member's resolution, for the evaluations that read the member without compiling it.
      * @type {WeakMap<object, { registry: object, functions: Map<object, (evaluator: Evaluator, current: unknown) => unknown>, arguments: Map<object, (evaluator: Evaluator, current: unknown) => object | null> }>}
      */
@@ -113,13 +113,13 @@ export class Evaluator {
     /** The record a part with none of its own takes from each whole record, made once. @type {WeakMap<object, object>} */
     static #inheritedRecords = new WeakMap();
 
-    /** The records each object expression gave last, the latest first, with the context and the records of the fields each was made of, so an object whose fields give the same records shares one, as items that alternate between branches do. @type {WeakMap<object, { context: object | null, fields: object[], record: object }[]>} */
+    /** The records each object expression gave last, the latest first, with the implicit parameter's record and the records of the fields each was made of, so an object whose fields give the same records shares one, as items that alternate between branches do. @type {WeakMap<object, { contextRecord: object | null, fields: object[], record: object }[]>} */
     static #recentFieldRecords = new WeakMap();
 
-    /** The functions this evaluator's nodes compile to. @type {Map<object, (evaluator: Evaluator, evaluationContext: unknown) => unknown>} */
+    /** The functions this evaluator's nodes compile to. @type {Map<object, (evaluator: Evaluator, context: unknown) => unknown>} */
     #compiledFunctions;
 
-    /** The functions the arguments of this evaluator's members compile to, by each member's resolution. @type {Map<object, (evaluator: Evaluator, evaluationContext: unknown) => object | null>} */
+    /** The functions the arguments of this evaluator's members compile to, by each member's resolution. @type {Map<object, (evaluator: Evaluator, context: unknown) => object | null>} */
     #compiledArguments;
 
     #moduleRegistry;
@@ -164,7 +164,7 @@ export class Evaluator {
 
     /**
      * The terminal member's node and value while evaluating its projection.
-     * The value is an event or an action result. The context is null outside a projection.
+     * The value is an event or an action result, which the implicit parameter stands for; null outside a projection.
      * @type {{ node: object, value: unknown } | null}
      */
     #projectionContext = null;
@@ -368,8 +368,8 @@ export class Evaluator {
         return this.#evaluateResult();
     }
 
-    #evaluateNode(node, evaluationContext) {
-        return this.#getCompiledFunction(node)(this, evaluationContext);
+    #evaluateNode(node, context) {
+        return this.#getCompiledFunction(node)(this, context);
     }
 
     /** The function the node compiles to, built the first time it is asked for and kept for every evaluation of its resolved definition. */
@@ -384,7 +384,7 @@ export class Evaluator {
         return compiledFunction;
     }
 
-    /** The node as a function of the evaluator and the evaluation context, each kind evaluated as its section of the specification sets out, the nodes it holds compiled with it. */
+    /** The node as a function of the evaluator and the implicit parameter, each kind evaluated as its section of the specification sets out, the nodes it holds compiled with it. */
     #compileNode(node) {
         switch (node.kind) {
             case 'literal': {
@@ -404,7 +404,7 @@ export class Evaluator {
                         return evaluator => evaluator.#objectRoot;
                 }
             case 'context':
-                return (evaluator, evaluationContext) => evaluationContext;
+                return (evaluator, context) => context;
             case 'local': {
                 const resolution = this.#resolvedDefinition.resolutionOf(node);
 
@@ -424,10 +424,10 @@ export class Evaluator {
                 const left = this.#getCompiledFunction(node.left);
                 const right = this.#getCompiledFunction(node.right);
 
-                return (evaluator, evaluationContext) => {
-                    const value = left(evaluator, evaluationContext);
+                return (evaluator, context) => {
+                    const value = left(evaluator, context);
 
-                    return value === right(evaluator, evaluationContext);
+                    return value === right(evaluator, context);
                 };
             }
             case 'conditional': {
@@ -438,14 +438,14 @@ export class Evaluator {
                     const bind = this.#getCompiledFunction(node.binding.value);
 
                     // The value is evaluated once; where it is truthy, the consequent reads it through the name it is bound to, and the branch taken is recorded for the value's place in the result.
-                    return (evaluator, evaluationContext) => {
-                        const value = bind(evaluator, evaluationContext);
+                    return (evaluator, context) => {
+                        const value = bind(evaluator, context);
                         const isTruthy = Evaluator.#isTruthy(value);
 
                         (evaluator.#selections ??= new Map()).set(node, isTruthy ? node.consequent : node.alternative);
 
                         if (!isTruthy) {
-                            return alternative(evaluator, evaluationContext);
+                            return alternative(evaluator, context);
                         }
 
                         const enclosing = evaluator.#boundValues.get(node);
@@ -453,7 +453,7 @@ export class Evaluator {
                         evaluator.#boundValues.set(node, value);
 
                         try {
-                            return consequent(evaluator, evaluationContext);
+                            return consequent(evaluator, context);
                         } finally {
                             if (enclosing === undefined) {
                                 evaluator.#boundValues.delete(node);
@@ -467,12 +467,12 @@ export class Evaluator {
                 const condition = this.#getCompiledFunction(node.condition);
 
                 // The branch the condition selects is recorded for the value's place in the result.
-                return (evaluator, evaluationContext) => {
-                    const isTrue = Evaluator.#isTruthy(condition(evaluator, evaluationContext));
+                return (evaluator, context) => {
+                    const isTrue = Evaluator.#isTruthy(condition(evaluator, context));
 
                     (evaluator.#selections ??= new Map()).set(node, isTrue ? node.consequent : node.alternative);
 
-                    return (isTrue ? consequent : alternative)(evaluator, evaluationContext);
+                    return (isTrue ? consequent : alternative)(evaluator, context);
                 };
             }
             case 'optionalChain':
@@ -482,12 +482,12 @@ export class Evaluator {
                 const value = this.#getCompiledFunction(node.value);
                 const fallback = this.#getCompiledFunction(node.fallback);
 
-                return (evaluator, evaluationContext) => {
-                    const answer = value(evaluator, evaluationContext);
+                return (evaluator, context) => {
+                    const answer = value(evaluator, context);
 
                     (evaluator.#selections ??= new Map()).set(node, answer === null ? node.fallback : node.value);
 
-                    return answer === null ? fallback(evaluator, evaluationContext) : answer;
+                    return answer === null ? fallback(evaluator, context) : answer;
                 };
             }
             case 'and':
@@ -497,9 +497,9 @@ export class Evaluator {
                 const last = operands.length - 1;
 
                 // The first operand that decides it, falsey for `and` and truthy for `or`, or else the last, is its value as it is, and the operand it is is recorded for the value's place in the result.
-                return (evaluator, evaluationContext) => {
+                return (evaluator, context) => {
                     for (let index = 0; ; index++) {
-                        const value = operands[index](evaluator, evaluationContext);
+                        const value = operands[index](evaluator, context);
 
                         if (index === last || Evaluator.#isTruthy(value) === decidesWhenTruthy) {
                             (evaluator.#selections ??= new Map()).set(node, node.operands[index]);
@@ -512,11 +512,11 @@ export class Evaluator {
             case 'not': {
                 const operand = this.#getCompiledFunction(node.operand);
 
-                return (evaluator, evaluationContext) => !Evaluator.#isTruthy(operand(evaluator, evaluationContext));
+                return (evaluator, context) => !Evaluator.#isTruthy(operand(evaluator, context));
             }
             case 'function':
-                // A function's value is its closure: the locals, the evaluation context and the object root where it is declared, which each call evaluates its body in.
-                return (evaluator, evaluationContext) => ({ function: node, frame: evaluator.#localsFrame, evaluationContext, objectRoot: evaluator.#objectRoot });
+                // A function's value is its closure: the locals, the implicit parameter and the object root where it is declared, which each call evaluates its body in.
+                return (evaluator, context) => ({ function: node, frame: evaluator.#localsFrame, context, objectRoot: evaluator.#objectRoot });
             case 'functionCall': {
                 const { targets: resolvedTargets, binding } = this.#resolvedDefinition.resolutionOf(node);
                 const targets = this.#compileTargets(resolvedTargets);
@@ -525,9 +525,9 @@ export class Evaluator {
 
                 // The arguments are evaluated once each, left to right, in the caller's scope, and the body of the function the name holds in its closure's, so no local of the caller's is visible in it;
                 // where the name may hold one of several, the one it holds is recorded for the value's place in the result.
-                return (evaluator, evaluationContext) => {
+                return (evaluator, context) => {
                     const closure = binding === undefined ? evaluator.#evaluateLocal(local) : evaluator.#boundValues.get(binding);
-                    const values = evaluateArguments.map(evaluateArgument => evaluateArgument(evaluator, evaluationContext));
+                    const values = evaluateArguments.map(evaluateArgument => evaluateArgument(evaluator, context));
                     const target = targets.length === 1 ? targets[0] : targets.find(candidate => candidate.function === closure.function);
 
                     if (targets.length > 1) {
@@ -543,9 +543,9 @@ export class Evaluator {
                 const locals = node.locals.map(local => ({ name: local.name, evaluate: this.#getCompiledFunction(local.value) }));
                 const result = this.#getCompiledFunction(node.result);
 
-                // Each local is evaluated once, in order, whenever the body runs, an unused one included, each seeing those before it, and then the result, all against the body's evaluation context.
-                return (evaluator, evaluationContext) => {
-                    const frame = { node, item: evaluationContext, values: new Map(), enclosing: evaluator.#localsFrame };
+                // Each local is evaluated once, in order, whenever the body runs, an unused one included, each seeing those before it, and then the result, all against the body's implicit parameter.
+                return (evaluator, context) => {
+                    const frame = { node, item: context, values: new Map(), enclosing: evaluator.#localsFrame };
                     const enclosingSelections = evaluator.#selections;
 
                     evaluator.#localsFrame = frame;
@@ -554,14 +554,14 @@ export class Evaluator {
                         for (const local of locals) {
                             evaluator.#selections = null;
 
-                            const value = local.evaluate(evaluator, evaluationContext);
+                            const value = local.evaluate(evaluator, context);
 
                             frame.values.set(local.name, { value, selections: evaluator.#selections });
                         }
 
                         evaluator.#selections = enclosingSelections;
 
-                        return result(evaluator, evaluationContext);
+                        return result(evaluator, context);
                     } finally {
                         evaluator.#localsFrame = frame.enclosing;
                     }
@@ -571,7 +571,7 @@ export class Evaluator {
                 const parts = node.parts.map(part => (part.kind === 'text' ? part.value : { expression: part.expression, evaluate: this.#getCompiledFunction(part.expression) }));
 
                 // Each interpolation is evaluated once, from left to right, and its value inserted as its text: a string as it is and a number as the built-in conversion writes it, negative zero as "0".
-                return (evaluator, evaluationContext) => {
+                return (evaluator, context) => {
                     let text = '';
 
                     for (const part of parts) {
@@ -580,7 +580,7 @@ export class Evaluator {
                             continue;
                         }
 
-                        const value = part.evaluate(evaluator, evaluationContext);
+                        const value = part.evaluate(evaluator, context);
 
                         if (typeof value !== 'string' && typeof value !== 'number') {
                             throw LexicaError.evaluation(`An interpolation inserts a string or a number, and is given ${Evaluator.#describe(value)}`, evaluator.#locate(evaluator.#pointerOf(part.expression)));
@@ -597,11 +597,11 @@ export class Evaluator {
                 const compares = node.operators.map(operator => COMPARISONS[operator]);
 
                 // Each operand is evaluated once, left to right, the one between two operators compared with both, and the first comparison that is false answers false without evaluating the operands after it.
-                return (evaluator, evaluationContext) => {
-                    let left = operands[0](evaluator, evaluationContext);
+                return (evaluator, context) => {
+                    let left = operands[0](evaluator, context);
 
                     for (let index = 0; index < compares.length; index++) {
-                        const right = operands[index + 1](evaluator, evaluationContext);
+                        const right = operands[index + 1](evaluator, context);
 
                         if (typeof left !== 'number' || typeof right !== 'number') {
                             throw LexicaError.evaluation(`'${node.operators[index]}' compares numbers, and is given ${Evaluator.#describe(typeof left !== 'number' ? left : right)}`, evaluator.#locate(evaluator.#pointerOf(node)));
@@ -623,9 +623,9 @@ export class Evaluator {
                 const right = this.#getCompiledFunction(node.right);
                 const operate = ARITHMETIC[node.operator];
 
-                return (evaluator, evaluationContext) => {
-                    const leftValue = left(evaluator, evaluationContext);
-                    const rightValue = right(evaluator, evaluationContext);
+                return (evaluator, context) => {
+                    const leftValue = left(evaluator, context);
+                    const rightValue = right(evaluator, context);
 
                     return evaluator.#arithmeticResult(node, operate(leftValue, rightValue), leftValue, rightValue);
                 };
@@ -633,8 +633,8 @@ export class Evaluator {
             case 'negate': {
                 const operand = this.#getCompiledFunction(node.operand);
 
-                return (evaluator, evaluationContext) => {
-                    const value = operand(evaluator, evaluationContext);
+                return (evaluator, context) => {
+                    const value = operand(evaluator, context);
 
                     return evaluator.#arithmeticResult(node, -value, value, 0);
                 };
@@ -659,8 +659,8 @@ export class Evaluator {
         const target = this.#getCompiledFunction(node.target);
         const { type } = node;
 
-        return (evaluator, evaluationContext) => {
-            const value = target(evaluator, evaluationContext);
+        return (evaluator, context) => {
+            const value = target(evaluator, context);
 
             if (value === null || evaluator.#conformsNamed(value, type)) {
                 return value;
@@ -689,8 +689,8 @@ export class Evaluator {
         const name = LexicaModule.conversionNameOf(declaration);
         const attempt = Evaluator.#compileConversionAttempt(declaration, type, this.#moduleRegistry);
 
-        return (evaluator, evaluationContext) => {
-            const value = target(evaluator, evaluationContext);
+        return (evaluator, context) => {
+            const value = target(evaluator, context);
 
             if (value === null) {
                 return null;
@@ -768,7 +768,7 @@ export class Evaluator {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
 
         if (resolution === undefined || resolution.kind === 'bracketPropertyAccess' || (resolution.kind !== 'field' && resolution.kind !== 'objectRootField' && resolution.declaration === null)) {
-            return (evaluator, evaluationContext) => evaluator.#evaluateMember(node, evaluationContext);
+            return (evaluator, context) => evaluator.#evaluateMember(node, context);
         }
 
         const target = this.#getCompiledFunction(node.target);
@@ -776,18 +776,18 @@ export class Evaluator {
         if (resolution.kind === 'objectRootField') {
             const { name } = resolution;
 
-            return (evaluator, evaluationContext) => evaluator.#readObjectRootField(target(evaluator, evaluationContext), name);
+            return (evaluator, context) => evaluator.#readObjectRootField(target(evaluator, context), name);
         }
 
         if (resolution.kind === 'field') {
             const { name } = resolution;
 
-            return (evaluator, evaluationContext) => {
+            return (evaluator, context) => {
                 if (evaluator.#projectionContext !== null && node === evaluator.#projectionContext.node) {
                     return evaluator.#projectionContext.value;
                 }
 
-                return evaluator.#readField(target(evaluator, evaluationContext), name);
+                return evaluator.#readField(target(evaluator, context), name);
             };
         }
 
@@ -799,19 +799,19 @@ export class Evaluator {
         const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
         const evaluateArguments = this.#compileArguments(resolution);
 
-        return (evaluator, evaluationContext) => {
+        return (evaluator, context) => {
             // A projection stands the event or the result where its member is, so that member is never read again.
             if (evaluator.#projectionContext !== null && node === evaluator.#projectionContext.node) {
                 return evaluator.#projectionContext.value;
             }
 
-            const receiver = target(evaluator, evaluationContext);
+            const receiver = target(evaluator, context);
 
             if (receiver === null) {
                 return null;
             }
 
-            const args = evaluateArguments(evaluator, evaluationContext);
+            const args = evaluateArguments(evaluator, context);
 
             return args === null ? null : evaluator.#invokeImplementation(declaration, implementation, conforms, copyStructures, receiver, args, type, node);
         };
@@ -850,7 +850,7 @@ export class Evaluator {
             return { ...plan, propagatesNull: false, member: resolution.declaration.name, targets: this.#compileTargets(targets), parameterTypes, resultType, pointer: argument.pointer };
         });
 
-        return (evaluator, evaluationContext) => {
+        return (evaluator, context) => {
             const args = {};
             const enclosingObjectRoot = evaluator.#objectRoot;
             const enclosingLocals = evaluator.#localsFrame;
@@ -882,9 +882,9 @@ export class Evaluator {
                         let value;
 
                         if (plan.isOption) {
-                            ({ value, selections } = evaluator.#evaluateOption(plan, evaluationContext));
+                            ({ value, selections } = evaluator.#evaluateOption(plan, context));
                         } else {
-                            value = plan.evaluate(evaluator, evaluationContext);
+                            value = plan.evaluate(evaluator, context);
                         }
 
                         if (value === null && plan.propagatesNull) {
@@ -902,7 +902,7 @@ export class Evaluator {
                     }
 
                     if (plan.isRead) {
-                        evaluator.#localsFrame = { node: { locals: [{ name: plan.name }] }, item: evaluationContext, values: new Map([[plan.name, { value: held, selections }]]), enclosing: evaluator.#localsFrame };
+                        evaluator.#localsFrame = { node: { locals: [{ name: plan.name }] }, item: context, values: new Map([[plan.name, { value: held, selections }]]), enclosing: evaluator.#localsFrame };
                     }
                 }
 
@@ -919,17 +919,17 @@ export class Evaluator {
         return targets.map(target => ({ function: target.function, parameters: target.parameters, evaluateBody: this.#getCompiledFunction(target.body) }));
     }
 
-    /** The value of a call of the closure: the target's body, evaluated in the closure's scope, evaluation context and object root, its parameters bound to the values in order. */
+    /** The value of a call of the closure: the target's body, evaluated in the closure's scope, implicit parameter and object root, its parameters bound to the values in order. */
     #callClosure(closure, target, values) {
         const { parameters } = target;
         const enclosingFrame = this.#localsFrame;
         const enclosingObjectRoot = this.#objectRoot;
 
-        this.#localsFrame = { node: { locals: parameters.map(parameter => ({ name: parameter })) }, item: closure.evaluationContext, values: new Map(parameters.map((parameter, index) => [parameter, { value: values[index], selections: null }])), enclosing: closure.frame };
+        this.#localsFrame = { node: { locals: parameters.map(parameter => ({ name: parameter })) }, item: closure.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: values[index], selections: null }])), enclosing: closure.frame };
         this.#objectRoot = closure.objectRoot;
 
         try {
-            return target.evaluateBody(this, closure.evaluationContext);
+            return target.evaluateBody(this, closure.context);
         } finally {
             this.#localsFrame = enclosingFrame;
             this.#objectRoot = enclosingObjectRoot;
@@ -1005,13 +1005,13 @@ export class Evaluator {
     }
 
     /** The value of a written option and the selections its evaluation made, which are made where the option is evaluated as well. */
-    #evaluateOption(plan, evaluationContext) {
+    #evaluateOption(plan, context) {
         const enclosingSelections = this.#selections;
 
         this.#selections = null;
 
         try {
-            const value = plan.evaluate(this, evaluationContext);
+            const value = plan.evaluate(this, context);
 
             return { value, selections: this.#selections };
         } finally {
@@ -1035,8 +1035,8 @@ export class Evaluator {
             evaluate: this.#getCompiledFunction(field.value),
         }));
 
-        return (evaluator, evaluationContext) => {
-            const value = hasTarget ? target(evaluator, evaluationContext) : evaluationContext;
+        return (evaluator, context) => {
+            const value = hasTarget ? target(evaluator, context) : context;
 
             if (!(hasTarget && Array.isArray(value))) {
                 return value === null && hasTarget ? null : evaluator.#applyFields(node, fields, value);
@@ -1244,7 +1244,7 @@ export class Evaluator {
     }
 
     /**
-     * The value of the local the node names: evaluated at its first use in the application of the object expression that holds it, against that application's evaluation context and the locals in scope where it is written, and the same value at every later use there.
+     * The value of the local the node names: evaluated at its first use in the application of the object expression that holds it, against that application's implicit parameter and the locals in scope where it is written, and the same value at every later use there.
      * The selections its evaluation made are recorded at every place in the result it is used.
      */
     #evaluateLocal(node) {
@@ -1283,13 +1283,13 @@ export class Evaluator {
         return cachedLocal.value;
     }
 
-    #evaluateMember(node, evaluationContext) {
+    #evaluateMember(node, context) {
         // A projection stands the event or the result where its member is, so that member is never read again.
         if (node === this.#projectionContext?.node) {
             return this.#projectionContext.value;
         }
 
-        const receiver = this.#evaluateNode(node.target, evaluationContext);
+        const receiver = this.#evaluateNode(node.target, context);
 
         if (receiver === null) {
             return null;
@@ -1298,19 +1298,19 @@ export class Evaluator {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
 
         if (resolution.kind !== 'bracketPropertyAccess') {
-            return this.#readResolvedMember(resolution, receiver, node, evaluationContext);
+            return this.#readResolvedMember(resolution, receiver, node, context);
         }
 
         // A bracket property access computes its name once and reads the property it selects, which is recorded for the value's place in the result.
-        const name = this.#evaluateNode(node.name, evaluationContext);
+        const name = this.#evaluateNode(node.name, context);
 
         (this.#selections ??= new Map()).set(node, name);
 
-        return this.#readResolvedMember(resolution.candidates.get(name), receiver, node, evaluationContext);
+        return this.#readResolvedMember(resolution.candidates.get(name), receiver, node, context);
     }
 
     /** Reads the member the resolution names of the receiver: a field of its data, a field of the outermost object, or the declaration's function with the arguments it is given. */
-    #readResolvedMember(resolution, receiver, node, evaluationContext) {
+    #readResolvedMember(resolution, receiver, node, context) {
         if (resolution.kind === 'field') {
             return this.#readField(receiver, resolution.name);
         }
@@ -1319,7 +1319,7 @@ export class Evaluator {
             return this.#readObjectRootField(receiver, resolution.name);
         }
 
-        const args = this.#evaluateArguments(resolution, evaluationContext);
+        const args = this.#evaluateArguments(resolution, context);
 
         return args === null ? null : this.#invokeMember(resolution.contract ?? resolution.declaration, receiver, args, resolution.type, node);
     }
@@ -1381,7 +1381,7 @@ export class Evaluator {
     }
 
     /** The arguments by parameter name, or null where a null argument makes the call answer null, evaluated as a compiled member's are, their plan made once for the member's resolution. */
-    #evaluateArguments(resolution, evaluationContext) {
+    #evaluateArguments(resolution, context) {
         let evaluateArguments = this.#compiledArguments.get(resolution);
 
         if (evaluateArguments === undefined) {
@@ -1389,7 +1389,7 @@ export class Evaluator {
             this.#compiledArguments.set(resolution, evaluateArguments);
         }
 
-        return evaluateArguments(this, evaluationContext);
+        return evaluateArguments(this, context);
     }
 
     /** Carries out a declaration's function, checking that its result is of the declared type. */
@@ -1764,9 +1764,9 @@ export class Evaluator {
      * The metadata of the value an expression gave at its place in the result, read from the identities its copy left there: the record of the expression that produced it, followed through locals, bodies, `do` blocks, function calls,
      * object-root fields, the branch or operand a selecting expression selected and the property a bracket property access selected; a field read keeps the record its whole has for that field, or its whole's own.
      * An object expression's value records each field, and a projection's each item and the reference it came from. The value is undefined where the expression is described for a part read from it, and nothing beyond its record is described then.
-     * The context is the record of the value `context` stands for where the expression stands, the value an object expression follows or the item it projects, or null where there is none.
+     * The context record is the record of the value `context` stands for where the expression stands, the value an object expression follows or the item it projects, or null where there is none.
      */
-    #metadataOf(node, value, identities, context) {
+    #metadataOf(node, value, identities, contextRecord) {
         const branches = identities?.branches ?? null;
 
         for (;;) {
@@ -1816,7 +1816,7 @@ export class Evaluator {
                     }
 
                     if (resolution?.kind === 'field') {
-                        const whole = this.#metadataOf(node.target, undefined, identities, context);
+                        const whole = this.#metadataOf(node.target, undefined, identities, contextRecord);
 
                         return whole.fields?.[candidate ?? resolution.name] ?? Evaluator.#inherited(whole);
                     }
@@ -1824,9 +1824,9 @@ export class Evaluator {
                     return this.#recordOf(node, candidate, resolution?.declaration?.tolerance ?? null);
                 }
                 case 'context':
-                    return context ?? this.#recordOf(node, null, null);
+                    return contextRecord ?? this.#recordOf(node, null, null);
                 case 'object':
-                    return this.#metadataOfObject(node, value, identities, context);
+                    return this.#metadataOfObject(node, value, identities, contextRecord);
                 default:
                     if (SELECTING_KINDS.has(node.kind)) {
                         const selected = branches?.get(node);
@@ -1845,30 +1845,30 @@ export class Evaluator {
     }
 
     /** The metadata of an object expression's value: an object's record of each field, a projected list's record of each item with the reference each came from, or its own record alone where it gave null or is described for a part read from it. */
-    #metadataOfObject(node, value, identities, context) {
+    #metadataOfObject(node, value, identities, contextRecord) {
         // The fields read `context` as the value the expression follows, each item of it where it projects a list, and as the enclosing one where it follows none.
-        const followed = node.target === undefined ? null : this.#metadataOf(node.target, undefined, identities, context);
+        const followed = node.target === undefined ? null : this.#metadataOf(node.target, undefined, identities, contextRecord);
 
         if (Array.isArray(value)) {
-            const itemContext = followed === null ? context : Evaluator.#inherited(followed);
-            const items = value.map((item, index) => this.#metadataOfFields(node, item, identities?.items?.[index] ?? null, itemContext));
+            const itemContextRecord = followed === null ? contextRecord : Evaluator.#inherited(followed);
+            const items = value.map((item, index) => this.#metadataOfFields(node, item, identities?.items?.[index] ?? null, itemContextRecord));
             const sources = identities?.elements ?? null;
 
             return Object.freeze({ origin: this.#recordOf(node, null, null).origin, tolerance: null, items: Object.freeze(items), sources: sources === null ? null : Object.freeze([...sources]) });
         }
 
-        return value === null ? this.#recordOf(node, null, null) : this.#metadataOfFields(node, value, identities, followed ?? context);
+        return value === null ? this.#recordOf(node, null, null) : this.#metadataOfFields(node, value, identities, followed ?? contextRecord);
     }
 
     /** The record of an object an object expression built, with each field's, by its name in the order written; a field described for a part read from it is described from the selections of the place it is read. */
-    #metadataOfFields(node, object, identities, context) {
+    #metadataOfFields(node, object, identities, contextRecord) {
         const { fields } = node;
         const records = new Array(fields.length);
 
         for (let index = 0; index < fields.length; index++) {
             const field = fields[index];
 
-            records[index] = this.#metadataOf(field.value, object === undefined ? undefined : object?.[field.name], object === undefined ? identities : identities?.fields?.[field.name] ?? null, context);
+            records[index] = this.#metadataOf(field.value, object === undefined ? undefined : object?.[field.name], object === undefined ? identities : identities?.fields?.[field.name] ?? null, contextRecord);
         }
 
         // An object whose fields give the records a recent one did, as the items of a list mostly do, shares its record.
@@ -1880,7 +1880,7 @@ export class Evaluator {
         }
 
         for (const kept of recent) {
-            if (kept.context === context && records.every((record, index) => record === kept.fields[index])) {
+            if (kept.contextRecord === contextRecord && records.every((record, index) => record === kept.fields[index])) {
                 return kept.record;
             }
         }
@@ -1893,7 +1893,7 @@ export class Evaluator {
 
         const record = Object.freeze({ origin: this.#recordOf(node, null, null).origin, tolerance: null, fields: Object.freeze(byName) });
 
-        recent.unshift({ context, fields: records, record });
+        recent.unshift({ contextRecord, fields: records, record });
 
         if (recent.length > RECENT_FIELD_RECORDS) {
             recent.pop();

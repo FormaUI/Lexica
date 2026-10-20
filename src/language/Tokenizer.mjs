@@ -16,7 +16,7 @@ export const TOKEN_TYPES = Object.freeze(['name', 'literal', 'keyword', 'context
 /**
  * @typedef {object} Token
  * @property {'name' | 'literal' | 'keyword' | 'context' | 'invalid' | 'end' | 'interpolated-string-start' | 'interpolated-text' | 'interpolation-start' | 'interpolation-end' | 'interpolated-string-end' | 'caller-binding' | 'reserved-reference' | '.' | '?.' | '?[' | '?:' | '??' | '(?' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '=' | '=>' | '+' | '-' | '*' | '/' | '%' | ',' | ':' | '(' | ')' | '{' | '}' | '[' | ']'} type
- * @property {unknown} [value] A name's or a keyword's text, the evaluation context's spelling, `context` or `~`, the name `~` reads the caller's binding of, the reserved word `@` reads the local or the field of, a literal's value, or the text a run of an interpolated string's text stands for.
+ * @property {unknown} [value] A name's or a keyword's text, the implicit parameter's spelling, `context` or `~`, the name `~` reads the caller's binding of, the reserved word `@` reads the local or the field of, a literal's value, or the text a run of an interpolated string's text stands for.
  * @property {'"' | "'"} [quote] The quote of a string's literal token, or of an interpolated string's opening and closing tokens, `"` for a string and `'` for a raw string.
  * @property {number} [delimiter] How many quotes that string's delimiter has: one inline, three or more for a block.
  * @property {number} start
@@ -297,7 +297,7 @@ export class Tokenizer {
 
     /**
      * Reads what `~` begins: the caller's binding of the name written directly after it, whatever local or field shares its name and a reserved word included, as `~as` reads the binding `as`,
-     * or, with no name directly after it, the evaluation context, as `context` is, so `~.size` reads `context.size`.
+     * or, with no name directly after it, the implicit parameter, as `context` is, so `~.size` reads `context.size`.
      */
     #readCallerBinding(start) {
         NAME.lastIndex = start + 1;

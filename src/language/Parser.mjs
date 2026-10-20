@@ -534,7 +534,7 @@ export class Parser {
     /** Refuses what an equality operand cannot start with: an equality or a comparison operator, which compares the value written before it, and a conditional, which is grouped where it is an operand. */
     #refuseOperandStart(start) {
         if (this.#isEqualityOperator() || this.#isComparisonOperator()) {
-            throw this.#fail(`'${this.#token.type}' compares the value written before it: write 'context ${this.#token.type} …' to compare the evaluation context`, start);
+            throw this.#fail(`'${this.#token.type}' compares the value written before it: write 'context ${this.#token.type} …' to compare the implicit parameter`, start);
         }
 
         if (this.#isKeyword('if')) {
@@ -689,7 +689,7 @@ export class Parser {
             throw this.#unexpected("',' before the next field");
         }
 
-        // `~` alone is the evaluation context, so a name a space parts from it was most likely the caller's binding of that name.
+        // `~` alone is the implicit parameter, so a name a space parts from it was most likely the caller's binding of that name.
         if (value.type === 'context' && value.value === '~') {
             throw this.#fail(`'~' reads the caller's binding of the name written directly after it: write '~${this.#token.value}', with no space`, value.start);
         }
@@ -962,7 +962,7 @@ export class Parser {
         const next = this.#tokens[this.#index + 1];
 
         if (this.#startsConversion()) {
-            throw this.#fail(`'to' converts the value written before it: write 'context to ${this.#text.slice(next.start, next.end)}' to convert the evaluation context`, token.start);
+            throw this.#fail(`'to' converts the value written before it: write 'context to ${this.#text.slice(next.start, next.end)}' to convert the implicit parameter`, token.start);
         }
 
         // A name that starts a chain is a local, a field or a binding, which takes no argument, so one an argument follows after a space is a member written without its receiver; parentheses after it call the local function of its name.
@@ -976,7 +976,7 @@ export class Parser {
             }
 
             if (token.type === 'name' && next.spaced && ARGUMENT_STARTS.has(next.type)) {
-                throw this.#fail(`'${token.value}' follows no receiver: write 'context.${token.value}(…)' for a member of the evaluation context`, token.start);
+                throw this.#fail(`'${token.value}' follows no receiver: write 'context.${token.value}(…)' for a member of the implicit parameter`, token.start);
             }
         }
 

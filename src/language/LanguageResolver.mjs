@@ -68,7 +68,7 @@ export class LanguageResolver {
                 return node.name === 'root' ? this.#resolveObjectRoot(pointer, scope) : { type: Type.createNamedType(node.name), kind: 'value', isFixed: false };
             case 'context':
                 if (scope.contextType === null) {
-                    this.#fail("'context' is the evaluation context, and there is none here", pointer);
+                    this.#fail("'context' is the implicit parameter, and there is none here", pointer);
                 }
 
                 return { type: scope.facts.get(scope.contextKey) ?? scope.contextType, kind: 'value', isFixed: false };
@@ -387,7 +387,7 @@ export class LanguageResolver {
     }
 
     /**
-     * What the node's being truthy, or falsey, guarantees of the stable references it tests, each by its identity: a local, a conditional binding, a parameter or the evaluation context.
+     * What the node's being truthy, or falsey, guarantees of the stable references it tests, each by its identity: a local, a conditional binding, a parameter or the implicit parameter.
      * A reference itself tells its own truthiness, `== null` whether it is null, `not` the opposite, and `and` and `or` what every operand tells on the path taken, or only what each path that reaches the outcome shares.
      */
     #factsOf(node, scope, isTruthy) {
@@ -673,7 +673,7 @@ export class LanguageResolver {
         return isFixed && result.isFixed ? result : { type: result.type, kind: result.kind, isFixed: false };
     }
 
-    /** The local a function declaration gives its name: the function, where it is declared, and the scope it captures, its locals and its evaluation context. */
+    /** The local a function declaration gives its name: the function, where it is declared, and the scope it captures, its locals and its implicit parameter. */
     static #functionLocalOf(node, pointer, scope) {
         return { function: node, pointer, scope, result: { type: Type.never, kind: 'function', isFixed: false }, value: node };
     }
@@ -689,7 +689,7 @@ export class LanguageResolver {
         if (local === undefined) {
             const form = scope.contextType === null ? null : this.#memberForm(scope.contextType, node.name);
 
-            this.#fail(`No function named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the evaluation context`}`, pointer);
+            this.#fail(`No function named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
         }
 
         const functions = local.function !== undefined ? [local] : (local.result?.type?.kind === 'function' ? local.result.type.functions : null);
@@ -776,7 +776,7 @@ export class LanguageResolver {
     /** The functions whose bodies are being resolved, each for a call within which none is called again. @type {Set<object>} */
     #functionsBeingResolved = new Set();
 
-    /** Resolves a local: what the one in scope with its name resolved to where it was written. A name no local in scope has is refused, with the form of the evaluation context's member of that name where it has one. */
+    /** Resolves a local: what the one in scope with its name resolved to where it was written. A name no local in scope has is refused, with the form of the implicit parameter's member of that name where it has one. */
     #resolveLocal(node, pointer, scope) {
         const local = scope.locals.get(node.name);
 
@@ -794,7 +794,7 @@ export class LanguageResolver {
         if (local === undefined) {
             const form = scope.contextType === null ? null : this.#memberForm(scope.contextType, node.name);
 
-            this.#fail(`No local named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the evaluation context`}`, pointer);
+            this.#fail(`No local named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
         }
 
         // A binding's value is evaluated once, by its conditional, which a use of its name reads; either records the expression its value came from.
@@ -866,7 +866,7 @@ export class LanguageResolver {
         if (!this.#bindings.has(node.name)) {
             const form = scope.contextType === null ? null : this.#memberForm(scope.contextType, node.name);
 
-            this.#fail(`No local in scope or binding is named '${node.name}'${form === null ? '' : `; write '${form}' for the member of the evaluation context`}`, pointer);
+            this.#fail(`No local in scope or binding is named '${node.name}'${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
         }
 
         return { type: scope.facts.get(`@${node.name}`) ?? this.#bindings.getType(node.name), kind: 'value', isFixed: true, value: this.#bindings.get(node.name) };
@@ -1374,7 +1374,7 @@ export class LanguageResolver {
                 this.#requireValueArgument(result, parameter, declaration, valuePointer);
 
                 if (result.type.kind === 'function') {
-                    this.#fail(`The parameter '${parameter.name}' of '${declaration.name}' takes a contextual expression, evaluated with each item as its context, as ${declaration.name}(context.…) writes one, and no function`, valuePointer);
+                    this.#fail(`The parameter '${parameter.name}' of '${declaration.name}' takes an expression argument, evaluated with each item as its implicit parameter, as ${declaration.name}(context.…) writes one, and no function`, valuePointer);
                 }
 
                 // A predicate takes any value, which its function receives as its truthiness, but none whose type no receiver gives.
@@ -1579,7 +1579,7 @@ export class LanguageResolver {
             this.#objectRootFields.set(objectExpression, new Map());
         }
 
-        // Each local is resolved where it is written, against the evaluation context and the locals before it, and every field sees them all.
+        // Each local is resolved where it is written, against the implicit parameter and the locals before it, and every field sees them all.
         let locals = scope.locals;
         const scopeHere = () => ({ contextType, contextKey, locals, facts: scope.facts, objectRoot });
 
@@ -1692,7 +1692,7 @@ export class LanguageResolver {
 
     /** The refusal of a read of an expression or a predicate option, which the member evaluates and which has no value to read. */
     static #unreadableOptionMessageOf(name, kind) {
-        return `Option '${name}' is ${kind === 'predicate' ? 'a predicate' : 'an expression'} evaluated by the member against its supplied context; it has no single value to read here`;
+        return `Option '${name}' is ${kind === 'predicate' ? 'a predicate' : 'an expression'} evaluated by the member against the implicit parameter it supplies; it has no single value to read here`;
     }
 
     /** What the type holds that no result may, itself, as a list's item or as an object's field: the object root, or a function value; null for neither. */
