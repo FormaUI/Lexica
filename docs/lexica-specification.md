@@ -847,7 +847,16 @@ Applicability follows the receiver's type and the access form, so one name on un
 
 Every member a module declares on a type is also reached through the module's namespace, the receiver its first argument and the member's own arguments after it: `energy.usage(device)`, `energy.power(device)` and `home.device(room, "lamp")`. The qualified form selects that module's declaration and reuses its implementation and its contract, and the unqualified form stays available beside it, so no module declares a second implementation to make an extension addressable.
 
-A predicate is called through its module directly, the receiver first and no verb, as `home.active(device)` and `home.occupied(room)` are, selecting that predicate; the verb belongs to unqualified access alone.
+In a qualified call to a receiver member, the receiver argument propagates null. If it is null, the member's implementation is not invoked and the call produces null. The result type includes null whenever the receiver argument's type includes null, so each qualified form is a receiver form selecting that module's declaration:
+
+| Qualified form | Equivalent receiver form |
+| --- | --- |
+| `energy.usage(device)`, `device` not nullable | `device.usage`, selecting `energy`'s declaration |
+| `energy.usage(device)`, `device` nullable | `device?.usage`, selecting `energy`'s declaration |
+
+The rule belongs to the receiver argument alone: the member's own arguments keep their declared null policies, and a module member has no receiver argument for it to apply to. A null receiver argument skips the member, never what the argument reads, so an expression a host follows keeps every dependency its receiver argument reads, and answers anew once the receiver is no longer null.
+
+A predicate is called through its module directly, the receiver first and no verb, as `home.active(device)` and `home.occupied(room)` are, selecting that predicate; the verb belongs to unqualified access alone. Its receiver argument propagates null as a member's does, so a null receiver produces null, never false.
 
 <a id="namespaces-indexers"></a>
 
