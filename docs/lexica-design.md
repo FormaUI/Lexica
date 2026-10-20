@@ -31,7 +31,7 @@ A module is given the capability it exposes, never an instance of it, since inst
 
 ### Registries
 
-A host resolves and evaluates against a registry of its own, which `lexica.createRegistry(modules)` creates holding Lexica's own module and the modules given; no registry is shared, so two hosts never see each other's modules.
+A host resolves and evaluates against a registry of its own, which `lexica.createRegistry(modules)` creates holding Lexica's own module and the modules given; no registry is shared, so two hosts never see each other's modules. Bindings are made with `lexica.bind(values)`, which copies and freezes their data recursively and keeps each reference value as it is.
 
 - **The registry holds definitions.** A registry holds the declarations of every module registered with it, shared by all the host's callers. The instances behaviors create, the event listeners subscribed to them and the state of whoever applied them are scoped to their callers, never to the registry.
 - **Registering checks the module whole.** `registerModule` checks every declaration against the registry before it registers any, so a module refused leaves nothing of itself registered; a module's name is registered once.
@@ -41,11 +41,12 @@ A host resolves and evaluates against a registry of its own, which `lexica.creat
 
 ## Evaluation
 
-Lexica evaluates an expression it has resolved against a registry, once and synchronously, for the host that asks. The host gives it an environment and, where it observes what an evaluation reads, three hooks; Lexica carries the evaluation out, and the host keeps everything that spans evaluations.
+Lexica evaluates an expression it has resolved against a registry, synchronously, for the host that asks. A resolution is reused with compatible bindings; an evaluator holds one binding set and the environment the host owns, and evaluates as often as it is asked, one evaluation at a time, each given the hooks of a host that observes what it reads. Lexica carries the evaluation out and describes its result, and the host keeps everything that spans evaluations.
 
 ```js
-const result = registry.evaluate(source, bindings, {
-    env: { window, document },
+const resolution = registry.resolve(source, bindings);
+const evaluator = resolution.createEvaluator(bindings, { window, document });
+const { value, metadata, isPending } = evaluator.evaluate({
     beforeInvoke(request) { /* observe the read; answer a maintained member's samples */ },
     afterInvoke(request, value) { /* note the value read */ },
     afterEvaluation(outcome) { /* keep or close what the evaluation opened */ },
@@ -53,7 +54,7 @@ const result = registry.evaluate(source, bindings, {
 ```
 
 - **The evaluator.** Lexica evaluates each node of the resolution, invokes each member's implementation with its receiver, its arguments and the environment, checks the value it answers against the member's result type, and fails the evaluation at the member's location with an evaluation error where an implementation throws or answers a value not of that type.
-- **The environment**, the host's `env`, is whatever the host gives one evaluation that does not belong in the expression, as DOMQL gives the window and the document a query runs against. Lexica passes it to every implementation and never reads it.
+- **The environment**, the host's `env`, is whatever the host gives the evaluator that does not belong in the expression, which every evaluation of it uses, as DOMQL gives the window and the document a query runs against. Lexica passes it to every implementation and never reads it.
 - **`beforeInvoke(request)`** is called before a member's implementation is invoked, with the request: the member's declaration, its receiver and arguments, and where it stands. It reports every invocation an evaluation attempts, whether it then succeeds, fails or is pending, so an observation covers a read whose implementation throws. For a member that reads maintained values it answers their samples, or that one is pending, and a member whose sample is pending is not invoked and reads as null.
 - **`afterInvoke(request, value)`** is called only after an implementation answered a value of its result type.
 - **`afterEvaluation(outcome)`** is called once, in a `finally`, with the evaluation completed, pending where a sample it read was pending, or failed. The evaluation runs to one of the three synchronously, so none is cancelled while it runs.
@@ -61,6 +62,8 @@ const result = registry.evaluate(source, bindings, {
 - **Each evaluation its own.** An evaluation's state is its own unless its host shares it, as a watch shares its observations across evaluations, so an evaluation an implementation starts is isolated from the one that called it.
 - **A hook that throws.** A throwing `beforeInvoke` or `afterInvoke` fails the evaluation at that member. A throwing `afterEvaluation` after a failure leaves the original failure thrown, the cleanup failure recorded on it, and after a success fails the evaluation itself.
 - **Without hooks.** A host with nothing to observe gives the environment alone, and an evaluation without a `beforeInvoke` reads fresh members alone, refusing an expression that reads a maintained one.
+- **Reuse and staleness.** A resolution is reused with bindings of its resolution key, each binding's type and each primitive binding's value, against its registry at the revision it was resolved at. Creating an evaluator refuses bindings of another key, and each evaluator entry point refuses a registry whose revision has moved, so an evaluator never evaluates a stale resolution; evaluating an evaluator from within its own evaluation is refused, and each result and its metadata stay valid after later evaluations.
+- **Result metadata.** Beside its value, an evaluation answers frozen records describing it, never part of it: each value's `origin`, an opaque token for the expression that produced it, the same token exactly where one expression of one resolution with one candidate selected produced both values, living as long as the resolution; its `tolerance`, the one the producing member declares; and, where an object expression or a projection built the value, `fields` and `items`, and `sources`, the reference each projected item came from. Lexica follows locals, bodies, function calls, object-root fields, selected branches and properties, and the part an access selects, which keeps its whole's metadata; a computed value has its own, and a part without a record inherits its parent's, an explicit null tolerance overriding. Consumers apply their own policy to these facts: DOMQL compares and patches its snapshots with them.
 - **What stays with the host.** Waiting for samples, cancellation between evaluations, watches and their scheduling, snapshots and live state, and subscriptions, actions and behaviors stay the host's: DOMQL carries them out as the observing host over Lexica's evaluation.
 
 ## Tooling
