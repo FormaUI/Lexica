@@ -28,9 +28,11 @@ describe('Alignment', () => {
         expect(lexica.info.version).toBe(`${prefix}-alpha+source`);
     });
 
-    it('has a specification whose example definition is of the version the implementation writes', () => {
+    it('has a specification whose example definition is of the version it describes, saying which version the implementation reads', () => {
         const [, version] = specification.match(/"version": (\d+),\s+"expression"/);
+        const [, described, implemented] = specification.match(/describes definition version (\d+)\. The implementation in this repository still reads version (\d+),/);
 
-        expect(Number(version)).toBe(lexica.info.definitionVersion);
+        expect(Number(version)).toBe(Number(described));
+        expect(Number(implemented)).toBe(lexica.info.definitionVersion);
     });
 });

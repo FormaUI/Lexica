@@ -23,7 +23,7 @@ return {
 
 ## Status
 
-Lexica is in alpha: its specification is `1.0.0-alpha`, and it is being separated from DOMQL, where it began, as the [implementation plan](docs/lexica-implementation-plan.md) records. It reads text into definitions, checks definitions, writes canonical text, creates modules, binds values, resolves an expression against a registry of its built-in vocabulary and the modules a host registers, and evaluates it for any host, describing the result beside its value.
+Lexica is in alpha: its specification is `1.0.0-alpha`, and it is being separated from DOMQL, where it began, as the [implementation plan](docs/lexica-implementation-plan.md) records. The [specification](docs/lexica-specification.md) describes definition version 32, the separation's target; this implementation, and the examples here, still read version 31, which writes the implicit parameter `context` where version 32 writes `it`. It reads text into definitions, checks definitions, writes canonical text, creates modules, binds values, resolves an expression against a registry of its built-in vocabulary and the modules a host registers, and evaluates it for any host, describing the result beside its value.
 
 ## Use it
 

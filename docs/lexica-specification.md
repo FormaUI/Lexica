@@ -1,16 +1,100 @@
 # Lexica Specification v1.0.0-alpha
 
-Lexica is an extensible expression language: it defines expressions, names, types, functions and result shapes, and a vocabulary a host registers defines what those expressions can read or request. Adding vocabulary does not change the grammar. [DOMQL](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md) uses Lexica to query the DOM, and its specification defines the DOM vocabulary and how a query is watched.
+Lexica is an extensible expression language: it defines expressions, names, types, functions and result shapes, and a vocabulary a host registers defines what those expressions can read or request. Adding vocabulary does not change the grammar. Lexica knows no application domain. Modules declare the domain types and members available to an expression.
 
 This specification defines the language, its vocabulary contracts and its JSON definition format. An implementation may cover only part of it; the [README's status](../README.md#status) states what this one implements, and the [Lexica design](lexica-design.md) describes its modules and tooling.
+
+<a id="version"></a>
+
+**Version.** This specification describes definition version 32. The implementation in this repository still reads version 31, and the [implementation plan](lexica-implementation-plan.md#31-separate-the-language-from-the-dom) lists where it differs from this document until version 32 lands.
 
 <a id="reading-this-specification"></a>
 
 ## Reading this specification
 
-Use the contents below to find a rule. The [formal grammar](#syntax) and [glossary](#terms) are appendices, so the language can be read before its notation. The examples read the DOM, through DOMQL's vocabulary, until Lexica has a vocabulary of its own to show them with.
+Use the contents below to find a rule. The [formal grammar](#syntax) and [glossary](#terms) are appendices, so the language can be read before its notation.
 
 Examples illustrate the rules. Code containing `…` is a fragment, and examples explicitly described as errors are intentionally invalid. Type notation such as `T?`, `list<T>` and `never` describes types; it does not declare a type in an expression.
+
+<a id="the-examples-vocabulary"></a>
+
+### The examples' vocabulary
+
+Every example reads one fictional smart home, through the vocabulary of two modules a host registers, `home` and `energy`. Lexica ships neither; they exist so the examples share one model whose types, names and relationships build on each other. A section that needs a declaration this table lacks adds it to the same home.
+
+An example's bindings are supplied parameters, each bound by the host to a value of the type its name suggests: `room` is a `room`, `device` a `device`, `light` a `light`, `thermostat` a `thermostat`, `sensor` a `sensor`, `rooms` a `list<room>`, `name` a `string`, `property` a `string?`, `metered` a `boolean` and `limit` a `number`; any other name an example reads without declaring it is a binding of the type its use requires, as `preferred` and `fallback` are devices, `lamp` a light, and `living` and `bedroom` rooms. Declaring a type supplies no value of it, so an example that reads `room` reads the room its host bound. The examples' home holds those values as fixtures, among them a device whose `level` setting is `"40"`.
+
+**Types.** `home` declares five reference types, whose values have identity, and one structured type, whose values are data:
+
+| Type | Kind | Supertype | What it is |
+| --- | --- | --- | --- |
+| `room` | Reference | None | A room of the home |
+| `device` | Reference | None | Anything installed in a room |
+| `light` | Reference | `device` | A dimmable light |
+| `thermostat` | Reference | `device` | A heating controller |
+| `sensor` | Reference | `device` | A temperature and motion sensor |
+| `climate` | Structured | | `{ temperature: number, humidity: number }`, a room's climate |
+
+**Members.** Each member's result type, how it changes and what it reads:
+
+| Member | Signature | Changes | Reads | Tolerance |
+| --- | --- | --- | --- | --- |
+| `home.rooms` | `list<room>` | Observable: `placement` | Fresh | |
+| `home.now` | `number`, the time in seconds | Unobserved | Fresh | |
+| `room.name` | `string` | Constant | Fresh | |
+| `room.devices` | `list<device>` | Observable: `placement` | Fresh | |
+| `room.floorArea` | `number`, in square meters | Constant | Fresh | |
+| `room.climate` | `climate?`, null where the room has no sensor | Observable: `climate` | Fresh | |
+| `room.device(name)` | `name`: `string` → `device?` | Observable: `placement` | Fresh | |
+| `device.name` | `string` | Constant | Fresh | |
+| `device.room` | `room` | Observable: `placement` | Fresh | |
+| `device.power` | `number`, in watts | Observable: `state` | Fresh | `1` |
+| `device.battery` | `number?`, a percentage, null for a wired device | Partly observable: `state`, missing the drain between the device's reports | Fresh | `1` |
+| `device:setting[name]`, the default indexer `device:[name]` | `name`: `string` → `string?` | Observable: `state` | Fresh | |
+| `light.brightness` | `number`, from 0 to 100 | Observable: `state` | Fresh | `1` |
+| `thermostat.target` | `number`, in degrees | Observable: `state` | Fresh | |
+| `sensor.temperature` | `number?`, in degrees, null before the first reading | Observable: `reading` | Maintained | `0.5` |
+
+A setting is a string, so an example that needs a number converts it, as `device:["level"] to "number"` does.
+
+**Predicates.** Each asked with its verb:
+
+| Predicate | Of | Changes |
+| --- | --- | --- |
+| `is("active")` | `device` | Observable: `state` |
+| `is("offline")` | `device` | Partly observable: `state`, missing a device that stops reporting before its timeout |
+| `has("battery")` | `device` | Constant |
+| `supports("dimming")` | `device` | Constant |
+| `is("occupied")` | `room` | Observable: `presence` |
+
+**Observation types.** What a member names to learn that its result may have changed:
+
+| Observation type | Of | Contract | Reports |
+| --- | --- | --- | --- |
+| `placement` | The home | Invalidation | A room added or removed, or a device installed in a room, removed from it or moved to another |
+| `state` | The receiver | Invalidation | A device's state, settings, power or battery report |
+| `climate` | The receiver | Invalidation | A new reading from a sensor in the room |
+| `presence` | The receiver | Invalidation | A room becoming occupied or empty |
+| `reading` | The receiver | Maintained | Each temperature a sensor reports, kept as its sample |
+
+**Events, actions and behaviors.**
+
+| Member | Signature | Data or result |
+| --- | --- | --- |
+| `device.on(type)` | An event source, `type` a fixed `string` selecting the event type | `change`: `{ setting: string, value: string? }`, the setting that changed and its new value; `motion`: `{ at: number, strength: number }`, when and how strongly it sensed motion, which a sensor alone delivers |
+| `light.dim({ to })` | An action, `to`: `number`, optional, `0` by default | `number`, the brightness reached |
+| `thermostat.hold({ target, until })` | A behavior, `target`: `number`, `until`: `number?` | Holds the target until `until`, or until disposed |
+
+**The `energy` module** extends `home`'s `device` with what an energy meter knows:
+
+| Member | Signature | Changes | Tolerance |
+| --- | --- | --- | --- |
+| `device.usage` | `number`, in kilowatt-hours today | Observable: `meter` | `0.1` |
+| `device.power` | `number`, in watts, as the meter measured it | Observable: `meter` | `1` |
+
+Its observation type `meter`, of the receiver, is an invalidation, reporting each new meter reading.
+
+`device.usage` is an extension, read as `device.usage` or in its qualified form, `energy.usage(device)`. `device.power` is declared both by `home`, which owns `device`, and by `energy`: written `device.power`, it reads `home`'s, since the owner's member wins, and `energy.power(device)` reads the meter's.
 
 ### Contents
 
@@ -32,17 +116,17 @@ Examples illustrate the rules. Code containing `…` is a fragment, and examples
 
 ## Values and types
 
-A value is a number, a string, a Boolean, null, a list, a structured value such as a rectangle, a node such as an element or the document, the window, an element's shadow or ARIA view, or an event source. A member's signature declares its result type, as the section on types sets out, and a result marked `?` can be null by itself; an optional access answers null where its receiver is null, and any member answers null where an argument is null and its parameter propagates null.
+A value is a number, a string, a Boolean, null, a list, a structured value such as a `climate`, a reference value such as a `light` or a `room`, or an event source. A member's signature declares its result type, as the section on types sets out, and a result marked `?` can be null by itself; an optional access answers null where its receiver is null, and any member answers null where an argument is null and its parameter propagates null.
 
-A result is data: numbers, strings, Booleans, null, lists and objects. A node, the window, an element's shadow or ARIA view, or an event source has no data form, so an expression whose result would contain one is a validation error; an expression reads the facts it needs of a node through an object expression.
+A result is data: numbers, strings, Booleans, null, lists and objects. A reference value and an event source have no data form, so an expression whose result would contain one is a validation error; an expression reads the facts it needs of a reference value through an object expression.
 
-In this section: [Objects](#objects) · [Lists](#lists) · [Types](#types) · [No implicit conversion](#no-implicit-conversion) · [Nullability](#nullability) · [Bindings](#bindings) · [Receivers of unknown type](#receivers-of-unknown-type) · [Null](#null).
+In this section: [Objects](#objects) · [Lists](#lists) · [Types](#types) · [Reference types](#reference-types) · [No implicit conversion](#no-implicit-conversion) · [Nullability](#nullability) · [Bindings](#bindings) · [Receivers of unknown type](#receivers-of-unknown-type) · [Null](#null).
 
 <a id="objects"></a>
 
 ### Objects
 
-- A field is written with its name before its `=`, `width = context.rect?.width`, whatever its value is, and the language infers no name: a field without one is a syntax error, as is an object expression without a field.
+- A field is written with its name before its `=`, `warmth = it.climate?.temperature`, whatever its value is, and the language infers no name: a field without one is a syntax error, as is an object expression without a field.
 - Two fields of one object expression with the same name are an error when the definition is checked.
 - A result keeps its fields in the order the object expression names them.
 - An object expression following null is null.
@@ -51,15 +135,15 @@ In this section: [Objects](#objects) · [Lists](#lists) · [Types](#types) · [N
 
 ### Lists
 
-- A list keeps the order of its source: a member that makes a list says where its order comes from, as `all` takes document order, and a bound list keeps the caller's; `where`, and an object expression following a list, keep its items in that order.
-- An object expression following a list applies to each item and answers a list of the same length, in the same order; an item that is null answers null at its position, so over a list whose items can be null it answers a list of objects that can be null: `xs { a = 1 }` over a `list<element?>` is a `list<{ a: number }?>`.
-- A member following a list is a member of the list itself: `context.all("tr").count` counts rows.
+- A list keeps the order of its source: a member that makes a list says where its order comes from, and a bound list keeps the caller's; `where`, and an object expression following a list, keep its items in that order.
+- An object expression following a list applies to each item and answers a list of the same length, in the same order; an item that is null answers null at its position, so over a list whose items can be null it answers a list of objects that can be null: `xs { a = 1 }` over a `list<device?>` is a `list<{ a: number }?>`.
+- A member following a list is a member of the list itself: `room.devices.count` counts the room's devices.
 - `count` of an empty list is 0, and `sum` is 0. `max` and `min` of an empty list are null.
 - `max`, `min` and `sum` take a number expression, skip items whose expression is null, and answer null for `max` and `min`, and 0 for `sum`, when every item was skipped.
 - `where` takes a predicate and keeps the items it is truthy for, leaving out an item whose predicate is null or false.
 - `first`, `last` and the list's default indexer, `:[index]`, answer null when the list has no such item.
-
-CSS selectors and `where` are the two ways an expression filters: a selector chooses elements as the browser matches them, and `where` chooses list items by any value the vocabulary offers, by its truthiness.
+- The default indexer is the list's `:item[index]`, which answers the item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0`.
+- These members, `count`, `first`, `last`, `item`, `max`, `min`, `sum` and `where`, are Lexica's own module's, which owns lists, and each reads and changes as the items it selects and the expression it evaluates do.
 
 <a id="types"></a>
 
@@ -67,7 +151,7 @@ CSS selectors and `where` are the two ways an expression filters: a selector cho
 
 Every value has a type. Every member declares the types it accepts and returns. Type checking happens during preparation, before evaluation.
 
-A request that cannot be typed fails with a validation error identifying the location, expected type and actual type. DOMQL infers types from expressions and caller bindings.
+A request that cannot be typed fails with a validation error identifying the location, expected type and actual type. Lexica infers types from expressions and caller bindings.
 
 <a id="types-type-families"></a>
 
@@ -76,15 +160,13 @@ A request that cannot be typed fails with a validation error identifying the loc
 | Family | Types and meaning |
 | --- | --- |
 | Scalar data | `number`, `string`, `boolean` |
-| DOM nodes | `node` and its kinds: `element`, `document`, `documentFragment`, `shadowRoot` |
-| Browser window | `window` |
-| Views | `shadow`, an element's shadow relationships; `aria`, its ARIA states |
+| Reference types | Types a module declares whose values have identity, as `room`, `device` and `light` |
 | Lists | `list<T>`, a list whose items have type `T` |
-| Structured values | Named fields of declared types, such as `rectangle`, `size`, `selection` and `grid` |
+| Structured values | Named fields of declared types, as `climate` |
 | Object types | The field types inferred from an object expression |
 | Event sources | `event<T>`, a source whose event data has type `T` |
 
-Modules may declare additional types.
+The scalar types, lists, object types and event sources are the language's own; every reference type and structured type comes from a module.
 
 <a id="types-nullable-and-empty-types"></a>
 
@@ -99,15 +181,29 @@ Modules may declare additional types.
 
 `null` and `never` here are type notation. `never` is not an expression-language word, and the expression literal `null` is a value rather than a type declaration.
 
+<a id="reference-types"></a>
+
+### Reference types
+
+A reference type is a type a module declares whose values have identity: a value of it is the same value as another, or a different one, whatever either holds. A reference value has no data form, so an expression reads what it needs of one through its members and never holds one in a result.
+
+- **A supertype.** A reference type may name one supertype, another reference type. A value of a type is a value of its supertype too, and a member declared on the supertype applies to it, so `light.name` reads the `name` `device` declares. A type with no supertype begins a hierarchy of its own: `room` and `device` begin two.
+- **A test.** Every reference type declares a test, a function of its module that decides whether a value belongs to the type. A value belongs to a type where it passes the test of the type and of every supertype above it.
+- **Classification.** Where a value's type is not declared, classification finds it: it runs the tests of the types with no supertype, then of the types beneath each one whose test passed, and the value takes the unique most specific type that passed, the one beneath every other type that passed, so a dimmable light is a `light`. Where no type that passed is beneath all the others, as with two sibling types or two types of different hierarchies, the value is ambiguous, whatever the depth of either, and refused, with a structure error naming the types.
+- **Abstract types.** A type a module declares abstract is never the answer of classification: a value whose most specific type is abstract is unclassified, and refused as an ambiguous one is. Were `device` abstract, a device that is no light, thermostat or sensor could not be bound; the examples' home declares it concrete.
+- **A declared type.** A host may declare the type of a binding whose value is a reference, and classification does not run for it. The value must pass the test of the declared type and of every supertype above it, and fails the binding otherwise, with a structure error naming the binding and the type; no type beneath the declared one is tested. The declared type is the binding's static type, an abstract one included, since abstractness only keeps classification from answering it, so a light bound as a `device` exposes `device`'s members alone, as its host chose, until [`as`](#casts) narrows it, running the narrower type's test. Only a reference type can be declared, and only for a reference value; data is typed by its value alone.
+- **Identity.** `==` compares two references of one hierarchy by identity, as [equalities](#equalities) set out, so `device.room == room` asks whether the device is in that room, never whether two rooms are alike.
+- **Narrowing.** A value's static type exposes the members of that type and its supertypes alone. [`as`](#casts) narrows it to a type beneath, checked by that type's test, so `(device as "light")?.brightness` reads a brightness where the device is a light.
+
 <a id="no-implicit-conversion"></a>
 
 ### No implicit conversion
 
-DOMQL performs no implicit type conversion. Explicit data conversion uses [`to`](#conversions).
+Lexica performs no implicit type conversion. Explicit data conversion uses [`to`](#conversions).
 
-A `number` is not a `boolean`, a `string` is not a `number`, and an `element` is not a `string`. `context:[200]` where `context` is an element, whose default indexer takes an attribute's name, `context.intersects({ root = 5 })`, and an element supplied where a list is required are validation errors; a list's default indexer takes a number, so `rows:[2]` is valid.
+A `number` is not a `boolean`, a `string` is not a `number`, and a `device` is not a `string`. `device:[200]`, whose default indexer takes a setting's name, `light.dim({ to = "full" })`, and a device supplied where a list is required are validation errors; a list's default indexer takes a number, so `rooms:[2]` is valid.
 
-[Truthiness](#truthiness) tests a value without converting its type. A predicate takes any value, and its member receives the value's truthiness: every number, zero included, is truthy, so `xs.where(context)` keeps every item of a list of numbers.
+[Truthiness](#truthiness) tests a value without converting its type. A predicate takes any value, and its member receives the value's truthiness: every number, zero included, is truthy, so `xs.where(it)` keeps every item of a list of numbers.
 
 <a id="nullability"></a>
 
@@ -119,19 +215,19 @@ Nullability is part of a type, and null follows the signature.
 
 #### Receiver nullability
 
-`panel.first(".row").rect` is a validation error, since `first` answers an `element?`, and `panel.first(".row")?.rect` answers null without invoking `rect` where the panel holds no row; its type is `rectangle?`, since an optional chain is nullable where an optional access of it can meet null.
+`room.device(name).battery` is a validation error, since `device` answers a `device?`, and `room.device(name)?.battery` answers null without invoking `battery` where the room has no device of that name; its type is `number?`, since an optional chain is nullable where an optional access of it can meet null.
 
-A member written with `?.` or `?:`, a test among them, answers null for a null receiver, so `panel.first(".row")?.matches(".open")` is a `boolean?` that is null where there is no row.
+A member written with `?.` or `?:`, a predicate among them, answers null for a null receiver, so `room.device(name)?.is("active")` is a `boolean?` that is null where there is no such device.
 
 <a id="nullability-a-null-argument-follows-the-parameter"></a>
 
 #### A null argument follows the parameter
 
-A parameter is declared either to propagate null, which is the default and makes the call answer null without running, or to accept null with a meaning of its own, as `intersects` accepts a null `root` to mean the window. Preparation never rejects an evaluated argument for being nullable; it rejects a type that cannot match.
+A parameter is declared either to propagate null, which is the default and makes the call answer null without running, or to accept null with a meaning of its own, as `hold` accepts a null `until` to mean until it is disposed. Preparation never rejects an evaluated argument for being nullable; it rejects a type that cannot match.
 
-A fixed argument that names a declaration, the type of `on` and the feature of `supports`, is different, and so is the name of a bracket property access: each must resolve to a non-null string during preparation, because a declaration cannot be looked up from null, and a bracket property access could not determine its result type.
+A fixed argument that names a declaration, the event type of `on` and the predicate a verb asks, is different, and so is the name of a bracket property access: each must resolve to a non-null string during preparation, because a declaration cannot be looked up from null, and a bracket property access could not determine its result type.
 
-Preparation determines every name such an expression can give, from literals, bound values, locals, conditional bindings, conditionals, `??`, `and` and `or`. A bracket property access is refused where an outcome can be null or false or names no property, and a fixed argument where one can be null or names no declaration; a binding is typed by its value, so `panel[name]` and `button.on(name)` are validation errors alike where `name` is bound to null.
+Preparation determines every name such an expression can give, from literals, bound values, locals, conditional bindings, conditionals, `??`, `and` and `or`. A bracket property access is refused where an outcome can be null or false or names no property, and a fixed argument where one can be null or names no declaration; a binding is typed by its value, so `device[name]` and `sensor.on(name)` are validation errors alike where `name` is bound to null.
 
 <a id="nullability-a-written-null-is-an-expression-that-produces-null"></a>
 
@@ -143,30 +239,30 @@ Preparation determines every name such an expression can give, from literals, bo
 
 #### Null is unavailable too
 
-An element is a valid receiver of `selection`; one that is no text input answers null, as an unavailable value does. A receiver of the wrong type, a number for `rect`, is a validation error, and a module that returns a value of a type other than the one it declared has broken its contract, which is an evaluation error and never a quiet null.
+A device is a valid receiver of `battery`; a wired one answers null, as an unavailable value does. A receiver of the wrong type, a number for `battery`, is a validation error, and a module that returns a value of a type other than the one it declared has broken its contract, which is an evaluation error and never a quiet null.
 
 <a id="bindings"></a>
 
 ### Bindings
 
-A binding takes its type from its value, and a caller declares none. It is named by a letter followed by letters and digits, a reserved word among them, which an expression reads as `~` and the name, as `~as` and `~window` do.
+A binding takes its type from its value, unless the host declares it. It is named by a letter followed by letters and digits, a reserved word among them, which an expression reads as `~` and the name, as `~as` and `~it` do.
 
-- A node is of its kind: an element is an `element`, a document a `document`, a shadow root a `shadowRoot` and any other document fragment a `documentFragment`, and a node of another kind, such as text, is no binding.
+- A reference value is of the type [classification](#reference-types) gives it, so a light is a `light`, or of the type its host declares for it, as [a declared type](#reference-types) sets out; a value no reference type's test accepts, and that is no data, is no binding, and one classification finds ambiguous is refused.
 - A number, a string and a Boolean are `number`, `string` and `boolean`.
 - Null is a `null`.
-- A list is a `list<T>`, `T` the type its items share, `node` for nodes of different kinds, made nullable where one of them is null: `[element, null]` is a `list<element?>`. A list of nulls alone, `[null]` or `[null, null]`, is a `list<null>`, whose items can only be null, and the empty list is a `list<never>`, which holds no item.
+- A list is a `list<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `list<device>` and `[light, null]` a `list<light?>`. A list of nulls alone, `[null]` or `[null, null]`, is a `list<null>`, whose items can only be null, and the empty list is a `list<never>`, which holds no item.
 - An object is of the object type of its fields' types, each typed as a binding is.
-- A list whose items share no type has no type, because Lexica has no union types and a list holds items of one type, so binding `[1, "two"]` is a structure error.
+- A list whose items share no type has no type, because Lexica has no union types and a list holds items of one type, so binding `[1, "two"]`, or a room and a light together, is a structure error.
 
-Binding keeps a frozen copy of the data it is given, through its lists and objects, and each node as itself, never copied or frozen, a node within data among them. A caller that changes its data afterwards changes nothing bound, and binds anew to supply new data.
+Binding keeps a frozen copy of the data it is given, through its lists and objects, and each reference value as itself, never copied or frozen, a reference within data among them. A caller that changes its data afterwards changes nothing bound, and binds anew to supply new data.
 
-A tool that checks an expression without running it takes the same values, or values of the same types, for the bindings, since vocabulary declarations alone cannot establish the type of `panel`.
+A tool that checks an expression without running it takes the same values, or values of the same types, for the bindings, since vocabulary declarations alone cannot establish the type of `room`.
 
 <a id="receivers-of-unknown-type"></a>
 
 ### Receivers of unknown type
 
-A receiver of the type `null`, a null binding or the literal `null`, says nothing of what it would be, and neither does a `never`, the item of an empty list. The concession is to missing type information alone: a receiver whose type is known is checked as always, a nullable one included, so `panel.parent?.sise` is refused for an element `panel` whatever its parent is.
+A receiver of the type `null`, a null binding or the literal `null`, says nothing of what it would be, and neither does a `never`, the item of an empty list. The concession is to missing type information alone: a receiver whose type is known is checked as always, a nullable one included, so `room.device(name)?.batery` is refused for a room `room` whatever device it names.
 
 A receiver of the type `null` can be null, so it takes `?.`, and a `never`, which no value has, takes `.`. A name applied to a receiver of unknown type resolves without choosing one declaration:
 
@@ -174,7 +270,7 @@ A receiver of the type `null` can be null, so it takes `?.`, and a `never`, whic
 
 #### Any property
 
-A name written as a property is accepted whatever it is, since the fields of a bound object are named by its data, as `row?.id` for a null `row` and `rows { id = context.id }` for empty `rows` are; it is checked once its receiver's type is known.
+A name written as a property is accepted whatever it is, since the fields of a bound object are named by its data, as `row?.id` for a null `row` and `rows { id = it.id }` for empty `rows` are; it is checked once its receiver's type is known.
 
 <a id="receivers-of-unknown-type-known-calls-alone"></a>
 
@@ -188,7 +284,7 @@ A name written as a call or an indexer is a member's, written in the form, and g
 
 The declarations that take the name as it is written agree on the request kind they make, and the request is of that kind, so it takes the operations of its kind and is refused the others.
 
-Declarations that disagree on their kind are refused as ambiguous, and a cast to a kind of node says which a null receiver means: `(thing as "element")?.ping()` takes the element's declaration of `ping` for a null `thing`.
+Declarations that disagree on their kind are refused as ambiguous, and a cast to a reference type says which a null receiver means: `(thing as "light")?.dim({ to = 40 })` takes the light's declaration of `dim` for a null `thing`.
 
 <a id="receivers-of-unknown-type-what-it-answers"></a>
 
@@ -196,15 +292,15 @@ Declarations that disagree on their kind are refused as ambiguous, and a cast to
 
 A value request answers null, a subscription listens to nothing, an action is not executed and answers null, and a behavior is applied with nothing started, as with any null receiver.
 
-Its type is the result type those declarations share, made nullable for a receiver of the type `null`, which answers null, and as they declare it for a `never`, which is never evaluated, so `rows { count = context.children.count }` is valid for empty `rows` and `rows { count = context.children.sise }` is refused.
+Its type is the result type those declarations share, made nullable for a receiver of the type `null`, which answers null, and as they declare it for a `never`, which is never evaluated, so `rooms { count = it.devices.count }` is valid where `rooms` is bound to an empty list and `rooms { count = it.devices.cuont }` is refused.
 
-Where they share none, or the name is no member's, it is `null` for a `null` and a `never` for a `never`: a `never` fits wherever a value of any type stands, so `rows { done = not context.complete }` is valid for empty `rows`, and checked once they hold items.
+Where they share none, or the name is no member's, it is `null` for a `null` and a `never` for a `never`: a `never` fits wherever a value of any type stands, so `rooms { quiet = not it.silent }` is valid where `rooms` is bound to an empty list, and checked once it holds rooms.
 
 <a id="receivers-of-unknown-type-what-is-checked-later"></a>
 
 #### What is checked later
 
-Whether the name applies to its receiver is checked once the receiver's type is specific enough, when the binding is bound to an element, a list or another value that reveals its type.
+Whether the name applies to its receiver is checked once the receiver's type is specific enough, when the binding is bound to a room, a list or another value that reveals its type.
 
 <a id="receivers-of-unknown-type-an-object-expression"></a>
 
@@ -218,7 +314,7 @@ A member read on a `list<never>` runs, as on any list, so it resolves to one dec
 
 ### Null
 
-Null answers both "there is no such value", as when `closest` finds no element, and "the value is unavailable", as when an element has no layout to measure. One null for both keeps results simple, at the cost of telling the two apart; a member whose consumers need the difference offers it separately, as `attached` says whether an element is still attached to the document.
+Null answers both "there is no such value", as when `room.device(name)` finds no device, and "the value is unavailable", as when a sensor has reported no temperature yet. One null for both keeps results simple, at the cost of telling the two apart; a member whose consumers need the difference offers it separately, as `is("offline")` says whether a device has stopped reporting.
 
 An optional access of null answers null and ends its chain. `??` supplies a fallback for null. Errors fail the result rather than becoming null; see [Errors and diagnostics](#errors-and-diagnostics).
 
@@ -232,7 +328,7 @@ In this section: [Names and resolution](#names-and-resolution) · [Names and res
 
 ### Names and resolution
 
-A name at the start of a chain reads the nearest visible local or field of that name. If none is in scope, it reads the parameter of that name, the caller's binding. A bare name read before a local of that name declared later in the same scope is a structure error, since it reads no binding there; a field of that name written later leaves it reading the binding. `context`, or bare `~`, reads the implicit parameter.
+A name at the start of a chain reads the nearest visible local or field of that name. If none is in scope, it reads the parameter of that name, the caller's binding. A bare name read before a local of that name declared later in the same scope is a structure error, since it reads no binding there; a field of that name written later leaves it reading the binding. `it` reads the implicit parameter, and in text read through a registry, the name of a module registered with it begins that module's [namespace](#namespaces).
 
 Members always have an explicit receiver. Equality always has both operands. The reader does not need vocabulary knowledge to decide what a name applies to.
 
@@ -240,7 +336,7 @@ Members always have an explicit receiver. Equality always has both operands. The
 
 #### Implicit parameter by position
 
-| Position | What `context` means |
+| Position | What `it` means |
 | --- | --- |
 | Outermost expression | No implicit parameter is available |
 | Object expression following a value | The value it follows |
@@ -249,45 +345,45 @@ Members always have an explicit receiver. Equality always has both operands. The
 | Value argument | The implicit parameter where the call is written |
 | Expression or predicate argument | The one the member declares |
 
-In `viewport { width = context.rect?.width }`, `context` is the viewport.
+In `room { warmth = it.climate?.temperature }`, `it` is the room.
 
-In `panel { layout = { width = context.size?.width, height = context.size?.height } }`, both nested fields still read the panel. The nested object groups fields without changing the implicit parameter.
+In `room { climate = { warmth = it.climate?.temperature, humidity = it.climate?.humidity } }`, both nested fields still read the room. The nested object groups fields without changing the implicit parameter.
 
-At the top level, `{ anchor = anchor.rect, open = popup.is("popover-open") }` has no implicit parameter. Each field reads a binding, a literal or another expression that does not require one.
+At the top level, `{ level = light.brightness, active = light.is("active") }` has no implicit parameter. Each field reads a binding, a literal or another expression that does not require one.
 
-`context.size`, `{ size = context.size }` and `target.intersects({ root = context })` at the top level are errors because there is no implicit parameter.
+`it.name`, `{ name = it.name }` and `light.dim({ to = it })` at the top level are errors because there is no implicit parameter.
 
 <a id="names-and-resolution-explicit-receivers"></a>
 
 #### Explicit receivers
 
-Writing a member without its receiver is an error. If the implicit parameter has that member, the diagnostic suggests the form with `context`:
+Writing a member without its receiver is an error. If the implicit parameter has that member, the diagnostic suggests the form with `it`:
 
 | Written | Suggested form |
 | --- | --- |
-| `rect.width` | `context.rect` |
-| `closest(".row")` | `context.closest(…)` |
+| `climate.temperature` | `it.climate` |
+| `device("lamp")` | `it.device(…)` |
 
-An equality without its left operand is an error as well; write both values, for example `context == null`.
+An equality without its left operand is an error as well; write both values, for example `it == null`.
 
 <a id="names-and-resolution-parameters-and-roots"></a>
 
-#### Parameters and roots
+#### Parameters and the object root
 
-Parameters resolve the same way inside object expressions and arguments as elsewhere. Their bindings may be nodes or data: numbers, strings, Booleans, null, lists or objects. Lists and objects may contain nodes.
+Parameters resolve the same way inside object expressions and arguments as elsewhere. Their bindings may be reference values or data: numbers, strings, Booleans, null, lists or objects. Lists and objects may contain reference values.
 
-`document` and `window` require no value from the caller: `document` is the document the expression runs against, and `window` its window, which is also the layout viewport. Written inside an object expression, `root` refers to the outermost object being built, the [object root](#locals-the-object-root). A caller can still pass a value under one of these names; read it as `~document`, `~window` or `~root`.
+`root` is the language's one root, and requires no value from the caller. Written inside an object expression, it denotes the [object root](#locals-the-object-root): the object the outermost object expression around the reference builds, in the evaluation building it, whose fields completed where `root` is written it reads. Written outside every object expression, it is a structure error. A caller can still pass a value named `root`; read it as `~root`.
 
 <a id="names-and-resolution-projection-example"></a>
 
 #### Projection example
 
 ```lexica
-viewport {
-    // The viewport's width, and whether focus is within it.
-    width = context.rect?.width,
-    hasFocus = context.has("focus-within"),
-    columns = context.all("[data-column]") { key = context:["data-column"], width = context.rect?.width }
+room {
+    // The room's name, whether it is occupied, and each of its devices.
+    name = it.name,
+    occupied = it.is("occupied"),
+    devices = it.devices { name = it.name, active = it.is("active") }
 }
 ```
 
@@ -295,20 +391,26 @@ viewport {
 
 ### Names and reserved words
 
-A name starts with an ASCII letter and continues with ASCII letters or digits. For example, `rectRelativeTo` is a name. Names contain no hyphens and are also valid JavaScript identifiers.
+A name starts with an ASCII letter and continues with ASCII letters or digits. For example, `floorArea` is a name. Names contain no hyphens and are also valid JavaScript identifiers.
 
 An **identifier** is a name that is not reserved. Reserved words are:
 
 | Category | Words |
 | --- | --- |
 | Literals | `true`, `false`, `null` |
-| Roots | `document`, `window`, `root` |
-| Context and operators | `context`, `not`, `try`, `as`, `to`, `and`, `or` |
+| The object root | `root` |
+| The implicit parameter and operators | `it`, `not`, `try`, `as`, `to`, `and`, `or` |
 | Control flow and declarations | `if`, `then`, `elseif`, `else`, `let`, `do`, `end`, `return`, `function` |
 
-Reserved words match whole names, exactly. `isVisible` and `nullable` are identifiers. All names are case-sensitive, so `TRUE` and `Context` are identifiers too.
+Reserved words match whole names, exactly. `isVisible` and `nullable` are identifiers. All names are case-sensitive, so `TRUE` and `It` are identifiers too.
 
-The **keywords** are the reserved words other than the literals' words and the roots' names: `context` and the words of operators, control flow and declarations.
+The **keywords** are the reserved words other than the literals' words and `root`: `it` and the words of operators, control flow and declarations.
+
+<a id="names-and-reserved-words-module-names"></a>
+
+#### Module names
+
+In text read through a registry, the name of every module registered with it is reserved as well, as `home` and `energy` are in the examples, and its members' names are reserved nowhere: `home.rooms` reads the module's member, `@home` the nearest local or field named `home`, and `~home` the caller's binding. No module is named by a word the language reserves. Text read without a registry knows no module's name, so `home` is an identifier there, read as any name is.
 
 <a id="names-and-reserved-words-declaring-and-accessing-a-reserved-name"></a>
 
@@ -317,10 +419,10 @@ The **keywords** are the reserved words other than the literals' words and the r
 A declaration accepts any name, including a reserved word. This applies to fields, locals, functions, function parameters and conditional bindings. Write the name without `@`:
 
 ```lexica
-panel { true = true, context = context.attached }
+light { true = true, it = it.is("active") }
 ```
 
-The same rule applies to member and indexer names after `.`, `?.`, `:` and `?:`. For example, `value.null` reads a member named `null`, and `panel:end["key"]` invokes an indexer named `end`.
+The same rule applies to member and indexer names after `.`, `?.`, `:` and `?:`. For example, `value.null` reads a member named `null`, and `device:end["key"]` invokes an indexer named `end`.
 
 `let @to = 1`, `{ @true = 1 }` and `value.@null` are syntax errors.
 
@@ -328,7 +430,7 @@ The same rule applies to member and indexer names after `.`, `?.`, `:` and `?:`.
 
 #### Referring to a reserved local or field
 
-In an expression, a reserved word retains its language meaning regardless of scope. After `let window = 1`, an unprefixed `window` still reads the root.
+In an expression, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and after `let home = 1`, an unprefixed `home` still begins the module's namespace.
 
 Write `@` directly before a reserved word to read the nearest local or field of that name:
 
@@ -338,23 +440,23 @@ Write `@` directly before a reserved word to read the nearest local or field of 
 
 A reserved reference with no such local or field is a structure error:
 
-> No local or field named 'window' is in scope. Use '~window' to read the caller's binding.
+> No local or field named 'it' is in scope. Use '~it' to read the caller's binding.
 
 `@` is valid only directly before a reserved word, and a keyword alone reads no local or field. These are syntax errors:
 
 | Form | Diagnostic guidance |
 | --- | --- |
-| `@panel` | Use `panel`; the name is not reserved. |
-| `@ window` or `@` | A reserved word must follow `@` directly. |
+| `@room` | Use `room`; the name is not reserved, and a module's name is reserved only in text read with its registry. |
+| `@ it` or `@` | A reserved word must follow `@` directly. |
 | `to` in a value position | `Found 'to', a keyword: write '@to' for the local or field of that name`. |
 
 <a id="names-and-reserved-words-referring-to-the-callers-binding"></a>
 
 #### Referring to the caller's binding
 
-`~name` reads the caller's binding regardless of any local or field with the same name. Reserved names are allowed: `~as` and `~window` read the bindings `as` and `window`.
+`~name` reads the caller's binding regardless of any local or field with the same name. Reserved names are allowed: `~as` and `~home` read the bindings `as` and `home`.
 
-The name must follow `~` directly. With no name directly after it, bare `~` reads the implicit parameter, so `~.size` is `context.size`. Canonical text writes `context`.
+The name must follow `~` directly, and `~` alone reads nothing, so it is a syntax error.
 
 <a id="names-and-reserved-words-names-in-strings-and-supplied-data"></a>
 
@@ -362,7 +464,7 @@ The name must follow `~` directly. With no name directly after it, bare `~` read
 
 A string containing a reserved word remains an ordinary string:
 
-- `context:["null"]` reads an attribute named `null`.
+- `device:["null"]` reads a setting named `null`.
 - `value["null"]` is bracket property access and resolves the member `value.null`.
 
 The name restrictions apply to declarations in an expression. Supplied data keeps all its own keys. Bound objects and objects returned by members retain every field, including `__proto__`, as an ordinary own field in results, snapshots and live state.
@@ -376,10 +478,11 @@ The name restrictions apply to declarations in an expression. Supplied data keep
 | Declaration, field name or member name | The name as written, without a prefix |
 | Reference to a local or field | Its name; `@name` if reserved |
 | Reference to a caller's binding | Its name if not reserved or hidden; `~name` otherwise |
-| Root | `document`, `window` or `root` |
-| Implicit parameter | `context` |
+| The object root | `root` |
+| The implicit parameter | `it` |
+| A namespace | The module's name |
 
-These rules also apply to extension declarations and definitions created directly. A definition stores names without `@` or `~`; its node kind distinguishes a local reference from a parameter. `context` and bare `~` both produce a `context` node.
+These rules also apply to extension declarations and definitions created directly. A definition stores names without `@` or `~`; its node kind distinguishes a local reference from a parameter, and `it` produces an `it` node.
 
 <a id="tokens-and-whitespace"></a>
 
@@ -410,9 +513,9 @@ Whitespace, including line breaks, and comments are **trivia**. Trivia may appea
 
 Fields, locals and conditional bindings put `=` between a name and its value. A colon after a name begins an indexer.
 
-- `count: context.size` is a syntax error that suggests `count = …`.
+- `count: it.devices.count` is a syntax error that suggests `count = …`.
 - `=` in another position is a syntax error that explains that `==` compares values.
-- Bracket property access has no preceding dot. `context.[name]` and `context?.[name]` are syntax errors that suggest `context[name]` and `context?[name]`.
+- Bracket property access has no preceding dot. `it.[name]` and `it?.[name]` are syntax errors that suggest `it[name]` and `it?[name]`.
 
 <a id="tokens-and-whitespace-numbers-and-the-minus-sign"></a>
 
@@ -424,11 +527,11 @@ A number token has no sign. `-` is always an operator: arithmetic negation or su
 | --- | --- |
 | `-5` or `- 5` | Negate 5 |
 | `a-b` | Subtract `b` from `a` |
-| `client-size` | Subtract `size` from `client` |
+| `floor-area` | Subtract `area` from `floor` |
 
-In a property access such as `context.client-size`, where the receiver has no member `client` and has the corresponding camelCase member, the diagnostic suggests `context.clientSize`. A bare `client-size` reads `client` and `size` as names, with no such suggestion.
+In a property access such as `it.floor-area`, where the receiver has no member `floor` and has the corresponding camelCase member, the diagnostic suggests `it.floorArea`. A bare `floor-area` reads `floor` and `area` as names, with no such suggestion.
 
-HTML and CSS names containing hyphens are strings: `element:["data-key"]`.
+A name containing a hyphen is written as a string: `device:["night-mode"]`.
 
 `/` divides unless it begins a comment: `a / b` divides, while `a //b` begins a line comment.
 
@@ -494,7 +597,7 @@ Characters other than a line break may also appear literally, tabs included. `"�
 
 #### Raw strings
 
-A raw string's backslashes are text, a trailing one included, so `'C:\Users\Eyal\'`, `'\d{3}-\d{2}'` and `'[data-state="open"]'` hold exactly what they show. Its one convention is its quote doubled: `'It''s ready'` is `It's ready`, as `"It's ready"` is, and `''` is the empty string. A raw string has no escapes, so a character it cannot show, an invisible one among them, is written in a string instead.
+A raw string's backslashes are text, a trailing one included, so `'C:\Users\Eyal\'`, `'\d{3}-\d{2}'` and `'mode = "eco"'` hold exactly what they show. Its one convention is its quote doubled: `'It''s ready'` is `It's ready`, as `"It's ready"` is, and `''` is the empty string. A raw string has no escapes, so a character it cannot show, an invisible one among them, is written in a string instead.
 
 <a id="strings-and-escapes-one-line"></a>
 
@@ -527,7 +630,7 @@ A block is opened by three or more matching quotes, `$` directly before them whe
 
 #### Where a string literal is required
 
-Every form that does not interpolate stands wherever the grammar requires a string literal, a cast's or a conversion's type name among them, so `panel as 'element'` is `panel as "element"`. An interpolated form is an expression and stands in none of them, even with text alone.
+Every form that does not interpolate stands wherever the grammar requires a string literal, a cast's or a conversion's type name among them, so `device as 'light'` is `device as "light"`. An interpolated form is an expression and stands in none of them, even with text alone.
 
 <a id="strings-and-escapes-canonical-spelling-of-strings"></a>
 
@@ -562,61 +665,61 @@ Comment markers inside a string are text: `"https://example.com"` and `"/* */"` 
 
 ### Case-sensitive names
 
-Every name in Lexica is case-sensitive, and nothing normalizes one: `size` and `Size` are different names, and so are `panel` and `Panel`. A name is resolved exactly as it is written, and each kind of name is spelled by its own convention:
+Every name in Lexica is case-sensitive, and nothing normalizes one: `name` and `Name` are different names, and so are `room` and `Room`. A name is resolved exactly as it is written, and each kind of name is spelled by its own convention:
 
 <a id="case-sensitive-names-members"></a>
 
 #### Members
 
-Members are named in camelCase, properties and functions alike: `size`, `clientSize`, `devicePixelRatio`, `rectRelativeTo`. A member has one name, the same in a text and a definition. `context["clientSize"]` reads that property by the same name.
+Members are named in camelCase, properties and functions alike: `name`, `floorArea`, `brightness`, `device`. A member has one name, the same in a text and a definition. `it["floorArea"]` reads that property by the same name.
 
 <a id="case-sensitive-names-field-names-and-bindings"></a>
 
 #### Field names and bindings
 
-Field names and bindings keep the exact spelling their author gave them, so `hasFocus` and `hasfocus` are two fields, and a binding `panel` is not a binding `Panel`.
+Field names and bindings keep the exact spelling their author gave them, so `isOn` and `ison` are two fields, and a binding `room` is not a binding `Room`.
 
 <a id="case-sensitive-names-strings"></a>
 
 #### Strings
 
-Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a bracket property access, which reads the one its string names, exactly, a data field whose key is no DOMQL name among them, as `o["data-key"]` reads a bound object's field `data-key`. A value passed to a browser API, such as a selector, an attribute's name or value, or an event type, follows that API's own case rules.
+Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a bracket property access, which reads the one its string names, exactly, a data field whose key is no Lexica name among them, as `o["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or an event type, follows that module's own case rules.
 
-A field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `hasFocus` from `hasfocus` reports the ambiguity, and the language is unaffected. How a module names a member, and which JavaScript function carries it out, is the module's declaration.
+A field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `isOn` from `ison` reports the ambiguity, and the language is unaffected. How a module names a member, and which JavaScript function carries it out, is the module's declaration.
 
 <a id="access-and-calls"></a>
 
 ## Access and calls
 
-In this section: [Property access, calls and indexers](#property-access-calls-and-indexers) · [Bracket property access](#bracket-property-access) · [Arguments](#arguments) · [Simple expressions](#simple-expressions).
+In this section: [Property access, function calls and indexers](#property-access-calls-and-indexers) · [Namespaces](#namespaces) · [Bracket property access](#bracket-property-access) · [Arguments](#arguments) · [Simple expressions](#simple-expressions).
 
 <a id="property-access-calls-and-indexers"></a>
 
-### Property access, calls and indexers
+### Property access, function calls and indexers
 
-Property access, calls and indexers are distinct constructs. The vocabulary declares which form a member takes.
+Property access, function calls and indexers are distinct constructs. The vocabulary declares which form a member takes.
 
 | Construct | Required form | Optional form | Example |
 | --- | --- | --- | --- |
-| Dot property access | `receiver.property` | `receiver?.property` | `context.children.count` |
-| Bracket property access | `receiver[name]` | `receiver?[name]` | `context[name]` |
-| Call | `receiver.method(…)` | `receiver?.method(…)` | `context.closest(".row")` |
-| Named indexer | `receiver:indexer[key]` | `receiver?:indexer[key]` | `context:attribute["data-key"]` |
-| Default indexer | `receiver:[key]` | `receiver?:[key]` | `context:["data-key"]` |
+| Dot property access | `receiver.property` | `receiver?.property` | `room.devices.count` |
+| Bracket property access | `receiver[name]` | `receiver?[name]` | `device[name]` |
+| Function call | `receiver.function(…)` | `receiver?.function(…)` | `room.device("lamp")` |
+| Named indexer | `receiver:indexer[key]` | `receiver?:indexer[key]` | `device:setting["mode"]` |
+| Default indexer | `receiver:[key]` | `receiver?:[key]` | `device:["mode"]` |
 
 ```lexica
-context.children.count                            // A dot property access.
-context.closest(".row")?.rect?.width              // A call, then optional access.
-context:attribute["data-key"]                     // A named indexer.
-window:media["(min-width: 40em)"]             // Another named indexer.
-context.closest("[data-group]")?.matches(".open") ?? false
+room.devices.count                                // A dot property access.
+room.device("lamp")?.battery                      // A function call, then optional access.
+device:setting["mode"]                            // A named indexer.
+rooms:item[0]                                     // Another named indexer, a list's.
+room.device("lamp")?.is("active") ?? false
 ```
 
 <a id="property-access-calls-and-indexers-property-access"></a>
 
 #### Property access
 
-A dot property access reads a property and takes no arguments. Whitespace cannot replace the dot: `context rect width` is an error suggesting `context.rect`.
+A dot property access reads a property and takes no arguments. Whitespace cannot replace the dot: `it climate temperature` is an error suggesting `it.climate`.
 
 Bracket property access chooses a property by name. It follows the same member contract as dot access; see [Bracket property access](#bracket-property-access).
 
@@ -628,9 +731,9 @@ Required access needs a receiver whose type cannot be null. A nullable receiver 
 
 Optional access reads or invokes the member only when its receiver is not null. Otherwise it answers null and skips the remainder of that chain, including argument or key evaluation.
 
-For example, `panel.parent?.children.count` answers null when the panel has no parent. Otherwise `.count` counts its parent's children.
+For example, `room.device(name)?.room.devices.count` answers null when the room has no device of that name. Otherwise `.count` counts the devices of the device's room.
 
-A group ends the optional chain. In `(panel.parent?.children).count`, `.count` receives a `list<element>?`, so this is a validation error.
+A group ends the optional chain. In `(room.device(name)?.room.devices).count`, `.count` receives a `list<device>?`, so this is a validation error.
 
 Optional access is also valid on a receiver whose current type cannot be null. A parameter typed by one binding may be nullable under another.
 
@@ -642,15 +745,15 @@ Optional access is also valid on a receiver whose current type cannot be null. A
 
 | Written | Equivalent accesses |
 | --- | --- |
-| `(?panel.first(".row").rect.width)` | `panel?.first(".row")?.rect?.width` |
-| `(?(panel.parent as "element").rect.width)` | `(panel?.parent as "element")?.rect?.width` |
-| `(?((a.x ?? b) as "element").rect)` | `((a.x ?? b) as "element")?.rect` |
+| `(?room.device(name).room.climate.temperature)` | `room?.device(name)?.room?.climate?.temperature` |
+| `(?(room.device(name) as "light").brightness)` | `(room?.device(name) as "light")?.brightness` |
+| `(?((a.x ?? b) as "light").brightness)` | `((a.x ?? b) as "light")?.brightness` |
 
-The enclosed form requires a receiver followed by at least one property access, call or indexer. Its receiver is an input, `context`, a parameter, a root, a literal, an interpolated string, a local, a local function's call or an object expression, or a grouped cast.
+The enclosed form requires a receiver followed by at least one property access, function call or indexer. Its receiver is an input, `it`, a parameter, `root`, a namespace's member, a literal, an interpolated string, a local, a local function's call or an object expression, or a grouped cast.
 
 Accesses in a grouped cast's target also become optional. A coalescing target in parentheses, an already optional enclosed target, call arguments, indexer keys and bracket property names retain their own rules.
 
-An optional enclosed access written directly as a call's argument is a syntax error, since `(?` is one token: the call writes it in parentheses of its own, `.closest((?…))`.
+An optional enclosed access written directly as a call's argument is a syntax error, since `(?` is one token: the call writes it in parentheses of its own, `.device((?…))`.
 
 The closing parenthesis ends the enclosed optional chain. `(?x.y.z)?.a.b` is `(x?.y?.z)?.a.b`; `.b` still requires a non-null `a`.
 
@@ -658,13 +761,13 @@ A projection or any other expression beyond that member chain is a syntax error.
 
 <a id="property-access-calls-and-indexers-calls"></a>
 
-#### Calls
+#### Function calls
 
-A call takes zero or more positional arguments inside parentheses, separated by commas. Each argument is a [simple expression](#simple-expressions). The chain may continue after the call.
+A function call takes zero or more positional arguments inside parentheses, separated by commas. Each argument is a [simple expression](#simple-expressions). The chain may continue after the call. Every member written with arguments in parentheses is written as a function call, whatever its kind, an event source, an action and a behavior among them.
 
-Argument count and types come from the signature. `context.closest(".a", ".b")` is a validation error because `closest` takes one argument.
+Argument count and types come from the signature. `room.device("lamp", "fan")` is a validation error because `device` takes one argument.
 
-Calls do not accept named arguments. `context.rectRelativeTo(relativeTo = other)` is a syntax error suggesting an options object. A member declared with options takes one object, for example `sentinel.intersects({ root = panel, margin = 200 })`.
+Calls do not accept named arguments. `room.device(name = "lamp")` is a syntax error suggesting an options object. A member declared with options takes one object, for example `light.dim({ to = 40 })`.
 
 <a id="property-access-calls-and-indexers-named-indexers"></a>
 
@@ -674,55 +777,112 @@ A named indexer takes one key, written in brackets after the colon and name. The
 
 | Form | Meaning |
 | --- | --- |
-| `context:attribute["data-key"]` | Invoke `attribute` with one key |
-| `context:style[property]` | Compute the key and invoke `style` |
+| `device:setting["mode"]` | Invoke `setting` with one key |
+| `device:setting[name]` | Compute the key and invoke `setting` |
 | `x:lookup["a"]["b"]` | Invoke `lookup`, then read property `b` of its result |
-| `window.size["width"]` | Read property `width` of `size` |
+| `room.climate?["temperature"]` | Read property `temperature` of `climate` |
 
-The indexer's brackets are required. `context:attribute`, `context:attribute[]` and `context:attribute["a", "b"]` are syntax errors.
+The indexer's brackets are required. `device:setting`, `device:setting[]` and `device:setting["a", "b"]` are syntax errors.
 
 `?:` is the optional form. For a null receiver it answers null without evaluating the key.
 
-A colon after a complete value can only begin an indexer. In `{ key = context:attribute["data-key"] }`, the `=` introduces the field value, and the colon invokes its indexer.
+A colon after a complete value can only begin an indexer. In `{ mode = it:setting["mode"] }`, the `=` introduces the field value, and the colon invokes its indexer.
 
 <a id="property-access-calls-and-indexers-default-indexers"></a>
 
 #### Default indexers
 
-Omitting the indexer name selects the receiver type's default indexer:
+Omitting the indexer name selects the receiver type's default indexer, a named indexer its module designates as the default:
 
 | Form | Equivalent named indexer |
 | --- | --- |
-| `context:["data-key"]` on an element | `context:attribute["data-key"]` |
+| `it:["mode"]` on a device | `it:setting["mode"]` |
 | `list:[2]` | `list:item[2]`, the third item |
 
-`?:[…]` is the optional form. A receiver type has at most one default indexer. If it has none, preparation fails with a validation error asking for an indexer name.
+`?:[…]` is the optional form. A module designates at most one default indexer for a receiver type, and [which designation applies](#namespaces-indexers) follows the type's owner. If none applies, preparation fails with a validation error asking for an indexer name.
 
 <a id="property-access-calls-and-indexers-member-form-and-parsing"></a>
 
 #### Member form and parsing
 
-A property must be read as a property. Functions, event sources, actions and behaviors use calls, and only a function can be declared an indexer, which is invoked as one.
+A property must be read as a property. Functions, event sources, actions and behaviors use function calls, and only a function can be declared an indexer, which is invoked as one.
 
 Using another form is a validation error that gives the required form:
 
-> 'attribute' is an indexer: write 'context:attribute[…]'
+> 'setting' is an indexer: write 'it:setting[…]'
 
-The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares.
+The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace is recognized by the module names the text is read with, as [Namespaces](#namespaces) sets out.
+
+<a id="namespaces"></a>
+
+### Namespaces
+
+A module's namespace is how text reaches what the module declares: in text read through a registry, the module's name, a dot and the name of one of its declarations, as `home.rooms` and `energy.usage(device)` are. The name is reserved there, as [module names](#names-and-reserved-words-module-names) sets out.
+
+<a id="namespaces-module-members"></a>
+
+#### Module members
+
+A member a module declares with no type it applies to is a **module member**, read through the namespace alone: `home.rooms` reads the home's rooms, and `home.now` the time. Its implementation is given no receiver. Two modules may each declare a module member of one name, since each is read through its own namespace. Reading a member through a namespace says nothing of how its value changes: `home.now` is unobserved, and changes between evaluations.
+
+<a id="namespaces-owners-and-extensions"></a>
+
+#### Owners and extensions
+
+A module may declare members on any type, its own or another module's. The module that declares a type **owns** it, and a member another module declares on it is an **extension**, as `energy`'s `device.usage` is. An unqualified member resolves by the owner of its receiver's type:
+
+- An applicable member the owner declares wins over every extension, so `device.power` reads `home`'s, whatever `energy` declares.
+- Otherwise one applicable extension resolves as any member does, so `device.usage` reads `energy`'s.
+- Several applicable extensions are refused as ambiguous when the expression is resolved, before anything is evaluated, and both still register, since refusing one would leave its qualified form unusable. Were a module `solar` to declare `usage` on `device` too, `device.usage` is refused:
+
+> Member 'usage' on 'device' is ambiguous between modules 'energy' and 'solar'. Use 'energy.usage(device)' or 'solar.usage(device)' to select one.
+
+Applicability follows the receiver's type and the access form, so one name on unrelated types is never ambiguous. Lexica's own module owns the language's types, `list`, `number`, `string` and `boolean` among them, so `rooms.count` reads Lexica's whatever an extension declares; that module has no namespace, and its name is reserved nowhere. Predicates follow the same precedence, so `device.is("active")` reads `home`'s, and indexers follow it as [indexers](#namespaces-indexers) set out.
+
+<a id="namespaces-qualified-access"></a>
+
+#### Qualified access
+
+Every member a module declares on a type is also reached through the module's namespace, the receiver its first argument and the member's own arguments after it: `energy.usage(device)`, `energy.power(device)` and `home.device(room, "lamp")`. The qualified form selects that module's declaration and reuses its implementation and its contract, and the unqualified form stays available beside it, so no module declares a second implementation to make an extension addressable.
+
+A predicate is called through its module directly, the receiver first and no verb, as `home.active(device)` and `home.occupied(room)` are, selecting that predicate; the verb belongs to unqualified access alone.
+
+<a id="namespaces-indexers"></a>
+
+#### Indexers
+
+An indexer is selected by the owner of its receiver's type, as a member is, and keeps its key, its receiver and its contract however it is selected:
+
+- **A named indexer**, `x:name[key]`, resolves as an unqualified member does: the owner's indexer of that name wins over every extension's, one applicable extension's indexer resolves, and several are refused as ambiguous when the expression is resolved, the error naming the indexer, its receiver's type and the competing modules.
+- **A default indexer**, `x:[key]`, selects the named indexer designated as the default for its receiver's type: the owner's designated indexer wins, one extension's resolves where the owner designates none, and several are refused as ambiguous, as named ones are. So `device:["mode"]` reads `home`'s `setting`, whatever an extension declares.
+
+Selecting an extension's indexer explicitly, where the owner's wins or several extensions compete, is not specified: no qualified form of an indexer is defined, and an extension's indexer is reached only where unqualified selection gives it.
+
+<a id="namespaces-a-modules-own-collisions"></a>
+
+#### A module's own collisions
+
+A module's members, the qualified forms of the members it declares on types, and its predicates' qualified forms all take part in its collision checks, so a module whose own declarations would make one of its qualified forms ambiguous is refused when it is registered. Were `home` to declare a predicate `on`, its qualified form `home.on(device)` would collide with the event source's, `home.on(device, "change")`, and `home` would be refused.
+
+<a id="namespaces-text-and-registries"></a>
+
+#### Text and registries
+
+A module's name decides how a text reads, so a registry reads and writes text with its own module names, and text read without a registry knows the language's names alone. Nothing reads a text otherwise unannounced: a registry refuses a definition read without its module names that names one of them, saying to read the text with the registry; a namespace naming no module the registry holds is refused as one it lacks; and registering a module whose name a definition read earlier uses refuses that definition as one read without the registry's module names, never reading it again silently.
 
 <a id="bracket-property-access"></a>
 
 ### Bracket property access
 
-Bracket property access chooses a property by name. `context["rect"]` and `context.rect` resolve the same member, with the same implementation, type, null behavior and observations.
+Bracket property access chooses a property by name. `it["climate"]` and `it.climate` resolve the same member, with the same implementation, type, null behavior and observations.
 
 ```lexica
-target {
-    let name = if wide then "size" else "clientSize" end,
+device {
+    let name = if metered then "power" else "battery" end,
 
-    bounds = context["rect"],
-    chosen = context[name],
-    named = context[property ?? "size"]
+    reading = it["power"],
+    chosen = it[name],
+    named = it[property ?? "power"]
 }
 ```
 
@@ -746,29 +906,29 @@ Preparation must determine every property name the expression can produce. Only 
 
 A fixed test or operand can decide the selection during preparation. An unreached branch, fallback or operand contributes no names. A test decided only at evaluation leaves both branches' names possible; evaluation reads the selected property.
 
-Every branch, fallback and operand is still validated for syntax and types. In `context["size" ?? context:["x"]]`, only `size` needs name resolution; the fallback is neither evaluated nor observed.
+Every branch, fallback and operand is still validated for syntax and types. In `it["power" ?? it:["x"]]`, only `power` needs name resolution; the fallback is neither evaluated nor observed.
 
 <a id="bracket-property-access-name-expression-types"></a>
 
 #### Name expression types
 
-The complete expression must produce a string. Null is allowed within it only where removed, as `property ?? "size"` removes a null binding. A possible false or other non-string value is a validation error.
+The complete expression must produce a string. Null is allowed within it only where removed, as `property ?? "power"` removes a null binding. A possible false or other non-string value is a validation error.
 
-Logical expressions participate only when their types fit. `context[wide and "size" or "rect"]` can select either string when its fixed operands settle it.
+Logical expressions participate only when their types fit. `it[metered and "power" or "battery"]` can select either string when its fixed operands settle it.
 
-The falsey part can also be known from a nullable non-Boolean operand: `context.first(".a") and "size"` gives null or a name. The final bracket expression must still remove the possible null.
+The falsey part can also be known from a nullable non-Boolean operand: `it.room.device("lamp") and "power"` gives null or a name. The final bracket expression must still remove the possible null.
 
-`context[context.attached and "size" or "clientSize"]` is refused because no type holds both false and a string. Write the choice as a conditional:
+`it[it.is("active") and "power" or "battery"]` is refused because no type holds both false and a string. Write the choice as a conditional:
 
-`context[if context.attached then "size" else "clientSize" end]`.
+`it[if it.is("active") then "power" else "battery" end]`.
 
-An expression outside the permitted forms, such as `context[context:["data-name"]]`, is a validation error saying its names cannot be determined.
+An expression outside the permitted forms, such as `it[it:["mode"]]`, is a validation error saying its names cannot be determined.
 
 <a id="bracket-property-access-validation-and-result-type"></a>
 
 #### Validation and result type
 
-Every possible name must be a property of the receiver. Their result types must merge as conditional branches do. In the example above, `context[name]` is a `size?`.
+Every possible name must be a property of the receiver. Their result types must merge as conditional branches do. In the example above, `it[name]` is a `number?`.
 
 Resolution is retained for the strings supplied by the current bindings. Rebinding a name requires resolving it again.
 
@@ -786,50 +946,50 @@ A watch follows both what computing the name reads and the selected property's d
 
 #### One property at a time
 
-A name selects one property. `context["grid.columns"]` does not follow a path. Functions require calls; numeric list indexing uses the default indexer, `list:[2]`.
+A name selects one property. `it["climate.temperature"]` does not follow a path. Functions require function calls; numeric list indexing uses the default indexer, `list:[2]`.
 
-A field is always named, as in `bounds = context["rect"]`.
+A field is always named, as in `reading = it["power"]`.
 
-When the name is a string literal that is a DOMQL name, its definition is the same as dot access: `context["rect"]` has the definition of `context.rect`.
+When the name is a string literal that is a Lexica name, its definition is the same as dot access: `it["power"]` has the definition of `it.power`.
 
 <a id="arguments"></a>
 
 ### Arguments
 
-A call takes its arguments by position, none or several, and an indexer its one key, each a simple expression, and the member's declaration states what they supply, its **input**:
+A function call takes its arguments by position, none or several, and an indexer its one key, each a simple expression, and the member's declaration states what they supply, its **input**:
 
 <a id="arguments-positional"></a>
 
 #### Positional
 
-Positional: the arguments supply the member's parameters in order, as `".row"` supplies the selector in `context.closest(".row")` and `"data-key"` the name in `context:attribute["data-key"]`.
+Positional: the arguments supply the member's parameters in order, as `"lamp"` supplies the name in `room.device("lamp")` and `"mode"` the name in `device:setting["mode"]`.
 
-Its required parameters come before its optional ones, so the parameters left out are the last: a required one must be given, a missing optional one takes its default, and more arguments than it has parameters is a validation error, `'closest' takes one argument, and is given 2`, which for a member with optional parameters says how many it takes at most, `'…' takes at most 2 arguments, and is given 3`.
+Its required parameters come before its optional ones, so the parameters left out are the last: a required one must be given, a missing optional one takes its default, and more arguments than it has parameters is a validation error, `'device' takes one argument, and is given 2`, which for a member with optional parameters says how many it takes at most, `'…' takes at most 2 arguments, and is given 3`.
 
 <a id="arguments-options"></a>
 
 #### Options
 
-Options: the one argument is an object expression written in place, whose fields supply the member's parameters by name, as `{ root = panel, margin = 200 }` does for `intersects`.
+Options: the one argument is an object expression written in place, whose fields supply the member's parameters by name, as `{ target = 21, until = home.now + 3600 }` does for `hold`.
 
-Each field follows its parameter's rules; a field the member has no parameter for is a validation error naming those it has, a required parameter must be given, and a missing optional one takes its default. Where every parameter is optional, the argument can be left out, as in `sentinel.intersects()`, and a second argument is a validation error.
+Each field follows its parameter's rules; a field the member has no parameter for is a validation error naming those it has, a required parameter must be given, and a missing optional one takes its default. Where every parameter is optional, the argument can be left out, as in `light.dim()`, and a second argument is a validation error.
 
 An object means options only by its member's input: the object a positional member is given is its parameter's value.
 
-An options object follows the ordinary rules of an object expression. Its options are evaluated once each, in the order they are written, whatever order the member declares its parameters in. Each written option is in scope by its name after its initializer, as [a field is](#locals-fields-as-names), so in `sentinel.intersects({ margin = 200, root = if margin > 100 then panel else null end })` the `root` option reads the `margin` written before it. Where no object expression encloses it, an options object builds the [object root](#locals-the-object-root), each option a field of it after its initializer, of the value and type it was given, an element included; inside one, `root` keeps the enclosing object root, whose fields the options never join. A default the member supplies introduces no name and no field. An option the member declares as an expression or a predicate is evaluated by the member, against the implicit parameter it supplies, with the names and the object root of the place it is written; it has no single value, so reading it by its name or through `root` after its initializer is a validation error, which no enclosing name of its spelling escapes.
+An options object follows the ordinary rules of an object expression. Its options are evaluated once each, in the order they are written, whatever order the member declares its parameters in. Each written option is in scope by its name after its initializer, as [a field is](#locals-fields-as-names), so in `thermostat.hold({ target = 21, until = if target > 20 then home.now + 3600 else null end })` the `until` option reads the `target` written before it. Where no object expression encloses it, an options object builds the [object root](#locals-the-object-root), each option a field of it after its initializer, of the value and type it was given, a reference value included; inside one, `root` keeps the enclosing object root, whose fields the options never join. A default the member supplies introduces no name and no field. An option the member declares as an expression or a predicate is evaluated by the member, against the implicit parameter it supplies, with the names and the object root of the place it is written; it has no single value, so reading it by its name or through `root` after its initializer is a validation error, which no enclosing name of its spelling escapes.
 
 Every parameter of a member is declared as one of four kinds, and the evaluator treats them differently; a parameter an options object supplies is the same.
 
-- A **value argument** is evaluated once, where the call is written, against the same implicit parameter as the chain it appears in, so its `context` is that implicit parameter. In `viewport { intersects = context.first(".item")?.intersects({ root = context.parent as "element" }) }`, `context.parent` is the viewport's parent, not the item's. At the top level, where there is no implicit parameter, a value argument starts from a parameter, a root, a local, a literal, an object expression or another input: `target.intersects({ root = target.parent as "element" })`.
-- An **expression argument** is evaluated by the member against each item of the list the member follows, which is its `context`. In `table.all("tbody tr").max(context.rect?.height)`, `context` is each row. The built-in vocabulary's expression parameters are those of `max`, `min` and `sum`.
-- A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against: in `panel.children.where(context:["data-key"])`, the element's attribute is truthy wherever it is present, empty or not. The built-in vocabulary's predicate is that of `where`.
-- A **function argument** is a function value, an arrow function written as the argument or a function passed by its name, which the member calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type. Preparation checks each function the value may be against the contract, and evaluation checks the member's arguments and the function's result. The member calls it only while its own invocation lasts, and a call after that fails. The built-in vocabulary has no function parameters, so `where`, `max`, `min` and `sum` take expression arguments, and an arrow function given to one is a validation error saying its parameter takes an expression argument, as `rows.where(context.visible)`; a module declares them.
+- A **value argument** is evaluated once, where the call is written, against the same implicit parameter as the chain it appears in, so its `it` is that implicit parameter. In `room { own = it.device(it.name) }`, the argument's `it.name` is the room's name, not a device's. At the top level, where there is no implicit parameter, a value argument starts from a parameter, `root`, a namespace's member, a local, a literal, an object expression or another input: `room.device(name)`.
+- An **expression argument** is evaluated by the member against each item of the list the member follows, which is its `it`. In `room.devices.max(it.power)`, `it` is each device. Lexica's own module's expression parameters are those of `max`, `min` and `sum`.
+- A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against: in `room.devices.where(it:["mode"])`, the device's setting is truthy wherever it is present, empty or not. Lexica's own module's predicate parameter is that of `where`.
+- A **function argument** is a function value, an arrow function written as the argument or a function passed by its name, which the member calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type. Preparation checks each function the value may be against the contract, and evaluation checks the member's arguments and the function's result. The member calls it only while its own invocation lasts, and a call after that fails. Lexica's own module has no function parameters, so `where`, `max`, `min` and `sum` take expression arguments, and an arrow function given to one is a validation error saying its parameter takes an expression argument, as `room.devices.where(it.is("active"))` is written instead; a module declares them.
 
-A value argument can be declared **fixed**, where it selects something validation needs before evaluation, such as the event type whose members `on` offers or the condition `is`, `has` or `supports` asks.
+A value argument can be declared **fixed**, where it selects something validation needs before evaluation, such as the event type whose members `on` offers or the predicate a verb asks.
 
-A fixed argument is a string the expression's resolution settles, without reading the document or depending on an event: a literal, a bound parameter, a local or a conditional binding holding one, a local holding a `do` block whose locals and result all settle, a function parameter within a call's body, which is resolved with its arguments, and an `and`, an `or`, a conditional or a coalescing operator whose result they settle by the rules that evaluate it everywhere, as `window { let feature = "share", supportsShare = context.supports(feature) }` and `panel.is(wide and "disabled" or "readonly")` are.
+A fixed argument is a string the expression's resolution settles, without evaluating any member or depending on an event: a literal, a bound parameter, a local or a conditional binding holding one, a local holding a `do` block whose locals and result all settle, a function parameter within a call's body, which is resolved with its arguments, and an `and`, an `or`, a conditional or a coalescing operator whose result they settle by the rules that evaluate it everywhere, as `device { let state = "active", lit = it.is(state) }` and `device.is(metered and "active" or "offline")` are.
 
-A member's value is read from the document, so an expression that needs one to settle is a validation error, as `if panel.attached then "share" else "share" end` is; the side an expression does not take is validated and selects nothing, so a name only it holds is never looked up.
+A member's value is known only once it is evaluated, so an expression that needs one to settle is a validation error, as `if device.is("active") then "active" else "active" end` is; the side an expression does not take is validated and selects nothing, so a name only it holds is never looked up.
 
 Because the kind is part of the signature, preparation validates every kind before evaluation, and evaluation records the dependencies of value, expression, predicate and function arguments.
 
@@ -844,15 +1004,15 @@ A **simple expression** is an expression allowed in a delimited value position:
 - The name expression in bracket property access.
 - An interpolation in an interpolated string.
 
-Simple expressions include values, references, arithmetic, comparisons, logical expressions, property accesses, indexers, calls, and object expressions or interpolated strings whose contents are also simple. They also include a simple conditional: one `if` branch and one `else` branch, each containing one simple value.
+Simple expressions include values, references, arithmetic, comparisons, logical expressions, property accesses, indexers, function calls, and object expressions or interpolated strings whose contents are also simple. They also include a simple conditional: one `if` branch and one `else` branch, each containing one simple value.
 
 ```lexica
-let calculate = function(width, gap) width - gap end
+let calculate = function(degrees, offset) degrees - offset end
 let adjusted = do
-    let doubled = (panel.rect?.width ?? 0) * 2
+    let doubled = (sensor.temperature ?? 0) * 2
     return doubled + 1
 end
-return calculate(adjusted, if wide then 10 else 20 end)
+return calculate(adjusted, if metered then 10 else 20 end)
 ```
 
 <a id="simple-expressions-excluded-constructs"></a>
@@ -866,8 +1026,8 @@ A function declaration is a syntax error there, as anywhere a function stands ot
 | Invalid expression | Reason |
 | --- | --- |
 | `calculate(do return 10 end)` | Contains a `do` block |
-| `calculate(if let w = panel.size?.width then w else 0 end)` | Contains a conditional binding |
-| `calculate(if compact then return 10 else return 20 end)` | Contains `return` |
+| `calculate(if let t = sensor.temperature then t else 0 end)` | Contains a conditional binding |
+| `calculate(if metered then return 10 else return 20 end)` | Contains `return` |
 | `$"Total: {do return 10 end}"` | Contains a `do` block |
 
 <a id="simple-expressions-recursive-restrictions"></a>
@@ -876,7 +1036,7 @@ A function declaration is a syntax error there, as anywhere a function stands ot
 
 The restrictions apply through parentheses, conditional tests and branches, nested calls, indexers, bracket property access, object fields and interpolations. Adding parentheses or line breaks does not change them.
 
-`calculate((do return 10 end))` is refused. `calculate((if compact then 10 else 20 end))` is allowed.
+`calculate((do return 10 end))` is refused. `calculate((if metered then 10 else 20 end))` is allowed.
 
 A simple conditional cannot contain another conditional anywhere within it. An `elseif`, a nested conditional in a branch, and a conditional inside a call or interpolation within that branch are all refused.
 
@@ -886,7 +1046,7 @@ A simple conditional cannot contain another conditional anywhere within it. An `
 
 The restriction applies to what is written at the argument position. A function called there may use locals, `do` blocks, full conditionals and `return` in its own body.
 
-`calculate(double(width))` can therefore be valid. `calculate(double)` passes a function itself and is a validation error.
+`calculate(double(degrees))` can therefore be valid. `calculate(double)` passes a function itself and is a validation error.
 
 <a id="simple-expressions-validation"></a>
 
@@ -959,7 +1119,7 @@ Numeric comparisons may form a chain only when every operator points the same wa
 
 - `try (a to "string") to "number"` attempts the outer conversion.
 - `try a to "string" to "number"` is a syntax error.
-- `try node as "element" to "string"` is a syntax error.
+- `try device as "light" to "string"` is a syntax error.
 
 <a id="expression-structure-and-precedence-conditional-bindings"></a>
 
@@ -971,9 +1131,9 @@ A conditional binding exists only where `let` follows `if` or `elseif`. It binds
 
 #### Members require their punctuation
 
-A name after a complete value cannot invoke a member without its punctuation. `panel matches ".open"` is a syntax error that suggests `panel.matches(…)`.
+A name after a complete value cannot invoke a member without its punctuation. `device is "active"` is a syntax error that suggests `device.is(…)`.
 
-A chain consists of its input and the member accesses and object expressions that continue it. `42` and `panel` are chains with no continuation.
+A chain consists of its input and the member accesses and object expressions that continue it. `42` and `room` are chains with no continuation.
 
 Conditions and the operands of `not`, `and` and `or` accept values and test their [truthiness](#truthiness), rather than requiring Boolean values.
 
@@ -981,28 +1141,28 @@ Conditions and the operands of `not`, `and` and `or` accept values and test thei
 
 ### Tests
 
-A test is a member that answers a Boolean, read as every member is.
+A test answers a Boolean: a member that answers one, read as every member is, or a predicate asked with its verb.
 
 ```lexica
-document.is("visible")
-panel.first("input")?.is("disabled")
-input.hasSelection
-input.is(state)
+room.is("occupied")
+room.device("lamp")?.is("active")
+device.has("battery")
+device.is(state)
 ```
 
 <a id="tests-members"></a>
 
 #### Members
 
-A test is a property or a function whose result is a `boolean` or a `boolean?`: `context.is("disabled")` asks whether an element is disabled, and `context.matches(".toolbar > button:first-child")` whether it matches a selector. A test of presence is named with `has`, as `hasChildren` and `hasSelection` are, since `children` and `selection` read what is present.
+A test is a property or a function whose result is a `boolean` or a `boolean?`, or a predicate, asked with its verb: `it.is("occupied")` asks whether a room is occupied, and `it.has("battery")` whether a device has a battery. A test of presence is asked with `has`, and a state with `is`.
 
-A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `boolean?`, and `input[state]` reads the Boolean property a binding names, such as `hasChildren`, as the section on bracket property access sets out. The built-in vocabulary's tests are in its table of properties, and a module declares a test as it declares any member.
+A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `boolean?`, and a bracket property access reads a Boolean property a binding names as it reads any other. A module declares a test as it declares any member or predicate.
 
 <a id="tests-no-test-by-name-after-"></a>
 
 #### No test by name after `==`
 
-`==` compares values, so `input == "disabled"` compares an element with a string, a validation error that gives the member to write, `input.is("disabled")`.
+`==` compares values, so `device == "active"` compares a device with a string, a validation error that gives the test to write, `device.is("active")`.
 
 <a id="truthiness"></a>
 
@@ -1065,10 +1225,10 @@ Narrowing changes neither evaluation nor the requirement to validate every opera
 `a == b` compares two values, and `a != b` is its negation.
 
 ```lexica
-action == "save"
-panel.parent == null
-left:["name"] == right:["name"]
-(try item.parent as "element") == panel
+mode == "eco"
+room.device(name) == null
+left:["mode"] == right:["mode"]
+(try device as "light") == light
 count != 0
 ```
 
@@ -1076,25 +1236,25 @@ count != 0
 
 #### Comparison
 
-Strings compare exactly, by code unit; numbers numerically, so `-0 == 0` is true; Booleans by value; and nodes by identity, so `a == b` asks whether they are the same node. Nothing is converted.
+Strings compare exactly, by code unit; numbers numerically, so `-0 == 0` is true; Booleans by value; and reference values by identity, so `a == b` asks whether they are the same value. Nothing is converted.
 
 <a id="equalities-null"></a>
 
 #### Null
 
-Null equals only null, and a value of any type is compared with null, one that cannot be null included, so `panel.parent == null` asks whether the panel has a parent.
+Null equals only null, and a value of any type is compared with null, one that cannot be null included, so `room.device(name) == null` asks whether the room has a device of that name.
 
 <a id="equalities-types"></a>
 
 #### Types
 
-Two values whose types fit neither way, as `"1" == 1` or an `element` with a `document`, are a validation error naming both; an `element` and a `node` fit, as do a `number` and a `number?`. A structured value, a list, an object, the window and a view are compared with null alone, and an event source, an action or a behavior is no operand of `==` or `!=`.
+Two values whose types fit neither way, as `"1" == 1` or a `room` with a `device`, reference types of two hierarchies, are a validation error naming both; a `light` and a `device` fit, as do a `number` and a `number?`. A structured value, a list and an object are compared with null alone, and an event source, an action or a behavior is no operand of `==` or `!=`.
 
 <a id="equalities-results"></a>
 
 #### Results
 
-An equality answers a `boolean`, never null, evaluating both operands once, from left to right, and a watch follows what both read. Where it decides a path, a comparison with null [narrows](#truthiness) a stable reference, so `a != null and a.rect` reads a local `a` that is not null; it narrows no member, which is read anew wherever it is written.
+An equality answers a `boolean`, never null, evaluating both operands once, from left to right, and a watch follows what both read. Where it decides a path, a comparison with null [narrows](#truthiness) a stable reference, so `a != null and a.battery` reads a local `a` that is not null; it narrows no member, which is read anew wherever it is written.
 
 <a id="equalities-"></a>
 
@@ -1106,7 +1266,7 @@ An equality answers a `boolean`, never null, evaluating both operands once, from
 
 #### Binding
 
-A dot binds tighter than `==`, and so do an indexer, a cast, a conversion, an attempt and arithmetic, so `panel:["role"] == null` tests the attribute and `panel.matches(".open") == false` tests the match.
+A dot binds tighter than `==`, and so do an indexer, a cast, a conversion, an attempt and arithmetic, so `device:["mode"] == null` tests the setting and `device.is("active") == false` tests the predicate.
 
 An equality takes an additive expression on either side, including a chain, cast, conversion, attempt or arithmetic expression, and does not chain, so `a == b == c` is a syntax error and `(a == b) == c` compares the first's result; it stands beside a coalescing operator or a [comparison](#comparisons) only where a group holds one of them, `(count ?? 0) == 0` and `(a < b) == c`.
 
@@ -1123,13 +1283,13 @@ For a nullable Boolean `x`, comparing and negating answer differently where `x` 
 
 ### Arithmetic
 
-`+`, `-`, `*`, `/` and `%` compute with numbers, and `-` before a value negates it, so an expression derives the values it needs from the ones it reads: remaining space, a size's difference, a position relative to another element.
+`+`, `-`, `*`, `/` and `%` compute with numbers, and `-` before a value negates it, so an expression derives the values it needs from the ones it reads: the gap to a target, a share of a total, a margin.
 
 ```lexica
-panel {
-    remaining = (context.clientSize?.width ?? 0) - (context.first(".content")?.rect?.width ?? 0),
-    half = (context.rect?.width ?? 0) / 2,
-    padded = (context.rect?.width ?? 0) + 24
+thermostat {
+    gap = it.target - (it.room.climate?.temperature ?? 0),
+    half = it.power / 2,
+    padded = it.target + 0.5
 }
 ```
 
@@ -1145,7 +1305,7 @@ Both operands are numbers, and nothing converts to one but `to`, so `"2" + 1` is
 
 An arithmetic negation binds tightest of them, then `*`, `/` and `%`, then `+` and `-`; operators of one level associate to the left, so `10 - 3 - 2` is 5, and parentheses group as they do anywhere.
 
-Arithmetic binds tighter than an equality and a comparison and looser than a conversion, so `counter:["data-count"] to "number" + 1` converts the attribute and then adds one, a validation error since the attribute can be missing, written `(counter:["data-count"] to "number" ?? 0) + 1` to give it a fallback first, and `(a + b) to "string"` converts the sum. `-x to "number"` negates the converted value, and `(-x) to "number"` converts the negated one.
+Arithmetic binds tighter than an equality and a comparison and looser than a conversion, so `device:["level"] to "number" + 1` converts the setting and then adds one, a validation error since the setting can be missing, written `(device:["level"] to "number" ?? 0) + 1` to give it a fallback first, and `(a + b) to "string"` converts the sum. `-x to "number"` negates the converted value, and `(-x) to "number"` converts the negated one.
 
 <a id="arithmetic-attempts"></a>
 
@@ -1186,9 +1346,9 @@ Arithmetic reads what its operands read, and observes nothing of its own. A comp
 `<`, `<=`, `>` and `>=` order two numbers, and a chain of them pointing one way orders several, so an expression tests a value it reads or calculates against a bound or a range.
 
 ```lexica
-panel {
-    isWide = (context.rect?.width ?? 0) >= 600,
-    fits = 0 < (context.clientSize?.width ?? 0) - 32 <= 400
+room {
+    isLarge = it.floorArea >= 20,
+    comfortable = 19 < (it.climate?.temperature ?? 0) <= 23
 }
 ```
 
@@ -1237,11 +1397,11 @@ A watch follows what the operands it evaluated read, and an operand a false comp
 `and` and `or` answer the operand that decides them, `not` answers whether a value is falsey, and parentheses group any expression.
 
 ```lexica
-panel.attached and enabled
-input.is("disabled") or (input.is("readonly") and input.is("text-editable"))
-panel { available = context.attached and not busy }
-panel { let input = context.first("input"), width = input and input.rect?.width }
-panel:["data-label"] or "untitled"
+light.is("active") and metered
+device.is("offline") or (device.has("battery") and (device.battery ?? 0) < 10)
+room { free = not it.is("occupied") and not busy }
+room { let lamp = it.device("lamp"), power = lamp and lamp.power }
+device:["label"] or "untitled"
 ```
 
 <a id="logical-expressions-negations-and-groups-operands"></a>
@@ -1254,7 +1414,7 @@ An operand of `and` and `or`, and what `not` negates, is any value, an event sou
 
 #### Binding
 
-An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighter than `or`, so `panel.attached or not input == null and enabled` combines the negation of the input's equality and `enabled` before the panel's test. `not` associates to the right, so `not not a` negates `a` twice, and `and not` and `or not` are `and` and `or` of a negation.
+An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighter than `or`, so `device.is("active") or not lamp == null and enabled` combines the negation of the lamp's equality and `enabled` before the device's test. `not` associates to the right, so `not not a` negates `a` twice, and `and not` and `or not` are `and` and `or` of a negation.
 
 <a id="logical-expressions-negations-and-groups-results"></a>
 
@@ -1270,9 +1430,9 @@ An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighte
 
 `and` is of the falsey part of each operand before its last, merged with its last, and `or` of the truthy part, merged with its last: a value that can be null has null for its falsey part and itself without null for its truthy part, a Boolean is a Boolean in both, and any other value is truthy only.
 
-So `panel.first(".a") and 5` is a `number?`, `name or "untitled"` a `string` where `name` is a string, and Booleans give a `boolean`. Where fixed operands, literals and bound parameters, decide it, it is of the one that does, so `true and "value"` is a `string`.
+So `room.device(name) and 5` is a `number?`, `name or "untitled"` a `string` where `name` is a string, and Booleans give a `boolean`. Where fixed operands, literals and bound parameters, decide it, it is of the one that does, so `true and "value"` is a `string`.
 
-Values no one type holds are a validation error, as `context.is("disabled") and context` in an object expression, which gives false or an element: unlike Lua, DOMQL types every expression, and offers no type for false or true beside another, so a conditional chooses between values of one type, `if context.is("disabled") then context else null end`, where null is an acceptable alternative.
+Values no one type holds are a validation error, as `it.is("active") and it` in an object expression following a device, which gives false or a device: unlike Lua, Lexica types every expression, and offers no type for false or true beside another, so a conditional chooses between values of one type, `if it.is("active") then it else null end`, where null is an acceptable alternative.
 
 <a id="logical-expressions-negations-and-groups-not-a-conditional"></a>
 
@@ -1292,7 +1452,7 @@ A watch follows the operands evaluation reached, so it holds what an operand rea
 
 #### Groups
 
-A parenthesized expression holds an expression and adds nothing of its own, so `((panel))` is `panel`, and as a chain input it can start a chain: `(panel).children.count`.
+A parenthesized expression holds an expression and adds nothing of its own, so `((room))` is `room`, and as a chain input it can start a chain: `(room).devices.count`.
 
 <a id="conditionals"></a>
 
@@ -1303,14 +1463,14 @@ A conditional chooses a branch by truthiness. It starts with `if`, has a `then` 
 Each branch is a [body](#bodies): one expression, or locals followed by `return`. Every branch of one conditional must use the same result style.
 
 ```lexica
-if wide then panel else sidebar end
-if let row = cell.closest(".row") then { key = row:["data-key"], top = row.rect?.top } else null end
-if panel.first("input")?.is("disabled") then "locked" elseif panel.first("input") == null then "empty" else "open" end
-panel { state = if context.is("disabled") then "locked" else "open" end }
-{ let target = if wide then panel else sidebar end, width = target.rect?.width }
+if metered then light else thermostat end
+if let lamp = room.device("lamp") then { name = lamp.name, power = lamp.power } else null end
+if room.device("lamp")?.is("offline") then "lost" elseif room.device("lamp") == null then "none" else "ok" end
+room { state = if it.is("occupied") then "busy" else "free" end }
+{ let target = if metered then light else thermostat end, power = target.power }
 ```
 
-The first answers an element, which no result holds, so it stands within a larger expression, as the conditional of the last does.
+The first answers a device, which no result holds, so it stands within a larger expression, as the conditional of the last does.
 
 <a id="conditionals-conditions-and-selection"></a>
 
@@ -1320,7 +1480,7 @@ A condition may be any value. An event source, action or behavior is not a condi
 
 A truthy condition selects its consequent. A falsey condition continues to the next clause. If no condition is truthy, the `else` branch is selected.
 
-The branches see the facts guaranteed by each condition's outcome; see [Truthiness](#truthiness). An always-truthy condition is valid, including a list. To test whether a list has items, use `panel.hasChildren` or `items.count != 0`.
+The branches see the facts guaranteed by each condition's outcome; see [Truthiness](#truthiness). An always-truthy condition is valid, including a list. To test whether a list has items, use `items.count != 0`.
 
 <a id="conditionals-conditional-bindings"></a>
 
@@ -1345,13 +1505,15 @@ The name follows local naming rules, and may hide an outer local, field or calle
 
 #### Branch types
 
-All branches are required. Their types must merge, with object types compared structurally. Nullability may differ.
+All branches are required. Their types must merge, with object types compared structurally and reference types of one hierarchy merging to the nearest supertype they share, as a list's items do. Nullability may differ.
 
 | Branch types | Conditional type |
 | --- | --- |
 | `number`, `number?` | `number?` |
 | `number`, `null` | `number?` |
+| `light`, `thermostat` | `device` |
 | `number`, `string` | Validation error naming both types |
+| `room`, `device` | Validation error naming both types |
 
 <a id="conditionals-evaluation-and-watching"></a>
 
@@ -1369,7 +1531,7 @@ A branch takes a whole body, including an ungrouped conditional. In `if a then b
 
 A conditional used as a condition or as an operand of any operator, arithmetic, a comparison, `??` and `not` among them, must be grouped. For example: `if (if a then b else c end) then 1 else 2 end`.
 
-A conditional cannot be a chain receiver, even when grouped. `(if wide then panel else sidebar end).rect?.width` is a syntax error. Bind the conditional to a local first, then continue from the local.
+A conditional cannot be a chain receiver, even when grouped. `(if metered then light else thermostat end).power` is a syntax error. Bind the conditional to a local first, then continue from the local.
 
 There is no `?:` conditional form. Each `elseif` writes its entire condition or binding; it inherits nothing from the previous clause.
 
@@ -1380,9 +1542,9 @@ There is no `?:` conditional form. Each `elseif` writes its entire condition or 
 A coalescing operator answers its value where it is not null, and otherwise its fallback: `value ?? fallback`.
 
 ```lexica
-panel.rect?.width ?? 0
-panel:["data-label"] ?? panel:["title"] ?? "untitled"
-panel.first("input")?.is("disabled") ?? true
+sensor.temperature ?? 0
+device:["label"] ?? device:["name"] ?? "untitled"
+room.device("lamp")?.is("active") ?? true
 ```
 
 <a id="coalescing-operators-evaluation"></a>
@@ -1403,7 +1565,7 @@ A fallback that evaluation does not reach is still validated, but is not evaluat
 
 #### Type
 
-The value and the fallback are of one type, compared as a conditional's branches are, and the whole is of the value's type made non-null where the fallback's is, so `panel.rect?.width ?? 0` is a `number`.
+The value and the fallback are of one type, compared as a conditional's branches are, and the whole is of the value's type made non-null where the fallback's is, so `sensor.temperature ?? 0` is a `number`.
 
 A value of the type `null` gives the fallback's type, and `??` after a value that cannot be null is valid, since a binding typed from its value may be one that can.
 
@@ -1423,39 +1585,39 @@ A coalescing operator stands beside `not`, `and`, `or`, an equality and a compar
 
 ### Casts
 
-A cast answers a node as one of its kinds: `target as "type"` answers its target itself where it is of that type, and null where it is null. A node of another kind fails the evaluation, which [an attempt](#attempts), `try target as "type"`, answers null for instead.
+A cast answers a reference value as a type of its hierarchy: `target as "type"` answers its target itself where it is of that type, and null where it is null. A value of another type fails the evaluation, which [an attempt](#attempts), `try target as "type"`, answers null for instead.
 
 ```lexica
-panel.parent as "element"
-(panel.parent as "element")?.rect?.width
-(preferred ?? fallback) as "element"
-(?(panel.parent as "element").rect.width)
-(try panel.parent as "element")?.rect?.width
+device as "light"
+(room.device(name) as "light")?.brightness
+(preferred ?? fallback) as "light"
+(?(room.device(name) as "light").brightness)
+(try room.device(name) as "light")?.brightness
 ```
 
-The first and the third answer an element, which no result holds, so each stands within a larger expression, as the casts of the others do.
+The first and the third answer a light, which no result holds, so each stands within a larger expression, as the casts of the others do.
 
 <a id="casts-target-type"></a>
 
 #### Target type
 
-The type is a quoted type name, `node` or one of its kinds, and the cast is of that type, nullable where its target can be null, so `panel.parent as "element"` is an `element?` and `panel as "element"`, with `panel` bound to an element, an `element`; an attempted cast is nullable always.
+The type is the quoted name of a reference type, and the cast is of that type, nullable where its target can be null, so `room.device(name) as "light"` is a `light?` and `device as "light"`, with `device` bound to a device, a `light`; an attempted cast is nullable always.
 
-A type that is no node is a validation error naming those a cast takes.
+A name that is no reference type is a validation error naming the types of its target's hierarchy.
 
 <a id="casts-strict"></a>
 
 #### Strict
 
-A cast states the kind the expression expects, and a node of another kind fails the evaluation with an evaluation error naming what it is, as `The cast to element rejected its value: it is a document`, so a document where an element is expected is an error, never a silent null.
+A cast states the type the expression expects, and a value of another type fails the evaluation with an evaluation error naming what it is, as `The cast to light rejected its value: it is a thermostat`, so a thermostat where a light is expected is an error, never a silent null.
 
-A cast that probes which kind a node is is attempted, `(try item.parent as "element") == panel`.
+A cast that probes which type a value is is attempted, `(try device as "light") == light`.
 
 <a id="casts-what-it-narrows"></a>
 
 #### What it casts
 
-A cast of a `node` to one of its kinds, and one to its target's own type, to `node`, or of null is valid, since a binding typed from its value may already be of the type or null. A cast of a target that can never be of the type, such as `5 as "element"` or `document as "element"`, is a validation error.
+A cast to a type beneath its target's static type narrows it, checked by that type's test. A cast to the target's own type or to a supertype of it, and a cast of null, are valid, since a binding typed from its value may already be of the type or null, and each answers its target as it is. A cast of a target that can never be of the type, such as `5 as "light"` or `room as "light"`, a type of another hierarchy, is a validation error.
 
 A cast converts nothing and narrows nothing outside itself: its target keeps its type wherever else it is read.
 
@@ -1463,21 +1625,21 @@ A cast converts nothing and narrows nothing outside itself: its target keeps its
 
 #### Cast target
 
-Its target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access: `panel.parent as "element"`, `(preferred ?? fallback) as "element"` and `(?panel.parent) as "element"`. Any other grouped expression is no target, so `(if wide then a else b end) as "element"` is a syntax error, and neither is a chain an object expression continues.
+Its target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access: `room.device(name) as "light"`, `(preferred ?? fallback) as "light"` and `(?room.device(name)) as "light"`. Any other grouped expression is no target, so `(if metered then a else b end) as "light"` is a syntax error, and neither is a chain an object expression continues.
 
 <a id="casts-binding"></a>
 
 #### Binding
 
-A cast binds looser than access, so a call receives it only through a group: `(panel.parent as "element")?.matches(".row")` tests the cast. A chain continues from a cast only through a group, `(panel.parent as "element")?.rect`, and a cast takes another as its target only in one, `(node as "node") as "element"`, so `panel.parent as "element".rect` and `a as "node" as "element"` are syntax errors.
+A cast binds looser than access, so a call receives it only through a group: `(room.device(name) as "light")?.dim({ to = 40 })` dims the cast. A chain continues from a cast only through a group, `(room.device(name) as "light")?.brightness`, and a cast takes another as its target only in one, `(thing as "device") as "light"`, so `device as "light".brightness` and `a as "device" as "light"` are syntax errors.
 
 <a id="casts-in-an-optional-enclosed-access"></a>
 
 #### In an optional enclosed access
 
-In an optional enclosed access , a cast in parentheses is a receiver, and the accesses of its own target become optional with the enclosed access's: `(?(panel.parent as "element").rect.width)` is `(panel?.parent as "element")?.rect?.width`.
+In an optional enclosed access, a cast in parentheses is a receiver, and the accesses of its own target become optional with the enclosed access's: `(?(room.device(name) as "light").brightness)` is `(room?.device(name) as "light")?.brightness`.
 
-A target that is a coalescing operator in parentheses or an optional enclosed access is cast as it is and keeps its own rules: `(?((preferred ?? fallback) as "element").rect)` is `((preferred ?? fallback) as "element")?.rect`.
+A target that is a coalescing operator in parentheses or an optional enclosed access is cast as it is and keeps its own rules: `(?((preferred ?? fallback) as "light").brightness)` is `((preferred ?? fallback) as "light")?.brightness`.
 
 <a id="casts-evaluation"></a>
 
@@ -1492,19 +1654,19 @@ The target is evaluated once, and the cast answers it unchanged where it is of t
 A conversion answers a value converted to another type of data: `value to "type"` evaluates its value, carries out the conversion the vocabulary declares from the value's type to the type it names, and answers the converted value. A cast converts nothing, and a conversion casts nothing.
 
 ```lexica
-panel:["data-count"] to "number"
-panel:["data-count"] to "number" ?? 0
-panel:["aria-expanded"] to "boolean"
-panel.children.count to "string"
+device:["level"] to "number"
+device:["level"] to "number" ?? 0
+device:["night-mode"] to "boolean"
+room.devices.count to "string"
 ```
 
 <a id="conversions-target-type"></a>
 
 #### Target type
 
-The type is a quoted type name: `number`, `string`, `boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `grid` holds its columns.
+The type is a quoted type name: `number`, `string`, `boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `climate` holds its readings.
 
-A conversion converts data, so a node, a structured type that holds one, and an event source are no type it converts between, and what reads the document stays a member's, which declares how it changes; a node is cast to one of its kinds with `as`.
+A conversion converts data, so a reference value, a structured type that holds one, and an event source are no type it converts between, and what reads a host's state stays a member's, which declares how it changes; a reference value is cast to a type of its hierarchy with `as`.
 
 A list itself is no type a conversion converts between, and neither is a type that can be null. A name no type has is a validation error, as is any other target.
 
@@ -1526,15 +1688,15 @@ A value already of the type answers itself, so `5 to "number"` is 5. This is the
 
 A conversion of null answers null without converting, and its type is the type it converts to, made nullable where its value can be null.
 
-A value of the type null, a null binding, converts to any type a conversion can name, however many conversions reach it, since nothing is converted; a value whose type is known is checked by that type without null, so `panel.closest(".row") to "string"` is a validation error, as a conversion from an element is declared nowhere.
+A value of the type null, a null binding, converts to any type a conversion can name, however many conversions reach it, since nothing is converted; a value whose type is known is checked by that type without null, so `room.device(name) to "string"` is a validation error, as a conversion from a device is declared nowhere.
 
 <a id="conversions-what-fails"></a>
 
 #### What fails
 
-A value its conversion rejects, as `"12px" to "number"`, fails the evaluation with an evaluation error naming the conversion, the reason it gave and where it stands. A conversion that fails otherwise, by throwing or by answering a value not of its type, has a fault, which fails the evaluation too.
+A value its conversion rejects, as `"40%" to "number"`, fails the evaluation with an evaluation error naming the conversion, the reason it gave and where it stands. A conversion that fails otherwise, by throwing or by answering a value not of its type, has a fault, which fails the evaluation too.
 
-A failure never answers null or a default: `?? 0` gives a missing attribute a value, and leaves a malformed one an error, for which [an attempt](#attempts) answers null instead. A watch whose conversion fails is failed until its value converts again.
+A failure never answers null or a default: `?? 0` gives a missing setting a value, and leaves a malformed one an error, for which [an attempt](#attempts) answers null instead. A watch whose conversion fails is failed until its value converts again.
 
 <a id="conversions-evaluation"></a>
 
@@ -1551,27 +1713,27 @@ The value is evaluated once, and a conversion reads nothing but that value, so w
 It handles a value its operation rejects without failing, as `??` handles a missing one, so the two together give a value either way:
 
 ```lexica
-panel { count = try context:["data-count"] to "number" ?? 0 }
-(try panel.parent as "element")?.rect?.width
+device { level = try it:["level"] to "number" ?? 0 }
+(try room.device(name) as "light")?.brightness
 ```
 
-A missing attribute is null, which converts to null, and malformed text is rejected, so both give zero, and text that converts gives its number; a parent that is a document or a shadow root is rejected, so the width is null for it, as it is for a missing parent.
+A missing setting is null, which converts to null, and malformed text is rejected, so both give zero, and text that converts gives its number; a device that is no light is rejected, so the brightness is null for it, as it is for a missing device.
 
-A [conditional binding](#conditionals) gives the converted value a name where the expression uses it more than once, `if let count = try context:["data-count"] to "number" then … else … end`.
+A [conditional binding](#conditionals) gives the converted value a name where the expression uses it more than once, `if let level = try it:["level"] to "number" then … else … end`.
 
 <a id="attempts-one-operation"></a>
 
 #### One operation
 
-`try` attempts the one conversion or cast written after it, and nothing else, so it is no general catch of errors: a failure while its value is evaluated, a rejection by a conversion or a strict cast that value holds among them, fails the evaluation as it would anywhere, so `try (node as "element").parent as "element"` attempts the outer cast alone.
+`try` attempts the one conversion or cast written after it, and nothing else, so it is no general catch of errors: a failure while its value is evaluated, a rejection by a conversion or a strict cast that value holds among them, fails the evaluation as it would anywhere, so `try (device as "light").room.device(name) as "light"` attempts the outer cast alone.
 
-A conversion of a conversion or of a cast is grouped to say which one is attempted, `try (a to "string") to "number"`, so `try a to "string" to "number"` and `try node as "element" to "string"` are syntax errors, as is `try` before anything that is neither, another `try` among them.
+A conversion of a conversion or of a cast is grouped to say which one is attempted, `try (a to "string") to "number"`, so `try a to "string" to "number"` and `try device as "light" to "string"` are syntax errors, as is `try` before anything that is neither, another `try` among them.
 
 <a id="attempts-one-set-of-rules"></a>
 
 #### One set of rules
 
-An attempt resolves as its operation does strictly, so a cast to a type that is no node or of a target that can never be of it, a conversion to a target no type has, a pair no conversion is declared for, and a nullable value whose type has no conversion are validation errors for both.
+An attempt resolves as its operation does strictly, so a cast to a name that is no reference type or of a target that can never be of it, a conversion to a target no type has, a pair no conversion is declared for, and a nullable value whose type has no conversion are validation errors for both.
 
 It answers a value already of the type as it is, and null for null.
 
@@ -1579,7 +1741,7 @@ It answers a value already of the type as it is, and null for null.
 
 #### A rejection alone is null
 
-A cast rejects a node of another kind, and a conversion the value it calls `reject` for. A conversion that throws, rejects with a reason that is no string, rejects and then answers, or answers a value not of its type has a fault, which fails the evaluation whether or not the conversion is attempted.
+A cast rejects a value of another type, and a conversion the value it calls `reject` for. A conversion that throws, rejects with a reason that is no string, rejects and then answers, or answers a value not of its type has a fault, which fails the evaluation whether or not the conversion is attempted.
 
 <a id="attempts-null-means-a-rejection"></a>
 
@@ -1599,17 +1761,17 @@ Its value is evaluated once and its operation carried out once, and what a watch
 
 #### Binding
 
-`try` binds tighter than `==`, `!=` and `??`, and looser than the operation it attempts, so `try v to "number" == 5` compares the converted value, `(try node as "element") != null` asks whether the node is an element, and `try v to "number" ?? 0` gives its fallback for both null and a rejection.
+`try` binds tighter than `==`, `!=` and `??`, and looser than the operation it attempts, so `try v to "number" == 5` compares the converted value, `(try device as "light") != null` asks whether the device is a light, and `try v to "number" ?? 0` gives its fallback for both null and a rejection.
 
-It stands where an equality operand stands; a conversion of its result groups it, `(try v to "number") to "string"`, and a cast takes none as its target, so `(try a as "node") as "element"` is a syntax error.
+It stands where an equality operand stands; a conversion of its result groups it, `(try v to "number") to "string"`, and a cast takes none as its target, so `(try a as "device") as "light"` is a syntax error.
 
-A result that keeps the converted number and tells a missing value from a malformed one says which it is beside the value, reading the attribute once through a local:
+A result that keeps the converted number and tells a missing value from a malformed one says which it is beside the value, reading the setting once through a local:
 
 ```lexica
-panel {
-    let count = context:["data-count"],
-    count = if let n = try count to "number" then { status = "valid", value = n }
-    elseif count == null then { status = "missing", value = null }
+device {
+    let level = it:["level"],
+    level = if let n = try level to "number" then { status = "valid", value = n }
+    elseif level == null then { status = "missing", value = null }
     else { status = "malformed", value = null } end
 }
 ```
@@ -1621,9 +1783,9 @@ panel {
 `$"…"` joins text and inserted values, and so do `$'…'` and the interpolated blocks, `$"""…"""` and `$'''…'''`. Each interpolation is `{`, one [simple expression](#simple-expressions), then `}`. Arithmetic `+` does not join text.
 
 ```lexica
-panel {
-    label = $"{context:["data-count"] ?? "no"} unread in {context.children.count} rows",
-    title = $"{{panel}} {context:["id"] ?? "untitled"}"
+room {
+    label = $"{it.device("lamp")?:["level"] ?? "no"} level across {it.devices.count} devices",
+    title = $"{{room}} {it.name}"
 }
 ```
 
@@ -1656,7 +1818,7 @@ An interpolation that begins with an object expression groups it in parentheses:
 | Non-null string | The string itself |
 | Non-null number | The built-in number-to-string representation |
 | Nullable value | Validation error; supply a fallback or test it first |
-| Boolean, list, object, node or other value | Validation error; explicitly convert or choose text |
+| Boolean, list, object, reference value or other value | Validation error; explicitly convert or choose text |
 
 Negative zero inserts `0`, and `1e21` inserts `1e+21`. A nullable name can use `{name ?? "Unknown"}`. A Boolean can use `to "string"` or a conditional, such as `{if done then "Done" else "Pending" end}`.
 
@@ -1695,12 +1857,12 @@ A **body** produces one value. It is either a single expression, or an ordered s
 The expression a source writes is a body. So is a `do … end` block, a conditional branch, and a local function's body.
 
 ```lexica
-let width = panel.rect?.width ?? 0
-let padding = 12
+let warmth = sensor.temperature ?? 0
+let margin = 1.5
 return {
-    wide = width - padding * 2 >= 600,
+    cold = warmth + margin < 19,
     doubled = do
-        let half = width / 2
+        let half = warmth / 2
         return half * 4
     end
 }
@@ -1710,11 +1872,11 @@ return {
 
 #### Result forms
 
-A single-expression body needs no `return`: `panel.rect?.width` and each branch of `if wide then 1 else 2 end` are examples.
+A single-expression body needs no `return`: `sensor.temperature` and each branch of `if metered then 1 else 2 end` are examples.
 
 A body with locals must introduce its result with `return`. A body may also use `return` without locals, as in `return 0`.
 
-Only locals may precede the result. An unused standalone calculation, such as `panel.rect.width` before `return 42`, is a syntax error:
+Only locals may precede the result. An unused standalone calculation, such as `light.brightness` before `return 42`, is a syntax error:
 
 > Only locals may precede a body's result.
 
@@ -1786,7 +1948,7 @@ A [simple expression](#simple-expressions) cannot contain a `do` block or a full
 
 A local holding a `do` block can settle a fixed argument only if every local evaluated in that block and its result can settle it. Reads made by unused body locals cannot be discarded.
 
-For example, `let state = do let chosen = "disabled" return chosen end` may supply `context.is(state)`. A body local whose value cannot settle a fixed argument, as one that reads the document or holds an interpolated string, prevents the block from settling one.
+For example, `let state = do let chosen = "active" return chosen end` may supply `device.is(state)`. A body local whose value cannot settle a fixed argument, as one that reads a member or holds an interpolated string, prevents the block from settling one.
 
 <a id="bodies-definition-and-canonical-text"></a>
 
@@ -1805,16 +1967,16 @@ Canonical text places each body local and its result on separate lines. A condit
 A local names an intermediate value with `let`. Later entries use that name, so the value is written and evaluated once.
 
 ```lexica
-panel {
-    let items = context.all("[data-key]"),
+room {
+    let devices = it.devices,
 
-    width = context.size?.width,
-    rows = items {
-        key = context:["data-key"],
-        top = context.rectRelativeTo(panel)?.top
+    name = it.name,
+    rows = devices {
+        name = it.name,
+        sameRoom = it.room == room
     },
-    tallest = items.max(context.rect?.height),
-    attached = context.attached
+    hungriest = devices.max(it.power),
+    occupied = it.is("occupied")
 }
 ```
 
@@ -1841,7 +2003,7 @@ If a name is declared as a local later in the same scope, an earlier bare refere
 
 Use `~name` to read the caller's binding explicitly, even before or beneath a same-named local. `{ let n = ~n + 1, value = n }` reads the supplied `n`. A missing explicit caller binding is a validation error.
 
-A local in a sibling or unrelated scope does not hide a caller binding. In `{ a = panel { let n = 1, v = n }, b = n }`, field `b` reads the caller's `n`.
+A local in a sibling or unrelated scope does not hide a caller binding. In `{ a = room { let n = 1, v = n }, b = n }`, field `b` reads the caller's `n`.
 
 <a id="locals-resolution-and-diagnostics"></a>
 
@@ -1851,7 +2013,7 @@ An [identifier](#names-and-reserved-words) reads the nearest visible local, fiel
 
 When the implicit parameter has a member of that name, the diagnostic suggests its receiver:
 
-> No local in scope or binding is named 'rect'; write 'context.rect' for the member of the implicit parameter
+> No local in scope or binding is named 'climate'; write 'it.climate' for the member of the implicit parameter
 
 <a id="locals-duplicate-names-and-shadowing"></a>
 
@@ -1863,7 +2025,7 @@ A local or field can hide a name from an outer scope: a local, field, conditiona
 
 A field may reuse a local's name. Its initializer reads the local, then the field hides it:
 
-`panel { let items = context.all("li"), items = items.count, more = items + 1 }`.
+`room { let devices = it.devices, devices = devices.count, more = devices + 1 }`.
 
 Here `items` in `more` is the count field.
 
@@ -1921,7 +2083,7 @@ Where a conditional or `??` can give either of two references, both must refer t
 
 #### Captured implicit parameter
 
-A local's `context` is the implicit parameter of the object expression declaring it, regardless of where the local is used. In the example, `context` inside `rows` is the current row, while `items` remains the panel's list.
+A local's `it` is the implicit parameter of the object expression declaring it, regardless of where the local is used. In the example, `it` inside `rows` is the current device, while `devices` remains the room's list.
 
 <a id="locals-lazy-evaluation-in-objects"></a>
 
@@ -1929,7 +2091,7 @@ A local's `context` is the implicit parameter of the object expression declaring
 
 Each evaluation of each object-expression application has its own locals. A local runs at most once, at its first use. An unused local never runs and contributes no observation dependencies.
 
-In `panel.children { let r = context.rect, … }`, each child has its own `r`. The next evaluation creates fresh locals.
+In `room.devices { let p = it.power, … }`, each device has its own `p`. The next evaluation creates fresh locals.
 
 A [body's](#bodies) locals differ: they run in order, even when unused. All locals are still resolved and validated before evaluation.
 
@@ -1937,7 +2099,7 @@ A [body's](#bodies) locals differ: they run in order, even when unused. All loca
 
 #### Output
 
-A local is not a field and is never included in the result. It may hold values that a result cannot contain, such as an element or a list of elements.
+A local is not a field and is never included in the result. It may hold values that a result cannot contain, such as a device or a list of devices.
 
 <a id="functions"></a>
 
@@ -1946,13 +2108,13 @@ A local is not a field and is never included in the result. It may hold values t
 A **function** names a calculation an expression repeats. It is declared in one of two forms, held by a local, called by that local's name with its **arguments**, and passed, held and returned as a value within the expression.
 
 ```lexica
-let measure = function(box, padding)
-    let width = box.rect?.width ?? 0
-    return width - padding * 2
+let shortfall = function(place, wanted)
+    let warmth = place.climate?.temperature ?? 0
+    return wanted - warmth
 end
 return {
-    panel = measure(panel, 12),
-    sidebar = measure(sidebar, 0)
+    living = shortfall(living, 21),
+    bedroom = shortfall(bedroom, 18)
 }
 ```
 
@@ -1966,15 +2128,15 @@ An **arrow function** is its parameters, `=>` and one simple expression, whose v
 
 ```lexica
 let answer = () => 42
-let isVisible = row => row.visible
-let isShown = (row) => row.visible
-let byPrice = (left, right) => left.price - right.price
+let isActive = device => device.is("active")
+let isLit = (light) => light.brightness > 0
+let byPower = (left, right) => left.power - right.power
 return answer()
 ```
 
 Parentheses are optional for exactly one parameter and required for none or several. An arrow function declares no locals and holds no body, so `x => let y = …` and `x => do … end` are refused, and so is `x => y => x + y`, whose body is no simple expression; a function that holds more is a regular function bound to a local and passed by its name. Laying the expression out across lines changes nothing.
 
-Either form is a local's initializer, of a body or of an object expression, and an arrow function is also an argument, as `apply(row => row.visible, panel)` is. Neither stands anywhere else: a field, an operand, a conditional's branch and a result hold neither, and a regular function written directly as an argument is a syntax error:
+Either form is a local's initializer, of a body or of an object expression, and an arrow function is also an argument, as `apply(device => device.is("active"), lamp)` is. Neither stands anywhere else: a field, an operand, a conditional's branch and a result hold neither, and a regular function written directly as an argument is a syntax error:
 
 > A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.
 
@@ -1986,9 +2148,9 @@ Its function parameters are names of the function, two of one function never the
 
 #### Calling one
 
-`name(argument, …)` calls the function a local or a function parameter of that name holds, with as many arguments as it declares function parameters, `seven()` with none, each a [simple expression](#simple-expressions) or an arrow function; each argument is evaluated once, from left to right, in the caller's scope, and the body then evaluates with each function parameter holding its argument. A call is a value a chain continues from, as `first(panel).children.count` does.
+`name(argument, …)` calls the function a local or a function parameter of that name holds, with as many arguments as it declares function parameters, `seven()` with none, each a [simple expression](#simple-expressions) or an arrow function; each argument is evaluated once, from left to right, in the caller's scope, and the body then evaluates with each function parameter holding its argument. A call is a value a chain continues from, as `first(room).devices.count` does.
 
-A function of a vocabulary keeps its own form, `context.closest(".row")`, with the arguments its signature takes. A name no local function has is a validation error, which gives the form with `context` where the implicit parameter has a member of that name, and so is a call of a local that holds a value, and a call given the wrong number of arguments.
+A function of a vocabulary keeps its own form, `it.device("lamp")`, with the arguments its signature takes. A name no local function has is a validation error, which gives the form with `it` where the implicit parameter has a member of that name, and so is a call of a local that holds a value, and a call given the wrong number of arguments.
 
 <a id="functions-as-values"></a>
 
@@ -1997,15 +2159,15 @@ A function of a vocabulary keeps its own form, `context.closest(".row")`, with t
 A function's name read without a call is a **function value**, held by a local, passed as an argument and returned by a function, as either form is:
 
 ```lexica
-let isAttached = row => row.attached
-let shown = isAttached
-let apply = function(test, row) test(row) end
+let isActive = device => device.is("active")
+let shown = isActive
+let apply = function(test, device) test(device) end
 let getTest = () => shown
 let test = getTest()
-return apply(test, panel)
+return apply(test, lamp)
 ```
 
-A conditional or a coalescing operator may choose between functions, as `let pick = if wide then measure else count end` does: a call of `pick` is checked against each function it may be, and their results merge by the rules [branches](#conditionals) follow, a call whose functions give no one type a validation error. A value that may be null is never called; bind a function to call in its place first, as `let call = pick ?? count` does.
+A conditional or a coalescing operator may choose between functions, as `let pick = if metered then shortfall else surplus end` does: a call of `pick` is checked against each function it may be, and their results merge by the rules [branches](#conditionals) follow, a call whose functions give no one type a validation error. A value that may be null is never called; bind a function to call in its place first, as `let call = pick ?? surplus` does.
 
 A function value is used within the expression, and the expression's result holds data alone: a field or a result that would hold a function is a validation error, and a function is never compared, interpolated, converted or given to a member's value parameter.
 
@@ -2059,11 +2221,11 @@ An action or a behavior ends its request's chain, so one inside a value request,
 Evaluating or watching a value request never performs an action or configures a behavior: a value request only reads, and an action or a behavior request acts only when its caller executes or applies it. A behavior belongs to the caller that applied it.
 
 ```lexica
-// An action of a scroll extension: step the viewport forward, answering whether it moved.
-viewport.scroll({ axis = "inline" }).step({ direction = "forward" })
+// An action: dim the light to 40, answering the brightness it reached.
+light.dim({ to = 40 })
 
-// A behavior request of a scroll extension: page the viewport with the wheel while Shift is held.
-viewport.scroll({ axis = "inline" }).wheelPaging({ modifier = "shift" })
+// A behavior request: hold the thermostat at 21 degrees until it is disposed.
+thermostat.hold({ target = 21 })
 ```
 
 <a id="events"></a>
@@ -2072,25 +2234,27 @@ viewport.scroll({ axis = "inline" }).wheelPaging({ modifier = "shift" })
 
 A chain that ends in an event source is subscribed to, in two stages. The source hands each event to the evaluator, which evaluates the object expression following it at once, in the task the source delivers it in, with that event as its implicit parameter.
 
-The result is immutable data, and that result, never the browser's live event object or the object expression still to evaluate, is what reaches the caller, by the caller's own delivery. An event in DOMQL is what its source delivers, read through the event data it captured; the browser's own event object is never a value of the language.
+The result is immutable data, and that result, never the host's own event object or the object expression still to evaluate, is what reaches the caller, by the caller's own delivery. An event is what its source delivers, read through the event data it captured; a host's own event object is never a value of the language.
 
-Here the event source is the built-in vocabulary's native drop event:
+Here the event source is a sensor's motion:
 
 ```lexica
-zone.on("drop") { key = context.target?.closest("[data-drop-target]")?:["data-drop-key"] }
+sensor.on("motion") { at = it.at, strong = it.strength > 0.8, room = sensor.room.name }
 ```
 
-The object expression reads the event's own members, such as its target, and anything else a parameter reaches. Its members are read once per event, never watched, so an unobserved member is allowed in it.
+The object expression reads the event's own data, such as its time, and anything else a parameter reaches. Its members are read once per event, never watched, so an unobserved member is allowed in it.
 
-An event source documents its members, which of them it captured when the event happened, and when it delivers the event, such as before or after the browser carries out the action it reports; everything else it reads is read as it is evaluated.
+An event source documents its members, which of them it captured when the event happened, and when it delivers the event, such as before or after the host carries out what it reports; everything else it reads is read as it is evaluated.
 
-Each subscription starts its event source with its own delivery, so two callers subscribed on one element each receive their own events.
+Each subscription starts its event source with its own delivery, so two callers subscribed on one sensor each receive their own events.
 
 <a id="vocabulary-contracts"></a>
 
 ## Vocabulary contracts
 
-In this section: [What a member declares](#what-a-member-declares) · [Extensions](#extensions).
+Every module follows these contracts, whatever its domain: what a member declares, how it reads and how its result changes, the observations it names, its predicates, its events, and the rules an extension of another module's types follows. A module's own specification gives its declarations and what each does in its domain, and these contracts the rules they keep.
+
+In this section: [What a member declares](#what-a-member-declares) · [How a member reads](#how-a-member-reads) · [How a member changes](#how-a-member-changes) · [Observations](#observations) · [Predicates](#predicates) · [Events and event types](#events-and-event-types) · [Extensions](#extensions).
 
 <a id="what-a-member-declares"></a>
 
@@ -2104,23 +2268,23 @@ A member declares its kind, its signature and its runtime contract. Its kind is 
 
 | Declaration | Specifies |
 | --- | --- |
-| Receiver type | Which values have this member |
-| Form | Property access, call or named indexer |
+| Target | The types whose values have this member, or none for a [module member](#namespaces-module-members) |
+| Form | Property access, function call or named indexer |
 | Input | Positional arguments or one options object |
-| Parameters | Order, name, type, argument kind, required status or default, null policy, whether it is fixed and, for a fixed one, what it selects, an event type or a condition, for an expression or a predicate, its implicit parameter, each item, and for a function, the types of the arguments it is called with, its type being its result's; only a function declares a function parameter, which is required, has no null policy and is given to no observation |
+| Parameters | Order, name, type, argument kind, required status or default, null policy, whether it is fixed and, for a fixed one, what it selects, an event type or a predicate, for an expression or a predicate, its implicit parameter, each item, and for a function, the types of the arguments it is called with, its type being its result's; only a function declares a function parameter, which is required, has no null policy and is given to no observation |
 | Result type | The type the member must return |
 
-Optional and nullable are separate. An optional parameter can be omitted; a nullable parameter can receive null. Unless a vocabulary table marks a parameter optional, it is required.
+Optional and nullable are separate. An optional parameter can be omitted; a nullable parameter can receive null. Unless a member's declaration marks a parameter optional, it is required.
 
 Omitting a required argument is a validation error. Supplying null follows the parameter's null policy.
 
 <a id="what-a-member-declares-call-and-indexer-forms"></a>
 
-#### Call and indexer forms
+#### Function call and indexer forms
 
-A function, an event source, an action or a behavior is written as a call. A function may instead declare an indexer with exactly one required value parameter, supplied as its bracketed key. Its input is positional, and its key has the declared parameter type.
+A function, an event source, an action or a behavior is written as a function call. A function may instead declare an indexer with exactly one required value parameter, supplied as its bracketed key. Its input is positional, and its key has the declared parameter type.
 
-An indexer may be the default for its receivers. Registration refuses a second default for the same receiver.
+An indexer may be designated the default for its receivers, a module designating at most one for a receiver type; which designation an access selects follows the receiver type's owner, as [indexers](#namespaces-indexers) set out.
 
 Positional input lists parameters in order, with required parameters before optional ones; creating the module checks this order. Options input takes one object whose fields supply the declared parameters.
 
@@ -2130,9 +2294,9 @@ Changing a member's input is a breaking change, like renaming it. A function exp
 
 #### Evaluation contract
 
-In addition to the signature, a member declares how it reads, how its result changes, the changes it misses, which a partly observable member states, and the observations that cover its changes, which an observable or a partly observable member names and no other does; its request kind follows from its kind.
+In addition to the signature, a member declares [how it reads](#how-a-member-reads), [how its result changes](#how-a-member-changes), the changes it misses, which a partly observable member states, and the [observations](#observations) that cover its changes, which an observable or a partly observable member names and no other does; its request kind follows from its kind.
 
-An expression parameter declares the item type it evaluates against and the result type it requires. A predicate accepts a value expression and receives its truthiness as a Boolean.
+An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean.
 
 | List function | Contract |
 | --- | --- |
@@ -2142,7 +2306,7 @@ An expression parameter declares the item type it evaluates against and the resu
 
 Aggregates consume null per item rather than propagating it to the entire call. `max` and `min` skip null values and return null if all items were skipped. `sum` skips null values and returns zero if all were skipped or the list is empty.
 
-Thus `table.all("tbody tr").max(context.rect?.height)` and `panel.all("[data-key]").where(context.intersects({ root = panel })).count` are valid even though the expressions can return null.
+Thus `room.devices.max(it.battery)` and `home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
 
 An object expression following `event<T>` evaluates against event data of type `T`.
 
@@ -2150,25 +2314,127 @@ An object expression following `event<T>` evaluates against event data of type `
 
 #### Numeric tolerance
 
-A member may declare a tolerance for its numeric result and every number within a structured result. When comparing snapshots, a watch treats an absolute difference no greater than this tolerance as unchanged. This rule applies regardless of the member's form.
+A member may declare a tolerance for its numeric result and every number within a structured result. When comparing results, a host that tolerates changes treats an absolute difference no greater than this tolerance as unchanged, as `sensor.temperature` declares `0.5`. This rule applies regardless of the member's form.
+
+<a id="how-a-member-reads"></a>
+
+### How a member reads
+
+An expression is evaluated synchronously, without yielding, and a member's implementation is synchronous. Each member declares how it obtains its value:
+
+| Reading | Meaning |
+| --- | --- |
+| Fresh | Read as the expression evaluates, as `device.power` reads the power the device reports now. |
+| Maintained | Kept by an observation the member holds, and read as that observation's latest sample, as `sensor.temperature` reads the last reading the `reading` observation kept. |
+| Captured | A sample taken at a moment the member documents, such as the history a member keeps or what an event carried. |
+| Derived | As the items it selects and the expression it evaluates read, such as a list's `count` or `max`. |
+
+Facts that must describe one measurement are fields of one structured value, which is captured once and read by each of its fields, as a `climate`'s temperature and humidity are.
+
+A maintained member's observation starts the first time an evaluation reads it, and the member is **pending** until its first sample arrives. An evaluation that reads a pending member reads it as null and tells its host it is pending, and a host that cannot wait for the sample fails the evaluation instead; when a host waits for first samples is the host's to decide.
+
+Evaluating an expression is read-only for every vocabulary: what changes the host's state is an action, carried out only when its request is executed.
+
+A member whose result depends on what happened before, as well as on the state as it is, is captured: it keeps that history while its host holds the evaluation, and documents what an evaluation once reports without it.
+
+<a id="how-a-member-changes"></a>
+
+### How a member changes
+
+Every member declares how its result changes, for a given receiver and arguments:
+
+| Category | Meaning |
+| --- | --- |
+| Constant | The result never changes for the receiver and arguments, as a literal's or `room.name`. |
+| Observable | The member names observations that cover every change to its result, as `device.power` names `state`. |
+| Partly observable | The member names the observations it can make, and states the changes they miss, as `device.battery` misses the drain between the device's reports. |
+| Unobserved | The member can be read, and names no observations, as `home.now`. |
+| Derived | The result changes as the items it selects and the expression it evaluates do, such as a list's `first` or `where`. |
+
+The categories are facts a host reads: whether a request over an unobserved or a partly observable member may be watched is the host's policy, which Lexica gives the declarations a resolution uses to decide. A literal is constant, so an expression that carries one changes only as its members do.
+
+<a id="observations"></a>
+
+### Observations
+
+An **observation type** is a declaration of a module, named once across every module: its name, what it is an observation of, and its contract, which is one of two.
+
+| Contract | What it reports |
+| --- | --- |
+| Invalidation | That a result it covers may have changed, so the host evaluates again, as `state` reports a device's new report. |
+| Maintained | Each sample it keeps, which the member that names it reads as its latest, as `reading` keeps each temperature a sensor reports. |
+
+A member names its observations by type, each of its receiver, of an argument, or of what the observation type declares it is an observation of, as `placement` is of the home. An observable member names observations that cover every change to its result, a partly observable one those it can make, and a member of any other category names none. A member that reads maintained values names a maintained observation, whose sample it reads; no other member does.
+
+An observation is started where an evaluation's host follows what it read, and stopped where the host no longer does; how a host shares and ends observations is its own.
+
+<a id="predicates"></a>
+
+### Predicates
+
+A **predicate** is a Boolean question of its receiver, under a name of its own, asked with one of Lexica's three verbs, each an ordinary function call of any receiver:
+
+| Verb | Asks | As in |
+| --- | --- | --- |
+| `is` | A state its receiver enters and leaves | `room.is("occupied")` |
+| `has` | A possession or a presence | `device.has("battery")` |
+| `supports` | A capability | `device.supports("dimming")` |
+
+Each predicate is asked with its one verb, so none stands in for another, and asking it with another is a validation error giving the verb to write, as `device.is("battery")` is. A Boolean that follows from another member's value is a property, never a predicate.
+
+<a id="predicates-declarations"></a>
+
+#### Declarations
+
+Each predicate is a declaration of its own: its name, the verb that asks it, `is` where it names none, the types it applies to, the implementation that tests it, how it reads, how it changes, the changes it misses where it is partly observable, and the observations that cover it. A test of a predicate follows the predicate's contract alone, so a host's policy for one partly observable predicate concerns that predicate, and no other.
+
+<a id="predicates-fixed-names"></a>
+
+#### Fixed names
+
+The name is a [fixed argument](#arguments): a string the expression's preparation settles without evaluating a member, a literal, a bound parameter, or a local, a conditional binding, a conditional, a `??`, an `and` or an `or` that settles to one, never null, which selects the predicate's declaration when the expression is prepared.
+
+<a id="predicates-receiver-types"></a>
+
+#### Receiver types
+
+Each verb is declared on any receiver, which says only that any receiver can be asked: the predicate of the name decides which receivers it applies to. A name no predicate the verb asks has is a validation error naming the predicates the verb asks, and a predicate of other receivers is one naming the predicate, the types it applies to, the receiver and the predicates the verb asks of it. A predicate of a supertype applies to every type beneath it, so `light.is("active")` asks `device`'s.
+
+<a id="predicates-a-function-call-as-any-other"></a>
+
+#### A function call as any other
+
+`.` requires a receiver that cannot be null, and `?.is(…)` answers null for a null receiver without testing its predicate; either is validated as written, its name included, whatever its receiver is when it is evaluated. A predicate is also called through its module's namespace, the receiver first and no verb, as [qualified access](#namespaces-qualified-access) sets out.
+
+<a id="predicates-boolean-result"></a>
+
+#### Boolean result
+
+Its type is a Boolean that cannot be null, made nullable where `?.` reads a receiver that can be. A predicate whose implementation answers anything else, or throws, fails the evaluation with an evaluation error that names the predicate, the verb that selects it and the module that declares it.
+
+Predicates compose as Booleans do: `device.is("active") and not device.is("offline")`.
+
+<a id="events-and-event-types"></a>
+
+### Events and event types
+
+An **event source** is a member that delivers things that happened. It is subscribed to, never read or watched, and the object expression following it is evaluated against each [event](#events). An event source's fixed argument selects an **event type**, a declaration of a module, named once across every module, that names the structured type of its event data, as `motion` names `{ at: number, strength: number }`; a type no event type of that name declares is a validation error.
+
+An event is captured as the fields its event data declares when it happens. A field the event carries no value of its type for is null where its type is nullable; where it is not, the capture fails, and the subscription reports the failure as it reports a failed object expression.
+
+An event source documents which fields it captured when the event happened, and when it delivers the event relative to what the host does with it; everything else an event's object expression reads is read as it is evaluated.
 
 <a id="extensions"></a>
 
 ### Extensions
 
-An extension adds members to the types it declares and to any other module's, a view whose value carries further members among them: `viewport.scroll({ axis = "inline" })` is a scroll extension's view of an element along an axis, and `canScrollForward` is one of its members.
+An **extension** is a module's member, predicate or indexer declared on a type another module owns, as `energy`'s `device.usage` is. Every module may declare them, on its own types and on any other's, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](#namespaces-owners-and-extensions) set out, so extensions that compete both register and are told apart by their qualified forms.
 
-It names its members freely, on its own types and on any other. A member whose name is already declared for an overlapping receiver, by Lexica, by the host's module or by any other, is refused at registration.
+Within one module, a name declared twice for overlapping receivers, a type and its supertype among them, is refused at registration, and so is a qualified form two of its declarations would share, as [a module's own collisions](#namespaces-a-modules-own-collisions) sets out. Types, event types and observation types are each named once across every module, Lexica's own included, and a name already declared is refused at registration too.
 
-Its conditions follow the same rule: it names them freely on any type, and a name already declared for an overlapping receiver is refused, whatever its verb.
+An extension is a module, made by `createModule` from its name and its declarations, and registered with `registerModule`; a declaration that breaks a contract is a module error, raised when the module is created or when it is registered.
 
-Types, event types and observation types are each named once across every module, Lexica's own included, and a name already declared is refused at registration too.
-
-An extension is a module, made by `createModule` from its name, its declarations and the functions that carry them out, and registered with `registerModule`; a declaration that breaks the contract is a module error, raised when the module is created or when it is registered.
-
-The built-in vocabulary declares the native event types its callers need, and an extension can declare more. A subscription observes an event as it reaches its target and leaves its course to the page.
-
-An extension can define types of its own, properties, functions written as calls or as named indexers, conditions, event sources, event types, observation types, actions and behaviors, and conversions to and from its own types, one for each source type and target, and follows the built-in vocabulary's contract throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating an expression stays read-only and synchronous.
+A module can declare types of its own, reference and structured, properties, functions written as function calls or as named indexers, predicates, event sources, event types, observation types, actions and behaviors, and conversions to and from its own types, one for each source type and target, and follows these contracts throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating an expression stays read-only and synchronous.
 
 <a id="definition"></a>
 
@@ -2182,11 +2448,12 @@ A document holds the definition's `version` and the `expression` node, the root 
 | --- | --- | --- |
 | `literal` | `value`, a JSON string, a finite number, a Boolean or null | A literal |
 | `parameter` | `name` | A parameter, the caller's binding of the name; text writes it alone where its name is no reserved word, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and after `~` otherwise |
-| `context` | None | The implicit parameter |
-| `root` | `name`, `document`, `window` or `root` | A root |
+| `it` | None | The implicit parameter |
+| `root` | None | The object root |
+| `namespace` | `name`, the module's name | A module's namespace, the target of a `member` or a `call` node that reads one of the module's members or calls a qualified form through it |
 | `local` | `name` | A use of a local, a function parameter or a field, one in scope where it stands |
 | `member` | `name`, the member's name, or for a bracket property access whose expression is no string literal that is a name, that expression's node; `target`, the receiver; and `optional`, true, where it is written with `?.` or `?[` | A property access, or a bracket property access |
-| `call` | `name`; `arguments`, its arguments in order, empty where it is given none; `target`, the receiver; and `optional`, true, where it is written with `?.` | A call |
+| `call` | `name`; `arguments`, its arguments in order, empty where it is given none; `target`, the receiver; and `optional`, true, where it is written with `?.` | A function call |
 | `indexer` | `name`, left out for the default indexer; `argument`, its key; `target`, the receiver; and `optional`, true, where it is written with `?:` | A named indexer, or the receiver's default indexer |
 | `object` | `fields`; `locals`, where it has any; and `target`, the node the object expression follows | An object expression; without a target, one keeping the implicit parameter around it, which at the top level is absent |
 | `equality` | `left` and `right`, the two expressions it compares | An equality; `!=` is a `not` holding one |
@@ -2198,7 +2465,7 @@ A document holds the definition's `version` and the `expression` node, the root 
 | `comparison` | `operands`, two or more expressions, and `operators`, one of `<`, `<=`, `>` and `>=` between each two | A comparison, or a chain of them |
 | `conditional` | `condition`, the expression it tests, or `binding`, the `name` it binds and the `value` it binds to it, one of them; and `consequent` and `alternative`, two expressions | A conditional, `if let` holding a binding; an `elseif` is a conditional nested in the alternative before it |
 | `coalescing` | `value` and `fallback`, two expressions | A coalescing operator |
-| `cast` | `type`, the name of the type it casts to, and `target`, the expression it casts | A cast |
+| `cast` | `type`, the name of the reference type it casts to, and `target`, the expression it casts | A cast |
 | `conversion` | `type`, the name of the type it converts to, and `target`, the expression it converts | A conversion |
 | `try` | `target`, the conversion or the cast it attempts | An attempt |
 | `optionalChain` | `target`, the chain it holds | An optional chain: the chain of property accesses, calls, indexers and object expressions whose optional accesses end at it, holding at least one |
@@ -2207,41 +2474,41 @@ A document holds the definition's `version` and the `expression` node, the root 
 | `arithmetic` | `operator`, one of `+`, `-`, `*`, `/` and `%`, and `left` and `right`, its operands | An arithmetic operation |
 | `negate` | `operand`, the number it negates | An arithmetic negation of a number; a numeric literal negated is the negative literal |
 
-A parenthesized expression adds no node, the expression it holds standing in its place, and neither does an optional enclosed access, whose accesses are recorded as optional and its optional chain where it ends, so `panel.attached and (panel.is("disabled"))` is an `and` of two members:
+A parenthesized expression adds no node, the expression it holds standing in its place, and neither does an optional enclosed access, whose accesses are recorded as optional and its optional chain where it ends, so `device.is("active") and (device.has("battery"))` is an `and` of two function calls:
 
 ```json
 {
   "kind": "and",
   "operands": [
-    { "kind": "member", "target": { "kind": "parameter", "name": "panel" }, "name": "attached" },
-    { "kind": "call", "target": { "kind": "parameter", "name": "panel" }, "name": "is", "arguments": [{ "kind": "literal", "value": "disabled" }] }
+    { "kind": "call", "target": { "kind": "parameter", "name": "device" }, "name": "is", "arguments": [{ "kind": "literal", "value": "active" }] },
+    { "kind": "call", "target": { "kind": "parameter", "name": "device" }, "name": "has", "arguments": [{ "kind": "literal", "value": "battery" }] }
   ]
 }
 ```
 
-Every property access, call and indexer holds its receiver as its `target`, and every equality its `left` and its `right`, required, and an omitted target never stands for `context`, so `context.size` and `panel.size` are distinct definitions.
+Every property access, call and indexer holds its receiver as its `target`, and every equality its `left` and its `right`, required, and an omitted target never stands for `it`, so `it.power` and `device.power` are distinct definitions. A member read or a qualified form called through a namespace holds a `namespace` node as its target, so `home.rooms` is a `member` whose target is `{ "kind": "namespace", "name": "home" }`, and `energy.usage(device)` a `call` whose target is `energy`'s namespace and whose first argument is the receiver.
 
 A call's `arguments` are its argument nodes in order, and an indexer's `argument` its key's node, each recorded as written; where a call's member takes options, its one argument is an object node whose fields resolution maps onto the member's parameters.
 
 A field is an object holding its `name` and its `value` node, both required; an object expression's fields keep their order, and an object expression holds at least one. A local is an object of the same two properties, and an object expression's locals keep their order, its definition leaving `locals` out where it has none.
 
-`panel { size = context.size, hasFocus = context.has("focus-within") }` has this definition:
+`room { name = it.name, occupied = it.is("occupied") }` has this definition:
 
 ```json
 {
-  "version": 31,
+  "version": 32,
   "expression": {
     "kind": "object",
-    "target": { "kind": "parameter", "name": "panel" },
+    "target": { "kind": "parameter", "name": "room" },
     "fields": [
-      { "name": "size", "value": { "kind": "member", "target": { "kind": "context" }, "name": "size" } },
+      { "name": "name", "value": { "kind": "member", "target": { "kind": "it" }, "name": "name" } },
       {
-        "name": "hasFocus",
+        "name": "occupied",
         "value": {
           "kind": "call",
-          "target": { "kind": "context" },
-          "name": "has",
-          "arguments": [{ "kind": "literal", "value": "focus-within" }]
+          "target": { "kind": "it" },
+          "name": "is",
+          "arguments": [{ "kind": "literal", "value": "occupied" }]
         }
       }
     ]
@@ -2249,9 +2516,9 @@ A field is an object holding its `name` and its `value` node, both required; an 
 }
 ```
 
-A chain is recorded as a succession of targets: in `panel.all("li").count`, `count` is a property access whose target is the call `all`, whose target is the parameter `panel`. A chain that holds an optional access is the target of an `optionalChain` node, which records where its short-circuit ends, so `panel.parent?.children.count`, one optional chain, and `(panel.parent?.children).count`, a property access of one, are distinct definitions.
+A chain is recorded as a succession of targets: in `room.device("lamp").power`, `power` is a property access whose target is the call `device`, whose target is the parameter `room`. A chain that holds an optional access is the target of an `optionalChain` node, which records where its short-circuit ends, so `room.device(name)?.room.devices.count`, one optional chain, and `(room.device(name)?.room.devices).count`, a property access of one, are distinct definitions.
 
-A definition names its parameters and never holds their values. An element is bound to its name by the host, through whatever mechanism its environment offers, so the same definition serves every binding.
+A definition names its parameters and never holds their values. A value is bound to its name by the host, through whatever mechanism its environment offers, so the same definition serves every binding.
 
 <a id="validation"></a>
 
@@ -2280,16 +2547,16 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Chain receivers | A conditional or body cannot be a chain receiver. |
 | Functions | Each is a local initializer, or an arrow function that is also an argument, with unique parameter names; an arrow function's body is a simple expression; a function cannot be called before its local is declared. |
 | Optional access | Each optional access is within an optional chain, following the targets of property accesses, calls, indexers and object expressions; each optional chain contains an optional access. |
-| `context` | `context` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. |
+| `it` | `it` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. |
 | Logical expressions | `and` and `or` have at least two operands; `not` has its operand. |
 | Arithmetic | An arithmetic node has a supported operator and both operands; a `negate` node has its operand. |
 | Coalescing | Both value and fallback are present. |
 | Casts | The type is a string and the whole target has the form text writes a cast's target in. |
 | Literals | A literal is a string, a finite number, a Boolean or null, so a number no finite number holds, as `1e999`, is refused in text as in a definition. |
 
-A cast's target is checked whole: a receiver, which is the implicit parameter, a parameter, a root, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
+A cast's target is checked whole: a receiver, which is the implicit parameter, a parameter, `root`, a namespace's member, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
 
-A binding may be named `document` or `window`, as any name can, and an expression reads it as `~document` or `~window`.
+A binding may be named `it`, `root` or a module's name, as any name can, and an expression reads it as `~it`, `~root` or `~home`.
 
 <a id="validation-vocabulary-and-types"></a>
 
@@ -2303,7 +2570,7 @@ Preparation checks the following contracts:
 | Arguments | Positional arguments match the signature's order and count; options use one object whose fields name the member's parameters; every required parameter is supplied. |
 | Types and kinds | Receivers, arguments, expressions and bindings fit their declared types; each argument uses its declared argument kind. |
 | Required access | Access written with `.` has a receiver that cannot be null. Other required access forms follow the same nullability rule. |
-| Fixed arguments | Preparation settles each to a non-null string without reading the document: a literal, a bound parameter, or a local, a conditional binding, a conditional, a `??`, an `and` or an `or` that settles to one, a function parameter within a call's body where the call's argument settles, and a `do` block whose locals and result settle, as [Arguments](#arguments) and [Bodies](#bodies-fixed-arguments) set out. |
+| Fixed arguments | Preparation settles each to a non-null string without evaluating a member: a literal, a bound parameter, or a local, a conditional binding, a conditional, a `??`, an `and` or an `or` that settles to one, a function parameter within a call's body where the call's argument settles, and a `do` block whose locals and result settle, as [Arguments](#arguments) and [Bodies](#bodies-fixed-arguments) set out. |
 | Bracket property access | Preparation determines every possible property name; each names a property of the receiver and their types merge. |
 | Local use | Each reference is in scope; a value local is used as a value, a function local as a call. |
 | Casts | The target type is `node` or a node kind, and the operand can be of that type. |
@@ -2318,9 +2585,8 @@ Preparation checks the following contracts:
 | Implicit parameter | Each expression is valid with the implicit parameter its member declares. |
 | Request kind | The caller uses the request as its declared kind. |
 | Output | A result contains data alone. |
-| Watching | Every member the expression may read has an observation contract the watch accepts. |
 
-All branches and operands are validated even when evaluation will not reach them. Watching rules are checked before evaluation as well; an unreachable branch does not exempt an unwatchable member from validation.
+All branches and operands are validated even when evaluation will not reach them, and a resolution lists every declaration the expression may use, one only an unreached branch uses included, so a host's policy over them, as whether a request may be watched, concerns them all before anything is evaluated.
 
 <a id="validation-diagnostics"></a>
 
@@ -2344,9 +2610,8 @@ In this section: [Absence and unavailable values](#absence-and-unavailable-value
 
 | Situation | Result |
 | --- | --- |
-| `closest` or `first` matches no element | null |
-| `all` matches no element | An empty list |
-| A supported measurement is unavailable | null, as the member documents |
+| A member finds nothing of what it looks for, as `room.device(name)` finds no device | null, or an empty list for a member that answers a list, as the member documents |
+| A value a member reads is unavailable, as `sensor.temperature` before a first reading | null, as the member documents |
 
 <a id="syntax-errors"></a>
 
@@ -2379,7 +2644,7 @@ In this section: [Absence and unavailable values](#absence-and-unavailable-value
 | --- | --- |
 | A definition that does not follow its structure | A structure error, with its node's location |
 | A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a bracket property access or an interpolation | A structure error naming the part, which a local holds first |
-| A reserved reference, or a definition's local, that no local or field in scope answers | A structure error: `No local or field named 'window' is in scope. Use '~window' to read the caller's binding.` |
+| A reserved reference, or a definition's local, that no local or field in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the caller's binding.` |
 | A function calling itself or one declared after it, or two parameters of one name | A structure error |
 | A body anywhere but the root expression's, a do block's, a function's or a conditional branch's | A structure error: `A body is the root expression's, a do block's, a function's or a conditional branch's, and stands nowhere else` |
 | A cast in a definition whose target is none text could write | A structure error at the target |
@@ -2396,9 +2661,9 @@ A module whose declarations break the declaration contract, or whose names regis
 | Situation | Result |
 | --- | --- |
 | A misspelled member or extension, or a parameter the caller did not bind | A validation error, with its location |
-| A fixed argument preparation cannot settle | A validation error: `The argument 'name' of 'is' selects from the vocabulary, so it is a string the expression's resolution settles without reading the document, …` |
+| A fixed argument preparation cannot settle | A validation error: `The argument 'name' of 'is' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, …` |
 | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
-| A name no local or field in scope has | A validation error, giving the form with `context` where the implicit parameter has a member of that name |
+| A name no local or field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
 | A cast to a type that is no node, or of a target that can never be of its type | A validation error naming the types |
 | An equality of two values whose types fit neither way, or of a value that is no string, number, Boolean or node with one that is not null | A validation error naming the types, and the test to write where a value is compared with the name of one of its Boolean members |
@@ -2415,11 +2680,10 @@ A module whose declarations break the declaration contract, or whose names regis
 | A receiver, an argument, an expression or a binding of the wrong type, an argument of the wrong kind, or a missing required one | A validation error naming where, the expected type and the type found |
 | A result that would contain a node or an event source | A validation error |
 | A field read through `root` whose initializer has not completed where `root` is written | A validation error naming the fields completed there |
-| A read, by its name or through `root`, of an option its member declares as an expression or a predicate | A validation error: `Option 'by' is an expression evaluated by the member against its supplied context; it has no single value to read here` |
+| A read, by its name or through `root`, of an option its member declares as an expression or a predicate | A validation error: `Option 'by' is an expression evaluated by the member against the implicit parameter it supplies; it has no single value to read here` |
 | A field or a result that would hold `root` | A validation error: `The field 'copy' would hold root, the object being built, which no result holds; read its fields, as root.name` |
 | A request used as another kind: reading or watching an event source, subscribing to a value, executing a value request, or reading an action or a behavior | A validation error |
 | An action or a behavior inside a value request, an argument or another request's object expression | A validation error |
-| Watching a partly observable member without accepting partial observation | A validation error naming each such member by the type its declaration is for, as `shadow.root` and `node.root` are, and the changes it misses |
 
 <a id="evaluation-errors"></a>
 
@@ -2427,7 +2691,7 @@ A module whose declarations break the declaration contract, or whose names regis
 
 | Situation | Result |
 | --- | --- |
-| A node a strict cast rejects, or a value a conversion rejects | An evaluation error naming what was rejected; null under `try` |
+| A value a strict cast rejects, or a value a conversion rejects | An evaluation error naming what was rejected; null under `try` |
 | A division or a remainder by zero, or an arithmetic result no finite number holds | An evaluation error at the operation |
 | A module returning a value of a type other than the one it declared | An evaluation error |
 | A member failing unexpectedly while it evaluates | An evaluation error |
@@ -2526,7 +2790,7 @@ receiver                      = input | "(" cast ")"
 
 input                         = value | object | identifier | interpolated-string
                               | reserved-reference | caller-binding
-                              | function-call
+                              | function-call | namespace-access
 reserved-reference            = "@" reserved-word
 caller-binding                = "~" name
 function-call                 = ( identifier | reserved-reference )
@@ -2535,8 +2799,13 @@ argument-list                 = argument { "," argument }
 argument                      = simple-expression | arrow-function
 arrow-function                = arrow-parameters "=>" simple-expression
 arrow-parameters              = function-parameter | "(" [ function-parameter-list ] ")"
-value                         = "context" | "~" | literal | root
-root                          = "document" | "window" | "root"
+value                         = "it" | "root" | literal
+
+namespace-access              = module-name "." member-name
+                                [ "(" [ argument-list ] ")" ]
+                              (* no indexer is written through a namespace *)
+module-name                   = ? the name of a module registered with the registry
+                                  the text is read with ?
 
 enclosed-expression           = parenthesized-expression | optional-enclosed-access
 
@@ -2560,9 +2829,9 @@ local-name                    = name
 field-name                    = name
 member-name                   = name
 name                          = letter { letter | digit }
-reserved-word                 = "true" | "false" | "null" | keyword
-                              | "document" | "window"
-keyword                       = "context" | "not" | "try" | "as" | "to" | "and" | "or"
+reserved-word                 = "true" | "false" | "null" | "root" | keyword
+                              | module-name
+keyword                       = "it" | "not" | "try" | "as" | "to" | "and" | "or"
                               | "if" | "then" | "elseif" | "else" | "let"
                               | "do" | "end" | "return" | "function"
 
@@ -2632,7 +2901,8 @@ The grammar uses several terms more narrowly than the prose:
 
 | Grammar rule | Meaning |
 | --- | --- |
-| `value` | The forms listed by that production: the implicit parameter, a literal or a root |
+| `value` | The forms listed by that production: the implicit parameter, the object root or a literal |
+| `namespace-access` | A module member read, or a qualified form called, through a module's namespace; text read without a registry has no module names, so it has none |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
 | `equality-operand` | A chain, cast, conversion or attempt, used within the arithmetic productions |
@@ -2657,7 +2927,8 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Expression tree | The nodes of an expression, each with its `kind`, which the definition records with the version of its format | [Definition](#definition) |
 | Result | The data produced by an expression | [Values and types](#values-and-types) |
 | Type | The category of a value and the members it supports | [Types](#types) |
-| Node | A DOM value of kind element, document, document fragment or shadow root | [Nodes](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#nodes) |
+| Reference type | A type a module declares whose values have identity, naming at most one supertype and declaring the test a value of it passes | [Reference types](#reference-types) |
+| Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](#reference-types) |
 | Object expression | An expression that names the fields of its output object | [Objects](#objects) |
 | Object type | A description of an object's fields and their types | [Types](#types) |
 | Field | A named value included in an object | [Objects](#objects) |
@@ -2673,13 +2944,11 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Parameter | A name through which an expression reads a caller-supplied value | [Bindings](#bindings) |
 | Parameter binding, or binding | The value a caller supplies for a parameter | [Bindings](#bindings) |
 | Caller binding | `~name`, reading the caller's binding of the name whatever local or field shares it | [Names and reserved words](#names-and-reserved-words-referring-to-the-callers-binding) |
-| Root | `document`, `window` or `root`: the document the expression runs against, its window and the object root | [Names and resolution](#names-and-resolution-parameters-and-roots) |
-| Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading the fields whose initializers have completed | [The object root](#locals-the-object-root) |
-| Tree root | The root of a node's tree, read as `node.root` | [Node: root](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#property-node-root) |
-| Reserved word | A word that keeps its meaning where an expression stands: a literal's word, a keyword or a root's name | [Names and reserved words](#names-and-reserved-words) |
-| Keyword | A reserved word other than the literals' words and the roots' names, as `let`, `if` and `context` | [Names and reserved words](#names-and-reserved-words) |
+| Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading the fields whose initializers have completed; the language's one root | [The object root](#locals-the-object-root) |
+| Reserved word | A word that keeps its meaning where an expression stands: a literal's word, `root`, a keyword, and in text read through a registry, a module's name | [Names and reserved words](#names-and-reserved-words) |
+| Keyword | A reserved word other than the literals' words, `root` and a module's name, as `let`, `if` and `it` | [Names and reserved words](#names-and-reserved-words) |
 | Reserved reference | `@word`, reading the local or the field a reserved word names | [Names and reserved words](#names-and-reserved-words-referring-to-a-reserved-local-or-field) |
-| Implicit parameter | The value against which the current expression runs, read as `context` or bare `~` | [Names and resolution](#names-and-resolution) |
+| Implicit parameter | The value against which the current expression runs, read as `it` | [Names and resolution](#names-and-resolution) |
 
 <a id="chains-and-members"></a>
 
@@ -2687,21 +2956,21 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Chain input | What a chain starts from: the implicit parameter, a literal, a root, a name, a reserved reference, a caller binding, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](#syntax) |
+| Chain input | What a chain starts from: the implicit parameter, the object root, a literal, a name, a namespace's member or qualified form, a reserved reference, a caller binding, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](#syntax) |
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](#expression-structure-and-precedence) |
-| Receiver | The value before a member access, call or indexer | [Access and calls](#access-and-calls) |
+| Receiver | The value before a member access, function call or indexer | [Access and calls](#access-and-calls) |
 | Member | A property, function or other declared facility of a type | [Vocabulary contracts](#vocabulary-contracts) |
-| Property access | A property read using a dot or brackets | [Property access, calls and indexers](#property-access-calls-and-indexers) |
-| Call | `name(…)`, written after a receiver to invoke a function, an event source, an action or a behavior, which stay distinct member kinds, or after a local function's name to call it | [Arguments](#arguments) |
-| Named indexer | A keyed function written after a colon | [Property access, calls and indexers](#property-access-calls-and-indexers) |
-| Default indexer | `:[key]`, the indexer a receiver's type declares its default | [Property access, calls and indexers](#property-access-calls-and-indexers-default-indexers) |
-| Argument | An expression supplied to a call, or an indexer's key | [Arguments](#arguments) |
+| Property access | A property read using a dot or brackets | [Property access, function calls and indexers](#property-access-calls-and-indexers) |
+| Function call | `name(…)`, written after a receiver to invoke a function, an event source, an action or a behavior, which stay distinct member kinds, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](#property-access-calls-and-indexers-calls) |
+| Named indexer | A keyed function written after a colon | [Property access, function calls and indexers](#property-access-calls-and-indexers) |
+| Default indexer | `:[key]`, the named indexer designated as the default for the receiver's type, as its owner's precedence selects | [Property access, function calls and indexers](#property-access-calls-and-indexers-default-indexers) |
+| Argument | An expression supplied to a function call, or an indexer's key | [Arguments](#arguments) |
 | Positional and options inputs | What a member's arguments supply: its parameters in order, or one options object whose fields name them | [Arguments](#arguments) |
 | Options object | The one object expression given to a member that takes options, whose fields supply its parameters | [Arguments](#arguments-options) |
 | Value, expression and predicate arguments | An argument evaluated once where the call is written; one the member evaluates against each implicit parameter its signature declares; and one of those whose truthiness the member receives | [Arguments](#arguments) |
 | Fixed argument | A value argument the expression's resolution settles to a string that selects a declaration, as those of `is` and `on` do | [Arguments](#arguments) |
-| Optional chain | A chain whose optional access stops it with null for a null receiver | [Property access, calls and indexers](#property-access-calls-and-indexers) |
-| Optional enclosed access | `(? … )`, shorthand making every access in a member chain optional | [Property access, calls and indexers](#property-access-calls-and-indexers) |
+| Optional chain | A chain whose optional access stops it with null for a null receiver | [Property access, function calls and indexers](#property-access-calls-and-indexers) |
+| Optional enclosed access | `(? … )`, shorthand making every access in a member chain optional | [Property access, function calls and indexers](#property-access-calls-and-indexers) |
 
 <a id="expressions-1"></a>
 
@@ -2709,7 +2978,7 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Test | A member that answers a Boolean | [Tests](#tests) |
+| Test | A member that answers a Boolean, or a predicate asked with its verb | [Tests](#tests) |
 | Equality | `==`, comparing two values; `!=` negates it | [Equalities](#equalities) |
 | Truthy / falsey | Every value is truthy except null and false | [Truthiness](#truthiness) |
 | Logical expression | `and` or `or`, returning the operand that decides it | [Logical expressions](#logical-expressions-negations-and-groups) |
@@ -2718,7 +2987,7 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Conditional binding | `if let` or `elseif let`, naming and testing a value once | [Conditionals](#conditionals) |
 | Coalescing operator | `??`, returning its fallback only when its value is null | [Coalescing operators](#coalescing-operators) |
 | Parenthesized expression | An expression grouped by parentheses | [Logical expressions](#logical-expressions-negations-and-groups) |
-| Cast | `as`, answering a node as one of its kinds | [Casts](#casts) |
+| Cast | `as`, answering a reference value as a type of its hierarchy, checked by that type's test | [Casts](#casts) |
 | Conversion | `to`, converting data to another declared type | [Conversions](#conversions) |
 | Attempt | `try`, returning null when the one cast or conversion it attempts rejects its value | [Attempts](#attempts) |
 | Arithmetic negation | `-` before a number, negating it | [Arithmetic](#arithmetic) |
@@ -2736,17 +3005,22 @@ In this section: [Expressions and results](#expressions-and-results) · [Chains 
 | Term | Meaning | Reference |
 | --- | --- | --- |
 | Vocabulary | A set of types and their declared members | [Vocabulary contracts](#vocabulary-contracts) |
-| Built-in vocabulary | The vocabulary supplied with DOMQL | [Built-in vocabulary](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#built-in-vocabulary) |
-| Extension | A module that adds vocabulary to the types it declares and to any other module's | [Extensions](#extensions) |
-| Module | An extension's unit of registration, made by `createModule` and registered with `registerModule` | [Extensions](#extensions) |
-| Condition | A Boolean question of a receiver under a name of its own, asked with its verb | [Conditions](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#conditions) |
-| Verb | `is`, `has` or `supports`, the call that asks a condition by its name | [Conditions](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#conditions) |
-| Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [How a member changes](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#how-a-member-changes) |
-| Watch | A value request kept current, evaluated again when an observation reports a change | [Evaluation and watching](#evaluation-and-watching) |
+| Module | A unit of registration declaring types and their members, made by `createModule`, registered with `registerModule`, and reached in text through its namespace | [Namespaces](#namespaces) |
+| Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](#namespaces-owners-and-extensions) |
+| Namespace | A module's name in text read through its registry, through which its module members and its qualified forms are reached | [Namespaces](#namespaces) |
+| Module member | A member a module declares on no type, read through its namespace, as `home.rooms` | [Module members](#namespaces-module-members) |
+| Owner | The module that declares a type, whose members, predicates and indexers on it win over every extension | [Owners and extensions](#namespaces-owners-and-extensions) |
+| Extension | A member, predicate or indexer a module declares on a type another module owns | [Extensions](#extensions) |
+| Qualified form | A member or a predicate called through its module's namespace, the receiver first, as `energy.usage(device)` | [Qualified access](#namespaces-qualified-access) |
+| Predicate | A Boolean question of a receiver under a name of its own, asked with its verb | [Predicates](#predicates) |
+| Verb | `is`, `has` or `supports`, the call that asks a predicate by its name | [Predicates](#predicates) |
+| Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](#observations) |
+| Observation type | A module's declaration of an observation, its contract an invalidation or maintained | [Observations](#observations) |
+| Watch | A host's value request kept current, evaluated again when an observation reports a change | [Observations](#observations) |
 | Event source | A member producing a stream of events | [Events](#events) |
 | Event | Something that happened, delivered by a source | [Events](#events) |
-| Event type | A declaration of the data an event offers | [Event sources](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#event-sources) |
-| Event data | What an event source captured of an event | [Event sources](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#event-sources) |
+| Event type | A module's declaration of the data an event offers | [Events and event types](#events-and-event-types) |
+| Event data | What an event source captured of an event | [Events and event types](#events-and-event-types) |
 | Action | A member kind of its own, which its module carries out once when the caller executes the request | [Requests](#requests) |
 | Behavior | A member kind of its own, which its module starts when the caller applies the request and which runs until updated or disposed | [Requests](#requests) |
 | Request | A value, subscription, action or behavior request | [Requests](#requests) |
@@ -2764,6 +3038,6 @@ When naming the implicit parameter or concepts associated with it, implementatio
 | --- | --- | --- |
 | [Implicit parameter](#names-and-resolution) | `context` | `context`, `contextType`, `projectionContext`, a parameter declaration's `context: 'item'` |
 | A member's code | `implementation` | the function that carries a member out |
-| What the host supplies an evaluation | `env` | an implementation's `env`, as DOMQL's window and document |
+| What the host supplies an evaluation | `env` | an implementation's `env` |
 | [Receiver](#access-and-calls) | `receiver` | an implementation's `receiver` |
 | A call's arguments, by parameter name | `args` | an implementation's `args` |
