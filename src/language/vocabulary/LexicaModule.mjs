@@ -305,7 +305,7 @@ export class LexicaModule {
             const functionArgument = Object.values(observationDeclaration).find(value => typeof value?.argument === 'string' && parameters.get(value.argument)?.kind === 'function');
 
             if (functionArgument !== undefined) {
-                fail(`The observation '${observationDeclaration.type}' is given the function parameter '${functionArgument.argument}', whose function lasts only while the member's invocation does`, name);
+                fail(`The observation '${observationDeclaration.type}' is given the parameter '${functionArgument.argument}', a function that lasts only while the member's invocation does`, name);
             }
 
             const isTarget = OBSERVATION_TARGETS.includes(observationDeclaration.of) || LexicaModule.#isArgumentReference(observationDeclaration.of, parameters);
@@ -574,14 +574,22 @@ export class LexicaModule {
         // A function parameter's contract declares the type of each argument the member calls the function with, in order, and, as its type, the type of the result it takes from it.
         if (parameter.kind === 'function') {
             if (!Array.isArray(parameter.parameters) || !parameter.parameters.every(type => LexicaModule.#isTypeNotation(type))) {
-                fail(`The function parameter '${parameter.name}' declares its parameters as a list of the types it is called with`, memberName);
+                fail(`The parameter '${parameter.name}' is a function that declares its parameters as a list of the types it is called with`, memberName);
             }
 
-            if (!parameter.required || parameter.fixed !== undefined || parameter.context !== undefined) {
-                fail(`The function parameter '${parameter.name}' is required, and declares neither a default, whether it is fixed, nor an evaluation context`, memberName);
+            if (!parameter.required) {
+                fail(`The parameter '${parameter.name}' is a function, so it is required`, memberName);
+            }
+
+            if (parameter.fixed !== undefined) {
+                fail(`The parameter '${parameter.name}' is a function, so it cannot be fixed`, memberName);
+            }
+
+            if (parameter.context !== undefined) {
+                fail(`The parameter '${parameter.name}' is a function, so it declares no 'context'`, memberName);
             }
         } else if (parameter.parameters !== undefined) {
-            fail(`The parameter '${parameter.name}' declares parameters, which only a function parameter does`, memberName);
+            fail(`The parameter '${parameter.name}' is no function, so it declares no parameters`, memberName);
         }
 
         if (parameter.required && 'default' in parameter) {
