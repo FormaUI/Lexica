@@ -9,7 +9,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = path => readFileSync(resolve(root, path), 'utf8');
 
 describe('Alignment', () => {
-    const specification = read('docs/lexica-specification.md');
+    const specification = read('spec/README.md');
+    const status = read('docs/status.md');
     const design = read('docs/lexica-design.md');
     const project = read('nuget/Forma.Lexica.csproj');
     const npmPackage = JSON.parse(read('package.json'));
@@ -28,9 +29,10 @@ describe('Alignment', () => {
         expect(lexica.info.version).toBe(`${prefix}-alpha+source`);
     });
 
-    it('has a specification whose example definition is of the version it describes, saying which version the implementation reads', () => {
-        const [, version] = specification.match(/"version": (\d+),\s+"expression"/);
-        const [, described, implemented] = specification.match(/describes definition version (\d+)\. The implementation in this repository still reads version (\d+),/);
+    it('has a specification whose example definition is of the version it describes, and a status that says which version the implementation reads', () => {
+        const [, version] = read('spec/definition.md').match(/"version": (\d+),\s+"expression"/);
+        const [, described] = specification.match(/describes definition version (\d+)\./);
+        const [, implemented] = status.match(/reads definition version (\d+)/);
 
         expect(Number(version)).toBe(Number(described));
         expect(Number(implemented)).toBe(lexica.info.definitionVersion);

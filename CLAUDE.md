@@ -8,12 +8,13 @@ Read the documents that govern the affected contract:
 
 | Document | Authority |
 | --- | --- |
-| [Specification](docs/lexica-specification.md) | Language syntax, resolution, values, requests, vocabulary contracts, definitions and diagnostics |
-| [Design](docs/lexica-design.md) | Modules, their declarations and registration, and tooling |
-| [Implementation plan](docs/lexica-implementation-plan.md) | Unfinished work, its status and open decisions |
+| [Specification](spec/README.md) | Language syntax, resolution, values, requests, vocabulary contracts, definitions and diagnostics, one document per subject |
+| [Design](docs/lexica-design.md) | Architecture: the stages, modules and their registration, evaluation and tooling |
+| [Status](docs/status.md) | What is implemented, what is in progress, what remains, open decisions and the gaps between the design and the code |
+| [Guide](docs/guide.md) | Embedding Lexica, by example |
 | `.editorconfig` | Code style; read it before writing C# |
 
-Update the specification before implementing a language change, and the design before changing a module or tooling contract. Record a departure from the design in the plan until the design is aligned. When planned work is complete, remove its unfinished-work entry and update Built to describe what exists.
+Update the specification before implementing a language change, and the design before changing a module or tooling contract. Each subject has one home: state a rule where it belongs and link to it elsewhere. Record a gap between the design and the code in the status overview until it closes, and update a row's status as soon as its work lands.
 
 ## Repository structure
 
@@ -26,6 +27,8 @@ Update the specification before implementing a language change, and the design b
 | `tests/` | Tests mirroring the source folders, run in Node |
 | `scripts/` | Bundling scripts |
 | `nuget/` | The package project, which distributes the bundle |
+| `spec/` | The specification, one document per subject, indexed by `spec/README.md` |
+| `docs/` | The design, the guide and the status overview |
 | `.local/` | Personal experiments, spikes and notes; ignored by Git |
 
 Nothing in `src/` imports from outside it or reads a browser global; a test enforces the imports, and the tests run in Node. A change DOMQL depends on is made in both repositories together.

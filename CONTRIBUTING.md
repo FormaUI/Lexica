@@ -39,9 +39,10 @@ Run the full build from the repository root:
 | `tests/` | Tests arranged to match the source folders, run in Node with no browser |
 | `scripts/` | Bundling scripts |
 | `nuget/` | The NuGet package project |
-| `docs/` | Specification, design and implementation plan |
+| `spec/` | The specification, split by subject, with its index |
+| `docs/` | The design, the guide and the status overview |
 
-The [specification](docs/lexica-specification.md) defines the language, and the [design](docs/lexica-design.md) its modules and tooling. If a change affects either contract, update the relevant document before implementing it. The [implementation plan](docs/lexica-implementation-plan.md) tracks unfinished work and open decisions.
+The [specification](spec/README.md) defines the language, and the [design](docs/lexica-design.md) how Lexica is built. If a change affects either, update the relevant document before implementing it. The [status overview](docs/status.md) tracks what is implemented, what is being built, and what remains.
 
 ## Develop a change
 

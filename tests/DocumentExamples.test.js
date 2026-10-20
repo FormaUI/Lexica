@@ -44,15 +44,25 @@ const COMPARED = '(%) != null';
  * until Lexica has a vocabulary of its own to evaluate them with.
  */
 const DOCUMENTS = {
-    'docs/lexica-specification.md': [
+    'spec/README.md': [],
+    'spec/examples-vocabulary.md': [],
+    'spec/values-and-types.md': [],
+    'spec/names-and-scope.md': [
         { about: 'an object expression' },
         { about: 'fields named by reserved words' },
         { about: 'a reserved reference' },
+    ],
+    'spec/lexical-structure.md': [
         { about: 'strings of each family' },
         { about: 'a block the source continues after' },
+    ],
+    'spec/access-and-calls.md': [
         { about: 'the forms of a member', each: true, context: 'cell { value = % }' },
         { about: 'bracket property access' },
         { about: 'a simple expression' },
+    ],
+    'spec/modules-and-namespaces.md': [],
+    'spec/expressions.md': [
         { about: 'tests', each: true },
         { about: 'equalities', each: true },
         { about: 'arithmetic' },
@@ -60,11 +70,15 @@ const DOCUMENTS = {
         { about: 'logical expressions', each: true },
         { about: 'conditionals', each: true, context: COMPARED },
         { about: 'coalescing operators', each: true },
+        { about: 'interpolated strings' },
+    ],
+    'spec/casts-and-conversions.md': [
         { about: 'casts', each: true, context: COMPARED },
         { about: 'conversions', each: true },
         { about: 'attempts', each: true },
         { about: 'a result that tells missing from malformed' },
-        { about: 'interpolated strings' },
+    ],
+    'spec/bodies-and-functions.md': [
         { about: 'a body' },
         { about: 'locals' },
         { about: 'the object root' },
@@ -72,11 +86,22 @@ const DOCUMENTS = {
         { about: 'a function' },
         { about: 'arrow functions' },
         { about: 'functions as values' },
+    ],
+    'spec/requests.md': [
         { about: 'an action and a behavior request', each: true },
         { about: 'a subscription' },
     ],
+    'spec/vocabulary-contracts.md': [],
+    'spec/definition.md': [],
+    'spec/errors.md': [],
+    'spec/syntax.md': [],
+    'spec/terms.md': [],
     'docs/lexica-design.md': [],
-    'docs/lexica-implementation-plan.md': [],
+    'docs/guide.md': [],
+    'docs/status.md': [],
+    'README.md': [
+        { about: 'a body that counts the rows shown' },
+    ],
 };
 
 describe('the examples of the documents', () => {
