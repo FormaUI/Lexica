@@ -1,5 +1,5 @@
 /**
- * TextLocations — where in a query text each part of its definition came from, by JSON Pointer
+ * TextLocations — where in a source text each part of its definition came from, by JSON Pointer
  */
 
 import { LexicaError } from './LexicaError.mjs';
@@ -12,16 +12,16 @@ export class TextLocations {
     #spans = new Map();
 
     /**
-     * @param {string} text The query text.
+     * @param {string} text The source text.
      * @param {object} definition The definition read from it.
      * @param {WeakMap<object, Span>} spans The span of text each node, field and argument came from.
      */
     constructor(text, definition, spans) {
         this.#text = text;
-        this.#collect(definition.query, '/query', spans);
+        this.#collect(definition.expression, '/expression', spans);
     }
 
-    /** The text the definition was read from, from which its syntax tree is read again where a tool asks for it, since no query keeps one. */
+    /** The text the definition was read from, from which its syntax tree is read again where a tool asks for it, since no definition keeps one. */
     get text() {
         return this.#text;
     }

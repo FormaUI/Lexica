@@ -29,7 +29,7 @@ describe('Alignment', () => {
     });
 
     it('has a specification whose example definition is of the version the implementation writes', () => {
-        const [, version] = specification.match(/"version": (\d+),\s+"query"/);
+        const [, version] = specification.match(/"version": (\d+),\s+"expression"/);
 
         expect(Number(version)).toBe(lexica.info.definitionVersion);
     });

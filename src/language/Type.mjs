@@ -78,7 +78,7 @@ export class Type {
         return new Type('root', { fieldTypes, objectExpression, isNullable });
     }
 
-    /** A function value, which may be any of the functions, each a function the query declares with the scope it captures: no data, so no result holds one. */
+    /** A function value, which may be any of the functions, each a function the expression declares with the scope it captures: no data, so no result holds one. */
     static createFunctionType(functions, isNullable = false) {
         return new Type('function', { functions: Object.freeze([...new Set(functions)]), isNullable });
     }

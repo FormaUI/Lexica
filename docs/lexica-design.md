@@ -71,7 +71,7 @@ Preparation is authoritative: it validates every request against the vocabulary 
 - **Declarative metadata.** A module's declarations are data, so a tool understands them without running a capability's implementation.
 - **Independent validation.** Structural and vocabulary validation run without a browser, given the metadata and the bindings' types.
 
-A tool can check a query text known when the code is written against the metadata available to its project; text built at run time, modules registered at run time and checks that depend on bound values remain preparation's.
+A tool can check a source text known when the code is written against the metadata available to its project; text built at run time, modules registered at run time and checks that depend on bound values remain preparation's.
 
 ### Formatting
 

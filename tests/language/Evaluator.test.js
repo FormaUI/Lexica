@@ -78,8 +78,8 @@ describe('Evaluator', () => {
 
         createEvaluator('{ a = name.price, b = name.rate }', { name: 'tea' }, { env: { rate: 1 } }).evaluate({ ...host, beforeInvoke: request => (requests.push(request), host.beforeInvoke(request)) });
 
-        expect(host.calls).toEqual(['before:price@/query/fields/0/value', 'after:price=3', 'before:rate@/query/fields/1/value', 'after:rate=1', 'ended:completed']);
-        expect(requests[0]).toMatchObject({ receiver: 'tea', args: {}, pointer: '/query/fields/0/value' });
+        expect(host.calls).toEqual(['before:price@/expression/fields/0/value', 'after:price=3', 'before:rate@/expression/fields/1/value', 'after:rate=1', 'ended:completed']);
+        expect(requests[0]).toMatchObject({ receiver: 'tea', args: {}, pointer: '/expression/fields/0/value' });
     });
 
     it('calls the hooks for the invocations an evaluation reaches alone', () => {
@@ -103,7 +103,7 @@ describe('Evaluator', () => {
         const host = createHost({ beforeInvoke: () => ({ pending: true }), afterEvaluation: outcome => outcomes.push(outcome) });
 
         expect(createEvaluator('{ quote = name.quoted }', { name: 'tea' }).evaluate(host)).toMatchObject({ value: { quote: null }, isPending: true });
-        expect(host.calls).toEqual(['before:quoted@/query/fields/0/value', 'ended:pending']);
+        expect(host.calls).toEqual(['before:quoted@/expression/fields/0/value', 'ended:pending']);
         expect(outcomes).toEqual([{ kind: 'pending', value: { quote: null } }]);
     });
 
@@ -117,15 +117,15 @@ describe('Evaluator', () => {
         const failure = getError(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate(host));
 
         expect(failure).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('divides by zero') });
-        expect(host.calls).toEqual(['before:price@/query/left', 'after:price=3', 'ended:failed']);
+        expect(host.calls).toEqual(['before:price@/expression/left', 'after:price=3', 'ended:failed']);
     });
 
     it('fails the evaluation at the member where beforeInvoke or afterInvoke throws', () => {
         const before = getError(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ beforeInvoke: () => { throw new Error('no session'); } }));
         const after = getError(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterInvoke: () => { throw new Error('no record'); } }));
 
-        expect(before).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('no session'), location: { pointer: '/query' } });
-        expect(after).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('no record'), location: { pointer: '/query' } });
+        expect(before).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('no session'), location: { pointer: '/expression' } });
+        expect(after).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('no record'), location: { pointer: '/expression' } });
     });
 
     it('fails a completed evaluation whose afterEvaluation throws, and keeps a failure thrown, the cleanup failure recorded on it', () => {

@@ -474,7 +474,7 @@ export class LexicaModule {
         for (const parameter of parameters) {
             LexicaModule.#validateParameter(parameter, name, fail);
 
-            // A function a member is given is called while the member's invocation lasts, which only an operation's query carries out at once.
+            // A function a member is given is called while the member's invocation lasts, which only an operation carries out at once.
             if (parameter.kind === 'function' && member.kind !== 'operation') {
                 fail(`The function parameter '${parameter.name}' is an operation's, which calls it while its own invocation lasts`, name);
             }

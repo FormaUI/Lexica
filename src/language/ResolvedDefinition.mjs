@@ -9,15 +9,15 @@ export class ResolvedDefinition {
     #resolutions;
     #usedDeclarations;
 
-    /** Each node of the definition's query, by the node itself, with its JSON Pointer and what it resolved to. @type {Map<object, { pointer: string, resolution: object | undefined }>} */
+    /** Each node of the definition's expression, by the node itself, with its JSON Pointer and what it resolved to. @type {Map<object, { pointer: string, resolution: object | undefined }>} */
     #nodes = new Map();
 
-    /** The name of each field of each object expression of the definition's query, in order, by the expression's node. @type {Map<object, string[]>} */
+    /** The name of each field of each object expression of the definition's expression, in order, by the expression's node. @type {Map<object, string[]>} */
     #fieldNames = new Map();
 
     /**
      * @param {object} definition The request's definition, whose every node is an object of its own.
-     * @param {'query' | 'subscription' | 'action' | 'behavior'} kind The request's kind.
+     * @param {'value' | 'subscription' | 'action' | 'behavior'} kind The request's kind.
      * @param {import('./Type.mjs').Type} type The type of its result.
      * @param {Map<string, object>} resolutions What each member node, by its JSON Pointer, resolved to.
      * @param {object[]} usedDeclarations The declarations the request uses, each with the pointer that used it and the name a message gives it, qualified by the type its declaration is for.
@@ -30,7 +30,7 @@ export class ResolvedDefinition {
         this.#resolutions = resolutions;
         this.#usedDeclarations = Object.freeze([...usedDeclarations]);
         this.#instances = instances;
-        this.#index(definition.query, '/query');
+        this.#index(definition.expression, '/expression');
         instances.forEach(instance => this.#index(instance.node, instance.pointer));
     }
 
@@ -63,7 +63,7 @@ export class ResolvedDefinition {
         return this.#definition;
     }
 
-    /** The request's kind: a query, a subscription, an action or a behavior request. */
+    /** The request's kind: a value, a subscription, an action or a behavior request. */
     get kind() {
         return this.#kind;
     }

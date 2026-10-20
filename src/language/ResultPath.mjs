@@ -1,5 +1,5 @@
 /**
- * ResultPath — a path into a query's result, of field names and list indices: its shape, the type it reaches and the value it reads
+ * ResultPath — a path into an expression's result, of field names and list indices: its shape, the type it reaches and the value it reads
  */
 
 import { LexicaError } from './LexicaError.mjs';

@@ -3,10 +3,10 @@
  * and the registries a host resolves expressions against.
  */
 
-/** A Lexica definition: the JSON document that records a query's meaning, without the values its parameters are bound to. */
+/** A Lexica definition: the JSON document that records an expression's meaning, its expression tree with the version of its format, without the values its parameters are bound to. */
 export interface LexicaDefinition {
     readonly version: number;
-    readonly query: LexicaDefinitionNode;
+    readonly expression: LexicaDefinitionNode;
 }
 
 /** A node of a definition. */
@@ -151,7 +151,7 @@ export interface LexicaConversionContext {
 export interface LexicaParameterDeclaration {
     name: string;
     /**
-     * A value, an expression evaluated against each item, a predicate, an expression of any value whose truthiness its function receives, or a function, one the query declares,
+     * A value, an expression evaluated against each item, a predicate, an expression of any value whose truthiness its function receives, or a function, one the expression declares,
      * which the member's function receives as a function it calls while its own invocation lasts, and only an operation declares.
      */
     kind: 'value' | 'expression' | 'predicate' | 'function';
@@ -269,7 +269,7 @@ export interface LexicaRegistry {
     /** The names of the modules registered, Lexica's built-in one first. */
     readonly moduleNames: readonly string[];
     /** Resolves a text or a definition against the registered vocabulary and the bindings, answering its request kind and the type of its result, or throwing where it does not resolve. */
-    resolve(source: string | LexicaDefinition, bindings?: LexicaBindings): { readonly kind: 'query' | 'subscription' | 'action' | 'behavior'; readonly type: string };
+    resolve(source: string | LexicaDefinition, bindings?: LexicaBindings): { readonly kind: 'value' | 'subscription' | 'action' | 'behavior'; readonly type: string };
 }
 
 /** Which build this is and which specification it follows. */

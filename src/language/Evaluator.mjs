@@ -1,5 +1,5 @@
 /**
- * Evaluator — evaluates a resolved request against its registry for the host that asks, answering detached data: a query as it reads now, a subscription's projection of each event its source delivers, and an action's result read through the object expression that follows it
+ * Evaluator — evaluates a resolved request against its registry for the host that asks, answering detached data: an expression's value as it reads now, a subscription's projection of each event its source delivers, and an action's result read through the object expression that follows it
  */
 
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
@@ -151,12 +151,12 @@ export class Evaluator {
     }
 
     /**
-     * Evaluates the query once, synchronously, for the host given, answering the detached result, the identities of what its lists were projected from, and whether a member it read was pending.
+     * Evaluates the expression once, synchronously, for the host given, answering the detached result, the identities of what its lists were projected from, and whether a member it read was pending.
      * Without a host, or without its `beforeInvoke`, a member that reads maintained values fails the evaluation, since nothing answers its samples.
      * @param {Host | null} [host] What the evaluation is carried out for.
      */
     evaluate(host = null) {
-        return this.#run(host, () => this.#evaluateQuery());
+        return this.#run(host, () => this.#evaluateValue());
     }
 
     /**
@@ -195,7 +195,7 @@ export class Evaluator {
 
     /**
      * The result of an action, checked against the type the action declares and read through the object expression that follows it, if one does: an immutable snapshot containing no live DOM references.
-     * The object expression is evaluated as `evaluate` evaluates a query without a host, so a member maintained by an observation fails it. A result of another type, or an object expression that fails, throws an evaluation error.
+     * The object expression is evaluated as `evaluate` evaluates an expression without a host, so a member maintained by an observation fails it. A result of another type, or an object expression that fails, throws an evaluation error.
      * @param {unknown} result What the action's function answered, or null for an action that was not executed, since its receiver or an argument was null.
      * @param {{ wasExecuted?: boolean }} [execution] Whether the action was executed, so its result is checked against the type it declares.
      */
@@ -224,7 +224,7 @@ export class Evaluator {
      */
     #resolveCall(kind, operationDescription) {
         if (this.#resolvedDefinition.kind !== kind) {
-            this.#fail(`A ${this.#resolvedDefinition.kind} request is not ${operationDescription}`, '/query');
+            this.#fail(`A ${this.#resolvedDefinition.kind} request is not ${operationDescription}`, '/expression');
         }
 
         const { node, pointer } = this.#findTerminalMember();
@@ -308,9 +308,9 @@ export class Evaluator {
     }
 
     /** The detached result, and the identities of the elements its lists were projected from, which the result itself never holds. */
-    #evaluateQuery() {
-        if (this.#resolvedDefinition.kind !== 'query') {
-            this.#fail(`A ${this.#resolvedDefinition.kind} request is not evaluated`, '/query');
+    #evaluateValue() {
+        if (this.#resolvedDefinition.kind !== 'value') {
+            this.#fail(`A ${this.#resolvedDefinition.kind} request is not evaluated`, '/expression');
         }
 
         return this.#evaluateResult();
@@ -841,7 +841,7 @@ export class Evaluator {
                             return null;
                         }
 
-                        // A function value goes to the member as a function it calls, while the query's own names and fields hold the value itself.
+                        // A function value goes to the member as a function it calls, while the expression's own names and fields hold the value itself.
                         held = value;
                         args[plan.name] = plan.kind === 'function' ? evaluator.#callbackOf(value, plan) : value;
                     }
@@ -935,7 +935,7 @@ export class Evaluator {
     /** The lifetime of each function given to a member, open while the member's invocation lasts. @type {WeakMap<Function, { isOpen: boolean }>} */
     #callbackLifetimes = new WeakMap();
 
-    /** The errors a function given to a member raised, which reach the query as they are, not as the member's failure. @type {WeakSet<object>} */
+    /** The errors a function given to a member raised, which reach the expression as they are, not as the member's failure. @type {WeakSet<object>} */
     #callbackErrors = new WeakSet();
 
     /** What the evaluation gives with the frame of names and the object root in scope, those of the place it was written, both restored after it. */
@@ -1433,8 +1433,8 @@ export class Evaluator {
 
     /** The member a subscription, an action or a behavior request ends in, and where it stands: the object expressions of a request each follow the one before, and the first follows that member, which an optional chain may hold. */
     #findTerminalMember() {
-        let node = this.#resolvedDefinition.definition.query;
-        let pointer = '/query';
+        let node = this.#resolvedDefinition.definition.expression;
+        let pointer = '/expression';
 
         while (node.kind === 'object' || node.kind === 'optionalChain') {
             node = node.target;
@@ -1620,14 +1620,14 @@ export class Evaluator {
         }
     }
 
-    /** The query evaluated and detached, with its identities, which the evaluator lets go of once it hands them over, so it holds no element between evaluations. */
+    /** The expression evaluated and detached, with its identities, which the evaluator lets go of once it hands them over, so it holds no element between evaluations. */
     #evaluateResult() {
         this.#sourceElementsByList = new WeakMap();
         this.#fieldSelectionsByObject = new WeakMap();
         this.#selections = null;
 
         try {
-            const value = this.#copyResult(this.#evaluateNode(this.#resolvedDefinition.definition.query, null));
+            const value = this.#copyResult(this.#evaluateNode(this.#resolvedDefinition.definition.expression, null));
 
             return { value, identities: Evaluator.#withSelections(this.#copiedIdentities, this.#selections) };
         } finally {

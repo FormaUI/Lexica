@@ -8,7 +8,7 @@ This specification defines the language, its vocabulary contracts and its JSON d
 
 ## Reading this specification
 
-Use the contents below to find a rule. The [formal grammar](#syntax) and [glossary](#terms) are appendices, so the language can be read before its notation. The examples query the DOM, through DOMQL's vocabulary, until Lexica has a vocabulary of its own to show them with.
+Use the contents below to find a rule. The [formal grammar](#syntax) and [glossary](#terms) are appendices, so the language can be read before its notation. The examples read the DOM, through DOMQL's vocabulary, until Lexica has a vocabulary of its own to show them with.
 
 Examples illustrate the rules. Code containing `…` is a fragment, and examples explicitly described as errors are intentionally invalid. Type notation such as `T?`, `list<T>` and `never` describes types; it does not declare a type in an expression.
 
@@ -34,7 +34,7 @@ Examples illustrate the rules. Code containing `…` is a fragment, and examples
 
 A value is a number, a string, a Boolean, null, a list, a structured value such as a rectangle, a node such as an element or the document, the window, an element's shadow or ARIA view, or an event source. A member's signature declares its result type, as the section on types sets out, and a result marked `?` can be null by itself; an optional access answers null where its receiver is null, and any member answers null where an argument is null and its parameter propagates null.
 
-A result is data: numbers, strings, Booleans, null, lists and objects. A node, the window, an element's shadow or ARIA view, or an event source has no data form, so a query whose result would contain one is a validation error; a query reads the facts it needs of a node through an object expression.
+A result is data: numbers, strings, Booleans, null, lists and objects. A node, the window, an element's shadow or ARIA view, or an event source has no data form, so an expression whose result would contain one is a validation error; an expression reads the facts it needs of a node through an object expression.
 
 In this section: [Objects](#objects) · [Lists](#lists) · [Types](#types) · [No implicit conversion](#no-implicit-conversion) · [Nullability](#nullability) · [Bindings](#bindings) · [Receivers of unknown type](#receivers-of-unknown-type) · [Null](#null).
 
@@ -43,7 +43,7 @@ In this section: [Objects](#objects) · [Lists](#lists) · [Types](#types) · [N
 ### Objects
 
 - A field is written with its name before its `=`, `width = context.rect?.width`, whatever its value is, and the language infers no name: a field without one is a syntax error, as is an object expression without a field.
-- Two fields of one object expression with the same name are an error when the query is created.
+- Two fields of one object expression with the same name are an error when the definition is checked.
 - A result keeps its fields in the order the object expression names them.
 - An object expression following null is null.
 
@@ -59,7 +59,7 @@ In this section: [Objects](#objects) · [Lists](#lists) · [Types](#types) · [N
 - `where` takes a predicate and keeps the items it is truthy for, leaving out an item whose predicate is null or false.
 - `first`, `last` and the list's default indexer, `:[index]`, answer null when the list has no such item.
 
-CSS selectors and `where` are the two ways a query filters: a selector chooses elements as the browser matches them, and `where` chooses list items by any value the vocabulary offers, by its truthiness.
+CSS selectors and `where` are the two ways an expression filters: a selector chooses elements as the browser matches them, and `where` chooses list items by any value the vocabulary offers, by its truthiness.
 
 <a id="types"></a>
 
@@ -81,7 +81,7 @@ A request that cannot be typed fails with a validation error identifying the loc
 | Views | `shadow`, an element's shadow relationships; `aria`, its ARIA states |
 | Lists | `list<T>`, a list whose items have type `T` |
 | Structured values | Named fields of declared types, such as `rectangle`, `size`, `selection` and `grid` |
-| Query objects | The field types inferred from an object expression |
+| Object types | The field types inferred from an object expression |
 | Event sources | `event<T>`, a source whose event data has type `T` |
 
 Modules may declare additional types.
@@ -149,7 +149,7 @@ An element is a valid receiver of `selection`; one that is no text input answers
 
 ### Bindings
 
-A binding takes its type from its value, and a caller declares none. It is named by a letter followed by letters and digits, a reserved word among them, which a query reads as `~` and the name, as `~as` and `~window` do.
+A binding takes its type from its value, and a caller declares none. It is named by a letter followed by letters and digits, a reserved word among them, which an expression reads as `~` and the name, as `~as` and `~window` do.
 
 - A node is of its kind: an element is an `element`, a document a `document`, a shadow root a `shadowRoot` and any other document fragment a `documentFragment`, and a node of another kind, such as text, is no binding.
 - A number, a string and a Boolean are `number`, `string` and `boolean`.
@@ -158,7 +158,7 @@ A binding takes its type from its value, and a caller declares none. It is named
 - An object is of the object type of its fields' types, each typed as a binding is.
 - A list whose items share no type has no type, because DOMQL has no union types and a list holds items of one type, so binding `[1, "two"]` is a structure error.
 
-A tool that checks a query without running it takes the same values, or values of the same types, for the bindings, since vocabulary declarations alone cannot establish the type of `panel`.
+A tool that checks an expression without running it takes the same values, or values of the same types, for the bindings, since vocabulary declarations alone cannot establish the type of `panel`.
 
 <a id="receivers-of-unknown-type"></a>
 
@@ -192,7 +192,7 @@ Declarations that disagree on their kind are refused as ambiguous, and a cast to
 
 #### What it answers
 
-A query answers null, a subscription listens to nothing, an action is not executed and answers null, and a behavior is applied with nothing started, as with any null receiver.
+A value request answers null, a subscription listens to nothing, an action is not executed and answers null, and a behavior is applied with nothing started, as with any null receiver.
 
 Its type is the result type those declarations share, made nullable for a receiver of the type `null`, which answers null, and as they declare it for a `never`, which is never evaluated, so `rows { count = context.children.count }` is valid for empty `rows` and `rows { count = context.children.sise }` is refused.
 
@@ -240,7 +240,7 @@ Members always have an explicit receiver. Equality always has both operands. The
 
 | Position | What `context` means |
 | --- | --- |
-| Top-level query | No evaluation context is available |
+| Outermost expression | No evaluation context is available |
 | Object expression following a value | The value it follows |
 | Object expression following a list | The current item |
 | Object expression following no value | The surrounding evaluation context, if one exists |
@@ -274,7 +274,7 @@ An equality without its left operand is an error as well; write both values, for
 
 Parameters resolve the same way inside object expressions and arguments as elsewhere. Their bindings may be nodes or data: numbers, strings, Booleans, null, lists or objects. Lists and objects may contain nodes.
 
-`document` and `window` require no value from the caller: `document` is the document the query runs against, and `window` its window, which is also the layout viewport. Written inside an object expression, `root` refers to the outermost object being built, the [object root](#locals-the-object-root). A caller can still pass a value under one of these names; read it as `~document`, `~window` or `~root`.
+`document` and `window` require no value from the caller: `document` is the document the expression runs against, and `window` its window, which is also the layout viewport. Written inside an object expression, `root` refers to the outermost object being built, the [object root](#locals-the-object-root). A caller can still pass a value under one of these names; read it as `~document`, `~window` or `~root`.
 
 <a id="names-and-resolution-projection-example"></a>
 
@@ -363,7 +363,7 @@ A string containing a reserved word remains an ordinary string:
 - `context:["null"]` reads an attribute named `null`.
 - `value["null"]` is bracket property access and resolves the member `value.null`.
 
-The name restrictions apply to declarations in a query. Supplied data keeps all its own keys. Bound objects and objects returned by members retain every field, including `__proto__`, as an ordinary own field in results, snapshots and live state.
+The name restrictions apply to declarations in an expression. Supplied data keeps all its own keys. Bound objects and objects returned by members retain every field, including `__proto__`, as an ordinary own field in results, snapshots and live state.
 
 <a id="names-and-reserved-words-canonical-spelling-of-names"></a>
 
@@ -504,7 +504,7 @@ An inline string, `"…"`, `'…'`, `$"…"` or `$'…'`, holds no line break be
 
 #### Blocks
 
-A block is opened by three or more matching quotes, `$` directly before them where it is interpolated, followed directly by a line break, and closed by as many of the same quote, the first text after the indentation of a later line. The query continues after the closing delimiter on its line, a call, an access, a comma or a comment:
+A block is opened by three or more matching quotes, `$` directly before them where it is interpolated, followed directly by a line break, and closed by as many of the same quote, the first text after the indentation of a later line. The source continues after the closing delimiter on its line, a call, an access, a comma or a comment:
 
 ```lexica
 {
@@ -531,7 +531,7 @@ Every form that does not interpolate stands wherever the grammar requires a stri
 
 #### Canonical spelling of strings
 
-Canonical text writes every string as an inline string, `"…"`, and every interpolated one as `$"…"`, whatever form it was written in, escaping what it must: a raw string and a block give the same value written so. Formatting a query's source keeps each string's family and its inline or block form, and its value, significant whitespace included.
+Canonical text writes every string as an inline string, `"…"`, and every interpolated one as `$"…"`, whatever form it was written in, escaping what it must: a raw string and a block give the same value written so. Formatting source keeps each string's family and its inline or block form, and its value, significant whitespace included.
 
 It writes a double quote and a backslash as `\"` and `\\`, and line feed, carriage return, tab and escape as `\n`, `\r`, `\t` and `\e`.
 
@@ -825,7 +825,7 @@ Every parameter of a member is declared as one of four kinds, and the evaluator 
 
 A value argument can be declared **fixed**, where it selects something validation needs before evaluation, such as the event type whose members `on` offers or the condition `is`, `has` or `supports` asks.
 
-A fixed argument is a string the query's preparation settles, without reading the document or depending on an event: a literal, a bound parameter, a local or a conditional binding holding one, a local holding a `do` block whose locals and result all settle, a function parameter within a call's body, which is resolved with its arguments, and an `and`, an `or`, a conditional or a coalescing operator whose result they settle by the rules that evaluate it everywhere, as `window { let feature = "share", supportsShare = context.supports(feature) }` and `panel.is(wide and "disabled" or "readonly")` are.
+A fixed argument is a string the expression's resolution settles, without reading the document or depending on an event: a literal, a bound parameter, a local or a conditional binding holding one, a local holding a `do` block whose locals and result all settle, a function parameter within a call's body, which is resolved with its arguments, and an `and`, an `or`, a conditional or a coalescing operator whose result they settle by the rules that evaluate it everywhere, as `window { let feature = "share", supportsShare = context.supports(feature) }` and `panel.is(wide and "disabled" or "readonly")` are.
 
 A member's value is read from the document, so an expression that needs one to settle is a validation error, as `if panel.attached then "share" else "share" end` is; the side an expression does not take is validated and selects nothing, so a name only it holds is never looked up.
 
@@ -1121,7 +1121,7 @@ For a nullable Boolean `x`, comparing and negating answer differently where `x` 
 
 ### Arithmetic
 
-`+`, `-`, `*`, `/` and `%` compute with numbers, and `-` before a value negates it, so a query derives the values it needs from the ones it reads: remaining space, a size's difference, a position relative to another element.
+`+`, `-`, `*`, `/` and `%` compute with numbers, and `-` before a value negates it, so an expression derives the values it needs from the ones it reads: remaining space, a size's difference, a position relative to another element.
 
 ```lexica
 panel {
@@ -1181,7 +1181,7 @@ Arithmetic reads what its operands read, and observes nothing of its own. A comp
 
 ### Comparisons
 
-`<`, `<=`, `>` and `>=` order two numbers, and a chain of them pointing one way orders several, so a query tests a value it reads or calculates against a bound or a range.
+`<`, `<=`, `>` and `>=` order two numbers, and a chain of them pointing one way orders several, so an expression tests a value it reads or calculates against a bound or a range.
 
 ```lexica
 panel {
@@ -1220,7 +1220,7 @@ A comparison stands at an equality's level and apart from it, one of them groupe
 
 Operands are evaluated from left to right, each at most once, and the first comparison that is false answers false without evaluating the operands after it, as an `and` stops at a falsey operand.
 
-Numbers compare as IEEE 754 doubles, so `-0 < 0` is false; every number a query holds is finite, since a literal, a binding, a member's result, a conversion and arithmetic each give a finite number or none.
+Numbers compare as IEEE 754 doubles, so `-0 < 0` is false; every number an expression holds is finite, since a literal, a binding, a member's result, a conversion and arithmetic each give a finite number or none.
 
 <a id="comparisons-watching"></a>
 
@@ -1308,7 +1308,7 @@ panel { state = if context.is("disabled") then "locked" else "open" end }
 { let target = if wide then panel else sidebar end, width = target.rect?.width }
 ```
 
-The first answers an element, which no result holds, so it stands within a larger query, as the conditional of the last does.
+The first answers an element, which no result holds, so it stands within a larger expression, as the conditional of the last does.
 
 <a id="conditionals-conditions-and-selection"></a>
 
@@ -1431,7 +1431,7 @@ panel.parent as "element"
 (try panel.parent as "element")?.rect?.width
 ```
 
-The first and the third answer an element, which no result holds, so each stands within a larger query, as the casts of the others do.
+The first and the third answer an element, which no result holds, so each stands within a larger expression, as the casts of the others do.
 
 <a id="casts-target-type"></a>
 
@@ -1445,7 +1445,7 @@ A type that is no node is a validation error naming those a cast takes.
 
 #### Strict
 
-A cast states the kind the query expects, and a node of another kind fails the evaluation with an evaluation error naming what it is, as `The cast to element rejected its value: it is a document`, so a document where an element is expected is an error, never a silent null.
+A cast states the kind the expression expects, and a node of another kind fails the evaluation with an evaluation error naming what it is, as `The cast to element rejected its value: it is a document`, so a document where an element is expected is an error, never a silent null.
 
 A cast that probes which kind a node is is attempted, `(try item.parent as "element") == panel`.
 
@@ -1510,7 +1510,7 @@ A list itself is no type a conversion converts between, and neither is a type th
 
 #### One declared conversion
 
-A value converts to another type only through the one conversion the vocabulary declares from its type to that type. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to "number"` is still a validation error, whose message names the types a Boolean converts to. A query that means both conversions writes both.
+A value converts to another type only through the one conversion the vocabulary declares from its type to that type. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to "number"` is still a validation error, whose message names the types a Boolean converts to. An expression that means both conversions writes both.
 
 <a id="conversions-a-value-already-of-the-type"></a>
 
@@ -1555,7 +1555,7 @@ panel { count = try context:["data-count"] to "number" ?? 0 }
 
 A missing attribute is null, which converts to null, and malformed text is rejected, so both give zero, and text that converts gives its number; a parent that is a document or a shadow root is rejected, so the width is null for it, as it is for a missing parent.
 
-A [conditional binding](#conditionals) gives the converted value a name where the query uses it more than once, `if let count = try context:["data-count"] to "number" then … else … end`.
+A [conditional binding](#conditionals) gives the converted value a name where the expression uses it more than once, `if let count = try context:["data-count"] to "number" then … else … end`.
 
 <a id="attempts-one-operation"></a>
 
@@ -1690,7 +1690,7 @@ In this section: [Bodies](#bodies) · [Locals](#locals) · [Functions](#function
 
 A **body** produces one value. It is either a single expression, or an ordered sequence of locals followed by `return` and the result expression.
 
-A query is a body. So is a `do … end` block, a conditional branch, and a local function's body.
+The expression a source writes is a body. So is a `do … end` block, a conditional branch, and a local function's body.
 
 ```lexica
 let width = panel.rect?.width ?? 0
@@ -1734,7 +1734,7 @@ Nothing follows the result. A later local, a second `return`, or a `return` with
 
 `return` completes the body it ends, never an enclosing body.
 
-In `let x = if wide then let n = 3 return n * 2 else return 0 end`, the truthy branch returns 6 to the initializer. A query result of `return x + 1` then gives 7.
+In `let x = if wide then let n = 3 return n * 2 else return 0 end`, the truthy branch returns 6 to the initializer. The expression `return x + 1` then gives 7.
 
 A `do` block's `return` similarly gives the block's value, and evaluation continues outside the block.
 
@@ -1754,7 +1754,7 @@ A nested conditional chooses its own style. An `else` whose expression is a cond
 
 #### Positions and scope
 
-`return` stands at the end of a query body, a `do` body, a function body or a conditional branch. It cannot appear among object fields.
+`return` stands at the end of the root expression's body, a `do` body, a function body or a conditional branch. It cannot appear among object fields.
 
 A body's local is visible after its initializer, through later locals, the result and everything nested in them. It cannot read itself or a later local. `let a = b let b = 1 return a` is a structure error rather than a read of the caller's `b`.
 
@@ -1790,7 +1790,7 @@ For example, `let state = do let chosen = "disabled" return chosen end` may supp
 
 #### Definition and canonical text
 
-A body with explicit `return` is a `body` node containing ordered `locals` and a `result`. A body containing just an expression is that expression's own node, except a `do` block's: a `do` block is always a `do` node holding its body, so `do 7 end` is a `do` node whose body is the literal's node. A `body` node stands only as a query's, a `do` block's, a function's or a conditional branch's body.
+A body with explicit `return` is a `body` node containing ordered `locals` and a `result`. A body containing just an expression is that expression's own node, except a `do` block's: a `do` block is always a `do` node holding its body, so `do 7 end` is a `do` node whose body is the literal's node. A `body` node stands only as the root expression's, a `do` block's, a function's or a conditional branch's body.
 
 Within one conditional, branches are all `body` nodes or none are; a branch that is a `do` block is an implicit branch, whose result is its `do` node. The alternative may itself be a conditional: after branches that use `return`, one whose branches use `return` too, as an `elseif` gives; after expression branches, one of either style.
 
@@ -1905,7 +1905,7 @@ Written inside an object expression, `root` refers to the outermost object being
 
 - **Aliases and functions.** An alias, as `let r = root`, retains the set of fields available where it was declared, even when used later. A function that uses `root` itself captures the fields available where the function is declared, while a function parameter given `root` receives those available where the call passes it.
 - **No extra work.** `root.bar` reuses the value already computed for `bar`, and nothing is evaluated again; a watch treats it as that field.
-- **Not part of a result.** A reference to the object root may be held in a local, passed to a function and returned from one, but cannot itself be included in the query's result data: `{ copy = root }` is a validation error. Read a field instead, as `root.bar`.
+- **Not part of a result.** A reference to the object root may be held in a local, passed to a function and returned from one, but cannot itself be included in the expression's result data: `{ copy = root }` is a validation error. Read a field instead, as `root.bar`.
 
 <a id="locals-object-root-references"></a>
 
@@ -1935,13 +1935,13 @@ A [body's](#bodies) locals differ: they run in order, even when unused. All loca
 
 #### Output
 
-A local is not a field and is never included in the result. It may hold values that a query result cannot contain, such as an element or a list of elements.
+A local is not a field and is never included in the result. It may hold values that a result cannot contain, such as an element or a list of elements.
 
 <a id="functions"></a>
 
 ### Functions
 
-A **function** names a calculation a query repeats. It is declared in one of two forms, held by a local, called by that local's name with its **arguments**, and passed, held and returned as a value within the query.
+A **function** names a calculation an expression repeats. It is declared in one of two forms, held by a local, called by that local's name with its **arguments**, and passed, held and returned as a value within the expression.
 
 ```lexica
 let measure = function(box, padding)
@@ -2005,7 +2005,7 @@ return apply(test, panel)
 
 A conditional or a coalescing operator may choose between functions, as `let pick = if wide then measure else count end` does: a call of `pick` is checked against each function it may be, and their results merge by the rules [branches](#conditionals) follow, a call whose functions give no one type a validation error. A value that may be null is never called; bind a function to call in its place first, as `let call = pick ?? count` does.
 
-A function value is used within the query, and the query's result holds data alone: a field or a result that would hold a function is a validation error, and a function is never compared, interpolated, converted or given to a member's value parameter.
+A function value is used within the expression, and the expression's result holds data alone: a field or a result that would hold a function is a validation error, and a function is never compared, interpolated, converted or given to a member's value parameter.
 
 <a id="functions-what-it-sees"></a>
 
@@ -2045,16 +2045,16 @@ A request is one of four kinds, and the last member of its chain, before any obj
 
 | Kind | Its chain ends in | Its caller |
 | --- | --- | --- |
-| Query | A value | Evaluates it once or watches it |
+| Value | A value | Evaluates it once or watches it |
 | Subscription | An event source | Subscribes to it |
 | Action | An action | Executes it once, receiving its result |
 | Behavior request | A behavior | Applies it, updates it with new bindings, and disposes it |
 
 An action is a member its module carries out once when the caller executes the request, and a behavior one its module starts when the caller applies the request and runs until it is updated or disposed; each is a member kind of its own, which an extension declares, with signatures as every member has. An object expression can follow an action to shape its result.
 
-An action or a behavior ends its request's chain, so one inside a query, an argument or another request's object expression is a validation error.
+An action or a behavior ends its request's chain, so one inside a value request, an argument or another request's object expression is a validation error.
 
-Evaluating or watching a query never performs an action or configures a behavior: a query only reads, and an action or a behavior request acts only when its caller executes or applies it. A behavior belongs to the caller that applied it.
+Evaluating or watching a value request never performs an action or configures a behavior: a value request only reads, and an action or a behavior request acts only when its caller executes or applies it. A behavior belongs to the caller that applied it.
 
 ```lexica
 // An action of a scroll extension: step the viewport forward, answering whether it moved.
@@ -2094,7 +2094,7 @@ In this section: [What a member declares](#what-a-member-declares) · [Extension
 
 ### What a member declares
 
-A member declares its kind, its signature and its runtime contract. Its kind is `property`, `operation`, `eventSource`, `action` or `behavior`, and the kind of the request a chain ending in it makes follows from it: a property or an operation makes a query, an event source a subscription, an action an action and a behavior a behavior request. The signature supplies enough information to validate a request before evaluation.
+A member declares its kind, its signature and its runtime contract. Its kind is `property`, `operation`, `eventSource`, `action` or `behavior`, and the kind of the request a chain ending in it makes follows from it: a property or an operation makes a value request, an event source a subscription, an action an action and a behavior a behavior request. The signature supplies enough information to validate a request before evaluation.
 
 <a id="what-a-member-declares-signature"></a>
 
@@ -2166,15 +2166,15 @@ An extension is a module, made by `createModule` from its name, its declarations
 
 The built-in vocabulary declares the native event types its callers need, and an extension can declare more. A subscription observes an event as it reaches its target and leaves its course to the page.
 
-An extension can define types of its own, properties, operations written as calls or as named indexers, conditions, event sources, event types, observation types, actions and behaviors, and conversions to and from its own types, one for each source type and target, and follows the built-in vocabulary's contract throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating a query stays read-only and synchronous.
+An extension can define types of its own, properties, operations written as calls or as named indexers, conditions, event sources, event types, observation types, actions and behaviors, and conversions to and from its own types, one for each source type and target, and follows the built-in vocabulary's contract throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating an expression stays read-only and synchronous.
 
 <a id="definition"></a>
 
 ## Definition
 
-A query's **definition** is a JSON document recording its meaning: every query, parsed from text or created directly, is one definition, and preparation, validation and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
+An expression's **definition** is a JSON document recording its meaning, its **expression tree** with the version of its format: every expression, read from its source or created directly, is one definition, and validation, resolution and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
 
-A document holds the definition's `version` and the `query` node. The version changes whenever the definition's shape or meaning does, and a definition of a version other than the one an implementation reads is a structure error. Each node is an object whose `kind` says what it is:
+A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version changes whenever the definition's shape or meaning does, and a definition of a version other than the one an implementation reads is a structure error. Each node is an object whose `kind` says what it is:
 
 | Kind | Properties | Records |
 | --- | --- | --- |
@@ -2188,7 +2188,7 @@ A document holds the definition's `version` and the `query` node. The version ch
 | `indexer` | `name`, left out for the default indexer; `argument`, its key; `target`, the receiver; and `optional`, true, where it is written with `?:` | A named indexer, or the receiver's default indexer |
 | `object` | `fields`; `locals`, where it has any; and `target`, the node the object expression follows | An object expression; without a target, one keeping the evaluation context around it, which at the top level is absent |
 | `equality` | `left` and `right`, the two expressions it compares | An equality; `!=` is a `not` holding one |
-| `body` | `locals`, each its `name` and its `value`, in order, and `result`, the value the body gives | A body: a query's, a `do` block's, a function's or a conditional branch's, and nowhere else |
+| `body` | `locals`, each its `name` and its `value`, in order, and `result`, the value the body gives | A body: the root expression's, a `do` block's, a function's or a conditional branch's, and nowhere else |
 | `do` | `body`, an expression alone or a `body` node | A do block |
 | `function` | `parameters`, the names it declares, and `body`, the body a call evaluates | A function, a local's initializer alone |
 | `functionCall` | `name`, the local function's name, and `arguments`, as many as its parameters | A call of a local function |
@@ -2227,8 +2227,8 @@ A field is an object holding its `name` and its `value` node, both required; an 
 
 ```json
 {
-  "version": 30,
-  "query": {
+  "version": 31,
+  "expression": {
     "kind": "object",
     "target": { "kind": "parameter", "name": "panel" },
     "fields": [
@@ -2249,7 +2249,7 @@ A field is an object holding its `name` and its `value` node, both required; an 
 
 A chain is recorded as a succession of targets: in `panel.all("li").count`, `count` is a property access whose target is the call `all`, whose target is the parameter `panel`. A chain that holds an optional access is the target of an `optionalChain` node, which records where its short-circuit ends, so `panel.parent?.children.count`, one optional chain, and `(panel.parent?.children).count`, a property access of one, are distinct definitions.
 
-A definition names its parameters and never holds their values. An element is bound to its name when the query is created, through whatever mechanism the caller's environment offers, so the same definition serves every binding.
+A definition names its parameters and never holds their values. An element is bound to its name by the host, through whatever mechanism its environment offers, so the same definition serves every binding.
 
 <a id="validation"></a>
 
@@ -2274,7 +2274,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Equality | Both operands are present. |
 | Comparisons | At least two operands; exactly one operator between each pair; every operator is one of `<`, `<=`, `>`, `>=` and points in the same direction. |
 | Interpolated strings | Every part is text containing a string, or an expression part. |
-| Bodies | Locals and one result are present; local names are unique and are not used before declaration; a body stands only as a query's, a do block's, a function's or a conditional branch's. |
+| Bodies | Locals and one result are present; local names are unique and are not used before declaration; a body stands only as the root expression's, a do block's, a function's or a conditional branch's. |
 | Chain receivers | A conditional or body cannot be a chain receiver. |
 | Functions | Each is a local initializer, or an arrow function that is also an argument, with unique parameter names; an arrow function's body is a simple expression; a function cannot be called before its local is declared. |
 | Optional access | Each optional access is within an optional chain, following the targets of property accesses, calls, indexers and object expressions; each optional chain contains an optional access. |
@@ -2287,7 +2287,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 
 A cast's target is checked whole: a receiver, which is the evaluation context, a parameter, a root, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
 
-A binding may be named `document` or `window`, as any name can, and a query reads it as `~document` or `~window`.
+A binding may be named `document` or `window`, as any name can, and an expression reads it as `~document` or `~window`.
 
 <a id="validation-vocabulary-and-types"></a>
 
@@ -2315,8 +2315,8 @@ Preparation checks the following contracts:
 | Conditionals | Branch result types are compatible. |
 | Evaluation context | Each expression is valid in the context declared by its member. |
 | Request kind | The caller uses the request as its declared kind. |
-| Output | A query result contains data alone. |
-| Watching | Every member the query may read has an observation contract the watch accepts. |
+| Output | A result contains data alone. |
+| Watching | Every member the expression may read has an observation contract the watch accepts. |
 
 All branches and operands are validated even when evaluation will not reach them. Watching rules are checked before evaluation as well; an unreachable branch does not exempt an unwatchable member from validation.
 
@@ -2379,7 +2379,7 @@ In this section: [Absence and unavailable values](#absence-and-unavailable-value
 | A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a bracket property access or an interpolation | A structure error naming the part, which a local holds first |
 | A reserved reference, or a definition's local, that no local or field in scope answers | A structure error: `No local or field named 'window' is in scope. Use '~window' to read the caller's binding.` |
 | A function calling itself or one declared after it, or two parameters of one name | A structure error |
-| A body anywhere but a query's, a do block's, a function's or a conditional branch's | A structure error: `A body is a query's, a do block's, a function's or a conditional branch's, and stands nowhere else` |
+| A body anywhere but the root expression's, a do block's, a function's or a conditional branch's | A structure error: `A body is the root expression's, a do block's, a function's or a conditional branch's, and stands nowhere else` |
 | A cast in a definition whose target is none text could write | A structure error at the target |
 | A `root` written outside every object expression | A structure error: `'root' refers to the outermost object being built, and no object expression encloses it here` |
 | A numeric literal no finite number holds, as `1e999`, in text or in a definition | A structure error: `A literal is a string, a finite number, a Boolean or null` |
@@ -2394,7 +2394,7 @@ A module whose declarations break the declaration contract, or whose names regis
 | Situation | Result |
 | --- | --- |
 | A misspelled member or extension, or a parameter the caller did not bind | A validation error, with its location |
-| A fixed argument preparation cannot settle | A validation error: `The argument 'name' of 'is' selects from the vocabulary, so it is a string the query's preparation settles without reading the document, …` |
+| A fixed argument preparation cannot settle | A validation error: `The argument 'name' of 'is' selects from the vocabulary, so it is a string the expression's resolution settles without reading the document, …` |
 | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
 | A name no local or field in scope has | A validation error, giving the form with `context` where the evaluation context has a member of that name |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
@@ -2415,8 +2415,8 @@ A module whose declarations break the declaration contract, or whose names regis
 | A field read through `root` whose initializer has not completed where `root` is written | A validation error naming the fields completed there |
 | A read, by its name or through `root`, of an option its member declares as an expression or a predicate | A validation error: `Option 'by' is an expression evaluated by the member against its supplied context; it has no single value to read here` |
 | A field or a result that would hold `root` | A validation error: `The field 'copy' would hold root, the object being built, which no result holds; read its fields, as root.name` |
-| A request used as another kind: reading or watching an event source, subscribing to a value, running a query, or reading an action or a behavior | A validation error |
-| An action or a behavior inside a query, an argument or another request's object expression | A validation error |
+| A request used as another kind: reading or watching an event source, subscribing to a value, executing a value request, or reading an action or a behavior | A validation error |
+| An action or a behavior inside a value request, an argument or another request's object expression | A validation error |
 | Watching a partly observable member without accepting partial observation | A validation error naming each such member by the type its declaration is for, as `shadow.root` and `node.root` are, and the changes it misses |
 
 <a id="evaluation-errors"></a>
@@ -2430,7 +2430,7 @@ A module whose declarations break the declaration contract, or whose names regis
 | A module returning a value of a type other than the one it declared | An evaluation error |
 | A member failing unexpectedly while it evaluates | An evaluation error |
 
-A query is validated before any evaluation, as the section on validation sets out. An evaluation error fails the whole result, and the caller receives the error in its place.
+An expression is validated before any evaluation, as the section on validation sets out. An evaluation error fails the whole result, and the caller receives the error in its place.
 
 <a id="syntax"></a>
 
@@ -2441,7 +2441,7 @@ This appendix gives the formal grammar. The explanations in [Names and scope](#n
 In this notation, `[...]` means optional, `{...}` means repetition, `|` separates alternatives, `-` means exclusion, and `? ... ?` describes a special sequence. Each name describes a written form or the category a position holds. Trivia never stands inside a token: `@word`, `~name`, `(?` and `$"` are each written whole, with nothing between their characters.
 
 ```ebnf
-query                         = body end-of-input
+source                        = body end-of-input
 
 body                          = { local } "return" expression
                               | expression
@@ -2523,10 +2523,10 @@ optional-enclosed-access      = "(?" member-chain ")"
 receiver                      = input | "(" cast ")"
 
 input                         = value | object | identifier | interpolated-string
-                              | reserved-reference | query-parameter
+                              | reserved-reference | caller-binding
                               | function-call
 reserved-reference            = "@" reserved-word
-query-parameter               = "~" name
+caller-binding                = "~" name
 function-call                 = ( identifier | reserved-reference )
                                 "(" [ argument-list ] ")"
 argument-list                 = argument { "," argument }
@@ -2642,34 +2642,36 @@ In the prose, **value** means any value an expression has; type resolution deter
 
 ## Terms
 
-In this section: [Queries and values](#queries-and-values) · [Chains and members](#chains-and-members) · [Expressions](#expressions-1) · [Vocabulary and requests](#vocabulary-and-requests).
+In this section: [Expressions and results](#expressions-and-results) · [Chains and members](#chains-and-members) · [Expressions](#expressions-1) · [Vocabulary and requests](#vocabulary-and-requests).
 
-<a id="queries-and-values"></a>
+<a id="expressions-and-results"></a>
 
-### Queries and values
+### Expressions and results
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Query | A value expression or body whose evaluation produces a result | [Requests](#requests) |
-| Result | The data produced by a query | [Values and types](#values-and-types) |
+| Source | The text an expression is written in, which is read into its definition | [Syntax](#syntax) |
+| Expression | What a source writes, a value expression or a body, whose evaluation produces a result | [Requests](#requests) |
+| Expression tree | The nodes of an expression, each with its `kind`, which the definition records with the version of its format | [Definition](#definition) |
+| Result | The data produced by an expression | [Values and types](#values-and-types) |
 | Type | The category of a value and the members it supports | [Types](#types) |
 | Node | A DOM value of kind element, document, document fragment or shadow root | [Nodes](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#nodes) |
 | Object expression | An expression that names the fields of its output object | [Objects](#objects) |
 | Object type | A description of an object's fields and their types | [Types](#types) |
 | Field | A named value included in an object | [Objects](#objects) |
-| Body | What a query, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](#bodies) |
+| Body | What the root expression, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](#bodies) |
 | Do block | `do … end`, a body evaluated where it stands, giving its result | [Bodies](#bodies) |
 | Local | A name declared with `let` in a body or an object expression, visible after its declaration through its scope, holding a value or a function | [Locals](#locals) |
 | Function | A calculation a call evaluates, a regular function or an arrow function, held by a local and passed as a value | [Functions](#functions) |
 | Regular function | `function(…) … end`, whose body is a body | [Functions](#functions-declaring-one) |
 | Arrow function | `parameters => expression`, whose body is one simple expression, a local's initializer or an argument | [Functions](#functions-declaring-one) |
-| Function value | A function read by its name without a call, or an arrow function written as an argument, used within the query and never part of its result | [Functions as values](#functions-as-values) |
+| Function value | A function read by its name without a call, or an arrow function written as an argument, used within the expression and never part of its result | [Functions as values](#functions-as-values) |
 | Callback contract | The argument types and the result type a member declares for a function parameter, which a function given to it is checked against | [Arguments](#arguments) |
 | Function parameter | A name a function declares, holding the argument each call gives it | [Functions](#functions) |
-| Parameter | A name through which a query reads a caller-supplied value | [Bindings](#bindings) |
+| Parameter | A name through which an expression reads a caller-supplied value | [Bindings](#bindings) |
 | Parameter binding, or binding | The value a caller supplies for a parameter | [Bindings](#bindings) |
-| Query parameter | `~name`, reading the caller's binding of the name whatever local or field shares it | [Names and reserved words](#names-and-reserved-words-referring-to-the-callers-binding) |
-| Root | `document`, `window` or `root`: the document the query runs against, its window and the object root | [Names and resolution](#names-and-resolution-parameters-and-roots) |
+| Caller binding | `~name`, reading the caller's binding of the name whatever local or field shares it | [Names and reserved words](#names-and-reserved-words-referring-to-the-callers-binding) |
+| Root | `document`, `window` or `root`: the document the expression runs against, its window and the object root | [Names and resolution](#names-and-resolution-parameters-and-roots) |
 | Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading the fields whose initializers have completed | [The object root](#locals-the-object-root) |
 | Tree root | The root of a node's tree, read as `node.root` | [Node: root](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#property-node-root) |
 | Reserved word | A word that keeps its meaning where an expression stands: a literal's word, a keyword or a root's name | [Names and reserved words](#names-and-reserved-words) |
@@ -2683,7 +2685,7 @@ In this section: [Queries and values](#queries-and-values) · [Chains and member
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Chain input | What a chain starts from: the evaluation context, a literal, a root, a name, a reserved reference, a query parameter, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](#syntax) |
+| Chain input | What a chain starts from: the evaluation context, a literal, a root, a name, a reserved reference, a caller binding, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](#syntax) |
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](#expression-structure-and-precedence) |
 | Receiver | The value before a member access, call or indexer | [Access and calls](#access-and-calls) |
 | Member | A property, operation or other declared facility of a type | [Vocabulary contracts](#vocabulary-contracts) |
@@ -2695,7 +2697,7 @@ In this section: [Queries and values](#queries-and-values) · [Chains and member
 | Positional and options inputs | What a member's arguments supply: its parameters in order, or one options object whose fields name them | [Arguments](#arguments) |
 | Options object | The one object expression given to a member that takes options, whose fields supply its parameters | [Arguments](#arguments-options) |
 | Value, expression and predicate arguments | An argument evaluated once where the call is written; one the member evaluates against each context its signature declares; and one of those whose truthiness the member receives | [Arguments](#arguments) |
-| Fixed argument | A value argument the query's preparation settles to a string that selects a declaration, as those of `is` and `on` do | [Arguments](#arguments) |
+| Fixed argument | A value argument the expression's resolution settles to a string that selects a declaration, as those of `is` and `on` do | [Arguments](#arguments) |
 | Optional chain | A chain whose optional access stops it with null for a null receiver | [Property access, calls and indexers](#property-access-calls-and-indexers) |
 | Optional enclosed access | `(? … )`, shorthand making every access in a member chain optional | [Property access, calls and indexers](#property-access-calls-and-indexers) |
 
@@ -2738,12 +2740,12 @@ In this section: [Queries and values](#queries-and-values) · [Chains and member
 | Condition | A Boolean question of a receiver under a name of its own, asked with its verb | [Conditions](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#conditions) |
 | Verb | `is`, `has` or `supports`, the call that asks a condition by its name | [Conditions](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#conditions) |
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [How a member changes](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#how-a-member-changes) |
-| Watch | A query kept current, evaluated again when an observation reports a change | [Evaluation and watching](#evaluation-and-watching) |
+| Watch | A value request kept current, evaluated again when an observation reports a change | [Evaluation and watching](#evaluation-and-watching) |
 | Event source | A member producing a stream of events | [Events](#events) |
 | Event | Something that happened, delivered by a source | [Events](#events) |
 | Event type | A declaration of the data an event offers | [Event sources](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#event-sources) |
 | Event data | What an event source captured of an event | [Event sources](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-specification.md#event-sources) |
 | Action | A member kind of its own, which its module carries out once when the caller executes the request | [Requests](#requests) |
 | Behavior | A member kind of its own, which its module starts when the caller applies the request and which runs until updated or disposed | [Requests](#requests) |
-| Request | A query, subscription, action or behavior request | [Requests](#requests) |
+| Request | A value, subscription, action or behavior request | [Requests](#requests) |
 | Definition | The JSON document recording a request's meaning | [Definition](#definition) |

@@ -46,19 +46,19 @@ export class LanguageResolver {
 
     /** Resolves and types the definition, answering what it resolved to or throwing where it cannot. */
     resolveDefinition(definition) {
-        const result = this.#resolveNode(definition.query, '/query', { contextType: null, contextKey: {}, locals: new Map(), facts: NO_FACTS, objectRoot: null });
+        const result = this.#resolveNode(definition.expression, '/expression', { contextType: null, contextKey: {}, locals: new Map(), facts: NO_FACTS, objectRoot: null });
 
         const resultType = result.kind === 'subscription' && result.type.kind === 'event' ? result.type.itemType : result.type;
 
         if (LanguageResolver.#heldReferenceOf(resultType) === 'function') {
-            this.#fail('The result would hold a function, which is used within the query and never part of its result: call it, as name(…)', '/query');
+            this.#fail('The result would hold a function, which is used within the expression and never part of its result: call it, as name(…)', '/expression');
         }
 
         if (result.kind !== 'behavior' && !this.#isData(resultType)) {
-            this.#fail(`The result would hold ${resultType}, which is no data; read the facts it needs through an object expression`, '/query');
+            this.#fail(`The result would hold ${resultType}, which is no data; read the facts it needs through an object expression`, '/expression');
         }
 
-        if (this.#options.watch === true && result.kind === 'query') {
+        if (this.#options.watch === true && result.kind === 'value') {
             this.#checkWatch();
         }
 
@@ -72,13 +72,13 @@ export class LanguageResolver {
             case 'parameter':
                 return this.#resolveParameter(node, pointer, scope);
             case 'root':
-                return node.name === 'root' ? this.#resolveObjectRoot(pointer, scope) : { type: Type.createNamedType(node.name), kind: 'query', isFixed: false };
+                return node.name === 'root' ? this.#resolveObjectRoot(pointer, scope) : { type: Type.createNamedType(node.name), kind: 'value', isFixed: false };
             case 'context':
                 if (scope.contextType === null) {
                     this.#fail("'context' is the evaluation context, and there is none here", pointer);
                 }
 
-                return { type: scope.facts.get(scope.contextKey) ?? scope.contextType, kind: 'query', isFixed: false };
+                return { type: scope.facts.get(scope.contextKey) ?? scope.contextType, kind: 'value', isFixed: false };
             case 'local':
                 return this.#resolveLocal(node, pointer, scope);
             case 'member':
@@ -99,11 +99,11 @@ export class LanguageResolver {
                     this.#requireNumber(this.#resolveNode(node[side], `${pointer}/${side}`, scope), `The ${side} operand of '${node.operator}'`, `${pointer}/${side}`);
                 }
 
-                return { type: Type.createNamedType('number'), kind: 'query', isFixed: false };
+                return { type: Type.createNamedType('number'), kind: 'value', isFixed: false };
             case 'negate':
                 this.#requireNumber(this.#resolveNode(node.operand, `${pointer}/operand`, scope), "What '-' negates", `${pointer}/operand`);
 
-                return { type: Type.createNamedType('number'), kind: 'query', isFixed: false };
+                return { type: Type.createNamedType('number'), kind: 'value', isFixed: false };
             case 'interpolatedString':
                 node.parts.forEach((part, index) => {
                     if (part.kind === 'expression') {
@@ -111,7 +111,7 @@ export class LanguageResolver {
                     }
                 });
 
-                return { type: Type.createNamedType('string'), kind: 'query', isFixed: false };
+                return { type: Type.createNamedType('string'), kind: 'value', isFixed: false };
             case 'comparison':
                 // Each operand is named by the operator it stands after, the first by the one after it.
                 node.operands.forEach((operand, index) => {
@@ -120,7 +120,7 @@ export class LanguageResolver {
                     this.#requireNumber(this.#resolveNode(operand, `${pointer}/operands/${index}`, scope), what, `${pointer}/operands/${index}`, 'a comparison');
                 });
 
-                return { type: Type.createNamedType('boolean'), kind: 'query', isFixed: false };
+                return { type: Type.createNamedType('boolean'), kind: 'value', isFixed: false };
             case 'conditional':
                 return this.#resolveConditional(node, pointer, scope);
             case 'body':
@@ -131,7 +131,7 @@ export class LanguageResolver {
                 return this.#resolveFunctionCall(node, pointer, scope);
             case 'function':
                 // An arrow function written as an argument is a function value of its own, which captures the scope it is written in.
-                return { type: Type.createFunctionType([LanguageResolver.#functionLocalOf(node, pointer, scope)]), kind: 'query', isFixed: false };
+                return { type: Type.createFunctionType([LanguageResolver.#functionLocalOf(node, pointer, scope)]), kind: 'value', isFixed: false };
             case 'optionalChain':
                 return this.#resolveOptionalChain(node, pointer, scope);
             case 'coalescing':
@@ -163,7 +163,7 @@ export class LanguageResolver {
         const results = ['value', 'fallback'].map(side => {
             const result = this.#resolveNode(node[side], `${pointer}/${side}`, scope);
 
-            if (result.kind !== 'query') {
+            if (result.kind !== 'value') {
                 this.#fail(`The ${side} of '??' is a value, and this one is ${LanguageResolver.#descriptionOf(result.kind)}`, `${pointer}/${side}`);
             }
 
@@ -210,7 +210,7 @@ export class LanguageResolver {
         const operator = isNegated ? '!=' : '==';
 
         for (const [side, result] of [['left', left], ['right', right]]) {
-            if (result.kind !== 'query') {
+            if (result.kind !== 'value') {
                 this.#fail(`'${operator}' compares values, and this is ${LanguageResolver.#descriptionOf(result.kind)}`, `${pointer}/${side}`);
             }
         }
@@ -230,7 +230,7 @@ export class LanguageResolver {
             }
         }
 
-        return { type: Type.createNamedType('boolean'), kind: 'query', isFixed: false };
+        return { type: Type.createNamedType('boolean'), kind: 'value', isFixed: false };
     }
 
     /**
@@ -277,7 +277,7 @@ export class LanguageResolver {
             // The consequent is taken where the value is truthy, so it sees the value without null, fixed where the value is fixed; a value that is always falsey is never bound, and is a never there.
             const isFalsey = tested.isFixed && !LanguageResolver.#isTruthy(tested.value);
             const type = isFalsey ? Type.never : LanguageResolver.#truthyPartOf(tested.type);
-            const result = tested.isFixed && !isFalsey ? { type, kind: 'query', isFixed: true, value: tested.value } : { type, kind: 'query', isFixed: false };
+            const result = tested.isFixed && !isFalsey ? { type, kind: 'value', isFixed: true, value: tested.value } : { type, kind: 'value', isFixed: false };
 
             consequentScope = LanguageResolver.#consequentScopeOf(node, truthyScope, result);
         }
@@ -285,7 +285,7 @@ export class LanguageResolver {
         const results = ['consequent', 'alternative'].map(branch => {
             const result = this.#resolveNode(node[branch], `${pointer}/${branch}`, branch === 'consequent' ? consequentScope : falseyScope);
 
-            if (result.kind !== 'query') {
+            if (result.kind !== 'value') {
                 this.#fail(`A branch of 'if' is a value, and this one is ${LanguageResolver.#descriptionOf(result.kind)}`, `${pointer}/${branch}`);
             }
 
@@ -298,13 +298,13 @@ export class LanguageResolver {
             this.#fail(`The branches of 'if' are of one type, and these are ${branches[0]} and ${branches[1]}`, `${pointer}/alternative`);
         }
 
-        // A fixed condition, or a fixed value bound, selects its branch when the query is prepared, and the conditional is fixed where that branch is.
+        // A fixed condition, or a fixed value bound, selects its branch when the expression is resolved, and the conditional is fixed where that branch is.
         return LanguageResolver.#fixedAs(type, tested.isFixed ? results[LanguageResolver.#isTruthy(tested.value) ? 0 : 1] : null);
     }
 
     /** A result of the type, fixed to the value of the result that decides it where that one is fixed: a value preparation settles without reading the document. */
     static #fixedAs(type, deciding) {
-        return deciding?.isFixed ? { type, kind: 'query', isFixed: true, value: deciding.value } : { type, kind: 'query', isFixed: false };
+        return deciding?.isFixed ? { type, kind: 'value', isFixed: true, value: deciding.value } : { type, kind: 'value', isFixed: false };
     }
 
     /**
@@ -349,7 +349,7 @@ export class LanguageResolver {
             this.#fail(`What '${node.kind}' gives is ${described.join(' or ')}, which no one type holds; ${rewrite}`, pointer);
         }
 
-        return { type, kind: 'query', isFixed: false };
+        return { type, kind: 'value', isFixed: false };
     }
 
     /** Whether a value is truthy: every value is but null and false. */
@@ -501,7 +501,7 @@ export class LanguageResolver {
         const target = this.#resolveNode(node.target, `${pointer}/target`, scope);
         const type = Type.createNamedType(node.type);
 
-        if (target.kind !== 'query') {
+        if (target.kind !== 'value') {
             this.#fail(`A cast's target is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/target`);
         }
 
@@ -516,14 +516,14 @@ export class LanguageResolver {
             this.#fail(`A value of ${from.toNonNullable()} can never be cast to ${node.type}: the cast would always reject it`, pointer);
         }
 
-        return { type: from.kind === 'null' || from.isNullable ? type.toNullable() : type, kind: 'query', isFixed: false };
+        return { type: from.kind === 'null' || from.isNullable ? type.toNullable() : type, kind: 'value', isFixed: false };
     }
 
     /** Resolves an attempt: the conversion or the cast it attempts, as it resolves strictly, its result made nullable, since a rejection answers null. */
     #resolveTry(node, pointer, scope) {
         const result = this.#resolveNode(node.target, `${pointer}/target`, scope);
 
-        return { type: result.type.toNullable(), kind: 'query', isFixed: false };
+        return { type: result.type.toNullable(), kind: 'value', isFixed: false };
     }
 
     /**
@@ -534,7 +534,7 @@ export class LanguageResolver {
     #resolveConversion(node, pointer, scope) {
         const target = this.#resolveNode(node.target, `${pointer}/target`, scope);
 
-        if (target.kind !== 'query') {
+        if (target.kind !== 'value') {
             this.#fail(`What 'to' converts is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/target`);
         }
 
@@ -551,7 +551,7 @@ export class LanguageResolver {
         if (from.kind === 'null' || from.kind === 'never') {
             this.#resolutions.set(pointer, { kind: 'conversion', declaration: null });
 
-            return { type: from.kind === 'null' ? to.toNullable() : to, kind: 'query', isFixed: false };
+            return { type: from.kind === 'null' ? to.toNullable() : to, kind: 'value', isFixed: false };
         }
 
         const source = from.toNonNullable();
@@ -567,7 +567,7 @@ export class LanguageResolver {
 
         this.#resolutions.set(pointer, { kind: 'conversion', declaration: declaration ?? null, type: to });
 
-        return { type: from.isNullable ? to.toNullable() : to, kind: 'query', isFixed: false };
+        return { type: from.isNullable ? to.toNullable() : to, kind: 'value', isFixed: false };
     }
 
     /** The scope a conditional binding's consequent is resolved in: the scope around it, with the binding's name a local holding its value, of the result given. */
@@ -582,7 +582,7 @@ export class LanguageResolver {
 
         this.#requireValue(operand, "What 'not' negates", `${pointer}/operand`);
 
-        return { type: Type.createNamedType('boolean'), kind: 'query', isFixed: false };
+        return { type: Type.createNamedType('boolean'), kind: 'value', isFixed: false };
     }
 
     /**
@@ -632,7 +632,7 @@ export class LanguageResolver {
 
     /** Refuses what is no value where one is tested for its truthiness, an event source, an action or a behavior, and a value whose type no receiver gives, which tells nothing of whether it can be falsey. */
     #requireValue(result, what, pointer) {
-        if (result.kind !== 'query') {
+        if (result.kind !== 'value') {
             this.#fail(`${what} is a value, and this one is ${LanguageResolver.#descriptionOf(result.kind)}`, pointer);
         }
 
@@ -662,7 +662,7 @@ export class LanguageResolver {
 
             const result = this.#resolveNode(local.value, valuePointer, localScope);
 
-            if (result.kind !== 'query') {
+            if (result.kind !== 'value') {
                 this.#fail(`The local '${local.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and a local is a value`, valuePointer);
             }
 
@@ -673,7 +673,7 @@ export class LanguageResolver {
         const result = this.#resolveNode(node.result, `${pointer}/result`, { ...scope, locals });
 
         // A body gives a value, as a field holds one: an event source, an action and a behavior are requests of their own.
-        if (result.kind !== 'query') {
+        if (result.kind !== 'value') {
             this.#fail(`A body gives a value, and its result is ${LanguageResolver.#descriptionOf(result.kind)}`, `${pointer}/result`);
         }
 
@@ -721,7 +721,7 @@ export class LanguageResolver {
             const argumentPointer = `${pointer}/arguments/${index}`;
             const result = this.#resolveNode(argument, argumentPointer, scope);
 
-            if (result.kind !== 'query') {
+            if (result.kind !== 'value') {
                 this.#fail(`An argument of '${node.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and an argument is a value`, argumentPointer);
             }
 
@@ -740,7 +740,7 @@ export class LanguageResolver {
 
         this.#resolutions.set(pointer, { kind: 'functionCall', targets: targets.map(({ function: declared, body, parameters }) => ({ function: declared, body, parameters })), ...binding });
 
-        return { type, kind: 'query', isFixed: false };
+        return { type, kind: 'value', isFixed: false };
     }
 
     /**
@@ -773,7 +773,7 @@ export class LanguageResolver {
             this.#functionsBeingResolved.delete(target.function);
         }
 
-        if (result.kind !== 'query') {
+        if (result.kind !== 'value') {
             this.#fail(`'${name}' gives ${LanguageResolver.#descriptionOf(result.kind)}, and a function gives a value`, instancePointer);
         }
 
@@ -791,7 +791,7 @@ export class LanguageResolver {
         if (local?.function !== undefined) {
             this.#resolutions.set(pointer, { kind: 'local', name: node.name, value: local.value });
 
-            return { type: Type.createFunctionType([local]), kind: 'query', isFixed: false };
+            return { type: Type.createFunctionType([local]), kind: 'value', isFixed: false };
         }
 
         if (local?.option !== undefined) {
@@ -861,7 +861,7 @@ export class LanguageResolver {
         const { value } = node;
         const type = value === null ? Type.null : Type.createNamedType(typeof value);
 
-        return { type, kind: 'query', isFixed: true, value };
+        return { type, kind: 'value', isFixed: true, value };
     }
 
     #resolveParameter(node, pointer, scope) {
@@ -876,7 +876,7 @@ export class LanguageResolver {
             this.#fail(`No local in scope or binding is named '${node.name}'${form === null ? '' : `; write '${form}' for the member of the evaluation context`}`, pointer);
         }
 
-        return { type: scope.facts.get(`@${node.name}`) ?? this.#bindings.getType(node.name), kind: 'query', isFixed: true, value: this.#bindings.get(node.name) };
+        return { type: scope.facts.get(`@${node.name}`) ?? this.#bindings.getType(node.name), kind: 'value', isFixed: true, value: this.#bindings.get(node.name) };
     }
 
     #resolveMember(node, pointer, scope) {
@@ -884,7 +884,7 @@ export class LanguageResolver {
         const isDefaultIndexer = node.kind === 'indexer' && node.name === undefined;
         const written = isDefaultIndexer ? ':[…]' : typeof node.name === 'string' ? node.name : `[${DefinitionWriter.write(node.name)}]`;
 
-        if (receiver.kind !== 'query') {
+        if (receiver.kind !== 'value') {
             this.#fail(`'${written}' follows ${LanguageResolver.#descriptionOf(receiver.kind)}, which takes no members`, pointer);
         }
 
@@ -948,10 +948,10 @@ export class LanguageResolver {
     #resolveBracketPropertyAccess(node, pointer, scope, receiverType) {
         const namePointer = `${pointer}/name`;
         const name = this.#resolveNode(node.name, namePointer, scope);
-        const possible = name.kind === 'query' ? this.#possibleNamesOf(node.name, scope) : null;
+        const possible = name.kind === 'value' ? this.#possibleNamesOf(node.name, scope) : null;
 
         if (possible === null || possible.canBeOther) {
-            this.#fail(`A bracket property access reads a name determined when the query is prepared, which a string literal, null, a bound parameter, a local or a conditional binding holding one, or a conditional, a '??', an 'and' or an 'or' of them gives, and '${DefinitionWriter.write(node.name)}' is none of them`, namePointer);
+            this.#fail(`A bracket property access reads a name determined when the expression is resolved, which a string literal, null, a bound parameter, a local or a conditional binding holding one, or a conditional, a '??', an 'and' or an 'or' of them gives, and '${DefinitionWriter.write(node.name)}' is none of them`, namePointer);
         }
 
         if (possible.canBeFalse) {
@@ -984,13 +984,13 @@ export class LanguageResolver {
 
         this.#resolutions.set(pointer, { kind: 'bracketPropertyAccess', candidates });
 
-        return { type, kind: 'query', isFixed: false };
+        return { type, kind: 'value', isFixed: false };
     }
 
     /**
      * The values a bracket property access's expression can give, determined through these forms alone: a string literal, null, a bound parameter, a local whose value is one of them, a conditional binding's name, truthy, whose value is,
      * and a conditional, a `??`, an `and` and an `or` of them, each by the rules that evaluate it: a conditional gives its branches', a `??` its value's and, where its value can be null, its fallback's, and an `and` or an `or` the part of each operand before its last that decides it, falsey for `and` and truthy for `or`, and its last's.
-     * A condition or an operand whose value is fixed decides when the query is prepared, so what evaluation would not reach gives nothing; the falsey part of an `and`'s operand that names nothing is told from its type.
+     * A condition or an operand whose value is fixed decides when the expression is resolved, so what evaluation would not reach gives nothing; the falsey part of an `and`'s operand that names nothing is told from its type.
      * The names are the strings it can give, and null, false and any other value are tracked beside them, so a `??` can remove null; any other expression gives no values that can be determined, and answers null.
      * @returns {{ names: Set<string>, canBeNull: boolean, canBeFalse: boolean, canBeOther: boolean } | null}
      */
@@ -1119,7 +1119,7 @@ export class LanguageResolver {
 
             this.#resolutions.set(pointer, { kind: 'field', name: node.name, receiverType });
 
-            return { type: receiverType.isNullable ? field.toNullable() : field, kind: 'query', isFixed: false };
+            return { type: receiverType.isNullable ? field.toNullable() : field, kind: 'value', isFixed: false };
         }
 
         const candidates = this.#moduleRegistry.getMembers(node.name);
@@ -1203,7 +1203,7 @@ export class LanguageResolver {
         }
 
         // An access may name a field of data, which is a value.
-        const kinds = new Set([...fitting.map(({ declaration }) => LanguageResolver.#requestKindOf(declaration)), ...(isAccess ? ['query'] : [])]);
+        const kinds = new Set([...fitting.map(({ declaration }) => LanguageResolver.#requestKindOf(declaration)), ...(isAccess ? ['value'] : [])]);
 
         if (kinds.size > 1) {
             this.#fail(`'${node.name}' follows a value whose type is unknown, and its declarations make ${[...kinds].map(kind => LanguageResolver.#descriptionOf(kind)).join(' or ')}, so what it requests is ambiguous`, pointer);
@@ -1378,7 +1378,7 @@ export class LanguageResolver {
                 }
 
                 result = this.#resolveNode(given.node, valuePointer, { contextType: isOfUnknownType ? Type.never : receiverType.itemType.toNonNullable(), contextKey: {}, locals: argumentScope.locals, facts: scope.facts, objectRoot: argumentScope.objectRoot });
-                this.#requireQuery(result, parameter, declaration, valuePointer);
+                this.#requireValueArgument(result, parameter, declaration, valuePointer);
 
                 if (result.type.kind === 'function') {
                     this.#fail(`The parameter '${parameter.name}' of '${declaration.name}' takes a contextual expression, evaluated with each item as its context, as ${declaration.name}(context.…) writes one, and no function`, valuePointer);
@@ -1403,11 +1403,11 @@ export class LanguageResolver {
                 }
             } else if (parameter.kind === 'function') {
                 result = this.#resolveNode(given.node, valuePointer, argumentScope);
-                this.#requireQuery(result, parameter, declaration, valuePointer);
+                this.#requireValueArgument(result, parameter, declaration, valuePointer);
                 callback = this.#resolveCallback(result, parameter, declaration, valuePointer, typeArguments, argumentScope);
             } else {
                 result = this.#resolveNode(given.node, valuePointer, argumentScope);
-                this.#requireQuery(result, parameter, declaration, valuePointer);
+                this.#requireValueArgument(result, parameter, declaration, valuePointer);
 
                 if (!this.#checkValue(result, expected, parameter, declaration, valuePointer)) {
                     isNullable = true;
@@ -1475,8 +1475,8 @@ export class LanguageResolver {
         return true;
     }
 
-    #requireQuery(result, parameter, declaration, pointer) {
-        if (result.kind !== 'query') {
+    #requireValueArgument(result, parameter, declaration, pointer) {
+        if (result.kind !== 'value') {
             this.#fail(`The argument '${parameter.name}' of '${declaration.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and an argument is a value`, pointer);
         }
     }
@@ -1484,7 +1484,7 @@ export class LanguageResolver {
     /** Resolves what a fixed argument selects from the vocabulary, which must be known before anything is evaluated. */
     #select(parameter, result, declaration, receiverType, pointer) {
         if (!result.isFixed || typeof result.value !== 'string') {
-            this.#fail(`The argument '${parameter.name}' of '${declaration.name}' selects from the vocabulary, so it is a string the query's preparation settles without reading the document, a literal, a bound parameter, or a local, a conditional binding, a conditional, a '??', an 'and' or an 'or' that settles to one, never null`, pointer);
+            this.#fail(`The argument '${parameter.name}' of '${declaration.name}' selects from the vocabulary, so it is a string the expression's resolution settles without reading the document, a literal, a bound parameter, or a local, a conditional binding, a conditional, a '??', an 'and' or an 'or' that settles to one, never null`, pointer);
         }
 
         const name = result.value;
@@ -1564,7 +1564,7 @@ export class LanguageResolver {
         }
 
         // An object expression that follows an action shapes its result, and the request stays an action; one that follows an event source keeps it a subscription.
-        const kind = target?.kind === 'action' || target?.kind === 'subscription' ? target.kind : 'query';
+        const kind = target?.kind === 'action' || target?.kind === 'subscription' ? target.kind : 'value';
 
         let contextType = scope.contextType;
         let contextKey = scope.contextKey;
@@ -1601,7 +1601,7 @@ export class LanguageResolver {
 
             const result = this.#resolveNode(local.value, valuePointer, scopeHere());
 
-            if (result.kind !== 'query') {
+            if (result.kind !== 'value') {
                 this.#fail(`The local '${local.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and a local is a value`, valuePointer);
             }
 
@@ -1615,7 +1615,7 @@ export class LanguageResolver {
             const { name } = field;
             const result = this.#resolveNode(field.value, `${fieldPointer}/value`, scopeHere());
 
-            if (result.kind !== 'query') {
+            if (result.kind !== 'value') {
                 this.#fail(`The field '${name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and a field is a value`, `${fieldPointer}/value`);
             }
 
@@ -1626,7 +1626,7 @@ export class LanguageResolver {
             }
 
             if (heldReference === 'function') {
-                this.#fail(`The field '${name}' would hold a function, which is used within the query and never part of its result: call it, as name(…)`, `${fieldPointer}/value`);
+                this.#fail(`The field '${name}' would hold a function, which is used within the expression and never part of its result: call it, as name(…)`, `${fieldPointer}/value`);
             }
 
             if (!this.#isData(result.type)) {
@@ -1682,7 +1682,7 @@ export class LanguageResolver {
             this.#fail("'root' refers to the outermost object being built, and no object expression encloses it here", pointer);
         }
 
-        return { type: Type.createRootType(scope.objectRoot.objectExpression, scope.objectRoot.fieldTypes), kind: 'query', isFixed: false };
+        return { type: Type.createRootType(scope.objectRoot.objectExpression, scope.objectRoot.fieldTypes), kind: 'value', isFixed: false };
     }
 
     /**
@@ -1710,7 +1710,7 @@ export class LanguageResolver {
 
         this.#resolutions.set(pointer, { kind: 'objectRootField', name: node.name, value: this.#objectRootFields.get(receiverType.objectExpression).get(node.name).value });
 
-        return { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'query', isFixed: false };
+        return { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false };
     }
 
     /** The refusal of a read of an expression or a predicate option, which the member evaluates and which has no value to read. */
@@ -1751,7 +1751,7 @@ export class LanguageResolver {
 
         const parameterTypes = parameter.parameters.map(text => Type.parse(text).resolveTypeParameters(typeArguments));
         const resultType = Type.parse(parameter.type).resolveTypeParameters(typeArguments);
-        const argumentResults = parameterTypes.map(parameterType => ({ type: parameterType, kind: 'query', isFixed: false }));
+        const argumentResults = parameterTypes.map(parameterType => ({ type: parameterType, kind: 'value', isFixed: false }));
 
         const targets = type.functions.map((target, index) => {
             const count = target.function.parameters.length;
@@ -1851,7 +1851,7 @@ export class LanguageResolver {
             case 'behavior':
                 return declaration.kind;
             default:
-                return 'query';
+                return 'value';
         }
     }
 

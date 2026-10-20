@@ -54,7 +54,7 @@ export const lexica = Object.freeze({
         return ParsedTexts.parse(text);
     },
     validate: definition => new DefinitionValidator().validate(definition),
-    format: source => DefinitionWriter.format(definitionOf(source).query),
+    format: source => DefinitionWriter.format(definitionOf(source).expression),
     createModule: (name, contents, functions = null) => new LexicaModule(name, contents, functions),
     createRegistry: (modules = []) => registryOf(modules),
     info: Object.freeze({ version: LIBRARY_VERSION, specificationVersion: Specification.version, definitionVersion: Specification.definitionVersion }),

@@ -1,5 +1,5 @@
 /**
- * ParameterBindings — the values a query's parameters are bound to, by name
+ * ParameterBindings — the values an expression's parameters are bound to, by name
  */
 
 import { ArrayUtils } from '../common/ArrayUtils.mjs';

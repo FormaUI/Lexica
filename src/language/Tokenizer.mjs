@@ -1,5 +1,5 @@
 /**
- * Tokenizer — the tokens of a Lexica text: strictly, as a query reads them, refusing the first text that is no token, or tolerantly, as tooling reads any text, an invalid token standing for each such text with its diagnostic
+ * Tokenizer — the tokens of a Lexica text: strictly, as parsing reads them, refusing the first text that is no token, or tolerantly, as tooling reads any text, an invalid token standing for each such text with its diagnostic
  */
 
 import { LexicaError } from './LexicaError.mjs';
@@ -11,11 +11,11 @@ import { Names } from './Names.mjs';
  * its runs of text, the `{` and `}` around each of its interpolations and what closes it, the tokens of each interpolation's expression between them.
  * A contract within Lexica until a public tooling API stabilizes it.
  */
-export const TOKEN_TYPES = Object.freeze(['name', 'literal', 'keyword', 'context', 'invalid', 'end', 'interpolated-string-start', 'interpolated-text', 'interpolation-start', 'interpolation-end', 'interpolated-string-end', 'query-parameter', 'reserved-reference', '.', '?.', '?[', '?:', '??', '(?', '==', '!=', '<', '<=', '>', '>=', '=', '=>', '+', '-', '*', '/', '%', ',', ':', '(', ')', '{', '}', '[', ']']);
+export const TOKEN_TYPES = Object.freeze(['name', 'literal', 'keyword', 'context', 'invalid', 'end', 'interpolated-string-start', 'interpolated-text', 'interpolation-start', 'interpolation-end', 'interpolated-string-end', 'caller-binding', 'reserved-reference', '.', '?.', '?[', '?:', '??', '(?', '==', '!=', '<', '<=', '>', '>=', '=', '=>', '+', '-', '*', '/', '%', ',', ':', '(', ')', '{', '}', '[', ']']);
 
 /**
  * @typedef {object} Token
- * @property {'name' | 'literal' | 'keyword' | 'context' | 'invalid' | 'end' | 'interpolated-string-start' | 'interpolated-text' | 'interpolation-start' | 'interpolation-end' | 'interpolated-string-end' | 'query-parameter' | 'reserved-reference' | '.' | '?.' | '?[' | '?:' | '??' | '(?' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '=' | '=>' | '+' | '-' | '*' | '/' | '%' | ',' | ':' | '(' | ')' | '{' | '}' | '[' | ']'} type
+ * @property {'name' | 'literal' | 'keyword' | 'context' | 'invalid' | 'end' | 'interpolated-string-start' | 'interpolated-text' | 'interpolation-start' | 'interpolation-end' | 'interpolated-string-end' | 'caller-binding' | 'reserved-reference' | '.' | '?.' | '?[' | '?:' | '??' | '(?' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '=' | '=>' | '+' | '-' | '*' | '/' | '%' | ',' | ':' | '(' | ')' | '{' | '}' | '[' | ']'} type
  * @property {unknown} [value] A name's or a keyword's text, the evaluation context's spelling, `context` or `~`, the name `~` reads the caller's binding of, the reserved word `@` reads the local or the field of, a literal's value, or the text a run of an interpolated string's text stands for.
  * @property {'"' | "'"} [quote] The quote of a string's literal token, or of an interpolated string's opening and closing tokens, `"` for a string and `'` for a raw string.
  * @property {number} [delimiter] How many quotes that string's delimiter has: one inline, three or more for a block.
@@ -52,7 +52,7 @@ export class Tokenizer {
      */
     #modes = [];
 
-    /** @param {string} text The query text. */
+    /** @param {string} text The source text. */
     constructor(text) {
         this.#text = text;
     }
@@ -182,7 +182,7 @@ export class Tokenizer {
         }
 
         if (character === '~') {
-            return this.#readQueryParameter(start);
+            return this.#readCallerBinding(start);
         }
 
         if (character === '"' || character === "'") {
@@ -299,7 +299,7 @@ export class Tokenizer {
      * Reads what `~` begins: the caller's binding of the name written directly after it, whatever local or field shares its name and a reserved word included, as `~as` reads the binding `as`,
      * or, with no name directly after it, the evaluation context, as `context` is, so `~.size` reads `context.size`.
      */
-    #readQueryParameter(start) {
+    #readCallerBinding(start) {
         NAME.lastIndex = start + 1;
 
         if (!NAME.test(this.#text)) {
@@ -312,7 +312,7 @@ export class Tokenizer {
 
         this.#offset = NAME.lastIndex;
 
-        return { type: 'query-parameter', value: name, start, end: this.#offset };
+        return { type: 'caller-binding', value: name, start, end: this.#offset };
     }
 
     /**

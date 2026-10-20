@@ -23,17 +23,17 @@ export class Lowering {
     #localNames = new Set();
 
     /** The parameters written with `~`, which read the caller's binding wherever they stand, whatever local shares their name. @type {WeakSet<object>} */
-    #queryParameters = new WeakSet();
+    #callerBindingParameters = new WeakSet();
 
     /**
      * The definition the tree writes, the span of text each of its nodes, fields, locals and bindings came from, which the tree is no longer needed for, and the parameters written with `~`.
-     * @param {import('./SyntaxTree.mjs').QueryNode} tree
+     * @param {import('./SyntaxTree.mjs').SourceNode} tree
      */
     static lower(tree) {
         const lowering = new Lowering(tree.text);
-        const query = lowering.#lower(tree.children[0]);
+        const expression = lowering.#lower(tree.children[0]);
 
-        return { definition: { version: Specification.definitionVersion, query }, spans: lowering.#spans, queryParameters: lowering.#queryParameters };
+        return { definition: { version: Specification.definitionVersion, expression }, spans: lowering.#spans, callerBindingParameters: lowering.#callerBindingParameters };
     }
 
     /** @param {string} text The text the tree was read from. */
@@ -172,10 +172,10 @@ export class Lowering {
             case 'reserved-reference':
                 // A reserved word after `@` is the local or the field of its name, which validation finds in scope or refuses.
                 return this.#span({ kind: 'local', name: token.value }, token);
-            case 'query-parameter': {
+            case 'caller-binding': {
                 const parameter = this.#span({ kind: 'parameter', name: token.value }, token);
 
-                this.#queryParameters.add(parameter);
+                this.#callerBindingParameters.add(parameter);
 
                 return parameter;
             }

@@ -1,5 +1,5 @@
 /**
- * ParsedTexts — the definitions of the query texts parsed most recently
+ * ParsedTexts — the definitions of the source texts parsed most recently
  */
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
@@ -39,9 +39,9 @@ export class ParsedTexts {
         }
 
         // The tree is lowered and let go: a kept definition holds its locations, never its tokens or their trivia.
-        const { definition, spans, queryParameters } = Lowering.lower(new Parser(text).parse());
+        const { definition, spans, callerBindingParameters } = Lowering.lower(new Parser(text).parse());
         const locations = new TextLocations(text, definition, spans);
-        const validated = new DefinitionValidator(locations, queryParameters).validate(definition);
+        const validated = new DefinitionValidator(locations, callerBindingParameters).validate(definition);
 
         ParsedTexts.#locations.set(validated, locations);
 

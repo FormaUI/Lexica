@@ -25,7 +25,7 @@ export class DefinitionWriter {
      * @param {object} node A node of a definition.
      */
     static write(node) {
-        DefinitionWriter.#markQueryParameters(node, new Set(), new Set());
+        DefinitionWriter.#markCallerBindingParameters(node, new Set(), new Set());
 
         return DefinitionWriter.#write(node, null);
     }
@@ -35,9 +35,9 @@ export class DefinitionWriter {
      * @param {object} node A node of a definition.
      */
     static format(node) {
-        DefinitionWriter.#markQueryParameters(node, new Set(), new Set());
+        DefinitionWriter.#markCallerBindingParameters(node, new Set(), new Set());
 
-        // A query that is a body writes its bindings and its return alone, which a do block elsewhere encloses.
+        // An expression that is a body writes its bindings and its return alone, which a do block elsewhere encloses.
         return node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0);
     }
 
@@ -47,12 +47,12 @@ export class DefinitionWriter {
      * @param {number | null} level
      */
     /** The parameters a name written alone would not read: those a reserved word names, and those a local of their name stands in scope of or is declared after in their scope, which the text writes with `~`. @type {WeakSet<object>} */
-    static #queryParameters = new WeakSet();
+    static #callerBindingParameters = new WeakSet();
 
     /** Marks each parameter in the node that the text writes with `~`, one a reserved word names or a local or a field in scope hides, following the locals and the fields each object expression and the name each conditional binding brings into scope, and those declared later in it. */
-    static #markQueryParameters(node, inScope, later) {
+    static #markCallerBindingParameters(node, inScope, later) {
         if (Array.isArray(node)) {
-            node.forEach(item => DefinitionWriter.#markQueryParameters(item, inScope, later));
+            node.forEach(item => DefinitionWriter.#markCallerBindingParameters(item, inScope, later));
 
             return;
         }
@@ -64,30 +64,30 @@ export class DefinitionWriter {
         switch (node.kind) {
             case 'parameter':
                 if (Names.isReservedWord(node.name) || inScope.has(node.name) || later.has(node.name)) {
-                    DefinitionWriter.#queryParameters.add(node);
+                    DefinitionWriter.#callerBindingParameters.add(node);
                 }
 
                 return;
             case 'object': {
-                DefinitionWriter.#markQueryParameters(node.target, inScope, later);
+                DefinitionWriter.#markCallerBindingParameters(node.target, inScope, later);
 
                 const names = (node.locals ?? []).map(local => local.name);
                 let scope = inScope;
 
                 node.locals?.forEach((local, index) => {
-                    DefinitionWriter.#markQueryParameters(local.value, scope, new Set([...later, ...names.slice(index)]));
+                    DefinitionWriter.#markCallerBindingParameters(local.value, scope, new Set([...later, ...names.slice(index)]));
                     scope = new Set([...scope, local.name]);
                 });
                 // A field is in scope after its value, through the fields after it.
                 node.fields.forEach(field => {
-                    DefinitionWriter.#markQueryParameters(field.value, scope, later);
+                    DefinitionWriter.#markCallerBindingParameters(field.value, scope, later);
                     scope = new Set([...scope, field.name]);
                 });
 
                 return;
             }
             case 'function':
-                DefinitionWriter.#markQueryParameters(node.body, new Set([...inScope, ...node.parameters]), later);
+                DefinitionWriter.#markCallerBindingParameters(node.body, new Set([...inScope, ...node.parameters]), later);
 
                 return;
             case 'body': {
@@ -95,19 +95,19 @@ export class DefinitionWriter {
                 let scope = inScope;
 
                 node.locals.forEach((local, index) => {
-                    DefinitionWriter.#markQueryParameters(local.value, scope, new Set([...later, ...names.slice(index)]));
+                    DefinitionWriter.#markCallerBindingParameters(local.value, scope, new Set([...later, ...names.slice(index)]));
                     scope = new Set([...scope, local.name]);
                 });
-                DefinitionWriter.#markQueryParameters(node.result, scope, later);
+                DefinitionWriter.#markCallerBindingParameters(node.result, scope, later);
 
                 return;
             }
             case 'conditional':
                 if (node.binding !== undefined) {
                     // A binding's value reads no name of its own, which a text writes with `~` for the caller's binding, as a local's value does.
-                    DefinitionWriter.#markQueryParameters(node.binding.value, inScope, new Set([...later, node.binding.name]));
-                    DefinitionWriter.#markQueryParameters(node.consequent, new Set([...inScope, node.binding.name]), later);
-                    DefinitionWriter.#markQueryParameters(node.alternative, inScope, later);
+                    DefinitionWriter.#markCallerBindingParameters(node.binding.value, inScope, new Set([...later, node.binding.name]));
+                    DefinitionWriter.#markCallerBindingParameters(node.consequent, new Set([...inScope, node.binding.name]), later);
+                    DefinitionWriter.#markCallerBindingParameters(node.alternative, inScope, later);
 
                     return;
                 }
@@ -116,7 +116,7 @@ export class DefinitionWriter {
                 break;
         }
 
-        Object.values(node).forEach(value => DefinitionWriter.#markQueryParameters(value, inScope, later));
+        Object.values(node).forEach(value => DefinitionWriter.#markCallerBindingParameters(value, inScope, later));
     }
 
     static #write(node, level) {
@@ -124,7 +124,7 @@ export class DefinitionWriter {
             case 'literal':
                 return DefinitionWriter.#literal(node.value);
             case 'parameter':
-                return DefinitionWriter.#queryParameters.has(node) ? `~${node.name}` : node.name;
+                return DefinitionWriter.#callerBindingParameters.has(node) ? `~${node.name}` : node.name;
             case 'context':
                 return 'context';
             case 'root':
@@ -157,7 +157,7 @@ export class DefinitionWriter {
             case 'do':
                 return DefinitionWriter.#block('do', node.body, level);
             case 'body':
-                // A query's body, which a do block, a function and a conditional's branch each write their own way.
+                // The root expression's body, which a do block, a function and a conditional's branch each write their own way.
                 return DefinitionWriter.#bodyText(node, level);
             case 'coalescing':
                 // A coalescing operator associates to the right, so a fallback that is one is written as it is.

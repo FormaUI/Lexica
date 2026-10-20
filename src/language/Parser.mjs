@@ -13,14 +13,14 @@ import { Tokenizer } from './Tokenizer.mjs';
 const TOKEN_DESCRIPTIONS = {
     name: 'a name',
     literal: 'a literal',
-    end: 'the end of the query',
+    end: 'the end of the source',
 };
 
 /** The tokens that continue a chain after what is before them. */
 const CHAIN_CONTINUATIONS = new Set(['.', '?.', '[', '?[', ':', '?:', '{']);
 
 /** The tokens that, after a space, make the name before them a member written without its receiver, which no local is: an argument. */
-const ARGUMENT_STARTS = new Set(['context', 'literal', 'interpolated-string-start', 'query-parameter', 'reserved-reference']);
+const ARGUMENT_STARTS = new Set(['context', 'literal', 'interpolated-string-start', 'caller-binding', 'reserved-reference']);
 
 /** The keywords that close or divide a construct, whose own messages say what it lacks where a value would stand. */
 const STRUCTURAL_KEYWORDS = new Set(['then', 'elseif', 'else', 'end']);
@@ -49,21 +49,21 @@ export class Parser {
     /** The conversions read directly after another conversion or a cast of the same chain, without a group between them, which `try` refuses to attempt. @type {WeakSet<SyntaxNode>} */
     #chainedConversions = new WeakSet();
 
-    /** @param {string} text The query text. */
+    /** @param {string} text The source text. */
     constructor(text) {
         this.#text = text;
         this.#tokens = new Tokenizer(text).tokenize();
     }
 
     /**
-     * Reads the text into its syntax tree, whose query node holds the body, an expression alone or bindings and the `return` that gives its result, and the end of the text, with the trivia before it.
-     * @returns {import('./SyntaxTree.mjs').QueryNode}
+     * Reads the text into its syntax tree, whose source node holds the body, an expression alone or bindings and the `return` that gives its result, and the end of the text, with the trivia before it.
+     * @returns {import('./SyntaxTree.mjs').SourceNode}
      */
     parse() {
         const body = this.#parseBody();
         const end = this.#expect('end');
 
-        return { kind: 'query', text: this.#text, children: [body, end] };
+        return { kind: 'source', text: this.#text, children: [body, end] };
     }
 
     /** Reads an expression: a conditional, a do block, or a simple value expression; a function stands as a local's initializer alone. */
@@ -984,7 +984,7 @@ export class Parser {
             case 'context':
             case 'literal':
             case 'name':
-            case 'query-parameter':
+            case 'caller-binding':
             case 'reserved-reference':
                 return this.#take();
             case '{':

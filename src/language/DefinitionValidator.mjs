@@ -103,26 +103,26 @@ export class DefinitionValidator {
     #simpleExpression = null;
 
     /** The parameters of a definition parsed from text that were written with `~`, which read the caller's binding wherever they stand; null for a definition not parsed from text. @type {WeakSet<object> | null} */
-    #queryParameters;
+    #callerBindingParameters;
 
     /**
      * @param {TextLocations | null} locations Where in a text each part of the definition came from, for one parsed from text.
-     * @param {WeakSet<object> | null} queryParameters The parameters a text wrote with `~`, for one parsed from text.
+     * @param {WeakSet<object> | null} callerBindingParameters The parameters a text wrote with `~`, for one parsed from text.
      */
-    constructor(locations = null, queryParameters = null) {
+    constructor(locations = null, callerBindingParameters = null) {
         this.#locations = locations;
-        this.#queryParameters = queryParameters;
+        this.#callerBindingParameters = callerBindingParameters;
     }
 
     /** Checks the definition's structure, returning its canonical, frozen copy. */
     validate(definition) {
-        this.#requireProperties(definition, '', { properties: ['version', 'query'], required: ['version', 'query'] });
+        this.#requireProperties(definition, '', { properties: ['version', 'expression'], required: ['version', 'expression'] });
 
         if (definition.version !== Specification.definitionVersion) {
             this.#fail('/version', `A definition is of version ${Specification.definitionVersion}`);
         }
 
-        const validated = Object.freeze({ version: Specification.definitionVersion, query: this.#validateBodyOrExpression(definition.query, '/query', EvaluationContextAvailability.absent) });
+        const validated = Object.freeze({ version: Specification.definitionVersion, expression: this.#validateBodyOrExpression(definition.expression, '/expression', EvaluationContextAvailability.absent) });
 
         // A definition parsed from text has its text's locations; one a caller supplied, where a part moved, has locations that name its parts as the caller did.
         if (this.#locations === null && this.#hasMovedParts) {
@@ -173,7 +173,7 @@ export class DefinitionValidator {
                 }
 
                 // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; `~` and a definition's parameter read the caller's binding wherever they stand.
-                if (this.#locations !== null && !this.#queryParameters?.has(node)) {
+                if (this.#locations !== null && !this.#callerBindingParameters?.has(node)) {
                     this.#requireBindingName(node.name, pointer);
                 }
 
@@ -234,7 +234,7 @@ export class DefinitionValidator {
             case 'conditional':
                 return this.#validateConditional(node, pointer, evaluationContextAvailability);
             case 'body':
-                this.#fail(pointer, "A body is a query's, a do block's, a function's or a conditional branch's, and stands nowhere else");
+                this.#fail(pointer, "A body is the root expression's, a do block's, a function's or a conditional branch's, and stands nowhere else");
                 break;
             case 'do':
                 if (this.#simpleExpression !== null) {
@@ -538,7 +538,7 @@ export class DefinitionValidator {
         return validated;
     }
 
-    /** Validates what a body stands for, a query's, a do block's, a function's or a conditional branch's: a body, or the expression alone it is. */
+    /** Validates what a body stands for, the root expression's, a do block's, a function's or a conditional branch's: a body, or the expression alone it is. */
     #validateBodyOrExpression(node, pointer, evaluationContextAvailability) {
         return ObjectUtils.isNonArrayObject(node) && node.kind === 'body' ? this.#validateBody(node, pointer, evaluationContextAvailability) : this.#validateNode(node, pointer, evaluationContextAvailability);
     }

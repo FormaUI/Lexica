@@ -49,7 +49,7 @@ const DOCUMENTS = {
         { about: 'fields named by reserved words' },
         { about: 'a reserved reference' },
         { about: 'strings of each family' },
-        { about: 'a block the query continues after' },
+        { about: 'a block the source continues after' },
         { about: 'the forms of a member', each: true, context: 'cell { value = % }' },
         { about: 'bracket property access' },
         { about: 'a simple expression' },

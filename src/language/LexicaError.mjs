@@ -5,7 +5,7 @@
 /**
  * @typedef {object} Location
  * @property {string} [pointer] The failing node's JSON Pointer into the definition.
- * @property {number} [offset] The failing text's offset into the query text.
+ * @property {number} [offset] The failing text's offset into the source text.
  * @property {number} [line] The failing text's line, from 1.
  * @property {number} [column] The failing text's column, from 1.
  * @property {string} [binding] The failing binding's name.

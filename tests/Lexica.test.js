@@ -23,7 +23,7 @@ describe('lexica', () => {
     it('reads a text into its definition, of the version it writes', () => {
         expect(lexica.parse('{ total = price * quantity }')).toEqual({
             version: Specification.definitionVersion,
-            query: { kind: 'object', fields: [{ name: 'total', value: { kind: 'arithmetic', operator: '*', left: { kind: 'parameter', name: 'price' }, right: { kind: 'parameter', name: 'quantity' } } }] },
+            expression: { kind: 'object', fields: [{ name: 'total', value: { kind: 'arithmetic', operator: '*', left: { kind: 'parameter', name: 'price' }, right: { kind: 'parameter', name: 'quantity' } } }] },
         });
     });
 
@@ -37,8 +37,8 @@ describe('lexica', () => {
     });
 
     it('checks a definition given directly, refusing one whose structure is wrong', () => {
-        expect(lexica.validate({ version: Specification.definitionVersion, query: { kind: 'literal', value: 1 } })).toEqual({ version: Specification.definitionVersion, query: { kind: 'literal', value: 1 } });
-        expect(getError(() => lexica.validate({ version: Specification.definitionVersion, query: { kind: 'nothing' } }))).toBeInstanceOf(LexicaError);
+        expect(lexica.validate({ version: Specification.definitionVersion, expression: { kind: 'literal', value: 1 } })).toEqual({ version: Specification.definitionVersion, expression: { kind: 'literal', value: 1 } });
+        expect(getError(() => lexica.validate({ version: Specification.definitionVersion, expression: { kind: 'nothing' } }))).toBeInstanceOf(LexicaError);
     });
 
     it('refuses a text that is no expression with a syntax error at its place', () => {
@@ -64,8 +64,8 @@ describe('lexica', () => {
         const items = [{ price: 2, quantity: 3 }];
 
         expect(registry.moduleNames).toEqual(['lexica', 'price']);
-        expect(registry.resolve('items { total = context.price * context.quantity }.count', { items })).toEqual({ kind: 'query', type: 'number' });
-        expect(registry.resolve('"10".price + 1')).toEqual({ kind: 'query', type: 'number' });
+        expect(registry.resolve('items { total = context.price * context.quantity }.count', { items })).toEqual({ kind: 'value', type: 'number' });
+        expect(registry.resolve('"10".price + 1')).toEqual({ kind: 'value', type: 'number' });
         expect(lexica.createRegistry().moduleNames).toEqual(['lexica']);
         expect(getError(() => lexica.createRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
@@ -77,7 +77,7 @@ describe('lexica', () => {
             members: [{ name: 'double', function: 'double', kind: 'property', on: 'number', parameters: [], result: 'number', changes: 'constant', reads: 'fresh' }],
         }));
 
-        expect(registry.resolve('(2).double')).toEqual({ kind: 'query', type: 'number' });
+        expect(registry.resolve('(2).double')).toEqual({ kind: 'value', type: 'number' });
     });
 
     it('says which build it is and which specification it follows', () => {
