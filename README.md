@@ -10,22 +10,30 @@ return {
 }
 ```
 
-> **Alpha.** Lexica reads definition version 31, which writes the implicit parameter `context`; the specification describes version 32, which writes `it` and adds namespaces and reference types. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
+> **Alpha.** Lexica's runtime implements language version `1.0.0-alpha.31`, which writes the implicit parameter `context`; the specification describes `1.0.0-alpha.32`, which writes `it` and adds namespaces, reference types and host calls, where the runtime still has value, subscription, action and behavior requests. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
 
 ## Features
 
+### Language (`1.0.0-alpha.32`)
+
 - Typed vocabulary modules, declared as data
-- Expressions checked before they run
 - Object expressions and list projections that shape data
 - Optional access, fallbacks and conditionals
 - Arithmetic, comparisons and logical expressions
 - Casts, conversions and attempts
 - Locals, bodies, functions and arrow functions
 - Raw, block and interpolated strings
-- Value, subscription, action and behavior requests
+- Host calls, typed by the language and invoked by the host
+- Definitions as JSON, with canonical text
+
+### Runtime (`1.0.0-alpha.37`)
+
+The runtime's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.31`.
+
+- Scripts checked before they run
 - Evaluation hooks that report every read
 - Frozen results with metadata for comparing them
-- Definitions as JSON, with canonical text
+- Calls prepared for the host to carry out
 
 ## Use it
 
