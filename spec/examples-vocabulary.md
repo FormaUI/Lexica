@@ -82,6 +82,6 @@ A setting is a string, so an example that needs a number converts it, as `device
 
 Its observation type `meter`, of the receiver, is an invalidation, reporting each new meter reading.
 
-`energy` also declares the reference type `Meter`, the meter's view of a device: `device.meter`, a constant `Meter`, answers the device itself, which `Meter`'s `isInstance` accepts, since it accepts every device, and a declared cast from `Meter` to `home.Device`, with no `impl`, answers it as a device again. A `Device` is cast to no `Meter`, since memberships that accept one value relate no types.
+`energy` also declares the reference type `Meter`, the meter's view of a device: `device.meter`, a constant `Meter`, answers the device itself, which `Meter`'s `isInstance` accepts, since it accepts every device, and a declared cast from `Meter` to `home.Device`, with no `impl`, answers it as a device again. `device as Meter` is refused, because the declared cast goes from `Meter` to `Device` only; `Meter` accepting every device doesn't make the two types related.
 
 `device.usage` is an extension, read as `device.usage` or in its qualified form, `energy.usage(device)`. `device.power` is declared both by `home`, which owns `Device`, and by `energy`: written `device.power`, it reads `home`'s, since the owner's member wins, and `energy.power(device)` reads the meter's.
