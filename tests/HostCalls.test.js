@@ -17,13 +17,25 @@ const { property, valueParameter } = lexica.declarations;
 /** A host call of a device, named by a string: a function its host invokes, which supplies values of the result's type, or none where it declares none. */
 const hostCall = (name, result, options) => lexica.declarations.function(name, 'string', result, { invokedBy: 'host', ...options });
 
-/** A home's module: a light dimmed to a level, which supplies the level it reached; a thermostat held at a target, which supplies nothing; a sensor watched for motion, which supplies each motion; and a device's room. */
+/**
+ * A home's module: a light dimmed to a level, which supplies the level it reached; a thermostat held at a target, which supplies nothing; a sensor watched for motion, which supplies each motion; a device's reports of a kind,
+ * each of the type the selector `event` maps the kind to; a device's reading of a name, of the type the selector `reading` maps the name to; and a device's room.
+ */
 const createHome = () => lexica.createModule('home', {
-    types: [{ name: 'motion', fields: { at: 'number', strength: 'number' } }],
+    types: [{ name: 'motion', fields: { at: 'number', strength: 'number' } }, { name: 'change', fields: { setting: 'string', value: 'string?' } }],
+    typeSelectors: [{ name: 'event' }, { name: 'reading' }],
+    selectableTypes: [
+        { name: 'motion', selector: 'event', type: 'motion' },
+        { name: 'change', selector: 'event', type: 'change' },
+        { name: 'level', selector: 'reading', type: 'number' },
+        { name: 'tone', selector: 'reading', type: 'string' },
+    ],
     members: [
         hostCall('dim', 'number', { arguments: 'options', parameters: [valueParameter('to', 'number')] }),
         hostCall('hold', undefined, { arguments: 'options', parameters: [valueParameter('target', 'number')] }),
         hostCall('watch', 'motion'),
+        hostCall('on', '@selected', { parameters: [valueParameter('type', 'string', { fixed: true, selects: 'type', selector: 'event' })] }),
+        lexica.declarations.function('reading', 'string', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'type', selector: 'reading' })], implementation: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
         property('room', 'string', 'string', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => `${receiver}'s room` }),
     ],
 });
@@ -108,6 +120,24 @@ describe('host calls', () => {
 
         expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression/target' } });
         expect(refused.message).toContain("'dim' follows a value whose type is unknown, and its declarations make a host call or a value, so what it requests is ambiguous");
+    });
+
+    it('supply values of the type a fixed argument selects through a type selector, a bound parameter settling it as a literal does', () => {
+        expect(resolve('sensor.on("motion") { at = context.at, strong = context.strength > 0.8 }').type).toBe('{ at: number, strong: boolean }');
+        expect(resolve('sensor.on("change")').type).toBe('change');
+        expect(resolve('sensor.on(kind)', { ...bindings, kind: 'motion' }).type).toBe('motion');
+
+        const refused = getError(() => resolve('sensor.on("smoke")'));
+
+        expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression/arguments/0' } });
+        expect(refused.message).toContain("The type selector 'event' maps no type to the key 'smoke'");
+    });
+
+    it('select a type for a function the evaluator invokes as for one the host invokes', () => {
+        const resolution = resolve('{ level = light.reading("level"), tone = light.reading("tone") }');
+
+        expect(resolution.type).toBe('{ level: number, tone: string }');
+        expect(resolution.createEvaluator(bindings).evaluate().value).toEqual({ level: 3, tone: 'warm' });
     });
 
     it('have no implementation, which an evaluator needs none of, and are never evaluated', () => {

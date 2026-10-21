@@ -9,6 +9,7 @@ export class Declarations {
 
         if (parameter.fixed === false) {
             delete parameter.selects;
+            delete parameter.selector;
         }
 
         return parameter;

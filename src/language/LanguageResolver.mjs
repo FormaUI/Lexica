@@ -1531,6 +1531,15 @@ export class LanguageResolver {
 
                 return { selected: { name, type: Type.parse(event.data) } };
             }
+            case 'type': {
+                const selectable = this.#moduleRegistry.getSelectableType(parameter.selector, name);
+
+                if (selectable === undefined) {
+                    this.#fail(`The type selector '${parameter.selector}' maps no type to the key '${name}'`, pointer);
+                }
+
+                return { selected: { name, type: Type.parse(selectable.type) } };
+            }
             default:
                 return { selected: { name, type: Type.createNamedType('boolean'), contract: this.#predicateFor(name, declaration, receiverType, pointer) } };
         }

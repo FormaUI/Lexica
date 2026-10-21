@@ -56,7 +56,7 @@ describe('LexicaModule', () => {
 
         expect(conditions).toMatchObject({ module: 'charts', field: 'conditions' });
         expect(conditions.message).toContain('a Boolean its verb asks by its name is a predicate');
-        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares types, members, predicates, eventTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
+        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares types, members, predicates, typeSelectors, selectableTypes, eventTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
         expect(messageOf(() => new LexicaModule('charts', null))).toContain("A module's contents are an object declaring types, members, predicates");
         expect(messageOf(() => new LexicaModule('charts', { members: {} }))).toContain("A module's members are a list");
         expect(messageOf(() => new LexicaModule('charts', { members: [null] }))).toContain('A member is an object declaring');
@@ -203,6 +203,47 @@ describe('LexicaModule', () => {
             refusal({ members: [declaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'resize', of: 'receiver' }] } })] }, 'zoom', 'updates.observations', 'a member without a target has no receiver');
 
             expect(() => new LexicaModule('charts', { members: [declaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'visibility', of: 'document' }] } })] })).not.toThrow();
+        });
+    });
+
+    describe('type selectors and their keys', () => {
+        const fails = contents => refusalOf(() => new LexicaModule('charts', contents));
+        const selecting = (overrides = {}) => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'type', selector: 'report' })], ...overrides });
+
+        it('are kept as frozen data, a selector by its name alone and a key with the selector it belongs to and the type it maps to', () => {
+            const module = new LexicaModule('charts', { typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'motion', selector: 'report', type: 'number' }, { name: 'door:open', selector: 'report', type: 'list<string>' }] });
+
+            expect(module.typeSelectors).toEqual([{ name: 'report' }]);
+            expect(module.selectableTypes).toEqual([{ name: 'motion', selector: 'report', type: 'number' }, { name: 'door:open', selector: 'report', type: 'list<string>' }]);
+            expect([...module.typeSelectors, ...module.selectableTypes].every(Object.isFrozen)).toBe(true);
+        });
+
+        it('name a selector once in its module, as a name is, and declare nothing else of it', () => {
+            expect(fails({ typeSelectors: [{ name: 'report-kind' }] })).toMatchObject({ declaration: 'report-kind', field: 'name' });
+            expect(fails({ typeSelectors: [{ name: 'report' }, { name: 'report' }] }).message).toContain("The type selector 'report' is declared twice");
+            expect(fails({ typeSelectors: [{ name: 'report', implementation: () => 1 }] })).toMatchObject({ declaration: 'report', field: 'implementation' });
+        });
+
+        it('name a key as an event is named, with the selector it belongs to and the type it maps to, and declare nothing else of it', () => {
+            expect(fails({ selectableTypes: [{ name: '1st', selector: 'report', type: 'number' }] })).toMatchObject({ declaration: '1st', field: 'name' });
+            expect(fails({ selectableTypes: [{ name: 'motion', type: 'number' }] })).toMatchObject({ declaration: 'motion', field: 'selector' });
+            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'list<' }] })).toMatchObject({ declaration: 'motion', field: 'type' });
+            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'number', implementation: () => 1 }] })).toMatchObject({ declaration: 'motion', field: 'implementation' });
+        });
+
+        it('are selected through by a function\'s one fixed parameter that names its selector, whose result writes @selected', () => {
+            expect(() => new LexicaModule('charts', { members: [selecting(), selecting({ name: 'reports', result: 'list<@selected>' })] })).not.toThrow();
+            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'type' })] })] }).message).toContain("The fixed parameter 'kind' selects a type, so it names the type selector it selects through");
+            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'predicate', selector: 'report' })] })] }).message).toContain("The fixed parameter 'kind' selects a predicate, which no type selector maps");
+            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', selector: 'report' })] })] }).message).toContain("The parameter 'kind' selects nothing, since it is not fixed");
+        });
+
+        it('are selected through by one parameter at most, and a result writes @selected exactly where a parameter selects a type', () => {
+            const kind = name => parameter({ name, type: 'string', fixed: true, selects: 'type', selector: 'report' });
+
+            expect(fails({ members: [selecting({ parameters: [kind('first'), kind('second')] })] })).toMatchObject({ declaration: 'report', field: 'parameters', message: expect.stringContaining("A function has one parameter at most that selects a type, since its result writes one @selected, and 'first' and 'second' each select one") });
+            expect(fails({ members: [selecting({ result: 'number' })] })).toMatchObject({ declaration: 'report', field: 'result', message: expect.stringContaining("Its parameter 'kind' selects a type, so its result writes @selected where that type stands") });
+            expect(fails({ members: [functionDeclaration({ result: '@selected' })] })).toMatchObject({ declaration: 'zoom', field: 'result', message: expect.stringContaining('Its result writes @selected, and none of its parameters selects a type') });
         });
     });
 

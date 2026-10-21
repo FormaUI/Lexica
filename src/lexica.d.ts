@@ -156,6 +156,21 @@ export interface LexicaObservationTypeDeclaration {
     implementation?: (input: LexicaObservationImplementationInput) => { stop(): void; sample?(): { pending: boolean; value?: unknown } };
 }
 
+/** A type selector, through which a function's fixed argument selects the type of its result: declared by its name alone. */
+export interface LexicaTypeSelectorDeclaration {
+    name: string;
+}
+
+/** One key of a type selector, named by the key, and the type it maps to. */
+export interface LexicaSelectableTypeDeclaration {
+    /** The key, which a fixed argument gives. */
+    name: string;
+    /** The type selector the key belongs to. */
+    selector: string;
+    /** The type the key maps to, in Lexica's notation. */
+    type: string;
+}
+
 /** A target a module's observation types observe besides the receiver and an argument of the member, which the host resolves. */
 export interface LexicaObservationTargetDeclaration {
     /** Its name, which an observation's `of` gives, and never `receiver`. */
@@ -202,8 +217,10 @@ export interface LexicaParameterDeclaration {
     default?: unknown;
     /** Whether the argument names something the vocabulary resolves before any evaluation; a fixed parameter is a value parameter of type `string`. */
     fixed?: boolean;
-    /** What a fixed parameter names, and only a fixed one: an event source's event type, or the predicate a verb asks. */
-    selects?: 'eventType' | 'predicate';
+    /** What a fixed parameter names, and only a fixed one: an event source's event type, the predicate a verb asks, or a type, which a function's result writes as `@selected`, through the type selector `selector` names. */
+    selects?: 'eventType' | 'predicate' | 'type';
+    /** The type selector a parameter that selects a type selects through. */
+    selector?: string;
     /** Whether a null argument makes the call answer null, or is accepted; a function parameter leaves it out, since a function is never null. */
     nulls?: 'propagate' | 'accept';
     /** What an expression or a predicate argument is evaluated against. */
@@ -264,6 +281,10 @@ export interface LexicaModuleContents {
     predicates?: LexicaPredicateDeclaration[];
     /** The event types it declares, each with the type of its event data. */
     eventTypes?: { name: string; data: string }[];
+    /** The type selectors it declares, each by its name alone, named once across every module. */
+    typeSelectors?: LexicaTypeSelectorDeclaration[];
+    /** The keys it declares for type selectors, its own or a module's registered before it, each once in its selector. */
+    selectableTypes?: LexicaSelectableTypeDeclaration[];
     /** The types of observation it declares. */
     observationTypes?: LexicaObservationTypeDeclaration[];
     /** The targets its observation types observe besides the receiver and an argument of the member, each named once. */
@@ -294,6 +315,8 @@ export interface LexicaModule {
     readonly types: readonly { readonly name: string; readonly fields: Readonly<Record<string, string>> }[];
     readonly members: readonly LexicaMemberDeclaration[];
     readonly predicates: readonly LexicaPredicateDeclaration[];
+    readonly typeSelectors: readonly LexicaTypeSelectorDeclaration[];
+    readonly selectableTypes: readonly LexicaSelectableTypeDeclaration[];
     readonly eventTypes: readonly { readonly name: string; readonly data: string }[];
     readonly observationTypes: readonly LexicaObservationTypeDeclaration[];
     readonly observationTargets: readonly LexicaObservationTargetDeclaration[];

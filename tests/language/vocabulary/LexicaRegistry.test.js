@@ -177,6 +177,44 @@ describe('LexicaRegistry', () => {
     });
 });
 
+describe('type selectors', () => {
+    const reports = () => new LexicaModule('reports', { typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'motion', selector: 'report', type: 'number' }] });
+    const keys = (name, selectableTypes, contents = {}) => new LexicaModule(name, { selectableTypes, ...contents });
+    const selecting = selector => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'type', selector })] });
+
+    it('map each key to its type, a selector and its keys owned by the modules that declare them', () => {
+        const registry = new LexicaRegistry([reports(), keys('doors', [{ name: 'door:open', selector: 'report', type: 'boolean' }])]);
+
+        expect(registry.getSelectableType('report', 'motion')).toEqual({ name: 'motion', selector: 'report', type: 'number' });
+        expect(registry.getSelectableType('report', 'smoke')).toBeUndefined();
+        expect(registry.getOwner(registry.getTypeSelector('report'))).toBe('reports');
+        expect(registry.getOwner(registry.getSelectableType('report', 'door:open'))).toBe('doors');
+        expect(registry.revision).toBe(2);
+    });
+
+    it('are named once across every module', () => {
+        expect(refusalOf(() => new LexicaRegistry([reports(), new LexicaModule('again', { typeSelectors: [{ name: 'report' }] })]))).toMatchObject({ module: 'again', declaration: 'report', field: 'name', message: expect.stringContaining("The type selector 'report' is declared already, by the module 'reports'") });
+    });
+
+    it('take each key once, from the module that declares it first, and never replace it', () => {
+        const message = "The type selector 'report' maps the key 'motion' already, as the module 'reports' declared it, and a key is never replaced";
+
+        expect(refusalOf(() => new LexicaRegistry([reports(), keys('sensors', [{ name: 'motion', selector: 'report', type: 'string' }])]))).toMatchObject({ module: 'sensors', declaration: 'motion', field: 'name', message: expect.stringContaining(message) });
+        expect(messageOf(() => new LexicaRegistry([keys('reports', [{ name: 'motion', selector: 'report', type: 'number' }, { name: 'motion', selector: 'report', type: 'string' }], { typeSelectors: [{ name: 'report' }] })]))).toContain(message);
+    });
+
+    it('take keys of a selector its own module or one registered before it declares, and of no other', () => {
+        expect(() => new LexicaRegistry([keys('reports', [{ name: 'motion', selector: 'report', type: 'number' }], { typeSelectors: [{ name: 'report' }] })])).not.toThrow();
+        expect(refusalOf(() => new LexicaRegistry([keys('sensors', [{ name: 'motion', selector: 'report', type: 'number' }]), reports()]))).toMatchObject({ module: 'sensors', declaration: 'motion', field: 'selector', message: expect.stringContaining("The key 'motion' belongs to the type selector 'report', which no module registered declares") });
+    });
+
+    it('are selected through by a parameter only once a module declares them, and map keys to types a module declares', () => {
+        expect(() => new LexicaRegistry([reports(), new LexicaModule('charts', { members: [selecting('report')] })])).not.toThrow();
+        expect(refusalOf(() => new LexicaRegistry([new LexicaModule('charts', { members: [selecting('report')] })]))).toMatchObject({ declaration: 'report', field: 'parameters', message: expect.stringContaining("The parameter 'kind' selects a type through 'report', which no module registered declares") });
+        expect(messageOf(() => new LexicaRegistry([reports(), keys('doors', [{ name: 'door:open', selector: 'report', type: 'door' }])]))).toContain("'door' names the type 'door', which neither Lexica nor a module registered with it declares");
+    });
+});
+
 describe('conversions', () => {
     const chart = { name: 'chart', fields: { points: 'number' } };
     const charts = (conversions, types = [chart]) => new LexicaModule('charts', { types, conversions });

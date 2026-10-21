@@ -21,6 +21,12 @@ export class LexicaRegistry {
     /** @type {Map<string, object>} */
     #eventTypes = new Map();
 
+    /** Each type selector, by its name. @type {Map<string, object>} */
+    #typeSelectors = new Map();
+
+    /** Each selector's keys, by the selector's name and then the key, each the selectable type a module declared. @type {Map<string, Map<string, object>>} */
+    #selectableTypes = new Map();
+
     /** @type {Map<string, object>} */
     #observationTypes = new Map();
 
@@ -75,6 +81,8 @@ export class LexicaRegistry {
                 fail(`The event '${event.name}' is declared already`, event.name);
             }
         }
+
+        LexicaRegistry.#checkTypeSelections(module, this.#typeSelectors, this.#selectableTypes, declaration => this.#owners.get(declaration), fail);
 
         for (const type of module.observationTypes) {
             if (this.#observationTypes.has(type.name)) {
@@ -157,6 +165,17 @@ export class LexicaRegistry {
             this.#eventTypes.set(event.name, event);
         }
 
+        for (const selector of module.typeSelectors) {
+            this.#typeSelectors.set(selector.name, selector);
+            this.#selectableTypes.set(selector.name, new Map());
+            this.#owners.set(selector, module.name);
+        }
+
+        for (const selectable of module.selectableTypes) {
+            this.#selectableTypes.get(selectable.selector).set(selectable.name, selectable);
+            this.#owners.set(selectable, module.name);
+        }
+
         for (const type of module.observationTypes) {
             this.#observationTypes.set(type.name, type);
             this.#owners.set(type, module.name);
@@ -228,6 +247,16 @@ export class LexicaRegistry {
         return this.#eventTypes.get(name);
     }
 
+    /** The type selector declared so, or undefined. */
+    getTypeSelector(name) {
+        return this.#typeSelectors.get(name);
+    }
+
+    /** The selectable type the selector maps the key to, or undefined. */
+    getSelectableType(selector, key) {
+        return this.#selectableTypes.get(selector)?.get(key);
+    }
+
     /** The type of observation declared so, or undefined. */
     getObservationType(name) {
         return this.#observationTypes.get(name);
@@ -259,6 +288,41 @@ export class LexicaRegistry {
     }
 
     /** Refuses a type notation in the module's declarations that names a type neither Lexica nor a module declares. */
+    /**
+     * Refuses a type selector named already, by this module or one registered before it; a key of a selector neither declares; a key its selector maps already, which is never replaced; and a parameter that selects a type
+     * through a selector neither declares.
+     */
+    static #checkTypeSelections(module, typeSelectors, selectableTypes, ownerOf, fail) {
+        for (const selector of module.typeSelectors) {
+            if (typeSelectors.has(selector.name)) {
+                fail(`The type selector '${selector.name}' is declared already, by the module '${ownerOf(typeSelectors.get(selector.name))}'`, selector.name, 'name');
+            }
+        }
+
+        const isDeclared = name => typeSelectors.has(name) || module.typeSelectors.some(selector => selector.name === name);
+
+        module.selectableTypes.forEach((selectable, index) => {
+            if (!isDeclared(selectable.selector)) {
+                fail(`The key '${selectable.name}' belongs to the type selector '${selectable.selector}', which no module registered declares`, selectable.name, 'selector');
+            }
+
+            const registered = selectableTypes.get(selectable.selector)?.get(selectable.name);
+            const isDeclaredEarlier = module.selectableTypes.slice(0, index).some(other => other.selector === selectable.selector && other.name === selectable.name);
+
+            if (registered !== undefined || isDeclaredEarlier) {
+                fail(`The type selector '${selectable.selector}' maps the key '${selectable.name}' already, as the module '${registered === undefined ? module.name : ownerOf(registered)}' declared it, and a key is never replaced`, selectable.name, 'name');
+            }
+        });
+
+        for (const declaration of module.members) {
+            for (const parameter of declaration.parameters.filter(candidate => candidate.selects === 'type')) {
+                if (!isDeclared(parameter.selector)) {
+                    fail(`The parameter '${parameter.name}' selects a type through '${parameter.selector}', which no module registered declares`, declaration.name, 'parameters');
+                }
+            }
+        }
+    }
+
     static #checkTypeNames(module, types, fail) {
         const check = (notation, declarationName) => {
             for (const name of LexicaRegistry.#namedTypesOf(Type.parse(notation))) {
@@ -273,6 +337,7 @@ export class LexicaRegistry {
         }
 
         module.eventTypes.forEach(eventType => check(eventType.data, eventType.name));
+        module.selectableTypes.forEach(selectable => check(selectable.type, selectable.name));
 
         for (const predicate of module.predicates) {
             [predicate.target].flat().filter(notation => notation !== 'any').forEach(notation => check(notation, predicate.name));
