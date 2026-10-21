@@ -40,13 +40,13 @@ In this document:
 | Implicit body | An expression reading `it`, given to a function parameter whose callback takes one argument, which is its `it` | [Implicit bodies](functions.md#functions-implicit-bodies) |
 | Callback contract | The argument types and the result type a member declares for a function parameter, which a function given to it is checked against | [Arguments](members.md#arguments) |
 | Function parameter | A name a function declares, holding the argument each call gives it | [Functions](functions.md#functions) |
-| Script parameter | A name a script reads and does not declare, which its host binds | [Script parameters](scripts.md#scripts-script-parameters) |
+| Script parameter | A name a script reads and does not declare, which its host binds; `~` and its name, as `~room`, selects it whatever local, field, conditional binding or function parameter hides it | [Script parameters](scripts.md#scripts-script-parameters) |
 | Binding | The value a host supplies for a script parameter | [Script parameters](scripts.md#scripts-script-parameters) |
-| Parameter reference | `~` and a name, as `~room`, reading the script parameter of that name whatever local, field, conditional binding or function parameter hides it | [Parameter references](scripts.md#scripts-parameter-references) |
+| Identifier | A letter followed by letters and digits, the spelling of every name and every reference to a binding, whose position decides what it means | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading the fields whose initializers have completed; the language's one root | [The object root](values.md#locals-the-object-root) |
-| Reserved word | A word that keeps its meaning where an expression stands: a literal's word, `root`, a keyword, and in text read through a registry, a module's name | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
-| Keyword | A reserved word other than the literals' words, `root` and a module's name, as `let`, `if` and `it` | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
-| Reserved reference | `@word`, reading the local or the field a reserved word names | [Names and reserved words](lexical-structure.md#names-and-reserved-words-referring-to-a-reserved-local-or-field) |
+| Reserved word | A word that keeps its language meaning where a value stands: a literal's word, `root` or a keyword; a module's name is none, though it begins its namespace there in text read through a registry | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
+| Keyword | A reserved word other than the literals' words and `root`, as `let`, `if` and `it` | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
+| Lexical reference | `@` and an identifier, as `@to`, reading the nearest local or field of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |
 | Implicit parameter | The value against which the current expression runs, read as `it` | [Names and resolution](scripts.md#names-and-resolution) |
 
 <a id="chains-and-members"></a>
@@ -55,7 +55,7 @@ In this document:
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Chain input | What a chain starts from: the implicit parameter, the object root, a literal, a name, a namespace's member or qualified form, a reserved reference, a parameter reference, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](grammar.md#syntax) |
+| Chain input | What a chain starts from: the implicit parameter, the object root, a literal, a name, a namespace's member or qualified form, a lexical reference, a script parameter selected with `~`, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](grammar.md#syntax) |
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](expressions.md#expression-structure-and-precedence) |
 | Receiver | The value before a member access, function call or indexer | [Access and calls](members.md#access-and-calls) |
 | Member | A property, function or other declared facility of a type | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |

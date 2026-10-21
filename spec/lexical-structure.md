@@ -73,9 +73,9 @@ A name containing a hyphen is written as a string: `device:["night-mode"]`.
 
 ## Names and reserved words
 
-A name starts with an ASCII letter and continues with ASCII letters or digits. For example, `floorArea` is a name. Names contain no hyphens and are also valid JavaScript identifiers.
+An **identifier** starts with an ASCII letter and continues with ASCII letters or digits. For example, `floorArea` is an identifier. Identifiers contain no hyphens and are also valid JavaScript identifiers. Every name a script writes is an identifier, a local's, a field's, a member's, a type's, a module's or a function parameter's, and so is every reference to a binding.
 
-An **identifier** is a name that is not reserved. Reserved words are:
+The language reserves some words, which keep its own meaning where a value stands. Reserved words are:
 
 | Category | Words |
 | --- | --- |
@@ -84,17 +84,29 @@ An **identifier** is a name that is not reserved. Reserved words are:
 | The implicit parameter and operators | `it`, `not`, `try`, `as`, `to`, `and`, `or` |
 | Control flow and declarations | `if`, `then`, `elseif`, `else`, `let`, `do`, `end`, `return`, `function` |
 
-Reserved words match whole names, exactly. `isVisible` and `nullable` are identifiers. All names are case-sensitive, so `TRUE` and `It` are identifiers too.
+Reserved words match whole identifiers, exactly, so `isVisible` and `nullable` are reserved by no word they hold. Identifiers are case-sensitive, so `TRUE` and `It` are no reserved words either.
 
 The **keywords** are the reserved words other than the literals' words and `root`: `it` and the words of operators, control flow and declarations.
 
-In text read through a registry, the name of each module registered with it is reserved as well, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out; text read without a registry reserves no module's name.
+<a id="names-and-reserved-words-what-an-identifier-means"></a>
+
+### What an identifier means
+
+An identifier's spelling decides no meaning; where it stands does:
+
+- **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, field, conditional binding or function parameter of its name, and otherwise the script parameter.
+- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local or field of its name, the spelling of a reserved word among them: `@to`.
+- **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
+- **Where the position expects a name,** after `.`, `?.`, `:` or `?:`, after `as` or `to`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
+- **In text read through a registry,** a [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is no reserved word, but an identifier the registry gives that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. Text read without a registry knows no module's name.
+
+Declarations keep their own restrictions besides: no module is named by a word the language reserves, and a type is named once across every module, Lexica's own types among them, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production makes no identifier valid in every position.
 
 <a id="names-and-reserved-words-declaring-and-accessing-a-reserved-name"></a>
 
 ### Declaring a reserved name
 
-A declaration accepts any name, including a reserved word. This applies to fields, locals, functions, function parameters and conditional bindings. Write the name without `@`:
+A declaration accepts any identifier, a reserved word among them. This applies to fields, locals, functions, function parameters and conditional bindings. Write the name without `@`:
 
 ```lexica
 light { true = true, it = it.active() }
@@ -104,28 +116,30 @@ The same rule applies to member and indexer names after `.`, `?.`, `:` and `?:`.
 
 `let @to = 1`, `{ @true = 1 }` and `value.@null` are syntax errors.
 
+<a id="names-and-reserved-words-lexical-references"></a>
 <a id="names-and-reserved-words-referring-to-a-reserved-local-or-field"></a>
 
-### Reserved references
+### Lexical references
 
-In a script, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and after `let home = 1`, an unprefixed `home` still begins the module's namespace.
+In a script, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and in text read through a registry holding `home`, after `let home = 1`, an unprefixed `home` still begins the module's namespace.
 
-Write `@` directly before a reserved word to read the nearest local or field of that name:
+A **lexical reference**, `@` directly before an identifier, reads the nearest local or field of that name:
 
 ```lexica
 { let to = "3", value = @to to number }
 ```
 
-A reserved reference with no such local or field is a structure error:
+It is needed where the identifier alone means something else, a reserved word or, in text read through a registry, a module's name, and allowed before any identifier: after `let total = 2`, `@total` reads the local as `total` does. Canonical text writes `@` only where it is needed.
+
+A lexical reference with no such local or field is a structure error:
 
 > No local or field named 'it' is in scope. Use '~it' to read the script parameter.
 
-`@` is valid only directly before a reserved word, and a keyword alone reads no local or field. These are syntax errors:
+An identifier must follow `@` directly, and a keyword alone reads no local or field. These are syntax errors:
 
 | Form | Diagnostic guidance |
 | --- | --- |
-| `@room` | Use `room`; the name is not reserved, and a module's name is reserved only in text read with its registry. |
-| `@ it` or `@` | A reserved word must follow `@` directly. |
+| `@ it` or `@` | An identifier must follow `@` directly. |
 | `to` in a value position | `Found 'to', a keyword: write '@to' for the local or field of that name`. |
 
 <a id="names-and-reserved-words-reserved-words-in-strings"></a>

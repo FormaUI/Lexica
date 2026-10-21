@@ -45,7 +45,7 @@ A script reads three kinds of names: its script parameters, which its host binds
 
 A **script parameter** is a name a script reads and does not declare: `room` in `room.devices.count`. The host binds a value to each, its **binding**, and the script reads it wherever no name the script declares hides it, the same way inside object expressions and arguments as elsewhere. A binding may be a reference value or data: a number, a string, a Boolean, null, a list or an object, and a list or an object may hold reference values.
 
-A script names its parameters and never holds their values, so one script serves every binding its host gives it. A script parameter is named by a letter followed by letters and digits, a reserved word among them, which the script reads through a [parameter reference](#names-and-reserved-words-referring-to-the-callers-binding), as `~as` and `~it`.
+A script names its parameters and never holds their values, so one script serves every binding its host gives it. A script parameter is named by an identifier, a reserved word among them, which the script [selects with `~`](#names-and-reserved-words-referring-to-the-callers-binding), as `~as` and `~it`.
 
 <a id="bindings"></a>
 
@@ -67,11 +67,11 @@ A tool that checks a script without running it takes the same values, or values 
 <a id="names-and-reserved-words-referring-to-the-callers-binding"></a>
 <a id="scripts-parameter-references"></a>
 
-### Parameter references
+### Selecting a script parameter
 
-A **parameter reference**, `~` directly before a name, reads the script parameter of that name whatever local, field, conditional binding or function parameter of that name hides it. In `{ room = room.name, devices = ~room.devices.count }`, the field `room` hides the parameter after it, and `~room` still reads the room the host bound.
+`~` directly before an identifier, a `script-parameter` in the [grammar](grammar.md#grammar-the-grammar), selects the script parameter of that name explicitly, whatever local, field, conditional binding or function parameter of that name hides it. In `{ room = room.name, devices = ~room.devices.count }`, the field `room` hides the parameter after it, and `~room` still reads the room the host bound.
 
-A parameter reference also reads a parameter named by a reserved word: `~as` and `~home` read the parameters `as` and `home`, which written alone would read the keyword and, in text read through a registry holding `home`, the module's namespace. A parameter the host did not bind is a validation error.
+`~` also selects a parameter named by a reserved word: `~as` and `~home` read the parameters `as` and `home`, which written alone would read the keyword and, in text read through a registry holding `home`, the module's namespace. A parameter the host did not bind is a validation error.
 
 The name must follow `~` directly, and `~` alone reads nothing, so it is a syntax error.
 
@@ -262,7 +262,7 @@ If a name is declared as a local later in the same scope, an earlier bare refere
 - `{ let a = b, let b = 1, c = a }`
 - `{ let n = n, a = 1 }`
 
-A parameter reference reads the script parameter explicitly, even before or beneath a same-named local: `{ let n = ~n + 1, value = n }` reads the bound `n`.
+`~` reads the script parameter explicitly, even before or beneath a same-named local: `{ let n = ~n + 1, value = n }` reads the bound `n`.
 
 A local in a sibling or unrelated scope does not hide a script parameter. In `{ a = room { let n = 1, v = n }, b = n }`, field `b` reads the script parameter `n`.
 
@@ -272,7 +272,7 @@ A local in a sibling or unrelated scope does not hide a script parameter. In `{ 
 
 Two locals in one object expression cannot share a name. Neither can two fields. Both are structure errors.
 
-A local or field can hide a name from an outer scope: a local, field, conditional binding or script parameter. The nearest visible declaration wins; a parameter reference still reads the script parameter. Reserved names are allowed.
+A local or field can hide a name from an outer scope: a local, field, conditional binding or script parameter. The nearest visible declaration wins; `~` still selects the script parameter. Reserved names are allowed.
 
 A field may reuse a local's name. Its initializer reads the local, then the field hides it:
 

@@ -990,9 +990,9 @@ export class LanguageResolver {
     }
 
     #resolveParameter(node, pointer, scope) {
-        // A name no local in scope has reads the script parameter of its name, and one the host did not bind may be a member written without its receiver; where a local of its name is in scope, it was written as a parameter reference, which reads no local.
+        // A name no local in scope has reads the script parameter of its name, and one the host did not bind may be a member written without its receiver; where a local of its name is in scope, it was written with `~`, which reads no local.
         if (!this.#bindings.has(node.name) && scope.locals.has(node.name)) {
-            this.#fail(`No script parameter is named '${node.name}', and '~${node.name}' reads a script parameter alone: write '${Names.isReservedWord(node.name, this.#namespaceNames) ? '@' : ''}${node.name}' for the local or field of that name`, pointer);
+            this.#fail(`No script parameter is named '${node.name}', and '~${node.name}' reads a script parameter alone: write '${Names.needsPrefix(node.name, this.#namespaceNames) ? '@' : ''}${node.name}' for the local or field of that name`, pointer);
         }
 
         if (!this.#bindings.has(node.name)) {

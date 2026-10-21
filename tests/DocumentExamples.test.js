@@ -56,7 +56,7 @@ const DOCUMENTS = {
     ],
     'spec/lexical-structure.md': [
         { about: 'fields named by reserved words' },
-        { about: 'a reserved reference', evaluates: { value: 3 } },
+        { about: 'a lexical reference', evaluates: { value: 3 } },
         { about: 'strings of each family', evaluates: { path: 'C:\\Users\\Eyal\\', pattern: '\\d{3}-\\d{2}', message: 'Saved to C:\\Users\\Eyal\\\n\nDone.' } },
         { about: 'a block the source continues after', evaluates: { label: 'Ready', count: 3 } },
     ],

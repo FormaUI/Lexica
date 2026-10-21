@@ -22,7 +22,7 @@ export class Lowering {
     /** The names of the locals and the fields in scope where the node being lowered stands, which a name reads; any other name reads the script parameter of its name. @type {Set<string>} */
     #localNames = new Set();
 
-    /** The parameters written as parameter references, with `~`, which read the script parameter wherever they stand, whatever local shares their name. @type {WeakSet<object>} */
+    /** The parameters written with `~`, which read the script parameter wherever they stand, whatever local shares their name. @type {WeakSet<object>} */
     #parameterReferences = new WeakSet();
 
     /**
@@ -32,7 +32,7 @@ export class Lowering {
     #namesWrittenAlone = new Map();
 
     /**
-     * The definition the tree writes, the span of text each of its nodes, fields, locals and bindings came from, which the tree is no longer needed for, the parameters written as parameter references,
+     * The definition the tree writes, the span of text each of its nodes, fields, locals and bindings came from, which the tree is no longer needed for, the parameters written with `~`,
      * and the names written alone where a value stands.
      * @param {import('./SyntaxTree.mjs').ScriptNode} tree
      */
@@ -91,7 +91,7 @@ export class Lowering {
             case 'function-call': {
                 const call = this.#span({ kind: 'functionCall', name: children[0].value, arguments: this.#argumentsOf(children.slice(2, -1)) }, child);
 
-                if (children[0].type === 'name') {
+                if (children[0].type === 'identifier') {
                     this.#writtenAlone(children[0].value, call);
                 }
 
@@ -178,17 +178,17 @@ export class Lowering {
                 return this.#span({ kind: 'it' }, token);
             case 'literal':
                 return this.#span({ kind: 'literal', value: token.value }, token);
-            case 'name':
+            case 'identifier':
                 // `root` is the object root wherever it stands; any other name is the local or the field its lexical scope declares, and otherwise the script parameter of its name.
                 if (Names.isRoot(token.value)) {
                     return this.#span({ kind: 'root' }, token);
                 }
 
                 return this.#writtenAlone(token.value, this.#span({ kind: this.#localNames.has(token.value) ? 'local' : 'parameter', name: token.value }, token));
-            case 'reserved-reference':
-                // A reserved word after `@` is the local or the field of its name, which validation finds in scope or refuses.
+            case 'lexical-reference':
+                // An identifier after `@` is the local or the field of its name, which validation finds in scope or refuses.
                 return this.#span({ kind: 'local', name: token.value }, token);
-            case 'parameter-reference': {
+            case 'script-parameter': {
                 const parameter = this.#span({ kind: 'parameter', name: token.value }, token);
 
                 this.#parameterReferences.add(parameter);
@@ -296,7 +296,7 @@ export class Lowering {
             }
             case 'bracket-property-access': {
                 const expression = this.#lower(second);
-                const name = expression.kind === 'literal' && Names.isName(expression.value) ? expression.value : expression;
+                const name = expression.kind === 'literal' && Names.isIdentifier(expression.value) ? expression.value : expression;
 
                 node = optional ? { kind: 'member', target, name, optional } : { kind: 'member', target, name };
                 break;

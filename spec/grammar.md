@@ -4,7 +4,7 @@
 
 The grammar gives every form a script's source can take. It says what text is well formed, and nothing of what it means: each production's meaning, and the restrictions no grammar can state, are in the document its group names.
 
-In this notation, `[...]` means optional, `{...}` means repetition, `|` separates alternatives, `-` means exclusion, and `? ... ?` describes a special sequence. Each name describes a written form or the category a position holds. Trivia never stands inside a token: `@word`, `~name`, `(?` and `$"` are each written whole, with nothing between their characters.
+In this notation, `[...]` means optional, `{...}` means repetition, `|` separates alternatives, and `? ... ?` describes a special sequence. Each production names a written form or the role a position holds. Trivia never stands inside a token: `@total`, `~room`, `(?` and `$"` are each written whole, with nothing between their characters.
 
 In this document:
 
@@ -25,7 +25,7 @@ In this document:
 | Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation`, `type-name` | [Casts](types.md#casts), [conversions](values.md#conversions), [attempts](expressions.md#attempts) |
 | Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `bracket-property-access`, `member-call`, `indexer`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
 | Simple expressions | `simple-expression`, `simple-value-expression` | [Simple expressions](expressions.md#simple-expressions) |
-| Names and references | `value`, `identifier`, `reserved-reference`, `parameter-reference`, `namespace-access`, `module-name`, `name`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
+| Names and references | `value`, `identifier`, `local-name`, `field-name`, `member-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
 | Objects | `object`, `object-content`, `field` | [Objects](values.md#objects) |
 | Literals and strings | `literal`, `number`, `string` and its forms, `interpolated-string` and its parts | [Lexical structure](lexical-structure.md), [interpolated strings](expressions.md#interpolated-strings) |
 | Trivia | `trivia`, `whitespace`, `line-comment`, `block-comment` | [Comments](lexical-structure.md#comments) |
@@ -62,7 +62,7 @@ local-initializer             = expression | function-expression | arrow-functio
 function-expression           = "function" "(" [ function-parameter-list ] ")"
                                 body "end"
 function-parameter-list       = function-parameter { "," function-parameter }
-function-parameter            = local-name
+function-parameter            = identifier
 
 simple-value-expression       = coalescing | disjunction | or-operand
 
@@ -108,7 +108,7 @@ conversion-target             = chain | cast | conversion
 cast                          = cast-target "as" type-name
 cast-target                   = receiver { member-expression } | enclosed-cast-target
 enclosed-cast-target          = "(" coalescing ")" | optional-enclosed-access
-type-name                     = name
+type-name                     = identifier
 
 chain                         = chain-input { member-expression | object }
 chain-input                   = input | enclosed-expression
@@ -118,11 +118,11 @@ optional-enclosed-access      = "(?" member-chain ")"
 receiver                      = input | "(" cast ")"
 
 input                         = value | object | identifier | interpolated-string
-                              | reserved-reference | parameter-reference
+                              | lexical-reference | script-parameter
                               | function-call | namespace-access
-reserved-reference            = "@" reserved-word
-parameter-reference           = "~" name
-function-call                 = ( identifier | reserved-reference )
+lexical-reference             = "@" identifier
+script-parameter              = "~" identifier
+function-call                 = ( identifier | lexical-reference )
                                 "(" [ argument-list ] ")"
 argument-list                 = argument { "," argument }
 argument                      = simple-expression | arrow-function
@@ -133,8 +133,9 @@ value                         = "it" | "root" | literal
 namespace-access              = module-name "." member-name
                                 [ "(" [ argument-list ] ")" ]
                               (* no indexer is written through a namespace *)
-module-name                   = ? the name of a module registered with the registry
-                                  the text is read with ?
+module-name                   = identifier
+                              (* a namespace where the registry the text is read
+                                 with holds a module of that name *)
 
 enclosed-expression           = parenthesized-expression | optional-enclosed-access
 
@@ -153,13 +154,11 @@ field                         = field-name "=" expression
 
 literal                       = string | number | "true" | "false" | "null"
 
-identifier                    = name - reserved-word
-local-name                    = name
-field-name                    = name
-member-name                   = name
-name                          = letter { letter | digit }
+identifier                    = letter { letter | digit }
+local-name                    = identifier
+field-name                    = identifier
+member-name                   = identifier
 reserved-word                 = "true" | "false" | "null" | "root" | keyword
-                              | module-name
 keyword                       = "it" | "not" | "try" | "as" | "to" | "and" | "or"
                               | "if" | "then" | "elseif" | "else" | "let"
                               | "do" | "end" | "return" | "function"
@@ -231,8 +230,12 @@ The grammar uses several terms more narrowly than the prose:
 | Grammar rule | Meaning |
 | --- | --- |
 | `value` | The forms listed by that production: the implicit parameter, the object root or a literal |
+| `identifier` | An identifier's spelling, every name and every unprefixed reference written with it; which identifiers a position takes, and what one means there, are the [interpretation rules](lexical-structure.md#names-and-reserved-words-what-an-identifier-means), which the grammar's one production leaves to them |
+| `lexical-reference` | `@` and an identifier, reading the nearest local or field of that name, whatever its spelling |
+| `script-parameter` | `~` and an identifier, selecting the script parameter of that name explicitly |
+| `module-name` | An identifier that begins a namespace where a value stands, in text read through a registry holding a module of that name |
 | `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; text read without a registry has no module names, so it has none |
-| `type-name` | The name of the type a cast or a conversion names, written bare: any name, a reserved word included, as a member's name is after `.` |
+| `type-name` | The name of the type a cast or a conversion names, written bare: any identifier, a reserved word included, as a member's name is after `.` |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
 | `equality-operand` | A chain, cast, conversion or attempt, used within the arithmetic productions |

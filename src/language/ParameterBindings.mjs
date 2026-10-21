@@ -23,7 +23,7 @@ export class ParameterBindings {
 
         for (const [name, value] of Object.entries(parameters)) {
             // A binding a reserved word names is read as `~` and its name, which written alone keeps its own meaning.
-            if (!Names.isName(name)) {
+            if (!Names.isIdentifier(name)) {
                 throw LexicaError.structure('A binding is named by a letter followed by letters and digits', { binding: name });
             }
 

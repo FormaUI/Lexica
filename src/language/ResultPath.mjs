@@ -13,7 +13,7 @@ export class ResultPath {
             const isIndex = Number.isInteger(item) && item >= 0;
 
             // A field a result holds is named by any word, a reserved word among them.
-            if (!isIndex && !Names.isName(item)) {
+            if (!isIndex && !Names.isIdentifier(item)) {
                 throw LexicaError.structure(`A path holds the names of fields and list indices that are whole numbers and not negative, and ${JSON.stringify(item) ?? String(item)} is neither`, {});
             }
         }

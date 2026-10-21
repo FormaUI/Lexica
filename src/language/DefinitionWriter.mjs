@@ -39,13 +39,13 @@ export class DefinitionWriter {
         return DefinitionWriter.#writing(node, moduleNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
     }
 
-    /** The parameters a name written alone would not read, which the text being written writes as parameter references, with `~`. @type {WeakSet<object>} */
+    /** The parameters a name written alone would not read, which the text being written writes with `~`. @type {WeakSet<object>} */
     static #parameterReferences = new WeakSet();
 
     /** The module names the text being written is written with. @type {ReadonlySet<string>} */
     static #moduleNames = Names.noModuleNames;
 
-    /** What the writing gives with the module names in effect and the node's parameter references marked for them, those of any writing around it restored after it. */
+    /** What the writing gives with the module names in effect and the node's parameters written with `~` marked for them, those of any writing around it restored after it. */
     static #writing(node, moduleNames, write) {
         const enclosingReferences = DefinitionWriter.#parameterReferences;
         const enclosingModuleNames = DefinitionWriter.#moduleNames;
@@ -63,7 +63,7 @@ export class DefinitionWriter {
     }
 
     /**
-     * Marks each parameter in the node that the text writes as a parameter reference: one a reserved word names, a module's name among them where the text is written with it, or that a local or a field in scope hides,
+     * Marks each parameter in the node that the text writes with `~`: one a reserved word names, a module's name among them where the text is written with it, or that a local or a field in scope hides,
      * following the locals and the fields each object expression and the name each conditional binding brings into scope, and those declared later in it.
      */
     static #markParameterReferences(node, inScope, later) {
@@ -79,7 +79,7 @@ export class DefinitionWriter {
 
         switch (node.kind) {
             case 'parameter':
-                if (Names.isReservedWord(node.name, DefinitionWriter.#moduleNames) || inScope.has(node.name) || later.has(node.name)) {
+                if (Names.needsPrefix(node.name, DefinitionWriter.#moduleNames) || inScope.has(node.name) || later.has(node.name)) {
                     DefinitionWriter.#parameterReferences.add(node);
                 }
 
@@ -120,7 +120,7 @@ export class DefinitionWriter {
             }
             case 'conditional':
                 if (node.binding !== undefined) {
-                    // A binding's value reads no name of its own, which a text writes as a parameter reference for the script parameter, as a local's value does.
+                    // A binding's value reads no name of its own, which a text writes with `~` for the script parameter, as a local's value does.
                     DefinitionWriter.#markParameterReferences(node.binding.value, inScope, new Set([...later, node.binding.name]));
                     DefinitionWriter.#markParameterReferences(node.consequent, new Set([...inScope, node.binding.name]), later);
                     DefinitionWriter.#markParameterReferences(node.alternative, inScope, later);
@@ -310,7 +310,7 @@ export class DefinitionWriter {
 
     /** A reference to a local or a field: its name, after `@` where a reserved word names it, a module's name among them where the text is written with it, which written alone keeps its own meaning. */
     static #reference(name) {
-        return Names.isReservedWord(name, DefinitionWriter.#moduleNames) ? `@${name}` : name;
+        return Names.needsPrefix(name, DefinitionWriter.#moduleNames) ? `@${name}` : name;
     }
 
     /** A call's arguments, separated by commas. */

@@ -12,7 +12,7 @@ import { Tokenizer } from './Tokenizer.mjs';
 /** @typedef {{ start: number, end: number }} Span */
 
 const TOKEN_DESCRIPTIONS = {
-    name: 'a name',
+    identifier: 'an identifier',
     literal: 'a literal',
     end: 'the end of the source',
 };
@@ -21,7 +21,7 @@ const TOKEN_DESCRIPTIONS = {
 const CHAIN_CONTINUATIONS = new Set(['.', '?.', '[', '?[', ':', '?:', '{']);
 
 /** The tokens that, after a space, make the name before them a member written without its receiver, which no local is: an argument. */
-const ARGUMENT_STARTS = new Set(['it', 'literal', 'interpolated-string-start', 'parameter-reference', 'reserved-reference']);
+const ARGUMENT_STARTS = new Set(['it', 'literal', 'interpolated-string-start', 'script-parameter', 'lexical-reference']);
 
 /** The keywords that close or divide a construct, whose own messages say what it lacks where a value would stand. */
 const STRUCTURAL_KEYWORDS = new Set(['then', 'elseif', 'else', 'end']);
@@ -60,7 +60,7 @@ export class Parser {
     constructor(text, moduleNames = Names.noModuleNames) {
         this.#text = text;
         this.#moduleNames = moduleNames;
-        this.#tokens = new Tokenizer(text, moduleNames).tokenize();
+        this.#tokens = new Tokenizer(text).tokenize();
     }
 
     /**
@@ -153,7 +153,7 @@ export class Parser {
         // A comma stands between two parameters alone, so one before ')' is refused.
         if (this.#token.type !== ')') {
             for (;;) {
-                if (this.#token.type === 'reserved-reference') {
+                if (this.#token.type === 'lexical-reference') {
                     throw this.#fail(`A parameter is declared as it is written, with no '@': write '${this.#token.value}'`, this.#token.start);
                 }
 
@@ -684,7 +684,7 @@ export class Parser {
             return true;
         }
 
-        if (this.#token.type !== 'name') {
+        if (this.#token.type !== 'identifier') {
             return false;
         }
 
@@ -740,7 +740,7 @@ export class Parser {
         const token = this.#token;
 
         if (token.type === 'literal' && typeof token.value === 'string') {
-            const bare = Names.isName(token.value) ? token.value : example;
+            const bare = Names.isIdentifier(token.value) ? token.value : example;
 
             throw this.#fail(`'${keyword}' names the type it ${what} bare, as a member's name is written: write '${keyword} ${bare}'`, token.start);
         }
@@ -980,13 +980,13 @@ export class Parser {
             throw this.#fail(`'to' converts the value written before it: write 'it to ${this.#text.slice(next.start, next.end)}' to convert the implicit parameter`, token.start);
         }
 
-        if (token.type === 'name' && this.#moduleNames.has(token.value)) {
+        if (token.type === 'identifier' && this.#moduleNames.has(token.value)) {
             return this.#parseNamespaceAccess();
         }
 
         // A name that starts a chain is a local, a field or a binding, which takes no argument, so one an argument follows after a space is a member written without its receiver; parentheses after it call the local function of its name.
-        if (token.type === 'name' || token.type === 'reserved-reference') {
-            const written = token.type === 'name' ? token.value : `@${token.value}`;
+        if (token.type === 'identifier' || token.type === 'lexical-reference') {
+            const written = token.type === 'identifier' ? token.value : `@${token.value}`;
 
             this.#refuseEnclosedAccessArgument(next, written);
 
@@ -994,7 +994,7 @@ export class Parser {
                 return this.#parseFunctionCall(written);
             }
 
-            if (token.type === 'name' && next.spaced && ARGUMENT_STARTS.has(next.type)) {
+            if (token.type === 'identifier' && next.spaced && ARGUMENT_STARTS.has(next.type)) {
                 throw this.#fail(`'${token.value}' follows no receiver: write 'it.${token.value}(…)' for a member of the implicit parameter`, token.start);
             }
         }
@@ -1002,9 +1002,9 @@ export class Parser {
         switch (token.type) {
             case 'it':
             case 'literal':
-            case 'name':
-            case 'parameter-reference':
-            case 'reserved-reference':
+            case 'identifier':
+            case 'script-parameter':
+            case 'lexical-reference':
                 return this.#take();
             case '{':
                 return this.#parseObject();
@@ -1038,11 +1038,11 @@ export class Parser {
 
         const dot = this.#take();
 
-        if (this.#token.type === 'reserved-reference') {
+        if (this.#token.type === 'lexical-reference') {
             throw this.#fail(`A member is named as it is written after its dot, with no '@': write '${name}.${this.#token.value}'`, this.#token.start);
         }
 
-        const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('name');
+        const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('identifier');
         const written = `${name}.${this.#wordOf(nameToken)}`;
 
         this.#refuseEnclosedAccessArgument(this.#token, written);
@@ -1115,7 +1115,7 @@ export class Parser {
         // After a colon only an indexer's name or a default indexer's bracket stands, so any word names an indexer there, a reserved word among them, written as it is.
         const isNamed = this.#isWord(this.#token);
 
-        if (this.#token.type === 'reserved-reference') {
+        if (this.#token.type === 'lexical-reference') {
             throw this.#fail(`An indexer is named as it is written after its colon, with no '@': write ':${this.#token.value}[…]'`, this.#token.start);
         }
 
@@ -1171,11 +1171,11 @@ export class Parser {
     /** Reads a member after its dot, or the `?.` of an optional access: a dot property access, or a member call where parentheses follow the name. */
     #parseDotPropertyAccessOrMemberCall(dot) {
         // After a dot only a member's name stands, so any word names one there, a reserved word among them, written as it is.
-        if (this.#token.type === 'reserved-reference') {
+        if (this.#token.type === 'lexical-reference') {
             throw this.#fail(`A member is named as it is written after its dot, with no '@': write '.${this.#token.value}'`, this.#token.start);
         }
 
-        const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('name');
+        const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('identifier');
         const name = this.#wordOf(nameToken);
 
         this.#refuseEnclosedAccessArgument(this.#token, `.${name}`);
@@ -1217,7 +1217,7 @@ export class Parser {
 
     /** Whether the token writes a word: a name, a keyword, `it`, or the word of a literal, which a declaration, a member's name and a type's take as they are, whatever the word means where an expression stands. */
     #isWord(token) {
-        return token.type === 'name' || token.type === 'keyword' || token.type === 'it' || (token.type === 'literal' && (typeof token.value === 'boolean' || token.value === null));
+        return token.type === 'identifier' || token.type === 'keyword' || token.type === 'it' || (token.type === 'literal' && (typeof token.value === 'boolean' || token.value === null));
     }
 
     /** The word a token writes, as its text spells it. */
@@ -1335,7 +1335,7 @@ export class Parser {
     #refuseName(colonMessage, message, prefix) {
         const token = this.#token;
 
-        if (token.type === 'reserved-reference') {
+        if (token.type === 'lexical-reference') {
             throw this.#fail(`A name is declared as it is written, with no '@': write '${prefix}${token.value} = …'`, token.start);
         }
 

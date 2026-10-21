@@ -54,10 +54,10 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | Text that does not follow the syntax | A syntax error, with its position |
 | An argument written as a named one, as `relativeTo = other` | A syntax error, giving a member call the form of an options object |
 | A comparison chain whose operators point two ways | A syntax error at the operator that turns it |
-| `@` in a declaration or before a field's or a member's name, `@` before a name that is no reserved word, or `@` before no word | A syntax error giving the form to write |
-| `~` with no name directly after it | A syntax error saying a parameter reference names its parameter |
+| `@` in a declaration or before a field's or a member's name, or `@` with no identifier directly after it | A syntax error giving the form to write |
+| `~` with no identifier directly after it | A syntax error saying a script parameter is named directly after `~` |
 | A string where a cast or a conversion names its type, as `device as "light"` | A syntax error giving the type's name written bare, `device as light` |
-| A keyword where a value stands | A syntax error giving the reserved reference; `then`, `elseif`, `else` and `end` give the value expected instead: `Expected a value, found 'then'` |
+| A keyword where a value stands | A syntax error giving the lexical reference; `then`, `elseif`, `else` and `end` give the value expected instead: `Expected a value, found 'then'` |
 | A conditional without its `end`, a conditional whose branches give their results in two styles, anything after a body's result, or a `return` with no value | A syntax error |
 | Locals whose body's result has no `return` | A syntax error: `Introduce the body's result with return.` |
 | An expression no local holds before a body's `return` | A syntax error: `Only locals may precede a body's result.` |
@@ -80,7 +80,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A definition of a version other than the one the implementation reads, as a version 31 definition is for version 32 | A structure error naming both versions |
 | A definition holding a namespace given to `lexica.format` or `lexica.quote`, a definition read without a registry's module names that names one of them, or a namespace naming no module the registry holds | A structure error saying to read or write the text with the registry, located at the namespace, or at the name where the text first writes it alone |
 | A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a bracket property access or an interpolation | A structure error naming the part, which a local holds first |
-| A reserved reference, or a definition's local, that no local or field in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
+| A lexical reference, or a definition's local, that no local or field in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
 | A function calling itself or one declared after it, or two parameters of one name | A structure error |
 | A body anywhere but the script's, a do block's, a function's or a conditional branch's | A structure error: `A body is the script's, a do block's, a function's or a conditional branch's, and stands nowhere else` |
 | A cast in a definition whose target is none text could write | A structure error at the target |

@@ -1,5 +1,5 @@
 /**
- * Names — Lexica's names: how one is spelled, and the words that keep a meaning of their own where an expression stands
+ * Names — Lexica's identifiers: how one is spelled, the words the language reserves, and which identifiers a reference to a binding writes with a prefix
  */
 
 /** A letter followed by letters and digits, which is also a JavaScript identifier. */
@@ -20,18 +20,24 @@ export class Names {
     /** The module names of text read without a registry: none. */
     static noModuleNames = NO_MODULE_NAMES;
 
-    /** Whether the text is a name: a letter followed by letters and digits, a reserved word among them, since a declaration's position tells it from the word. */
-    static isName(text) {
+    /** Whether the text is spelled as an identifier: a letter followed by letters and digits, a reserved word among them, since a position that expects a name tells it from the word. */
+    static isIdentifier(text) {
         return typeof text === 'string' && PATTERN.test(text);
     }
 
+    /** Whether the word is one the language reserves, which keeps its meaning where an expression stands: a literal's word, a keyword or `root`. */
+    static isReservedWord(word) {
+        return LITERALS.has(word) || KEYWORDS.has(word) || word === ROOT;
+    }
+
     /**
-     * Whether the word is reserved where an expression stands: a word the language reserves, or, in text read through a registry, the name of one of its modules, whose namespace it begins.
+     * Whether an identifier written alone where a value stands means something other than a binding of its name, so a reference to the local, the field or the script parameter writes it with `@` or `~`: a word the language
+     * reserves, or, in text read through a registry, the name of one of its modules, which begins its namespace there.
      * @param {string} word
      * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with.
      */
-    static isReservedWord(word, moduleNames = NO_MODULE_NAMES) {
-        return LITERALS.has(word) || KEYWORDS.has(word) || word === ROOT || moduleNames.has(word);
+    static needsPrefix(word, moduleNames = NO_MODULE_NAMES) {
+        return Names.isReservedWord(word) || moduleNames.has(word);
     }
 
     /** Whether the word is a keyword. */

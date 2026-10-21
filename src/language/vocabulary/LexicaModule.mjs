@@ -88,7 +88,7 @@ export class LexicaModule {
      * @param {object[]} [contents.conversions] The conversions it declares, each from a type of data to another.
      */
     constructor(name, contents = {}) {
-        if (!Names.isName(name)) {
+        if (!Names.isIdentifier(name)) {
             throw LexicaError.module('A module is named as a name is', { module: String(name) });
         }
 
@@ -270,7 +270,7 @@ export class LexicaModule {
     static #validateTypeDeclaration(type, fail) {
         LexicaModule.#validateKeys(type, TYPE_KEYS, 'A type', fail);
 
-        if (!Names.isName(type?.name) || RESERVED_TYPE_NAMES.has(type.name)) {
+        if (!Names.isIdentifier(type?.name) || RESERVED_TYPE_NAMES.has(type.name)) {
             fail('A type is named as a name is and takes none of the built-in names', type?.name, 'name');
         }
 
@@ -282,7 +282,7 @@ export class LexicaModule {
 
         for (const [name, notation] of fields) {
             // A field of a structured type is read after a dot, so a keyword names one.
-            if (!Names.isName(name) || !LexicaModule.#isTypeNotation(notation)) {
+            if (!Names.isIdentifier(name) || !LexicaModule.#isTypeNotation(notation)) {
                 fail(`The field '${name}' is not a name with a type`, type.name, 'fields');
             }
         }
@@ -299,7 +299,7 @@ export class LexicaModule {
 
             LexicaModule.#validateKeys(selector, TYPE_SELECTOR_KEYS, 'A type selector', fail);
 
-            if (!Names.isName(selector.name)) {
+            if (!Names.isIdentifier(selector.name)) {
                 fail('A type selector is named as a name is', String(selector.name), 'name');
             }
 
@@ -323,7 +323,7 @@ export class LexicaModule {
             fail('A selectable type is named by its key, a letter followed by letters, digits, colons and hyphens', String(selectable.name), 'name');
         }
 
-        if (!Names.isName(selectable.selector)) {
+        if (!Names.isIdentifier(selectable.selector)) {
             fail('A selectable type names the type selector it belongs to', selectable.name, 'selector');
         }
 
@@ -406,7 +406,7 @@ export class LexicaModule {
     static #validateObservation(observationDeclaration, parameters, hasReceiver, name, fail) {
         const field = 'updates.observations';
 
-        if (observationDeclaration === null || typeof observationDeclaration !== 'object' || !Names.isName(observationDeclaration.type)) {
+        if (observationDeclaration === null || typeof observationDeclaration !== 'object' || !Names.isIdentifier(observationDeclaration.type)) {
             fail('An observation names its type as a name is', name, field);
         }
 
@@ -418,7 +418,7 @@ export class LexicaModule {
         }
 
         // A target is named as a name is, and whether its observation type's module declares it is the registry's to check, which knows every module.
-        const isTarget = Names.isName(observationDeclaration.of) || LexicaModule.#isArgumentReference(observationDeclaration.of, parameters);
+        const isTarget = Names.isIdentifier(observationDeclaration.of) || LexicaModule.#isArgumentReference(observationDeclaration.of, parameters);
 
         if (!isTarget) {
             fail(`The observation '${observationDeclaration.type}' observes the receiver, an argument of the member or an observation target by its name, and not '${JSON.stringify(observationDeclaration.of)}'`, name, field);
@@ -471,7 +471,7 @@ export class LexicaModule {
 
             LexicaModule.#validateKeys(target, OBSERVATION_TARGET_KEYS, 'An observation target', fail);
 
-            if (!Names.isName(target.name)) {
+            if (!Names.isIdentifier(target.name)) {
                 fail('An observation target is named as a name is', String(target.name), 'name');
             }
 
@@ -504,8 +504,8 @@ export class LexicaModule {
 
         const identity = type?.identity ?? [];
 
-        if (!Names.isName(type?.name) || !OBSERVATION_CONTRACTS.includes(type.contract)) {
-            fail(`An observation type is named as a name is and is one of ${OBSERVATION_CONTRACTS.join(', ')}`, String(type?.name), Names.isName(type?.name) ? 'contract' : 'name');
+        if (!Names.isIdentifier(type?.name) || !OBSERVATION_CONTRACTS.includes(type.contract)) {
+            fail(`An observation type is named as a name is and is one of ${OBSERVATION_CONTRACTS.join(', ')}`, String(type?.name), Names.isIdentifier(type?.name) ? 'contract' : 'name');
         }
 
         if (!Array.isArray(identity) || !identity.every(argument => LexicaModule.#isIdentifier(argument))) {
@@ -535,7 +535,7 @@ export class LexicaModule {
         for (const key of ['from', 'to']) {
             const typeName = conversion[key];
 
-            if (!Names.isName(typeName) || (RESERVED_TYPE_NAMES.has(typeName) && !DATA_TYPE_NAMES.includes(typeName))) {
+            if (!Names.isIdentifier(typeName) || (RESERVED_TYPE_NAMES.has(typeName) && !DATA_TYPE_NAMES.includes(typeName))) {
                 fail(`A conversion is from a type of data to another, each named as it is declared: ${DATA_TYPE_NAMES.join(', ')} or a structured type, and its '${key}' is none of them`, name, key);
             }
         }
@@ -559,7 +559,7 @@ export class LexicaModule {
         const name = member.name;
 
         // A member is read after a dot or, an indexer, after a colon, where only a member's name stands, so a keyword names one.
-        if (!Names.isName(name)) {
+        if (!Names.isIdentifier(name)) {
             fail('A member is named as a name is, a keyword among them', String(name), 'name');
         }
 
@@ -739,7 +739,7 @@ export class LexicaModule {
         // A function is never null, so a function parameter declares no null policy.
         const declaresNulls = parameter?.kind === 'function' ? parameter.nulls === undefined : NULL_POLICIES.includes(parameter?.nulls);
 
-        if (!Names.isName(parameter.name) || !PARAMETER_KINDS.includes(parameter.kind) || !declaresNulls || typeof parameter.required !== 'boolean') {
+        if (!Names.isIdentifier(parameter.name) || !PARAMETER_KINDS.includes(parameter.kind) || !declaresNulls || typeof parameter.required !== 'boolean') {
             fail('A parameter declares its name, its kind, whether it is required and how it handles null, which a function parameter leaves out', memberName, field);
         }
 
@@ -800,7 +800,7 @@ export class LexicaModule {
         }
 
         // A type is selected through the type selector the parameter names.
-        if (!Names.isName(parameter.selector)) {
+        if (!Names.isIdentifier(parameter.selector)) {
             fail(`The fixed parameter '${parameter.name}' selects a type, so it names the type selector it selects through`, memberName, field);
         }
 

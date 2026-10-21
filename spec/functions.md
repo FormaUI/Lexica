@@ -52,7 +52,7 @@ Either form is a local's initializer, of a body or of an object expression, and 
 
 A definition holding either where text could not write it is a structure error. An object expression's function local is in scope within it, as any local is, and is no field.
 
-Its function parameters are names of the function, two of one function never the same, visible in its body alone, where each hides an outer local, field or script parameter of its name; a [parameter reference](scripts.md#scripts-parameter-references) still reads the script parameter.
+Its function parameters are names of the function, two of one function never the same, visible in its body alone, where each hides an outer local, field or script parameter of its name; [`~`](scripts.md#scripts-parameter-references) still selects the script parameter.
 
 <a id="functions-calling-one"></a>
 

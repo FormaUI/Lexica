@@ -58,9 +58,28 @@ describe('lexica', () => {
         expect(lexica.createRegistry().resolve('{ context = context }', { context: 2 }).createEvaluator({ context: 2 }).evaluate().value).toEqual({ context: 2 });
     });
 
-    it('refuses a parameter reference that names no parameter, since ~ alone reads nothing', () => {
-        expect(getError(() => lexica.parse('~.size'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("names its script parameter directly after '~'") });
-        expect(getError(() => lexica.parse('~ room'))).toMatchObject({ kind: 'syntax', message: "A parameter reference names its script parameter directly after '~', as ~room (line 1, column 1)" });
+    it('refuses a ~ that names no script parameter, since ~ alone reads nothing', () => {
+        expect(getError(() => lexica.parse('~.size'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("no script parameter, which is named directly after '~'") });
+        expect(getError(() => lexica.parse('~ room'))).toMatchObject({ kind: 'syntax', message: "A script parameter is named directly after '~', as ~room (line 1, column 1)" });
+    });
+
+    it('reads a lexical reference before any identifier, the local or the field of its name, and writes one only where the identifier alone means something else', () => {
+        const registry = lexica.createRegistry([lexica.createModule('home', {})]);
+
+        expect(lexica.createRegistry().resolve('let total = 2\nreturn @total + total', {}).createEvaluator({}).evaluate().value).toBe(4);
+        expect(lexica.format('let total = 2\nreturn @total')).toBe('let total = 2\nreturn total');
+        expect(lexica.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn home');
+        expect(registry.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn @home');
+        expect(getError(() => lexica.parse('@room'))).toMatchObject({ kind: 'structure', message: expect.stringContaining("No local or field named 'room' is in scope. Use '~room' to read the script parameter") });
+        expect(getError(() => lexica.parse('@ room'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("An identifier follows '@' directly") });
+    });
+
+    it('reads a word as the role its position gives it where the position expects a name, a module\'s name among them, and as the language\'s own meaning where a value stands', () => {
+        const registry = lexica.createRegistry([lexica.createModule('home', {})]);
+
+        expect(registry.parse('node.root + node.home').expression).toEqual({ kind: 'arithmetic', operator: '+', left: { kind: 'member', target: { kind: 'parameter', name: 'node' }, name: 'root' }, right: { kind: 'member', target: { kind: 'parameter', name: 'node' }, name: 'home' } });
+        expect(registry.format('{ home = 1, root = 2, b = @home + @root }')).toBe('{\n    home = 1,\n    root = 2,\n    b = @home + @root\n}');
+        expect(registry.parse('let f = home => @home + 1\nreturn f(1)').expression.locals[0].value.parameters).toEqual(['home']);
     });
 
     it('writes a cast\'s and a conversion\'s type bare, a reserved word among them, and refuses a string in its place with the bare name', () => {

@@ -22,7 +22,7 @@ Each node is an object whose `kind` says what it is:
 | Kind | Properties | Records |
 | --- | --- | --- |
 | `literal` | `value`, a JSON string, a finite number, a Boolean or null | A literal |
-| `parameter` | `name` | A script parameter; text writes it alone where its name is no reserved word, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and as a parameter reference, `~` and its name, otherwise |
+| `parameter` | `name` | A script parameter; text writes it alone where its name is no reserved word, nor a module's name of the registry writing it, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and with `~` before its name otherwise |
 | `it` | None | The implicit parameter |
 | `root` | None | The object root |
 | `namespace` | `name`, the module's name | A module's namespace, the target of a `member` or a `call` node that reads one of the module's members or calls a qualified form through it |
@@ -120,7 +120,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Fields | Every field has a name and value; names are unique within an object expression; an object expression has at least one field. |
 | Locals | Each has a name and value; names are unique within a body or object expression; references name an in-scope local or field. |
 | Declaration order | No reference uses a local before its declaration or within its own initializer. A name written alone cannot fall back to a script parameter when that local is declared later in the same scope. |
-| Script parameters | A definition's `parameter` node, written as a parameter reference when necessary, reads the script parameter regardless of local declarations. |
+| Script parameters | A definition's `parameter` node, written with `~` when necessary, reads the script parameter regardless of local declarations. |
 | Simple expressions | Arguments, indexer keys, bracket property names and interpolations obey the restrictions recursively; an object expression within one, as an options object, declares no locals, though it may use those in scope. |
 | Members | Every property access, call and indexer has a receiver. |
 | Equality | Both operands are present. |
@@ -162,7 +162,7 @@ Every definition has one canonical text, which `lexica.format` and `lexica.quote
 | --- | --- |
 | Declaration, field name or member name | The name as written, without a prefix |
 | Reference to a local or field | Its name; `@name` if reserved |
-| Reference to a script parameter | Its name if not reserved or hidden; a parameter reference otherwise |
+| Reference to a script parameter | Its name if it needs no prefix and is not hidden; `~` and its name otherwise |
 | The object root | `root` |
 | The implicit parameter | `it` |
 | A namespace | The module's name |

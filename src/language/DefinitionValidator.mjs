@@ -106,12 +106,12 @@ export class DefinitionValidator {
      */
     #simpleExpression = null;
 
-    /** The parameters of a definition parsed from text that were written as parameter references, with `~`, which read the script parameter wherever they stand; null for a definition not parsed from text. @type {WeakSet<object> | null} */
+    /** The parameters of a definition parsed from text that were written with `~`, which read the script parameter wherever they stand; null for a definition not parsed from text. @type {WeakSet<object> | null} */
     #parameterReferences;
 
     /**
      * @param {TextLocations | null} locations Where in a text each part of the definition came from, for one parsed from text.
-     * @param {WeakSet<object> | null} parameterReferences The parameters a text wrote as parameter references, for one parsed from text.
+     * @param {WeakSet<object> | null} parameterReferences The parameters a text wrote with `~`, for one parsed from text.
      */
     constructor(locations = null, parameterReferences = null) {
         this.#locations = locations;
@@ -179,11 +179,11 @@ export class DefinitionValidator {
             case 'literal':
                 return this.#validateLiteral(node, pointer);
             case 'parameter':
-                if (!Names.isName(node.name)) {
+                if (!Names.isIdentifier(node.name)) {
                     this.#fail(`${pointer}/name`, 'A parameter is named by a letter followed by letters and digits');
                 }
 
-                // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; a parameter reference and a definition's parameter read the script parameter wherever they stand.
+                // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; a script parameter written with `~` and a definition's parameter read the script parameter wherever they stand.
                 if (this.#locations !== null && !this.#parameterReferences?.has(node)) {
                     this.#requireBindingName(node.name, pointer);
                 }
@@ -267,7 +267,7 @@ export class DefinitionValidator {
             case 'cast':
                 return this.#validateCast(node, pointer, contextAvailability);
             case 'conversion':
-                if (!Names.isName(node.type)) {
+                if (!Names.isIdentifier(node.type)) {
                     this.#fail(`${pointer}/type`, 'A conversion names the type it converts to by its name, a letter followed by letters and digits');
                 }
 
@@ -405,7 +405,7 @@ export class DefinitionValidator {
 
     /** Validates a cast: the name of the type it casts to, and its target, which is a receiver and its accesses, a coalescing operator, another cast, or an optional chain, as text can write one. */
     #validateCast(node, pointer, contextAvailability) {
-        if (!Names.isName(node.type)) {
+        if (!Names.isIdentifier(node.type)) {
             this.#fail(`${pointer}/type`, 'A cast names the type it casts to by its name, a letter followed by letters and digits');
         }
 
@@ -716,7 +716,7 @@ export class DefinitionValidator {
         const name = node.kind === 'member' && ObjectUtils.isNonArrayObject(node.name) ? this.#validateNameExpression(node.name, `${pointer}/name`, contextAvailability) : node.name;
 
         // A name a bracket property access's expression gave is checked as that expression, and a default indexer has none; any other is a member's name, which any word can be, a reserved word among them.
-        if (name === node.name && !(node.kind === 'indexer' && name === undefined) && !Names.isName(name)) {
+        if (name === node.name && !(node.kind === 'indexer' && name === undefined) && !Names.isIdentifier(name)) {
             this.#fail(`${pointer}/name`, 'A member is named by a letter followed by letters and digits');
         }
 
@@ -783,7 +783,7 @@ export class DefinitionValidator {
         try {
             const expression = this.#validateSimpleExpression(node, pointer, contextAvailability, 'The name a bracket property access reads');
 
-            return expression.kind === 'literal' && Names.isName(expression.value) ? expression.value : expression;
+            return expression.kind === 'literal' && Names.isIdentifier(expression.value) ? expression.value : expression;
         } finally {
             this.#chain = enclosingChain;
         }
@@ -928,7 +928,7 @@ export class DefinitionValidator {
     }
 
     #requireName(value, pointer) {
-        if (!Names.isName(value)) {
+        if (!Names.isIdentifier(value)) {
             this.#fail(pointer, 'A name is a letter followed by letters and digits');
         }
     }
