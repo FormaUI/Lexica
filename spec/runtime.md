@@ -139,13 +139,14 @@ if (call.kind === 'prepared') {
 
 A projection reads what the call was prepared with, and evaluates the rest anew:
 
-- **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, so what a projection reads through it is read as the projection reads it: `let room = sensor.room` gives each projection the room, whose name it reads then, and `let roomName = sensor.room.name` gives each the name as it was when the call was prepared.
+- **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, and one holding a computed value holds the value. In the example, each projection reads `room.is("occupied")` of the room the call was prepared with, as that room is when the motion arrives, while `occupied` keeps whether it was occupied when the call was prepared. Both read one receiver, since reading `sensor.room` again could find another room, a sensor being movable.
 - **Its own evaluation.** Each projection is an evaluation of its own, with its own supplied value, host and state; the result projection's own locals are evaluated in each, and projecting a value for one prepared call never changes what another was prepared with.
 - **Function values.** A function a local before the call holds is called in any projection, as a function value is anywhere within the script; a function a projection gives a member lasts while that member's invocation does, as every function given to a member does. A host call's arguments are values, so no function reaches the host.
 
 ```lexica
 let room = sensor.room
-return sensor.on("motion") { at = it.at, room = room.name }
+let occupied = room.is("occupied")
+return sensor.on("motion") { at = it.at, isOccupied = room.is("occupied"), wasOccupied = occupied }
 ```
 
 Lexica requires no disposal of a prepared call, which starts nothing; the lifetime of whatever its host starts is the host's. A prepared call holds the locals and the references it was prepared with for as long as it is reachable. Each projection goes through the checks every evaluation does, the refusal of a registry that has moved since the resolution among them.
