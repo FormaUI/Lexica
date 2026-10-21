@@ -42,7 +42,7 @@ Run the full build from the repository root:
 | `spec/` | The specification, split by subject, with its index |
 | `docs/` | The design, the guide and the status overview |
 
-The [specification](spec/README.md) defines the language, and the [design](docs/lexica-design.md) how Lexica is built. If a change affects either, update the relevant document before implementing it. The [status overview](docs/status.md) tracks what is implemented, what is being built, and what remains.
+The [specification](spec/README.md) defines the language, and the [design](docs/lexica-design.md) how Lexica is built. If a change affects either, update the relevant document before implementing it. The [status overview](docs/features-status.md) tracks what is implemented, what is being built, and what remains.
 
 ## Develop a change
 

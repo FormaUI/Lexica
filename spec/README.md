@@ -2,7 +2,7 @@
 
 Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host. Lexica knows no application domain of its own: modules declare the types and members available to a script, and adding them never changes the grammar.
 
-This specification is the authoritative contract for the language and for the runtime a host builds on. It states what Lexica is, not how far an implementation has come: [the status overview](../docs/status.md) says what this repository implements, and [the design](../docs/lexica-design.md) how it is built.
+This specification is the authoritative contract for the language and for the runtime a host builds on. It states what Lexica is, not how far an implementation has come: [the status overview](../docs/features-status.md) says what this repository implements, and [the design](../docs/lexica-design.md) how it is built.
 
 <a id="version"></a>
 

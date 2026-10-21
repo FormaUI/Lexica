@@ -1,4 +1,4 @@
-# Lexica Status
+# Features Status
 
 What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come.
 

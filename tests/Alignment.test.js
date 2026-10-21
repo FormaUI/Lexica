@@ -10,7 +10,7 @@ const read = path => readFileSync(resolve(root, path), 'utf8');
 
 describe('Alignment', () => {
     const specification = read('spec/README.md');
-    const status = read('docs/status.md');
+    const status = read('docs/features-status.md');
     const design = read('docs/lexica-design.md');
     const project = read('nuget/Forma.Lexica.csproj');
     const npmPackage = JSON.parse(read('package.json'));

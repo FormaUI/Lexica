@@ -1,6 +1,6 @@
 # Lexica Design v1.0.0-alpha
 
-The [Lexica specification](../spec/README.md) is the contract: the language, and the [runtime](../spec/runtime.md) a host builds on. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes version 32, as the specification does; [the status overview](status.md) says where the implementation still differs.
+The [Lexica specification](../spec/README.md) is the contract: the language, and the [runtime](../spec/runtime.md) a host builds on. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes version 32, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
 
 In this document:
 
@@ -72,4 +72,4 @@ One parser serves the runtime and tooling alike. It reads a text into a lossless
 - **Formatting that keeps the source.** `lexica.format` writes canonical text, which keeps no comment and no layout. Formatting that keeps comments and each string's written form is a tooling operation over the syntax tree, whose tokens keep each string's quote and delimiter length for it.
 - **What it cost.** The tree was measured against the parser before it, before it was kept: the documents' scripts parse 7% slower and malformed texts 8% faster, a 60-field script within 3% with two-thirds more transient allocation, what a kept script retains is unchanged, and the bundle is 3% larger.
 
-The tree is internal until a public tooling API stabilizes it; [the status overview](status.md) tracks recovery, that API, source-keeping formatting and editor tooling.
+The tree is internal until a public tooling API stabilizes it; [the status overview](features-status.md) tracks recovery, that API, source-keeping formatting and editor tooling.

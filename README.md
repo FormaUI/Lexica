@@ -10,7 +10,7 @@ return {
 }
 ```
 
-> **Alpha.** Lexica reads definition version 31, which writes the implicit parameter `context`; the specification describes version 32, which writes `it` and adds namespaces and reference types. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/status.md).
+> **Alpha.** Lexica reads definition version 31, which writes the implicit parameter `context`; the specification describes version 32, which writes `it` and adds namespaces and reference types. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
 
 ## Features
 
@@ -41,16 +41,16 @@ resolution.type; // '{ total: number }'
 resolution.createEvaluator(bindings).evaluate().value; // { total: 12 }
 ```
 
-[Embedding Lexica](https://github.com/FormaUI/Lexica/blob/main/docs/guide.md) goes on to declaring a domain, evaluating against it and following what an evaluation reads.
+[Embedding Lexica](https://github.com/FormaUI/Lexica/blob/main/docs/embedding-guide.md) goes on to declaring a domain, evaluating against it and following what an evaluation reads.
 
 ## Documents
 
 | Document | What it holds |
 | --- | --- |
 | [Specification](https://github.com/FormaUI/Lexica/blob/main/spec/README.md) | The language, its vocabulary contracts and its definition format: the contract |
-| [Guide](https://github.com/FormaUI/Lexica/blob/main/docs/guide.md) | Embedding Lexica in a host, by example |
+| [Guide](https://github.com/FormaUI/Lexica/blob/main/docs/embedding-guide.md) | Embedding Lexica in a host, by example |
 | [Design](https://github.com/FormaUI/Lexica/blob/main/docs/lexica-design.md) | How Lexica is built: its stages, modules, evaluation and tooling |
-| [Status](https://github.com/FormaUI/Lexica/blob/main/docs/status.md) | What is implemented, what is being built, and what remains |
+| [Status](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md) | What is implemented, what is being built, and what remains |
 | [Contributing](https://github.com/FormaUI/Lexica/blob/main/CONTRIBUTING.md) | Report a bug, develop a change and run the checks |
 
 ## Build

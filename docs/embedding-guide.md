@@ -1,8 +1,8 @@
-# Embedding Lexica
+# Embedding Guide
 
 This guide shows how a host uses Lexica: read text, declare its domain as a module, resolve an expression against it, evaluate it, and follow what the evaluation reads. The [specification](../spec/README.md) gives the exact rules, and the [design](lexica-design.md) how each stage works.
 
-The examples run against the current implementation, which reads definition version 31: the implicit parameter is written `context`, where version 32 writes `it`. [The status overview](status.md) tracks the move to version 32.
+The examples run against the current implementation, which reads definition version 31: the implicit parameter is written `context`, where version 32 writes `it`. [The status overview](features-status.md) tracks the move to version 32.
 
 ## Load it
 

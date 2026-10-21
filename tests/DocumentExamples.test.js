@@ -100,8 +100,8 @@ const DOCUMENTS = {
     'spec/terms.md': [],
     'spec/examples-vocabulary.md': [],
     'docs/lexica-design.md': [],
-    'docs/guide.md': [],
-    'docs/status.md': [],
+    'docs/embedding-guide.md': [],
+    'docs/features-status.md': [],
     'README.md': [
         { about: 'a body that counts the rows shown' },
     ],
