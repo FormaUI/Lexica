@@ -45,7 +45,7 @@ In this document:
 
 A module is made by `createModule` from its name and its declarations, `{ name, types, members, predicates, eventTypes, observationTypes, observationTargets, conversions }`, its `name` the module's and its namespace's. Its declarations are validated when it is created and checked against the registry when it is registered with `registerModule`; a declaration that breaks a contract is a module error, raised when the module is created or when it is registered, naming the module, the declaration and the field.
 
-Lexica's own module is one Lexica creates itself, the one module every registry holds, which owns the language's types and has no namespace. Every other module, a host's as DOMQL's `domql` is, is made with `createModule`, and no factory, name or flag makes one an exception to the rules.
+Lexica's own module is one Lexica creates itself, the one module every registry holds, which owns the language's types and has no namespace. Every other module, a host's among them, is made with `createModule`, and no factory, name or flag makes one an exception to the rules.
 
 Each declaration that runs code carries it as its `implementation`: members, predicates, observation types and conversions. A member's name is written once, and two members sharing code refer to one JavaScript function. Every key but `implementation` is data.
 

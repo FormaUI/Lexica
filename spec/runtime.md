@@ -10,7 +10,7 @@ Three layers meet in every evaluation, and each owns its part:
 | --- | --- | --- |
 | The language | What a script means: its syntax, its names and scope, its types, its expressions, and the contracts its vocabulary keeps | Every document of this specification but this one |
 | The runtime | Carrying a script out: reading, resolving and evaluating it, its bindings and results, and what it reports to its host | This document |
-| The host | The application around the runtime: which modules it registers, when it evaluates, what it does with each result, and anything that spans evaluations, as keeping a result current | The host's own specification, as DOMQL's |
+| The host | The application around the runtime: which modules it registers, when it evaluates, what it does with each result, and anything that spans evaluations, as keeping a result current | The host's own specification |
 
 A host uses the runtime in four steps: it binds its values, resolves the script against its registry, creates an evaluator, and evaluates it as often as it needs.
 
@@ -93,7 +93,7 @@ const { value, metadata, isPending } = evaluator.evaluate({
 ```
 
 - **The evaluator** evaluates each node of the resolution, invokes each member's implementation with the [one object it receives](members.md#members-what-an-implementation-receives), its receiver, its arguments and the environment among them, checks the value it answers against the member's result type, and fails the evaluation at the member's location with an evaluation error where an implementation throws or answers a value not of that type.
-- **The environment**, the host's `env`, is whatever the host gives the evaluator that does not belong in the script, which every evaluation of it uses, as DOMQL gives the window and the document a query runs against. The runtime passes it to every implementation and never reads it.
+- **The environment**, the host's `env`, is whatever the host gives the evaluator that does not belong in the script, which every evaluation of it uses, as a home's host gives the connection its members read the home through. The runtime passes it to every implementation and never reads it.
 - **`beforeInvoke(request)`** is called before a member's implementation is invoked, with the request: the member's declaration, its receiver and arguments, and where it stands. It reports every invocation an evaluation attempts, whether it then succeeds, fails or is pending, so a host covers a read whose implementation throws. For a member that reads maintained values it answers their samples, or that one is pending, and a member whose sample is pending is not invoked and reads as null.
 - **`afterInvoke(request, value)`** is called only after an implementation answered a value of its result type.
 - **`afterEvaluation(outcome)`** is called once, in a `finally`, with the evaluation completed, pending where a sample it read was pending, or failed. The evaluation runs to one of the three synchronously, so none is cancelled while it runs.
@@ -115,7 +115,7 @@ The metadata describes the value, never part of it: frozen records of `{ origin,
 - **Fields and items.** `fields` holds the record of each field of an object an object expression built, by its name in the order written, and `items` the record of each item of a list a projection built.
 - **Sources.** The record of a list a projection built holds `sources`, each item's input to that projection, before its fields are evaluated: a reference value as itself, its identity kept, a scalar, a structured value or another input as the evaluator holds it, and null where the input was null. A list no projection built has no `sources`, so a null source and absent sources stay apart. A source is no key: equal values and one reference can each stand more than once, and recording them promises neither uniqueness nor a correspondence between evaluations.
 
-The runtime gives the facts, and a host its policy: DOMQL compares and patches its snapshots with them.
+The runtime gives the facts, and a host its policy, as comparing one result with the next or patching a copy of it.
 
 <a id="runtime-requests"></a>
 
@@ -130,4 +130,4 @@ The runtime resolves every [kind of request](members.md#members-member-kinds-and
 | Action | Executes it once, receiving its result |
 | Behavior request | Applies it, updates it with new bindings, and disposes it |
 
-Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, snapshots, and the lifetimes of subscriptions, actions and behaviors are the host's. DOMQL carries them out over the runtime, as [its specification](https://github.com/FormaUI/DOMQL/blob/main/spec/README.md) sets out.
+Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, snapshots, and the lifetimes of subscriptions, actions and behaviors are the host's.

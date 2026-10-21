@@ -16,7 +16,7 @@ Three layers meet whenever a script runs, and this specification covers the firs
 | --- | --- | --- |
 | The language | What a script means: its text, its names and scope, its values and types, its expressions and functions, its members, and the contracts its vocabulary keeps | Every document but the runtime |
 | The runtime | Carrying a script out for a host: bindings, resolution, evaluation, results and what it reports | [Runtime](runtime.md) |
-| The host | The application around the runtime: which modules it registers, when it evaluates, and what it does with each result | The host's own specification, as [DOMQL's](https://github.com/FormaUI/DOMQL/blob/main/spec/README.md) |
+| The host | The application around the runtime: which modules it registers, when it evaluates, and what it does with each result | The host's own specification |
 
 <a id="reading-this-specification"></a>
 
@@ -41,5 +41,3 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 13. [Grammar](grammar.md): the formal grammar, grouped by subject.
 14. [Terms](terms.md): the glossary.
 15. [The examples' vocabulary](examples-vocabulary.md): the fictional `home` and `energy` modules every example reads.
-
-The [DOMQL specification](https://github.com/FormaUI/DOMQL/blob/main/spec/README.md) builds the DOM's vocabulary on this one; it adds no language rule.

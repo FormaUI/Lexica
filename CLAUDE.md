@@ -1,6 +1,6 @@
 # Working on Lexica
 
-Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its grammar, definitions, types, resolution, functions and vocabulary contracts are the language's, and a host registers the vocabulary its expressions read. It knows no domain of its own; [DOMQL](https://github.com/FormaUI/DOMQL), its first host, adds the DOM. Source ES modules live in `src/`; the build produces one minified bundle, distributed by the `formaui-net.Lexica` NuGet package, and the npm package `@formaui/lexica` ships the sources.
+Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its grammar, definitions, types, resolution, functions and vocabulary contracts are the language's, and a host registers the vocabulary its expressions read. It knows no domain of its own: a host's modules declare one. Source ES modules live in `src/`; the build produces one minified bundle, distributed by the `formaui-net.Lexica` NuGet package, and the npm package `@formaui/lexica` ships the sources.
 
 ## Before making a change
 
@@ -31,7 +31,7 @@ Update the specification before implementing a language change, and the design b
 | `docs/` | The design, the guide and the status overview |
 | `.local/` | Personal experiments, spikes and notes; ignored by Git |
 
-Nothing in `src/` imports from outside it or reads a browser global; a test enforces the imports, and the tests run in Node. A change DOMQL depends on is made in both repositories together.
+Nothing in `src/` imports from outside it or reads a browser global; a test enforces the imports, and the tests run in Node.
 
 ## Implementation conventions
 

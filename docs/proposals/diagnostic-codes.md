@@ -27,5 +27,5 @@ Each condition a diagnostic reports gets a stable **code**, `LEXICA` and four di
 ## Questions to settle before acceptance
 
 - Whether a public API collects diagnostics without throwing, a tolerant `parse` or `resolve`, or tooling alone reads them.
-- Whether a host's own conditions, DOMQL's among them, take codes of their own prefix, as `DOMQL0001`, or share Lexica's ranges.
+- Whether a host's own conditions take codes of a prefix of their own, or share Lexica's ranges.
 - Whether the codes are assigned in one pass for every existing condition, or as each condition's message is next touched.

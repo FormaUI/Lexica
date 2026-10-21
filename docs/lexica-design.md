@@ -1,6 +1,6 @@
 # Lexica Design v1.0.0-alpha
 
-The [Lexica specification](../spec/README.md) is the contract: the language, and the [runtime](../spec/runtime.md) a host builds on. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes version 32, as the specification does; [the status overview](status.md) says where the implementation still differs. DOMQL, a host, carries out what is written in Lexica: [its specification](https://github.com/FormaUI/DOMQL/blob/main/spec/README.md) states how it observes, watches and carries out each request, and [its design](https://github.com/FormaUI/DOMQL/blob/main/docs/domql-design.md) how it is built.
+The [Lexica specification](../spec/README.md) is the contract: the language, and the [runtime](../spec/runtime.md) a host builds on. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes version 32, as the specification does; [the status overview](status.md) says where the implementation still differs.
 
 In this document:
 

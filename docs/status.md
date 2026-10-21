@@ -1,6 +1,6 @@
 # Lexica Status
 
-What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come. [DOMQL's status](https://github.com/FormaUI/DOMQL/blob/main/docs/status.md) tracks the DOM runtime built on Lexica.
+What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come.
 
 The specification describes definition version 32. **The implementation reads definition version 31**, and the work to reach version 32 is under way, as [definition version 32](#definition-version-32) sets out.
 
@@ -57,7 +57,7 @@ The specification describes definition version 32. **The implementation reads de
 | Area | Status | What remains | Contract |
 | --- | --- | --- | --- |
 | The bundle and its declarations | Implemented | | [README](../README.md#build) |
-| npm and NuGet packages | Planned | Both are packed locally and neither is published; DOMQL depends on a local checkout | [Packages](#packages) |
+| npm and NuGet packages | Planned | Both are packed locally and neither is published | [Packages](#packages) |
 | Beta | Partial | The documents and the module API are audited; the changelog and the beta version remain | [Beta](#beta) |
 | Syntax tree for tooling | Partial | The lossless tree and the tolerant tokenizer are built and internal; error recovery and a public tooling API remain | [Design](lexica-design.md#the-syntax-tree) |
 | Formatting that keeps a script's source | Planned | Tokens keep each string's form for it; the operation itself is not built | [Design](lexica-design.md#the-syntax-tree) |
@@ -66,42 +66,42 @@ The specification describes definition version 32. **The implementation reads de
 
 ## Definition version 32
 
-Version 32 separates the language from the DOM: Lexica knows no domain, and DOMQL declares the DOM as a module like any other. It is built in Lexica and DOMQL together, in three slices, each with semantic tests of its own.
+Version 32 removes the DOM from the language: Lexica knows no domain, and a host declares its own as a module like any other. It is built in three slices, each with semantic tests of its own.
 
 | Slice | Status | What it delivers |
 | --- | --- | --- |
 | 1. The declaration shape | Implemented | One shape for every declaration, with valid combinations for each kind; implementations carried in their declarations and called with one object; an evaluator refused for a resolution that uses a declaration or conversion without an implementation |
-| 2. The version 32 definition | Planned | Observation targets declared by modules; the `it`, `root` and `namespace` nodes; module members read through namespaces; qualified access, whose receiver argument propagates null; a registry reading text with its module names; DOMQL's `domql.document` and `domql.window` |
-| 3. Reference types | Planned | Reference types, classification, declared binding types and casts within a hierarchy; DOMQL's `node` hierarchy; the source of every projected item; owner precedence and extension ambiguity |
+| 2. The version 32 definition | Planned | Observation targets declared by modules; the `it`, `root` and `namespace` nodes; module members read through namespaces; qualified access, whose receiver argument propagates null; a registry reading text with its module names |
+| 3. Reference types | Planned | Reference types, classification, declared binding types and casts within a hierarchy; the built-in node types removed; the source of every projected item; owner precedence and extension ambiguity |
 
 **What works.** Everything version 31 defines, and the declaration shape of version 32.
 
-**What is missing.** The definition still has version 31's shape, and Lexica still carries DOM knowledge that version 32 moves into DOMQL:
+**What is missing.** The definition still has version 31's shape, and Lexica still carries DOM knowledge that version 32 removes:
 
 | Gap | Where the contract differs | Closed by |
 | --- | --- | --- |
-| The roots `document` and `window` are language nodes the evaluator reads from the environment | Version 32 reads them as `domql.document` and `domql.window` | Slice 2 |
+| The roots `document` and `window` are language nodes the evaluator reads from the environment | Version 32 has no such roots: a module declares what a script reads of its domain, through module members | Slice 2 |
 | Observation targets `window`, `document`, `root` and `roots` are built into Lexica | A module declares its targets, and its host resolves them | Slice 2 |
-| `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria` and `window` are built-in types, recognized by a value's `nodeType` | DOMQL declares them as reference types with tests of its own | Slice 3 |
+| `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria` and `window` are built-in types, recognized by a value's `nodeType` | No type is built in but the language's own: a module declares its reference types, each with its test | Slice 3 |
 | A projected item's source is recorded only for a DOM node | Every projected item records its source | Slice 3 |
 | Two modules declaring one name on overlapping receivers are refused at registration | Both register, and resolution refuses an ambiguous use | Slice 3 |
 | The implementation's own names are version 31's: the syntax tree's root is `source`, its tokens include `caller-binding` and `context`, and its messages say "the caller's binding" | Version 32 names a script, its root `script`, a parameter reference and a script parameter | Slice 2 |
 
-**Dependencies.** Owner precedence waits for slice 3 because DOMQL can only own the types it extends once it declares them as reference types. A version 32 implementation reads version 32 alone, so the switch from version 31 is one coordinated change in Lexica and DOMQL: DOMQL moves its queries, examples and READMEs to `it` and `domql.document` in the commit that follows Lexica's.
+**Dependencies.** Owner precedence waits for slice 3, because a module owns a type only once it declares it as a reference type. A version 32 implementation reads version 32 alone, so the switch from version 31 is one change, which every host follows in the change after it.
 
 **Next steps.**
 
 1. Decide the order of slice 2: observation targets first, at version 31, since they change module contents and not definitions; then the version 32 switch as one change.
-2. Build observation targets, with DOMQL declaring and resolving its own.
+2. Build observation targets, declared by modules and resolved by their hosts.
 3. Build the version 32 switch: the new nodes, namespaces, qualified access with its null rule, and a registry reading text with its module names; test each qualified form against its receiver form.
-4. Build slice 3, with DOMQL's matching checked against duplicate references, repeated equal data values, null inputs and reordered items.
+4. Build slice 3, the source of every projected item checked against duplicate references, repeated equal data values, null inputs and reordered items.
 5. Resolve and evaluate the specification's examples against a module of [the examples' vocabulary](../spec/examples-vocabulary.md); today they are only parsed and formatted.
 
 ## Packages
 
-Lexica is released from this repository, and DOMQL depends on the released version. One source and one build give the NuGet package `formaui-net.Lexica`, serving `lexica.js` and `lexica.d.ts` at `_content/lexica/`, and the npm package `@formaui/lexica`. Neither is published.
+Lexica is released from this repository. One source and one build give the NuGet package `formaui-net.Lexica`, serving `lexica.js` and `lexica.d.ts` at `_content/lexica/`, and the npm package `@formaui/lexica`. Neither is published.
 
-**Remaining.** Publish both; test each as a consumer installs it, the NuGet package in a published application and the npm package installed, bundled and loaded in Chromium; switch DOMQL to the released packages. Needs version 32 complete.
+**Remaining.** Publish both; test each as a consumer installs it, the NuGet package in a published application and the npm package installed, bundled and loaded in Chromium. Needs version 32 complete.
 
 ## Beta
 

@@ -40,8 +40,8 @@ const COMPARED = '(%) != null';
 
 /**
  * Each document's examples, in order: what each is about, whether each of its lines is an example of its own, and the context it is written in.
- * Every example reads as a definition and gives its canonical text again; the examples read the DOM through DOMQL's vocabulary, which DOMQL's tests evaluate them against,
- * until Lexica has a vocabulary of its own to evaluate them with.
+ * Every example reads as a definition and gives its canonical text again; the examples read the examples' vocabulary, which no module implements yet,
+ * so they are read and formatted, and resolved once a module of that vocabulary is.
  */
 const DOCUMENTS = {
     'spec/README.md': [],

@@ -116,7 +116,7 @@ An **observation type** is a declaration of a module, named once across every mo
 
 An **observation target** is what a module declares an observation may observe besides the receiver and an argument, by a name of its own: a target independent of any receiver, as the home is, or one found from the receiver, `from: 'receiver'`; and one target, or several, `count: 'many'`. A target that omits `from` is independent of the receiver, and one that omits `count` is one target.
 
-Lexica knows no target by name: it validates the declarations and every reference to them, and the host resolves each target when it starts an observation, so DOMQL declares `window`, `document`, `root` and `roots` and resolves them itself. `receiver` names the receiver alone, so no module declares a target by that name, and an argument is named as `{ argument }`, never by a bare name, so a target and an argument are never mistaken for each other.
+Lexica knows no target by name: it validates the declarations and every reference to them, and the host resolves each target when it starts an observation, so a host's module declares the targets its domain needs and the host resolves them itself. `receiver` names the receiver alone, so no module declares a target by that name, and an argument is named as `{ argument }`, never by a bare name, so a target and an argument are never mistaken for each other.
 
 <a id="observations-naming"></a>
 

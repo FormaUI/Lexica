@@ -48,4 +48,4 @@ The [specification](spec/README.md) defines the language, and the [design](docs/
 
 Keep each change focused, and follow the surrounding code's conventions. Use `.editorconfig` for formatting and style. Add or update tests for every source module you change, beside the corresponding source under `tests/`.
 
-Lexica depends on no domain and no browser: nothing in `src/` imports from outside it, which a test enforces, and its tests run in Node. A change that DOMQL, its first host, depends on is made in both repositories together, DOMQL consuming this one through a local link until a package is released.
+Lexica depends on no domain and no browser: nothing in `src/` imports from outside it, which a test enforces, and its tests run in Node.
