@@ -1,148 +1,223 @@
 # Features Status
 
-What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come.
+## Current state
 
-The specification describes language version `1.0.0-alpha.33` and definition version 33. **The implementation reads definition version 32** and implements language version `1.0.0-alpha.32`, without the types and members that language version `1.0.0-alpha.33` describes and version 32's third slice builds, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are implemented.
+**The core language and host calls are implemented. The next task is the new type and member declaration model.** Reference types, general casts and conversions, ownership, internal declarations, and general projection sources follow it.
 
-| Status | Meaning |
+| Version | Implementation | Specification |
+| --- | --- | --- |
+| Language | `1.0.0-alpha.32` | `1.0.0-alpha.33` |
+| Definition format | 32 | 33 |
+
+The implementation still uses flat member declarations and built-in DOM types. The specification describes the replacement, but that work has not started. The next step advances the definition format to 33; removing the built-in DOM types follows in step 2.
+
+The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Six specification examples resolve and evaluate; 28 remain.
+
+**Next:** [Step 1 — Type and member declarations](#next-type-and-member-declarations). No open design decision is recorded as blocking this work. Diagnostic codes remain a separate, unaccepted proposal.
+
+The [specification](../spec/README.md) defines the contract; the [design](lexica-design.md) explains the architecture. This file tracks implementation and the remaining work. “Implemented” means built and tested in the gate for the current implementation version; it does not imply that later specification changes are implemented.
+
+## Next: type and member declarations
+
+**Step 1 — Planned, not started.** Replace the current declaration model and advance the definition format to 33. This is the first step of the types and members work, formerly called the third slice of the version 32 plan.
+
+### Type identity and names
+
+- Identify a type by its module and local name, allowing different modules to declare the same local name.
+- Support type-local `import` and qualified type references. Registration resolves every reference to its identity.
+- Require PascalCase type names, checking the initial capital at registration. Reserve Lexica's own type names.
+- Recognize type parameters only within the scope that declares them, instead of treating every single capital letter as a type parameter.
+- Let scripts name a type unqualified when exactly one public type has that name, or qualified by its module. Support unqualified and qualified type names in declared bindings; registry-aware binding itself arrives in step 2.
+
+### Declaration structure
+
+| Current implementation | Replacement |
 | --- | --- |
-| Implemented | Built, tested in the gate, and as the specification states |
-| Partial | Usable, with the parts named in its row still missing |
-| In progress | Being built now |
-| Planned | Accepted and not started |
-| Deferred | Not planned until the need its row names appears |
+| Flat members with `target` | Members within their declaring type; extension blocks for members added to other types |
+| Structured types with `fields` | Field declarations among a type's members |
+| `syntax` and `default` | `indexer` and `default-indexer` kinds |
+| `implementation` | `impl` |
+| Implicit type parameters | Explicit `typeParameters`, such as `['T']` |
+| Declaration helpers with receivers | Helpers without receivers, plus `field` and indexer helpers |
 
-## Overview
+Declare Lexica's generic `List<T>` and the verbs as an extension on `T`. Establish the type and extension structure for operators; their behavior is implemented in step 3.
 
-### The language
+### Definition version 33
 
-| Area | Status | What remains | Contract |
-| --- | --- | --- | --- |
-| Scripts: parameters, bindings, names, bodies and locals | Implemented | | [Scripts](../spec/scripts.md) |
-| Lexical structure: tokens, names, strings, comments | Implemented | | [Lexical structure](../spec/lexical-structure.md) |
-| Values: objects, the object root, lists, null, results and conversions | Implemented | | [Values](../spec/values.md) |
-| Types | Partial | Types declared with their members, in PascalCase; reference types recognized by `typeOf` and checked by `isInstance`; type parameters by scope; casts by hierarchy or a declared cast; the DOM's node types are still built into Lexica, and a cast takes only `node` and its kinds | [Types](../spec/types.md) |
-| Expressions: operators, conditionals, coalescing, attempts, interpolated strings | Implemented | | [Expressions](../spec/expressions.md) |
-| Functions: regular and arrow functions, function values, function references, implicit bodies | Implemented | | [Functions](../spec/functions.md) |
-| Members: forms, bracket property access, arguments | Implemented | | [Members](../spec/members.md) |
-| Host calls: functions the host invokes, where they stand, the values a host supplies | Implemented | | [Host calls](../spec/members.md#members-host-calls) |
-| Definition and canonical text | Implemented | | [Definition](../spec/definition.md), [Grammar](../spec/grammar.md) |
-| Diagnostics: kinds, messages and locations | Implemented | Stable codes are [proposed](proposals/diagnostic-codes.md) | [Diagnostics and errors](../spec/diagnostics-and-errors.md) |
+Allow qualified type names in casts and conversions. This widens the values a definition's `type` can hold and requires definition version 33.
 
-### Modules and vocabulary
+PascalCase names, nested declarations, and imports alone do not change the definition format. The declaration redesign still makes incompatible changes to the language and runtime API.
 
-| Area | Status | What remains | Contract |
-| --- | --- | --- | --- |
-| Module declarations in one shape, with their implementations | Implemented | | [Creating a module](../spec/modules.md#modules-declarations), [declaring a member](../spec/members.md#members-declaring-a-member) |
-| Registries: registration checked whole, revisions, their own text | Implemented | | [Registries](../spec/modules.md#modules-registries) |
-| Lexica's own vocabulary: list members, verbs, conversions | Implemented | | [Lexica's own vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own) |
-| Boolean functions | Implemented | | [Boolean functions](../spec/vocabulary.md#vocabulary-boolean-functions) |
-| Observation types | Implemented | | [Observations](../spec/vocabulary.md#observations) |
-| Type selectors and selectable types | Implemented | | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
-| Observation targets declared by modules | Implemented | | [Observation targets](../spec/vocabulary.md#observations-targets) |
-| Namespaces and module members | Implemented | | [Namespaces](../spec/modules.md#namespaces) |
-| Qualified access, a null receiver propagating | Implemented | | [Qualified access](../spec/modules.md#namespaces-qualified-access) |
-| A module's own collisions | Implemented | | [A module's own collisions](../spec/modules.md#namespaces-a-modules-own-collisions) |
-| Types declaring their members, fields, indexer kinds and operators; extension blocks | Planned | Members are declared flat, with `target`, `syntax` and `default`, structured types with `fields`, and conversions at module level | [Declaring a type](../spec/modules.md#modules-declaring-a-type), [operators](../spec/modules.md#modules-operators) |
-| Internal declarations | Planned | | [Internal declarations](../spec/modules.md#modules-internal-declarations) |
-| Owner precedence and extension ambiguity | Planned | Two modules declaring one name on overlapping receivers are refused at registration until it lands | [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions) |
-| Reference types, recognition, membership and declared binding types | Planned | Bindings are typed without a registry, by `lexica.bind` | [Reference types](../spec/types.md#reference-types), [bindings](../spec/runtime.md#runtime-bindings) |
-| Qualified extension indexers | Deferred | Beyond version 32, until a use needs one | [Indexer selection](../spec/modules.md#namespaces-indexers) |
+**Completion:** the declaration changes and definition version 33 pass the gate. A host follows with its corresponding migration.
 
-### The runtime
+Contracts: [Types](../spec/types.md), [declaring a type](../spec/modules.md#modules-declaring-a-type), [declaring a member](../spec/members.md#members-declaring-a-member), [Definition](../spec/definition.md), [Grammar](../spec/grammar.md).
 
-| Area | Status | What remains | Contract |
-| --- | --- | --- | --- |
-| Parse, validate, format, quote and locate | Implemented | | [Definition](../spec/definition.md) |
-| Bindings, resolution and reuse by resolution key | Implemented | | [Runtime](../spec/runtime.md#runtime-bindings) |
-| Evaluation for any host, with its hooks | Implemented | | [Evaluation](../spec/runtime.md#runtime-evaluation) |
-| Frozen results and result metadata | Partial | A projected item's source is recorded only where the item is a DOM node, until reference types land | [Results and their metadata](../spec/runtime.md#runtime-results) |
-| Preparing a host call and projecting the values its host supplies | Implemented | | [Host calls](../spec/runtime.md#runtime-host-calls) |
+## Remaining implementation sequence
 
-### Delivery and tooling
+All steps below are **planned, not started**. Each step passes the gate, and a host follows each applicable change in a separate migration. This file tracks Lexica; it does not establish whether those host migrations are complete.
 
-| Area | Status | What remains | Contract |
-| --- | --- | --- | --- |
-| The bundle and its declarations | Implemented | | [README](../README.md#build) |
-| npm and NuGet packages | Planned | Both are packed locally and neither is published; both carry the runtime version `src/language/Versions.mjs` declares | [Packages](#packages) |
-| Beta | Partial | The documents and the module API are audited; the changelog and the beta version remain | [Beta](#beta) |
-| Syntax tree for tooling | Partial | The lossless tree and the tolerant tokenizer are built and internal; error recovery and a public tooling API remain | [Design](lexica-design.md#the-syntax-tree) |
-| Formatting that keeps a script's source | Planned | Tokens keep each string's form for it; the operation itself is not built | [Design](lexica-design.md#the-syntax-tree) |
-| Editor tooling | Planned | Diagnostics and completion through the syntax tree, without running a capability | [Design](lexica-design.md#tooling) |
-| Diagnostic codes | Proposed | Not accepted; the questions it lists are open | [Proposal](proposals/diagnostic-codes.md) |
-
-## Definition version 32
-
-Version 32 removes the DOM from the language: Lexica knows no domain, and a host declares its own as a module like any other. It is built in three slices, each with semantic tests of its own.
-
-| Slice | Status | What it delivers |
+| Step | Work | Outcome |
 | --- | --- | --- |
-| 1. The declaration shape | Implemented | One shape for every declaration, with valid combinations for each kind; implementations carried in their declarations and called with one object; an evaluator refused for a resolution that uses a declaration or conversion without an implementation |
-| 2. The version 32 definition | Implemented | Observation targets declared by modules, which are built; the `it`, `root` and `namespace` nodes; module members read through namespaces; qualified access, whose null receiver argument skips the member and its arguments; a registry parsing, formatting and quoting text with its module names; function references and implicit bodies; expression and predicate arguments taking a function of the item beside their body; the verbs given a test, and Boolean functions in place of predicates; a cast's and a conversion's type written bare; a version 31 definition refused |
-| 3. Types and their members | Planned | Types declaring their members, fields, indexer kinds and operators, named in PascalCase; extension blocks, generic `List<T>` and the verbs' extension on `T`; reference types recognized by `typeOf` and checked by `isInstance`, abstract types, and registry-aware bindings with declared types; casts by hierarchy or a declared cast, and conversions as operators; owner precedence through inheritance and ambiguity at resolution; internal declarations; the built-in DOM types removed; the source of every projected item |
+| 2 | Reference types and bindings | Modules recognize and check their own reference types; Lexica's built-in DOM types are removed |
+| 3 | Cast and conversion operators | Modules declare casts and conversions on source types or in extensions |
+| 4 | Ownership and ambiguity | Owner members take precedence; competing extensions can register, with ambiguous uses refused at resolution |
+| 5 | Internal declarations | Visibility is enforced across registration, resolution, and tooling |
+| 6 | Projection sources | Every projected item records its source |
+| 7 | Specification examples | The remaining 28 examples resolve and evaluate |
 
-**What works.** The declaration shape and the version 32 definition: its `it`, `root` and `namespace` nodes, a version 31 definition refused; a registry parsing, formatting and quoting text with its module names, and refusing a definition read without them; module members, qualified forms and function references, a null receiver argument skipping the member and its own arguments wherever a reference is held, passed or chosen; the verbs given a test, an implicit body recognized by its own `it` among its forms, and Boolean functions in place of predicates; an expression or a predicate argument given an arrow function, a function a name holds or a function reference, under its own result policy; a cast's and a conversion's type written bare; and the observation targets modules declare. Six of the specification's examples resolve and evaluate.
+### Step 2 — Reference types and bindings
 
-**What is missing.** The model slice 3 builds is specified and not implemented:
+Implement `typeOf`, `isInstance`, and `abstract`, plus `registry.bind` with declared types. Capture bindings once and invalidate resolutions when registration changes.
 
-| Gap | Where the contract differs | Closed by |
+Apply type hierarchies to assignability, list supertypes, member applicability, result checks, and hierarchy casts. The current implementation only allows casts to `node` and its kinds; declared casts follow in step 3.
+
+Remove the built-in domain types: `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria`, and `window`. Replace Lexica's built-in recognition through `nodeType` and its registry-independent `lexica.bind` typing with module declarations and registry-aware binding. Only the language's own types remain built in; hosts declare their domain types.
+
+Measure binding and repeated evaluation at scale before caching membership answers. Any cache must have defined validity rules.
+
+Contracts: [Reference types](../spec/types.md#reference-types), [bindings](../spec/runtime.md#runtime-bindings).
+
+### Step 3 — Cast and conversion operators
+
+Implement declared casts with optional `impl`. Move conversions from module-level declarations to operators of their source types. Declare conversions for a foreign source type in an extension block, using the structure introduced in step 1.
+
+Contract: [Operators](../spec/modules.md#modules-operators).
+
+### Step 4 — Ownership and ambiguity
+
+Implement owner precedence through inheritance for members, indexers, and operators. Exclude internal candidates from access outside their module; full visibility enforcement arrives in step 5.
+
+Allow competing extensions to register. Refuse ambiguous uses at resolution, replacing the current registration-time refusal of matching names on overlapping receivers.
+
+Contract: [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions).
+
+### Step 5 — Internal declarations
+
+Deliver visibility enforcement together across:
+
+- Registration, including the rule that public signatures expose only public types.
+- Resolution, rejecting inaccessible declarations through every access form.
+- Tooling, filtering declarations that are not accessible.
+
+Contract: [Internal declarations](../spec/modules.md#modules-internal-declarations).
+
+### Step 6 — Projection sources
+
+Record the source of every projected item. Currently, source metadata is recorded only for DOM nodes.
+
+Check reordered and duplicate references, repeated equal data, distinct data values, null inputs, empty projections, and successive projections. Hosts that compare results follow this change in their own migration.
+
+Contract: [Results and their metadata](../spec/runtime.md#runtime-results).
+
+### Step 7 — Specification examples
+
+Resolve and evaluate the remaining 28 specification examples against a module implementing [the examples' vocabulary](../spec/examples-vocabulary.md). Six examples already work. Step 2 supplies the binding types required by the remaining examples; their other features are covered by the preceding steps.
+
+## Release work
+
+Complete the types and members work before publishing packages. This replaces the old release prerequisite described as “version 32 complete”: the remaining work now includes the transition to definition version 33.
+
+### Packages
+
+**Current:** one source and build produce both packages locally; neither is published. Both carry the runtime version declared by `src/language/Versions.mjs`.
+
+| Package | Contents or delivery |
+| --- | --- |
+| npm: `@formaui/lexica` | JavaScript bundle and type declarations |
+| NuGet: `formaui-net.Lexica` | `lexica.js` and `lexica.d.ts` served at `_content/lexica/` |
+
+**Remaining:** publish both and test them as consumers install them: NuGet in a published application, and npm installed, bundled, and loaded in Chromium.
+
+### Beta
+
+**Current:** the documents and module API have been audited. The behavior of a cast inside an optional enclosed access is settled.
+
+**Remaining:**
+
+- Add `CHANGELOG.md`, empty until the first change after the beta.
+- Set the beta version to `1.0.0-beta` wherever the beta version is written or checked; number packages `1.0.0-beta.N`.
+
+Beta means no breaking redesign is planned and remaining limitations are documented. Breaking changes after beta require migration guidance.
+
+## Tooling backlog
+
+This work is separate from the implementation sequence above. No order is assigned here.
+
+| Work | Status | Remaining |
 | --- | --- | --- |
-| Members are declared flat with `target`, `syntax` and `default`; structured types with `fields`; conversions at module level; code under `implementation` | A type holds its members, fields among them, the indexer kinds and the operators; extensions hold the members a module adds to another's types; code is `impl` | Step 1 |
-| Type names are lowercase, unique across the registry, and every single capital letter is a type parameter | Types are named in PascalCase, a capital letter first, identified by their module and local name, imported per type and named qualified elsewhere, Lexica's own names reserved; a type parameter is one where its declaration declares it | Step 1 |
-| A cast's and a conversion's type is a local name, and the definition is of version 32 | A script names a type unqualified, where one public type has the name, or qualified by its module, and the definition is of version 33 | Step 1 |
-| `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria` and `window` are built-in types, recognized by a value's `nodeType`, and `lexica.bind` types bindings without a registry | No type is built in but the language's own: a module declares its reference types with their `isInstance`, recognizes its values by `typeOf`, and a registry binds | Step 2 |
-| A cast takes only `node` and its kinds | A cast reaches its hierarchy and the casts modules declare | Steps 2 and 3 |
-| Two modules declaring one name on overlapping receivers are refused at registration | Both register, the owner's member wins, and resolution refuses an ambiguous use | Step 4 |
-| No declaration is internal | A type or a member is available within its declaring module alone where it says so | Step 5 |
-| A projected item's source is recorded only for a DOM node | Every projected item records its source | Step 6 |
+| Syntax tree for tooling | Partial | The lossless tree and tolerant tokenizer are built and internal; error recovery and a public tooling API remain |
+| Formatting that preserves source form | Planned | Tokens retain each string's form; the formatting operation is not built |
+| Editor tooling | Planned | Diagnostics and completion through the syntax tree, without running a capability |
+| Diagnostic codes | Proposed, not accepted | Resolve the questions in the proposal before implementation |
 
-**Steps.** Each step passes the gate, and a host follows each in a change of its own:
+References: [Syntax tree](lexica-design.md#the-syntax-tree), [tooling](lexica-design.md#tooling), [diagnostic-codes proposal](proposals/diagnostic-codes.md).
 
-1. **The declaration shape.** Types identified by their module and local name, with type-local `import`, qualified references, registration resolving every reference to its identity, and Lexica's own names reserved; scripts and declared bindings naming a type unqualified or qualified, and definition version 33 for a qualified cast or conversion type; types holding their members; fields in place of `fields`; `indexer` and `default-indexer` in place of `syntax` and `default`; `impl` in place of `implementation`; extension blocks; Lexica's `List`, `typeParameters: ['T']`, and the verbs as an extension on `T`; type parameters recognized by their declaration's scope; PascalCase type names, with the initial-capital rule at registration; and the declaration helpers without receivers, with `field` and indexer helpers.
-2. **Reference types.** `typeOf`, `isInstance` and `abstract`; `registry.bind` with declared types, its bindings captured once, and resolutions invalidated by registering; hierarchies in assignability, list supertypes, applicability, result checks and hierarchy casts; Lexica's built-in node types removed, which a host's module declares as its own. Binding and repeated evaluation are measured at scale before any membership answer is cached, and a cache comes with its validity defined.
-3. **Operators.** Declared casts, their `impl` optional, and conversions as operators of their source types, a foreign source type's in an extension.
-4. **Ownership.** Owner precedence through inheritance, internal candidates left out, extensions that compete both registering, and ambiguity refused at resolution, for members, indexers and operators.
-5. **Internal declarations.** Registration's checks, including public signatures exposing public types alone; resolution's refusals through every access form; and tooling's filtering, together.
-6. **Sources.** Every projected item's source, checked against reordered and duplicate references, repeated equal data, distinct data values, null inputs, empty projections and successive projections.
-7. **Examples.** The specification's 28 remaining examples resolved and evaluated against a module of [the examples' vocabulary](../spec/examples-vocabulary.md), once step 2 gives their bindings a type.
+## Implemented capabilities
 
-**Dependencies.** Extension blocks, in step 1, precede conversions on foreign source types, in step 3; reference types, in step 2, precede the examples, in step 7; internal declarations' registration checks, resolution rules and tooling filtering arrive together, in step 5; and the general sources arrive in step 6, which a host comparing results follows. A qualified cast or conversion type widens the values a definition's `type` takes, so it advances the definition to version 33 in step 1; PascalCase, nesting and imports alone change no definition, while the language and the runtime change incompatibly.
+These capabilities work in the current implementation. The planned replacements and remaining limitations are described above.
 
-## Host calls
+| Area | Implemented | Contract |
+| --- | --- | --- |
+| Scripts | Parameters, bindings, names, bodies, and locals | [Scripts](../spec/scripts.md) |
+| Lexical structure | Tokens, names, strings, and comments | [Lexical structure](../spec/lexical-structure.md) |
+| Values | Objects, the object root, lists, null, results, and existing conversions | [Values](../spec/values.md) |
+| Expressions | Operators, conditionals, coalescing, attempts, and interpolated strings | [Expressions](../spec/expressions.md) |
+| Functions | Regular and arrow functions, function values, references, and implicit bodies | [Functions](../spec/functions.md) |
+| Member access | Member forms, bracket property access, and arguments | [Members](../spec/members.md) |
+| Module registration | Unified declarations with implementations; whole-registration checks, revisions, and module-local collision checks | [Declarations](../spec/modules.md#modules-declarations), [registries](../spec/modules.md#modules-registries), [collisions](../spec/modules.md#namespaces-a-modules-own-collisions) |
+| Vocabulary | List members, verbs, existing conversions, and Boolean functions | [Lexica's vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own), [Boolean functions](../spec/vocabulary.md#vocabulary-boolean-functions) |
+| Observations | Observation types and module-declared observation targets | [Observations](../spec/vocabulary.md#observations), [targets](../spec/vocabulary.md#observations-targets) |
+| Type selection | Type selectors and selectable types | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
+| Namespaces | Module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
+| Text and definitions | Parse, validate, format, quote, and locate; canonical text for definition version 32 | [Definition](../spec/definition.md) |
+| Runtime | Bindings, resolution, reuse by resolution key, evaluation with host hooks, and frozen results | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
+| Diagnostics | Error kinds, messages, and locations | [Diagnostics](../spec/diagnostics-and-errors.md) |
+| Build | Bundle and type declarations | [Build](../README.md#build) |
 
-Host calls are implemented as the specification describes them: a function's declaration says who invokes it, and Lexica prepares a host call and projects the values its host supplies, knowing none of the lifecycles a host gives its calls. They changed declarations and the evaluator's API, and no definition, so the definition version stays where it was.
+### Definition version 32
 
-**What works.** A function its declaration says the host invokes, `invokedBy: 'host'`, with value parameters alone and no updates or implementation; its call resolved in the script's terminal position alone, a body there returning it after its locals and a `do` block there holding it, and refused anywhere else by a validation error; a fixed argument selecting the type of the values its host supplies through a type selector, whose keys any module declares once; `resolution.hostCall`, with a result type that is null where its host supplies none; `prepareCall`, which evaluates the locals before the call once, into the frame the prepared call keeps, and answers a skipped call where there is nothing to invoke; and each prepared call's `project`, which captures a supplied value as the declared result and evaluates the result projection against it, apart from every other prepared call of its evaluator, a call whose host supplies nothing having none. Event sources, actions, behaviors, event types and the request kinds they made are gone.
+The first two slices of the original version 32 plan are complete. The unfinished third slice is now the [types and members sequence](#next-type-and-member-declarations), which starts by advancing the definition to 33.
 
-**Hosts.** A host follows host calls in a change of its own, since the request kinds and the evaluator's entry points they replace are gone.
+Completed declaration work established one shape with valid combinations for each kind. Implementations are carried in declarations and receive one object. Creating an evaluator is refused when its resolution uses a declaration or conversion without an implementation, where one is required.
 
-## Packages
+Completed definition and resolution work includes:
 
-Lexica is released from this repository. One source and one build give the NuGet package `formaui-net.Lexica`, serving `lexica.js` and `lexica.d.ts` at `_content/lexica/`, and the npm package `@formaui/lexica`. Neither is published.
+- `it`, `root`, and `namespace` nodes; version 31 definitions are refused.
+- Registry parsing, formatting, and quoting with its module names; definitions read without those names are refused.
+- Qualified forms and function references. A null receiver argument skips the member and its arguments, including when a reference is held, passed, or chosen.
+- Verbs taking a test and Boolean functions replacing predicates.
+- Implicit bodies recognized by their own `it`; expression and predicate arguments accepting arrows, functions held by names, or function references under their own result policy.
+- Cast and conversion types written bare. Qualified type names remain part of step 1.
 
-**Remaining.** Publish both; test each as a consumer installs it, the NuGet package in a published application and the npm package installed, bundled and loaded in Chromium. Needs version 32 complete.
+### Host calls
 
-## Beta
+**Implemented.** Lexica prepares calls and projects host-supplied values; the host owns their lifecycle.
 
-The beta makes the language and its module API ready for external use: no breaking redesign is planned, the remaining limitations are documented, and a breaking change after it is recorded with migration guidance.
+- `invokedBy: 'host'` declarations accept value parameters only, with no updates or implementation.
+- Calls are allowed only in terminal position, including a body returning the call after locals or a terminal `do` block. Other positions are refused at resolution with a validation error.
+- A fixed argument can select the result type through a type selector. Selector keys are declared once across modules.
+- `resolution.hostCall` describes the call, with a null result type when the host supplies no result.
+- `prepareCall` evaluates preceding locals once and retains their frame in the prepared call. It reports a skipped call when there is nothing to invoke.
+- Each prepared call's `project` captures a supplied value as the declared result and evaluates its projection independently of other preparations from the same evaluator. Calls that supply no result have no projection.
 
-**Done.** The documents and the module API are audited, and a cast inside an optional enclosed access is settled.
+Event sources, actions, behaviors, event types, and their request kinds have been removed. Hosts must migrate from the replaced request kinds and evaluator entry points. These changes affected declarations and evaluator APIs, not the definition format.
 
-**Remaining.** `CHANGELOG.md`, empty until the first change after the beta; the version `1.0.0-beta` wherever a version is written or checked, the package numbered `1.0.0-beta.N`.
+Contracts: [Host-call declarations](../spec/members.md#members-host-calls), [host-call runtime](../spec/runtime.md#runtime-host-calls).
 
 ## Open decisions
 
-No decision is open.
+No open decision is recorded for the types and members implementation sequence. The [diagnostic-codes proposal](proposals/diagnostic-codes.md) remains unaccepted and has open questions. Deferred items below require their stated trigger before design or implementation resumes.
 
 ## Deferred
 
 | Work | Why it waits | Reopened by |
 | --- | --- | --- |
-| A collection model, with ranges such as `slice`, `take` and `drop`, and conversions to and from collections | One native model for arrays, DOM collections, sets, maps and plain objects is designed first; until then a conversion from or to a list is refused at registration | A design task for collections |
-| Saying which declaration a null receiver or an empty list means | A cast to a kind of node already says it for a null receiver; nothing says it for declarations on other types, which are refused as ambiguous | An extension whose declarations collide that way in real use; a declared parameter type is the leading candidate |
-| Incremental reparsing, specialized tree machinery, a public tree schema shared by C# and JavaScript | No tool needs them yet | A concrete tooling need |
-| Expression, predicate and function arguments to a host call | A host call's arguments are prepared as values its host keeps; an argument the evaluator evaluates as its member calls it would need an evaluation context and a lifetime designed for a host call | A host call that must call back into its script, with that context and lifetime designed |
-| An extension block naming several types | A convenience: one declaration reused in each type serves the cases today | A vocabulary repeating many members across unrelated types |
-| Selecting one module's operator where several compete | No syntax selects an operator by module, and a qualified call reaches none | Competing operators in real use |
-| Casts of structured data, conversions between references and data, and operators beyond `cast` and `convert` | Each needs its own definition of what is checked and what is copied | A use the two operators do not serve |
-| A call into a module's internal declarations through Lexica | Implementations are JavaScript and reach their own values directly | An internal-call API, with the module context it carries |
+| Collection model, including `slice`, `take`, `drop`, and collection conversions | Arrays, DOM collections, sets, maps, and plain objects need one native model first. Conversions from or to a list are currently refused at registration. | A collection-model design task |
+| Selecting a declaration for a null receiver or empty list | A node cast currently disambiguates a null receiver; other ambiguous declarations are refused. | A real extension collision; a declared parameter type is the leading candidate |
+| Qualified extension indexers | No current use requires them. See [indexer selection](../spec/modules.md#namespaces-indexers). | A concrete use |
+| Incremental reparsing, specialized tree machinery, and a public tree schema shared by C# and JavaScript | No tool needs them yet. | A concrete tooling need |
+| Expression, predicate, and function arguments to host calls | Prepared arguments are values retained by the host; callbacks need an evaluation context and lifetime. | A host call that must call back into its script, with that context and lifetime designed |
+| An extension block targeting several types | Reusing a declaration for each type serves current cases. | Many repeated members across unrelated types |
+| Selecting a module's operator when several compete | No syntax selects an operator by module; qualified calls cannot reach operators. | Competing operators in real use |
+| Structured-data casts, reference/data conversions, and operators beyond `cast` and `convert` | Each needs rules for checking and copying. | A use the two operators do not serve |
+| Calling a module's internal declarations through Lexica | JavaScript implementations can reach their own values directly. | An internal-call API with a defined module context |

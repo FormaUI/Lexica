@@ -23,11 +23,12 @@ describe('Alignment', () => {
         expect(specification).toContain(`describes language version \`${described}\``);
     });
 
-    it('reports the specification and definition versions it follows, which the status names', () => {
-        const [, implemented] = status.match(/reads definition version (\d+)/);
+    it('reports the language and definition versions it implements, which the status table names', () => {
+        const [, language] = status.match(/^\| Language \| `([^`]+)` \|/m);
+        const [, definition] = status.match(/^\| Definition format \| (\d+) \|/m);
 
-        expect(status).toContain(`implements language version \`${lexica.info.versions.language}\``);
-        expect(Number(implemented)).toBe(lexica.info.versions.definition);
+        expect(language).toBe(lexica.info.versions.language);
+        expect(Number(definition)).toBe(lexica.info.versions.definition);
     });
 
     it('has a specification whose example definition is of the definition version it describes', () => {
