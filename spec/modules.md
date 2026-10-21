@@ -57,7 +57,7 @@ A module is made by `createModule` from its name and its declarations, `{ typeOf
 
 Lexica's own module is one Lexica creates itself, the one module every registry holds, which owns the language's types and has no namespace. Every other module, a host's among them, is made with `createModule`, and no factory, name or flag makes one an exception to the rules.
 
-A declaration that runs code carries it as its `impl`: a property, a function, an indexer, an operator and an observation type. Two integration hooks run code too, each named for what it answers: a module's `typeOf` and a reference type's `isInstance`, which Lexica calls and no script names. Every other key is data, and two declarations sharing code refer to one JavaScript function, as DOMQL's `on` is one declaration in each of its three receiver types.
+A declaration that runs code carries it as its `impl`: a property, a function, an indexer, an operator and an observation type. Two integration hooks run code too, each named for what it answers: a module's `typeOf` and a reference type's `isInstance`, which Lexica calls and no script names. Every other key is data, and two declarations sharing code refer to one JavaScript function, as one member a module gives several of its types is.
 
 A module is given the capability it exposes, never an instance of it, since instances belong to the callers that start them. A module exposes a capability through Lexica without the capability depending on Lexica: the capability keeps an API of its own, and its module lives beside it or in an integration package for it.
 
@@ -107,7 +107,7 @@ A module declares each type it owns in its `types`, its `kind` saying which fami
 - **A reference type** is `kind: 'reference'`. It declares its `isInstance`, may name a `supertype` and be `abstract`, and holds its members, as [reference types](types.md#reference-types) set out.
 - **A structured type** is `kind: 'structured'`, a type of immutable data. Its stored shape is its fields, members of `kind: 'field'`, each naming the type of its value in `result` and taking no `impl`; Lexica reads the field of each name from the data, and validates, copies and freezes a structured value by them. A field is read as a property is, `room.climate?.temperature`, and its other members compute what they answer through their `impl`. A field and another member of its name collide.
 - **A type's name** is unique within its module and written in PascalCase, as [type names](types.md#types-type-names) set out, and the type is identified by its module and that name.
-- **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['domql']`; every other foreign type it names is qualified, `domql.Element`, as [type identity](types.md#types-type-identity) sets out.
+- **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['home']`; every other foreign type it names is qualified, `home.Device`, as [type identity](types.md#types-type-identity) sets out.
 
 Lexica's own `List` is the one generic type: it declares `typeParameters: ['T']`, the type of its items, which its members' declarations write, as [type parameters](types.md#types-type-parameters) set out.
 
@@ -118,7 +118,7 @@ Lexica's own `List` is the one generic type: it declares `typeParameters: ['T']`
 A type's members may hold **operators**, `kind: 'operator'`, which the language's own syntax invokes and nothing else: `name: 'cast'`, which `as` invokes, and `name: 'convert'`, which `to` invokes, each naming its destination type in `result`.
 
 ```js
-{ kind: 'operator', name: 'cast', result: 'Element' }
+{ kind: 'operator', name: 'cast', result: 'home.Device' }
 { kind: 'operator', name: 'convert', result: 'Temperature', impl: ({ value }) => ({ value, unit: 'C' }) }
 ```
 

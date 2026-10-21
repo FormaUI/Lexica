@@ -40,7 +40,7 @@ Each node is an object whose `kind` says what it is:
 | `comparison` | `operands`, two or more expressions, and `operators`, one of `<`, `<=`, `>` and `>=` between each two | A comparison, or a chain of them |
 | `conditional` | `condition`, the expression it tests, or `binding`, the `name` it binds and the `value` it binds to it, one of them; and `consequent` and `alternative`, two expressions | A conditional, `if let` holding a binding; an `elseif` is a conditional nested in the alternative before it |
 | `coalescing` | `value` and `fallback`, two expressions | A coalescing operator |
-| `cast` | `type`, the name of the reference type it casts to, its local name, `Element`, or qualified by its module, `domql.Element`, as written; and `target`, the expression it casts | A cast |
+| `cast` | `type`, the name of the reference type it casts to, its local name, `Light`, or qualified by its module, `home.Light`, as written; and `target`, the expression it casts | A cast |
 | `conversion` | `type`, the name of the type it converts to, its local name or qualified by its module, as written; and `target`, the expression it converts | A conversion |
 | `try` | `target`, the conversion or the cast it attempts | An attempt |
 | `optionalChain` | `target`, the chain it holds | An optional chain: the chain of property accesses, calls, indexers and object expressions whose optional accesses end at it, holding at least one |

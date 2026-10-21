@@ -43,7 +43,7 @@ An expression parameter declares the item type it evaluates against and the resu
 
 ### The verbs
 
-`is`, `has` and `supports` are Lexica's own functions of a receiver of any type, each answering whether its receiver passes a test. Each declares one [function parameter](members.md#arguments-kinds), its **test**, whose callback contract takes the receiver and answers a `Boolean`, and answers what the test answers of its receiver: Lexica declares the three in an extension on any type, `{ type: 'T', typeParameters: ['T'] }`, and its test's callback on that receiver's type, `parameters: ['T']`, so the test takes the receiver as its static type, `(T) => Boolean`, made non-null where `?.` reads the verb: an `Element` receiver gives its test an `Element`. The three read differently and do the same:
+`is`, `has` and `supports` are Lexica's own functions of a receiver of any type, each answering whether its receiver passes a test. Each declares one [function parameter](members.md#arguments-kinds), its **test**, whose callback contract takes the receiver and answers a `Boolean`, and answers what the test answers of its receiver: Lexica declares the three in an extension on any type, `{ type: 'T', typeParameters: ['T'] }`, and its test's callback on that receiver's type, `parameters: ['T']`, so the test takes the receiver as its static type, `(T) => Boolean`, made non-null where `?.` reads the verb: a `Light` receiver gives its test a `Light`. The three read differently and do the same:
 
 | Verb | Reads as a test of | As in |
 | --- | --- | --- |
