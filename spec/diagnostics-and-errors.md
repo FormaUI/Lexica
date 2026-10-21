@@ -77,7 +77,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | Situation | Result |
 | --- | --- |
 | A definition that does not follow its structure | A structure error, with its node's location |
-| A definition of a version other than the one the implementation reads, as a version 31 definition is for version 32 | A structure error naming both versions |
+| A definition of a version other than the one the implementation reads, as a version 32 definition is for version 33 | A structure error naming both versions |
 | A definition holding a namespace given to `lexica.format` or `lexica.quote`, a definition read without a registry's module names that names one of them, or a namespace naming no module the registry holds | A structure error saying to read or write the text with the registry, located at the namespace, or at the name where the text first writes it alone |
 | A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a bracket property access or an interpolation | A structure error naming the part, which a local holds first |
 | A lexical reference, or a definition's local, that no local, field, conditional binding or function parameter in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
@@ -86,14 +86,15 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A cast in a definition whose target is none text could write | A structure error at the target |
 | A `root` written outside every object expression | A structure error: `'root' refers to the outermost object being built, and no object expression encloses it here` |
 | A numeric literal no finite number holds, as `1e999`, in text or in a definition | A structure error: `A literal is a string, a finite number, a Boolean or null` |
-| Bindings that are no plain object, a binding not named by a letter followed by letters and digits, one that is no data and that no module recognizes, one modules recognize as unrelated types, a declared type the value does not belong to, or bindings made by another registry | A structure error naming the binding, as `A binding is named by a letter followed by letters and digits` |
+| Bindings that are no plain object, a binding not named by a letter followed by letters and digits, one that is no data and that no module recognizes, one modules recognize as unrelated types, a declared type the value does not belong to or no public type is, one several types share unqualified, or bindings made by another registry | A structure error naming the binding, as `A binding is named by a letter followed by letters and digits` |
 
 A module whose declarations break the declaration contract, a type or a member named by what is no identifier among them, or whose names registration finds taken or colliding within the module, fails with an error of its own kind, `module`, when it is created or registered, naming the module, the type a nested declaration stands in, and the declaration. Among them:
 
 | Situation | Result |
 | --- | --- |
 | A field a declaration's kind does not take, a type-level `fields` collection, `target`, `syntax` or `default` on a member, or an `internal` that is no Boolean | A module error naming the field |
-| A type whose name begins with no capital letter, or a name another module's type has | A module error naming the type |
+| A type whose name begins with no capital letter, a name its module already declares, or a name of Lexica's own types or `Null` | A module error naming the type |
+| An `import` naming no registered module, a type reference resolving to no type or to several, or a foreign type named unqualified outside its import | A module error naming the declaration and, where several match, the qualified candidates |
 | A supertype that is no reference type, or a hierarchy that is a cycle | A module error naming the types |
 | A reference type without `isInstance`, or a `typeOf` or an `isInstance` that is no function | A module error naming the declaration |
 | A declaration naming another module's internal type or member, or a public one exposing an internal type through its signature | A module error naming the declaration and the internal type or member |
@@ -112,6 +113,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | A name no local or field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
 | `it` where nothing gives it a value | A structure error where the text alone shows it, as outside every argument at the top level; a validation error within an argument of a member call or of a local function call, whose function decides |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
+| A cast or a conversion naming a type no public type of the registry has, or one several share unqualified | A validation error, giving the qualified names where several share it |
 | A cast to a name that is no reference type, or of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |
 | A script reaching an internal declaration of any module, through any form | A validation error naming the declaration, as if no declaration of its name were accessible |
 | Several applicable extensions, or several applicable operators of one destination, none of them the owner's | A validation error naming the modules and the qualified forms to write |

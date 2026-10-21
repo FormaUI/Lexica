@@ -6,7 +6,7 @@ This specification is the authoritative contract for the language and for the ru
 
 <a id="version"></a>
 
-**Version.** This specification describes language version `1.0.0-alpha.33`, and describes definition version 32. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](definition.md#definition) sets out; one change can advance both. A runtime says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
+**Version.** This specification describes language version `1.0.0-alpha.33`, and describes definition version 33. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](definition.md#definition) sets out; one change can advance both. A runtime says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
 
 ## What it covers
 

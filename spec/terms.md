@@ -28,6 +28,8 @@ In this document:
 | Structured type | A type of immutable data a module declares, its stored shape its fields | [Declaring a type](modules.md#modules-declaring-a-type) |
 | Membership | Whether a value belongs to a reference type, which the `isInstance` of the type and of every supertype above it answers | [Reference types](types.md#reference-types) |
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
+| Type identity | A module's type's module and local name together, as `domql.Element`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
+| Import | A type's `import`, the modules whose public types its declaration names unqualified, reaching that declaration alone | [Type identity](types.md#types-type-identity) |
 | Type parameter | A type a declaration leaves open, as `List`'s `T`, standing within the declaration that declares it | [Type parameters](types.md#types-type-parameters) |
 | Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](types.md#reference-types) |
 | Object expression | An expression that names the fields of its output object | [Objects](values.md#objects) |

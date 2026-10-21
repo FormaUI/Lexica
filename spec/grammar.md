@@ -108,7 +108,7 @@ conversion-target             = chain | cast | conversion
 cast                          = cast-target "as" type-name
 cast-target                   = receiver { member-expression } | enclosed-cast-target
 enclosed-cast-target          = "(" coalescing ")" | optional-enclosed-access
-type-name                     = identifier
+type-name                     = [ module-name "." ] identifier
 
 chain                         = chain-input { member-expression | object }
 chain-input                   = input | enclosed-expression
@@ -235,7 +235,7 @@ The grammar uses several terms more narrowly than the prose:
 | `script-parameter` | `~` and an identifier, selecting the script parameter of that name explicitly |
 | `module-name` | An identifier that begins a namespace where a value stands, in text read through a registry holding a module of that name |
 | `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; text read without a registry has no module names, so it has none |
-| `type-name` | The name of the type a cast or a conversion names, written bare: any identifier, a reserved word included, as a member's name is after `.` |
+| `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by its module's name and a dot where written so; text read without a registry parses a qualified name alike, and resolution decides whether the module is registered |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
 | `equality-operand` | A chain, cast, conversion or attempt, used within the arithmetic productions |

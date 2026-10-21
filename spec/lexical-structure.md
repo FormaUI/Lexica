@@ -100,7 +100,7 @@ An identifier's spelling decides no meaning; where it stands does:
 - **Where the position expects a name,** after `.`, `?.`, `:` or `?:`, after `as` or `to`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
 - **In text read through a registry,** a [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is no reserved word, but an identifier the registry gives that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. Text read without a registry knows no module's name.
 
-Declarations keep their own restrictions besides: no module is named by a word the language reserves, and a type is named once across every module, Lexica's own types among them, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production makes no identifier valid in every position.
+Declarations keep their own restrictions besides: no module is named by a word the language reserves, a type is named once within its module, and no module's type is named as one of Lexica's own, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production makes no identifier valid in every position.
 
 <a id="names-and-reserved-words-declaring-and-accessing-a-reserved-name"></a>
 

@@ -106,7 +106,8 @@ A module declares each type it owns in its `types`, its `kind` saying which fami
 
 - **A reference type** is `kind: 'reference'`. It declares its `isInstance`, may name a `supertype` and be `abstract`, and holds its members, as [reference types](types.md#reference-types) set out.
 - **A structured type** is `kind: 'structured'`, a type of immutable data. Its stored shape is its fields, members of `kind: 'field'`, each naming the type of its value in `result` and taking no `impl`; Lexica reads the field of each name from the data, and validates, copies and freezes a structured value by them. A field is read as a property is, `room.climate?.temperature`, and its other members compute what they answer through their `impl`. A field and another member of its name collide.
-- **A type's name** is unique across the registry and written in PascalCase, as [type names](types.md#types-type-names) set out.
+- **A type's name** is unique within its module and written in PascalCase, as [type names](types.md#types-type-names) set out, and the type is identified by its module and that name.
+- **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['domql']`; every other foreign type it names is qualified, `domql.Element`, as [type identity](types.md#types-type-identity) sets out.
 
 Lexica's own `List` is the one generic type: it declares `typeParameters: ['T']`, the type of its items, which its members' declarations write, as [type parameters](types.md#types-type-parameters) set out.
 
@@ -157,9 +158,9 @@ One shape serves every declaration, and each kind accepts the fields it needs al
 
 | Declaration | Takes | Refuses |
 | --- | --- | --- |
-| Reference type | `kind: 'reference'` and `isInstance`, both required; `supertype`, `abstract`, `members`, `internal` | Any other field, `impl` among them |
-| Structured type | `kind: 'structured'`; `members`, of which its fields are its stored shape, and `internal` | Any other field, a `fields` collection, `isInstance`, `supertype` and `impl` among them |
-| Extension | `type`, required, the type its members extend; `typeParameters`, for an extension on any type; `members` | Any other field, `name` among them |
+| Reference type | `kind: 'reference'` and `isInstance`, both required; `supertype`, `abstract`, `import`, `members`, `internal` | Any other field, `impl` among them |
+| Structured type | `kind: 'structured'`; `import`, `members`, of which its fields are its stored shape, and `internal` | Any other field, a `fields` collection, `isInstance`, `supertype` and `impl` among them |
+| Extension | `type`, required, the type its members extend; `typeParameters`, for an extension on any type; `members` | Any other field, `name` and `import` among them |
 | Type selector | Its name alone | Any other field, `impl` among them |
 | Selectable type | `selector` and `type`, both required, its name being its key | Any other field, `impl` among them |
 | Observation type | `contract`, `identity`, `shared`; `impl` | Any other field |
@@ -180,7 +181,7 @@ A declaration without an `impl` is resolved against as any other, so a tool read
 A **registry** holds the modules a host resolves and evaluates against. `lexica.createRegistry(modules)` creates one holding Lexica's own module and the modules given; no registry is shared, so two hosts never see each other's modules.
 
 - **The registry holds definitions.** A registry holds the declarations of every module registered with it, shared by all the host's callers. What a host's callers start through host calls, and the state it keeps, is scoped to those callers, never to the registry.
-- **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. A module's name is registered once, and no module is named by a word the language reserves. Types, type selectors and observation types are each named once across every module, Lexica's own included, a selectable type once in its selector, and a name already declared is refused; a type's name begins with a capital letter. A type a declaration names is one the module declares or a module registered before it declares; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
+- **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. A module's name is registered once, and no module is named by a word the language reserves. A type is named once within its module, its name begins with a capital letter, and no module's type is named as one of Lexica's own types or `Null`; type selectors and observation types are each named once across every module, Lexica's own included, a selectable type once in its selector, and a name already declared is refused. A type a declaration names resolves to one the module declares or a module registered before it declares, as [type identity](types.md#types-type-identity) sets out, and an `import` naming no registered module, a reference that resolves to no type or to several, and a foreign type named unqualified outside its import are refused; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
 - **Its revision.** A registry answers a revision that changes whenever its vocabulary does, so a host that keeps resolutions knows when to resolve again.
 - **It reads and writes its own text.** `registry.parse(text)`, `registry.format(source)` and `registry.quote(source)` read and write text with the registry's module names, as `lexica.parse`, `lexica.format` and `lexica.quote` do without any, and `registry.resolve` reads a text as `registry.parse` does; [module names in text](#names-and-reserved-words-module-names) sets out how a name reads.
 - **Registering is not invoking.** Registering a module makes its capability understood; a host invoking one of its host calls starts what that call starts, for its caller, and ending it leaves the module registered.
@@ -271,12 +272,14 @@ An **extension** is a module's member or indexer declared on a type another modu
 const energy = lexica.createModule('energy', {
     extensions: [
         {
-            type: 'Device',
+            type: 'home.Device',
             members: [/* usage, power */],
         },
     ],
 });
 ```
+
+An extension names a foreign target qualified, `home.Device`, while one of Lexica's own types and an extension on any type keep their notation, `{ type: 'Number' }` and `{ type: 'T', typeParameters: ['T'] }`. It declares no `import`: within it, its own module's types and Lexica's resolve unqualified, a foreign type is written qualified, and it inherits no import of the type it extends.
 
 Every module may declare them, on any type another module owns, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](#namespaces-owners-and-extensions) set out, so extensions that compete both register and are told apart by their qualified forms. A type that the module itself owns takes its members in its own declaration, and a type no module declares is refused when the module is registered, so a misspelled type never becomes an extension. An extension adds members alone: it changes no type's `isInstance`, fields, hierarchy, abstractness or `internal` flag, and no module's `typeOf`.
 

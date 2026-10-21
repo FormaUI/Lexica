@@ -18,12 +18,13 @@ In this document:
 
 1. [Type families](#types-type-families)
 2. [Nullable and empty types](#types-nullable-and-empty-types)
-3. [Type parameters](#types-type-parameters)
-4. [Reference types](#reference-types)
-5. [No implicit conversion](#no-implicit-conversion)
-6. [Nullability](#nullability)
-7. [Receivers of unknown type](#receivers-of-unknown-type)
-8. [Casts](#casts)
+3. [Type identity](#types-type-identity)
+4. [Type parameters](#types-type-parameters)
+5. [Reference types](#reference-types)
+6. [No implicit conversion](#no-implicit-conversion)
+7. [Nullability](#nullability)
+8. [Receivers of unknown type](#receivers-of-unknown-type)
+9. [Casts](#casts)
 
 <a id="types-type-families"></a>
 
@@ -41,7 +42,7 @@ The scalar types, lists and object types are the language's own, which Lexica's 
 
 <a id="types-type-names"></a>
 
-A type is named in PascalCase, beginning with a capital letter, Lexica's own and every module's alike, and a module whose type's name begins otherwise is refused at registration. Its name is an identifier, matched exactly as every identifier is, so `Light` names a type and `light` does not; members, modules, bindings and locals are named in lowerCamelCase. The literals `true`, `false` and `null` are values, and stay lowercase.
+A type is named in PascalCase, beginning with a capital letter, Lexica's own and every module's alike, and a module whose type's name begins otherwise is refused at registration. Its name is an identifier, matched exactly as every identifier is, so `Light` names a type and `light` does not, and is unique within its module, as [type identity](#types-type-identity) sets out; members, modules, bindings and locals are named in lowerCamelCase. The literals `true`, `false` and `null` are values, and stay lowercase.
 
 <a id="types-nullable-and-empty-types"></a>
 
@@ -63,6 +64,20 @@ A type is named in PascalCase, beginning with a capital letter, Lexica's own and
 | `String` | `"hello"`, … |
 | `Never` | None |
 | `Boolean?` | `true`, `false`, `null` |
+
+<a id="types-type-identity"></a>
+
+## Type identity
+
+A type a module declares is identified by its module and its local name, so `domql.Aria` and `foo.Aria` are two types. A local name is unique within its module, and two modules may each declare a type of one name. Lexica's own types keep their names: no module declares a type named `Number`, `String`, `Boolean`, `List` or `Never`, and none declares one named `Null`, since the type whose only value is null is the intrinsic `null`.
+
+- **In a type's declaration.** A type reference resolves, without a qualifier, to a type parameter the declaration declares, one of Lexica's own types, a type of the declaring module, or a type of a module the type's `import` names, `import: ['domql']`. An import covers that type's declaration whole: its supertype, its fields, its members' parameters, callbacks and results, and its operators' destinations. It reaches no other type, no module member, no extension and no script, a type beneath it inherits none, and naming the type passes none on. A type of the declaring module wins over an imported one of its name, and no import replaces one of Lexica's own types. Two imported modules declaring a type of one name make an unqualified reference to it ambiguous, unless the declaring module declares one, and import order never decides.
+- **Qualified, anywhere in a declaration.** A reference may name a foreign type qualified by its module, `domql.Node`, `domql.Element?` or `List<foo.Aria>`, whether or not its module is imported, and an unqualified reference searches no module outside the scopes above.
+- **In an extension, a module member and a selectable type.** None imports: the declaring module's types and Lexica's own resolve unqualified, and a foreign type is written qualified. An extension inherits no import of the type it extends.
+- **At registration.** Registration resolves every reference to its module-qualified identity, and refuses an `import` naming no registered module, a reference that resolves to no type or to several, naming the qualified candidates, and a reference to another module's [internal](modules.md#modules-internal-declarations) declaration. Neither import order nor registration order decides a reference.
+- **In a script.** A script resolves against its registry's whole public vocabulary, so it names a type unqualified or qualified: `panel as Element`, or `panel as domql.Element`. A qualified name identifies the public type of that local name in that registered module. An unqualified name resolves to the one public type of its name across the registry: none is an unknown type, and several are an ambiguous one, refused with their qualified names given. Internal types take no part. The name is resolved first, and whether the cast or the conversion is permitted is checked after it, so no cast's success chooses a type. A qualified name fixes which type is named; it makes no cast valid, and leaves a member or an operator the script selects as open to an ambiguity a later registration brings as any.
+- **In a declared binding.** A host's [declared binding type](runtime.md#runtime-bindings), `'Node'` or `'domql.Node'`, resolves by a script's rule when it binds, and the binding keeps the type it resolved to: a `Node` registered afterwards reinterprets no binding, and can make only a later unqualified request ambiguous.
+- **In a diagnostic.** A diagnostic writes a type by its local name, `Element?`, and both qualified names where it involves two types of one local name: `Expected domql.Aria; found foo.Aria`. That is display alone: identity, equality, a resolution key and operator selection use the qualified identity, and [canonical text](definition.md#definition) writes a cast's or a conversion's type as its definition holds it, qualified where it was written qualified.
 
 <a id="types-type-parameters"></a>
 
@@ -174,9 +189,9 @@ The first and the third answer a light, which no result holds, so each stands wi
 
 ### The type a cast names
 
-The type is the name of a reference type the registry knows, written bare, and a string in its place, `device as "Light"`, is a syntax error giving `device as Light`. The name identifies the type directly: it reads no local, field or script parameter of its spelling, and declares or infers no type. The cast is of that type, nullable where its target can be null, so `room.device(name) as Light` is a `Light?` and `device as Light`, with `device` bound to a device, a `Light`; an attempted cast is nullable always.
+The type is the name of a reference type the registry knows, written bare, its local name or qualified by its module, `device as Light` or `device as home.Light`, and found as [type identity](#types-type-identity) sets out; a string in its place, `device as "Light"`, is a syntax error giving `device as Light`. The name identifies the type directly: it reads no local, field or script parameter of its spelling, and declares or infers no type. The cast is of that type, nullable where its target can be null, so `room.device(name) as Light` is a `Light?` and `device as Light`, with `device` bound to a device, a `Light`; an attempted cast is nullable always.
 
-A name that is no reference type is a validation error naming the types its target can be cast to.
+A name that is no public type, or that several types share, is a validation error, the second giving the qualified names; a type that is no reference type is a validation error naming the types its target can be cast to.
 
 <a id="casts-strict"></a>
 

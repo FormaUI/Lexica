@@ -4,7 +4,7 @@
 
 A script's **definition** is a JSON document recording its meaning, its **expression tree** with the version of its format: every script, read from its source or created directly, has one definition, and validation, resolution and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
 
-A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error naming both, so an implementation of version 32 refuses a definition of version 31, whose implicit parameter was a `context` node: no implementation reads two versions or converts one into another.
+A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error naming both, so an implementation of version 33 refuses a definition of version 32, though every node one holds is one a version 33 definition may hold: no implementation reads two versions or converts one into another. Version 33 admits a cast's and a conversion's type qualified by its module.
 
 In this document:
 
@@ -40,8 +40,8 @@ Each node is an object whose `kind` says what it is:
 | `comparison` | `operands`, two or more expressions, and `operators`, one of `<`, `<=`, `>` and `>=` between each two | A comparison, or a chain of them |
 | `conditional` | `condition`, the expression it tests, or `binding`, the `name` it binds and the `value` it binds to it, one of them; and `consequent` and `alternative`, two expressions | A conditional, `if let` holding a binding; an `elseif` is a conditional nested in the alternative before it |
 | `coalescing` | `value` and `fallback`, two expressions | A coalescing operator |
-| `cast` | `type`, the name of the reference type it casts to, and `target`, the expression it casts | A cast |
-| `conversion` | `type`, the name of the type it converts to, and `target`, the expression it converts | A conversion |
+| `cast` | `type`, the name of the reference type it casts to, its local name, `Element`, or qualified by its module, `domql.Element`, as written; and `target`, the expression it casts | A cast |
+| `conversion` | `type`, the name of the type it converts to, its local name or qualified by its module, as written; and `target`, the expression it converts | A conversion |
 | `try` | `target`, the conversion or the cast it attempts | An attempt |
 | `optionalChain` | `target`, the chain it holds | An optional chain: the chain of property accesses, calls, indexers and object expressions whose optional accesses end at it, holding at least one |
 | `and`, `or` | `operands`, two or more expressions | A logical expression |
@@ -71,7 +71,7 @@ A field is an object holding its `name` and its `value` node, both required; an 
 
 ```json
 {
-  "version": 32,
+  "version": 33,
   "expression": {
     "kind": "object",
     "target": { "kind": "parameter", "name": "room" },
