@@ -11,12 +11,12 @@ import { Names } from './Names.mjs';
  * its runs of text, the `{` and `}` around each of its interpolations and what closes it, the tokens of each interpolation's expression between them.
  * A contract within Lexica until a public tooling API stabilizes it.
  */
-export const TOKEN_TYPES = Object.freeze(['name', 'literal', 'keyword', 'context', 'invalid', 'end', 'interpolated-string-start', 'interpolated-text', 'interpolation-start', 'interpolation-end', 'interpolated-string-end', 'caller-binding', 'reserved-reference', '.', '?.', '?[', '?:', '??', '(?', '==', '!=', '<', '<=', '>', '>=', '=', '=>', '+', '-', '*', '/', '%', ',', ':', '(', ')', '{', '}', '[', ']']);
+export const TOKEN_TYPES = Object.freeze(['name', 'literal', 'keyword', 'it', 'invalid', 'end', 'interpolated-string-start', 'interpolated-text', 'interpolation-start', 'interpolation-end', 'interpolated-string-end', 'parameter-reference', 'reserved-reference', '.', '?.', '?[', '?:', '??', '(?', '==', '!=', '<', '<=', '>', '>=', '=', '=>', '+', '-', '*', '/', '%', ',', ':', '(', ')', '{', '}', '[', ']']);
 
 /**
  * @typedef {object} Token
- * @property {'name' | 'literal' | 'keyword' | 'context' | 'invalid' | 'end' | 'interpolated-string-start' | 'interpolated-text' | 'interpolation-start' | 'interpolation-end' | 'interpolated-string-end' | 'caller-binding' | 'reserved-reference' | '.' | '?.' | '?[' | '?:' | '??' | '(?' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '=' | '=>' | '+' | '-' | '*' | '/' | '%' | ',' | ':' | '(' | ')' | '{' | '}' | '[' | ']'} type
- * @property {unknown} [value] A name's or a keyword's text, the implicit parameter's spelling, `context` or `~`, the name `~` reads the caller's binding of, the reserved word `@` reads the local or the field of, a literal's value, or the text a run of an interpolated string's text stands for.
+ * @property {'name' | 'literal' | 'keyword' | 'it' | 'invalid' | 'end' | 'interpolated-string-start' | 'interpolated-text' | 'interpolation-start' | 'interpolation-end' | 'interpolated-string-end' | 'parameter-reference' | 'reserved-reference' | '.' | '?.' | '?[' | '?:' | '??' | '(?' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '=' | '=>' | '+' | '-' | '*' | '/' | '%' | ',' | ':' | '(' | ')' | '{' | '}' | '[' | ']'} type
+ * @property {unknown} [value] A name's or a keyword's text, `it` for the implicit parameter, the name of the script parameter `~` reads, the reserved word `@` reads the local or the field of, a literal's value, or the text a run of an interpolated string's text stands for.
  * @property {'"' | "'"} [quote] The quote of a string's literal token, or of an interpolated string's opening and closing tokens, `"` for a string and `'` for a raw string.
  * @property {number} [delimiter] How many quotes that string's delimiter has: one inline, three or more for a block.
  * @property {number} start
@@ -45,6 +45,9 @@ export class Tokenizer {
     #text;
     #offset = 0;
 
+    /** The module names the text is read with, each reserved as a word the language reserves is, so `@` before one reads the local or the field of its name. @type {ReadonlySet<string>} */
+    #moduleNames;
+
     /**
      * What is being read, innermost last: the text of an interpolated string, with where its `$` begins and its form, or the expression of one of its interpolations, with how many braces its own object expressions have opened,
      * so its `}` is told from theirs, and whether its first token is still to come, which no object expression is.
@@ -52,18 +55,23 @@ export class Tokenizer {
      */
     #modes = [];
 
-    /** @param {string} text The source text. */
-    constructor(text) {
+    /**
+     * @param {string} text The source text.
+     * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with, none for text read without a registry.
+     */
+    constructor(text, moduleNames = Names.noModuleNames) {
         this.#text = text;
+        this.#moduleNames = moduleNames;
     }
 
     /**
      * Every token of the text, ending with an `end` token, read tolerantly: text that is no token is an invalid token holding its diagnostic, and reading goes on after it, so the tokens cover the whole text whatever it holds.
      * @param {string} text
+     * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with.
      * @returns {Token[]}
      */
-    static scan(text) {
-        return new Tokenizer(text).#readAll();
+    static scan(text, moduleNames = Names.noModuleNames) {
+        return new Tokenizer(text, moduleNames).#readAll();
     }
 
     /** Reads every token of the text, ending with an `end` token, refusing the first text that is no token with its diagnostic. */
@@ -182,7 +190,7 @@ export class Tokenizer {
         }
 
         if (character === '~') {
-            return this.#readCallerBinding(start);
+            return this.#readParameterReference(start);
         }
 
         if (character === '"' || character === "'") {
@@ -204,9 +212,9 @@ export class Tokenizer {
                 return { type: 'literal', value: Names.literalValueOf(name), start, end: this.#offset };
             }
 
-            // `context` is a keyword, given a token type of its own for the parser, which reads it where a value stands.
-            if (name === 'context') {
-                return { type: 'context', value: name, start, end: this.#offset };
+            // `it` is a keyword, given a token type of its own for the parser, which reads it where a value stands.
+            if (name === 'it') {
+                return { type: 'it', value: name, start, end: this.#offset };
             }
 
             return { type: Names.isKeyword(name) ? 'keyword' : 'name', value: name, start, end: this.#offset };
@@ -269,7 +277,7 @@ export class Tokenizer {
     }
 
     /**
-     * Reads what `@` begins: a reference to the local or the field a reserved word names, written directly after it, as `@to` reads the local `to`, since the word alone keeps its own meaning;
+     * Reads what `@` begins: a reference to the local or the field a reserved word names, written directly after it, as `@to` reads the local `to`, since the word alone keeps its own meaning, a module's name in text read with it among them;
      * invalid where no reserved word follows it directly, a name that is none being written alone.
      */
     #readAt(start) {
@@ -286,7 +294,7 @@ export class Tokenizer {
 
         const name = this.#text.slice(start + 1, NAME.lastIndex);
 
-        if (!Names.isReservedWord(name)) {
+        if (!Names.isReservedWord(name, this.#moduleNames)) {
             return this.#invalid(start, NAME.lastIndex, `'${name}' is no reserved word, so it is written alone: write '${name}', with no '@'`, start);
         }
 
@@ -296,23 +304,26 @@ export class Tokenizer {
     }
 
     /**
-     * Reads what `~` begins: the caller's binding of the name written directly after it, whatever local or field shares its name and a reserved word included, as `~as` reads the binding `as`,
-     * or, with no name directly after it, the implicit parameter, as `context` is, so `~.size` reads `context.size`.
+     * Reads what `~` begins: a parameter reference, the script parameter the name written directly after it names, whatever local or field shares its name and a reserved word included, as `~as` reads the script parameter `as`;
+     * invalid where no name follows it directly, since `~` alone reads nothing.
      */
-    #readCallerBinding(start) {
+    #readParameterReference(start) {
         NAME.lastIndex = start + 1;
 
         if (!NAME.test(this.#text)) {
-            this.#offset = start + 1;
+            const next = this.#text[start + 1];
+            const message = next === undefined || SPACE.test(next)
+                ? "A parameter reference names its script parameter directly after '~', as ~room"
+                : "'~' and what follows it are no parameter reference, which names its script parameter directly after '~', as ~room";
 
-            return { type: 'context', value: '~', start, end: this.#offset };
+            return this.#invalid(start, start + 1, message, start);
         }
 
         const name = this.#text.slice(start + 1, NAME.lastIndex);
 
         this.#offset = NAME.lastIndex;
 
-        return { type: 'caller-binding', value: name, start, end: this.#offset };
+        return { type: 'parameter-reference', value: name, start, end: this.#offset };
     }
 
     /**

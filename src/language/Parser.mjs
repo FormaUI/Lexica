@@ -3,6 +3,7 @@
  */
 
 import { LexicaError } from './LexicaError.mjs';
+import { Names } from './Names.mjs';
 import { SyntaxTree } from './SyntaxTree.mjs';
 import { Tokenizer } from './Tokenizer.mjs';
 
@@ -20,7 +21,7 @@ const TOKEN_DESCRIPTIONS = {
 const CHAIN_CONTINUATIONS = new Set(['.', '?.', '[', '?[', ':', '?:', '{']);
 
 /** The tokens that, after a space, make the name before them a member written without its receiver, which no local is: an argument. */
-const ARGUMENT_STARTS = new Set(['context', 'literal', 'interpolated-string-start', 'caller-binding', 'reserved-reference']);
+const ARGUMENT_STARTS = new Set(['it', 'literal', 'interpolated-string-start', 'parameter-reference', 'reserved-reference']);
 
 /** The keywords that close or divide a construct, whose own messages say what it lacks where a value would stand. */
 const STRUCTURAL_KEYWORDS = new Set(['then', 'elseif', 'else', 'end']);
@@ -40,6 +41,9 @@ export class Parser {
     #tokens;
     #index = 0;
 
+    /** The module names the text is read with, each beginning its module's namespace where a value stands. @type {ReadonlySet<string>} */
+    #moduleNames;
+
     /** How many bodies' locals are being read, where a name on a new line after a value is a statement no body holds rather than a member written without its dot. */
     #bodyLocalsBeingRead = 0;
 
@@ -49,21 +53,25 @@ export class Parser {
     /** The conversions read directly after another conversion or a cast of the same chain, without a group between them, which `try` refuses to attempt. @type {WeakSet<SyntaxNode>} */
     #chainedConversions = new WeakSet();
 
-    /** @param {string} text The source text. */
-    constructor(text) {
+    /**
+     * @param {string} text The source text.
+     * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with, none for text read without a registry.
+     */
+    constructor(text, moduleNames = Names.noModuleNames) {
         this.#text = text;
-        this.#tokens = new Tokenizer(text).tokenize();
+        this.#moduleNames = moduleNames;
+        this.#tokens = new Tokenizer(text, moduleNames).tokenize();
     }
 
     /**
-     * Reads the text into its syntax tree, whose source node holds the body, an expression alone or bindings and the `return` that gives its result, and the end of the text, with the trivia before it.
-     * @returns {import('./SyntaxTree.mjs').SourceNode}
+     * Reads the text into its syntax tree, whose script node holds the body, an expression alone or bindings and the `return` that gives its result, and the end of the text, with the trivia before it.
+     * @returns {import('./SyntaxTree.mjs').ScriptNode}
      */
     parse() {
         const body = this.#parseBody();
         const end = this.#expect('end');
 
-        return { kind: 'source', text: this.#text, children: [body, end] };
+        return { kind: 'script', text: this.#text, children: [body, end] };
     }
 
     /** Reads an expression: a conditional, a do block, or a simple value expression; a function stands as a local's initializer alone. */
@@ -411,7 +419,7 @@ export class Parser {
         const letKeyword = this.#take();
 
         if (!this.#startsEntry()) {
-            this.#refuseName('A conditional binding takes its value after =', 'A conditional binding is written with let, its name and = before its value, as if let key = context:["data-key"] then …', 'if let ');
+            this.#refuseName('A conditional binding takes its value after =', 'A conditional binding is written with let, its name and = before its value, as if let key = it:["data-key"] then …', 'if let ');
         }
 
         return Parser.#node('conditional-binding', [letKeyword, this.#take(), this.#take(), this.#parseSimpleValueExpression()]);
@@ -511,21 +519,21 @@ export class Parser {
         const tryKeyword = this.#take();
 
         if (this.#isKeyword('try')) {
-            throw this.#fail('\'try\' attempts a conversion or a cast, and no other attempt: write \'try … to "type"\' or \'try … as "type"\'', this.#token.start);
+            throw this.#fail("'try' attempts a conversion or a cast, and no other attempt: write 'try … to type' or 'try … as type'", this.#token.start);
         }
 
         const operation = this.#parseEqualityOperand();
         const kind = Parser.#kindOf(operation);
 
         if (kind !== 'conversion' && kind !== 'cast') {
-            throw this.#fail('\'try\' attempts a conversion or a cast: write \'try … to "type"\' or \'try … as "type"\'', start);
+            throw this.#fail("'try' attempts a conversion or a cast: write 'try … to type' or 'try … as type'", start);
         }
 
         if (this.#chainedConversions.has(operation)) {
             const [target] = operation.children;
-            const inner = target.kind === 'cast' ? `as "${Parser.#typeOf(target)}"` : `to "${Parser.#typeOf(target)}"`;
+            const inner = target.kind === 'cast' ? `as ${this.#typeOf(target)}` : `to ${this.#typeOf(target)}`;
 
-            throw this.#fail(`'try' attempts one operation: group the value it converts, as in 'try (… ${inner}) to "${Parser.#typeOf(operation)}"'`, start);
+            throw this.#fail(`'try' attempts one operation: group the value it converts, as in 'try (… ${inner}) to ${this.#typeOf(operation)}'`, start);
         }
 
         return Parser.#node('attempt', [tryKeyword, operation]);
@@ -534,7 +542,7 @@ export class Parser {
     /** Refuses what an equality operand cannot start with: an equality or a comparison operator, which compares the value written before it, and a conditional, which is grouped where it is an operand. */
     #refuseOperandStart(start) {
         if (this.#isEqualityOperator() || this.#isComparisonOperator()) {
-            throw this.#fail(`'${this.#token.type}' compares the value written before it: write 'context ${this.#token.type} …' to compare the implicit parameter`, start);
+            throw this.#fail(`'${this.#token.type}' compares the value written before it: write 'it ${this.#token.type} …' to compare the implicit parameter`, start);
         }
 
         if (this.#isKeyword('if')) {
@@ -625,7 +633,7 @@ export class Parser {
         return Parser.#node(kind, children);
     }
 
-    /** Reads a unary expression: `-` and what it negates, another unary expression or an equality operand, so `-x to "number"` negates the converted value; or an equality operand alone. */
+    /** Reads a unary expression: `-` and what it negates, another unary expression or an equality operand, so `-x to number` negates the converted value; or an equality operand alone. */
     #parseUnary() {
         if (this.#token.type !== '-') {
             return this.#parseEqualityOperand();
@@ -689,11 +697,6 @@ export class Parser {
             throw this.#unexpected("',' before the next field");
         }
 
-        // `~` alone is the implicit parameter, so a name a space parts from it was most likely the caller's binding of that name.
-        if (value.type === 'context' && value.value === '~') {
-            throw this.#fail(`'~' reads the caller's binding of the name written directly after it: write '~${this.#token.value}', with no space`, value.start);
-        }
-
         const written = this.#text.slice(start, this.#tokens[this.#index - 1].end);
         const kind = Parser.#kindOf(value);
         const receiver = kind === 'cast' || kind === 'conversion' ? `(${written})` : written;
@@ -704,35 +707,49 @@ export class Parser {
         throw this.#fail(`A member follows its receiver after a dot, or after a colon for an indexer: write '${receiver}.${this.#token.value}${arguments_}'`, this.#token.start);
     }
 
-    /** Whether the keyword `to` and a quoted type stand here, which only a conversion writes, after the value it converts. */
+    /** Whether the keyword `to` and a type's name stand here, which only a conversion writes, after the value it converts, or a string written in the name's place. */
     #startsConversion() {
         const next = this.#tokens[this.#index + 1];
 
-        return this.#isKeyword('to') && next.type === 'literal' && typeof next.value === 'string';
+        return this.#isKeyword('to') && (this.#isWord(next) || (next.type === 'literal' && typeof next.value === 'string'));
     }
 
-    /** Reads a conversion after the value it converts: `to` and the quoted name of the type it converts to. It ends its chain, and another conversion may follow it. */
+    /** Reads a conversion after the value it converts: `to` and the name of the type it converts to, written bare. It ends its chain, and another conversion may follow it. */
     #parseConversion(target) {
         const toKeyword = this.#take();
-        const type = this.#token;
-
-        if (type.type !== 'literal' || typeof type.value !== 'string') {
-            throw this.#unexpected('the quoted name of the type it converts to, as in to "number"');
-        }
-
-        this.#advance();
-
+        const type = this.#readTypeName('to', 'converts to', 'number');
         const node = Parser.#node('conversion', [target, toKeyword, type]);
+        const name = this.#wordOf(type);
 
         if (this.#continuesChain()) {
-            throw this.#fail(`A conversion ends its chain; group it to continue from its result, as in '(… to "${type.value}").value'`, this.#token.start);
+            throw this.#fail(`A conversion ends its chain; group it to continue from its result, as in '(… to ${name}).value'`, this.#token.start);
         }
 
         if (this.#isKeyword('as')) {
-            throw this.#fail(`A conversion's result is cast only in a group: write '(… to "${type.value}") as …'`, this.#token.start);
+            throw this.#fail(`A conversion's result is cast only in a group: write '(… to ${name}) as …'`, this.#token.start);
         }
 
         return node;
+    }
+
+    /**
+     * Reads the name of the type a cast or a conversion names after its keyword, written bare: any word, a reserved one included, as a member's name is after its dot. A string in its place is refused with the bare name to write,
+     * and anything else with the form the keyword takes.
+     */
+    #readTypeName(keyword, what, example) {
+        const token = this.#token;
+
+        if (token.type === 'literal' && typeof token.value === 'string') {
+            const bare = Names.isName(token.value) ? token.value : example;
+
+            throw this.#fail(`'${keyword}' names the type it ${what} bare, as a member's name is written: write '${keyword} ${bare}'`, token.start);
+        }
+
+        if (!this.#isWord(token)) {
+            throw this.#unexpected(`the name of the type it ${what}, as in ${keyword} ${example}`);
+        }
+
+        return this.#take();
     }
 
     /**
@@ -775,7 +792,7 @@ export class Parser {
     }
 
     /**
-     * Reads a cast after its target: `as` and the quoted name of the type it casts to. Its target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and a cast continues a chain only from a group.
+     * Reads a cast after its target: `as` and the name of the type it casts to, written bare. Its target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and a cast continues a chain only from a group.
      */
     #parseCast(target, chain, start) {
         const isTarget = !chain.hasObject && (chain.input === 'input'
@@ -789,25 +806,19 @@ export class Parser {
         return this.#readCast(target);
     }
 
-    /** Reads `as` and the quoted type name after a cast's target, which nothing continues but a group. */
+    /** Reads `as` and the type's name after a cast's target, which nothing continues but a group. */
     #readCast(target) {
         const asKeyword = this.#take();
-        const type = this.#token;
-
-        if (type.type !== 'literal' || typeof type.value !== 'string') {
-            throw this.#unexpected('the quoted name of the type it casts to, as in as "element"');
-        }
-
-        this.#advance();
-
+        const type = this.#readTypeName('as', 'casts to', 'element');
         const node = Parser.#node('cast', [target, asKeyword, type]);
+        const name = this.#wordOf(type);
 
         if (this.#continuesChain()) {
-            throw this.#fail(`A cast continues a chain only from a group: write '(… as "${type.value}")…'`, this.#token.start);
+            throw this.#fail(`A cast continues a chain only from a group: write '(… as ${name})…'`, this.#token.start);
         }
 
         if (this.#isKeyword('as')) {
-            throw this.#fail(`A cast's target holds a cast only in a group: write '(… as "${type.value}") as …'`, this.#token.start);
+            throw this.#fail(`A cast's target holds a cast only in a group: write '(… as ${name}) as …'`, this.#token.start);
         }
 
         return node;
@@ -863,7 +874,7 @@ export class Parser {
         const target = this.#parseCastTarget(this.#token.start);
 
         if (!this.#isKeyword('as')) {
-            throw this.#fail('A group as the receiver of an optional enclosed access holds a cast, as in (?(node.parent as "element").rect)', this.#token.start);
+            throw this.#fail('A group as the receiver of an optional enclosed access holds a cast, as in (?(node.parent as element).rect)', this.#token.start);
         }
 
         const cast = this.#readCast(target);
@@ -885,7 +896,7 @@ export class Parser {
             }
 
             if (this.#continuesChain() && this.#token.type !== '{') {
-                throw this.#fail('A grouped target is cast as it is, with nothing after it but its cast, as in ((a ?? b) as "element")', this.#token.start);
+                throw this.#fail('A grouped target is cast as it is, with nothing after it but its cast, as in ((a ?? b) as element)', this.#token.start);
             }
 
             return target;
@@ -923,7 +934,11 @@ export class Parser {
                     return false;
                 }
 
+                // The type's name after `as`, and after `to` below, may be any word, a keyword among them, which tells nothing of the group.
                 holdsAs = true;
+                index++;
+            } else if (depth === 1 && token.type === 'keyword') {
+                index++;
             } else if (token.type === 'end') {
                 return false;
             }
@@ -954,15 +969,19 @@ export class Parser {
     }
 
     /**
-     * Reads an input: `context`, a literal, a name, which the lowering reads as a local, a field, a root or a binding, a reserved word after `@`, which it reads as a local or a field, a binding after `~`, or an object expression.
-     * A keyword alone keeps its meaning, so one where a value stands gives the form with `@` for the local or the field of its name.
+     * Reads an input: `it`, a literal, a name, which the lowering reads as a local, a field, the object root or a script parameter, a reserved word after `@`, which it reads as a local or a field, a script parameter after `~`,
+     * a namespace access, which a module's name begins in text read with it, or an object expression. A keyword alone keeps its meaning, so one where a value stands gives the form with `@` for the local or the field of its name.
      */
     #parseInput() {
         const token = this.#token;
         const next = this.#tokens[this.#index + 1];
 
         if (this.#startsConversion()) {
-            throw this.#fail(`'to' converts the value written before it: write 'context to ${this.#text.slice(next.start, next.end)}' to convert the implicit parameter`, token.start);
+            throw this.#fail(`'to' converts the value written before it: write 'it to ${this.#text.slice(next.start, next.end)}' to convert the implicit parameter`, token.start);
+        }
+
+        if (token.type === 'name' && this.#moduleNames.has(token.value)) {
+            return this.#parseNamespaceAccess();
         }
 
         // A name that starts a chain is a local, a field or a binding, which takes no argument, so one an argument follows after a space is a member written without its receiver; parentheses after it call the local function of its name.
@@ -976,15 +995,15 @@ export class Parser {
             }
 
             if (token.type === 'name' && next.spaced && ARGUMENT_STARTS.has(next.type)) {
-                throw this.#fail(`'${token.value}' follows no receiver: write 'context.${token.value}(…)' for a member of the implicit parameter`, token.start);
+                throw this.#fail(`'${token.value}' follows no receiver: write 'it.${token.value}(…)' for a member of the implicit parameter`, token.start);
             }
         }
 
         switch (token.type) {
-            case 'context':
+            case 'it':
             case 'literal':
             case 'name':
-            case 'caller-binding':
+            case 'parameter-reference':
             case 'reserved-reference':
                 return this.#take();
             case '{':
@@ -1000,6 +1019,39 @@ export class Parser {
             default:
                 throw this.#unexpected('a value');
         }
+    }
+
+    /**
+     * Reads a namespace access: a module's name, its dot and the name of one of the module's members, and the arguments of a call through it where parentheses follow. A namespace is never null and has no indexer,
+     * so only `.` follows it, and a module's name alone, which reads no value, gives the forms that read the local and the script parameter of its name.
+     */
+    #parseNamespaceAccess() {
+        const moduleName = this.#take();
+        const name = moduleName.value;
+
+        if (this.#token.type !== '.') {
+            const isOptional = this.#token.type === '?.';
+            const access = isOptional ? `A namespace is never null, so its members are read after '.': write '${name}.…'` : `'${name}' is the namespace of the module of that name, whose members are read after a dot, as ${name}.member`;
+
+            throw this.#fail(`${access}; write '@${name}' for the local or field of that name, or '~${name}' for the script parameter`, isOptional ? this.#token.start : moduleName.start);
+        }
+
+        const dot = this.#take();
+
+        if (this.#token.type === 'reserved-reference') {
+            throw this.#fail(`A member is named as it is written after its dot, with no '@': write '${name}.${this.#token.value}'`, this.#token.start);
+        }
+
+        const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('name');
+        const written = `${name}.${this.#wordOf(nameToken)}`;
+
+        this.#refuseEnclosedAccessArgument(this.#token, written);
+
+        if (this.#token.type !== '(') {
+            return Parser.#node('namespace-access', [moduleName, dot, nameToken]);
+        }
+
+        return Parser.#node('namespace-access', [moduleName, dot, nameToken, ...this.#parseArguments(written, true)]);
     }
 
     /** Reads an interpolated string: its `$"`, its runs of text and its interpolations, in the order written, and its closing quote. */
@@ -1163,9 +1215,9 @@ export class Parser {
         return !(afterColon.type === '[' || (this.#isWord(afterColon) && this.#tokens[this.#index + 3]?.type === '['));
     }
 
-    /** Whether the token writes a word: a name, a keyword, `context`, which `~` alone writes too but is no word, or the word of a literal, which a declaration and a member's name take as they are, whatever the word means where an expression stands. */
+    /** Whether the token writes a word: a name, a keyword, `it`, or the word of a literal, which a declaration, a member's name and a type's take as they are, whatever the word means where an expression stands. */
     #isWord(token) {
-        return token.type === 'name' || token.type === 'keyword' || (token.type === 'context' && token.value === 'context') || (token.type === 'literal' && (typeof token.value === 'boolean' || token.value === null));
+        return token.type === 'name' || token.type === 'keyword' || token.type === 'it' || (token.type === 'literal' && (typeof token.value === 'boolean' || token.value === null));
     }
 
     /** The word a token writes, as its text spells it. */
@@ -1222,7 +1274,7 @@ export class Parser {
         }
 
         if (this.#token.type === '}') {
-            const example = locals > 0 ? '{ let r = context.rect, width = r.width }' : '{ size = context.size }';
+            const example = locals > 0 ? '{ let r = it.rect, width = r.width }' : '{ size = it.size }';
 
             throw this.#fail(`An object expression holds at least one field${locals > 0 ? ' after its locals' : ''}, as ${example}`, this.#token.start);
         }
@@ -1270,7 +1322,7 @@ export class Parser {
         }
 
         if (!this.#startsEntry()) {
-            this.#refuseName('A field takes its value after =', 'A field is written with its name and = before its value, as size = context.size', '');
+            this.#refuseName('A field takes its value after =', 'A field is written with its name and = before its value, as size = it.size', '');
         }
 
         return Parser.#node('field', [this.#take(), this.#take(), this.#parseExpression()]);
@@ -1364,9 +1416,9 @@ export class Parser {
         return { kind, children };
     }
 
-    /** The quoted type a conversion's or a cast's node names. */
-    static #typeOf(node) {
-        return node.children[2].value;
+    /** The name of the type a conversion's or a cast's node names. */
+    #typeOf(node) {
+        return this.#wordOf(node.children[2]);
     }
 
     /**

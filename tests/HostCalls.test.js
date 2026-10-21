@@ -64,7 +64,7 @@ describe('host calls', () => {
 
     it('are typed by the values their host supplies, as their result projection makes them, and give no result where their host supplies none', () => {
         expect(resolve('light.dim({ to = 40 })').type).toBe('number');
-        expect(resolve('sensor.watch() { at = context.at, strong = context.strength > 0.8 }').type).toBe('{ at: number, strong: boolean }');
+        expect(resolve('sensor.watch() { at = it.at, strong = it.strength > 0.8 }').type).toBe('{ at: number, strong: boolean }');
         expect(resolve('thermostat.hold({ target = 21 })').type).toBeNull();
 
         const refused = getError(() => resolve('thermostat.hold({ target = 21 })').typeAt([]));
@@ -77,7 +77,7 @@ describe('host calls', () => {
     it('stand at the end of a body, its locals before them, and in a do block there, as the script\'s terminal position', () => {
         expect(resolve('let target = 21 return thermostat.hold({ target = target })').hostCall.name).toBe('hold');
         expect(resolve('do let level = 40 return light.dim({ to = level }) end').hostCall.name).toBe('dim');
-        expect(resolve('let room = sensor.room return sensor.watch() { at = context.at, room = room }').type).toBe('{ at: number, room: string }');
+        expect(resolve('let room = sensor.room return sensor.watch() { at = it.at, room = room }').type).toBe('{ at: number, room: string }');
         expect(resolve('light?.dim({ to = 40 })').hostCall.name).toBe('dim');
     });
 
@@ -126,7 +126,7 @@ describe('host calls', () => {
     });
 
     it('supply values of the type a fixed argument selects through a type selector, a bound parameter settling it as a literal does', () => {
-        expect(resolve('sensor.on("motion") { at = context.at, strong = context.strength > 0.8 }').type).toBe('{ at: number, strong: boolean }');
+        expect(resolve('sensor.on("motion") { at = it.at, strong = it.strength > 0.8 }').type).toBe('{ at: number, strong: boolean }');
         expect(resolve('sensor.on("change")').type).toBe('change');
         expect(resolve('sensor.on(kind)', { ...bindings, kind: 'motion' }).type).toBe('motion');
 
@@ -179,7 +179,7 @@ describe('prepared calls', () => {
 
     it('project each value their host supplies, checked against the type the call declares, answering as an evaluation does', () => {
         const dimmed = evaluatorOf('light.dim({ to = 40 })').evaluator.prepareCall();
-        const watched = evaluatorOf('sensor.watch() { at = context.at, strong = context.strength > 0.8 }').evaluator.prepareCall();
+        const watched = evaluatorOf('sensor.watch() { at = it.at, strong = it.strength > 0.8 }').evaluator.prepareCall();
         const projected = watched.project({ at: 5, strength: 0.9 });
 
         expect(dimmed.project(35)).toMatchObject({ value: 35, isPending: false });
@@ -234,7 +234,7 @@ describe('prepared calls', () => {
 
     it('evaluate the locals before the call once, and read them as prepared in every projection, never running their initializers again', () => {
         const invoked = [];
-        const call = evaluatorOf('let room = sensor.room return sensor.watch() { at = context.at, room = room }', { invoked }).evaluator.prepareCall();
+        const call = evaluatorOf('let room = sensor.room return sensor.watch() { at = it.at, room = room }', { invoked }).evaluator.prepareCall();
 
         expect(invoked).toEqual(['room:porch']);
         expect([1, 2, 3].map(at => call.project({ at, strength: 1 }).value)).toEqual([1, 2, 3].map(at => ({ at, room: "porch's room" })));
@@ -251,7 +251,7 @@ describe('prepared calls', () => {
     });
 
     it('call a function a local before the call holds in any projection', () => {
-        const call = evaluatorOf('let label = level => $"{level} lux" return light.dim({ to = 40 }) { reached = label(context) }').evaluator.prepareCall();
+        const call = evaluatorOf('let label = level => $"{level} lux" return light.dim({ to = 40 }) { reached = label(it) }').evaluator.prepareCall();
 
         expect(call.project(35).value).toEqual({ reached: '35 lux' });
         expect(call.project(38).value).toEqual({ reached: '38 lux' });
@@ -260,7 +260,7 @@ describe('prepared calls', () => {
     it('of one evaluator stay apart, each projecting against the locals it was prepared with, interleaved, none evaluated again', () => {
         const invoked = [];
         const env = { levels: { hall: 40 }, occupied: [] };
-        const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = context, asked = level }', { env, invoked });
+        const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = it, asked = level }', { env, invoked });
         const first = evaluator.prepareCall();
 
         env.levels.hall = 60;
@@ -305,7 +305,7 @@ describe('values a host supplies', () => {
 
     /** The call the text ends in, prepared against a registry holding the desk's module. */
     const prepared = text => lexica.createRegistry([createReports()]).resolve(text, { desk: 'desk' }).createEvaluator({ desk: 'desk' }).prepareCall();
-    const reporting = () => prepared('desk.report() { hasTarget = context.target != null, note = context.note, count = context.count, spot = context.spot, spots = context.spots }');
+    const reporting = () => prepared('desk.report() { hasTarget = it.target != null, note = it.note, count = it.count, spot = it.spot, spots = it.spots }');
     const report = overrides => ({ target: element, owner: element, note: 'filed', count: 1, spot: { x: 1, label: 'a' }, spots: [{ x: 2, label: null }], ...overrides });
 
     /** The evaluation error a projection fails with, where the call stands, by its message. */

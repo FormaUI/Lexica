@@ -38,17 +38,17 @@ An example's bindings are supplied parameters, each bound by the host to a value
 | `thermostat.target` | `number`, in degrees | Observable: `state` | Fresh | |
 | `sensor.temperature` | `number?`, in degrees, null before the first reading | Observable: `reading` | Maintained | `0.5` |
 
-A setting is a string, so an example that needs a number converts it, as `device:["level"] to "number"` does.
+A setting is a string, so an example that needs a number converts it, as `device:["level"] to number` does.
 
-**Predicates.** Each asked with its verb:
+**Boolean functions.** The home's tests, each a function of its receiver that takes no arguments and answers a `boolean`, called as `device.active()` or passed to a verb as `device.is(home.active)`:
 
-| Predicate | Of | Changes |
+| Function | Answers | Changes |
 | --- | --- | --- |
-| `is("active")` | `device` | Observable: `state` |
-| `is("offline")` | `device` | Partly observable: `state`, missing a device that stops reporting before its timeout |
-| `has("battery")` | `device` | Constant |
-| `supports("dimming")` | `device` | Constant |
-| `is("occupied")` | `room` | Observable: `presence` |
+| `device.active()` | Whether the device is switched on | Observable: `state` |
+| `device.offline()` | Whether the device has stopped reporting | Partly observable: `state`, missing a device that stops reporting before its timeout |
+| `device.batteryPowered()` | Whether the device runs on a battery | Constant |
+| `device.dimmable()` | Whether the device can be dimmed | Constant |
+| `room.occupied()` | Whether someone is in the room | Observable: `presence` |
 
 **Observation types.** What a member names to learn that its result may have changed:
 

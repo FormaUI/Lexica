@@ -1,6 +1,6 @@
 /**
  * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the members of lists, the conversions between strings, numbers and Booleans,
- * and the verbs that ask the predicates a host declares, each carrying its implementation
+ * and the verbs that test a receiver, each carrying its implementation
  */
 
 import { Declarations } from './Declarations.mjs';
@@ -36,10 +36,10 @@ export class Vocabulary {
                     syntax: 'indexer', isDefault: true, updates: derived, parameters: [Declarations.valueParameter('index', 'number')],
                     implementation: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
                 }),
-                // The verbs that ask a predicate: the predicate's own declaration carries it out, its implementation, how it changes and the observations that cover it, so declaring each on any receiver selects the predicate's own receivers.
-                Declarations.function('is', 'any', 'boolean', { updates: derived, parameters: [Declarations.valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
-                Declarations.function('has', 'any', 'boolean', { updates: derived, parameters: [Declarations.valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
-                Declarations.function('supports', 'any', 'boolean', { updates: derived, parameters: [Declarations.valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
+                // The verbs, each answering what its test answers of its receiver, a function of the receiver's own type that answers a Boolean, so each reads and changes as its test does.
+                Declarations.function('is', 'T', 'boolean', { updates: derived, parameters: [Declarations.functionParameter('test', 'boolean', ['T'])], implementation: ({ receiver, args }) => args.test(receiver) }),
+                Declarations.function('has', 'T', 'boolean', { updates: derived, parameters: [Declarations.functionParameter('test', 'boolean', ['T'])], implementation: ({ receiver, args }) => args.test(receiver) }),
+                Declarations.function('supports', 'T', 'boolean', { updates: derived, parameters: [Declarations.functionParameter('test', 'boolean', ['T'])], implementation: ({ receiver, args }) => args.test(receiver) }),
                 Declarations.function('max', 'list<T>', 'number?', { updates: derived, parameters: [Declarations.expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
                 Declarations.function('min', 'list<T>', 'number?', { updates: derived, parameters: [Declarations.expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
                 Declarations.function('sum', 'list<T>', 'number', { updates: derived, parameters: [Declarations.expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),

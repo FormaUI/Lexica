@@ -1,5 +1,5 @@
 /**
- * Declarations — the helpers that write a vocabulary's declarations: its parameters, members and predicates, each in the declaration shape with the defaults its contract gives it
+ * Declarations — the helpers that write a vocabulary's declarations: its parameters and members, each in the declaration shape with the defaults its contract gives it
  */
 
 export class Declarations {
@@ -23,6 +23,11 @@ export class Declarations {
     /** A required predicate parameter, an expression evaluated against each item whose truthiness its implementation receives. */
     static predicateParameter() {
         return { name: 'expression', kind: 'predicate', type: 'boolean', context: 'item', required: true, fixed: false, nulls: 'accept' };
+    }
+
+    /** A function parameter, always required: its callback contract, the types of the arguments the member calls the function with, in order, and the type of the result it takes from it. */
+    static functionParameter(name, type, parameters) {
+        return { name, kind: 'function', type, parameters, required: true };
     }
 
     /**
@@ -64,10 +69,5 @@ export class Declarations {
     /** A function, a member called or named as an indexer with its arguments. */
     static function(name, target, result, options) {
         return Declarations.member('function', name, target, result, options);
-    }
-
-    /** A predicate: a Boolean of its receivers that its verb, `is` unless it says otherwise, asks by name, carried out by its own implementation under its own updates, observable unless it says otherwise. */
-    static predicate(name, target, implementation, { verb = 'is', updates = { changes: 'observable', reads: 'fresh' } } = {}) {
-        return { name, verb, target, updates, ...(implementation === undefined ? {} : { implementation }) };
     }
 }

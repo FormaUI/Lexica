@@ -4,7 +4,7 @@
 
 A script's **definition** is a JSON document recording its meaning, its **expression tree** with the version of its format: every script, read from its source or created directly, has one definition, and validation, resolution and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
 
-A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error.
+A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error naming both, so an implementation of version 32 refuses a definition of version 31, whose implicit parameter was a `context` node: no implementation reads two versions or converts one into another.
 
 In this document:
 
@@ -49,25 +49,25 @@ Each node is an object whose `kind` says what it is:
 | `arithmetic` | `operator`, one of `+`, `-`, `*`, `/` and `%`, and `left` and `right`, its operands | An arithmetic operation |
 | `negate` | `operand`, the number it negates | An arithmetic negation of a number; a numeric literal negated is the negative literal |
 
-A parenthesized expression adds no node, the expression it holds standing in its place, and neither does an optional enclosed access, whose accesses are recorded as optional and its optional chain where it ends, so `device.is("active") and (device.has("battery"))` is an `and` of two function calls:
+A parenthesized expression adds no node, the expression it holds standing in its place, and neither does an optional enclosed access, whose accesses are recorded as optional and its optional chain where it ends, so `device.active() and (device.batteryPowered())` is an `and` of two function calls:
 
 ```json
 {
   "kind": "and",
   "operands": [
-    { "kind": "call", "target": { "kind": "parameter", "name": "device" }, "name": "is", "arguments": [{ "kind": "literal", "value": "active" }] },
-    { "kind": "call", "target": { "kind": "parameter", "name": "device" }, "name": "has", "arguments": [{ "kind": "literal", "value": "battery" }] }
+    { "kind": "call", "target": { "kind": "parameter", "name": "device" }, "name": "active", "arguments": [] },
+    { "kind": "call", "target": { "kind": "parameter", "name": "device" }, "name": "batteryPowered", "arguments": [] }
   ]
 }
 ```
 
-Every property access, call and indexer holds its receiver as its `target`, and every equality its `left` and its `right`, required, and an omitted target never stands for `it`, so `it.power` and `device.power` are distinct definitions. A member read or a qualified form called through a namespace holds a `namespace` node as its target, so `home.rooms` is a `member` whose target is `{ "kind": "namespace", "name": "home" }`, and `energy.usage(device)` a `call` whose target is `energy`'s namespace and whose first argument is the receiver.
+Every property access, call and indexer holds its receiver as its `target`, and every equality its `left` and its `right`, required, and an omitted target never stands for `it`, so `it.power` and `device.power` are distinct definitions. A member read or a qualified form called through a namespace holds a `namespace` node as its target, so `home.rooms` is a `member` whose target is `{ "kind": "namespace", "name": "home" }`, and `energy.usage(device)` a `call` whose target is `energy`'s namespace and whose first argument is the receiver. A [function reference](functions.md#functions-module-functions) is a `member` node through a namespace, `home.active` as `home.rooms` is, which resolution tells apart by the declaration it names, and an [implicit body](functions.md#functions-implicit-bodies) is an argument node as it is written.
 
 A call's `arguments` are its argument nodes in order, and an indexer's `argument` its key's node, each recorded as written; where a call's member takes options, its one argument is an object node whose fields resolution maps onto the member's parameters.
 
 A field is an object holding its `name` and its `value` node, both required; an object expression's fields keep their order, and an object expression holds at least one. A local is an object of the same two properties, and an object expression's locals keep their order, its definition leaving `locals` out where it has none.
 
-`room { name = it.name, occupied = it.is("occupied") }` has this definition:
+`room { name = it.name, occupied = it.occupied() }` has this definition:
 
 ```json
 {
@@ -82,8 +82,8 @@ A field is an object holding its `name` and its `value` node, both required; an 
         "value": {
           "kind": "call",
           "target": { "kind": "it" },
-          "name": "is",
-          "arguments": [{ "kind": "literal", "value": "occupied" }]
+          "name": "occupied",
+          "arguments": []
         }
       }
     ]
@@ -130,11 +130,11 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Chain receivers | A conditional or body cannot be a chain receiver. |
 | Functions | Each is a local initializer, or an arrow function that is also an argument, with unique parameter names; an arrow function's body is a simple expression; a function cannot be called before its local is declared. |
 | Optional access | Each optional access is within an optional chain, following the targets of property accesses, calls, indexers and object expressions; each optional chain contains an optional access. |
-| `it` | `it` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. |
+| `it` | `it` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. Within an argument of a member call or of a local function call, the function called says whether the argument has one, so resolution decides there, and refuses an `it` the function gives no value. |
 | Logical expressions | `and` and `or` have at least two operands; `not` has its operand. |
 | Arithmetic | An arithmetic node has a supported operator and both operands; a `negate` node has its operand. |
 | Coalescing | Both value and fallback are present. |
-| Casts | The type is a string and the whole target has the form text writes a cast's target in. |
+| Casts and conversions | The type is a name; a cast's whole target has the form text writes a cast's target in. |
 | Literals | A literal is a string, a finite number, a Boolean or null, so a number no finite number holds, as `1e999`, is refused in text as in a definition. |
 
 A cast's target is checked whole: a receiver, which is the implicit parameter, a script parameter, `root`, a namespace's member, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](types.md#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
@@ -145,12 +145,12 @@ A script parameter may be named `it`, `root` or a module's name, as any name can
 
 ## Canonical text
 
-Every definition has one canonical text, which `lexica.format` and `lexica.quote` write: text that reads back as the same definition, whether the definition came from text or was created directly. A comment and the layout a source was written in leave no trace in it.
+Every definition has one canonical text, which `lexica.format` and `lexica.quote` write, and a registry's `format` and `quote` with its module names: text that reads back as the same definition when parsed with the same set of module names used to format it, whether the definition came from text or was created directly. A comment and the layout a source was written in leave no trace in it.
 
 `lexica.format(source)` takes a text or a definition, and both give the same canonical text.
 
 - **What it keeps.** The definition's meaning, and the order of its locals and fields as declared; comments and the original layout are discarded, as a definition holds neither.
-- **What it needs.** Neither bindings nor a registered vocabulary: it parses and checks structure as `lexica.parse` does, and resolves nothing. A registry writes text with its own module names, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
+- **What it needs.** Neither bindings nor a vocabulary: it parses and checks structure as `lexica.parse` does, and resolves nothing. `registry.format` writes with the registry's module names, reading none of its declarations, and `lexica.format` refuses a definition holding a namespace, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
 - **The layout.** Four spaces of indentation for each level of an object expression; an object expression of one field and no locals on one line where its value is, `{ name = it.name }`, and any other with one line for each entry; a conditional with an `elseif`, or whose branches give their results with `return`, on one line for each clause and one for its `end`, each branch's locals and result a level within it; a body's locals and result each on a line of their own, a `do` block's a level within its `do` and its `end`; a string's line feed, carriage return, tab and escape character as `\n`, `\r`, `\t` and `\e`, and every other control, format or separator character in it but the space as `\u{…}`; an interpolated string's text as a string's with each brace doubled, and each interpolation's expression on one line, grouped in parentheses where it begins with one; one space on each side of `and`, `or`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `??`, `+`, `-`, `*`, `/`, `%`, `as` and `to`, and none between a negation's `-` and what it negates; and no trailing comma.
 - **It is stable.** Formatting text already formatted gives the same text.
 
@@ -166,6 +166,7 @@ Every definition has one canonical text, which `lexica.format` and `lexica.quote
 | The object root | `root` |
 | The implicit parameter | `it` |
 | A namespace | The module's name |
+| A cast's or a conversion's type | Its name |
 
 These rules also apply to extension declarations and definitions created directly. A definition stores names without `@` or `~`; its node kind distinguishes a local reference from a parameter, and `it` produces an `it` node.
 

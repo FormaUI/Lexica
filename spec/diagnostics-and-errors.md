@@ -55,6 +55,8 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | An argument written as a named one, as `relativeTo = other` | A syntax error, giving a member call the form of an options object |
 | A comparison chain whose operators point two ways | A syntax error at the operator that turns it |
 | `@` in a declaration or before a field's or a member's name, `@` before a name that is no reserved word, or `@` before no word | A syntax error giving the form to write |
+| `~` with no name directly after it | A syntax error saying a parameter reference names its parameter |
+| A string where a cast or a conversion names its type, as `device as "light"` | A syntax error giving the type's name written bare, `device as light` |
 | A keyword where a value stands | A syntax error giving the reserved reference; `then`, `elseif`, `else` and `end` give the value expected instead: `Expected a value, found 'then'` |
 | A conditional without its `end`, a conditional whose branches give their results in two styles, anything after a body's result, or a `return` with no value | A syntax error |
 | Locals whose body's result has no `return` | A syntax error: `Introduce the body's result with return.` |
@@ -75,6 +77,8 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | Situation | Result |
 | --- | --- |
 | A definition that does not follow its structure | A structure error, with its node's location |
+| A definition of a version other than the one the implementation reads, as a version 31 definition is for version 32 | A structure error naming both versions |
+| A definition holding a namespace given to `lexica.format` or `lexica.quote`, a definition read without a registry's module names that names one of them, or a namespace naming no module the registry holds | A structure error saying to read or write the text with the registry, located at the namespace, or at the name where the text first writes it alone |
 | A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a bracket property access or an interpolation | A structure error naming the part, which a local holds first |
 | A reserved reference, or a definition's local, that no local or field in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
 | A function calling itself or one declared after it, or two parameters of one name | A structure error |
@@ -84,7 +88,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A numeric literal no finite number holds, as `1e999`, in text or in a definition | A structure error: `A literal is a string, a finite number, a Boolean or null` |
 | Bindings that are no plain object, a binding not named by a letter followed by letters and digits, one that is no data and that no reference type's test accepts, or one classification finds ambiguous | A structure error naming the binding, as `A binding is named by a letter followed by letters and digits` |
 
-A module whose declarations break the declaration contract, or whose names registration finds taken, fails with an error of its own kind, `module`, when it is created or registered, naming the module and the declaration.
+A module whose declarations break the declaration contract, a type or a member named by what is no name among them, or whose names registration finds taken or colliding within the module, fails with an error of its own kind, `module`, when it is created or registered, naming the module and the declaration.
 
 <a id="preparation-and-type-errors"></a>
 
@@ -93,9 +97,10 @@ A module whose declarations break the declaration contract, or whose names regis
 | Situation | Result |
 | --- | --- |
 | A misspelled member or extension, or a script parameter the host did not bind | A validation error, with its location |
-| A fixed argument resolution cannot settle | A validation error: `The argument 'name' of 'is' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, …` |
+| A fixed argument resolution cannot settle | A validation error: `The argument 'type' of 'on' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, …` |
 | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
 | A name no local or field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
+| `it` where nothing gives it a value | A structure error where the text alone shows it, as outside every argument at the top level; a validation error within an argument of a member call or of a local function call, whose function decides |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
 | A cast to a name that is no reference type, or of a target that can never be of its type | A validation error naming the types |
 | An equality of two values whose types fit neither way, or of a value that is no string, number, Boolean or reference value with one that is not null | A validation error naming the types, and the test to write where a value is compared with the name of one of its Boolean members |
@@ -104,7 +109,8 @@ A module whose declarations break the declaration contract, or whose names regis
 | A call no local function answers, a call of a local holding a value or a function that may be null, a call given the wrong number of arguments, or one whose functions give no one type | A validation error naming the function |
 | A call that reaches a function within its own call, through a function passed to it | A validation error |
 | A field or a result that would hold a function, or a function given to a member's value parameter | A validation error |
-| A function given to a function parameter of another number of parameters, of a result of another type, or that may be null, or an arrow function given to an expression parameter | A validation error naming the parameter |
+| A function given to a function parameter of another number of parameters, of parameters that do not take the callback contract's arguments, of a result of another type, or that may be null; or a value that is no function given to one, as a Boolean local; and an expression or a predicate argument that reads `it` and gives a function | A validation error naming the parameter |
+| A function reference that no declaration of its name takes, or that several take; one naming a property, a host call or no function of its module | A validation error naming the module's declarations of its name, or giving the form to write |
 | An interpolation of a value that can be null, or of no string or number | A validation error naming the interpolation, and the fallback or the conversion to give it |
 | A comparison operand that can be null, or that is no number | A validation error naming the operand, and the fallback to give it |
 | An `and` or an `or` whose operands give values no one type holds | A validation error naming them, and the conditional to write where null is an acceptable alternative |
@@ -112,7 +118,7 @@ A module whose declarations break the declaration contract, or whose names regis
 | A receiver, an argument, an expression or a binding of the wrong type, an argument of the wrong kind, or a missing required one | A validation error naming where, the expected type and the type found |
 | A result that would contain a reference value | A validation error |
 | A field read through `root` whose initializer has not completed where `root` is written | A validation error naming the fields completed there |
-| A read, by its name or through `root`, of an option its member declares as an expression or a predicate | A validation error: `Option 'by' is an expression evaluated by the member against the implicit parameter it supplies; it has no single value to read here` |
+| A read, by its name or through `root`, of an option its member declares as an expression or a predicate, or of one given an implicit body | A validation error: `Option 'by' is an expression evaluated by the member against the implicit parameter it supplies; it has no single value to read here` |
 | A field or a result that would hold `root` | A validation error: `The field 'copy' would hold root, the object being built, which no result holds; read its fields, as root.name` |
 | A host call anywhere but the script's terminal operation: in a field, an argument, a condition, an operand, a function's body or another call's result projection | A validation error |
 | A result projection following a host call that declares no result | A validation error |

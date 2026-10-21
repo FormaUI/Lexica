@@ -1,21 +1,31 @@
 /**
- * ParsedTexts — the definitions of the source texts parsed most recently
+ * ParsedTexts — the definitions of the source texts parsed most recently, each with the module names it was read with
  */
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
 import { Lowering } from './Lowering.mjs';
+import { Names } from './Names.mjs';
 import { Parser } from './Parser.mjs';
 import { TextLocations } from './TextLocations.mjs';
 
 /** The most texts whose definitions are kept. */
 const CAPACITY = 256;
 
+/**
+ * How a definition was read from text: the module names it was read with, and the names it writes alone where a value stands, each reading a local, a field or a script parameter, by name, each with the span of the part it
+ * first stands in, which its text locations locate where a diagnostic needs it.
+ * @typedef {{ moduleNames: ReadonlySet<string>, namesWrittenAlone: ReadonlyMap<string, import('./Parser.mjs').Span> }} Reading
+ */
+
 export class ParsedTexts {
-    /** Each kept text's definition, the least recently parsed first. @type {Map<string, object>} */
+    /** Each kept text's definition, by the module names it was read with and the text, the least recently parsed first. @type {Map<string, object>} */
     static #definitions = new Map();
 
     /** @type {WeakMap<object, TextLocations>} */
     static #locations = new WeakMap();
+
+    /** @type {WeakMap<object, Reading>} */
+    static #readings = new WeakMap();
 
     /** Where each part of the definition came from: in its text, for one parsed from text, or in the definition its caller supplied, where validation moved a part; null otherwise. */
     static locationsOf(definition) {
@@ -27,25 +37,36 @@ export class ParsedTexts {
         return ParsedTexts.#locations.get(definition)?.text ?? null;
     }
 
-    /** The validated, frozen definition the text parses into, kept for the next parse of the same text. */
-    static parse(text) {
-        const kept = ParsedTexts.#definitions.get(text);
+    /** How the definition was read from text, or null for a definition not parsed from text. */
+    static readingOf(definition) {
+        return ParsedTexts.#readings.get(definition) ?? null;
+    }
+
+    /**
+     * The validated, frozen definition the text parses into with the module names given, kept for the next parse of the same text with the same names.
+     * @param {string} text
+     * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with, none for text read without a registry.
+     */
+    static parse(text, moduleNames = Names.noModuleNames) {
+        const key = `${[...moduleNames].sort().join(' ')}|${text}`;
+        const kept = ParsedTexts.#definitions.get(key);
 
         if (kept) {
-            ParsedTexts.#definitions.delete(text);
-            ParsedTexts.#definitions.set(text, kept);
+            ParsedTexts.#definitions.delete(key);
+            ParsedTexts.#definitions.set(key, kept);
 
             return kept;
         }
 
         // The tree is lowered and let go: a kept definition holds its locations, never its tokens or their trivia.
-        const { definition, spans, callerBindingParameters } = Lowering.lower(new Parser(text).parse());
+        const { definition, spans, parameterReferences, namesWrittenAlone } = Lowering.lower(new Parser(text, moduleNames).parse());
         const locations = new TextLocations(text, definition, spans);
-        const validated = new DefinitionValidator(locations, callerBindingParameters).validate(definition);
+        const validated = new DefinitionValidator(locations, parameterReferences).validate(definition);
 
         ParsedTexts.#locations.set(validated, locations);
+        ParsedTexts.#readings.set(validated, Object.freeze({ moduleNames: new Set(moduleNames), namesWrittenAlone }));
 
-        ParsedTexts.#definitions.set(text, validated);
+        ParsedTexts.#definitions.set(key, validated);
 
         if (ParsedTexts.#definitions.size > CAPACITY) {
             ParsedTexts.#definitions.delete(ParsedTexts.#definitions.keys().next().value);

@@ -33,7 +33,7 @@ The following forms are each one token and cannot contain whitespace:
 | `==` | `= =` |
 | `!=` | `! =` |
 
-Whitespace, including line breaks, and comments are **trivia**. Trivia may appear between tokens, never inside a token. No rule requires trivia between tokens that are already distinguishable: `a to"number"` means `a to "number"`.
+Whitespace, including line breaks, and comments are **trivia**. Trivia may appear between tokens, never inside a token. No rule requires trivia between tokens that are already distinguishable: `it.power>0` means `it.power > 0`.
 
 <a id="tokens-and-whitespace-assignment-and-member-punctuation"></a>
 
@@ -97,7 +97,7 @@ In text read through a registry, the name of each module registered with it is r
 A declaration accepts any name, including a reserved word. This applies to fields, locals, functions, function parameters and conditional bindings. Write the name without `@`:
 
 ```lexica
-light { true = true, it = it.is("active") }
+light { true = true, it = it.active() }
 ```
 
 The same rule applies to member and indexer names after `.`, `?.`, `:` and `?:`. For example, `value.null` reads a member named `null`, and `device:end["key"]` invokes an indexer named `end`.
@@ -113,7 +113,7 @@ In a script, a reserved word retains its language meaning regardless of scope. A
 Write `@` directly before a reserved word to read the nearest local or field of that name:
 
 ```lexica
-{ let to = "3", value = @to to "number" }
+{ let to = "3", value = @to to number }
 ```
 
 A reserved reference with no such local or field is a structure error:
@@ -226,7 +226,7 @@ A block is opened by three or more matching quotes, `$` directly before them whe
 
 ### Where a string literal is required
 
-Every form that does not interpolate stands wherever the grammar requires a string literal, a cast's or a conversion's type name among them, so `device as 'light'` is `device as "light"`. An interpolated form is an expression and stands in none of them, even with text alone.
+No production requires a string literal: a cast's and a conversion's type is a name written bare, `device as light` and `value to number`, and a string in its place, whatever its form, is a syntax error giving the bare name, so `device as "light"` and `device as 'light'` are refused alike. Every form that does not interpolate is a literal wherever a literal stands, and an interpolated form is an expression, even with text alone.
 
 <a id="comments"></a>
 

@@ -3,12 +3,12 @@
 <a id="vocabulary"></a>
 <a id="vocabulary-contracts"></a>
 
-A script's **vocabulary** is everything it can name beyond the language itself: the types, members, predicates, type selectors, observation types and conversions of every module the registry it is resolved against holds. Lexica's own module is always among them, and every other module contributes by the same contracts, whatever its domain. A module's own specification gives its declarations and what each does in its domain; this document gives the contracts every one keeps, beside [members](members.md) and [types](types.md).
+A script's **vocabulary** is everything it can name beyond the language itself: the types, members, type selectors, observation types and conversions of every module the registry it is resolved against holds. Lexica's own module is always among them, and every other module contributes by the same contracts, whatever its domain. A module's own specification gives its declarations and what each does in its domain; this document gives the contracts every one keeps, beside [members](members.md) and [types](types.md).
 
 In this document:
 
 1. [Lexica's own vocabulary](#vocabulary-lexicas-own)
-2. [Predicates](#predicates)
+2. [Boolean functions](#vocabulary-boolean-functions)
 3. [Observations](#observations)
 4. [Type selectors](#vocabulary-type-selectors)
 5. [Conversions](#vocabulary-conversions)
@@ -17,7 +17,7 @@ In this document:
 
 ## Lexica's own vocabulary
 
-Lexica's own module owns the language's types, `list`, `number`, `string` and `boolean` among them, and has no namespace. It declares the members of lists, the three verbs that ask predicates, and the conversions between the language's types of data.
+Lexica's own module owns the language's types, `list`, `number`, `string` and `boolean` among them, and has no namespace. It declares the members of lists, the three verbs that test a receiver, and the conversions between the language's types of data.
 
 <a id="vocabulary-list-members"></a>
 
@@ -37,61 +37,51 @@ A member following a list is a member of the list itself: `room.devices.count` c
 
 Aggregates consume null per item rather than propagating it to the entire call. `max` and `min` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Thus `room.devices.max(it.battery)` and `home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
 
-An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean.
+An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
 
 <a id="vocabulary-verbs"></a>
 
 ### The verbs
 
-`is`, `has` and `supports` are Lexica's own functions of any receiver, each asking a [predicate](#predicates) by its name.
+`is`, `has` and `supports` are Lexica's own functions of a receiver of any type, each answering whether its receiver passes a test. Each declares one [function parameter](members.md#arguments-kinds), its **test**, whose callback contract takes the receiver and answers a `boolean`, and answers what the test answers of its receiver: Lexica declares each on any receiver, `target: 'T'`, and its test's callback on that receiver's type, `parameters: ['T']`, so the test takes the receiver as its static type, `(T) => boolean`, made non-null where `?.` reads the verb. The three read differently and do the same:
 
+| Verb | Reads as a test of | As in |
+| --- | --- | --- |
+| `is` | A state its receiver enters and leaves | `room.is(home.occupied)` |
+| `has` | A possession or a presence | `device.has(it.battery != null)` |
+| `supports` | A capability | `device.supports(home.dimmable)` |
+
+No verb is tied to a test, and no test to a verb: a module declares its tests as [Boolean functions](#vocabulary-boolean-functions), and a script asks any of them with any verb, or calls it directly.
+
+<a id="vocabulary-verbs-the-test"></a>
+
+#### The test
+
+The test takes any form a function argument takes, as [functions passed to members](functions.md#functions-passed-to-members) set out:
+
+- **An arrow function**, `device.is(d => d.power > 0)`, which keeps the implicit parameter of the place it is written, as every arrow function does.
+- **A function value a name holds**, `light.is(lit)` after `let lit = (l) => l.brightness > 0`, read as every name is: `device.is(active)` reads a local, a field, a function parameter or a script parameter named `active`, and no bare name reaches a module's function.
+- **A module's function by [reference](functions.md#functions-module-functions)**, `device.is(home.active)`, which tests the receiver with that declaration, as `device.active()` does.
+- **An [implicit body](functions.md#functions-implicit-bodies)**, `device.has(it.battery != null)`, an expression whose `it` is the receiver.
+
+A name holding no function is a validation error saying the verb takes a test, as `device.is(metered)` is for a Boolean `metered`, and so is a test that does not take the receiver's type or that answers anything but a `boolean`.
+
+<a id="vocabulary-verbs-what-a-verb-answers"></a>
+
+#### What a verb answers
+
+A verb answers its test's result, a Boolean that cannot be null, and converts no truthiness: a test answering a `boolean?`, or any other type, is a validation error, and a module's function whose implementation answers anything but a Boolean fails the evaluation with an evaluation error naming the function and its module. `.` requires a receiver that cannot be null, and `?.is(…)` answers null for a null receiver without evaluating its test or calling it, so `room.device(name)?.is(home.active)` is a `boolean?`.
+
+A verb reads what its test reads: a module's function, what its declaration's `updates` say, its observations included; an arrow function or an implicit body, the reads it makes. Creating the test reads nothing, and the verb calls it once, while its own call lasts.
+
+<a id="vocabulary-boolean-functions"></a>
 <a id="predicates"></a>
 
-## Predicates
+## Boolean functions
 
-A **predicate** is a Boolean question of its receiver, under a name of its own, asked with one of Lexica's three verbs, each an ordinary function call of any receiver:
+A module declares a test of a receiver as a function whose result is a `boolean`, as `home` declares `active` and `offline` on `device` and `occupied` on `room`. It is a member as any other: its receivers, its implementation, its `updates`, the changes it misses and the observations that cover it are its declaration's, and its failures name it and its module. A script calls it directly, `device.active()`, through its module, `home.active(device)`, or passes it to a verb by reference, `device.is(home.active)`, and each way reaches the one declaration, so a host's policy for a partly observable test concerns that test however it is reached.
 
-| Verb | Asks | As in |
-| --- | --- | --- |
-| `is` | A state its receiver enters and leaves | `room.is("occupied")` |
-| `has` | A possession or a presence | `device.has("battery")` |
-| `supports` | A capability | `device.supports("dimming")` |
-
-Each predicate is asked with its one verb, so none stands in for another, and asking it with another is a validation error giving the verb to write, as `device.is("battery")` is. A Boolean that follows from another member's value is a property, never a predicate.
-
-<a id="predicates-declarations"></a>
-
-### Declaring a predicate
-
-Each predicate is a declaration of its own: its name, the verb that asks it, `is` where it names none, the types it applies to, the implementation that tests it, and its `updates`, as a member's: how it reads, how it changes, the changes it misses where it is partly observable, and the observations that cover it. A test of a predicate follows the predicate's contract alone, so a host's policy for one partly observable predicate concerns that predicate, and no other.
-
-A predicate is selected by the fixed argument of its verb, which the resolution keeps beside the verb's call, so its contract, never the verb's, is the one a host checks and the evaluation follows. A predicate's failures name it, the verb that selected it and its module.
-
-<a id="predicates-fixed-names"></a>
-
-### Fixed names
-
-The name is a [fixed argument](members.md#arguments-fixed): a string the script's resolution settles without evaluating a member, a literal, a script parameter, or a local, a conditional binding, a conditional, a `??`, an `and` or an `or` that settles to one, never null, which selects the predicate's declaration when the script is resolved.
-
-<a id="predicates-receiver-types"></a>
-
-### Receiver types
-
-Each verb is declared on any receiver, which says only that any receiver can be asked: the predicate of the name decides which receivers it applies to. A name no predicate the verb asks has is a validation error naming the predicates the verb asks, and a predicate of other receivers is one naming the predicate, the types it applies to, the receiver and the predicates the verb asks of it. A predicate of a supertype applies to every type beneath it, so `light.is("active")` asks `device`'s.
-
-<a id="predicates-a-function-call-as-any-other"></a>
-
-### A function call as any other
-
-`.` requires a receiver that cannot be null, and `?.is(…)` answers null for a null receiver without testing its predicate; either is validated as written, its name included, whatever its receiver is when it is evaluated. A predicate is also called through its module's namespace, the receiver first and no verb, as [qualified access](modules.md#namespaces-qualified-access) sets out.
-
-<a id="predicates-boolean-result"></a>
-
-### Boolean result
-
-Its type is a Boolean that cannot be null, made nullable where `?.` reads a receiver that can be. A predicate whose implementation answers anything else, or throws, fails the evaluation with an evaluation error that names the predicate, the verb that selects it and the module that declares it.
-
-Predicates compose as Booleans do: `device.is("active") and not device.is("offline")`.
+A test is declared as a function, since only a function has a [reference](functions.md#functions-module-functions) a script passes; a property is read where it is written. Boolean functions compose as Booleans do: `device.active() and not device.offline()`.
 
 <a id="observations"></a>
 

@@ -65,7 +65,7 @@ describe('a host of plain data', () => {
     });
 
     it('answers a result that is frozen through its value and its metadata, so nothing a caller does changes what an evaluation produced', () => {
-        const result = lexica.createRegistry([createShop()]).resolve('{ total = order.total, codes = codes.where(context != "x") }', { order: 'a', codes: ['TEN', 'x'] })
+        const result = lexica.createRegistry([createShop()]).resolve('{ total = order.total, codes = codes.where(it != "x") }', { order: 'a', codes: ['TEN', 'x'] })
             .createEvaluator({ order: 'a', codes: ['TEN', 'x'] }, { prices: { a: 3 } })
             .evaluate();
 
@@ -140,8 +140,8 @@ describe('the declaration shape', () => {
                 implementation: ({ receiver, args, env }) => receiver.length * (1 - args.percent / 100) * env.rate,
             }),
             property('special', 'string', 'string', { updates: { changes: 'constant', reads: 'fresh' } }),
+            lexica.declarations.function('vegan', 'string', 'boolean', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver, args }) => (received.push(args), receiver.startsWith('oat')) }),
         ],
-        predicates: [lexica.declarations.predicate('vegan', 'string', ({ receiver, args }) => (received.push(args), receiver.startsWith('oat')), { updates: { changes: 'constant', reads: 'fresh' } })],
     });
 
     it('gives each implementation one object it reads by name: the receiver, the arguments by parameter name and the environment', () => {
@@ -153,13 +153,13 @@ describe('the declaration shape', () => {
         expect(received).toEqual([{ receiver: 'latte', args: {}, env: { rate: 2 } }]);
     });
 
-    it('carries a predicate out by its own implementation, which its verb selects, given its name as its argument', () => {
+    it('carries a Boolean function out by its own implementation, called directly, through its module, or by reference as the test a verb is given', () => {
         const received = [];
         const registry = lexica.createRegistry([createMenu(received)]);
-        const evaluate = item => registry.resolve('item.is("vegan")', { item }).createEvaluator({ item }).evaluate().value;
+        const evaluate = (text, item) => registry.resolve(text, { item }).createEvaluator({ item }).evaluate().value;
 
-        expect([evaluate('oat latte'), evaluate('latte')]).toEqual([true, false]);
-        expect(received).toEqual([{ name: 'vegan' }, { name: 'vegan' }]);
+        expect(['item.vegan()', 'menu.vegan(item)', 'item.is(menu.vegan)'].map(text => [evaluate(text, 'oat latte'), evaluate(text, 'latte')])).toEqual([[true, false], [true, false], [true, false]]);
+        expect(received).toEqual(Array(6).fill({}));
     });
 
     it('resolves an expression that uses a declaration without an implementation, and refuses to evaluate it, naming the declaration, its module and the field', () => {
@@ -170,7 +170,7 @@ describe('the declaration shape', () => {
     });
 
     it('decides before anything is evaluated, so a branch evaluation would not take refuses its expression too', () => {
-        const resolution = lexica.createRegistry([createMenu()]).resolve('if item.is("vegan") then item.price else item.special.price end', { item: 'oat latte' });
+        const resolution = lexica.createRegistry([createMenu()]).resolve('if item.vegan() then item.price else item.special.price end', { item: 'oat latte' });
 
         expect(getError(() => resolution.createEvaluator({ item: 'oat latte' }))).toMatchObject({ kind: 'module', location: { declaration: 'special' } });
     });
@@ -190,29 +190,41 @@ describe('the declaration shape', () => {
     });
 
     it('evaluates an expression of a mixed module that uses its implemented declarations alone', () => {
-        const resolution = lexica.createRegistry([createMenu()]).resolve('if item.is("vegan") then item.price else 0 end', { item: 'oat latte' });
+        const resolution = lexica.createRegistry([createMenu()]).resolve('if item.vegan() then item.price else 0 end', { item: 'oat latte' });
 
         expect(resolution.createEvaluator({ item: 'oat latte' }).evaluate().value).toBe(9);
     });
 
     it('refuses to evaluate an expression that converts through a conversion without an implementation, in a branch it may not take as well', () => {
         const cups = lexica.createModule('cups', { types: [{ name: 'cup', fields: { size: 'number' } }], conversions: [{ from: 'string', to: 'cup' }] });
-        const resolution = lexica.createRegistry([cups]).resolve('if large then (order to "cup").size else 0 end', { order: 'tall', large: false });
+        const resolution = lexica.createRegistry([cups]).resolve('if large then (order to cup).size else 0 end', { order: 'tall', large: false });
 
         expect(getError(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'string to cup', field: 'implementation' } });
     });
 
-    it('registers a module member, which has no target, beside the members of a type, and no receiver answers it', () => {
+    it('registers a module member, which has no target, beside the members of a type, read through its namespace and answered by no receiver, its implementation given no receiver', () => {
+        const received = [];
         const registry = lexica.createRegistry([lexica.createModule('clock', {
             members: [
-                property('now', null, 'number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: () => 0 }),
-                property('now', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver.length }),
-                property('zone', null, 'string', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: () => 'UTC' }),
+                property('length', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver.length }),
+                property('zone', null, 'string', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: input => (received.push(input), 'UTC') }),
             ],
         })]);
 
         expect(registry.moduleNames).toEqual(['lexica', 'clock']);
-        expect(registry.resolve('item.now', { item: 'latte' }).createEvaluator({ item: 'latte' }).evaluate().value).toBe(5);
+        expect(registry.resolve('{ length = item.length, zone = clock.zone }', { item: 'latte' }).createEvaluator({ item: 'latte' }, { rate: 1 }).evaluate().value).toEqual({ length: 5, zone: 'UTC' });
+        expect(received).toEqual([{ args: {}, env: { rate: 1 } }]);
         expect(getError(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);
+    });
+
+    it('refuses a module member and a member on a receiver of one name in one module, the namespace reading one and calling the other', () => {
+        const members = [
+            property('now', null, 'number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: () => 0 }),
+            property('now', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver.length }),
+        ];
+
+        for (const declared of [members, [...members].reverse()]) {
+            expect(getError(() => lexica.createRegistry([lexica.createModule('clock', { members: declared })]))).toMatchObject({ kind: 'module', location: { module: 'clock', declaration: 'now', field: 'target' } });
+        }
     });
 });

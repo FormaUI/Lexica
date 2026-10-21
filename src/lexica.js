@@ -8,6 +8,7 @@ import { DefinitionWriter } from './language/DefinitionWriter.mjs';
 import { Evaluator } from './language/Evaluator.mjs';
 import { LanguageResolver } from './language/LanguageResolver.mjs';
 import { LexicaError } from './language/LexicaError.mjs';
+import { Names } from './language/Names.mjs';
 import { ParameterBindings } from './language/ParameterBindings.mjs';
 import { ParsedTexts } from './language/ParsedTexts.mjs';
 import { ResultPath } from './language/ResultPath.mjs';
@@ -20,8 +21,59 @@ import { Vocabulary } from './language/vocabulary/Vocabulary.mjs';
 /** The parameter bindings each bindings object `bind` made stands for. @type {WeakMap<object, ParameterBindings>} */
 const PARAMETER_BINDINGS = new WeakMap();
 
-/** The definition a source gives: a text read and checked, or a definition checked, each the same frozen definition the text's canonical form would give. */
-const definitionOf = source => (typeof source === 'string' ? ParsedTexts.parse(source) : new DefinitionValidator().validate(source));
+/** The definition a source gives: a text read with the module names given and checked, or a definition checked, each the same frozen definition the text's canonical form would give. */
+const definitionOf = (source, moduleNames = Names.noModuleNames) => (typeof source === 'string' ? ParsedTexts.parse(source, moduleNames) : new DefinitionValidator().validate(source));
+
+/** Each namespace the node reads through, with where it stands, in the order written. */
+const namespacesOf = (node, pointer, found = []) => {
+    if (node === null || typeof node !== 'object') {
+        return found;
+    }
+
+    if (node.kind === 'namespace') {
+        found.push({ name: node.name, pointer });
+
+        return found;
+    }
+
+    for (const [key, value] of Object.entries(node)) {
+        namespacesOf(value, `${pointer}/${key}`, found);
+    }
+
+    return found;
+};
+
+/** The definition, refused where text read without module names cannot write it: a definition reading through a namespace, which only a registry's module names write. */
+const withoutNamespaces = definition => {
+    const [namespace] = namespacesOf(definition.expression, '/expression');
+
+    if (namespace !== undefined) {
+        throw LexicaError.structure(`The definition reads through the namespace '${namespace.name}', which text read without a registry's module names cannot write; write it with the registry, as registry.format does`, locate(definition, namespace.pointer));
+    }
+
+    return definition;
+};
+
+/**
+ * The definition, refused where the registry would read it otherwise than it was read: one read from text without the registry's module names that writes one of them alone, which the registry reads as the module's namespace,
+ * and one reading through a namespace no module the registry holds gives. Nothing reads a text otherwise unannounced.
+ */
+const readWith = (definition, namespaceNames) => {
+    const reading = ParsedTexts.readingOf(definition);
+    const misread = reading === null ? undefined : [...reading.namesWrittenAlone.keys()].find(name => namespaceNames.has(name) && !reading.moduleNames.has(name));
+
+    if (misread !== undefined) {
+        throw LexicaError.structure(`The definition was read without this registry's module names, and writes '${misread}' alone, which this registry reads as the namespace of its module '${misread}'; read the text with the registry`, ParsedTexts.locationsOf(definition).locateSpan(reading.namesWrittenAlone.get(misread)));
+    }
+
+    const lacking = namespacesOf(definition.expression, '/expression').find(namespace => !namespaceNames.has(namespace.name));
+
+    if (lacking !== undefined) {
+        throw LexicaError.structure(`The definition reads through the namespace '${lacking.name}', and this registry holds no module of that name`, locate(definition, lacking.pointer));
+    }
+
+    return definition;
+};
 
 /** Bindings: the values bound by name, data a frozen copy of the data given and each reference itself, the type each value gives its binding, in type notation, and the resolution key that says which resolutions they may reuse. */
 const bind = (values = {}) => {
@@ -158,10 +210,16 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
 /**
  * A registry a host resolves expressions against: Lexica's own module and the modules the host registers, each module's vocabulary in effect for every expression resolved after it.
- * No registry is shared, so two hosts never see each other's modules.
+ * It reads and writes text with the names of its modules, which begin their namespaces there. No registry is shared, so two hosts never see each other's modules.
  */
 const registryOf = modules => {
     const registry = new LexicaRegistry([Vocabulary.module, ...modules]);
+    const namespaceNames = () => new Set(registry.namespaceNames);
+    const definitionWith = source => {
+        const names = namespaceNames();
+
+        return readWith(definitionOf(source, names), names);
+    };
 
     return Object.freeze({
         registerModule: module => registry.registerModule(module),
@@ -174,7 +232,16 @@ const registryOf = modules => {
         getObservationType: name => registry.getObservationType(name),
         getOwner: declaration => registry.getOwner(declaration),
         getImplementation: declaration => registry.getImplementation(declaration),
-        resolve: (source, bindings = {}) => resolutionOf(registry, definitionOf(source), parameterBindingsOf(bindings)),
+        parse: text => {
+            if (typeof text !== 'string') {
+                throw LexicaError.structure('What parse reads is a text', {});
+            }
+
+            return definitionWith(text);
+        },
+        format: source => DefinitionWriter.format(definitionWith(source).expression, namespaceNames()),
+        quote: source => DefinitionWriter.write(definitionWith(source).expression, namespaceNames()),
+        resolve: (source, bindings = {}) => resolutionOf(registry, definitionWith(source), parameterBindingsOf(bindings)),
     });
 };
 
@@ -182,10 +249,10 @@ const registryOf = modules => {
 const declarations = Object.freeze({
     property: Declarations.property,
     function: Declarations.function,
-    predicate: Declarations.predicate,
     valueParameter: Declarations.valueParameter,
     expressionParameter: Declarations.expressionParameter,
     predicateParameter: Declarations.predicateParameter,
+    functionParameter: Declarations.functionParameter,
 });
 
 /** Result paths: a path's shape checked, and the value it reaches in a result. */
@@ -204,8 +271,8 @@ export const lexica = Object.freeze({
         return ParsedTexts.parse(text);
     },
     validate: definition => new DefinitionValidator().validate(definition),
-    format: source => DefinitionWriter.format(definitionOf(source).expression),
-    quote: source => DefinitionWriter.write(definitionOf(source).expression),
+    format: source => DefinitionWriter.format(withoutNamespaces(definitionOf(source)).expression),
+    quote: source => DefinitionWriter.write(withoutNamespaces(definitionOf(source)).expression),
     locate,
     createModule: (name, contents) => new LexicaModule(name, contents),
     declarations,

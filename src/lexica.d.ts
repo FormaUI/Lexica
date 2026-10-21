@@ -13,8 +13,10 @@ export interface LexicaDefinition {
 export type LexicaDefinitionNode =
     | { readonly kind: 'literal'; readonly value: string | number | boolean | null }
     | { readonly kind: 'parameter'; readonly name: string }
-    | { readonly kind: 'root'; readonly name: 'document' | 'window' | 'root' }
-    | { readonly kind: 'context' }
+    | { readonly kind: 'it' }
+    | { readonly kind: 'root' }
+    /** A module's namespace, the target of a member read or a call through it alone. */
+    | { readonly kind: 'namespace'; readonly name: string }
     | { readonly kind: 'local'; readonly name: string }
     | { readonly kind: 'member'; readonly target: LexicaDefinitionNode; readonly name: string | LexicaDefinitionNode; readonly optional?: true }
     | { readonly kind: 'call'; readonly target: LexicaDefinitionNode; readonly name: string; readonly optional?: true; readonly arguments: readonly LexicaDefinitionNode[] }
@@ -124,7 +126,7 @@ export interface LexicaObservationDeclaration {
     [argument: string]: LexicaObservationValue | undefined;
 }
 
-/** How a member or a predicate changes and reads, the changes it misses, the tolerance it is compared within and the observations that cover its changes. */
+/** How a member changes and reads, the changes it misses, the tolerance it is compared within and the observations that cover its changes. */
 export interface LexicaUpdates {
     changes: LexicaChangeCategory;
     reads: LexicaReadingMode;
@@ -205,20 +207,20 @@ export interface LexicaConversionDeclaration {
 export interface LexicaParameterDeclaration {
     name: string;
     /**
-     * A value, an expression evaluated against each item, a predicate, an expression of any value whose truthiness the implementation receives, or a function the expression declares,
-     * which the implementation calls while its own invocation lasts and only a member of kind `function` takes.
+     * A value; an expression, a body of each item, written as an expression evaluated against it or as a function of it; a predicate, an expression of any value whose truthiness the implementation receives; or a function: an arrow function, a function a name holds, a module's function
+     * by reference or an implicit body, which the implementation calls while its own invocation lasts and only a member of kind `function` takes.
      */
     kind: 'value' | 'expression' | 'predicate' | 'function';
     /** The parameter's type, in Lexica's notation; a predicate's is `boolean`, what the implementation receives, and a function parameter's the type of its function's result. */
     type: string;
-    /** The types its function is called with, in order, in Lexica's notation; only a function parameter declares them. */
+    /** The types its function is called with, in order, in Lexica's notation, which may write a type parameter its member's target binds; only a function parameter declares them. */
     parameters?: string[];
     required: boolean;
     default?: unknown;
     /** Whether the argument names something the vocabulary resolves before any evaluation; a fixed parameter is a value parameter of type `string`. */
     fixed?: boolean;
-    /** What a fixed parameter names, and only a fixed one: the predicate a verb asks, or a type, which a function's result writes as `@selected`, through the type selector `selector` names. */
-    selects?: 'predicate' | 'type';
+    /** What a fixed parameter names, and only a fixed one: a type, which a function's result writes as `@selected`, through the type selector `selector` names. */
+    selects?: 'type';
     /** The type selector a parameter that selects a type selects through. */
     selector?: string;
     /** Whether a null argument makes the call answer null, or is accepted; a function parameter leaves it out, since a function is never null. */
@@ -229,7 +231,7 @@ export interface LexicaParameterDeclaration {
     omitted?: string;
 }
 
-/** What a member's or a predicate's implementation receives, by name: its receiver, which a module member has none of, its arguments by parameter name, the environment, and what its kind adds. */
+/** What a member's implementation receives, by name: its receiver, which a module member has none of, its arguments by parameter name, the environment, and what its kind adds. */
 export interface LexicaImplementationInput {
     readonly receiver?: unknown;
     readonly args: Readonly<Record<string, unknown>>;
@@ -248,7 +250,7 @@ export interface LexicaMemberDeclaration {
     kind: 'property' | 'function';
     /** Who invokes a function: the evaluator, the default, or the host, which a script ending in a call of it is prepared for; a function the host invokes takes value parameters alone, and neither updates nor an implementation. */
     invokedBy?: 'evaluator' | 'host';
-    /** The types it applies to, in Lexica's notation, or none for a module member. */
+    /** The types it applies to, in Lexica's notation, `any`, or a type parameter `T` that binds the receiver's type; none for a module member. */
     target?: string | string[];
     /** How a member that is no property is written: a function call, `it.device("lamp")`, the default, or a named indexer, `it:setting["mode"]`, a function whose one required value parameter is its key. A property takes none. */
     syntax?: 'function-call' | 'indexer';
@@ -262,7 +264,7 @@ export interface LexicaMemberDeclaration {
     result?: string;
     /** How it changes and reads; a property and a function the evaluator invokes take it, and a host call refuses it. */
     updates?: LexicaUpdates;
-    /** What carries it out, given one object it reads by name; a member without one is resolved against and never invoked, and a verb, which its predicate carries out, takes none. */
+    /** What carries it out, given one object it reads by name; a member without one is resolved against and never invoked. */
     implementation?: (input: LexicaImplementationInput) => unknown;
 }
 
@@ -270,9 +272,8 @@ export interface LexicaMemberDeclaration {
 export interface LexicaModuleContents {
     /** The structured types it declares, each with its fields' types. */
     types?: { name: string; fields: Record<string, string> }[];
+    /** Its members, each named as a name is; a test of a receiver is a function whose result is a boolean. */
     members?: LexicaMemberDeclaration[];
-    /** The predicates it declares, each asked by name with its verb. */
-    predicates?: LexicaPredicateDeclaration[];
     /** The type selectors it declares, each by its name alone, named once across every module. */
     typeSelectors?: LexicaTypeSelectorDeclaration[];
     /** The keys it declares for type selectors, its own or a module's registered before it, each once in its selector. */
@@ -285,28 +286,11 @@ export interface LexicaModuleContents {
     conversions?: LexicaConversionDeclaration[];
 }
 
-/**
- * A predicate: a Boolean of its receivers, which its verb asks by name, as `.is("name")` does, carried out by its own implementation under its own updates, so one predicate's observability is no other's.
- * A module names a predicate freely on its own types, and on any other names it for itself, as it does members; a name is declared once for overlapping receivers, whatever its verb.
- */
-export interface LexicaPredicateDeclaration {
-    /** Its name, words of letters and digits joined by hyphens, as `focus-within` is. */
-    name: string;
-    /** The verb that asks it, its one kind of Boolean question: `is` a state, the default, `has` a possession or a presence, and `supports` a capability. */
-    verb?: 'is' | 'has' | 'supports';
-    /** The types it applies to, in Lexica's notation; a predicate always names one. */
-    target: string | string[];
-    updates: LexicaUpdates & { changes: 'constant' | 'observable' | 'partly-observable' | 'unobserved'; reads: 'fresh' | 'maintained' };
-    /** Tests it, given what a member's implementation is, its name as `args.name`, and answers a Boolean. */
-    implementation?: (input: LexicaImplementationInput) => boolean;
-}
-
 /** A vocabulary's declarations as data, each that runs code carrying its implementation. */
 export interface LexicaModule {
     readonly name: string;
     readonly types: readonly { readonly name: string; readonly fields: Readonly<Record<string, string>> }[];
     readonly members: readonly LexicaMemberDeclaration[];
-    readonly predicates: readonly LexicaPredicateDeclaration[];
     readonly typeSelectors: readonly LexicaTypeSelectorDeclaration[];
     readonly selectableTypes: readonly LexicaSelectableTypeDeclaration[];
     readonly observationTypes: readonly LexicaObservationTypeDeclaration[];
@@ -327,10 +311,10 @@ export interface LexicaResultMetadata {
     readonly sources?: readonly unknown[] | null;
 }
 
-/** A member's invocation, as the hooks receive it: its declaration as its module declared it, its receiver, its arguments by parameter name, and where it stands. */
+/** A member's invocation, as the hooks receive it: its declaration as its module declared it, its receiver, which a module member has none of, its arguments by parameter name, and where it stands. */
 export interface LexicaInvocationRequest {
     readonly declaration: object;
-    readonly receiver: unknown;
+    readonly receiver?: unknown;
     readonly args: Readonly<Record<string, unknown>>;
     readonly pointer: string;
 }
@@ -367,7 +351,8 @@ export interface LexicaEvaluator {
 export interface LexicaPreparedCall {
     readonly kind: 'prepared';
     readonly declaration: LexicaMemberDeclaration;
-    readonly receiver: unknown;
+    /** Its receiver, a qualified form's first argument, which a module member has none of. */
+    readonly receiver?: unknown;
     /** Its arguments, by parameter name. */
     readonly args: Readonly<Record<string, unknown>>;
     readonly location: LexicaErrorLocation;
@@ -413,7 +398,7 @@ export interface LexicaHostCall {
     readonly declaration: LexicaMemberDeclaration | null;
 }
 
-/** A registry a host resolves expressions against: Lexica's own module and the modules the host registers. No registry is shared. */
+/** A registry a host resolves expressions against: Lexica's own module and the modules the host registers, whose names begin their namespaces in the text it reads and writes. No registry is shared. */
 export interface LexicaRegistry {
     /** Registers a module's vocabulary, which every expression resolved afterwards may use. */
     registerModule(module: LexicaModule): void;
@@ -427,7 +412,13 @@ export interface LexicaRegistry {
     getOwner(declaration: object): string | undefined;
     /** The implementation that carries the declaration out, as its module gives it. */
     getImplementation(declaration: object): ((input: any) => unknown) | undefined;
-    /** Resolves a source against the registered vocabulary and the bindings, or throws where it does not resolve. */
+    /** Reads a text into its definition with the registry's module names, refusing a syntax error or a structure the definition cannot have. */
+    parse(text: string): LexicaDefinition;
+    /** The canonical text of a text or a definition, written with the registry's module names, which a registry of the same module names reads back as the same definition. */
+    format(source: string | LexicaDefinition): string;
+    /** The canonical text of a text or a definition on one line, written with the registry's module names, as a diagnostic quotes it. */
+    quote(source: string | LexicaDefinition): string;
+    /** Resolves a source against the registered vocabulary and the bindings, a text read as `parse` reads it, or throws where it does not resolve. */
     resolve(source: string | LexicaDefinition, bindings?: LexicaBindings | LexicaBindingValues): LexicaResolution;
 }
 
@@ -436,10 +427,11 @@ export interface LexicaDeclarations {
     property(name: string, target: string | readonly string[] | null, result: string, options?: object): LexicaMemberDeclaration;
     /** A member the expression calls with arguments, or, with `invokedBy: 'host'`, that its host invokes, its result left out where its host supplies nothing. */
     function(name: string, target: string | readonly string[] | null, result: string | undefined, options?: object): LexicaMemberDeclaration;
-    predicate(name: string, target: string | readonly string[], implementation?: (input: LexicaImplementationInput) => boolean, options?: object): LexicaPredicateDeclaration;
     valueParameter(name: string, type: string, options?: object): LexicaParameterDeclaration;
     expressionParameter(type: string, options?: object): LexicaParameterDeclaration;
     predicateParameter(options?: object): LexicaParameterDeclaration;
+    /** A function parameter, always required: the types of the arguments the member calls its function with, in order, and the type of the result it takes from it. */
+    functionParameter(name: string, type: string, parameters: readonly string[]): LexicaParameterDeclaration;
 }
 
 /** Result paths: a path's shape checked, and the value it reaches in a result. */
@@ -464,13 +456,13 @@ export interface LexicaInfo {
 }
 
 export interface Lexica {
-    /** Reads a text into its definition, refusing a syntax error or a structure the definition cannot have. */
+    /** Reads a text into its definition without a registry, knowing no module's name, refusing a syntax error or a structure the definition cannot have. */
     parse(text: string): LexicaDefinition;
     /** Checks a definition given directly, answering it frozen, as a text giving it would. */
     validate(definition: unknown): LexicaDefinition;
-    /** The canonical text of a text or a definition. */
+    /** The canonical text of a text or a definition, written without module names, so a definition reading through a namespace is refused; a registry's `format` writes one. */
     format(source: string | LexicaDefinition): string;
-    /** The canonical text of a text or a definition on one line, as a diagnostic quotes it. */
+    /** The canonical text of a text or a definition on one line, as a diagnostic quotes it, written without module names. */
     quote(source: string | LexicaDefinition): string;
     /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
     locate(definition: LexicaDefinition, pointer: string): LexicaErrorLocation;

@@ -2,15 +2,15 @@
 
 <a id="types"></a>
 
-Every value has a type, and every expression is typed before it is evaluated. The language defines the scalar types, lists and object types; a module declares the rest, its reference types and its structured types. A script never declares a type: Lexica infers each expression's type from the types its bindings and its vocabulary give it, and a cast narrows a reference to a type of its hierarchy.
+Every value has a type, and every expression is typed before it is evaluated. The language defines the scalar types, lists and object types; a module declares the rest, its reference types and its structured types. A script never declares a type: Lexica infers each expression's type from the types its bindings and its vocabulary give it. Every type a script names already exists, the language's own or one a module declares, and a script names one in two places alone: a [cast](#casts), which narrows a reference to a type of its hierarchy, and a [conversion](values.md#conversions), which converts data to another type of data. `device as light` and `value to number` each name an existing type, written bare as a member's name is.
 
 Every member declares the types it accepts and returns, and resolution checks every expression against them before evaluation. A script that cannot be typed fails with a validation error identifying the location, the expected type and the actual type.
 
 ```lexica
 room {
-    floorArea = it.floorArea,                              // A number.
-    lamp = (it.device("lamp") as "light")?.brightness,     // A device narrowed to a light: a number, or null.
-    lights = it.devices.where(it.supports("dimming")).count
+    floorArea = it.floorArea,                         // A number.
+    lamp = (it.device("lamp") as light)?.brightness,  // A device narrowed to a light: a number, or null.
+    lights = it.devices.where(it.dimmable()).count
 }
 ```
 
@@ -63,7 +63,7 @@ A reference type is a type a module declares whose values have identity: a value
 - **Abstract types.** A type a module declares abstract is never the answer of classification: a value whose most specific type is abstract is unclassified, and refused as an ambiguous one is. Were `device` abstract, a device that is no light, thermostat or sensor could not be bound; the examples' home declares it concrete.
 - **A declared type.** A host may declare the type of a binding whose value is a reference, and classification does not run for it. The value must pass the test of the declared type and of every supertype above it, and fails the binding otherwise, with a structure error naming the binding and the type; no type beneath the declared one is tested. The declared type is the binding's static type, an abstract one included, since abstractness only keeps classification from answering it, so a light bound as a `device` exposes `device`'s members alone, as its host chose, until [`as`](#casts) narrows it, running the narrower type's test. Only a reference type can be declared, and only for a reference value; data is typed by its value alone.
 - **Identity.** `==` compares two references of one hierarchy by identity, as [equalities](expressions.md#equalities) set out, so `device.room == room` asks whether the device is in that room, never whether two rooms are alike.
-- **Narrowing.** A value's static type exposes the members of that type and its supertypes alone. [`as`](#casts) narrows it to a type beneath, checked by that type's test, so `(device as "light")?.brightness` reads a brightness where the device is a light.
+- **Narrowing.** A value's static type exposes the members of that type and its supertypes alone. [`as`](#casts) narrows it to a type beneath, checked by that type's test, so `(device as light)?.brightness` reads a brightness where the device is a light.
 
 <a id="no-implicit-conversion"></a>
 
@@ -108,7 +108,7 @@ A name written as a call or an indexer is a member's, written in the form, and g
 
 The declarations that take the name as it is written agree on who invokes it, the evaluator or the host, so the script gives a value, or ends in a [host call](members.md#members-host-calls), as they say.
 
-Declarations that disagree on who invokes them are refused as ambiguous, and a cast to a reference type says which a null receiver means: `(thing as "light")?.dim({ to = 40 })` takes the light's declaration of `dim` for a null `thing`.
+Declarations that disagree on who invokes them are refused as ambiguous, and a cast to a reference type says which a null receiver means: `(thing as light)?.dim({ to = 40 })` takes the light's declaration of `dim` for a null `thing`.
 
 <a id="receivers-of-unknown-type-what-it-answers"></a>
 
@@ -138,14 +138,14 @@ A member read on a `list<never>` runs, as on any list, so it resolves to one dec
 
 ## Casts
 
-A cast answers a reference value as a type of its hierarchy: `target as "type"` answers its target itself where it is of that type, and null where it is null. A value of another type fails the evaluation, which [an attempt](expressions.md#attempts), `try target as "type"`, answers null for instead.
+A cast answers a reference value as a type of its hierarchy: `target as type` answers its target itself where it is of that type, and null where it is null. A value of another type fails the evaluation, which [an attempt](expressions.md#attempts), `try target as type`, answers null for instead.
 
 ```lexica
-device as "light"
-(room.device(name) as "light")?.brightness
-(preferred ?? fallback) as "light"
-(?(room.device(name) as "light").brightness)
-(try room.device(name) as "light")?.brightness
+device as light
+(room.device(name) as light)?.brightness
+(preferred ?? fallback) as light
+(?(room.device(name) as light).brightness)
+(try room.device(name) as light)?.brightness
 ```
 
 The first and the third answer a light, which no result holds, so each stands within a larger expression, as the casts of the others do.
@@ -154,7 +154,7 @@ The first and the third answer a light, which no result holds, so each stands wi
 
 ### The type a cast names
 
-The type is the quoted name of a reference type, and the cast is of that type, nullable where its target can be null, so `room.device(name) as "light"` is a `light?` and `device as "light"`, with `device` bound to a device, a `light`; an attempted cast is nullable always.
+The type is the name of a reference type the registry knows, Lexica's or a registered module's, written bare, and a string in its place, `device as "light"`, is a syntax error giving `device as light`. The name identifies the type directly: it reads no local, field or script parameter of its spelling, and declares or infers no type, so a cast reaches the types and the relationships between them that exist. The cast is of that type, nullable where its target can be null, so `room.device(name) as light` is a `light?` and `device as light`, with `device` bound to a device, a `light`; an attempted cast is nullable always.
 
 A name that is no reference type is a validation error naming the types of its target's hierarchy.
 
@@ -164,13 +164,13 @@ A name that is no reference type is a validation error naming the types of its t
 
 A cast states the type the expression expects, and a value of another type fails the evaluation with an evaluation error naming what it is, as `The cast to light rejected its value: it is a thermostat`, so a thermostat where a light is expected is an error, never a silent null.
 
-A cast that probes which type a value is is attempted, `(try device as "light") == light`.
+A cast that probes which type a value is is attempted, `(try device as light) == light`.
 
 <a id="casts-what-it-narrows"></a>
 
 ### What it casts
 
-A cast to a type beneath its target's static type narrows it, checked by that type's test. A cast to the target's own type or to a supertype of it, and a cast of null, are valid, since a binding typed from its value may already be of the type or null, and each answers its target as it is. A cast of a target that can never be of the type, such as `5 as "light"` or `room as "light"`, a type of another hierarchy, is a validation error.
+A cast to a type beneath its target's static type narrows it, checked by that type's test. A cast to the target's own type or to a supertype of it, and a cast of null, are valid, since a binding typed from its value may already be of the type or null, and each answers its target as it is. A cast of a target that can never be of the type, such as `5 as light` or `room as light`, a type of another hierarchy, is a validation error.
 
 A cast converts nothing and narrows nothing outside itself: its target keeps its type wherever else it is read.
 
@@ -178,21 +178,21 @@ A cast converts nothing and narrows nothing outside itself: its target keeps its
 
 ### Cast target
 
-Its target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access: `room.device(name) as "light"`, `(preferred ?? fallback) as "light"` and `(?room.device(name)) as "light"`. Any other grouped expression is no target, so `(if metered then a else b end) as "light"` is a syntax error, and neither is a chain an object expression continues.
+Its target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access: `room.device(name) as light`, `(preferred ?? fallback) as light` and `(?room.device(name)) as light`. Any other grouped expression is no target, so `(if metered then a else b end) as light` is a syntax error, and neither is a chain an object expression continues.
 
 <a id="casts-binding"></a>
 
 ### How a cast binds
 
-A cast binds looser than access, so a call receives it only through a group: `(room.device(name) as "light")?.dim({ to = 40 })` dims the cast. A chain continues from a cast only through a group, `(room.device(name) as "light")?.brightness`, and a cast takes another as its target only in one, `(thing as "device") as "light"`, so `device as "light".brightness` and `a as "device" as "light"` are syntax errors.
+A cast binds looser than access, so a call receives it only through a group: `(room.device(name) as light)?.dim({ to = 40 })` dims the cast. A chain continues from a cast only through a group, `(room.device(name) as light)?.brightness`, and a cast takes another as its target only in one, `(thing as device) as light`, so `device as light.brightness` and `a as device as light` are syntax errors.
 
 <a id="casts-in-an-optional-enclosed-access"></a>
 
 ### In an optional enclosed access
 
-In an optional enclosed access, a cast in parentheses is a receiver, and the accesses of its own target become optional with the enclosed access's: `(?(room.device(name) as "light").brightness)` is `(room?.device(name) as "light")?.brightness`.
+In an optional enclosed access, a cast in parentheses is a receiver, and the accesses of its own target become optional with the enclosed access's: `(?(room.device(name) as light).brightness)` is `(room?.device(name) as light)?.brightness`.
 
-A target that is a coalescing operator in parentheses or an optional enclosed access is cast as it is and keeps its own rules: `(?((preferred ?? fallback) as "light").brightness)` is `((preferred ?? fallback) as "light")?.brightness`.
+A target that is a coalescing operator in parentheses or an optional enclosed access is cast as it is and keeps its own rules: `(?((preferred ?? fallback) as light).brightness)` is `((preferred ?? fallback) as light)?.brightness`.
 
 <a id="casts-evaluation"></a>
 

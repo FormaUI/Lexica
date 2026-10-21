@@ -2,7 +2,7 @@
 
 What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come.
 
-The specification describes language version `1.0.0-alpha.32`, definition version 32 and host calls. **The implementation reads definition version 31** and implements language version `1.0.0-alpha.31`, and the work to reach version 32 is under way, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are implemented.
+The specification describes language version `1.0.0-alpha.32` and definition version 32. **The implementation reads definition version 32** and implements language version `1.0.0-alpha.32`, save for the reference types of its third slice, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are implemented.
 
 | Status | Meaning |
 | --- | --- |
@@ -18,15 +18,15 @@ The specification describes language version `1.0.0-alpha.32`, definition versio
 
 | Area | Status | What remains | Contract |
 | --- | --- | --- | --- |
-| Scripts: parameters, bindings, names, bodies and locals | Partial | The implicit parameter is still `context`, with `~` alone as a second spelling; version 32 writes `it`, and reads module names through a registry | [Scripts](../spec/scripts.md) |
+| Scripts: parameters, bindings, names, bodies and locals | Implemented | | [Scripts](../spec/scripts.md) |
 | Lexical structure: tokens, names, strings, comments | Implemented | | [Lexical structure](../spec/lexical-structure.md) |
 | Values: objects, the object root, lists, null, results and conversions | Implemented | | [Values](../spec/values.md) |
 | Types | Partial | Reference types declared by modules; the DOM's node types are still built into Lexica, and a cast takes only `node` and its kinds | [Types](../spec/types.md) |
 | Expressions: operators, conditionals, coalescing, attempts, interpolated strings | Implemented | | [Expressions](../spec/expressions.md) |
-| Functions: regular and arrow functions, function values | Implemented | | [Functions](../spec/functions.md) |
+| Functions: regular and arrow functions, function values, function references, implicit bodies | Implemented | | [Functions](../spec/functions.md) |
 | Members: forms, bracket property access, arguments | Implemented | | [Members](../spec/members.md) |
 | Host calls: functions the host invokes, where they stand, the values a host supplies | Implemented | | [Host calls](../spec/members.md#members-host-calls) |
-| Definition and canonical text | Implemented, version 31 | Version 32's nodes | [Definition](../spec/definition.md), [Grammar](../spec/grammar.md) |
+| Definition and canonical text | Implemented | | [Definition](../spec/definition.md), [Grammar](../spec/grammar.md) |
 | Diagnostics: kinds, messages and locations | Implemented | Stable codes are [proposed](proposals/diagnostic-codes.md) | [Diagnostics and errors](../spec/diagnostics-and-errors.md) |
 
 ### Modules and vocabulary
@@ -34,13 +34,15 @@ The specification describes language version `1.0.0-alpha.32`, definition versio
 | Area | Status | What remains | Contract |
 | --- | --- | --- | --- |
 | Module declarations in one shape, with their implementations | Implemented | | [Creating a module](../spec/modules.md#modules-declarations), [declaring a member](../spec/members.md#members-declaring-a-member) |
-| Registries: registration checked whole, revisions | Implemented | Reading text with the registry's module names | [Registries](../spec/modules.md#modules-registries) |
+| Registries: registration checked whole, revisions, their own text | Implemented | | [Registries](../spec/modules.md#modules-registries) |
 | Lexica's own vocabulary: list members, verbs, conversions | Implemented | | [Lexica's own vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own) |
-| Predicates and observation types | Implemented | | [Vocabulary](../spec/vocabulary.md) |
+| Boolean functions | Implemented | | [Boolean functions](../spec/vocabulary.md#vocabulary-boolean-functions) |
+| Observation types | Implemented | | [Observations](../spec/vocabulary.md#observations) |
 | Type selectors and selectable types | Implemented | | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
 | Observation targets declared by modules | Implemented | | [Observation targets](../spec/vocabulary.md#observations-targets) |
-| Namespaces and module members | Planned | Module members are registered but nothing reads them yet | [Namespaces](../spec/modules.md#namespaces) |
-| Qualified access, a null receiver propagating | Planned | | [Qualified access](../spec/modules.md#namespaces-qualified-access) |
+| Namespaces and module members | Implemented | | [Namespaces](../spec/modules.md#namespaces) |
+| Qualified access, a null receiver propagating | Implemented | | [Qualified access](../spec/modules.md#namespaces-qualified-access) |
+| A module's own collisions | Implemented | | [A module's own collisions](../spec/modules.md#namespaces-a-modules-own-collisions) |
 | Owner precedence and extension ambiguity | Planned | Two modules declaring one name on overlapping receivers are refused at registration until it lands | [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions) |
 | Reference types, classification and declared binding types | Planned | | [Reference types](../spec/types.md#reference-types) |
 | Qualified extension indexers | Deferred | Beyond version 32, until a use needs one | [Indexer selection](../spec/modules.md#namespaces-indexers) |
@@ -74,28 +76,25 @@ Version 32 removes the DOM from the language: Lexica knows no domain, and a host
 | Slice | Status | What it delivers |
 | --- | --- | --- |
 | 1. The declaration shape | Implemented | One shape for every declaration, with valid combinations for each kind; implementations carried in their declarations and called with one object; an evaluator refused for a resolution that uses a declaration or conversion without an implementation |
-| 2. The version 32 definition | In progress | Observation targets declared by modules, which are built; the `it`, `root` and `namespace` nodes; module members read through namespaces; qualified access, whose receiver argument propagates null; a registry reading text with its module names |
+| 2. The version 32 definition | Implemented | Observation targets declared by modules, which are built; the `it`, `root` and `namespace` nodes; module members read through namespaces; qualified access, whose null receiver argument skips the member and its arguments; a registry parsing, formatting and quoting text with its module names; function references and implicit bodies; expression and predicate arguments taking a function of the item beside their body; the verbs given a test, and Boolean functions in place of predicates; a cast's and a conversion's type written bare; a version 31 definition refused |
 | 3. Reference types | Planned | Reference types, classification, declared binding types and casts within a hierarchy; the built-in node types removed; the source of every projected item; owner precedence and extension ambiguity |
 
-**What works.** Everything version 31 defines, the declaration shape of version 32, and the observation targets modules declare.
+**What works.** The declaration shape and the version 32 definition: its `it`, `root` and `namespace` nodes, a version 31 definition refused; a registry parsing, formatting and quoting text with its module names, and refusing a definition read without them; module members, qualified forms and function references, a null receiver argument skipping the member and its own arguments wherever a reference is held, passed or chosen; the verbs given a test, an implicit body recognized by its own `it` among its forms, and Boolean functions in place of predicates; an expression or a predicate argument given an arrow function, a function a name holds or a function reference, under its own result policy; a cast's and a conversion's type written bare; and the observation targets modules declare. Six of the specification's examples resolve and evaluate.
 
-**What is missing.** The definition still has version 31's shape, and Lexica still carries DOM knowledge that version 32 removes:
+**What is missing.** Lexica still carries DOM knowledge that slice 3 removes:
 
 | Gap | Where the contract differs | Closed by |
 | --- | --- | --- |
-| The roots `document` and `window` are language nodes the evaluator reads from the environment | Version 32 has no such roots: a module declares what a script reads of its domain, through module members | Slice 2 |
 | `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria` and `window` are built-in types, recognized by a value's `nodeType` | No type is built in but the language's own: a module declares its reference types, each with its test | Slice 3 |
 | A projected item's source is recorded only for a DOM node | Every projected item records its source | Slice 3 |
 | Two modules declaring one name on overlapping receivers are refused at registration | Both register, and resolution refuses an ambiguous use | Slice 3 |
-| The implementation's own names are version 31's: the syntax tree's root is `source`, its tokens include `caller-binding` and `context`, and its messages say "the caller's binding" | Version 32 names a script, its root `script`, a parameter reference and a script parameter | Slice 2 |
 
-**Dependencies.** Owner precedence waits for slice 3, because a module owns a type only once it declares it as a reference type. A version 32 implementation reads version 32 alone, so the switch from version 31 is one change, which every host follows in the change after it.
+**Dependencies.** Owner precedence waits for slice 3, because a module owns a type only once it declares it as a reference type. The implementation reads version 32 alone, so the switch from version 31 was one change, which every host follows in a change of its own.
 
 **Next steps.**
 
-1. Build the version 32 switch: the new nodes, namespaces, qualified access with its null rule, and a registry reading text with its module names; test each qualified form against its receiver form.
-2. Build slice 3, the source of every projected item checked against duplicate references, repeated equal data values, null inputs and reordered items.
-3. Resolve and evaluate the specification's examples against a module of [the examples' vocabulary](../spec/examples-vocabulary.md); today they are only parsed and formatted.
+1. Build slice 3, the source of every projected item checked against duplicate references, repeated equal data values, null inputs and reordered items.
+2. Resolve and evaluate the specification's other 28 examples against a module of [the examples' vocabulary](../spec/examples-vocabulary.md), which read the home's rooms, devices, lights, thermostats or sensors and are parsed and formatted until reference types and declared binding types give their bindings a type.
 
 ## Host calls
 
@@ -121,9 +120,7 @@ The beta makes the language and its module API ready for external use: no breaki
 
 ## Open decisions
 
-| Decision | State |
-| --- | --- |
-| How a type annotation is spelled | Open until annotations are designed: whether `name: type = value` writes the type bare while `as` and `to` quote theirs, or every form writes it alike. |
+No decision is open.
 
 ## Deferred
 

@@ -59,7 +59,7 @@ room.devices.count                                // A dot property access.
 room.device("lamp")?.battery                      // A function call, then optional access.
 device:setting["mode"]                            // A named indexer.
 rooms:item[0]                                     // Another named indexer, a list's.
-room.device("lamp")?.is("active") ?? false
+room.device("lamp")?.active() ?? false
 ```
 
 <a id="property-access-calls-and-indexers-property-access"></a>
@@ -90,7 +90,7 @@ An equality without its left operand is an error as well; write both values, for
 
 Required access needs a receiver whose type cannot be null. A nullable receiver is a validation error that suggests optional access: `room.device(name).battery` is a validation error, since `device` answers a `device?`.
 
-Optional access reads or invokes the member only when its receiver is not null. Otherwise it answers null and skips the remainder of that chain, including argument or key evaluation. `room.device(name)?.battery` answers null without invoking `battery` where the room has no device of that name; its type is `number?`, since an optional chain is nullable where an optional access of it can meet null. A member written with `?.` or `?:`, a predicate among them, answers null for a null receiver, so `room.device(name)?.is("active")` is a `boolean?` that is null where there is no such device.
+Optional access reads or invokes the member only when its receiver is not null. Otherwise it answers null and skips the remainder of that chain, including argument or key evaluation. `room.device(name)?.battery` answers null without invoking `battery` where the room has no device of that name; its type is `number?`, since an optional chain is nullable where an optional access of it can meet null. A member written with `?.` or `?:` answers null for a null receiver, so `room.device(name)?.active()` is a `boolean?` that is null where there is no such device.
 
 For example, `room.device(name)?.room.devices.count` answers null when the room has no device of that name. Otherwise `.count` counts the devices of the device's room.
 
@@ -107,8 +107,8 @@ Optional access is also valid on a receiver whose current type cannot be null. A
 | Written | Equivalent accesses |
 | --- | --- |
 | `(?room.device(name).room.climate.temperature)` | `room?.device(name)?.room?.climate?.temperature` |
-| `(?(room.device(name) as "light").brightness)` | `(room?.device(name) as "light")?.brightness` |
-| `(?((a.x ?? b) as "light").brightness)` | `((a.x ?? b) as "light")?.brightness` |
+| `(?(room.device(name) as light).brightness)` | `(room?.device(name) as light)?.brightness` |
+| `(?((a.x ?? b) as light).brightness)` | `((a.x ?? b) as light)?.brightness` |
 
 The enclosed form requires a receiver followed by at least one property access, function call or indexer. Its receiver is an input, `it`, a script parameter, `root`, a namespace's member, a literal, an interpolated string, a local, a local function's call or an object expression, or a grouped cast.
 
@@ -224,9 +224,9 @@ Logical expressions participate only when their types fit. `it[metered and "powe
 
 The falsey part can also be known from a nullable non-Boolean operand: `it.room.device("lamp") and "power"` gives null or a name. The final bracket expression must still remove the possible null.
 
-`it[it.is("active") and "power" or "battery"]` is refused because no type holds both false and a string. Write the choice as a conditional:
+`it[it.active() and "power" or "battery"]` is refused because no type holds both false and a string. Write the choice as a conditional:
 
-`it[if it.is("active") then "power" else "battery" end]`.
+`it[if it.active() then "power" else "battery" end]`.
 
 An expression outside the permitted forms, such as `it[it:["mode"]]`, is a validation error saying its names cannot be determined.
 
@@ -291,9 +291,9 @@ An options object follows the ordinary rules of an object expression. Its option
 Every parameter of a member is declared as one of four kinds, and the evaluator treats them differently; a parameter an options object supplies is the same.
 
 - A **value argument** is evaluated once, where the call is written, against the same implicit parameter as the chain it appears in, so its `it` is that implicit parameter. In `room { own = it.device(it.name) }`, the argument's `it.name` is the room's name, not a device's. At the top level, where there is no implicit parameter, a value argument starts from a script parameter, `root`, a namespace's member, a local, a literal, an object expression or another input: `room.device(name)`.
-- An **expression argument** is evaluated by the member against each item of the list the member follows, which is its `it`. In `room.devices.max(it.power)`, `it` is each device. Lexica's own module's expression parameters are those of `max`, `min` and `sum`.
-- A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against: in `room.devices.where(it:["mode"])`, the device's setting is truthy wherever it is present, empty or not. Lexica's own module's predicate parameter is that of `where`.
-- A **function argument** is a function value, an arrow function written as the argument or a function passed by its name, which the member calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type. Resolution checks each function the value may be against the contract, and evaluation checks the member's arguments and the function's result. The member calls it only while its own invocation lasts, and a call after that fails. Lexica's own module has no function parameters, so `where`, `max`, `min` and `sum` take expression arguments, and an arrow function given to one is a validation error saying its parameter takes an expression argument, as `room.devices.where(it.is("active"))` is written instead; a module declares them.
+- An **expression argument** is a body of each item of the list the member follows, which is its `it`, and its result must be of the type the parameter declares. In `room.devices.max(it.power)`, `it` is each device. It is written as its body, an expression the member evaluates against each item, or as a function of the item, which the member calls with each: an arrow function, `room.devices.max(d => d.power)`, a function value a name holds, or a [function reference](functions.md#functions-module-functions), each checked against the contract of one argument, the item's type, and the parameter's result type, as a function argument is. A body that reads no `it` gives each item the same value, so `room.devices.sum(1)` counts them, and one that reads `it` and gives a function is a validation error, since a function of the item is written as the argument itself. Lexica's own module's expression parameters are those of `max`, `min` and `sum`.
+- A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against or calls it with: in `room.devices.where(it:["mode"])`, the device's setting is truthy wherever it is present, empty or not, and `room.devices.where(home.active)` keeps the active devices. A Boolean name that holds no function is its body, the same for every item, so it keeps every item or none. Lexica's own module's predicate parameter is that of `where`.
+- A **function argument** is a function, which the member calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type: an arrow function written as the argument, a function value a name holds, a [function reference](functions.md#functions-module-functions) to a module's function, as `home.active` is, or, for a contract of one argument, an [implicit body](functions.md#functions-implicit-bodies), an expression reading `it`, which is that argument. Resolution checks each function the argument may be against the contract, its argument types and its result type, and refuses a name holding no function, so `device.is(metered)` is a validation error for a Boolean `metered`; evaluation checks the result an implementation answers. The member calls it only while its own invocation lasts, and a call after that fails. Lexica's own function parameters are its verbs' tests, `is`, `has` and `supports`. Where an expression argument's body that reads no `it` is a value the same for every item, a function argument's is no function, so `device.is(metered)` is refused where `room.devices.where(metered)` keeps every device or none; `device.is(d => metered)` writes a test of a Boolean.
 
 Because the kind is part of the signature, resolution validates every kind before evaluation, and evaluation reports the reads of value, expression, predicate and function arguments.
 
@@ -310,13 +310,13 @@ Optional and nullable are separate. An optional parameter can be omitted; a null
 
 ### Fixed arguments
 
-A value argument can be declared **fixed**, where it selects something validation needs before evaluation, such as the type a [type selector](vocabulary.md#vocabulary-type-selectors) maps it to, as `on`'s does, or the predicate a verb asks. A fixed argument names a declaration, which cannot be looked up from null, so it must resolve to a non-null string during resolution.
+A value argument can be declared **fixed**, where it selects something validation needs before evaluation, the type a [type selector](vocabulary.md#vocabulary-type-selectors) maps it to, as `on`'s does. A fixed argument names a declaration, which cannot be looked up from null, so it must resolve to a non-null string during resolution.
 
-A fixed argument is a string the script's resolution settles, without evaluating any member or depending on a value its host supplies: a literal, a script parameter, a local or a conditional binding holding one, a local holding a `do` block whose locals and result all settle, a function parameter within a call's body, which is resolved with its arguments, and an `and`, an `or`, a conditional or a coalescing operator whose result they settle by the rules that evaluate it everywhere, as `device { let state = "active", lit = it.is(state) }` and `device.is(metered and "active" or "offline")` are. A fixed argument whose outcome can be null or names no declaration is refused, so `sensor.on(name)` is a validation error where `name` is bound to null.
+A fixed argument is a string the script's resolution settles, without evaluating any member or depending on a value its host supplies: a literal, a script parameter, a local or a conditional binding holding one, a local holding a `do` block whose locals and result all settle, a function parameter within a call's body, which is resolved with its arguments, and an `and`, an `or`, a conditional or a coalescing operator whose result they settle by the rules that evaluate it everywhere, as `let kind = "motion" return sensor.on(kind)` and `sensor.on(metered and "change" or "motion")` are. A fixed argument whose outcome can be null or names no declaration is refused, so `sensor.on(name)` is a validation error where `name` is bound to null.
 
-A local holding a `do` block settles a fixed argument only if every local evaluated in that block and its result can settle it, since reads made by unused body locals cannot be discarded. `let state = do let chosen = "active" return chosen end` may supply `device.is(state)`; a body local whose value cannot settle a fixed argument, as one that reads a member or holds an interpolated string, prevents the block from settling one.
+A local holding a `do` block settles a fixed argument only if every local evaluated in that block and its result can settle it, since reads made by unused body locals cannot be discarded. `let kind = do let chosen = "motion" return chosen end` may supply `sensor.on(kind)`; a body local whose value cannot settle a fixed argument, as one that reads a member or holds an interpolated string, prevents the block from settling one.
 
-A member's value is known only once it is evaluated, so an expression that needs one to settle is a validation error, as `if device.is("active") then "active" else "active" end` is; the side an expression does not take is validated and selects nothing, so a name only it holds is never looked up.
+A member's value is known only once it is evaluated, so an expression that needs one to settle is a validation error, as `sensor.on(if sensor.active() then "motion" else "motion" end)` is; the side an expression does not take is validated and selects nothing, so a name only it holds is never looked up.
 
 <a id="members-declaring-a-member"></a>
 <a id="what-a-member-declares-signature"></a>
@@ -327,10 +327,10 @@ A module declares each member as data. Its fields are its signature, which lets 
 
 | Field | Holds |
 | --- | --- |
-| `name` | The member's name in the language |
+| `name` | The member's name in the language, a [name](lexical-structure.md#names-and-reserved-words), a letter followed by letters and digits |
 | `kind` | `property` or `function` |
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
-| `target` | The types whose values have the member, a type, a list of types or `any`; left out for a [module member](modules.md#namespaces-module-members), whose implementation is given no receiver |
+| `target` | The types whose values have the member, a type, a list of types, `any`, or a type parameter `T` that binds the receiver's type; left out for a [module member](modules.md#namespaces-module-members), whose implementation is given no receiver |
 | `syntax` | How a member that is no property is written: `function-call`, or `indexer` for a function whose one required value parameter is its key |
 | `default` | For an indexer, whether it is the default of its receivers |
 | `arguments` | The argument form, where the member has parameters: `positional` or `options` |
@@ -367,9 +367,9 @@ Changing a member's argument form is a breaking change, like renaming it. A func
 
 ### Parameter fields
 
-A parameter is a value, an expression, a predicate or a function. An expression and a predicate are evaluated against each item of the list the member follows, `context: 'item'`, and an expression declares the type it produces. A parameter declares whether it is required, its default where it is not, and whether a null argument propagates, making the call answer null, or is accepted. A fixed parameter names something the vocabulary resolves before any evaluation, and declares what it selects: a type, `selects: 'type'`, through the type selector its `selector` names, or a predicate.
+A parameter is a value, an expression, a predicate or a function. An expression and a predicate are evaluated against each item of the list the member follows, `context: 'item'`, and an expression declares the type it produces. A parameter declares whether it is required, its default where it is not, and whether a null argument propagates, making the call answer null, or is accepted. A fixed parameter names something the vocabulary resolves before any evaluation, and declares what it selects, a type, `selects: 'type'`, through the type selector its `selector` names.
 
-Only a function the evaluator invokes declares a function parameter, which is required, has no null policy and is given to no observation; it declares the types of the arguments it is called with, and its type is its result's.
+Only a function the evaluator invokes declares a function parameter, which is required, has no null policy and is given to no observation; it declares the types of the arguments it is called with, `parameters`, and its type is its result's. Those types may write a type parameter its member's target binds, as `T` in `list<T>`, or a target `T`, which takes a receiver of any type and binds `T` to it, so a callback takes the receiver as its own type, as the verbs' test does.
 
 <a id="what-a-member-declares-evaluation-contract"></a>
 <a id="members-updates"></a>
@@ -390,7 +390,7 @@ A member may declare a tolerance for its numeric result and every number within 
 
 ### What an implementation receives
 
-An implementation is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's or a predicate's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica calls no implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and a conversion's `value` and `reject`. The contract is JavaScript's alone, and no script is written differently for it.
+An implementation is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica calls no implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and a conversion's `value` and `reject`. The contract is JavaScript's alone, and no script is written differently for it.
 
 <a id="how-a-member-reads"></a>
 

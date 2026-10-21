@@ -63,7 +63,7 @@ Numeric comparisons may form a chain only when every operator points the same wa
 | Use | Example |
 | --- | --- |
 | Field | `{ from = 1, to = 2 }` |
-| Local | `{ let to = "3", value = @to to "number" }` |
+| Local | `{ let to = "3", value = @to to number }` |
 | Parameter reference | `~to` |
 | Property | `range.to` |
 | Call | `range.to()` |
@@ -75,9 +75,9 @@ Numeric comparisons may form a chain only when every operator points the same wa
 
 `try` must precede one conversion or cast. Group an inner operation to make clear which operation is attempted:
 
-- `try (a to "string") to "number"` attempts the outer conversion.
-- `try a to "string" to "number"` is a syntax error.
-- `try device as "light" to "string"` is a syntax error.
+- `try (a to string) to number` attempts the outer conversion.
+- `try a to string to number` is a syntax error.
+- `try device as light to string` is a syntax error.
 
 <a id="expression-structure-and-precedence-conditional-bindings"></a>
 
@@ -89,7 +89,7 @@ A conditional binding exists only where `let` follows `if` or `elseif`. It binds
 
 ### Members require their punctuation
 
-A name after a complete value cannot invoke a member without its punctuation. `device is "active"` is a syntax error that suggests `device.is(…)`.
+A name after a complete value cannot invoke a member without its punctuation. `device active` is a syntax error that suggests `device.active`.
 
 A chain consists of its input and the member accesses and object expressions that continue it. `42` and `room` are chains with no continuation.
 
@@ -99,28 +99,28 @@ Conditions and the operands of `not`, `and` and `or` accept values and test thei
 
 ## Tests
 
-A test answers a Boolean: a member that answers one, read as every member is, or a predicate asked with its verb.
+A test answers a Boolean: a member that answers one, read as every member is, or a verb given a test of its receiver.
 
 ```lexica
-room.is("occupied")
-room.device("lamp")?.is("active")
-device.has("battery")
-device.is(state)
+room.occupied()
+room.device("lamp")?.active()
+device.is(home.batteryPowered)
+device.has(it.battery != null)
 ```
 
 <a id="tests-members"></a>
 
 ### Tests are members
 
-A test is a property or a function whose result is a `boolean` or a `boolean?`, or a predicate, asked with its verb: `it.is("occupied")` asks whether a room is occupied, and `it.has("battery")` whether a device has a battery. A test of presence is asked with `has`, and a state with `is`.
+A test is a property or a function whose result is a `boolean` or a `boolean?`: `it.occupied()` asks whether a room is occupied, and `it.batteryPowered()` whether a device runs on a battery. A verb asks the test it is given of its receiver, `room.is(home.occupied)` or `device.has(it.battery != null)`, as [the verbs](vocabulary.md#vocabulary-verbs) set out.
 
-A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `boolean?`, and a bracket property access reads a Boolean property a binding names as it reads any other. A module declares a test as it declares any member or predicate.
+A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `boolean?`, and a bracket property access reads a Boolean property a binding names as it reads any other. A module declares a test as it declares any member, a [Boolean function](vocabulary.md#vocabulary-boolean-functions).
 
 <a id="tests-no-test-by-name-after-"></a>
 
 ### No test by name after `==`
 
-`==` compares values, so `device == "active"` compares a device with a string, a validation error that gives the test to write, `device.is("active")`.
+`==` compares values, so `device == "active"` compares a device with a string, a validation error that gives the test to write, `device.active()`.
 
 <a id="truthiness"></a>
 
@@ -186,7 +186,7 @@ Narrowing changes neither evaluation nor the requirement to validate every opera
 mode == "eco"
 room.device(name) == null
 left:["mode"] == right:["mode"]
-(try device as "light") == light
+(try device as light) == light
 count != 0
 ```
 
@@ -224,7 +224,7 @@ An equality answers a `boolean`, never null, evaluating both operands once, from
 
 ### How an equality binds
 
-A dot binds tighter than `==`, and so do an indexer, a cast, a conversion, an attempt and arithmetic, so `device:["mode"] == null` tests the setting and `device.is("active") == false` tests the predicate.
+A dot binds tighter than `==`, and so do an indexer, a cast, a conversion, an attempt and arithmetic, so `device:["mode"] == null` tests the setting and `device.active() == false` tests the function's answer.
 
 An equality takes an additive expression on either side, including a chain, cast, conversion, attempt or arithmetic expression, and does not chain, so `a == b == c` is a syntax error and `(a == b) == c` compares the first's result; it stands beside a coalescing operator or a [comparison](#comparisons) only where a group holds one of them, `(count ?? 0) == 0` and `(a < b) == c`.
 
@@ -263,13 +263,13 @@ Both operands are numbers, and nothing converts to one but `to`, so `"2" + 1` is
 
 An arithmetic negation binds tightest of them, then `*`, `/` and `%`, then `+` and `-`; operators of one level associate to the left, so `10 - 3 - 2` is 5, and parentheses group as they do anywhere.
 
-Arithmetic binds tighter than an equality and a comparison and looser than a conversion, so `device:["level"] to "number" + 1` converts the setting and then adds one, a validation error since the setting can be missing, written `(device:["level"] to "number" ?? 0) + 1` to give it a fallback first, and `(a + b) to "string"` converts the sum. `-x to "number"` negates the converted value, and `(-x) to "number"` converts the negated one.
+Arithmetic binds tighter than an equality and a comparison and looser than a conversion, so `device:["level"] to number + 1` converts the setting and then adds one, a validation error since the setting can be missing, written `(device:["level"] to number ?? 0) + 1` to give it a fallback first, and `(a + b) to string` converts the sum. `-x to number` negates the converted value, and `(-x) to number` converts the negated one.
 
 <a id="arithmetic-attempts"></a>
 
 ### Attempts in arithmetic
 
-`try` applies to the conversion or the cast written after it, and that attempt is an operand of arithmetic, so `try x to "number" + 1` is `(try x to "number") + 1`, a validation error since its left operand can be null; `(try x to "number" ?? 0) + 1` gives its fallback first.
+`try` applies to the conversion or the cast written after it, and that attempt is an operand of arithmetic, so `try x to number + 1` is `(try x to number) + 1`, a validation error since its left operand can be null; `(try x to number ?? 0) + 1` gives its fallback first.
 
 <a id="arithmetic-beside-"></a>
 
@@ -281,7 +281,7 @@ Arithmetic binds tighter than an equality and a comparison and looser than a con
 
 ### Negative literals
 
-An arithmetic negation of a numeric literal is that negative literal in a definition, `-0` included, as the parsed text holds it, so `-5 to "string"` negates a conversion, a validation error since what `-` negates is a number, and `(-5) to "string"` converts the literal `-5`, giving `"-5"`.
+An arithmetic negation of a numeric literal is that negative literal in a definition, `-0` included, as the parsed text holds it, so `-5 to string` negates a conversion, a validation error since what `-` negates is a number, and `(-5) to string` converts the literal `-5`, giving `"-5"`.
 
 <a id="arithmetic-evaluation"></a>
 
@@ -355,9 +355,9 @@ An evaluation reads what the operands it evaluated read, and an operand a false 
 `and` and `or` answer the operand that decides them, `not` answers whether a value is falsey, and parentheses group any expression.
 
 ```lexica
-light.is("active") and metered
-device.is("offline") or (device.has("battery") and (device.battery ?? 0) < 10)
-room { free = not it.is("occupied") and not busy }
+light.active() and metered
+device.offline() or (device.batteryPowered() and (device.battery ?? 0) < 10)
+room { free = not it.occupied() and not busy }
 room { let lamp = it.device("lamp"), power = lamp and lamp.power }
 device:["label"] or "untitled"
 ```
@@ -372,7 +372,7 @@ An operand of `and` and `or`, and what `not` negates, is any value, a host call 
 
 ### How logical expressions bind
 
-An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighter than `or`, so `device.is("active") or not lamp == null and enabled` combines the negation of the lamp's equality and `enabled` before the device's test. `not` associates to the right, so `not not a` negates `a` twice, and `and not` and `or not` are `and` and `or` of a negation.
+An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighter than `or`, so `device.active() or not lamp == null and enabled` combines the negation of the lamp's equality and `enabled` before the device's test. `not` associates to the right, so `not not a` negates `a` twice, and `and not` and `or not` are `and` and `or` of a negation.
 
 <a id="logical-expressions-negations-and-groups-results"></a>
 
@@ -390,7 +390,7 @@ An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighte
 
 So `room.device(name) and 5` is a `number?`, `name or "untitled"` a `string` where `name` is a string, and Booleans give a `boolean`. Where fixed operands, literals and bound parameters, decide it, it is of the one that does, so `true and "value"` is a `string`.
 
-Values no one type holds are a validation error, as `it.is("active") and it` in an object expression following a device, which gives false or a device: unlike Lua, Lexica types every expression, and offers no type for false or true beside another, so a conditional chooses between values of one type, `if it.is("active") then it else null end`, where null is an acceptable alternative.
+Values no one type holds are a validation error, as `it.active() and it` in an object expression following a device, which gives false or a device: unlike Lua, Lexica types every expression, and offers no type for false or true beside another, so a conditional chooses between values of one type, `if it.active() then it else null end`, where null is an acceptable alternative.
 
 <a id="logical-expressions-negations-and-groups-not-a-conditional"></a>
 
@@ -423,8 +423,8 @@ Each branch is a [body](scripts.md#bodies): one expression, or locals followed b
 ```lexica
 if metered then light else thermostat end
 if let lamp = room.device("lamp") then { name = lamp.name, power = lamp.power } else null end
-if room.device("lamp")?.is("offline") then "lost" elseif room.device("lamp") == null then "none" else "ok" end
-room { state = if it.is("occupied") then "busy" else "free" end }
+if room.device("lamp")?.offline() then "lost" elseif room.device("lamp") == null then "none" else "ok" end
+room { state = if it.occupied() then "busy" else "free" end }
 { let target = if metered then light else thermostat end, power = target.power }
 ```
 
@@ -525,7 +525,7 @@ A coalescing operator answers its value where it is not null, and otherwise its 
 ```lexica
 sensor.temperature ?? 0
 device:["label"] ?? device:["name"] ?? "untitled"
-room.device("lamp")?.is("active") ?? true
+room.device("lamp")?.active() ?? true
 ```
 
 <a id="coalescing-operators-evaluation"></a>
@@ -540,7 +540,7 @@ A fallback that evaluation does not reach is still validated, but is not evaluat
 
 ### Null alone
 
-`??` falls back for null and `or` for null and false: `false ?? true` is false, and `false or true` is true. `try value to "number" ?? 0` gives a default for null alone, which an attempt's rejection is.
+`??` falls back for null and `or` for null and false: `false ?? true` is false, and `false or true` is true. `try value to number ?? 0` gives a default for null alone, which an attempt's rejection is.
 
 <a id="coalescing-operators-type"></a>
 
@@ -566,26 +566,26 @@ A coalescing operator stands beside `not`, `and`, `or`, an equality and a compar
 
 ## Attempts
 
-`try` attempts the one conversion or cast written after it, and answers null where that operation rejects its value: `try value to "type"` answers the converted value where the conversion accepts the value, and `try target as "type"` answers its target where it is of the type. Its type is the operation's, made nullable.
+`try` attempts the one conversion or cast written after it, and answers null where that operation rejects its value: `try value to type` answers the converted value where the conversion accepts the value, and `try target as type` answers its target where it is of the type. Its type is the operation's, made nullable.
 
 It handles a value its operation rejects without failing, as `??` handles a missing one, so the two together give a value either way:
 
 ```lexica
-device { level = try it:["level"] to "number" ?? 0 }
-(try room.device(name) as "light")?.brightness
+device { level = try it:["level"] to number ?? 0 }
+(try room.device(name) as light)?.brightness
 ```
 
 A missing setting is null, which converts to null, and malformed text is rejected, so both give zero, and text that converts gives its number; a device that is no light is rejected, so the brightness is null for it, as it is for a missing device.
 
-A [conditional binding](#conditionals) gives the converted value a name where a script uses it more than once, `if let level = try it:["level"] to "number" then … else … end`.
+A [conditional binding](#conditionals) gives the converted value a name where a script uses it more than once, `if let level = try it:["level"] to number then … else … end`.
 
 <a id="attempts-one-operation"></a>
 
 ### One operation
 
-`try` attempts the one conversion or cast written after it, and nothing else, so it is no general catch of errors: a failure while its value is evaluated, a rejection by a conversion or a strict cast that value holds among them, fails the evaluation as it would anywhere, so `try (device as "light").room.device(name) as "light"` attempts the outer cast alone.
+`try` attempts the one conversion or cast written after it, and nothing else, so it is no general catch of errors: a failure while its value is evaluated, a rejection by a conversion or a strict cast that value holds among them, fails the evaluation as it would anywhere, so `try (device as light).room.device(name) as light` attempts the outer cast alone.
 
-A conversion of a conversion or of a cast is grouped to say which one is attempted, `try (a to "string") to "number"`, so `try a to "string" to "number"` and `try device as "light" to "string"` are syntax errors, as is `try` before anything that is neither, another `try` among them.
+A conversion of a conversion or of a cast is grouped to say which one is attempted, `try (a to string) to number`, so `try a to string to number` and `try device as light to string` are syntax errors, as is `try` before anything that is neither, another `try` among them.
 
 <a id="attempts-one-set-of-rules"></a>
 
@@ -605,9 +605,9 @@ A cast rejects a value of another type, and a conversion the value it calls `rej
 
 ### Null means a rejection
 
-For a non-null input, a successful conversion returns a non-null value of its declared target type. A conversion returning null is a fault, including under `try`. Consequently, for a stable bound value, `value != null and try value to "type" == null` is true exactly when the conversion rejects that value.
+For a non-null input, a successful conversion returns a non-null value of its declared target type. A conversion returning null is a fault, including under `try`. Consequently, for a stable bound value, `value != null and try value to type == null` is true exactly when the conversion rejects that value.
 
-A cast answers its target itself, so the same holds for `try target as "type"`. Faults remain errors.
+A cast answers its target itself, so the same holds for `try target as type`. Faults remain errors.
 
 <a id="attempts-evaluation"></a>
 
@@ -619,16 +619,16 @@ Its value is evaluated once and its operation carried out once, so it reads what
 
 ### How an attempt binds
 
-`try` binds tighter than `==`, `!=` and `??`, and looser than the operation it attempts, so `try v to "number" == 5` compares the converted value, `(try device as "light") != null` asks whether the device is a light, and `try v to "number" ?? 0` gives its fallback for both null and a rejection.
+`try` binds tighter than `==`, `!=` and `??`, and looser than the operation it attempts, so `try v to number == 5` compares the converted value, `(try device as light) != null` asks whether the device is a light, and `try v to number ?? 0` gives its fallback for both null and a rejection.
 
-It stands where an equality operand stands; a conversion of its result groups it, `(try v to "number") to "string"`, and a cast takes none as its target, so `(try a as "device") as "light"` is a syntax error.
+It stands where an equality operand stands; a conversion of its result groups it, `(try v to number) to string`, and a cast takes none as its target, so `(try a as device) as light` is a syntax error.
 
 A result that keeps the converted number and tells a missing value from a malformed one says which it is beside the value, reading the setting once through a local:
 
 ```lexica
 device {
     let level = it:["level"],
-    level = if let n = try level to "number" then { status = "valid", value = n }
+    level = if let n = try level to number then { status = "valid", value = n }
     elseif level == null then { status = "missing", value = null }
     else { status = "malformed", value = null } end
 }
@@ -678,7 +678,7 @@ An interpolation that begins with an object expression groups it in parentheses:
 | Nullable value | Validation error; supply a fallback or test it first |
 | Boolean, list, object, reference value or other value | Validation error; explicitly convert or choose text |
 
-Negative zero inserts `0`, and `1e21` inserts `1e+21`. A nullable name can use `{name ?? "Unknown"}`. A Boolean can use `to "string"` or a conditional, such as `{if done then "Done" else "Pending" end}`.
+Negative zero inserts `0`, and `1e21` inserts `1e+21`. A nullable name can use `{name ?? "Unknown"}`. A Boolean can use `to string` or a conditional, such as `{if done then "Done" else "Pending" end}`.
 
 Interpolation calls no module-registered conversion. The result is plain text, escaped for no other language.
 

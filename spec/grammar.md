@@ -22,7 +22,7 @@ In this document:
 | Conditionals | `conditional-expression`, `conditional-clause`, `conditional-binding`, `simple-conditional-expression` | [Conditionals](expressions.md#conditionals) |
 | Functions | `function-expression`, `function-parameter-list`, `function-parameter`, `arrow-function`, `arrow-parameters`, `function-call` | [Functions](functions.md) |
 | Operators | `coalescing`, `disjunction`, `conjunction`, `negation`, `equality`, `comparison`, `additive`, `multiplicative`, `arithmetic-negation` and their operands | [Expressions](expressions.md) |
-| Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation` | [Casts](types.md#casts), [conversions](values.md#conversions), [attempts](expressions.md#attempts) |
+| Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation`, `type-name` | [Casts](types.md#casts), [conversions](values.md#conversions), [attempts](expressions.md#attempts) |
 | Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `bracket-property-access`, `member-call`, `indexer`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
 | Simple expressions | `simple-expression`, `simple-value-expression` | [Simple expressions](expressions.md#simple-expressions) |
 | Names and references | `value`, `identifier`, `reserved-reference`, `parameter-reference`, `namespace-access`, `module-name`, `name`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
@@ -100,14 +100,15 @@ equality-operand              = chain | cast | conversion | attempt
 attempt                       = "try" attempted-operation
 attempted-operation           = attempted-conversion | cast
                               | "(" ( conversion | cast | attempted-operation ) ")"
-attempted-conversion          = chain "to" string
+attempted-conversion          = chain "to" type-name
 
-conversion                    = conversion-target "to" string
+conversion                    = conversion-target "to" type-name
 conversion-target             = chain | cast | conversion
 
-cast                          = cast-target "as" string
+cast                          = cast-target "as" type-name
 cast-target                   = receiver { member-expression } | enclosed-cast-target
 enclosed-cast-target          = "(" coalescing ")" | optional-enclosed-access
+type-name                     = name
 
 chain                         = chain-input { member-expression | object }
 chain-input                   = input | enclosed-expression
@@ -230,7 +231,8 @@ The grammar uses several terms more narrowly than the prose:
 | Grammar rule | Meaning |
 | --- | --- |
 | `value` | The forms listed by that production: the implicit parameter, the object root or a literal |
-| `namespace-access` | A module member read, or a qualified form called, through a module's namespace; text read without a registry has no module names, so it has none |
+| `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; text read without a registry has no module names, so it has none |
+| `type-name` | The name of the type a cast or a conversion names, written bare: any name, a reserved word included, as a member's name is after `.` |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
 | `equality-operand` | A chain, cast, conversion or attempt, used within the arithmetic productions |

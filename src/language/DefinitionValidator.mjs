@@ -14,8 +14,9 @@ import { Versions } from './Versions.mjs';
 const NODE_PROPERTIES = {
     literal: { properties: ['kind', 'value'], required: ['value'] },
     parameter: { properties: ['kind', 'name'], required: ['name'] },
-    root: { properties: ['kind', 'name'], required: ['name'] },
-    context: { properties: ['kind'], required: [] },
+    it: { properties: ['kind'], required: [] },
+    root: { properties: ['kind'], required: [] },
+    namespace: { properties: ['kind', 'name'], required: ['name'] },
     local: { properties: ['kind', 'name'], required: ['name'] },
     member: { properties: ['kind', 'target', 'name', 'optional'], required: ['target', 'name'] },
     call: { properties: ['kind', 'target', 'name', 'optional', 'arguments'], required: ['target', 'name', 'arguments'] },
@@ -44,8 +45,8 @@ const NODE_PROPERTIES = {
 /** The kinds of node that continue a chain through their target, and so carry its optional chain to the access their target is. */
 const CHAIN_KINDS = new Set(['member', 'call', 'indexer', 'object']);
 
-/** The kinds of node a cast's target starts from, its receiver, as text writes one: an input, an object expression following no value among them, or a grouped cast. */
-const CAST_RECEIVER_KINDS = new Set(['context', 'parameter', 'root', 'local', 'literal', 'interpolatedString', 'functionCall', 'object', 'cast']);
+/** The kinds of node a cast's target starts from, its receiver, as text writes one: an input, a namespace's member and an object expression following no value among them, or a grouped cast. */
+const CAST_RECEIVER_KINDS = new Set(['it', 'parameter', 'root', 'namespace', 'local', 'literal', 'interpolatedString', 'functionCall', 'object', 'cast']);
 
 /** The kinds of node that are accesses of a cast's target, after its receiver. */
 const CAST_ACCESS_KINDS = new Set(['member', 'call', 'indexer']);
@@ -105,16 +106,16 @@ export class DefinitionValidator {
      */
     #simpleExpression = null;
 
-    /** The parameters of a definition parsed from text that were written with `~`, which read the caller's binding wherever they stand; null for a definition not parsed from text. @type {WeakSet<object> | null} */
-    #callerBindingParameters;
+    /** The parameters of a definition parsed from text that were written as parameter references, with `~`, which read the script parameter wherever they stand; null for a definition not parsed from text. @type {WeakSet<object> | null} */
+    #parameterReferences;
 
     /**
      * @param {TextLocations | null} locations Where in a text each part of the definition came from, for one parsed from text.
-     * @param {WeakSet<object> | null} callerBindingParameters The parameters a text wrote with `~`, for one parsed from text.
+     * @param {WeakSet<object> | null} parameterReferences The parameters a text wrote as parameter references, for one parsed from text.
      */
-    constructor(locations = null, callerBindingParameters = null) {
+    constructor(locations = null, parameterReferences = null) {
         this.#locations = locations;
-        this.#callerBindingParameters = callerBindingParameters;
+        this.#parameterReferences = parameterReferences;
     }
 
     /** Checks the definition's structure, returning its canonical, frozen copy; a canonical definition validation already gave is answered as it is, keeping the locations it has. */
@@ -125,8 +126,9 @@ export class DefinitionValidator {
 
         this.#requireProperties(definition, '', { properties: ['version', 'expression'], required: ['version', 'expression'] });
 
+        // One version is read, and none is converted into another, so a definition of another version names both.
         if (definition.version !== Versions.definition) {
-            this.#fail('/version', `A definition is of version ${Versions.definition}`);
+            this.#fail('/version', `A definition is of version ${Versions.definition}, the one this implementation reads, and this one is of version ${JSON.stringify(definition.version)}`);
         }
 
         const validated = Object.freeze({ version: Versions.definition, expression: this.#validateBodyOrExpression(definition.expression, '/expression', ContextAvailability.absent) });
@@ -153,7 +155,7 @@ export class DefinitionValidator {
         }
 
         if (!ObjectUtils.isNonArrayObject(node) || !Object.hasOwn(NODE_PROPERTIES, node.kind)) {
-            this.#fail(pointer, 'A node is an object whose kind is literal, parameter, root, context, local, member, call, indexer, object, optionalChain, equality, comparison, interpolatedString, body, do, function, functionCall, arithmetic, negate, conditional, coalescing, not, cast, conversion, try, and or or');
+            this.#fail(pointer, 'A node is an object whose kind is literal, parameter, it, root, namespace, local, member, call, indexer, object, optionalChain, equality, comparison, interpolatedString, body, do, function, functionCall, arithmetic, negate, conditional, coalescing, not, cast, conversion, try, and or or');
         }
 
         this.#requireProperties(node, pointer, NODE_PROPERTIES[node.kind]);
@@ -181,35 +183,34 @@ export class DefinitionValidator {
                     this.#fail(`${pointer}/name`, 'A parameter is named by a letter followed by letters and digits');
                 }
 
-                // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; `~` and a definition's parameter read the caller's binding wherever they stand.
-                if (this.#locations !== null && !this.#callerBindingParameters?.has(node)) {
+                // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; a parameter reference and a definition's parameter read the script parameter wherever they stand.
+                if (this.#locations !== null && !this.#parameterReferences?.has(node)) {
                     this.#requireBindingName(node.name, pointer);
                 }
 
                 return Object.freeze({ kind: 'parameter', name: node.name });
             case 'root':
-                if (!Names.isRoot(node.name)) {
-                    this.#fail(`${pointer}/name`, 'A root is document, window or root');
-                }
-
                 // The object root is a reference to the outermost object, which an object expression around the reference builds, lexically.
-                if (node.name === 'root' && !this.#isInObjectExpression) {
+                if (!this.#isInObjectExpression) {
                     this.#fail(pointer, "'root' refers to the outermost object being built, and no object expression encloses it here");
                 }
 
-                return Object.freeze({ kind: 'root', name: node.name });
-            case 'context':
+                return Object.freeze({ kind: 'root' });
+            case 'it':
                 if (contextAvailability === ContextAvailability.absent) {
-                    this.#fail(pointer, "'context' is the implicit parameter, and the top level has none; a chain there starts from a parameter, a root, a local, a literal or another input");
+                    this.#fail(pointer, "'it' is the implicit parameter, and the top level has none; a chain there starts from a script parameter, root, a namespace's member, a local, a literal or another input");
                 }
 
-                return Object.freeze({ kind: 'context' });
+                return Object.freeze({ kind: 'it' });
+            case 'namespace':
+                this.#fail(pointer, "A namespace is the target of a member read or a call through it, as home.rooms is, and stands nowhere else");
+                break;
             case 'local':
                 this.#requireName(node.name, `${pointer}/name`);
 
                 // A local is read where one of its name, or a field, is in scope, which `@` and a reserved word name as a name written alone does any other.
                 if (!this.#localNames.has(node.name)) {
-                    this.#fail(pointer, `No local or field named '${node.name}' is in scope. Use '~${node.name}' to read the caller's binding.`);
+                    this.#fail(pointer, `No local or field named '${node.name}' is in scope. Use '~${node.name}' to read the script parameter.`);
                 }
 
                 return Object.freeze({ kind: 'local', name: node.name });
@@ -266,8 +267,8 @@ export class DefinitionValidator {
             case 'cast':
                 return this.#validateCast(node, pointer, contextAvailability);
             case 'conversion':
-                if (typeof node.type !== 'string') {
-                    this.#fail(`${pointer}/type`, 'A conversion names the type it converts to by a string');
+                if (!Names.isName(node.type)) {
+                    this.#fail(`${pointer}/type`, 'A conversion names the type it converts to by its name, a letter followed by letters and digits');
                 }
 
                 return Object.freeze({ kind: 'conversion', type: node.type, target: this.#validateNode(node.target, `${pointer}/target`, contextAvailability) });
@@ -402,10 +403,10 @@ export class DefinitionValidator {
         }
     }
 
-    /** Validates a cast: the quoted type it casts to, and its target, which is a receiver and its accesses, a coalescing operator, another cast, or an optional chain, as text can write one. */
+    /** Validates a cast: the name of the type it casts to, and its target, which is a receiver and its accesses, a coalescing operator, another cast, or an optional chain, as text can write one. */
     #validateCast(node, pointer, contextAvailability) {
-        if (typeof node.type !== 'string') {
-            this.#fail(`${pointer}/type`, 'A cast names the type it casts to by a string');
+        if (!Names.isName(node.type)) {
+            this.#fail(`${pointer}/type`, 'A cast names the type it casts to by its name, a letter followed by letters and digits');
         }
 
         const target = this.#validateNode(node.target, `${pointer}/target`, contextAvailability);
@@ -665,7 +666,8 @@ export class DefinitionValidator {
         this.#chain = null;
 
         try {
-            return Object.freeze({ kind: 'functionCall', name: node.name, arguments: this.#validateArguments(node.arguments, `${pointer}/arguments`, contextAvailability) });
+            // Whether an argument has an implicit parameter is the function's to say, a reference's as its qualified form's member does, which only resolution knows, so an `it` there is resolution's to refuse.
+            return Object.freeze({ kind: 'functionCall', name: node.name, arguments: this.#validateArguments(node.arguments, `${pointer}/arguments`, ContextAvailability.unknown) });
         } finally {
             this.#chain = enclosingChain;
         }
@@ -730,7 +732,7 @@ export class DefinitionValidator {
             this.#chain.hasOptional = true;
         }
 
-        const target = this.#validateNode(node.target, `${pointer}/target`, contextAvailability);
+        const target = node.target?.kind === 'namespace' ? this.#validateNamespace(node, pointer) : this.#validateNode(node.target, `${pointer}/target`, contextAvailability);
         const access = Object.freeze({ kind: node.kind, target, ...(name === undefined ? {} : { name }), ...(node.optional === true ? { optional: true } : {}) });
 
         if (node.kind === 'member') {
@@ -744,6 +746,32 @@ export class DefinitionValidator {
         }
 
         return Object.freeze({ ...access, argument: this.#validateSimpleExpression(node.argument, `${pointer}/argument`, ContextAvailability.unknown, "An indexer's key") });
+    }
+
+    /**
+     * Validates the namespace a member read or a call stands on: a module's name, through which a member is named by a dot, never optional, since a namespace is never null, and never through brackets or an indexer,
+     * which no namespace has. Which modules a registry holds is the registry's to check.
+     */
+    #validateNamespace(node, pointer) {
+        const namespace = node.target;
+        const namespacePointer = `${pointer}/target`;
+
+        this.#requireProperties(namespace, namespacePointer, NODE_PROPERTIES.namespace);
+        this.#requireName(namespace.name, `${namespacePointer}/name`);
+
+        if (node.kind === 'indexer') {
+            this.#fail(pointer, 'No indexer is written through a namespace, which has none');
+        }
+
+        if (typeof node.name !== 'string') {
+            this.#fail(`${pointer}/name`, "A namespace's member is named after its dot, as home.rooms is, and never through brackets");
+        }
+
+        if (node.optional === true) {
+            this.#fail(`${pointer}/optional`, "A namespace is never null, so a member is read through it after '.', and never optionally");
+        }
+
+        return Object.freeze({ kind: 'namespace', name: namespace.name });
     }
 
     /** Validates the expression a bracket property access holds, which continues no chain; a string literal that is a name is the name itself, as `.` writes it, so an access has one definition. */

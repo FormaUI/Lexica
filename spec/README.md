@@ -31,10 +31,10 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 3. [Values](values.md): objects and the object root, lists, null, supplied data, results and conversions.
 4. [Types](types.md): type families, reference types, nullability, receivers of unknown type and casts.
 5. [Expressions](expressions.md): precedence, tests, truthiness, equalities, arithmetic, comparisons, logical expressions, conditionals, `do` expressions, coalescing, attempts, interpolated strings and simple expressions.
-6. [Functions](functions.md): regular and arrow functions declared in a script, their values, what they see and what a call reads.
+6. [Functions](functions.md): regular and arrow functions declared in a script, their values, references to a module's functions, what they see, what a call reads, and implicit bodies.
 7. [Members](members.md): member kinds, writing a member, bracket property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
 8. [Modules](modules.md): creating a module, its declarations, registries, namespaces and extensions.
-9. [Vocabulary](vocabulary.md): Lexica's own vocabulary, predicates, observations, type selectors and conversions.
+9. [Vocabulary](vocabulary.md): Lexica's own vocabulary, Boolean functions, observations, type selectors and conversions.
 10. [Runtime](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
 11. [Definition](definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
 12. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.

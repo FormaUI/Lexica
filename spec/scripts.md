@@ -10,7 +10,7 @@ Here a host binds the living room as the script parameter `room`, and the script
 let devices = room.devices
 return {
     name = room.name,
-    active = devices.where(it.is("active")).count,
+    active = devices.where(it.active()).count,
     total = devices.count
 }
 ```
@@ -36,7 +36,7 @@ In this document:
 
 A script is a [body](#bodies): one expression, or locals and the `return` that gives its result. Its text is its source, which [the lexical structure](lexical-structure.md) and [the grammar](grammar.md) read, and its JSON form is its [definition](definition.md). The last member of its chain decides [what it gives](members.md#members-member-kinds-and-host-calls): most scripts give a value, which a host evaluates, and a script whose chain ends in a function the host invokes ends in a host call, which the host carries out.
 
-A script reads three kinds of names: its script parameters, which its host binds; the names it declares itself, its locals, fields, conditional bindings and function parameters; and its vocabulary's, the members, predicates and module namespaces of the registry it is resolved against. How a host resolves and evaluates a script is the [runtime](runtime.md)'s contract.
+A script reads three kinds of names: its script parameters, which its host binds; the names it declares itself, its locals, fields, conditional bindings and function parameters; and its vocabulary's, the members, types and module namespaces of the registry it is resolved against. How a host resolves and evaluates a script is the [runtime](runtime.md)'s contract.
 
 <a id="scripts-script-parameters"></a>
 <a id="names-and-resolution-parameters-and-roots"></a>
@@ -103,15 +103,33 @@ The **implicit parameter**, read as `it`, is the value the current expression is
 | Object expression following a list | The current item |
 | Object expression following no value | The surrounding implicit parameter, if one exists |
 | Value argument | The implicit parameter where the call is written |
-| Expression or predicate argument | The one the member declares |
+| Expression or predicate argument | The item the member evaluates it against |
+| Implicit body, a function argument written as an expression | The argument the member calls it with |
+| Result projection of a host call | Each value its host supplies |
+| Arrow function or function declared with `function` | The implicit parameter where it is written, which it captures |
 
 In `room { warmth = it.climate?.temperature }`, `it` is the room.
 
 In `room { climate = { warmth = it.climate?.temperature, humidity = it.climate?.humidity } }`, both nested fields still read the room. The nested object groups fields without changing the implicit parameter.
 
-At the top level, `{ level = light.brightness, active = light.is("active") }` has no implicit parameter. Each field reads a script parameter, a literal or another expression that does not require one.
+At the top level, `{ level = light.brightness, active = light.active() }` has no implicit parameter. Each field reads a script parameter, a literal or another expression that does not require one.
 
 `it.name`, `{ name = it.name }` and `light.dim({ to = it })` at the top level are errors because there is no implicit parameter.
+
+<a id="names-and-resolution-one-parameter-model"></a>
+
+### One parameter model
+
+`it` is the name of the one parameter a body receives, and refers to that input value alone: never the object being built, which is `root`, the script's bindings, or a context of evaluation. A body is a projection, the object expression following a value or a list, or a host call's result projection; an expression or a predicate argument; or an implicit body. Each reads its input as a function of one parameter reads its parameter, and every other name where it is written, so these bodies follow one set of rules:
+
+- **A body gives its own `it`.** A projection, an expression or a predicate argument, and an implicit body each give `it` the value it receives.
+- **A nested body shadows it.** In `rooms { count = it.devices.where(it.active()).count }`, the `it` of `where`'s argument is each device, the room's out of its reach.
+- **A plain object keeps it.** An object expression following no value receives no input, so its fields read the `it` around it.
+- **A function captures it.** An arrow function or a function declared with `function` gives names to its own parameters alone, and captures the `it` where it is written as it captures every name, so `rooms { larger = home.rooms.where(r => r.floorArea > it.floorArea).count }` compares each room with the projected one.
+- **A value argument reads it.** A value argument is evaluated where the call is written, against the `it` already there.
+- **None is no value.** `it` where no body gives one is an error.
+
+Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a verb's test requires a `boolean`. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is no function value.
 
 <a id="names-and-resolution-projection-example"></a>
 
@@ -123,8 +141,8 @@ An object expression following a list projects each item, which becomes `it` wit
 room {
     // The room's name, whether it is occupied, and each of its devices.
     name = it.name,
-    occupied = it.is("occupied"),
-    devices = it.devices { name = it.name, active = it.is("active") }
+    occupied = it.occupied(),
+    devices = it.devices { name = it.name, active = it.active() }
 }
 ```
 
@@ -219,7 +237,7 @@ room {
         sameRoom = it.room == room
     },
     hungriest = devices.max(it.power),
-    occupied = it.is("occupied")
+    occupied = it.occupied()
 }
 ```
 

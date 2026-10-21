@@ -13,7 +13,7 @@ const ESCAPED_CHARACTERS = /["\\\p{Cc}\p{Cf}\p{Zl}\p{Zp}]|(?! )\p{Zs}/gu;
 /** How tightly each kind of expression binds, the loosest lowest: one written where a tighter one stands is parenthesized. An optional chain is a cast's target as it is, and is grouped where a chain continues from it, since its short-circuit ends where it does. */
 const PRECEDENCE = { conditional: 0, body: 0, do: 0, function: 0, coalescing: 1, or: 2, and: 3, not: 4, equality: 5, comparison: 5, additive: 6, multiplicative: 7, negate: 8, try: 9, conversion: 10, cast: 11, optionalChain: 12 };
 
-/** How tightly a chain binds that no optional chain holds: a property access, a call, an indexer, an object expression, `context`, a local, a literal or a parameter. */
+/** How tightly a chain binds that no optional chain holds: a property access, a call, an indexer, an object expression, `it`, `root`, a namespace, a local, a literal or a parameter. */
 const CHAIN_PRECEDENCE = 13;
 
 /** The indentation of one level of an object expression laid out on lines. */
@@ -23,36 +23,52 @@ export class DefinitionWriter {
     /**
      * The text that writes the node on one line.
      * @param {object} node A node of a definition.
+     * @param {ReadonlySet<string>} [moduleNames] The module names the text is written with, each reserved as the language's words are; none for text read without a registry.
      */
-    static write(node) {
-        DefinitionWriter.#markCallerBindingParameters(node, new Set(), new Set());
-
-        return DefinitionWriter.#write(node, null);
+    static write(node, moduleNames = Names.noModuleNames) {
+        return DefinitionWriter.#writing(node, moduleNames, () => DefinitionWriter.#write(node, null));
     }
 
     /**
      * The canonical text of the node, laid out on lines: an object expression of one field and no locals, whose value is on one line, stays on one line, and any other has a line for each entry, indented a level; a conditional with an `elseif` has a line for each clause.
      * @param {object} node A node of a definition.
+     * @param {ReadonlySet<string>} [moduleNames] The module names the text is written with, each reserved as the language's words are; none for text read without a registry.
      */
-    static format(node) {
-        DefinitionWriter.#markCallerBindingParameters(node, new Set(), new Set());
-
+    static format(node, moduleNames = Names.noModuleNames) {
         // An expression that is a body writes its bindings and its return alone, which a do block elsewhere encloses.
-        return node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0);
+        return DefinitionWriter.#writing(node, moduleNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
+    }
+
+    /** The parameters a name written alone would not read, which the text being written writes as parameter references, with `~`. @type {WeakSet<object>} */
+    static #parameterReferences = new WeakSet();
+
+    /** The module names the text being written is written with. @type {ReadonlySet<string>} */
+    static #moduleNames = Names.noModuleNames;
+
+    /** What the writing gives with the module names in effect and the node's parameter references marked for them, those of any writing around it restored after it. */
+    static #writing(node, moduleNames, write) {
+        const enclosingReferences = DefinitionWriter.#parameterReferences;
+        const enclosingModuleNames = DefinitionWriter.#moduleNames;
+
+        DefinitionWriter.#moduleNames = moduleNames;
+        DefinitionWriter.#parameterReferences = new WeakSet();
+        DefinitionWriter.#markParameterReferences(node, new Set(), new Set());
+
+        try {
+            return write();
+        } finally {
+            DefinitionWriter.#parameterReferences = enclosingReferences;
+            DefinitionWriter.#moduleNames = enclosingModuleNames;
+        }
     }
 
     /**
-     * The text that writes the node: on one line where the level is null, and otherwise laid out on lines, its line beginning at the level's indentation.
-     * @param {object} node
-     * @param {number | null} level
+     * Marks each parameter in the node that the text writes as a parameter reference: one a reserved word names, a module's name among them where the text is written with it, or that a local or a field in scope hides,
+     * following the locals and the fields each object expression and the name each conditional binding brings into scope, and those declared later in it.
      */
-    /** The parameters a name written alone would not read: those a reserved word names, and those a local of their name stands in scope of or is declared after in their scope, which the text writes with `~`. @type {WeakSet<object>} */
-    static #callerBindingParameters = new WeakSet();
-
-    /** Marks each parameter in the node that the text writes with `~`, one a reserved word names or a local or a field in scope hides, following the locals and the fields each object expression and the name each conditional binding brings into scope, and those declared later in it. */
-    static #markCallerBindingParameters(node, inScope, later) {
+    static #markParameterReferences(node, inScope, later) {
         if (Array.isArray(node)) {
-            node.forEach(item => DefinitionWriter.#markCallerBindingParameters(item, inScope, later));
+            node.forEach(item => DefinitionWriter.#markParameterReferences(item, inScope, later));
 
             return;
         }
@@ -63,31 +79,31 @@ export class DefinitionWriter {
 
         switch (node.kind) {
             case 'parameter':
-                if (Names.isReservedWord(node.name) || inScope.has(node.name) || later.has(node.name)) {
-                    DefinitionWriter.#callerBindingParameters.add(node);
+                if (Names.isReservedWord(node.name, DefinitionWriter.#moduleNames) || inScope.has(node.name) || later.has(node.name)) {
+                    DefinitionWriter.#parameterReferences.add(node);
                 }
 
                 return;
             case 'object': {
-                DefinitionWriter.#markCallerBindingParameters(node.target, inScope, later);
+                DefinitionWriter.#markParameterReferences(node.target, inScope, later);
 
                 const names = (node.locals ?? []).map(local => local.name);
                 let scope = inScope;
 
                 node.locals?.forEach((local, index) => {
-                    DefinitionWriter.#markCallerBindingParameters(local.value, scope, new Set([...later, ...names.slice(index)]));
+                    DefinitionWriter.#markParameterReferences(local.value, scope, new Set([...later, ...names.slice(index)]));
                     scope = new Set([...scope, local.name]);
                 });
                 // A field is in scope after its value, through the fields after it.
                 node.fields.forEach(field => {
-                    DefinitionWriter.#markCallerBindingParameters(field.value, scope, later);
+                    DefinitionWriter.#markParameterReferences(field.value, scope, later);
                     scope = new Set([...scope, field.name]);
                 });
 
                 return;
             }
             case 'function':
-                DefinitionWriter.#markCallerBindingParameters(node.body, new Set([...inScope, ...node.parameters]), later);
+                DefinitionWriter.#markParameterReferences(node.body, new Set([...inScope, ...node.parameters]), later);
 
                 return;
             case 'body': {
@@ -95,19 +111,19 @@ export class DefinitionWriter {
                 let scope = inScope;
 
                 node.locals.forEach((local, index) => {
-                    DefinitionWriter.#markCallerBindingParameters(local.value, scope, new Set([...later, ...names.slice(index)]));
+                    DefinitionWriter.#markParameterReferences(local.value, scope, new Set([...later, ...names.slice(index)]));
                     scope = new Set([...scope, local.name]);
                 });
-                DefinitionWriter.#markCallerBindingParameters(node.result, scope, later);
+                DefinitionWriter.#markParameterReferences(node.result, scope, later);
 
                 return;
             }
             case 'conditional':
                 if (node.binding !== undefined) {
-                    // A binding's value reads no name of its own, which a text writes with `~` for the caller's binding, as a local's value does.
-                    DefinitionWriter.#markCallerBindingParameters(node.binding.value, inScope, new Set([...later, node.binding.name]));
-                    DefinitionWriter.#markCallerBindingParameters(node.consequent, new Set([...inScope, node.binding.name]), later);
-                    DefinitionWriter.#markCallerBindingParameters(node.alternative, inScope, later);
+                    // A binding's value reads no name of its own, which a text writes as a parameter reference for the script parameter, as a local's value does.
+                    DefinitionWriter.#markParameterReferences(node.binding.value, inScope, new Set([...later, node.binding.name]));
+                    DefinitionWriter.#markParameterReferences(node.consequent, new Set([...inScope, node.binding.name]), later);
+                    DefinitionWriter.#markParameterReferences(node.alternative, inScope, later);
 
                     return;
                 }
@@ -116,18 +132,25 @@ export class DefinitionWriter {
                 break;
         }
 
-        Object.values(node).forEach(value => DefinitionWriter.#markCallerBindingParameters(value, inScope, later));
+        Object.values(node).forEach(value => DefinitionWriter.#markParameterReferences(value, inScope, later));
     }
 
+    /**
+     * The text that writes the node: on one line where the level is null, and otherwise laid out on lines, its line beginning at the level's indentation.
+     * @param {object} node
+     * @param {number | null} level
+     */
     static #write(node, level) {
         switch (node.kind) {
             case 'literal':
                 return DefinitionWriter.#literal(node.value);
             case 'parameter':
-                return DefinitionWriter.#callerBindingParameters.has(node) ? `~${node.name}` : node.name;
-            case 'context':
-                return 'context';
+                return DefinitionWriter.#parameterReferences.has(node) ? `~${node.name}` : node.name;
+            case 'it':
+                return 'it';
             case 'root':
+                return 'root';
+            case 'namespace':
                 return node.name;
             case 'local':
                 return DefinitionWriter.#reference(node.name);
@@ -179,10 +202,10 @@ export class DefinitionWriter {
                 // The negation of an equality is written as `!=`, which is its canonical text.
                 return node.operand.kind === 'equality' ? DefinitionWriter.#equality(node.operand, '!=', level) : `not ${DefinitionWriter.#within(node.operand, PRECEDENCE.not, level)}`;
             case 'cast':
-                return `${DefinitionWriter.#within(node.target, PRECEDENCE.optionalChain, level)} as ${DefinitionWriter.#literal(node.type)}`;
+                return `${DefinitionWriter.#within(node.target, PRECEDENCE.optionalChain, level)} as ${node.type}`;
             case 'conversion':
                 // A conversion converts what is before it, so one that converts another is written as it is.
-                return `${DefinitionWriter.#within(node.target, PRECEDENCE.conversion, level)} to ${DefinitionWriter.#literal(node.type)}`;
+                return `${DefinitionWriter.#within(node.target, PRECEDENCE.conversion, level)} to ${node.type}`;
             case 'try':
                 return `try ${DefinitionWriter.#attempted(node.target, level)}`;
             case 'and':
@@ -261,7 +284,7 @@ export class DefinitionWriter {
 
         const value = node.target.kind === 'conversion' || node.target.kind === 'cast' ? `(${DefinitionWriter.#write(node.target, level)})` : DefinitionWriter.#within(node.target, PRECEDENCE.conversion, level);
 
-        return `${value} to ${DefinitionWriter.#literal(node.type)}`;
+        return `${value} to ${node.type}`;
     }
 
     /** An equality, or its negation, as its operator writes it: two equality operands, each grouped where it binds more loosely than arithmetic. */
@@ -285,9 +308,9 @@ export class DefinitionWriter {
         return PRECEDENCE[node.kind] ?? CHAIN_PRECEDENCE;
     }
 
-    /** A reference to a local or a field: its name, after `@` where a reserved word names it, which written alone keeps its own meaning. */
+    /** A reference to a local or a field: its name, after `@` where a reserved word names it, a module's name among them where the text is written with it, which written alone keeps its own meaning. */
     static #reference(name) {
-        return Names.isReservedWord(name) ? `@${name}` : name;
+        return Names.isReservedWord(name, DefinitionWriter.#moduleNames) ? `@${name}` : name;
     }
 
     /** A call's arguments, separated by commas. */

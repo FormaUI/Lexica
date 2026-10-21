@@ -50,7 +50,7 @@ describe('result metadata', () => {
     });
 
     it('keeps the metadata of the part an access selects: a field of a member\'s result, and one of an object a local holds', () => {
-        const { fields } = metadataOf('let dimensions = { width = name.size.width } return { direct = name.size.width, held = dimensions.width, measured = name.size { width = context.width } }');
+        const { fields } = metadataOf('let dimensions = { width = name.size.width } return { direct = name.size.width, held = dimensions.width, measured = name.size { width = it.width } }');
 
         expect(fields.direct.tolerance).toBe(0.5);
         expect(fields.held.tolerance).toBe(0.5);
@@ -67,7 +67,7 @@ describe('result metadata', () => {
     });
 
     it('gives a computed value an origin and a null tolerance of its own, which overrides the tolerance it would inherit', () => {
-        const { fields } = metadataOf('name.size { exact = context.width + 0, measured = context.width }');
+        const { fields } = metadataOf('name.size { exact = it.width + 0, measured = it.width }');
 
         expect(fields.exact.tolerance).toBeNull();
         expect(fields.measured.tolerance).toBe(0.5);
@@ -91,7 +91,7 @@ describe('result metadata', () => {
     });
 
     it('describes each item of a projection and the reference it came from, which the value never holds', () => {
-        const { value, metadata } = resolve('name.parts { label = context.label }').evaluate();
+        const { value, metadata } = resolve('name.parts { label = it.label }').evaluate();
 
         expect(value).toEqual([{ label: 'a' }, { label: 'b' }]);
         expect(metadata.sources).toEqual(parts);

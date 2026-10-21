@@ -51,13 +51,13 @@ describe('LexicaModule', () => {
         expect(Vocabulary.module).toBe(Vocabulary.module);
     });
 
-    it('refuses what a module does not declare, telling conditions apart as predicates', () => {
-        const conditions = refusalOf(() => new LexicaModule('charts', { conditions: [] }));
+    it('refuses what a module does not declare, telling predicates apart as Boolean functions among its members', () => {
+        const predicates = refusalOf(() => new LexicaModule('charts', { predicates: [] }));
 
-        expect(conditions).toMatchObject({ module: 'charts', field: 'conditions' });
-        expect(conditions.message).toContain('a Boolean its verb asks by its name is a predicate');
-        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares types, members, predicates, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
-        expect(messageOf(() => new LexicaModule('charts', null))).toContain("A module's contents are an object declaring types, members, predicates");
+        expect(predicates).toMatchObject({ module: 'charts', field: 'predicates' });
+        expect(predicates.message).toContain('a test of a receiver is one of its members, a function whose result is a boolean');
+        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
+        expect(messageOf(() => new LexicaModule('charts', null))).toContain("A module's contents are an object declaring types, members, typeSelectors");
         expect(messageOf(() => new LexicaModule('charts', { members: {} }))).toContain("A module's members are a list");
         expect(messageOf(() => new LexicaModule('charts', { members: [null] }))).toContain('A member is an object declaring');
     });
@@ -161,11 +161,10 @@ describe('LexicaModule', () => {
             refusal({ members: [hostCall({ implementation: () => 1 })] }, 'dim', 'implementation', 'its module gives Lexica no implementation of it');
         });
 
-        it('are written as a function call and take value parameters alone, refusing the verbs', () => {
+        it('are written as a function call and take value parameters alone', () => {
             refusal({ members: [hostCall({ syntax: 'indexer' })] }, 'dim', 'syntax', 'A host call is written as a function call');
             refusal({ members: [hostCall({ parameters: [parameter({ name: 'by', kind: 'expression', context: 'item' })] })] }, 'dim', 'parameters', "A host call takes value parameters alone, each argument prepared as a value its host keeps, and 'by' is an expression parameter");
             refusal({ members: [hostCall({ parameters: [parameter({ name: 'f', kind: 'function', parameters: [], nulls: undefined })] })] }, 'dim', 'parameters', "'f' is a function parameter");
-            refusal({ members: [hostCall({ name: 'is', target: 'any', result: 'boolean', parameters: [parameter({ name: 'name', type: 'string', fixed: true, selects: 'predicate' })] })] }, 'is', 'invokedBy', 'It selects a predicate, which the evaluator carries out, so its host never invokes it');
         });
     });
 
@@ -212,7 +211,7 @@ describe('LexicaModule', () => {
         it('are selected through by a function\'s one fixed parameter that names its selector, whose result writes @selected', () => {
             expect(() => new LexicaModule('charts', { members: [selecting(), selecting({ name: 'reports', result: 'list<@selected>' })] })).not.toThrow();
             expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'type' })] })] }).message).toContain("The fixed parameter 'kind' selects a type, so it names the type selector it selects through");
-            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'predicate', selector: 'report' })] })] }).message).toContain("The fixed parameter 'kind' selects a predicate, which no type selector maps");
+            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'predicate', selector: 'report' })] })] }).message).toContain("The fixed parameter 'kind' declares what it selects, one of type; a test of the receiver is passed as a function, to a function parameter");
             expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', selector: 'report' })] })] }).message).toContain("The parameter 'kind' selects nothing, since it is not fixed");
         });
 
@@ -357,8 +356,8 @@ describe('LexicaModule', () => {
             refusal(declaring({ type: 'string', fixed: 'yes' }), 'zoom', 'parameters', 'declares whether it is fixed as a Boolean');
             refusal(declaring({ type: 'string', selects: 'type', selector: 'report' }), 'zoom', 'parameters', 'selects nothing, since it is not fixed');
             refusal(declaring({ type: 'number', fixed: true, selects: 'type', selector: 'report' }), 'zoom', 'parameters', 'is a value parameter of type string');
-            refusal(declaring({ type: 'string', fixed: true, selects: 'member' }), 'zoom', 'parameters', 'declares what it selects, one of predicate, type');
-            refusal(declaring({ type: 'string', fixed: true, selects: 'eventType' }), 'zoom', 'parameters', 'declares what it selects, one of predicate, type');
+            refusal(declaring({ type: 'string', fixed: true, selects: 'member' }), 'zoom', 'parameters', 'declares what it selects, one of type');
+            refusal(declaring({ type: 'string', fixed: true, selects: 'eventType' }), 'zoom', 'parameters', 'declares what it selects, one of type');
         });
 
         it('refuse an expression or a predicate parameter that declares no item as its implicit parameter, saying the key that declares it', () => {
@@ -377,50 +376,28 @@ describe('LexicaModule', () => {
         });
     });
 
-    describe('verbs, whose fixed argument selects the predicate that carries them out', () => {
-        const verb = overrides => functionDeclaration({ name: 'is', target: 'any', result: 'boolean', parameters: [parameter({ name: 'name', type: 'string', fixed: true, selects: 'predicate' })], updates: { changes: 'derived', reads: 'derived' }, ...overrides });
+    describe('Boolean functions, the tests of a receiver', () => {
+        const test = (overrides = {}) => functionDeclaration({ name: 'lit', result: 'boolean', parameters: [], arguments: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'mutation', of: 'receiver', attributes: ['data-lit'] }] }, ...overrides });
 
-        it('are the verbs that ask one, functions that change and read as derived, with no implementation of their own', () => {
-            expect(() => new LexicaModule('charts', { members: [verb()] })).not.toThrow();
-            refusal({ members: [verb({ name: 'asks' })] }, 'asks', 'parameters', 'belongs to one of the verbs that ask one, is, has, supports');
-            refusal({ members: [verb({ updates: { changes: 'constant', reads: 'fresh' } })] }, 'is', 'updates', 'so it changes and reads as derived');
-            refusal({ members: [verb({ implementation: () => true })] }, 'is', 'implementation', 'so it has no implementation of its own');
-        });
-    });
-
-    describe('predicates', () => {
-        const predicate = (overrides = {}) => ({ name: 'lit', target: 'element', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'mutation', of: 'receiver', attributes: ['data-lit'] }] }, ...overrides });
-        const declaring = predicates => new LexicaModule('lit', { predicates });
-        const refused = (overrides, field, fragment) => {
-            const refusedPredicate = refusalOf(() => declaring([predicate(overrides)]));
-
-            expect(refusedPredicate.field).toBe(field);
-            expect(refusedPredicate.message).toContain(fragment);
-        };
-
-        it('are kept as data, each a name, its target, its verb, is by default, its updates and its implementation', () => {
+        it('are members as any other, each a function whose result is a boolean, with its updates and its implementation', () => {
             const implementation = () => true;
-            const [kept] = declaring([predicate({ implementation })]).predicates;
+            const [kept] = new LexicaModule('lit', { members: [test({ implementation })] }).members;
 
-            expect(kept).toMatchObject({ name: 'lit', verb: 'is', target: 'element' });
+            expect(kept).toMatchObject({ name: 'lit', kind: 'function', target: 'element', result: 'boolean', parameters: [] });
             expect(kept.implementation).toBe(implementation);
         });
 
-        it.each([
-            ['a name that is no words joined by hyphens', { name: 'focus_within' }, 'name', 'A predicate is named by words of letters and digits joined by hyphens'],
-            ['no target, a predicate always asking a receiver', { target: undefined }, 'target', 'so it declares the types it applies to'],
-            ['no updates', { updates: undefined }, 'updates', 'It declares its updates'],
-            ['a change it derives', { updates: { changes: 'derived', reads: 'derived' } }, 'updates', 'A predicate changes as constant, observable, partly-observable or unobserved'],
-            ['a reading it captures', { updates: { changes: 'constant', reads: 'captured' } }, 'updates', 'and reads fresh or maintained'],
-            ['an observation of an argument, which a predicate takes none of', { updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'mutation', of: { argument: 'name' } }] } }, 'updates.observations', 'observes the receiver'],
-            ['a tolerance, its result being a Boolean', { updates: { changes: 'constant', reads: 'fresh', tolerance: 1 } }, 'updates.tolerance', 'A tolerance applies to a numeric result'],
-            ['a field a member takes', { result: 'boolean' }, 'result', "'result' is none of them"],
-            ['a kind', { kind: 'function' }, 'kind', "'kind' is none of them"],
-            ['parameters', { parameters: [] }, 'parameters', "'parameters' is none of them"],
-            ['a verb that asks no predicate', { verb: 'does' }, 'verb', 'A predicate is asked by one verb, is, has, supports'],
-            ['an implementation that is no function', { implementation: 'isLit' }, 'implementation', 'Its implementation is a function'],
-        ])('refuse %s', (_, overrides, field, fragment) => {
-            refused(overrides, field, fragment);
+        it('are named as every member is, so a name joined by a hyphen is refused, and is written as one name', () => {
+            refusal({ members: [test({ name: 'focus-within' })] }, 'focus-within', 'name', 'A member is named as a name is');
+            expect(() => new LexicaModule('lit', { members: [test({ name: 'focusWithin' })] })).not.toThrow();
+        });
+    });
+
+    describe('function parameters on any receiver', () => {
+        it('take a callback of the receiver\'s own type, a target that is a type parameter binding it', () => {
+            const tested = functionDeclaration({ name: 'passes', target: 'T', result: 'boolean', parameters: [parameter({ name: 'test', kind: 'function', type: 'boolean', parameters: ['T'], nulls: undefined })], updates: { changes: 'derived', reads: 'derived' } });
+
+            expect(new LexicaModule('charts', { members: [tested] }).members[0]).toMatchObject({ target: 'T', parameters: [{ kind: 'function', parameters: ['T'], type: 'boolean' }] });
         });
     });
 

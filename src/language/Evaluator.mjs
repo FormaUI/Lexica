@@ -174,7 +174,7 @@ export class Evaluator {
      * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} moduleRegistry The vocabulary the request was resolved against.
      * @param {import('./ResolvedDefinition.mjs').ResolvedDefinition} resolvedDefinition The resolved definition to read.
      * @param {import('./ParameterBindings.mjs').ParameterBindings} parameterBindings What the request's parameters are bound to.
-     * @param {Environment} environment What the host gives the evaluation, passed to every implementation; until module namespaces land, the roots `window` and `document` read its `window` and `document`.
+     * @param {Environment} environment What the host gives the evaluation, passed to every implementation.
      * @param {import('./TextLocations.mjs').TextLocations | null} locations Where in a text each part of the definition came from.
      */
     constructor(moduleRegistry, resolvedDefinition, parameterBindings, environment, locations) {
@@ -221,18 +221,21 @@ export class Evaluator {
         const { node, pointer, declaration } = hostCall;
         const location = this.#locate(pointer);
         const enclosingLocals = this.#localsFrame;
+        const resolution = this.#resolvedDefinition.resolutionOf(node);
 
         try {
             const projection = this.#evaluateLocalsBefore();
             const frame = this.#localsFrame;
-            const receiver = declaration === null ? null : this.#evaluateNode(node.target, null);
-            const args = receiver === null ? null : this.#evaluateArguments(this.#resolvedDefinition.resolutionOf(node), null);
+            // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
+            const hasReceiver = declaration === null || declaration.target !== undefined;
+            const receiver = declaration === null ? null : hasReceiver ? this.#evaluateNode(resolution.qualified ? node.arguments[0] : node.target, null) : undefined;
+            const args = receiver === null ? null : this.#evaluateArguments(resolution, null);
 
             if (args === null) {
                 return Object.freeze({ kind: 'skipped', location });
             }
 
-            const call = { kind: 'prepared', declaration, receiver, args, location };
+            const call = hasReceiver ? { kind: 'prepared', declaration, receiver, args, location } : { kind: 'prepared', declaration, args, location };
 
             // A call whose host supplies nothing has nothing to project.
             if (declaration.result !== undefined) {
@@ -390,15 +393,8 @@ export class Evaluator {
             case 'parameter':
                 return evaluator => evaluator.#parameterBindings.get(node.name);
             case 'root':
-                switch (node.name) {
-                    case 'window':
-                        return evaluator => evaluator.#environment.window;
-                    case 'document':
-                        return evaluator => evaluator.#environment.document;
-                    default:
-                        return evaluator => evaluator.#objectRoot;
-                }
-            case 'context':
+                return evaluator => evaluator.#objectRoot;
+            case 'it':
                 return (evaluator, context) => context;
             case 'local': {
                 const resolution = this.#resolvedDefinition.resolutionOf(node);
@@ -514,22 +510,38 @@ export class Evaluator {
                 return (evaluator, context) => ({ function: node, frame: evaluator.#localsFrame, context, objectRoot: evaluator.#objectRoot });
             case 'functionCall': {
                 const { targets: resolvedTargets, binding } = this.#resolvedDefinition.resolutionOf(node);
+                const local = { name: node.name };
+                const closureOf = evaluator => (binding === undefined ? evaluator.#evaluateLocal(local) : evaluator.#boundValues.get(binding));
+
+                // A call of one function reference alone is its qualified form's call, and the reference it is reads nothing.
+                if (resolvedTargets.length === 1 && resolvedTargets[0].invocation?.kind === 'member') {
+                    return this.#compileInvocation(node, resolvedTargets[0].invocation);
+                }
+
                 const targets = this.#compileTargets(resolvedTargets);
                 const evaluateArguments = node.arguments.map(argument => this.#getCompiledFunction(argument));
-                const local = { name: node.name };
 
                 // The arguments are evaluated once each, left to right, in the caller's scope, and the body of the function the name holds in its closure's, so no local of the caller's is visible in it;
-                // where the name may hold one of several, the one it holds is recorded for the value's place in the result.
+                // where the name may hold one of several, the one it holds is recorded for the value's place in the result. A function reference's receiver argument is evaluated first, and a null one answers null before the others are.
                 return (evaluator, context) => {
-                    const closure = binding === undefined ? evaluator.#evaluateLocal(local) : evaluator.#boundValues.get(binding);
-                    const values = evaluateArguments.map(evaluateArgument => evaluateArgument(evaluator, context));
-                    const target = targets.length === 1 ? targets[0] : targets.find(candidate => candidate.function === closure.function);
+                    const closure = closureOf(evaluator);
+                    const target = targets.length === 1 ? targets[0] : targets.find(candidate => (candidate.reference ?? candidate.function) === (closure.reference ?? closure.function));
 
                     if (targets.length > 1) {
-                        (evaluator.#selections ??= new Map()).set(node, target.function);
+                        (evaluator.#selections ??= new Map()).set(node, target.reference ?? target.function);
                     }
 
-                    return evaluator.#callClosure(closure, target, values);
+                    if (target.reference !== undefined && target.hasReceiver) {
+                        const receiver = evaluateArguments[0](evaluator, context);
+
+                        if (receiver === null) {
+                            return null;
+                        }
+
+                        return evaluator.#callClosure(closure, target, [receiver, ...evaluateArguments.slice(1).map(evaluateArgument => evaluateArgument(evaluator, context))], node);
+                    }
+
+                    return evaluator.#callClosure(closure, target, evaluateArguments.map(evaluateArgument => evaluateArgument(evaluator, context)), node);
                 };
             }
             case 'do':
@@ -762,8 +774,19 @@ export class Evaluator {
     #compileMember(node) {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
 
+        // A function reference is a function value, the same for every read of it, which reads nothing.
+        if (resolution?.kind === 'reference') {
+            const closure = Evaluator.#referenceClosureOf(resolution.declaration);
+
+            return () => closure;
+        }
+
         if (resolution === undefined || resolution.kind === 'bracketPropertyAccess' || (resolution.kind !== 'field' && resolution.kind !== 'objectRootField' && resolution.declaration === null)) {
             return (evaluator, context) => evaluator.#evaluateMember(node, context);
+        }
+
+        if (resolution.kind === 'member') {
+            return this.#compileInvocation(node, resolution);
         }
 
         const target = this.#getCompiledFunction(node.target);
@@ -774,21 +797,26 @@ export class Evaluator {
             return (evaluator, context) => evaluator.#readObjectRootField(target(evaluator, context), name);
         }
 
-        if (resolution.kind === 'field') {
-            const { name } = resolution;
+        const { name } = resolution;
 
-            return (evaluator, context) => {
-                if (evaluator.#projectionContext !== null && node === evaluator.#projectionContext.node) {
-                    return evaluator.#projectionContext.value;
-                }
+        // A field of data, which a projection's host call never is.
+        return (evaluator, context) => {
+            if (evaluator.#projectionContext !== null && node === evaluator.#projectionContext.node) {
+                return evaluator.#projectionContext.value;
+            }
 
-                return evaluator.#readField(target(evaluator, context), name);
-            };
-        }
+            return evaluator.#readField(target(evaluator, context), name);
+        };
+    }
 
-        const { type } = resolution;
-        // A predicate the request selects carries it out as it declares itself.
-        const declaration = resolution.contract ?? resolution.declaration;
+    /**
+     * An invocation of a member's declaration, with its function, its arguments and the check of its result made once: its receiver evaluated first, the node's target, or a qualified form's first argument, a null one answering null before its own
+     * arguments are evaluated, and a module member's none; then its arguments, null where one makes the call answer null.
+     */
+    #compileInvocation(node, resolution) {
+        const { type, declaration, qualified } = resolution;
+        const hasReceiver = declaration.target !== undefined;
+        const target = !hasReceiver ? null : this.#getCompiledFunction(qualified ? node.arguments[0] : node.target);
         const implementation = this.#moduleRegistry.getImplementation(declaration);
         const conforms = Evaluator.#compileTypeCheck(type, this.#moduleRegistry);
         const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
@@ -800,7 +828,7 @@ export class Evaluator {
                 return evaluator.#projectionContext.value;
             }
 
-            const receiver = target(evaluator, context);
+            const receiver = target === null ? undefined : target(evaluator, context);
 
             if (receiver === null) {
                 return null;
@@ -810,6 +838,20 @@ export class Evaluator {
 
             return args === null ? null : evaluator.#invokeImplementation(declaration, implementation, conforms, copyStructures, receiver, args, type, node);
         };
+    }
+
+    /** The function value each function reference is, by its declaration: the same for every evaluation, since it holds nothing an evaluation bound. @type {WeakMap<object, { reference: object }>} */
+    static #referenceClosures = new WeakMap();
+
+    static #referenceClosureOf(declaration) {
+        let closure = Evaluator.#referenceClosures.get(declaration);
+
+        if (closure === undefined) {
+            closure = Object.freeze({ reference: declaration });
+            Evaluator.#referenceClosures.set(declaration, closure);
+        }
+
+        return closure;
     }
 
     /**
@@ -826,7 +868,7 @@ export class Evaluator {
         const isOptions = resolution.declaration.arguments === 'options';
         const argumentPlans = resolution.arguments.map((argument, index) => {
             const { parameter } = argument;
-            const isOption = isOptions && !argument.isDefault && parameter.kind !== 'expression' && parameter.kind !== 'predicate';
+            const isOption = isOptions && !argument.isDefault && parameter.kind !== 'expression' && parameter.kind !== 'predicate' && argument.callback?.implicit !== true;
             const isRead = isOption && resolution.arguments.slice(index + 1).some(later => !later.isDefault && Evaluator.#readsLocal(later.node, parameter.name));
             const isField = isOption && buildsObjectRoot === true;
 
@@ -836,13 +878,20 @@ export class Evaluator {
 
             const plan = { name: parameter.name, kind: parameter.kind, evaluate: this.#getCompiledFunction(argument.node), propagatesNull: parameter.nulls === 'propagate', isOption, isRead, isField };
 
-            if (parameter.kind !== 'function') {
+            if (argument.callback === undefined) {
                 return plan;
             }
 
-            const { targets, parameterTypes, resultType } = argument.callback;
+            const { targets, parameterTypes, resultType, implicit } = argument.callback;
+            const callback = { ...plan, propagatesNull: false, member: resolution.declaration.name, parameterTypes, resultType, pointer: argument.pointer, node: argument.node };
 
-            return { ...plan, propagatesNull: false, member: resolution.declaration.name, targets: this.#compileTargets(targets), parameterTypes, resultType, pointer: argument.pointer };
+            // A function given to an expression or a predicate parameter is called with each item, as its body would be evaluated against it.
+            if (parameter.kind !== 'function') {
+                return { ...callback, kind: 'itemFunction', policy: parameter.kind, targets: this.#compileTargets(targets) };
+            }
+
+            // An implicit body is the argument's expression, evaluated against each argument the member calls it with, which is its implicit parameter.
+            return implicit === true ? { ...callback, kind: 'implicitBody' } : { ...callback, targets: this.#compileTargets(targets) };
         });
 
         return (evaluator, context) => {
@@ -873,6 +922,14 @@ export class Evaluator {
                         const evaluateItem = isOptions ? item => evaluator.#evaluateWithin(frame, objectRoot, () => evaluate(evaluator, item)) : item => evaluate(evaluator, item);
 
                         args[plan.name] = plan.kind === 'expression' ? evaluateItem : item => Evaluator.#isTruthy(evaluateItem(item));
+                    } else if (plan.kind === 'itemFunction') {
+                        // The function value is evaluated where it is written, once, and the member calls it with each item; a predicate's receives the truthiness of what it gives.
+                        const callback = evaluator.#callbackOf(plan.evaluate(evaluator, context), plan);
+
+                        args[plan.name] = plan.policy === 'expression' ? callback : evaluator.#sharingLifetime(item => Evaluator.#isTruthy(callback(item)), callback);
+                    } else if (plan.kind === 'implicitBody') {
+                        // The member calls it when it chooses, each call evaluating the expression anew against its argument, with the names and the object root of the place it is written.
+                        args[plan.name] = evaluator.#implicitBodyOf(plan, evaluator.#localsFrame, evaluator.#objectRoot);
                     } else {
                         let value;
 
@@ -909,13 +966,33 @@ export class Evaluator {
         };
     }
 
-    /** The functions a call may evaluate, each with its body compiled once: the function, its parameters and its body's compiled function. */
+    /**
+     * The functions a call may evaluate, each compiled once: a function the script declares, its parameters and its body's compiled function; or a function reference, its declaration, whether it takes a receiver,
+     * and the names of the parameters its values supply after it, the rest left to their defaults.
+     */
     #compileTargets(targets) {
-        return targets.map(target => ({ function: target.function, parameters: target.parameters, evaluateBody: this.#getCompiledFunction(target.body) }));
+        return targets.map(target => {
+            if (target.reference === undefined) {
+                return { function: target.function, parameters: target.parameters, evaluateBody: this.#getCompiledFunction(target.body) };
+            }
+
+            const declaration = target.reference;
+            const hasReceiver = declaration.target !== undefined;
+            const type = Type.parse(declaration.result);
+
+            return { reference: declaration, hasReceiver, parameters: declaration.parameters, conforms: Evaluator.#compileTypeCheck(type, this.#moduleRegistry), copyStructures: Evaluator.#compileStructureCopy(type, this.#moduleRegistry), type };
+        });
     }
 
-    /** The value of a call of the closure: the target's body, evaluated in the closure's scope, implicit parameter and object root, its parameters bound to the values in order. */
-    #callClosure(closure, target, values) {
+    /**
+     * The value of a call of the closure: the target's body, evaluated in the closure's scope, implicit parameter and object root, its parameters bound to the values in order; or, for a function reference, its declaration invoked as its qualified form is,
+     * its receiver the first value, a null one answering null, and its parameters the values after it, each one left out taking its default, its failures named at the node that called it.
+     */
+    #callClosure(closure, target, values, node = null) {
+        if (target.reference !== undefined) {
+            return this.#callReference(target, values, node);
+        }
+
         const { parameters } = target;
         const enclosingFrame = this.#localsFrame;
         const enclosingObjectRoot = this.#objectRoot;
@@ -931,13 +1008,47 @@ export class Evaluator {
         }
     }
 
+    /** A call of a function reference with the values given: its receiver the first where its declaration has one, null answering null, and its own arguments by its parameters' names, those left out taking their defaults. */
+    #callReference(target, values, node) {
+        const { reference: declaration, hasReceiver, parameters } = target;
+        const receiver = hasReceiver ? values[0] : undefined;
+
+        if (receiver === null) {
+            return null;
+        }
+
+        const own = hasReceiver ? values.slice(1) : values;
+        const args = {};
+
+        parameters.forEach((parameter, index) => {
+            args[parameter.name] = index < own.length ? own[index] : parameter.default;
+        });
+
+        // A null argument whose parameter propagates null makes the call answer null without invoking it.
+        if (parameters.some((parameter, index) => index < own.length && own[index] === null && parameter.nulls === 'propagate')) {
+            return null;
+        }
+
+        return this.#invokeImplementation(declaration, this.#moduleRegistry.getImplementation(declaration), target.conforms, target.copyStructures, receiver, args, target.type, node);
+    }
+
+    /**
+     * The function a member is given for an implicit body: the argument's expression evaluated against the one value the member calls it with, which is its implicit parameter, with the names and the object root of the place it is written,
+     * the value checked against the contract's argument type and the result against its result type. It is called while the member's invocation lasts, which closes it, and fails once that is over.
+     */
+    #implicitBodyOf(plan, frame, objectRoot) {
+        const { evaluate } = plan;
+
+        return this.#callbackOf({ implicitBody: value => this.#evaluateWithin(frame, objectRoot, () => evaluate(this, value)) }, plan);
+    }
+
     /**
      * The function a member is given for a parameter its contract declares to take one: a call of the closure with the member's arguments, each checked against the contract's parameter types, and its result against the contract's result type.
      * It is called while the member's invocation lasts, which closes it, and fails once that is over.
      */
     #callbackOf(closure, plan) {
         const { name, member, targets, parameterTypes, resultType, pointer } = plan;
-        const target = targets.length === 1 ? targets[0] : targets.find(candidate => candidate.function === closure.function);
+        const target = closure.implicitBody !== undefined ? null : targets.length === 1 ? targets[0] : targets.find(candidate => (candidate.reference ?? candidate.function) === (closure.reference ?? closure.function));
         const lifetime = { isOpen: true };
         const callback = (...values) => {
             try {
@@ -955,9 +1066,9 @@ export class Evaluator {
                     }
                 });
 
-                const value = this.#callClosure(closure, target, values);
+                const value = target === null ? closure.implicitBody(values[0]) : this.#callClosure(closure, target, values, plan.node);
 
-                if (!this.#conforms(value, resultType)) {
+                if (resultType !== null && !this.#conforms(value, resultType)) {
                     this.#fail(`The function given as '${name}' of '${member}' gave ${Evaluator.#describe(value)}, and its contract declares ${resultType}`, pointer);
                 }
 
@@ -975,6 +1086,13 @@ export class Evaluator {
         this.#callbackLifetimes.set(callback, lifetime);
 
         return callback;
+    }
+
+    /** The function, given the lifetime of the callback it calls, so the member's invocation ending ends both. */
+    #sharingLifetime(fn, callback) {
+        this.#callbackLifetimes.set(fn, this.#callbackLifetimes.get(callback));
+
+        return fn;
     }
 
     /** The lifetime of each function given to a member, open while the member's invocation lasts. @type {WeakMap<Function, { isOpen: boolean }>} */
@@ -1284,13 +1402,12 @@ export class Evaluator {
             return this.#projectionContext.value;
         }
 
-        const receiver = this.#evaluateNode(node.target, context);
+        const resolution = this.#resolvedDefinition.resolutionOf(node);
+        const receiver = this.#evaluateNode(resolution?.qualified === true ? node.arguments[0] : node.target, context);
 
         if (receiver === null) {
             return null;
         }
-
-        const resolution = this.#resolvedDefinition.resolutionOf(node);
 
         if (resolution.kind !== 'bracketPropertyAccess') {
             return this.#readResolvedMember(resolution, receiver, node, context);
@@ -1316,7 +1433,7 @@ export class Evaluator {
 
         const args = this.#evaluateArguments(resolution, context);
 
-        return args === null ? null : this.#invokeMember(resolution.contract ?? resolution.declaration, receiver, args, resolution.type, node);
+        return args === null ? null : this.#invokeMember(resolution.declaration, receiver, args, resolution.type, node);
     }
 
     /** A field of a value, the selections that its value's evaluation made, where an object expression of this evaluation built the value, recorded where it is read; null for no receiver. */
@@ -1395,10 +1512,12 @@ export class Evaluator {
     /** Carries out the implementation of a declaration whose implementation, check of its result and copy of the structures it holds are found already, giving it one object it reads by name. */
     #invokeImplementation(declaration, implementation, conforms, copyStructures, receiver, args, type, node) {
         if (implementation === undefined) {
-            this.#fail(`The module '${this.#moduleRegistry.getOwner(declaration)}' gives ${Evaluator.#isPredicate(declaration) ? `the predicate '${declaration.name}'` : `'${declaration.name}'`} no implementation`, this.#pointerOf(node));
+            this.#fail(`The module '${this.#moduleRegistry.getOwner(declaration)}' gives '${declaration.name}' no implementation`, this.#pointerOf(node));
         }
 
-        const request = this.#host === null ? null : { declaration, receiver, args, pointer: this.#pointerOf(node) };
+        // A module member is read and called through its namespace, and has no receiver.
+        const received = declaration.target === undefined ? {} : { receiver };
+        const request = this.#host === null ? null : { declaration, ...received, args, pointer: this.#pointerOf(node) };
         const samples = this.#beforeInvoke(request, declaration, node);
 
         if (samples === null) {
@@ -1408,7 +1527,7 @@ export class Evaluator {
         let value;
 
         try {
-            value = implementation({ receiver, args, env: this.#environment, ...(declaration.updates?.reads === 'maintained' ? { samples } : {}) });
+            value = implementation({ ...received, args, env: this.#environment, ...(declaration.updates?.reads === 'maintained' ? { samples } : {}) });
         } catch (error) {
             if (this.#callbackErrors.has(error)) {
                 throw error;
@@ -1427,7 +1546,7 @@ export class Evaluator {
         }
 
         if (!conforms(value)) {
-            this.#fail(`${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and ${Evaluator.#isPredicate(declaration) ? 'a predicate answers' : 'it declares'} ${type}`, this.#pointerOf(node));
+            this.#fail(`${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${type}`, this.#pointerOf(node));
         }
 
         if (request !== null && this.#host.afterInvoke !== undefined) {
@@ -1441,16 +1560,9 @@ export class Evaluator {
         return copyStructures === null ? value : copyStructures(value);
     }
 
-    /** Whether the declaration carrying a request out is a predicate, which a verb's fixed argument selects, rather than a member. */
-    static #isPredicate(declaration) {
-        return declaration.kind === undefined;
-    }
-
-    /** What a message names as carrying the request out: the member, or the predicate the verb selects, with the module that declares it. */
-    #subjectOf(declaration, node) {
-        return Evaluator.#isPredicate(declaration)
-            ? `The predicate '${declaration.name}' that '${node.name}' selects, declared by the module '${this.#moduleRegistry.getOwner(declaration)}',`
-            : `The member '${declaration.name}'`;
+    /** What a message names as carrying a member out. */
+    #subjectOf(declaration) {
+        return `The member '${declaration.name}'`;
     }
 
     /**
@@ -1782,7 +1894,7 @@ export class Evaluator {
      * The metadata of the value an expression gave at its place in the result, read from the identities its copy left there: the record of the expression that produced it, followed through locals, bodies, `do` blocks, function calls,
      * object-root fields, the branch or operand a selecting expression selected and the property a bracket property access selected; a field read keeps the record its whole has for that field, or its whole's own.
      * An object expression's value records each field, and a projection's each item and the reference it came from. The value is undefined where the expression is described for a part read from it, and nothing beyond its record is described then.
-     * The context record is the record of the value `context` stands for where the expression stands, the value an object expression follows or the item it projects, or null where there is none.
+     * The context record is the record of the value `it` stands for where the expression stands, the value an object expression follows or the item it projects, or null where there is none.
      */
     #metadataOf(node, value, identities, contextRecord) {
         const branches = identities?.branches ?? null;
@@ -1803,10 +1915,15 @@ export class Evaluator {
                     continue;
                 case 'functionCall': {
                     const { targets } = this.#resolvedDefinition.resolutionOf(node);
-                    const called = targets.length === 1 ? targets[0] : targets.find(target => target.function === branches?.get(node));
+                    const called = targets.length === 1 ? targets[0] : targets.find(target => (target.reference ?? target.function) === branches?.get(node));
 
                     if (called === undefined) {
                         return this.#recordOf(node, null, null);
+                    }
+
+                    // A call of a function reference produces its value itself, as the member it invokes does.
+                    if (called.reference !== undefined) {
+                        return this.#recordOf(node, null, called.reference.updates?.tolerance ?? null);
                     }
 
                     node = called.body;
@@ -1841,7 +1958,7 @@ export class Evaluator {
 
                     return this.#recordOf(node, candidate, resolution?.declaration?.updates?.tolerance ?? null);
                 }
-                case 'context':
+                case 'it':
                     return contextRecord ?? this.#recordOf(node, null, null);
                 case 'object':
                     return this.#metadataOfObject(node, value, identities, contextRecord);
@@ -1864,7 +1981,7 @@ export class Evaluator {
 
     /** The metadata of an object expression's value: an object's record of each field, a projected list's record of each item with the reference each came from, or its own record alone where it gave null or is described for a part read from it. */
     #metadataOfObject(node, value, identities, contextRecord) {
-        // The fields read `context` as the value the expression follows, each item of it where it projects a list, and as the enclosing one where it follows none.
+        // The fields read `it` as the value the expression follows, each item of it where it projects a list, and as the enclosing one where it follows none.
         const followed = node.target === undefined ? null : this.#metadataOf(node.target, undefined, identities, contextRecord);
 
         if (Array.isArray(value)) {

@@ -32,10 +32,12 @@ In this document:
 | Body | What a script, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](scripts.md#bodies) |
 | Do block | `do … end`, a body evaluated where it stands, giving its result | [Bodies](scripts.md#bodies) |
 | Local | A name declared with `let` in a body or an object expression, visible after its declaration through its scope, holding a value or a function | [Locals](scripts.md#locals) |
-| Function | A calculation evaluated by a call. A module declares a member function; an expression declares a regular or arrow function that can be held by a local or passed as an argument value. | [Functions](functions.md#functions), [What a member declares](members.md#what-a-member-declares) |
+| Function | A calculation evaluated by a call. A module declares a member function, which a script also passes by reference; an expression declares a regular or arrow function that can be held by a local or passed as an argument value. | [Functions](functions.md#functions), [What a member declares](members.md#what-a-member-declares) |
 | Regular function | `function(…) … end`, whose body is a body | [Functions](functions.md#functions-declaring-one) |
 | Arrow function | `parameters => expression`, whose body is one simple expression, a local's initializer or an argument | [Functions](functions.md#functions-declaring-one) |
-| Function value | A function read by its name without a call, or an arrow function written as an argument, used within the expression and never part of its result | [Functions as values](functions.md#functions-as-values) |
+| Function value | A function read by its name without a call, an arrow function written as an argument, a function reference or an implicit body, used within the expression and never part of its result | [Functions as values](functions.md#functions-as-values) |
+| Function reference | A module's function read through its namespace without a call, as `home.active`, taking its receiver first and its own arguments after it | [Module functions as values](functions.md#functions-module-functions) |
+| Implicit body | An expression reading `it`, given to a function parameter whose callback takes one argument, which is its `it` | [Implicit bodies](functions.md#functions-implicit-bodies) |
 | Callback contract | The argument types and the result type a member declares for a function parameter, which a function given to it is checked against | [Arguments](members.md#arguments) |
 | Function parameter | A name a function declares, holding the argument each call gives it | [Functions](functions.md#functions) |
 | Script parameter | A name a script reads and does not declare, which its host binds | [Script parameters](scripts.md#scripts-script-parameters) |
@@ -65,7 +67,7 @@ In this document:
 | Argument form | What a member's arguments supply, positional, its parameters in order, or options, one options object whose fields name them | [Parameters and arguments](members.md#arguments) |
 | Options object | The one object expression given to a member that takes options, whose fields supply its parameters | [Arguments](members.md#arguments-options) |
 | Value, expression and predicate arguments | An argument evaluated once where the call is written; one the member evaluates against each implicit parameter its signature declares; and one of those whose truthiness the member receives | [Arguments](members.md#arguments) |
-| Fixed argument | A value argument the expression's resolution settles to a string that selects a declaration, as those of `is` and `on` do | [Arguments](members.md#arguments) |
+| Fixed argument | A value argument the expression's resolution settles to a string that selects a declaration, as `on`'s does | [Arguments](members.md#arguments) |
 | Optional chain | A chain whose optional access stops it with null for a null receiver | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
 | Optional enclosed access | `(? … )`, shorthand making every access in a member chain optional | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
 
@@ -75,7 +77,7 @@ In this document:
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Test | A member that answers a Boolean, or a predicate asked with its verb | [Tests](expressions.md#tests) |
+| Test | A member that answers a Boolean, or the function a verb is given to test its receiver | [Tests](expressions.md#tests) |
 | Equality | `==`, comparing two values; `!=` negates it | [Equalities](expressions.md#equalities) |
 | Truthy / falsey | Every value is truthy except null and false | [Truthiness](expressions.md#truthiness) |
 | Logical expression | `and` or `or`, returning the operand that decides it | [Logical expressions](expressions.md#logical-expressions-negations-and-groups) |
@@ -107,11 +109,11 @@ In this document:
 | Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
 | Namespace | A module's name in text read through its registry, through which its module members and its qualified forms are reached | [Namespaces](modules.md#namespaces) |
 | Module member | A member a module declares on no type, read through its namespace, as `home.rooms` | [Module members](modules.md#namespaces-module-members) |
-| Owner | The module that declares a type, whose members, predicates and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
-| Extension | A member, predicate or indexer a module declares on a type another module owns | [Extensions](modules.md#extensions) |
-| Qualified form | A member or a predicate called through its module's namespace, the receiver first, as `energy.usage(device)` | [Qualified access](modules.md#namespaces-qualified-access) |
-| Predicate | A Boolean question of a receiver under a name of its own, asked with its verb | [Predicates](vocabulary.md#predicates) |
-| Verb | `is`, `has` or `supports`, the call that asks a predicate by its name | [Predicates](vocabulary.md#predicates) |
+| Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
+| Extension | A member or indexer a module declares on a type another module owns | [Extensions](modules.md#extensions) |
+| Qualified form | A member called through its module's namespace, the receiver first, as `energy.usage(device)` | [Qualified access](modules.md#namespaces-qualified-access) |
+| Boolean function | A function whose result is a `boolean`, the form a module gives a test of its receiver, as `device.active()` | [Boolean functions](vocabulary.md#vocabulary-boolean-functions) |
+| Verb | `is`, `has` or `supports`, Lexica's function answering whether its receiver passes the test it is given | [The verbs](vocabulary.md#vocabulary-verbs) |
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](vocabulary.md#observations) |
 | Observation type | A module's declaration of an observation, its contract an invalidation or maintained | [Observations](vocabulary.md#observations) |
 | Observation target | What a module declares its observations may observe besides the receiver and an argument, independent of the receiver or found from it, one target or several | [Observations](vocabulary.md#observations) |

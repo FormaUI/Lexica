@@ -4,6 +4,7 @@
 
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
 import { LexicaError } from '../LexicaError.mjs';
+import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
 import { Vocabulary } from './Vocabulary.mjs';
@@ -27,9 +28,6 @@ export class LexicaRegistry {
     /** @type {Map<string, object>} */
     #observationTypes = new Map();
 
-    /** Each predicate, by its name, a name naming one for each of the receivers it applies to. @type {Map<string, object[]>} */
-    #predicates = new Map();
-
     /** Each conversion, by its source type and then its target. @type {Map<string, Map<string, object>>} */
     #conversions = new Map();
 
@@ -51,6 +49,11 @@ export class LexicaRegistry {
         return [...this.#modules.keys()];
     }
 
+    /** The names of the modules whose namespaces text read with the registry reaches: every module registered but Lexica's own, which has no namespace. */
+    get namespaceNames() {
+        return [...this.#modules.values()].filter(module => module !== Vocabulary.module).map(module => module.name);
+    }
+
     /** Registers a module's declarations, refusing a module whose names are taken or whose declarations break the registry's rules, before registering any of them. */
     registerModule(module) {
         if (!LexicaModule.isModule(module)) {
@@ -63,6 +66,11 @@ export class LexicaRegistry {
 
         if (this.#modules.has(module.name)) {
             fail('A module is registered once, and this name is taken');
+        }
+
+        // A module's name begins its namespace in the registry's text, which a word the language reserves already means something in.
+        if (Names.isReservedWord(module.name)) {
+            fail(`'${module.name}' is a word the language reserves, and names no module`);
         }
 
         const ownTypes = new Set(module.types.map(type => type.name));
@@ -92,15 +100,11 @@ export class LexicaRegistry {
 
         LexicaRegistry.#checkTypeNames(module, types, fail);
 
-        for (const declaration of [...module.members, ...module.predicates]) {
+        for (const declaration of module.members) {
             LexicaRegistry.#validateObservations(declaration, observationTypes, ownerOf, fail);
         }
 
-        // A module declares members and predicates on any type, its own or another module's, by any name, and module members, which have no target, by any name its own module members do not take.
-        module.predicates.forEach((predicate, index) => {
-            this.#checkCollision(predicate, [...this.getPredicates(predicate.name), ...module.predicates.slice(0, index).filter(other => other.name === predicate.name)], fail, 'predicate');
-        });
-
+        // A module declares members on any type, its own or another module's, by any name, and module members, which have no target, by any name its own members do not take: a module member's name in its namespace is its own.
         module.members.forEach((declaration, index) => {
             const earlier = module.members.slice(0, index).filter(other => other.name === declaration.name);
 
@@ -109,7 +113,15 @@ export class LexicaRegistry {
                     fail(`The module member '${declaration.name}' is declared already`, declaration.name, 'name');
                 }
 
+                if (earlier.length > 0) {
+                    fail(`'${declaration.name}' is a module member, read as ${module.name}.${declaration.name}, and a member of that name on a receiver is declared already, which ${module.name}.${declaration.name}(…) would call`, declaration.name, 'target');
+                }
+
                 return;
+            }
+
+            if (earlier.some(other => other.target === undefined)) {
+                fail(`'${declaration.name}' is a module member, read as ${module.name}.${declaration.name}, so no member of that name is declared on a receiver beside it`, declaration.name, 'target');
             }
 
             this.#checkCollision(declaration, [...this.getMembers(declaration.name), ...earlier], fail);
@@ -177,11 +189,6 @@ export class LexicaRegistry {
             this.#owners.set(declaration, module.name);
         }
 
-        for (const predicate of module.predicates) {
-            this.#predicates.set(predicate.name, [...this.getPredicates(predicate.name), predicate]);
-            this.#owners.set(predicate, module.name);
-        }
-
         for (const conversion of module.conversions) {
             if (!this.#conversions.has(conversion.from)) {
                 this.#conversions.set(conversion.from, new Map());
@@ -199,19 +206,14 @@ export class LexicaRegistry {
         return this.#members.get(name) ?? [];
     }
 
-    /** The predicates named so, across every module, each for the receivers it applies to. */
-    getPredicates(name) {
-        return this.#predicates.get(name) ?? [];
-    }
-
     /** The names of every member declared, across every module. */
     get memberNames() {
         return [...this.#members.keys()];
     }
 
-    /** The names of every predicate declared, across every module. */
-    get predicateNames() {
-        return [...this.#predicates.keys()];
+    /** The module registered under the name, or undefined. */
+    getModule(name) {
+        return this.#modules.get(name);
     }
 
     /** The indexers declared the default of their receivers, across every module. */
@@ -319,10 +321,6 @@ export class LexicaRegistry {
         }
 
         module.selectableTypes.forEach(selectable => check(selectable.type, selectable.name));
-
-        for (const predicate of module.predicates) {
-            [predicate.target].flat().filter(notation => notation !== 'any').forEach(notation => check(notation, predicate.name));
-        }
 
         for (const declaration of module.members) {
             [declaration.target ?? []].flat().filter(notation => notation !== 'any').forEach(notation => check(notation, declaration.name));
@@ -463,13 +461,13 @@ export class LexicaRegistry {
         }
     }
 
-    /** Refuses a member, or a predicate, that a registered one of its name already answers on one of the same receivers; a module member, which has no target, answers on none. */
-    #checkCollision(declaration, others, fail, what = 'member') {
+    /** Refuses a member that a registered one of its name already answers on one of the same receivers; a module member, which has no target, answers on none. */
+    #checkCollision(declaration, others, fail) {
         for (const other of others.filter(candidate => candidate.target !== undefined)) {
             for (const mine of [declaration.target].flat()) {
                 for (const theirs of [other.target].flat()) {
                     if (LexicaRegistry.#overlap(mine, theirs)) {
-                        fail(`${what === 'predicate' ? 'The predicate ' : ''}'${declaration.name}' is declared already for ${theirs}`, declaration.name, 'target');
+                        fail(`'${declaration.name}' is declared already for ${theirs}`, declaration.name, 'target');
                     }
                 }
             }

@@ -22,26 +22,26 @@ describe('Vocabulary', () => {
         expect(module.name).toBe('lexica');
         expect(module).toBe(Vocabulary.module);
         expect(module.conversions.every(conversion => typeof conversion.implementation === 'function')).toBe(true);
-        expect(module.members.filter(member => member.implementation === undefined).map(member => member.name)).toEqual(['is', 'has', 'supports']);
+        expect(module.members.every(member => typeof member.implementation === 'function')).toBe(true);
     });
 
-    it('declares the members of lists, the verbs that ask a predicate, and the conversions between strings, numbers and Booleans, and nothing of any domain', () => {
+    it('declares the members of lists, the verbs that test a receiver, and the conversions between strings, numbers and Booleans, and nothing of any domain', () => {
         expect(module.members.map(member => `${member.target}.${member.name}`)).toEqual([
-            'list<T>.count', 'list<T>.first', 'list<T>.last', 'list<T>.item', 'any.is', 'any.has', 'any.supports', 'list<T>.max', 'list<T>.min', 'list<T>.sum', 'list<T>.where',
+            'list<T>.count', 'list<T>.first', 'list<T>.last', 'list<T>.item', 'T.is', 'T.has', 'T.supports', 'list<T>.max', 'list<T>.min', 'list<T>.sum', 'list<T>.where',
         ]);
         expect(module.conversions.map(conversion => `${conversion.from} to ${conversion.to}`)).toEqual(['string to number', 'number to string', 'boolean to string', 'string to boolean']);
         expect(module.types).toEqual([]);
-        expect(module.predicates).toEqual([]);
         expect(module.observationTypes).toEqual([]);
         expect([module.typeSelectors, module.selectableTypes]).toEqual([[], []]);
     });
 
-    it.each(['is', 'has', 'supports'])('declares %s as the one function call that asks a predicate of its verb, of any receiver, carried out by the predicate it selects', verb => {
+    it.each(['is', 'has', 'supports'])('declares %s as the one function of any receiver, answering what its test, a function of the receiver\'s own type, answers of it', verb => {
         const [declaration] = registry.getMembers(verb);
 
         expect(registry.getMembers(verb)).toHaveLength(1);
-        expect(declaration).toMatchObject({ kind: 'function', syntax: 'function-call', target: 'any', result: 'boolean', updates: { changes: 'derived', reads: 'derived' } });
-        expect(declaration.parameters[0]).toMatchObject({ name: 'name', type: 'string', fixed: true, selects: 'predicate' });
+        expect(declaration).toMatchObject({ kind: 'function', syntax: 'function-call', target: 'T', result: 'boolean', updates: { changes: 'derived', reads: 'derived' } });
+        expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'boolean', parameters: ['T'], required: true }]);
+        expect([read(verb, 'oat', { test: receiver => receiver === 'oat' }), read(verb, 'milk', { test: receiver => receiver === 'oat' })]).toEqual([true, false]);
     });
 
     it('reads a list\'s count, its first and last item, and the item at a whole index from zero, null where there is none', () => {

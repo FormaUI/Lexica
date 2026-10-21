@@ -42,7 +42,7 @@ A binding set has a **resolution key**: each binding's type, and each primitive 
 
 ## Resolution
 
-`registry.resolve(source, bindings)` resolves a script: it reads its text with the registry's module names, or takes its definition, resolves every member against the registry, types the result and records what each member resolved to, without a host and without evaluating anything. A resolution answers its definition, its host call, null for a script that gives a value, its result type, null for a host call that declares no result, the type at any path of its result, the location of any of its nodes, and its **used declarations**, every declaration the script may use, one only an unreached branch uses included.
+`registry.resolve(source, bindings)` resolves a script: it reads its text as `registry.parse` does, with the registry's module names, or takes its definition, resolves every member against the registry, types the result and records what each member resolved to, without a host and without evaluating anything. A resolution answers its definition, its host call, null for a script that gives a value, its result type, null for a host call that declares no result, the type at any path of its result, the location of any of its nodes, and its **used declarations**, every declaration the script may use, one only an unreached branch uses included.
 
 All branches and operands are validated even when evaluation will not reach them, so a host's policy over the used declarations, as whether it keeps a result current over a partly observable member, concerns them all before anything is evaluated.
 
@@ -64,6 +64,7 @@ All branches and operands are validated even when evaluation will not reach them
 | Equality | Operand types fit in at least one direction. Values other than strings, numbers, Booleans and reference values compare only with null. |
 | Arithmetic and comparisons | Every operand is a non-null number. |
 | Interpolation | Every interpolation gives a non-null string or number. |
+| Function arguments | Each is a function value, a function reference or an implicit body, whose argument types and result fit its parameter's callback contract; a function reference names one declaration. |
 | Function calls | The local or function parameter holds a function, never null; the argument count matches each function it may be, whose body resolves against that call's argument types, their results merging; no call reaches a function within its own call. |
 | Conditions and logical operands | Each is a value. Truthiness determines the branch; a host call cannot be used as that value. |
 | Coalescing | Value and fallback have compatible types. |
@@ -153,14 +154,14 @@ A list holds no missing item, as every list does. Narrowing a reference is the o
 
 A projection reads what the call was prepared with, and evaluates the rest anew:
 
-- **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, and one holding a computed value holds the value. In the example, each projection reads `room.is("occupied")` of the room the call was prepared with, as that room is when the motion arrives, while `occupied` keeps whether it was occupied when the call was prepared. Both read one receiver, since reading `sensor.room` again could find another room, a sensor being movable.
+- **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, and one holding a computed value holds the value. In the example, each projection reads `room.occupied()` of the room the call was prepared with, as that room is when the motion arrives, while `occupied` keeps whether it was occupied when the call was prepared. Both read one receiver, since reading `sensor.room` again could find another room, a sensor being movable.
 - **Its own evaluation.** Each projection is an evaluation of its own, with its own supplied value, host and state; the result projection's own locals are evaluated in each, and projecting a value for one prepared call never changes what another was prepared with.
 - **Function values.** A function a local before the call holds is called in any projection, as a function value is anywhere within the script; a function a projection gives a member lasts while that member's invocation does, as every function given to a member does. A host call's arguments are values, so no function reaches the host.
 
 ```lexica
 let room = sensor.room
-let occupied = room.is("occupied")
-return sensor.on("motion") { at = it.at, isOccupied = room.is("occupied"), wasOccupied = occupied }
+let occupied = room.occupied()
+return sensor.on("motion") { at = it.at, isOccupied = room.occupied(), wasOccupied = occupied }
 ```
 
 Lexica requires no disposal of a prepared call, which starts nothing; the lifetime of whatever its host starts is the host's. A prepared call holds the locals and the references it was prepared with for as long as it is reachable. Each projection goes through the checks every evaluation does, the refusal of a registry that has moved since the resolution among them.

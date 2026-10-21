@@ -9,10 +9,10 @@ Values are immutable. No expression changes a value once it exists, and none ass
 
 ```lexica
 room {
-    name = it.name,                                   // A string.
-    warmth = it.climate?.temperature ?? 0,            // A number, a fallback where there is none.
-    devices = it.devices { name = it.name },          // A list of objects, one for each device.
-    level = it.device("lamp")?:["level"] to "number"  // A setting's text, converted.
+    name = it.name,                                 // A string.
+    warmth = it.climate?.temperature ?? 0,          // A number, a fallback where there is none.
+    devices = it.devices { name = it.name },        // A list of objects, one for each device.
+    level = it.device("lamp")?:["level"] to number  // A setting's text, converted.
 }
 ```
 
@@ -100,7 +100,7 @@ Where a conditional or `??` can give either of two references, both must refer t
 
 ## Null
 
-Null answers both "there is no such value", as when `room.device(name)` finds no device, and "the value is unavailable", as when a sensor has reported no temperature yet. One null for both keeps results simple, at the cost of telling the two apart; a member whose consumers need the difference offers it separately, as `is("offline")` says whether a device has stopped reporting.
+Null answers both "there is no such value", as when `room.device(name)` finds no device, and "the value is unavailable", as when a sensor has reported no temperature yet. One null for both keeps results simple, at the cost of telling the two apart; a member whose consumers need the difference offers it separately, as `device.offline()` says whether a device has stopped reporting.
 
 A member's signature declares its result type, as [types](types.md) set out, and a result marked `?` can be null by itself; an optional access answers null where its receiver is null, and any member answers null where an argument is null and its parameter propagates null. An optional access of null answers null and ends its chain. `??` supplies a fallback for null. Errors fail the result rather than becoming null; see [diagnostics and errors](diagnostics-and-errors.md).
 
@@ -135,20 +135,20 @@ Each evaluation produces a new result, immutable throughout: its lists and objec
 
 ## Conversions
 
-A conversion answers a value converted to another type of data: `value to "type"` evaluates its value, carries out the conversion the vocabulary declares from the value's type to the type it names, and answers the converted value. A [cast](types.md#casts) converts nothing, and a conversion casts nothing.
+A conversion answers a value converted to another type of data: `value to type` evaluates its value, carries out the conversion the vocabulary declares from the value's type to the type it names, and answers the converted value. A [cast](types.md#casts) converts nothing, and a conversion casts nothing.
 
 ```lexica
-device:["level"] to "number"
-device:["level"] to "number" ?? 0
-device:["night-mode"] to "boolean"
-room.devices.count to "string"
+device:["level"] to number
+device:["level"] to number ?? 0
+device:["night-mode"] to boolean
+room.devices.count to string
 ```
 
 <a id="conversions-target-type"></a>
 
 ### The type a conversion names
 
-The type is a quoted type name: `number`, `string`, `boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `climate` holds its readings.
+The type is a type's name, written bare, as `to number` writes it, and a string in its place, `to "number"`, is a syntax error giving the bare name. It is `number`, `string`, `boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `climate` holds its readings.
 
 A conversion converts data, so a reference value and a structured type that holds one are no type it converts between, and what reads a host's state stays a member's, which declares how it changes; a reference value is cast to a type of its hierarchy with `as`.
 
@@ -158,13 +158,13 @@ A list itself is no type a conversion converts between, and neither is a type th
 
 ### One declared conversion
 
-A value converts to another type only through the one conversion the vocabulary declares from its type to that type, as [conversions](vocabulary.md#vocabulary-conversions) declare them. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to "number"` is still a validation error, whose message names the types a Boolean converts to. A script that means both conversions writes both.
+A value converts to another type only through the one conversion the vocabulary declares from its type to that type, as [conversions](vocabulary.md#vocabulary-conversions) declare them. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to number` is still a validation error, whose message names the types a Boolean converts to. A script that means both conversions writes both.
 
 <a id="conversions-a-value-already-of-the-type"></a>
 
 ### A value already of the type
 
-A value already of the type answers itself, so `5 to "number"` is 5. This is the language's rule, and no conversion is declared from a type to itself.
+A value already of the type answers itself, so `5 to number` is 5. This is the language's rule, and no conversion is declared from a type to itself.
 
 <a id="conversions-null"></a>
 
@@ -172,13 +172,13 @@ A value already of the type answers itself, so `5 to "number"` is 5. This is the
 
 A conversion of null answers null without converting, and its type is the type it converts to, made nullable where its value can be null.
 
-A value of the type null, a null binding, converts to any type a conversion can name, however many conversions reach it, since nothing is converted; a value whose type is known is checked by that type without null, so `room.device(name) to "string"` is a validation error, as a conversion from a device is declared nowhere.
+A value of the type null, a null binding, converts to any type a conversion can name, however many conversions reach it, since nothing is converted; a value whose type is known is checked by that type without null, so `room.device(name) to string` is a validation error, as a conversion from a device is declared nowhere.
 
 <a id="conversions-what-fails"></a>
 
 ### What fails
 
-A value its conversion rejects, as `"40%" to "number"`, fails the evaluation with an evaluation error naming the conversion, the reason it gave and where it stands. A conversion that fails otherwise, by throwing or by answering a value not of its type, has a fault, which fails the evaluation too.
+A value its conversion rejects, as `"40%" to number`, fails the evaluation with an evaluation error naming the conversion, the reason it gave and where it stands. A conversion that fails otherwise, by throwing or by answering a value not of its type, has a fault, which fails the evaluation too.
 
 A failure never answers null or a default: `?? 0` gives a missing setting a value, and leaves a malformed one an error, for which [an attempt](expressions.md#attempts) answers null instead.
 

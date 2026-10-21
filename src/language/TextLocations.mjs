@@ -26,6 +26,13 @@ export class TextLocations {
         return this.#text;
     }
 
+    /** The pointer of the part the span is of, with the text position it began at; the definition's root where no part of it has the span. */
+    locateSpan(span) {
+        const pointer = [...this.#spans].find(([, candidate]) => candidate === span)?.[0] ?? '/expression';
+
+        return { pointer, ...LexicaError.locate(this.#text, span.start) };
+    }
+
     /** The text position the pointer's part began at, or the nearest enclosing part's. */
     locate(pointer) {
         for (let current = pointer; ; current = current.slice(0, current.lastIndexOf('/'))) {

@@ -95,11 +95,21 @@ describe('LexicaRegistry', () => {
     });
 
     describe('module members, which have no target', () => {
-        it('are declared once by name within their module, which no member of a receiver collides with', () => {
-            const home = new LexicaModule('home', { members: [declaration({ name: 'now', target: undefined }), declaration({ name: 'now', target: 'element' })] });
+        it('are declared once by name within their module, and reserve their name in its namespace, so a member of a receiver of that name is refused beside them', () => {
+            const members = [declaration({ name: 'now', target: undefined }), declaration({ name: 'now', target: 'element' })];
 
-            expect(() => new LexicaRegistry([Vocabulary.module, home])).not.toThrow();
+            for (const declared of [members, [...members].reverse()]) {
+                expect(refusalOf(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('home', { members: declared })]))).toMatchObject({ module: 'home', declaration: 'now', field: 'target' });
+            }
+
             expect(refusalOf(() => new LexicaRegistry([new LexicaModule('home', { members: [declaration({ name: 'now', target: undefined }), declaration({ name: 'now', target: undefined })] })]))).toMatchObject({ declaration: 'now', field: 'name' });
+        });
+
+        it('leave a member of their name on a receiver to another module, whose namespace is its own', () => {
+            const home = new LexicaModule('home', { members: [declaration({ name: 'now', target: undefined })] });
+            const office = new LexicaModule('office', { members: [declaration({ name: 'now', target: 'element' })] });
+
+            expect(() => new LexicaRegistry([Vocabulary.module, home, office])).not.toThrow();
         });
 
         it('take one name in two modules, each read through its own namespace', () => {
@@ -262,39 +272,28 @@ describe('conversions', () => {
     });
 });
 
-describe('predicates', () => {
-    const lit = (overrides = {}) => ({ name: 'lit', target: 'element', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'mutation', of: 'receiver', attributes: ['data-lit'] }] }, ...overrides });
-    // The observation type the predicates name, which a module of its own declares.
-    const observing = new LexicaModule('observing', { observationTypes: [{ name: 'mutation', contract: 'invalidation' }] });
-    const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, observing, ...modules]);
+describe("a module's own collisions", () => {
+    const lit = (overrides = {}) => declaration({ name: 'lit', kind: 'function', result: 'boolean', parameters: [], ...overrides });
+    const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, ...modules]);
 
-    it('are found by their name, with the module that declares each', () => {
-        const registry = registering(new LexicaModule('lit', { predicates: [lit()] }))();
-
-        expect(registry.getPredicates('lit')).toEqual([{ verb: 'is', ...lit() }]);
-        expect(registry.getPredicates('dim')).toEqual([]);
-        expect(registry.predicateNames).toContain('lit');
-        expect(registry.getOwner(registry.getPredicates('lit')[0])).toBe('lit');
+    it('refuse members of one name on overlapping receivers, a type and the type beneath it among them, the test of a receiver as any other', () => {
+        expect(refusalOf(registering(new LexicaModule('lit', { members: [lit(), lit()] })))).toMatchObject({ declaration: 'lit', field: 'target' });
+        expect(messageOf(registering(new LexicaModule('lit', { members: [lit(), lit({ target: 'node' })] })))).toContain("'lit' is declared already for element");
+        expect(messageOf(registering(new LexicaModule('lit', { members: [lit(), declaration({ name: 'lit', target: 'node' })] })))).toContain("'lit' is declared already for element");
     });
 
-    it('take any name on any type, their module\'s own or another\'s, as members do', () => {
-        const own = new LexicaModule('glow', { types: [{ name: 'glowView', fields: { level: 'number' } }], predicates: [lit({ name: 'bright', target: 'glowView' }), lit({ name: 'dim', target: 'glowView' })] });
+    it('take one name on receivers that do not overlap, each receiver selecting its own', () => {
+        const views = new LexicaModule('views', { types: [{ name: 'panelView', fields: { a: 'number' } }, { name: 'rowView', fields: { a: 'number' } }], members: [lit({ target: 'panelView' }), lit({ target: 'rowView' })] });
 
-        expect(registering(own)().getPredicates('dim')).toHaveLength(1);
-        expect(registering(new LexicaModule('glow', { predicates: [lit({ name: 'bright' })] }))().getPredicates('bright')).toHaveLength(1);
+        expect(registering(views)().getMembers('lit')).toHaveLength(2);
     });
 
-    it('are declared once for any receiver, and once for each of receivers that do not overlap', () => {
-        expect(refusalOf(registering(new LexicaModule('lit', { predicates: [lit(), lit()] })))).toMatchObject({ declaration: 'lit', field: 'target' });
+    it('find a module by its name, which gives its namespace, every module but Lexica\'s own', () => {
+        const views = new LexicaModule('views', { members: [lit()] });
+        const registry = registering(views)();
 
-        const views = new LexicaModule('views', { types: [{ name: 'panelView', fields: { a: 'number' } }, { name: 'rowView', fields: { a: 'number' } }], predicates: [lit({ name: 'lit', target: 'panelView' }), lit({ name: 'lit', target: 'rowView' })] });
-
-        expect(registering(views)().getPredicates('lit')).toHaveLength(2);
-        expect(messageOf(registering(new LexicaModule('lit', { predicates: [lit(), lit({ target: 'node' })] })))).toContain("The predicate 'lit' is declared already for element");
-    });
-
-    it('apply to types Lexica or a module declares, through observations a module declares', () => {
-        expect(messageOf(registering(new LexicaModule('lit', { predicates: [lit({ target: 'lamp' })] })))).toContain("'lamp' names the type 'lamp', which neither Lexica nor a module registered with it declares");
-        expect(messageOf(registering(new LexicaModule('lit', { predicates: [lit({ updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'glow', of: 'receiver' }] } })] })))).toContain("The observation type 'glow' is declared by no module");
+        expect(registry.getModule('views')).toBe(views);
+        expect(registry.namespaceNames).toEqual(['views']);
+        expect(registry.moduleNames).toEqual(['lexica', 'views']);
     });
 });

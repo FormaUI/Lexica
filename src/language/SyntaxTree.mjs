@@ -4,7 +4,7 @@
 
 /** @typedef {import('./Tokenizer.mjs').Token} Token */
 /** @typedef {{ kind: string, children: (SyntaxNode | Token)[] }} SyntaxNode */
-/** @typedef {{ kind: 'source', text: string, children: [SyntaxNode | Token, Token] }} SourceNode */
+/** @typedef {{ kind: 'script', text: string, children: [SyntaxNode | Token, Token] }} ScriptNode */
 /** @typedef {{ kind: 'whitespace' | 'line-comment' | 'block-comment', start: number, end: number }} TriviaPiece */
 
 /**
@@ -12,7 +12,7 @@
  * A contract within Lexica until a public tooling API stabilizes it.
  */
 export const NODE_KINDS = Object.freeze([
-    'source',
+    'script',
     'conditional-expression',
     'body',
     'do-expression',
@@ -33,6 +33,7 @@ export const NODE_KINDS = Object.freeze([
     'conversion',
     'cast',
     'chain',
+    'namespace-access',
     'dot-property-access',
     'bracket-property-access',
     'member-call',
@@ -95,7 +96,7 @@ export class SyntaxTree {
 
     /**
      * The text the tree was read from, rebuilt from its tokens and the trivia before each, the end of the text's included.
-     * @param {SourceNode} tree
+     * @param {ScriptNode} tree
      */
     static textOf(tree) {
         let text = '';
