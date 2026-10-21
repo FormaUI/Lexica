@@ -135,7 +135,21 @@ if (call.kind === 'prepared') {
 ```
 
 - **`evaluator.prepareCall()`** evaluates the locals the script declares before the host call, then the call's receiver and arguments, once, as `evaluate` evaluates a script without a host, and answers a **prepared call**, `{ kind: 'prepared', declaration, receiver, args, location }`, the arguments by parameter name; or a **skipped call**, `{ kind: 'skipped', location }`, where the receiver is null, an argument whose parameter propagates null is null, or the call has no declaration yet, so there is nothing to invoke and nothing to project. A skipped call is never invoked, and what its host answers for one is the host's to say. Preparing a script that gives a value is refused with an evaluation error. An evaluator prepares its call as often as it is asked, and each prepared call is its own, so the prepared calls of one evaluator coexist without affecting one another.
-- **`call.project(value, host?)`** projects one value the host supplies for the prepared call: it checks the value against the call's declared `result` and takes it as the evaluator takes any member's answer, then evaluates the result projection against it, as `evaluate` evaluates a script for the host given, and answers as `evaluate` does, with the value, whether a member it read was pending, and the metadata. A host call followed by no result projection answers the supplied value itself in that shape. A value of another type fails with an evaluation error naming the call. A call that declares no `result` supplies nothing to project, so its prepared call has no `project`.
+- **`call.project(value, host?)`** projects one value the host supplies for the prepared call: it captures the value as the call's declared `result`, as [capturing a supplied value](#runtime-host-calls-capturing) sets out, then evaluates the result projection against it, as `evaluate` evaluates a script for the host given, and answers as `evaluate` does, with the value, whether a member it read was pending, and the metadata. A host call followed by no result projection answers the captured value itself in that shape. A call that declares no `result` supplies nothing to project, so its prepared call has no `project`.
+
+<a id="runtime-host-calls-capturing"></a>
+
+**Capturing a supplied value.** A host supplies its values from outside the script, and `project` captures each as the type its call declares before the result projection reads it, at every level of it: the value itself, each field of a structure, a structure nested in a field among them, and each item of a list.
+
+| What is supplied | What is captured |
+| --- | --- |
+| Nothing, a field missing or `undefined` among them | Null where its type is nullable; the projection fails where it is not |
+| Null | Null where its type is nullable; the projection fails where it is not |
+| A value its type admits | The value, a structure as its declared fields alone, and a list item by item |
+| A reference of another type, where a nullable reference type is declared | Null, so the value keeps only the reference its type names, as a `light?` field holding a thermostat is null |
+| Any other value, data its type does not admit among them | The projection fails with an evaluation error naming the call and the part of the value |
+
+A list holds no missing item, as every list does. Narrowing a reference is the one thing capturing turns into null, so mistyped data fails whatever its type's nullability. A member's answer is never captured: its implementation answers what its member declares.
 
 A projection reads what the call was prepared with, and evaluates the rest anew:
 

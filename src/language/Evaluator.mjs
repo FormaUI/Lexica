@@ -275,22 +275,25 @@ export class Evaluator {
     }
 
     /**
-     * Projects one value the host supplied for a prepared call: checks it against the type the call declares and takes it as the evaluator takes any member's answer, then evaluates the result projection against it as an evaluation of its own,
-     * within the frame of the locals the call was prepared with, which it reads and never evaluates again.
+     * Projects one value the host supplied for a prepared call: captures it as the type the call declares, then evaluates the result projection against it as an evaluation of its own, within the frame of the locals the call was prepared
+     * with, which it reads and never evaluates again.
      */
     #project(frame, projection, value) {
         const { node, pointer, declaration } = this.#resolvedDefinition.hostCall;
         const { type } = this.#resolvedDefinition.resolutionOf(node);
 
-        if (!this.#conforms(value, type)) {
-            this.#fail(`The host call '${declaration.name}' supplied ${Evaluator.#describe(value)}, and it declares ${type}`, pointer);
-        }
+        // A part of the value is named by its path within it, the value itself by none.
+        const fail = (path, part, partType) => {
+            const supplied = path === '' ? Evaluator.#describe(part) : part === undefined ? `a value without '${path}'` : `a value whose '${path}' is ${Evaluator.#describe(part)}`;
 
-        const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
+            this.#fail(`The host call '${declaration.name}' supplied ${supplied}, and ${path === '' ? 'it declares' : `'${path}' is declared`} ${partType}`, pointer);
+        };
+
+        const captured = this.#capture(value, type, '', fail);
         const enclosingLocals = this.#localsFrame;
 
         this.#localsFrame = frame;
-        this.#projectionContext = { node, value: copyStructures === null ? value : copyStructures(value) };
+        this.#projectionContext = { node, value: captured };
 
         try {
             return this.#evaluateResult(projection);
@@ -1487,6 +1490,75 @@ export class Evaluator {
         }
 
         throw LexicaError.evaluation(`The host failed ${moment} of ${this.#subjectOf(declaration, node).replace(/^The /, 'the ').replace(/,$/, '')}: ${error?.message ?? String(error)}`, this.#locate(this.#pointerOf(node)), { cause: error });
+    }
+
+    /**
+     * A value a host supplied, captured as its type at every level of it: a value its type admits taken, a structure as its declared fields alone and a list item by item; nothing, or null, null where its type is nullable; and a reference
+     * of another type null where a nullable reference type is declared, so the value keeps only the reference its type names. Anything else fails, naming the part of the value by its path.
+     */
+    #capture(value, type, path, fail) {
+        if (value === undefined || value === null) {
+            if (!type.isNullable) {
+                fail(path, value, type);
+            }
+
+            return null;
+        }
+
+        switch (type.kind) {
+            case 'typeParameter':
+                return value;
+            case 'list':
+                if (!Array.isArray(value) || ArrayUtils.findMissingIndex(value) !== -1) {
+                    fail(path, value, type);
+                }
+
+                return value.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail));
+            case 'object':
+                if (!ObjectUtils.isNonArrayObject(value)) {
+                    fail(path, value, type);
+                }
+
+                return Object.fromEntries([...type.fieldTypes].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, Evaluator.#pathOf(path, name), fail)]));
+            default:
+                return this.#captureNamed(value, type, path, fail);
+        }
+    }
+
+    /** A value captured as a named type: a built-in type's value as it is, a reference of another type null where a nullable reference type is declared, and a structure as its declared fields, each captured in turn. */
+    #captureNamed(value, type, path, fail) {
+        const isOfBuiltIn = Evaluator.#isOfBuiltIn(value, type.name);
+
+        if (isOfBuiltIn !== undefined) {
+            if (isOfBuiltIn) {
+                return value;
+            }
+
+            // A reference of another type keeps nothing of itself where a nullable reference type is declared; mistyped data fails, whatever its type's nullability.
+            if (type.isNullable && !LexicaModule.dataTypeNames.includes(type.name) && Evaluator.#isReference(value)) {
+                return null;
+            }
+
+            fail(path, value, type);
+        }
+
+        const structure = this.#moduleRegistry.getType(type.name);
+
+        if (structure === undefined || !ObjectUtils.isNonArrayObject(value)) {
+            fail(path, value, type);
+        }
+
+        return Object.fromEntries(Evaluator.#fieldTypesOf(structure).map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, Evaluator.#pathOf(path, name), fail)]));
+    }
+
+    /** The path of a field within the path of the value that holds it. */
+    static #pathOf(path, name) {
+        return path === '' ? name : `${path}.${name}`;
+    }
+
+    /** Whether the value is a reference, a value of a reference type the language defines: a node or a window. */
+    static #isReference(value) {
+        return Evaluator.#isOfBuiltIn(value, 'node') || Evaluator.#isOfBuiltIn(value, 'window');
     }
 
     /** Whether the value is one the type admits. */

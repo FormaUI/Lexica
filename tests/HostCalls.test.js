@@ -284,3 +284,78 @@ describe('prepared calls', () => {
         expect(getError(() => call.project(35))).toMatchObject({ kind: 'structure', message: expect.stringContaining('stale') });
     });
 });
+
+describe('values a host supplies', () => {
+    /** An element and a document, as the language tells the references it defines apart. */
+    const element = { nodeType: 1 };
+    const document = { nodeType: 9 };
+
+    /** A desk's module: a report its host supplies, with references, data and spots nested in it; a spot that may be none; and a spot a member answers, which its implementation answers with no label. */
+    const createReports = () => lexica.createModule('reports', {
+        types: [
+            { name: 'spot', fields: { x: 'number', label: 'string?' } },
+            { name: 'report', fields: { target: 'element?', owner: 'element', note: 'string?', count: 'number', spot: 'spot?', spots: 'list<spot>' } },
+        ],
+        members: [
+            lexica.declarations.function('report', 'string', 'report', { invokedBy: 'host' }),
+            lexica.declarations.function('maybe', 'string', 'spot?', { invokedBy: 'host' }),
+            property('spotted', 'string', 'spot', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => ({ x: 1 }) }),
+        ],
+    });
+
+    /** The call the text ends in, prepared against a registry holding the desk's module. */
+    const prepared = text => lexica.createRegistry([createReports()]).resolve(text, { desk: 'desk' }).createEvaluator({ desk: 'desk' }).prepareCall();
+    const reporting = () => prepared('desk.report() { hasTarget = context.target != null, note = context.note, count = context.count, spot = context.spot, spots = context.spots }');
+    const report = overrides => ({ target: element, owner: element, note: 'filed', count: 1, spot: { x: 1, label: 'a' }, spots: [{ x: 2, label: null }], ...overrides });
+
+    /** The evaluation error a projection fails with, where the call stands, by its message. */
+    const refusalOf = (call, value) => {
+        const refused = getError(() => call.project(value));
+
+        expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: call.location.pointer } });
+
+        return refused.message;
+    };
+
+    it('are captured as their type declares, a value it admits taken, a structure as its declared fields alone and a list item by item', () => {
+        expect(reporting().project(report()).value).toEqual({ hasTarget: true, note: 'filed', count: 1, spot: { x: 1, label: 'a' }, spots: [{ x: 2, label: null }] });
+        expect(prepared('desk.maybe()').project({ x: 3, label: 'b', extra: true }).value).toEqual({ x: 3, label: 'b' });
+    });
+
+    it('are null where nothing is supplied and the type is nullable, and fail where it is not, at every level', () => {
+        const { note, spot, ...withoutNullables } = report();
+        const { count, ...withoutCount } = report();
+
+        expect(reporting().project(withoutNullables).value).toMatchObject({ note: null, spot: null });
+        expect(reporting().project(report({ spot: { x: 4 } })).value.spot).toEqual({ x: 4, label: null });
+        expect(refusalOf(reporting(), withoutCount)).toContain("The host call 'report' supplied a value without 'count', and 'count' is declared number");
+        expect(prepared('desk.maybe()').project(undefined).value).toBeNull();
+    });
+
+    it('take null where the type is nullable, and fail where it is not, the value itself among them', () => {
+        expect(reporting().project(report({ note: null })).value.note).toBeNull();
+        expect(prepared('desk.maybe()').project(null).value).toBeNull();
+        expect(refusalOf(reporting(), report({ owner: null }))).toContain("supplied a value whose 'owner' is null, and 'owner' is declared element");
+        expect(refusalOf(reporting(), null)).toContain("The host call 'report' supplied null, and it declares report");
+    });
+
+    it('narrow a reference of another type to null where a nullable reference type is declared, and fail where the type is not nullable', () => {
+        expect(reporting().project(report({ target: document })).value.hasTarget).toBe(false);
+        expect(refusalOf(reporting(), report({ owner: document }))).toContain("supplied a value whose 'owner' is a node, and 'owner' is declared element");
+    });
+
+    it('fail on mistyped data whatever its type\'s nullability, naming the part of the value by its path at every level', () => {
+        expect(refusalOf(reporting(), report({ note: 5 }))).toContain("supplied a value whose 'note' is 5, and 'note' is declared string?");
+        expect(refusalOf(reporting(), report({ target: 'desk' }))).toContain("supplied a value whose 'target' is \"desk\", and 'target' is declared element?");
+        expect(refusalOf(reporting(), report({ spot: { x: 'far' } }))).toContain("supplied a value whose 'spot.x' is \"far\", and 'spot.x' is declared number");
+        expect(refusalOf(reporting(), report({ spots: [{ x: 1 }, { x: 'b' }] }))).toContain("supplied a value whose 'spots[1].x' is \"b\", and 'spots[1].x' is declared number");
+        expect(refusalOf(reporting(), report({ spots: [, { x: 1 }] }))).toContain("supplied a value whose 'spots' is");
+    });
+
+    it('are captured where a member\'s answer never is, its implementation answering what it declares', () => {
+        const refused = getError(() => lexica.createRegistry([createReports()]).resolve('desk.spotted', { desk: 'desk' }).createEvaluator({ desk: 'desk' }).evaluate());
+
+        expect(refused).toMatchObject({ kind: 'evaluation' });
+        expect(prepared('desk.maybe()').project({ x: 1 }).value).toEqual({ x: 1, label: null });
+    });
+});

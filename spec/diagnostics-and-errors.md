@@ -118,7 +118,7 @@ A module whose declarations break the declaration contract, or whose names regis
 | A result projection following a host call that declares no result | A validation error |
 | A type selector's key the selector maps no type to | A validation error naming the selector and the key |
 | Preparing a script that ends in no host call, or evaluating one that ends in a host call | An evaluation error |
-| A value a host supplies that is not of its host call's declared result | An evaluation error naming the call |
+| A value a host supplies, or a part of it, that its host call's declared result does not admit, as [capturing a supplied value](runtime.md#runtime-host-calls-capturing) sets out | An evaluation error naming the call and the part |
 
 <a id="evaluation-errors"></a>
 
