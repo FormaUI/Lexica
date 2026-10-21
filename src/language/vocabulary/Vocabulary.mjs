@@ -6,8 +6,6 @@
 import { Declarations } from './Declarations.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
 
-const { valueParameter, expressionParameter, predicateParameter, property } = Declarations;
-
 /** The text a conversion to a number takes: HTML's valid floating-point number, an optional minus, digits with an optional fraction or a fraction alone, and an optional exponent whose sign is optional. */
 const VALID_FLOATING_POINT_NUMBER = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?$/;
 
@@ -30,22 +28,22 @@ export class Vocabulary {
 
         return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
             members: [
-                property('count', 'list<T>', 'number', { updates: derived, implementation: ({ receiver }) => receiver.length }),
-                property('first', 'list<T>', 'T?', { updates: derived, implementation: ({ receiver }) => receiver.at(0) ?? null }),
-                property('last', 'list<T>', 'T?', { updates: derived, implementation: ({ receiver }) => receiver.at(-1) ?? null }),
+                Declarations.property('count', 'list<T>', 'number', { updates: derived, implementation: ({ receiver }) => receiver.length }),
+                Declarations.property('first', 'list<T>', 'T?', { updates: derived, implementation: ({ receiver }) => receiver.at(0) ?? null }),
+                Declarations.property('last', 'list<T>', 'T?', { updates: derived, implementation: ({ receiver }) => receiver.at(-1) ?? null }),
                 // The item at a whole index from zero, null for any other index, a negative one included, which never counts from the end.
                 Declarations.function('item', 'list<T>', 'T?', {
-                    syntax: 'indexer', isDefault: true, updates: derived, parameters: [valueParameter('index', 'number')],
+                    syntax: 'indexer', isDefault: true, updates: derived, parameters: [Declarations.valueParameter('index', 'number')],
                     implementation: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
                 }),
                 // The verbs that ask a predicate: the predicate's own declaration carries it out, its implementation, how it changes and the observations that cover it, so declaring each on any receiver selects the predicate's own receivers.
-                Declarations.function('is', 'any', 'boolean', { updates: derived, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
-                Declarations.function('has', 'any', 'boolean', { updates: derived, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
-                Declarations.function('supports', 'any', 'boolean', { updates: derived, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
-                Declarations.function('max', 'list<T>', 'number?', { updates: derived, parameters: [expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
-                Declarations.function('min', 'list<T>', 'number?', { updates: derived, parameters: [expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
-                Declarations.function('sum', 'list<T>', 'number', { updates: derived, parameters: [expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
-                Declarations.function('where', 'list<T>', 'list<T>', { updates: derived, parameters: [predicateParameter()], implementation: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
+                Declarations.function('is', 'any', 'boolean', { updates: derived, parameters: [Declarations.valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
+                Declarations.function('has', 'any', 'boolean', { updates: derived, parameters: [Declarations.valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
+                Declarations.function('supports', 'any', 'boolean', { updates: derived, parameters: [Declarations.valueParameter('name', 'string', { fixed: true, selects: 'predicate' })] }),
+                Declarations.function('max', 'list<T>', 'number?', { updates: derived, parameters: [Declarations.expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
+                Declarations.function('min', 'list<T>', 'number?', { updates: derived, parameters: [Declarations.expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
+                Declarations.function('sum', 'list<T>', 'number', { updates: derived, parameters: [Declarations.expressionParameter('number?')], implementation: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
+                Declarations.function('where', 'list<T>', 'list<T>', { updates: derived, parameters: [Declarations.predicateParameter()], implementation: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
             ],
 
             // Each conversion takes the value, never null, and `reject`, which stops it for a value it does not convert.
