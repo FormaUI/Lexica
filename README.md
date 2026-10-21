@@ -30,10 +30,13 @@ return {
 
 The runtime's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.31`.
 
-- Scripts checked before they run
-- Evaluation hooks that report every read
-- Frozen results with metadata for comparing them
-- Calls prepared for the host to carry out
+- Parse scripts into definitions, validate definitions, and format either as canonical text
+- Locate any part of a definition in the text it was read from
+- Create modules from their declarations, and registries that hold them
+- Bind a host's values to a script's parameters
+- Resolve a script against a registry, typing and checking it before it runs
+- Evaluate it, reporting every read through hooks, into a frozen result with metadata for comparing results
+- Prepare the calls a host carries out, and project the values it supplies
 
 ## Use it
 
