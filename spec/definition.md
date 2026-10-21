@@ -4,7 +4,7 @@
 
 A script's **definition** is a JSON document recording its meaning, its **expression tree** with the version of its format: every script, read from its source or created directly, has one definition, and validation, resolution and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
 
-A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version changes whenever the definition's shape or meaning does, and a definition of a version other than the one an implementation reads is a structure error.
+A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error.
 
 In this document:
 

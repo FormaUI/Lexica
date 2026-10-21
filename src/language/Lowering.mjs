@@ -3,7 +3,7 @@
  */
 
 import { Names } from './Names.mjs';
-import { Specification } from './Specification.mjs';
+import { Versions } from './Versions.mjs';
 import { SyntaxTree } from './SyntaxTree.mjs';
 
 /** @typedef {import('./Parser.mjs').Span} Span */
@@ -33,7 +33,7 @@ export class Lowering {
         const lowering = new Lowering(tree.text);
         const expression = lowering.#lower(tree.children[0]);
 
-        return { definition: { version: Specification.definitionVersion, expression }, spans: lowering.#spans, callerBindingParameters: lowering.#callerBindingParameters };
+        return { definition: { version: Versions.definition, expression }, spans: lowering.#spans, callerBindingParameters: lowering.#callerBindingParameters };
     }
 
     /** @param {string} text The text the tree was read from. */

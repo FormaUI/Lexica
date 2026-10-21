@@ -28,6 +28,7 @@ In this document:
 3. [Evaluation](#runtime-evaluation)
 4. [Results and their metadata](#runtime-results)
 5. [Host calls](#runtime-host-calls)
+6. [Versions](#runtime-versions)
 
 <a id="runtime-bindings"></a>
 
@@ -137,3 +138,17 @@ if (preparation.kind === 'prepared') {
 - **`evaluator.project(value, host?)`** projects one value the host supplies: it checks the value against the call's declared `result` and takes it as the evaluator takes any member's answer, then evaluates the result projection against it, as `evaluate` evaluates a script for the host given, and answers as `evaluate` does. A host call followed by no result projection answers the value itself. A value of another type fails with an evaluation error naming the call, and projecting for a call that declares no result is refused.
 
 A host projects each value as it arrives, once for a value its call answers once and once for each of several it supplies over time, so the runtime treats them alike. Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, and the lifetime of whatever a host call starts, are the host's.
+
+<a id="runtime-versions"></a>
+
+## Versions
+
+A runtime says which it is, and what it follows, in `lexica.info.versions`, three versions that change apart:
+
+| Field | What it is |
+| --- | --- |
+| `runtime` | The runtime release version, which its packages carry, as `1.0.0-alpha.37`; its sources and every build of them report the same |
+| `language` | The language specification version the runtime follows |
+| `definition` | The definition format version the runtime supports |
+
+Each is declared, never computed, and advances for its own reason: the runtime's version with each release of the runtime, the specification version as the language's contract changes, and the definition version as the serialized definition's does. Their numbers may coincide, and neither determines another, so one specification version is followed by many runtime releases, and a specification can describe a version ahead of the one a runtime follows.

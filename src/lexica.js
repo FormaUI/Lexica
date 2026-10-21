@@ -11,17 +11,11 @@ import { LexicaError } from './language/LexicaError.mjs';
 import { ParameterBindings } from './language/ParameterBindings.mjs';
 import { ParsedTexts } from './language/ParsedTexts.mjs';
 import { ResultPath } from './language/ResultPath.mjs';
-import { Specification } from './language/Specification.mjs';
+import { Versions } from './language/Versions.mjs';
 import { Declarations } from './language/vocabulary/Declarations.mjs';
 import { LexicaModule } from './language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from './language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from './language/vocabulary/Vocabulary.mjs';
-
-/**
- * The version of this build of the library: the package's version, which bundling sets, or, where Lexica runs from its sources, the library's version marked as source by its build metadata.
- * @type {string}
- */
-const LIBRARY_VERSION = typeof LEXICA_VERSION === 'string' ? LEXICA_VERSION : '1.0.0-alpha+source';
 
 /** The parameter bindings each bindings object `bind` made stands for. @type {WeakMap<object, ParameterBindings>} */
 const PARAMETER_BINDINGS = new WeakMap();
@@ -204,7 +198,7 @@ export const lexica = Object.freeze({
     createRegistry: (modules = []) => registryOf(modules),
     bind,
     paths,
-    info: Object.freeze({ version: LIBRARY_VERSION, specificationVersion: Specification.version, definitionVersion: Specification.definitionVersion }),
+    info: Object.freeze({ versions: Object.freeze({ runtime: Versions.runtime, language: Versions.language, definition: Versions.definition }) }),
 });
 
 export { LexicaError };

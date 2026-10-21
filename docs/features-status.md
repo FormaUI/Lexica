@@ -2,7 +2,7 @@
 
 What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come.
 
-The specification describes definition version 32 and host calls. **The implementation reads definition version 31**, and the work to reach version 32 is under way, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are planned.
+The specification describes language version `1.0.0-alpha.32`, definition version 32 and host calls. **The implementation reads definition version 31** and implements language version `1.0.0-alpha.31`, and the work to reach version 32 is under way, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are planned.
 
 | Status | Meaning |
 | --- | --- |
@@ -60,7 +60,7 @@ The specification describes definition version 32 and host calls. **The implemen
 | Area | Status | What remains | Contract |
 | --- | --- | --- | --- |
 | The bundle and its declarations | Implemented | | [README](../README.md#build) |
-| npm and NuGet packages | Planned | Both are packed locally and neither is published | [Packages](#packages) |
+| npm and NuGet packages | Planned | Both are packed locally and neither is published; both carry the runtime version `src/language/Versions.mjs` declares | [Packages](#packages) |
 | Beta | Partial | The documents and the module API are audited; the changelog and the beta version remain | [Beta](#beta) |
 | Syntax tree for tooling | Partial | The lossless tree and the tolerant tokenizer are built and internal; error recovery and a public tooling API remain | [Design](lexica-design.md#the-syntax-tree) |
 | Formatting that keeps a script's source | Planned | Tokens keep each string's form for it; the operation itself is not built | [Design](lexica-design.md#the-syntax-tree) |

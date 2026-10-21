@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LexicaError, lexica } from '#lexica/lexica.js';
-import { Specification } from '#lexica/language/Specification.mjs';
+import { Versions } from '#lexica/language/Versions.mjs';
 
 /** The error a call throws. */
 const getError = call => {
@@ -22,7 +22,7 @@ describe('lexica', () => {
 
     it('reads a text into its definition, of the version it writes', () => {
         expect(lexica.parse('{ total = price * quantity }')).toEqual({
-            version: Specification.definitionVersion,
+            version: Versions.definition,
             expression: { kind: 'object', fields: [{ name: 'total', value: { kind: 'arithmetic', operator: '*', left: { kind: 'parameter', name: 'price' }, right: { kind: 'parameter', name: 'quantity' } } }] },
         });
     });
@@ -37,8 +37,8 @@ describe('lexica', () => {
     });
 
     it('checks a definition given directly, refusing one whose structure is wrong', () => {
-        expect(lexica.validate({ version: Specification.definitionVersion, expression: { kind: 'literal', value: 1 } })).toEqual({ version: Specification.definitionVersion, expression: { kind: 'literal', value: 1 } });
-        expect(getError(() => lexica.validate({ version: Specification.definitionVersion, expression: { kind: 'nothing' } }))).toBeInstanceOf(LexicaError);
+        expect(lexica.validate({ version: Versions.definition, expression: { kind: 'literal', value: 1 } })).toEqual({ version: Versions.definition, expression: { kind: 'literal', value: 1 } });
+        expect(getError(() => lexica.validate({ version: Versions.definition, expression: { kind: 'nothing' } }))).toBeInstanceOf(LexicaError);
     });
 
     it('refuses a text that is no expression with a syntax error at its place', () => {
@@ -81,6 +81,6 @@ describe('lexica', () => {
     });
 
     it('says which build it is and which specification it follows', () => {
-        expect(lexica.info).toEqual({ version: '1.0.0-alpha+source', specificationVersion: Specification.version, definitionVersion: Specification.definitionVersion });
+        expect(lexica.info).toEqual({ versions: { runtime: Versions.runtime, language: Versions.language, definition: Versions.definition } });
     });
 });

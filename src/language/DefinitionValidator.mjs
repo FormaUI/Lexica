@@ -6,7 +6,7 @@ import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { DefinitionLocations } from './DefinitionLocations.mjs';
 import { LexicaError } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
-import { Specification } from './Specification.mjs';
+import { Versions } from './Versions.mjs';
 
 /** @typedef {import('./TextLocations.mjs').TextLocations} TextLocations */
 
@@ -125,11 +125,11 @@ export class DefinitionValidator {
 
         this.#requireProperties(definition, '', { properties: ['version', 'expression'], required: ['version', 'expression'] });
 
-        if (definition.version !== Specification.definitionVersion) {
-            this.#fail('/version', `A definition is of version ${Specification.definitionVersion}`);
+        if (definition.version !== Versions.definition) {
+            this.#fail('/version', `A definition is of version ${Versions.definition}`);
         }
 
-        const validated = Object.freeze({ version: Specification.definitionVersion, expression: this.#validateBodyOrExpression(definition.expression, '/expression', ContextAvailability.absent) });
+        const validated = Object.freeze({ version: Versions.definition, expression: this.#validateBodyOrExpression(definition.expression, '/expression', ContextAvailability.absent) });
 
         // A definition parsed from text has its text's locations; one a caller supplied, where a part moved, has locations that name its parts as the caller did.
         if (this.#locations === null && this.#hasMovedParts) {

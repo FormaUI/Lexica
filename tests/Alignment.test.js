@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
+import { Versions } from '#lexica/language/Versions.mjs';
 
 // A path from the repository root, read as text.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -15,26 +16,33 @@ describe('Alignment', () => {
     const project = read('nuget/Forma.Lexica.csproj');
     const npmPackage = JSON.parse(read('package.json'));
 
-    it('has a specification and a design titled with the version of the implementation', () => {
-        expect(specification.match(/^# Lexica Specification v(\S+)$/m)[1]).toBe(lexica.info.specificationVersion);
-        expect(design.match(/^# Lexica Design v(\S+)$/m)[1]).toBe(lexica.info.specificationVersion);
+    it('has a specification and a design titled with the one version the specification describes, which its version line names', () => {
+        const [, described] = specification.match(/^# Lexica Specification v(\S+)$/m);
+
+        expect(design.match(/^# Lexica Design v(\S+)$/m)[1]).toBe(described);
+        expect(specification).toContain(`describes language version \`${described}\``);
     });
 
-    it('has packages that are the alpha of the specification, the NuGet one numbered by the commits it is built from', () => {
-        const [, prefix] = project.match(/<VersionPrefix>(.+?)<\/VersionPrefix>/);
-
-        expect(`${prefix}-alpha`).toBe(lexica.info.specificationVersion);
-        expect(npmPackage.version).toBe(lexica.info.specificationVersion);
-        expect(project).toContain('<Version>$(VersionPrefix)-alpha.$(CommitCount)</Version>');
-        expect(lexica.info.version).toBe(`${prefix}-alpha+source`);
-    });
-
-    it('has a specification whose example definition is of the version it describes, and a status that says which version the implementation reads', () => {
-        const [, version] = read('spec/definition.md').match(/"version": (\d+),\s+"expression"/);
-        const [, described] = specification.match(/describes definition version (\d+)\./);
+    it('reports the specification and definition versions it follows, which the status names', () => {
         const [, implemented] = status.match(/reads definition version (\d+)/);
 
+        expect(status).toContain(`implements language version \`${lexica.info.versions.language}\``);
+        expect(Number(implemented)).toBe(lexica.info.versions.definition);
+    });
+
+    it('has a specification whose example definition is of the definition version it describes', () => {
+        const [, version] = read('spec/definition.md').match(/"version": (\d+),\s+"expression"/);
+        const [, described] = specification.match(/describes definition version (\d+)\./);
+
         expect(Number(version)).toBe(Number(described));
-        expect(Number(implemented)).toBe(lexica.info.definitionVersion);
+    });
+
+    it('has packages and a bundle that carry the runtime version the sources declare, and report it', async () => {
+        const { bundle } = await import('../scripts/bundle.mjs');
+
+        expect(project).toContain('src\\language\\Versions.mjs');
+        expect(npmPackage.version).toBe(Versions.runtime);
+        expect(lexica.info.versions.runtime).toBe(Versions.runtime);
+        expect(await bundle()).toContain(JSON.stringify(Versions.runtime));
     });
 });

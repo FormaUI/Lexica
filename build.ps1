@@ -47,20 +47,9 @@ if ($LASTEXITCODE -ne 0) {
     throw 'The tests failed.'
 }
 
-# The package project computes the package's version, and the bundle is given it, so the two never disagree.
-Push-Location $nuget
-try {
-    $version = dotnet msbuild Forma.Lexica.csproj -getProperty:Version -t:NumberAlphaByCommits -nologo
-    if ($LASTEXITCODE -ne 0) {
-        throw "The package's version could not be computed."
-    }
-}
-finally {
-    Pop-Location
-}
-
-Write-Host "Bundling $version"
-npm run bundle --prefix $root -- --version $version
+# The bundle, the package and the sources all take their version from src/language/Versions.mjs.
+Write-Host 'Bundling'
+npm run bundle --prefix $root
 if ($LASTEXITCODE -ne 0) {
     throw 'The bundle failed.'
 }

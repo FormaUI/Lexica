@@ -393,14 +393,19 @@ export interface LexicaPaths {
     valueAt(value: unknown, path: readonly (string | number)[]): unknown;
 }
 
-/** Which build this is and which specification it follows. */
+/** The versions a Lexica runtime reports, which change apart. */
+export interface LexicaVersions {
+    /** The runtime release version, which the packages and the bundle carry. */
+    readonly runtime: string;
+    /** The language specification version the implementation follows. */
+    readonly language: string;
+    /** The definition format version the implementation supports. */
+    readonly definition: number;
+}
+
+/** Which build this is and what it follows. */
 export interface LexicaInfo {
-    /** The version of this build of the library. */
-    readonly version: string;
-    /** The version of the specification it follows. */
-    readonly specificationVersion: string;
-    /** The version of the definition format it reads and writes. */
-    readonly definitionVersion: number;
+    readonly versions: LexicaVersions;
 }
 
 export interface Lexica {

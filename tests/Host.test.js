@@ -118,7 +118,7 @@ describe('a host of plain data', () => {
 
         expect(lexica.quote('{\n    total = order.total\n}')).toBe('{ total = order.total }');
         expect(lexica.locate(definition, '/expression/fields/0/value')).toMatchObject({ line: 1, column: 11 });
-        expect(lexica.locate(lexica.validate({ version: lexica.info.definitionVersion, expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
+        expect(lexica.locate(lexica.validate({ version: lexica.info.versions.definition, expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
         expect(getError(() => lexica.locate(definition, '/expression/fields/9'))).toMatchObject({ kind: 'structure' });
     });
 
