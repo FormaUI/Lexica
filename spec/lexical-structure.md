@@ -260,6 +260,6 @@ Field names and script parameters keep the exact spelling their author gave them
 
 ### Strings are preserved
 
-Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a bracket property access, which reads the one its string names, exactly, a data field whose key is no Lexica name among them, as `o["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or an event type, follows that module's own case rules.
+Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a bracket property access, which reads the one its string names, exactly, a data field whose key is no Lexica name among them, as `o["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or a type selector's key, follows that module's own case rules.
 
 A field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `isOn` from `ison` reports the ambiguity, and the language is unaffected. How a module names a member, and which JavaScript function carries it out, is the module's declaration.

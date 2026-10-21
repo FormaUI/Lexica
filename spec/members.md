@@ -2,44 +2,42 @@
 
 <a id="members"></a>
 
-A **member** is what a module declares on a type, or on no type for a [module member](modules.md#namespaces-module-members): a property, a function, an event source, an action or a behavior. A script reaches a member through its receiver, and the member's declaration says how the member is written, what it takes, what it answers, how it reads and how its value changes. Lexica checks every use of a member against its declaration before anything runs.
+A **member** is what a module declares on a type, or on no type for a [module member](modules.md#namespaces-module-members): a property or a function. A script reaches a member through its receiver, and the member's declaration says how the member is written, what it takes, what it answers, who invokes it, how it reads and how its value changes. Lexica checks every use of a member against its declaration before anything runs.
 
 ```lexica
 room.devices.count                    // A property, then another: the room's devices, counted.
 room.device("lamp")?.battery          // A function, then a property of what it found, if anything.
 device:setting["mode"]                // A named indexer, given its key.
-light.dim({ to = 40 })                // An action, given its options.
-sensor.on("motion") { at = it.at }    // An event source, each event shaped by the object after it.
+light.dim({ to = 40 })                // A function the host invokes, given its options.
+sensor.on("motion") { at = it.at }    // A function the host invokes, each value it supplies shaped by the object after it.
 ```
 
 In this document:
 
-1. [Member kinds and requests](#members-member-kinds-and-requests)
+1. [Member kinds and host calls](#members-member-kinds-and-host-calls)
 2. [Writing a member](#property-access-calls-and-indexers)
 3. [Bracket property access](#bracket-property-access)
 4. [Parameters and arguments](#arguments)
 5. [Declaring a member](#members-declaring-a-member)
 6. [How a member reads](#how-a-member-reads)
 7. [How a member changes](#how-a-member-changes)
-8. [Actions and behaviors](#members-actions-and-behaviors)
-9. [Event sources](#members-event-sources)
+8. [Host calls](#members-host-calls)
 
+<a id="members-member-kinds-and-host-calls"></a>
 <a id="members-member-kinds-and-requests"></a>
 <a id="what-a-member-declares"></a>
 <a id="requests"></a>
 
-## Member kinds and requests
+## Member kinds and host calls
 
-A member's kind is `property`, `function`, `eventSource`, `action` or `behavior`. A script is a **request** of one of four kinds, and the last member of its chain, before any object expression following it, decides which:
+A member's kind is `property` or `function`. A property is read, and a function called, by the evaluator as it evaluates a script, or, for a function whose declaration says so, `invokedBy: 'host'`, by the host. A script gives a value, or ends in a **host call**, a call of a function the host invokes; the last member of its chain, before any object expression following it, decides which:
 
-| Request kind | Its chain ends in | It |
-| --- | --- | --- |
-| Value | A property, a function, or no member | Reads, and answers data |
-| Subscription | An event source | Shapes each event its source delivers into data |
-| Action | An action | Asks its module to carry out a change once, and answers its result |
-| Behavior request | A behavior | Asks its module to start something that runs until it is updated or disposed |
+| A script whose chain ends in | Gives |
+| --- | --- |
+| A property, a function the evaluator invokes, or no member | A value: it reads, and answers data |
+| A function the host invokes | A host call: Lexica prepares its receiver and arguments, the host invokes it, and the object expression following it shapes each value the host supplies |
 
-A value request only reads. An action or a behavior request acts only when its host executes or applies it, and evaluating a value request never performs an action or configures a behavior. What a host does with each kind is the [runtime](runtime.md#runtime-requests)'s contract.
+Evaluating a script only reads, and the evaluator never invokes a host call, so no evaluation changes the host's state. What a host call does, and when, is the host's own; Lexica's part is set out in [host calls](#members-host-calls) and the [runtime](runtime.md#runtime-host-calls).
 
 <a id="property-access-calls-and-indexers"></a>
 <a id="access-and-calls"></a>
@@ -126,7 +124,7 @@ A projection or any other expression beyond that member chain is a syntax error.
 
 ### Function calls
 
-A function call takes zero or more positional arguments inside parentheses, separated by commas. Each argument is a [simple expression](expressions.md#simple-expressions). The chain may continue after the call. Every member written with arguments in parentheses is written as a function call, whatever its kind, an event source, an action and a behavior among them.
+A function call takes zero or more positional arguments inside parentheses, separated by commas. Each argument is a [simple expression](expressions.md#simple-expressions). The chain may continue after the call. Every member written with arguments in parentheses is written as a function call, whoever invokes it.
 
 Argument count and types come from the signature. `room.device("lamp", "fan")` is a validation error because `device` takes one argument.
 
@@ -168,7 +166,7 @@ Omitting the indexer name selects the receiver type's default indexer, a named i
 
 ### Member form and parsing
 
-A property must be read as a property. Functions, event sources, actions and behaviors use function calls, and only a function can be declared an indexer, which is invoked as one.
+A property must be read as a property. A function uses a function call, and only a function the evaluator invokes can be declared an indexer, which is invoked as one.
 
 Using another form is a validation error that gives the required form:
 
@@ -312,9 +310,9 @@ Optional and nullable are separate. An optional parameter can be omitted; a null
 
 ### Fixed arguments
 
-A value argument can be declared **fixed**, where it selects something validation needs before evaluation, such as the event type whose members `on` offers or the predicate a verb asks. A fixed argument names a declaration, which cannot be looked up from null, so it must resolve to a non-null string during resolution.
+A value argument can be declared **fixed**, where it selects something validation needs before evaluation, such as the type a [type selector](vocabulary.md#vocabulary-type-selectors) maps it to, as `on`'s does, or the predicate a verb asks. A fixed argument names a declaration, which cannot be looked up from null, so it must resolve to a non-null string during resolution.
 
-A fixed argument is a string the script's resolution settles, without evaluating any member or depending on an event: a literal, a script parameter, a local or a conditional binding holding one, a local holding a `do` block whose locals and result all settle, a function parameter within a call's body, which is resolved with its arguments, and an `and`, an `or`, a conditional or a coalescing operator whose result they settle by the rules that evaluate it everywhere, as `device { let state = "active", lit = it.is(state) }` and `device.is(metered and "active" or "offline")` are. A fixed argument whose outcome can be null or names no declaration is refused, so `sensor.on(name)` is a validation error where `name` is bound to null.
+A fixed argument is a string the script's resolution settles, without evaluating any member or depending on a value its host supplies: a literal, a script parameter, a local or a conditional binding holding one, a local holding a `do` block whose locals and result all settle, a function parameter within a call's body, which is resolved with its arguments, and an `and`, an `or`, a conditional or a coalescing operator whose result they settle by the rules that evaluate it everywhere, as `device { let state = "active", lit = it.is(state) }` and `device.is(metered and "active" or "offline")` are. A fixed argument whose outcome can be null or names no declaration is refused, so `sensor.on(name)` is a validation error where `name` is bound to null.
 
 A local holding a `do` block settles a fixed argument only if every local evaluated in that block and its result can settle it, since reads made by unused body locals cannot be discarded. `let state = do let chosen = "active" return chosen end` may supply `device.is(state)`; a body local whose value cannot settle a fixed argument, as one that reads a member or holds an interpolated string, prevents the block from settling one.
 
@@ -330,25 +328,26 @@ A module declares each member as data. Its fields are its signature, which lets 
 | Field | Holds |
 | --- | --- |
 | `name` | The member's name in the language |
-| `kind` | `property`, `function`, `eventSource`, `action` or `behavior` |
+| `kind` | `property` or `function` |
+| `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
 | `target` | The types whose values have the member, a type, a list of types or `any`; left out for a [module member](modules.md#namespaces-module-members), whose implementation is given no receiver |
 | `syntax` | How a member that is no property is written: `function-call`, or `indexer` for a function whose one required value parameter is its key |
 | `default` | For an indexer, whether it is the default of its receivers |
 | `arguments` | The argument form, where the member has parameters: `positional` or `options` |
 | `parameters` | Each parameter's name, kind, type, whether it is required and its default where it is not, its null policy, whether it is fixed and what it selects, and its implicit parameter or callback contract by its kind, as [parameter fields](#members-parameter-fields) set out |
-| `result` | The type the member must return |
+| `result` | The type the member must return; for a host call, the type of each value its host supplies, left out where it supplies none |
 | `updates` | How it reads and changes, as [updates](#members-updates) set out |
-| `implementation` | The function that carries it out, optional, as [declarations without an implementation](modules.md#modules-declarations-without-an-implementation) set out |
+| `implementation` | The function that carries it out, optional, as [declarations without an implementation](modules.md#modules-declarations-without-an-implementation) set out; a host call takes none |
 
-Each kind takes the fields it needs alone:
+Each member takes the fields it needs alone:
 
-| Member kind | `target` | `syntax` | `arguments` | `parameters` | `updates` | `result` |
-| --- | --- | --- | --- | --- | --- | --- |
-| `property` | Optional | Refused | Refused | Refused | Required | Required |
-| `function` | Optional | `function-call`, the default, or `indexer` | Required where it has parameters, refused where it has none; `positional` for an indexer | Any kind; a function parameter only here | Required | Required |
-| `eventSource` | Optional | `function-call` | As a function's | One designated fixed parameter selects the event type; any other is a value parameter that selects nothing | Required, reading `captured` | `event<T>` |
-| `action` | Optional | `function-call` | As a function's | Value, expression and predicate parameters | Refused | Required |
-| `behavior` | Optional | `function-call` | As a function's | Value, expression and predicate parameters | Refused | Required |
+| Member | `target` | `syntax` | `arguments` | `parameters` | `updates` | `result` | `implementation` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A property | Optional | Refused | Refused | Refused | Required | Required | Optional |
+| A function the evaluator invokes | Optional | `function-call`, the default, or `indexer` | Required where it has parameters, refused where it has none; `positional` for an indexer | Any kind; a function parameter only here | Required | Required | Optional |
+| A function the host invokes | Optional | `function-call` | As a function's | Value parameters, of which a fixed one may select a type | Refused | Optional | Refused |
+
+A host call takes value parameters alone, a deliberate restriction, which a design giving such arguments an evaluation context and a lifetime could lift: its arguments are prepared as values its host keeps, while an expression, a predicate or a function argument is evaluated by the evaluator as its member calls it, which for a host call would come after preparation ends and need an evaluation context and a lifetime no host call declares. A value parameter's type holds data and reference values, and a function is never given to one, as [functions as values](functions.md#functions-as-values) sets out, so a prepared argument holds no function at any depth, in an object or a list among them.
 
 A member without a target, a module member, refuses what only a receiver gives: the `indexer` syntax, being a default indexer, and an observation of the receiver or of a target found from it, in its own `updates` and in any observation it names.
 
@@ -356,7 +355,7 @@ A member without a target, a module member, refuses what only a receiver gives: 
 
 ### Function call and indexer forms
 
-A function, an event source, an action or a behavior is written as a function call. A function may instead declare an indexer with exactly one required value parameter, supplied as its bracketed key. Its argument form is positional, and its key has the declared parameter type.
+A function is written as a function call. A function the evaluator invokes may instead declare an indexer with exactly one required value parameter, supplied as its bracketed key. Its argument form is positional, and its key has the declared parameter type.
 
 An indexer may be designated the default for its receivers, a module designating at most one for a receiver type; which designation an access selects follows the receiver type's owner, as [indexer selection](modules.md#namespaces-indexers) sets out.
 
@@ -368,16 +367,16 @@ Changing a member's argument form is a breaking change, like renaming it. A func
 
 ### Parameter fields
 
-A parameter is a value, an expression, a predicate or a function. An expression and a predicate are evaluated against each item of the list the member follows, `context: 'item'`, and an expression declares the type it produces. A parameter declares whether it is required, its default where it is not, and whether a null argument propagates, making the call answer null, or is accepted. A fixed parameter names something the vocabulary resolves before any evaluation, and declares what it selects: an event type or a predicate.
+A parameter is a value, an expression, a predicate or a function. An expression and a predicate are evaluated against each item of the list the member follows, `context: 'item'`, and an expression declares the type it produces. A parameter declares whether it is required, its default where it is not, and whether a null argument propagates, making the call answer null, or is accepted. A fixed parameter names something the vocabulary resolves before any evaluation, and declares what it selects: a type, `selects: 'type'`, through the type selector its `selector` names, or a predicate.
 
-Only a function declares a function parameter, which is required, has no null policy and is given to no observation; it declares the types of the arguments it is called with, and its type is its result's.
+Only a function the evaluator invokes declares a function parameter, which is required, has no null policy and is given to no observation; it declares the types of the arguments it is called with, and its type is its result's.
 
 <a id="what-a-member-declares-evaluation-contract"></a>
 <a id="members-updates"></a>
 
 ### Updates
 
-A member's evaluation contract is grouped under `updates`: how it reads, `reads`, as [how a member reads](#how-a-member-reads) sets out; how its result changes, `changes`, as [how a member changes](#how-a-member-changes) sets out; the changes it misses, `misses`; the `tolerance` it declares; and the `observations` that cover its changes, as [observations](vocabulary.md#observations) set out. An action or a behavior reads no value, and leaves `updates` out.
+A member's evaluation contract is grouped under `updates`: how it reads, `reads`, as [how a member reads](#how-a-member-reads) sets out; how its result changes, `changes`, as [how a member changes](#how-a-member-changes) sets out; the changes it misses, `misses`; the `tolerance` it declares; and the `observations` that cover its changes, as [observations](vocabulary.md#observations) set out. A host call is never evaluated, and leaves `updates` out.
 
 `changes` and `reads` are required. `misses` is required where `changes` is `partly-observable`, and refused otherwise. `observations` are required where `changes` is `observable` or `partly-observable`, and refused otherwise, each observation checked for its type, what it observes and the arguments it gives.
 
@@ -391,7 +390,7 @@ A member may declare a tolerance for its numeric result and every number within 
 
 ### What an implementation receives
 
-An implementation is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's or a predicate's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for an event source, `deliver`, which each event is handed to, its answer an object whose `stop` ends the listening; for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them; for an action, `signal`, its answer its result or a promise of it; and for a behavior, `reportError`, its answer an object whose `update(receiver, args)` applies new arguments and whose `dispose` ends it, started before it returns. An observation type's holds `request`, `notify` and `env`, and a conversion's `value` and `reject`. The contract is JavaScript's alone, and no script is written differently for it.
+An implementation is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's or a predicate's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica calls no implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and a conversion's `value` and `reject`. The contract is JavaScript's alone, and no script is written differently for it.
 
 <a id="how-a-member-reads"></a>
 
@@ -403,16 +402,16 @@ A script is evaluated synchronously, without yielding, and a member's implementa
 | --- | --- |
 | Fresh | Read as the script evaluates, as `device.power` reads the power the device reports now. |
 | Maintained | Kept by an observation the member holds, and read as that observation's latest sample, as `sensor.temperature` reads the last reading the `reading` observation kept. |
-| Captured | A sample taken at a moment the member documents, such as the history a member keeps or what an event carried. |
+| Captured | Kept from what happened before as well as read from the state as it is, as `room.highestTemperature` keeps the highest temperature the room has reported since its host began to hold the evaluation. |
 | Derived | As the items it selects and the expression it evaluates read, such as a list's `count` or `max`. |
 
 Facts that must describe one measurement are fields of one structured value, which is captured once and read by each of its fields, as a `climate`'s temperature and humidity are.
 
 A maintained member's observation starts the first time an evaluation reads it, and the member is **pending** until its first sample arrives. An evaluation that reads a pending member reads it as null and tells its host it is pending, and a host that cannot wait for the sample fails the evaluation instead; when a host waits for first samples is the host's to decide.
 
-Evaluating a script is read-only for every vocabulary: what changes the host's state is an action, carried out only when its request is executed.
+Evaluating a script is read-only for every vocabulary: what changes the host's state is a host call, which the evaluator never invokes.
 
-A member whose result depends on what happened before, as well as on the state as it is, is captured: it keeps that history while its host holds the evaluation, and documents what an evaluation once reports without it.
+A member whose result depends on what happened before, as well as on the state as it is, is captured: it keeps that history while its host holds the evaluation, as a host keeping a result current does, and documents what an evaluation once reports without it, as `room.highestTemperature` reports the temperature as it is, the only one it has seen.
 
 <a id="how-a-member-changes"></a>
 
@@ -430,35 +429,35 @@ Every member declares how its result changes, for a given receiver and arguments
 
 The categories are facts a host reads: whether a host keeps a result current over an unobserved or a partly observable member is its own policy, which Lexica gives it the declarations a resolution uses to decide. A literal is constant, so a script that carries one changes only as its members do.
 
+<a id="members-host-calls"></a>
 <a id="members-actions-and-behaviors"></a>
-
-## Actions and behaviors
-
-An action is a member its module carries out once when the host executes the request, and a behavior one its module starts when the host applies the request and runs until it is updated or disposed; each is a member kind of its own, which a module declares, with signatures as every member has. An object expression can follow an action to shape its result. A behavior belongs to the host's caller that applied it.
-
-```lexica
-// An action: dim the light to 40, answering the brightness it reached.
-light.dim({ to = 40 })
-
-// A behavior request: hold the thermostat at 21 degrees until it is disposed.
-thermostat.hold({ target = 21 })
-```
-
-An action or a behavior ends its request's chain, so one inside a value request, an argument or another request's object expression is a validation error.
-
 <a id="members-event-sources"></a>
 <a id="events"></a>
 
-## Event sources
+## Host calls
 
-An **event source** is a member that delivers things that happened. A script whose chain ends in one is a subscription: it is subscribed to, never read, and the object expression following the source is evaluated against each event, with that event as its implicit parameter. The source's fixed argument selects the event's [event type](vocabulary.md#events-and-event-types), so an object expression following an `event<T>` evaluates against event data of type `T`.
+A **host call** is a call of a function whose declaration says the host invokes it, `invokedBy: 'host'`. Lexica resolves it as it resolves any call, checking its receiver, its arguments and their types against the declaration, and prepares it for the host by evaluating its receiver and arguments; it never invokes it, and its module gives Lexica no implementation of it. What the host does with it, and when, is the host's own.
 
 ```lexica
-sensor.on("motion") { at = it.at, strong = it.strength > 0.8, room = sensor.room.name }
+light.dim({ to = 40 })                                                                   // The host invokes dim, and supplies the brightness the light reached.
+thermostat.hold({ target = 21 })                                                         // The host invokes hold, and supplies nothing.
+sensor.on("motion") { at = it.at, strong = it.strength > 0.8, room = sensor.room.name }  // The host invokes on, and supplies each motion the sensor reports.
 ```
 
-The source hands each event to the evaluator, which evaluates the object expression at once, in the task the source delivers it in. The result is immutable data, and that result, never the host's own event object or the object expression still to evaluate, is what reaches the host. An event is what its source delivers, read through the event data it captured; a host's own event object is never a value of the language.
+<a id="members-host-calls-where-a-host-call-stands"></a>
 
-The object expression reads the event's own data, such as its time, and anything else a script parameter reaches. Its members are read once per event and never evaluated again for that event, so an unobserved member is allowed in it.
+### Where a host call stands
 
-An event source documents its members, which of them it captured when the event happened, and when it delivers the event, such as before or after the host carries out what it reports; everything else it reads is read as it is evaluated. Each subscription starts its event source with its own delivery, so two callers subscribed on one sensor each receive their own events.
+A host call is a script's terminal operation: the script ends in it, or in it followed by its result projection, and it gives no value to any expression around it. One in a field, an argument, a condition, an operand, a function's body or another call's result projection is therefore a validation error, which resolution reports from the declaration the call resolves to. Locals may come before it, so a body whose `return` is a host call is one: `let target = 21 return thermostat.hold({ target = target })`.
+
+The declarations that take a name as it is written agree on who invokes it, as [the call keeps who invokes it](types.md#receivers-of-unknown-type-the-call-keeps-who-invokes-it) sets out, so a call on a receiver of unknown type is a host call where they do, and has no declaration until a binding gives its receiver a type.
+
+<a id="members-host-calls-the-values-a-host-supplies"></a>
+
+### The values a host supplies
+
+A host call's `result` is the type of each value its host supplies for projection: the one value it answers, or each of several it supplies over time; a host call that declares no `result` supplies none. Lexica checks a supplied value against that type and takes it as the evaluator takes any member's answer, so it treats a value alike whether it arrived at once, later or repeatedly, as [projecting a supplied value](runtime.md#runtime-host-calls) sets out.
+
+The object expression following a host call is its **result projection**, evaluated against each value its host supplies, which is its implicit parameter. It reads that value's own data and anything else a script parameter reaches; its members are read once for each value and never evaluated again for it, so an unobserved member is allowed in it. A host call that declares no `result` takes no result projection, and one written is a validation error.
+
+A fixed argument can choose the type of the values its host supplies, as `on`'s `"motion"` does through the home's `event` [type selector](vocabulary.md#vocabulary-type-selectors), so the result projection following `sensor.on("motion")` evaluates against a `{ at: number, strength: number }`.

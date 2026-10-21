@@ -10,7 +10,7 @@ Three layers meet in every evaluation, and each owns its part:
 | --- | --- | --- |
 | The language | What a script means: its syntax, its names and scope, its types, its expressions, and the contracts its vocabulary keeps | Every document of this specification but this one |
 | The runtime | Carrying a script out: reading, resolving and evaluating it, its bindings and results, and what it reports to its host | This document |
-| The host | The application around the runtime: which modules it registers, when it evaluates, what it does with each result, and anything that spans evaluations, as keeping a result current | The host's own specification |
+| The host | The application around the runtime: which modules it registers, when it evaluates, what it does with each result, what it does with each host call, and anything that spans evaluations, as keeping a result current | The host's own specification |
 
 A host uses the runtime in four steps: it binds its values, resolves the script against its registry, creates an evaluator, and evaluates it as often as it needs.
 
@@ -27,7 +27,7 @@ In this document:
 2. [Resolution](#runtime-bindings-and-resolution)
 3. [Evaluation](#runtime-evaluation)
 4. [Results and their metadata](#runtime-results)
-5. [Carrying out each kind of request](#runtime-requests)
+5. [Host calls](#runtime-host-calls)
 
 <a id="runtime-bindings"></a>
 
@@ -41,7 +41,7 @@ A binding set has a **resolution key**: each binding's type, and each primitive 
 
 ## Resolution
 
-`registry.resolve(source, bindings)` resolves a script: it reads its text with the registry's module names, or takes its definition, resolves every member against the registry, types the result and records what each member resolved to, without a host and without evaluating anything. A resolution answers its definition, its request kind, its result type, the type at any path of its result, the location of any of its nodes, and its **used declarations**, every declaration the script may use, one only an unreached branch uses included.
+`registry.resolve(source, bindings)` resolves a script: it reads its text with the registry's module names, or takes its definition, resolves every member against the registry, types the result and records what each member resolved to, without a host and without evaluating anything. A resolution answers its definition, its host call, null for a script that gives a value, its result type, null for a host call that declares no result, the type at any path of its result, the location of any of its nodes, and its **used declarations**, every declaration the script may use, one only an unreached branch uses included.
 
 All branches and operands are validated even when evaluation will not reach them, so a host's policy over the used declarations, as whether it keeps a result current over a partly observable member, concerns them all before anything is evaluated.
 
@@ -64,11 +64,11 @@ All branches and operands are validated even when evaluation will not reach them
 | Arithmetic and comparisons | Every operand is a non-null number. |
 | Interpolation | Every interpolation gives a non-null string or number. |
 | Function calls | The local or function parameter holds a function, never null; the argument count matches each function it may be, whose body resolves against that call's argument types, their results merging; no call reaches a function within its own call. |
-| Conditions and logical operands | Each is a value. Truthiness determines the branch; an event source, action or behavior cannot be used as that value. |
+| Conditions and logical operands | Each is a value. Truthiness determines the branch; a host call cannot be used as that value. |
 | Coalescing | Value and fallback have compatible types. |
 | Conditionals | Branch result types are compatible. |
 | Implicit parameter | Each expression is valid with the implicit parameter its member declares. |
-| Request kind | The host uses the request as its declared kind. |
+| Host calls | A host call is the script's terminal operation, and takes a result projection only where it declares a result; a fixed argument that selects a type names a key its selector maps. |
 | Output | A result contains data alone. |
 
 <a id="runtime-reuse"></a>
@@ -117,17 +117,23 @@ The metadata describes the value, never part of it: frozen records of `{ origin,
 
 The runtime gives the facts, and a host its policy, as comparing one result with the next or patching a copy of it.
 
+<a id="runtime-host-calls"></a>
 <a id="runtime-requests"></a>
 
-## Carrying out each kind of request
+## Host calls
 
-The runtime resolves every [kind of request](members.md#members-member-kinds-and-requests); carrying out the kinds that act or listen is the host's:
+A script that ends in a [host call](members.md#members-host-calls) is resolved as any other, and its resolution answers the call: `resolution.hostCall`, its `name` and the `declaration` it resolved to, null while its receiver's type is unknown. The runtime prepares the call and projects each value its host supplies; invoking it, when and how often, and for how long what it starts runs, are the host's.
 
-| Kind | The host |
-| --- | --- |
-| Value | Evaluates it, as often as it needs |
-| Subscription | Subscribes to it, starting its event source with a delivery of its own, and has each event's object expression evaluated as the event arrives |
-| Action | Executes it once, receiving its result |
-| Behavior request | Applies it, updates it with new bindings, and disposes it |
+```js
+const preparation = evaluator.prepareCall();
 
-Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, snapshots, and the lifetimes of subscriptions, actions and behaviors are the host's.
+if (preparation.kind === 'prepared') {
+    const brightness = await invokeHostCall(preparation.declaration, preparation.receiver, preparation.args);
+    const { value } = evaluator.project(brightness);
+}
+```
+
+- **`evaluator.prepareCall()`** evaluates the host call's receiver and arguments once, as `evaluate` evaluates a script without a host, and answers its **preparation**: `{ kind: 'prepared', declaration, receiver, args, location }`, the arguments by parameter name; or `{ kind: 'skipped', location }` where the receiver is null, an argument whose parameter propagates null is null, or the call has no declaration yet, so there is nothing to invoke. A skipped call is never invoked, and what its host answers for one is the host's to say. Preparing a script that gives a value is refused with an evaluation error.
+- **`evaluator.project(value, host?)`** projects one value the host supplies: it checks the value against the call's declared `result` and takes it as the evaluator takes any member's answer, then evaluates the result projection against it, as `evaluate` evaluates a script for the host given, and answers as `evaluate` does. A host call followed by no result projection answers the value itself. A value of another type fails with an evaluation error naming the call, and projecting for a call that declares no result is refused.
+
+A host projects each value as it arrives, once for a value its call answers once and once for each of several it supplies over time, so the runtime treats them alike. Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, and the lifetime of whatever a host call starts, are the host's.

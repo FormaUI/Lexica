@@ -3,7 +3,7 @@
 <a id="values"></a>
 <a id="values-and-types"></a>
 
-A value is a number, a string, a Boolean, null, a list, an object, a structured value such as a `climate`, a reference value such as a `light` or a `room`, a function, or an event source. A script's values enter it through its bindings and its members, and leave it through its result, which holds data alone.
+A value is a number, a string, a Boolean, null, a list, an object, a structured value such as a `climate`, a reference value such as a `light` or a `room`, or a function. A script's values enter it through its bindings and its members, and leave it through its result, which holds data alone.
 
 Values are immutable. No expression changes a value once it exists, and none assigns a name twice; a binding is a frozen copy of the data its host gives, and each evaluation produces a new result.
 
@@ -65,7 +65,7 @@ Written inside an object expression, `root` refers to the outermost object being
 
 `root` is the language's one root, and requires no value from the host. A host can still bind a script parameter named `root`, which a script reads as `~root`.
 
-- **Where it exists.** `root` must be written inside an object expression, and elsewhere is a structure error; a function declared outside every object expression cannot use it, even when it is called inside one. Each evaluation and each event builds a new object root. When `rows { … }` has no enclosing object expression, each item gets its own object root. Nested objects and projections retain the enclosing object root, and an options object follows the same rules, as [options](members.md#arguments-options) describe.
+- **Where it exists.** `root` must be written inside an object expression, and elsewhere is a structure error; a function declared outside every object expression cannot use it, even when it is called inside one. Each evaluation, and each result projection of a value a host supplies, builds a new object root. When `rows { … }` has no enclosing object expression, each item gets its own object root. Nested objects and projections retain the enclosing object root, and an options object follows the same rules, as [options](members.md#arguments-options) describe.
 - **Which fields it has.** At each reference, only fields of the object root whose initializers have already completed in the declared field order are accessible. The field currently being initialized and later fields are unavailable:
 
 ```lexica
@@ -127,7 +127,7 @@ The name restrictions apply to declarations in a script. Supplied data keeps all
 
 ## Results
 
-A **result** is data: numbers, strings, Booleans, null, lists and objects. A reference value and an event source have no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A function value is never part of a result either, as [function values](functions.md#functions-as-values) set out.
+A **result** is data: numbers, strings, Booleans, null, lists and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A function value is never part of a result either, as [function values](functions.md#functions-as-values) set out.
 
 Each evaluation produces a new result, immutable throughout: its lists and objects, and every structured value in them, never change once produced, whatever the host's state does afterwards.
 
@@ -150,7 +150,7 @@ room.devices.count to "string"
 
 The type is a quoted type name: `number`, `string`, `boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `climate` holds its readings.
 
-A conversion converts data, so a reference value, a structured type that holds one, and an event source are no type it converts between, and what reads a host's state stays a member's, which declares how it changes; a reference value is cast to a type of its hierarchy with `as`.
+A conversion converts data, so a reference value and a structured type that holds one are no type it converts between, and what reads a host's state stays a member's, which declares how it changes; a reference value is cast to a type of its hierarchy with `as`.
 
 A list itself is no type a conversion converts between, and neither is a type that can be null. A name no type has is a validation error, as is any other target.
 

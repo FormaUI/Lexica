@@ -7,7 +7,8 @@ In this document:
 1. [Architecture](#architecture)
 2. [Modules and registries](#modules-and-registries)
 3. [Evaluation](#evaluation)
-4. [Tooling](#tooling)
+4. [Host calls](#host-calls)
+5. [Tooling](#tooling)
 
 ## Architecture
 
@@ -40,6 +41,14 @@ The evaluator compiles each node of a resolved definition once, into a function 
 The hooks a host gives an evaluation are called around each member's implementation, never inside the language's own operators, so what a host learns is exactly what the evaluation read of its domain. An evaluation's state, its pending members and the records of what it read, belongs to it alone, which is why an implementation that evaluates another script never disturbs the one that called it.
 
 A result is detached from everything the evaluation touched: the evaluator copies the data a member answers through the fields its type declares, and freezes the copy, so neither a host's later changes nor an implementation that keeps a reference can alter a result once produced. The metadata beside the value is recorded as the value is built, from the same compiled functions, so describing a result costs nothing until a host reads its metadata.
+
+## Host calls
+
+Lexica resolves and evaluates the scripts a host gives it; when they run, and what a host call does, are the host's. A host's calls differ in their lifecycles, one answering once, one delivering values over time, one running until it is ended, and each lifecycle is a contract of the host with its callers, never a rule of the language. Lexica therefore knows a single fact of a function, who invokes it, and none of the lifecycles: building them into the language as kinds of member and of request would tie every host to one host's operations, and leave each new lifecycle a change to Lexica.
+
+What a host call needs of Lexica is what every call needs: its receiver, its arguments and their types checked, and the values it gives back typed and shaped. Resolution checks a host call as it checks any call, and refuses one anywhere but at a script's end, so no evaluation can reach it. Preparing it evaluates its receiver and its arguments with the compiled functions evaluation uses, and projecting a supplied value checks and takes the value as the evaluator takes any member's answer and runs the result projection as an evaluation of its own, so a host that supplies many values pays for the projection's compilation once. A host call takes value arguments alone, since an expression argument is evaluated by its member while the member's invocation lasts, which a host call's never does within an evaluation.
+
+A type selector is the general form of choosing a call's result type by a fixed argument. A host's reports or commands of many kinds, each with data of its own, are one function whose fixed argument selects the type, and another module extends the selector with keys of its own as it extends another's types; scoping each mapping to its selector keeps one host's keys from colliding with another's.
 
 ## Tooling
 

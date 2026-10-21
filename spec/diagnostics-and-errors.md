@@ -32,7 +32,7 @@ In this document:
 
 ## Where a failure is located
 
-A syntax error identifies its position in the text, its offset, line and column. A structure, validation or evaluation error identifies its node in the definition, expressed as a JSON Pointer, and, where the request was made from text, its position in the text as well. An error in a binding names the binding, and a module error the module and the declaration, located by neither.
+A syntax error identifies its position in the text, its offset, line and column. A structure, validation or evaluation error identifies its node in the definition, expressed as a JSON Pointer, and, where the script was read from text, its position in the text as well. An error in a binding names the binding, and a module error the module and the declaration, located by neither.
 
 An evaluation error fails the entire result and is delivered to the host in its place.
 
@@ -110,12 +110,15 @@ A module whose declarations break the declaration contract, or whose names regis
 | An `and` or an `or` whose operands give values no one type holds | A validation error naming them, and the conditional to write where null is an acceptable alternative |
 | Branches of different types | A validation error naming the types |
 | A receiver, an argument, an expression or a binding of the wrong type, an argument of the wrong kind, or a missing required one | A validation error naming where, the expected type and the type found |
-| A result that would contain a reference value or an event source | A validation error |
+| A result that would contain a reference value | A validation error |
 | A field read through `root` whose initializer has not completed where `root` is written | A validation error naming the fields completed there |
 | A read, by its name or through `root`, of an option its member declares as an expression or a predicate | A validation error: `Option 'by' is an expression evaluated by the member against the implicit parameter it supplies; it has no single value to read here` |
 | A field or a result that would hold `root` | A validation error: `The field 'copy' would hold root, the object being built, which no result holds; read its fields, as root.name` |
-| A request used as another kind: reading an event source, subscribing to a value, executing a value request, or reading an action or a behavior | A validation error |
-| An action or a behavior inside a value request, an argument or another request's object expression | A validation error |
+| A host call anywhere but the script's terminal operation: in a field, an argument, a condition, an operand, a function's body or another call's result projection | A validation error |
+| A result projection following a host call that declares no result | A validation error |
+| A type selector's key the selector maps no type to | A validation error naming the selector and the key |
+| Preparing a script that ends in no host call, or projecting a value for a host call that declares no result | An evaluation error |
+| A value a host supplies that is not of its host call's declared result | An evaluation error naming the call |
 
 <a id="evaluation-errors"></a>
 

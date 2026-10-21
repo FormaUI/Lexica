@@ -2,7 +2,7 @@
 
 <a id="types"></a>
 
-Every value has a type, and every expression is typed before it is evaluated. The language defines the scalar types, lists, object types and event sources; a module declares the rest, its reference types and its structured types. A script never declares a type: Lexica infers each expression's type from the types its bindings and its vocabulary give it, and a cast narrows a reference to a type of its hierarchy.
+Every value has a type, and every expression is typed before it is evaluated. The language defines the scalar types, lists and object types; a module declares the rest, its reference types and its structured types. A script never declares a type: Lexica infers each expression's type from the types its bindings and its vocabulary give it, and a cast narrows a reference to a type of its hierarchy.
 
 Every member declares the types it accepts and returns, and resolution checks every expression against them before evaluation. A script that cannot be typed fails with a validation error identifying the location, the expected type and the actual type.
 
@@ -35,9 +35,8 @@ In this document:
 | Lists | `list<T>`, a list whose items have type `T` |
 | Structured values | Named fields of declared types, as `climate` |
 | Object types | The field types inferred from an object expression |
-| Event sources | `event<T>`, a source whose event data has type `T` |
 
-The scalar types, lists, object types and event sources are the language's own; every reference type and structured type comes from a module.
+The scalar types, lists and object types are the language's own; every reference type and structured type comes from a module.
 
 <a id="types-nullable-and-empty-types"></a>
 
@@ -102,19 +101,20 @@ A name written as a property is accepted whatever it is, since the fields of a b
 
 A name written as a call or an indexer is a member's, written in the form, and given the arguments, that at least one of its declarations takes; a name no member has, one written as a call where every declaration is a property, and one given an argument none takes are validation errors, since data names no function.
 
+<a id="receivers-of-unknown-type-the-call-keeps-who-invokes-it"></a>
 <a id="receivers-of-unknown-type-the-request-keeps-its-kind"></a>
 
-### The request keeps its kind
+### The call keeps who invokes it
 
-The declarations that take the name as it is written agree on the request kind they make, and the request is of that kind, so it takes the operations of its kind and is refused the others.
+The declarations that take the name as it is written agree on who invokes it, the evaluator or the host, so the script gives a value, or ends in a [host call](members.md#members-host-calls), as they say.
 
-Declarations that disagree on their kind are refused as ambiguous, and a cast to a reference type says which a null receiver means: `(thing as "light")?.dim({ to = 40 })` takes the light's declaration of `dim` for a null `thing`.
+Declarations that disagree on who invokes them are refused as ambiguous, and a cast to a reference type says which a null receiver means: `(thing as "light")?.dim({ to = 40 })` takes the light's declaration of `dim` for a null `thing`.
 
 <a id="receivers-of-unknown-type-what-it-answers"></a>
 
 ### What it answers
 
-A value request answers null, a subscription listens to nothing, an action is not executed and answers null, and a behavior is applied with nothing started, as with any null receiver.
+A call the evaluator invokes answers null, and a host call's preparation is skipped, as with any null receiver.
 
 Its type is the result type those declarations share, made nullable for a receiver of the type `null`, which answers null, and as they declare it for a `never`, which is never evaluated, so `rooms { count = it.devices.count }` is valid where `rooms` is bound to an empty list and `rooms { count = it.devices.cuont }` is refused.
 
@@ -132,7 +132,7 @@ Whether the name applies to its receiver is checked once the receiver's type is 
 
 An object expression following such a receiver, or applied to the items of a `list<never>`, resolves its fields against a `never`, so a call in it is still checked; its type is the object type of its fields, made nullable after a null, and a list of it after an empty list, which answers the empty list.
 
-A member read on a `list<never>` runs, as on any list, so it resolves to one declaration as any receiver does: the vocabulary declares a name once for any receiver, and where more than one of its declarations takes a `list<never>`, as only a type holding `never` allows, the request is refused as ambiguous.
+A member read on a `list<never>` runs, as on any list, so it resolves to one declaration as any receiver does: the vocabulary declares a name once for any receiver, and where more than one of its declarations takes a `list<never>`, as only a type holding `never` allows, the call is refused as ambiguous.
 
 <a id="casts"></a>
 

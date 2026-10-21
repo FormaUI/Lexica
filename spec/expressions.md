@@ -206,7 +206,7 @@ Null equals only null, and a value of any type is compared with null, one that c
 
 ### Types an equality compares
 
-Two values whose types fit neither way, as `"1" == 1` or a `room` with a `device`, reference types of two hierarchies, are a validation error naming both; a `light` and a `device` fit, as do a `number` and a `number?`. A structured value, a list and an object are compared with null alone, and an event source, an action or a behavior is no operand of `==` or `!=`.
+Two values whose types fit neither way, as `"1" == 1` or a `room` with a `device`, reference types of two hierarchies, are a validation error naming both; a `light` and a `device` fit, as do a `number` and a `number?`. A structured value, a list and an object are compared with null alone, and a host call is no operand of `==` or `!=`.
 
 <a id="equalities-results"></a>
 
@@ -366,7 +366,7 @@ device:["label"] or "untitled"
 
 ### Logical operands
 
-An operand of `and` and `or`, and what `not` negates, is any value, an event source, an action or a behavior being a validation error; each later operand sees what the operands before it guarantee where it is reached, as [narrowing](#truthiness) sets out.
+An operand of `and` and `or`, and what `not` negates, is any value, a host call being a validation error; each later operand sees what the operands before it guarantee where it is reached, as [narrowing](#truthiness) sets out.
 
 <a id="logical-expressions-negations-and-groups-binding"></a>
 
@@ -434,7 +434,7 @@ The first answers a device, which no result holds, so it stands within a larger 
 
 ### Conditions and selection
 
-A condition may be any value. An event source, action or behavior is not a condition and causes a validation error.
+A condition may be any value. A host call is not a condition and causes a validation error.
 
 A truthy condition selects its consequent. A falsey condition continues to the next clause. If no condition is truthy, the `else` branch is selected.
 
@@ -457,7 +457,7 @@ The name is visible throughout its consequent, including nested expressions. It 
 
 Where no local, field or function parameter of that name is in scope, using the name in its own initializer is a structure error rather than a read of the script parameter: `if let k = k then …` is refused, and `if let k = ~k then …` reads the script parameter. Where one is in scope, the initializer reads it. In the alternative and later clauses, the name again reads what it reads outside the conditional.
 
-The name follows local naming rules, and may hide an outer local, field or script parameter. Event sources, actions and behaviors cannot be bound as conditional values. `elseif let` follows the same rules.
+The name follows local naming rules, and may hide an outer local, field or script parameter. A host call cannot be bound as a conditional value. `elseif let` follows the same rules.
 
 <a id="conditionals-branch-types"></a>
 

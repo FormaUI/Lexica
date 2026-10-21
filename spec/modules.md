@@ -2,7 +2,7 @@
 
 <a id="modules"></a>
 
-A **module** is a named set of declarations a host registers: the types, members, predicates, event types, observation types, observation targets and conversions it contributes to a script's [vocabulary](vocabulary.md). A script resolves against the declarations of every module its registry holds, and reaches a module's own names through the module's namespace, as `home.rooms` does.
+A **module** is a named set of declarations a host registers: the types, members, predicates, type selectors and their keys, observation types, observation targets and conversions it contributes to a script's [vocabulary](vocabulary.md). A script resolves against the declarations of every module its registry holds, and reaches a module's own names through the module's namespace, as `home.rooms` does.
 
 A module's declarations are data, apart from the implementations that carry them out, so a tool reads them and checks a script against them without running anything. Here the examples' `home` module declares `room.device(name)` and is registered with a registry of its own:
 
@@ -23,7 +23,8 @@ const home = lexica.createModule('home', {
         },
     ],
     predicates: [/* occupied, active, offline, battery, dimming */],
-    eventTypes: [/* change, motion */],
+    typeSelectors: [{ name: 'event' }],
+    selectableTypes: [/* change, motion */],
     observationTypes: [/* placement, state, climate, presence, reading */],
     observationTargets: [{ name: 'home' }],
 });
@@ -43,27 +44,27 @@ In this document:
 
 ## Creating a module
 
-A module is made by `createModule` from its name and its declarations, `{ name, types, members, predicates, eventTypes, observationTypes, observationTargets, conversions }`, its `name` the module's and its namespace's. Its declarations are validated when it is created and checked against the registry when it is registered with `registerModule`; a declaration that breaks a contract is a module error, raised when the module is created or when it is registered, naming the module, the declaration and the field.
+A module is made by `createModule` from its name and its declarations, `{ name, types, members, predicates, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions }`, its `name` the module's and its namespace's. Its declarations are validated when it is created and checked against the registry when it is registered with `registerModule`; a declaration that breaks a contract is a module error, raised when the module is created or when it is registered, naming the module, the declaration and the field.
 
 Lexica's own module is one Lexica creates itself, the one module every registry holds, which owns the language's types and has no namespace. Every other module, a host's among them, is made with `createModule`, and no factory, name or flag makes one an exception to the rules.
 
 Each declaration that runs code carries it as its `implementation`: members, predicates, observation types and conversions. A member's name is written once, and two members sharing code refer to one JavaScript function. Every key but `implementation` is data.
 
-A module is given the capability it exposes, never an instance of it, since instances belong to the callers that apply them. A module exposes a capability through Lexica without the capability depending on Lexica: the capability keeps an API of its own, and its module lives beside it or in an integration package for it.
+A module is given the capability it exposes, never an instance of it, since instances belong to the callers that start them. A module exposes a capability through Lexica without the capability depending on Lexica: the capability keeps an API of its own, and its module lives beside it or in an integration package for it.
 
 <a id="modules-what-a-module-declares"></a>
 
 ## What a module declares
 
-A module can declare types of its own, reference and structured, properties, functions written as function calls or as named indexers, predicates, event sources, event types, observation types, observation targets, actions and behaviors, and conversions to and from its own types, one for each source type and target. It follows these contracts throughout: every member declares its signature, its argument kinds, its result type and how it changes, and evaluating a script stays read-only and synchronous.
+A module can declare types of its own, reference and structured, properties, functions written as function calls or as named indexers, for the evaluator or the host to invoke, predicates, type selectors and their keys, observation types, observation targets, and conversions to and from its own types, one for each source type and target. It follows these contracts throughout: every member declares its signature, its argument kinds and its result type, every member the evaluator invokes declares how it changes, and evaluating a script stays read-only and synchronous.
 
 | Declaration | What it is | Specified in |
 | --- | --- | --- |
 | Reference type | A type whose values have identity: its name, at most one supertype, the test a value of it passes and whether it is abstract | [Reference types](types.md#reference-types) |
 | Structured type | A type of data: its name and the types of its fields | [Type families](types.md#types-type-families) |
-| Member | A property, a function, an event source, an action or a behavior, of a type or of no type | [Members](members.md) |
+| Member | A property or a function, for the evaluator or the host to invoke, of a type or of no type | [Members](members.md) |
 | Predicate | A Boolean question of a receiver, asked with its verb | [Predicates](vocabulary.md#predicates) |
-| Event type | The type of the data an event source's events carry | [Events and event types](vocabulary.md#events-and-event-types) |
+| Type selector, selectable type | A mapping from keys to types that a fixed argument selects through, and each key with its type | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
 | Observation type, observation target | What a member names to learn that its result may have changed, and what it may observe | [Observations](vocabulary.md#observations) |
 | Conversion | How a value of one type of data converts to another | [Conversions](vocabulary.md#vocabulary-conversions) |
 
@@ -75,13 +76,14 @@ A module declares members and predicates of any name on any type, its own or ano
 
 One shape serves every declaration, and each kind accepts the fields it needs alone: a field a declaration's kind does not take is refused when the module is created, with a module error whose location names the module, the declaration and the field. A field holding `undefined` counts as left out.
 
-`name` is common to every declaration. `implementation` is taken by the declarations that run code, members, predicates, observation types and conversions, and is optional there; a structured type, an event type and an observation target run nothing, and refuse it. A member's fields, by its kind, are set out in [declaring a member](members.md#members-declaring-a-member); every other declaration takes these:
+`name` is common to every declaration. `implementation` is taken by the declarations that run code, members, predicates, observation types and conversions, and is optional there; a structured type, a type selector, a selectable type and an observation target run nothing, and refuse it. A member's fields, by its kind, are set out in [declaring a member](members.md#members-declaring-a-member); every other declaration takes these:
 
 | Declaration | Takes | Refuses |
 | --- | --- | --- |
 | Predicate | `target`, required; `verb`, `is` where it names none; `updates`, as a member's; `implementation` | `kind`, `syntax`, `arguments`, `parameters`, `result` |
 | Structured type | `fields` | Any other field, `implementation` among them |
-| Event type | `data` | Any other field, `implementation` among them |
+| Type selector | Its name alone | Any other field, `implementation` among them |
+| Selectable type | `selector` and `type`, both required, its name being its key | Any other field, `implementation` among them |
 | Observation type | `contract`, `identity`, `shared`; `implementation` | Any other field |
 | Observation target | `from`, which is `receiver` where given; `count`, which is `many` where given | Any other field, `implementation` among them, and the name `receiver` |
 | Conversion | `from`, `to`; `implementation` | Any other field |
@@ -90,7 +92,7 @@ One shape serves every declaration, and each kind accepts the fields it needs al
 
 ### Declarations without an implementation
 
-A declaration without an implementation is resolved against as any other, so a tool reads and checks every script that uses it. It is never invoked: creating an evaluator for a resolution any of whose used declarations, or any of the conversions it uses, has no implementation is refused, with a module error naming the declaration and its module. The used declarations include those an unreached branch uses, so whether a script can be evaluated is decided before anything is evaluated, whatever branch its evaluation takes, and a script of a module only some of whose declarations are implemented is evaluated where it uses those alone.
+A declaration without an implementation is resolved against as any other, so a tool reads and checks every script that uses it. It is never invoked: creating an evaluator for a resolution any of whose used declarations the evaluator invokes, or any of the conversions it uses, has no implementation is refused, with a module error naming the declaration and its module. The used declarations include those an unreached branch uses, so whether a script can be evaluated is decided before anything is evaluated, whatever branch its evaluation takes, and a script of a module only some of whose declarations are implemented is evaluated where it uses those alone.
 
 <a id="modules-registries"></a>
 
@@ -98,11 +100,11 @@ A declaration without an implementation is resolved against as any other, so a t
 
 A **registry** holds the modules a host resolves and evaluates against. `lexica.createRegistry(modules)` creates one holding Lexica's own module and the modules given; no registry is shared, so two hosts never see each other's modules.
 
-- **The registry holds definitions.** A registry holds the declarations of every module registered with it, shared by all the host's callers. The instances behaviors create, the event listeners subscribed to them and the state of whoever applied them are scoped to their callers, never to the registry.
-- **Registering checks the module whole.** `registerModule` checks every declaration against the registry before it registers any, so a module refused leaves nothing of itself registered; a module's name is registered once, and no module is named by a word the language reserves. Types, event types and observation types are each named once across every module, Lexica's own included, and a name already declared is refused.
+- **The registry holds definitions.** A registry holds the declarations of every module registered with it, shared by all the host's callers. What a host's callers start through host calls, and the state it keeps, is scoped to those callers, never to the registry.
+- **Registering checks the module whole.** `registerModule` checks every declaration against the registry before it registers any, so a module refused leaves nothing of itself registered; a module's name is registered once, and no module is named by a word the language reserves. Types, type selectors and observation types are each named once across every module, Lexica's own included, a selectable type once in its selector, and a name already declared is refused.
 - **Its revision.** A registry answers a revision that changes whenever its vocabulary does, so a host that keeps resolutions knows when to resolve again.
 - **It reads its own text.** A registry reads and writes text with its own module names, as [module names in text](#names-and-reserved-words-module-names) sets out.
-- **Registering is not applying.** Registering a module makes its capability understood; applying one of its behaviors creates an instance for its caller and target. Disposing that instance leaves the module registered.
+- **Registering is not invoking.** Registering a module makes its capability understood; a host invoking one of its host calls starts what that call starts, for its caller, and ending it leaves the module registered.
 - **Registering comes first.** A module is registered before a script naming it is resolved, and a member no registered module declares is a validation error naming it.
 
 <a id="namespaces"></a>

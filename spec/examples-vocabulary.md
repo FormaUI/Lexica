@@ -27,6 +27,7 @@ An example's bindings are supplied parameters, each bound by the host to a value
 | `room.devices` | `list<device>` | Observable: `placement` | Fresh | |
 | `room.floorArea` | `number`, in square meters | Constant | Fresh | |
 | `room.climate` | `climate?`, null where the room has no sensor | Observable: `climate` | Fresh | |
+| `room.highestTemperature` | `number?`, in degrees, the highest temperature the room has reported since its host began to hold the evaluation, null where the room has no sensor | Observable: `climate` | Captured | `0.5` |
 | `room.device(name)` | `name`: `string` → `device?` | Observable: `placement` | Fresh | |
 | `device.name` | `string` | Constant | Fresh | |
 | `device.room` | `room` | Observable: `placement` | Fresh | |
@@ -61,13 +62,15 @@ A setting is a string, so an example that needs a number converts it, as `device
 
 `home` declares the observation target `home`, the home itself, which `placement` observes.
 
-**Events, actions and behaviors.**
+**Host calls.** Functions the host invokes, and the values it supplies for each:
 
-| Member | Signature | Data or result |
+| Member | Signature | What the host does, and the values it supplies |
 | --- | --- | --- |
-| `device.on(type)` | An event source, `type` a fixed `string` selecting the event type | `change`: `{ setting: string, value: string? }`, the setting that changed and its new value; `motion`: `{ at: number, strength: number }`, when and how strongly it sensed motion, which a sensor alone delivers |
-| `light.dim({ to })` | An action, `to`: `number`, optional, `0` by default | `number`, the brightness reached |
-| `thermostat.hold({ target, until })` | A behavior, `target`: `number`, `until`: `number?` | Holds the target until `until`, or until disposed |
+| `device.on(type)` | `type`, a fixed `string` that selects through the selector `event` → `@selected` | Listens to the device's reports of that type, and supplies each as it arrives: `change`, `{ setting: string, value: string? }`, the setting that changed and its new value; `motion`, `{ at: number, strength: number }`, when and how strongly it sensed motion, which a sensor alone reports |
+| `light.dim({ to })` | `to`: `number`, optional, `0` by default → `number` | Dims the light once, and supplies the brightness reached |
+| `thermostat.hold({ target, until })` | `target`: `number`, `until`: `number?`, no result | Holds the target until `until`, or until the host ends it, and supplies nothing |
+
+`home` declares the type selector `event`, whose keys `change` and `motion` map to the two types above.
 
 **The `energy` module** extends `home`'s `device` with what an energy meter knows:
 

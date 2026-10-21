@@ -2,7 +2,7 @@
 
 What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come.
 
-The specification describes definition version 32. **The implementation reads definition version 31**, and the work to reach version 32 is under way, as [definition version 32](#definition-version-32) sets out.
+The specification describes definition version 32 and host calls. **The implementation reads definition version 31**, and the work to reach version 32 is under way, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are planned.
 
 | Status | Meaning |
 | --- | --- |
@@ -24,7 +24,8 @@ The specification describes definition version 32. **The implementation reads de
 | Types | Partial | Reference types declared by modules; the DOM's node types are still built into Lexica, and a cast takes only `node` and its kinds | [Types](../spec/types.md) |
 | Expressions: operators, conditionals, coalescing, attempts, interpolated strings | Implemented | | [Expressions](../spec/expressions.md) |
 | Functions: regular and arrow functions, function values | Implemented | | [Functions](../spec/functions.md) |
-| Members: forms, bracket property access, arguments, kinds and requests | Implemented | | [Members](../spec/members.md) |
+| Members: forms, bracket property access, arguments | Implemented | | [Members](../spec/members.md) |
+| Host calls: functions the host invokes, where they stand, the values a host supplies | Planned | Members still take the kinds `eventSource`, `action` and `behavior`, and scripts the request kinds | [Host calls](../spec/members.md#members-host-calls) |
 | Definition and canonical text | Implemented, version 31 | Version 32's nodes | [Definition](../spec/definition.md), [Grammar](../spec/grammar.md) |
 | Diagnostics: kinds, messages and locations | Implemented | Stable codes are [proposed](proposals/diagnostic-codes.md) | [Diagnostics and errors](../spec/diagnostics-and-errors.md) |
 
@@ -35,7 +36,8 @@ The specification describes definition version 32. **The implementation reads de
 | Module declarations in one shape, with their implementations | Implemented | | [Creating a module](../spec/modules.md#modules-declarations), [declaring a member](../spec/members.md#members-declaring-a-member) |
 | Registries: registration checked whole, revisions | Implemented | Reading text with the registry's module names | [Registries](../spec/modules.md#modules-registries) |
 | Lexica's own vocabulary: list members, verbs, conversions | Implemented | | [Lexica's own vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own) |
-| Predicates, event types and observation types | Implemented | | [Vocabulary](../spec/vocabulary.md) |
+| Predicates and observation types | Implemented | | [Vocabulary](../spec/vocabulary.md) |
+| Type selectors and selectable types | Planned | Event types stand where type selectors will | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
 | Observation targets declared by modules | Planned | Lexica still knows `window`, `document`, `root` and `roots` by name | [Observation targets](../spec/vocabulary.md#observations-targets) |
 | Namespaces and module members | Planned | Module members are registered but nothing reads them yet | [Namespaces](../spec/modules.md#namespaces) |
 | Qualified access, a null receiver propagating | Planned | | [Qualified access](../spec/modules.md#namespaces-qualified-access) |
@@ -51,6 +53,7 @@ The specification describes definition version 32. **The implementation reads de
 | Bindings, resolution and reuse by resolution key | Implemented | | [Runtime](../spec/runtime.md#runtime-bindings) |
 | Evaluation for any host, with its hooks | Implemented | | [Evaluation](../spec/runtime.md#runtime-evaluation) |
 | Frozen results and result metadata | Partial | A projected item's source is recorded only where the item is a DOM node, until reference types land | [Results and their metadata](../spec/runtime.md#runtime-results) |
+| Preparing a host call and projecting the values its host supplies | Planned | The evaluator prepares and projects each request kind through an entry point of its own | [Host calls](../spec/runtime.md#runtime-host-calls) |
 
 ### Delivery and tooling
 
@@ -97,6 +100,31 @@ Version 32 removes the DOM from the language: Lexica knows no domain, and a host
 4. Build slice 3, the source of every projected item checked against duplicate references, repeated equal data values, null inputs and reordered items.
 5. Resolve and evaluate the specification's examples against a module of [the examples' vocabulary](../spec/examples-vocabulary.md); today they are only parsed and formatted.
 
+## Host calls
+
+The specification describes host calls: a function's declaration says who invokes it, and Lexica prepares a host call and projects the values its host supplies, knowing none of the lifecycles a host gives its calls. It changes declarations and the evaluator's API, and no definition, so the definition version stays where it is.
+
+**What is missing.** The implementation still has the member kinds and request kinds host calls replace:
+
+| Gap | Where the contract differs |
+| --- | --- |
+| Members of the kinds `eventSource`, `action` and `behavior`, each with field rules of its own | A `function` whose declaration says `invokedBy: 'host'`, with no `updates` and no implementation |
+| `eventTypes`, the type `event<T>`, and a parameter that selects an event type | Type selectors and their selectable types, a parameter that selects a type through a selector, and `@selected` as a result |
+| `resolution.kind`, with the request kinds `value`, `subscription`, `action` and `behavior` | `resolution.hostCall`, null for a script that gives a value |
+| The evaluator's `resolveSource`, `resolveAction`, `resolveBehavior`, `projectResult` and `project(event)`, which answer null for a null receiver | `prepareCall()`, whose `skipped` preparation says there is nothing to invoke, and `project(value)` |
+| The implementation inputs `deliver`, `signal` and `reportError` | A host call has no implementation Lexica calls |
+| Actions and behaviors take expression and predicate parameters | A host call takes value parameters alone |
+| A body's result must be a value | A script's body may return a host call, its locals before it |
+| A behavior declares a `result` nothing reads | A host call that supplies nothing declares no result, and takes no result projection |
+
+**Dependencies.** Independent of the version 32 slices. Every host follows it in the change that lands it, since the request kinds and the evaluator's entry points it replaces go with it, and the README's list of features moves with it.
+
+**Next steps.**
+
+1. Build `invokedBy` and the host call's place: its declaration's fields, its refusal anywhere but at a script's end, a body returning one, and `resolution.hostCall`.
+2. Build type selectors and selectable types: a selector named once, a key once in its selector and never replaced, a key of an unregistered selector refused, at most one parameter selecting a type, the revision advancing with every key registered, and the refusal of a key no selector maps; test each refusal's module error.
+3. Build `prepareCall` and `project`, and remove the request kinds, the entry points and the implementation inputs they replace; test each refusal, a skipped preparation and a value of the wrong type.
+
 ## Packages
 
 Lexica is released from this repository. One source and one build give the NuGet package `formaui-net.Lexica`, serving `lexica.js` and `lexica.d.ts` at `_content/lexica/`, and the npm package `@formaui/lexica`. Neither is published.
@@ -125,3 +153,4 @@ The beta makes the language and its module API ready for external use: no breaki
 | A collection model, with ranges such as `slice`, `take` and `drop`, and conversions to and from collections | One native model for arrays, DOM collections, sets, maps and plain objects is designed first; until then a conversion from or to a list is refused at registration | A design task for collections |
 | Saying which declaration a null receiver or an empty list means | A cast to a kind of node already says it for a null receiver; nothing says it for declarations on other types, which are refused as ambiguous | An extension whose declarations collide that way in real use; a declared parameter type is the leading candidate |
 | Incremental reparsing, specialized tree machinery, a public tree schema shared by C# and JavaScript | No tool needs them yet | A concrete tooling need |
+| Expression, predicate and function arguments to a host call | A host call's arguments are prepared as values its host keeps; an argument the evaluator evaluates as its member calls it would need an evaluation context and a lifetime designed for a host call | A host call that must call back into its script, with that context and lifetime designed |

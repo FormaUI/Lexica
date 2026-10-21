@@ -9,7 +9,7 @@ In this document:
 1. [Scripts, values and results](#expressions-and-results)
 2. [Chains and members](#chains-and-members)
 3. [Operators, conditionals and strings](#expressions-1)
-4. [Vocabulary and requests](#vocabulary-and-requests)
+4. [Vocabulary and host calls](#vocabulary-and-host-calls)
 5. [Names for implementations](#names-for-implementations)
 
 <a id="expressions-and-results"></a>
@@ -58,7 +58,7 @@ In this document:
 | Receiver | The value before a member access, function call or indexer | [Access and calls](members.md#access-and-calls) |
 | Member | A property, function or other declared facility of a type | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
 | Property access | A property read using a dot or brackets | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
-| Function call | `name(…)`, written after a receiver to invoke a function, an event source, an action or a behavior, which stay distinct member kinds, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](members.md#property-access-calls-and-indexers-calls) |
+| Function call | `name(…)`, written after a receiver to call a function, which the evaluator or the host invokes, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](members.md#property-access-calls-and-indexers-calls) |
 | Named indexer | A keyed function written after a colon | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
 | Default indexer | `:[key]`, the named indexer designated as the default for the receiver's type, as its owner's precedence selects | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers-default-indexers) |
 | Argument | An expression supplied to a function call, or an indexer's key | [Arguments](members.md#arguments) |
@@ -95,9 +95,10 @@ In this document:
 | Block | A string, raw or not and interpolated or not, written on lines of its own between delimiters of three or more quotes, its margin removed | [Blocks](lexical-structure.md#strings-and-escapes-blocks) |
 | Simple expression | The restricted expression an argument, an indexer's key, a bracket property name or an interpolation holds | [Simple expressions](expressions.md#simple-expressions) |
 
+<a id="vocabulary-and-host-calls"></a>
 <a id="vocabulary-and-requests"></a>
 
-## Vocabulary and requests
+## Vocabulary and host calls
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
@@ -114,16 +115,14 @@ In this document:
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](vocabulary.md#observations) |
 | Observation type | A module's declaration of an observation, its contract an invalidation or maintained | [Observations](vocabulary.md#observations) |
 | Observation target | What a module declares its observations may observe besides the receiver and an argument, independent of the receiver or found from it, one target or several | [Observations](vocabulary.md#observations) |
-| Event source | A member producing a stream of events | [Events](members.md#events) |
-| Event | Something that happened, delivered by a source | [Events](members.md#events) |
-| Event type | A module's declaration of the data an event offers | [Events and event types](vocabulary.md#events-and-event-types) |
-| Event data | What an event source captured of an event | [Events and event types](vocabulary.md#events-and-event-types) |
-| Action | A member kind of its own, which its module carries out once when the host executes the request | [Requests](members.md#requests) |
-| Behavior | A member kind of its own, which its module starts when the host applies the request and which runs until updated or disposed | [Requests](members.md#requests) |
-| Request | A value, subscription, action or behavior request | [Requests](members.md#requests) |
+| Type selector | A module's declaration mapping keys to types, which a fixed argument selects the type of a function's result through | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
+| Selectable type | One key of a type selector and the type it maps to, which any module may declare | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
+| Host call | A call of a function the host invokes, `invokedBy: 'host'`, which ends a script; Lexica resolves and prepares it, and never invokes it | [Host calls](members.md#members-host-calls) |
+| Preparation | What preparing a host call answers: its declaration, receiver and arguments, or that it is skipped | [Host calls](runtime.md#runtime-host-calls) |
+| Result projection | The object expression following a host call, evaluated against each value its host supplies | [The values a host supplies](members.md#members-host-calls-the-values-a-host-supplies) |
 | Definition | The JSON document recording a script's meaning | [Definition](definition.md#definition) |
 | Runtime | What carries a script out for a host: reading, resolving and evaluating it | [Runtime](runtime.md#runtime) |
-| Host | The application around the runtime, which registers modules, binds values, evaluates and decides what to do with each result | [Runtime](runtime.md#runtime) |
+| Host | The application around the runtime, which registers modules, binds values, evaluates, invokes its host calls and decides what to do with each result | [Runtime](runtime.md#runtime) |
 | Registry | What holds the modules a host resolves and evaluates against | [Registries](modules.md#modules-registries) |
 | Resolution | A script resolved against a registry with bindings of one resolution key: its type and the declarations it uses | [Resolution](runtime.md#runtime-bindings-and-resolution) |
 | Diagnostic | A description of one problem, its kind, message and location, which a strict operation throws as an error | [Diagnostics and errors](diagnostics-and-errors.md#diagnostics-and-errors) |

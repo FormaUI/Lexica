@@ -3,14 +3,14 @@
 <a id="vocabulary"></a>
 <a id="vocabulary-contracts"></a>
 
-A script's **vocabulary** is everything it can name beyond the language itself: the types, members, predicates, event types, observation types and conversions of every module the registry it is resolved against holds. Lexica's own module is always among them, and every other module contributes by the same contracts, whatever its domain. A module's own specification gives its declarations and what each does in its domain; this document gives the contracts every one keeps, beside [members](members.md) and [types](types.md).
+A script's **vocabulary** is everything it can name beyond the language itself: the types, members, predicates, type selectors, observation types and conversions of every module the registry it is resolved against holds. Lexica's own module is always among them, and every other module contributes by the same contracts, whatever its domain. A module's own specification gives its declarations and what each does in its domain; this document gives the contracts every one keeps, beside [members](members.md) and [types](types.md).
 
 In this document:
 
 1. [Lexica's own vocabulary](#vocabulary-lexicas-own)
 2. [Predicates](#predicates)
 3. [Observations](#observations)
-4. [Events and event types](#events-and-event-types)
+4. [Type selectors](#vocabulary-type-selectors)
 5. [Conversions](#vocabulary-conversions)
 
 <a id="vocabulary-lexicas-own"></a>
@@ -128,18 +128,22 @@ An observable member names observations that cover every change to its result, a
 
 <a id="events-and-event-types"></a>
 
-## Events and event types
+<a id="vocabulary-type-selectors"></a>
 
-An [event source](members.md#members-event-sources)'s fixed argument selects an **event type**, a declaration of a module, named once across every module, that names the structured type of its event data, as `motion` names `{ at: number, strength: number }`; a type no event type of that name declares is a validation error.
+## Type selectors
 
-An event is captured as the fields its event data declares when it happens. A field the event carries no value of its type for is null where its type is nullable; where it is not, the capture fails, and the subscription reports the failure as it reports a failed object expression.
+A **type selector** is a declaration of a module that maps keys to types, so a function's fixed argument can choose the type the function answers. The home declares the selector `event`, whose keys are the reports a device makes: `"change"` maps to `{ setting: string, value: string? }` and `"motion"` to `{ at: number, strength: number }`, so the values a host supplies for `sensor.on("motion")` are of the second.
 
-An event source documents which fields it captured when the event happened, and when it delivers the event relative to what the host does with it; everything else an event's object expression reads is read as it is evaluated.
+- **Declaring a selector.** A module declares a selector in its `typeSelectors` by its name alone. A selector is named once across every module, as a type is, so its name identifies the module that declares it, and a module declaring a selector of a name already declared is refused at registration with a module error naming the selector and the module that declared it.
+- **Its keys.** A module declares each key in its `selectableTypes`, a declaration named by the key, with the `selector` it belongs to and the `type` it maps to. Any module declares keys for any selector, its own or one a module registered before it declares, so one module extends another's selector as it extends another's types, and is registered after the module it extends. A key stands once in its selector: a second, from the same module or another, is refused at registration with a module error naming the selector, the key and the module that declared it first, and no key once registered is replaced. A key of a selector no registered module declares is refused too.
+- **Its revision.** Registering a module that adds keys advances the registry's revision, as every registration does, so a resolution made before them is resolved again, as [reusing a resolution](runtime.md#runtime-reuse) sets out.
+- **Selecting.** A function's parameter that selects through a selector is fixed and names it, `fixed: true, selects: 'type', selector: 'event'`, and its argument settles as every [fixed argument](members.md#arguments-fixed) does. A function has at most one parameter that selects a type, since its `result` writes one `@selected` where the selected type stands, as `@selected` or `list<@selected>` does; a function with no parameter that selects a type writes none.
+- **A key the selector does not map** is a validation error naming the selector and the key.
 
 <a id="vocabulary-conversions"></a>
 
 ## Conversions
 
-A **conversion** is a declaration of a module: the type of data it converts from, the one it converts to and its implementation, one for each source type and target across every module registered, and none from a type to itself. Its types are `number`, `string`, `boolean` and the structured types that hold data alone: a reference value and an event source are left to members, which declare how they change, so a conversion adds no dependency on a host's state.
+A **conversion** is a declaration of a module: the type of data it converts from, the one it converts to and its implementation, one for each source type and target across every module registered, and none from a type to itself. Its types are `number`, `string`, `boolean` and the structured types that hold data alone: a reference value is left to members, which declare how they change, so a conversion adds no dependency on a host's state.
 
 Its implementation reads `value`, never null, and nothing else, and answers the converted value, or calls `reject(reason)` with a diagnostic string. `reject` throws a signal private to Lexica and to that attempt, so it never returns and the conversion stops where it calls it, unlike a promise's `reject`. What `to` and `try … to` make of a rejection and of any other failure is set out in [conversions](values.md#conversions) and [attempts](expressions.md#attempts).

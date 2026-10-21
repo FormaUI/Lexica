@@ -34,7 +34,7 @@ In this document:
 
 ## What a script is
 
-A script is a [body](#bodies): one expression, or locals and the `return` that gives its result. Its text is its source, which [the lexical structure](lexical-structure.md) and [the grammar](grammar.md) read, and its JSON form is its [definition](definition.md). The last member of its chain decides which [kind of request](members.md#members-member-kinds-and-requests) it makes: most scripts are value requests, which a host evaluates, and a script whose chain ends in an event source, an action or a behavior is a subscription, an action or a behavior request.
+A script is a [body](#bodies): one expression, or locals and the `return` that gives its result. Its text is its source, which [the lexical structure](lexical-structure.md) and [the grammar](grammar.md) read, and its JSON form is its [definition](definition.md). The last member of its chain decides [what it gives](members.md#members-member-kinds-and-host-calls): most scripts give a value, which a host evaluates, and a script whose chain ends in a function the host invokes ends in a host call, which the host carries out.
 
 A script reads three kinds of names: its script parameters, which its host binds; the names it declares itself, its locals, fields, conditional bindings and function parameters; and its vocabulary's, the members, predicates and module namespaces of the registry it is resolved against. How a host resolves and evaluates a script is the [runtime](runtime.md)'s contract.
 
@@ -169,7 +169,7 @@ Bodies place local declarations one after another. Object expressions use the sa
 
 ### One result at the end
 
-The result must be a value. An event source, action or behavior is a validation error here.
+The result must be a value, except the script's own body, whose result may be a [host call](members.md#members-host-calls-where-a-host-call-stands); a host call as the result of any other body is a validation error.
 
 Nothing follows the result. A later local, a second `return`, or a `return` without a value is a syntax error. A result may itself be a conditional or `do` block, each of which produces its own body's value.
 
