@@ -56,7 +56,7 @@ describe('LexicaModule', () => {
 
         expect(conditions).toMatchObject({ module: 'charts', field: 'conditions' });
         expect(conditions.message).toContain('a Boolean its verb asks by its name is a predicate');
-        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares types, members, predicates, eventTypes, observationTypes, conversions, and 'member' is none of them");
+        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares types, members, predicates, eventTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
         expect(messageOf(() => new LexicaModule('charts', null))).toContain("A module's contents are an object declaring types, members, predicates");
         expect(messageOf(() => new LexicaModule('charts', { members: {} }))).toContain("A module's members are a list");
         expect(messageOf(() => new LexicaModule('charts', { members: [null] }))).toContain('A member is an object declaring');
@@ -170,12 +170,35 @@ describe('LexicaModule', () => {
 
         it('refuse what only a receiver gives: an indexer, being a default indexer, and an observation of the receiver', () => {
             refusal({ members: [functionDeclaration({ target: undefined, syntax: 'indexer' })] }, 'zoom', 'syntax', 'a member without a target has none');
-
-            for (const of of ['receiver', 'root', 'roots']) {
-                refusal({ members: [declaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'resize', of }] } })] }, 'zoom', 'updates.observations', 'a member without a target has no receiver');
-            }
+            refusal({ members: [declaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'resize', of: 'receiver' }] } })] }, 'zoom', 'updates.observations', 'a member without a target has no receiver');
 
             expect(() => new LexicaModule('charts', { members: [declaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'visibility', of: 'document' }] } })] })).not.toThrow();
+        });
+    });
+
+    describe('observation targets', () => {
+        const fails = observationTargets => refusalOf(() => new LexicaModule('charts', { observationTargets }));
+
+        it('are kept as frozen data, each found from the receiver or independent of it, one target or several', () => {
+            const declared = [{ name: 'page' }, { name: 'frame', from: 'receiver' }, { name: 'frames', from: 'receiver', count: 'many' }];
+            const module = new LexicaModule('charts', { observationTargets: declared });
+
+            expect(module.observationTargets).toEqual(declared);
+            expect(module.observationTargets[0]).not.toBe(declared[0]);
+            expect(module.observationTargets.every(Object.isFrozen)).toBe(true);
+        });
+
+        it('are each named once, as a name is, and never receiver, which names an observation\'s receiver', () => {
+            expect(fails([{ name: 'chart-area' }])).toMatchObject({ declaration: 'chart-area', field: 'name' });
+            expect(fails([{ name: 'receiver' }]).message).toContain("'receiver' names an observation's receiver");
+            expect(fails([{ name: 'page' }, { name: 'page' }]).message).toContain("The observation target 'page' is declared twice");
+        });
+
+        it('say from: \'receiver\' and count: \'many\', or leave them out, and declare nothing else', () => {
+            expect(fails([{ name: 'page', from: 'document' }])).toMatchObject({ declaration: 'page', field: 'from' });
+            expect(fails([{ name: 'page', count: 2 }])).toMatchObject({ declaration: 'page', field: 'count' });
+            expect(fails([{ name: 'page', scope: 'all' }])).toMatchObject({ declaration: 'page', field: 'scope' });
+            expect(fails([null]).message).toContain('An observation target is an object declaring name, from, count');
         });
     });
 
@@ -220,13 +243,13 @@ describe('LexicaModule', () => {
         const observed = (observations, overrides = {}) => declaration({ name: 'charts', updates: { changes: 'observable', reads: 'fresh', observations }, ...overrides });
         const fails = contents => refusalOf(() => new LexicaModule('charts', contents));
 
-        it('observe the receiver, its root, its roots, the window, the document or an argument of the member', () => {
+        it('observe the receiver, an argument of the member or an observation target by its name, which the registry finds', () => {
             const parameters = [parameter({ name: 'other', type: 'element' })];
 
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'resize', of: { argument: 'other' } }], { kind: 'function', arguments: 'positional', parameters })] })).not.toThrow();
-            expect(() => new LexicaModule('charts', { members: [observed([{ type: 'event', of: 'window', types: ['focus'] }, { type: 'visibility', of: 'document' }])] })).not.toThrow();
-            expect(fails({ members: [observed([{ type: 'resize', of: 'parent' }])] })).toMatchObject({ declaration: 'charts', field: 'updates.observations' });
-            expect(fails({ members: [observed([{ type: 'resize', of: { argument: 'missing' } }])] }).message).toContain('observes the receiver, its root, its roots, the window, the document or an argument');
+            expect(() => new LexicaModule('charts', { members: [observed([{ type: 'event', of: 'window', types: ['focus'] }, { type: 'visibility', of: 'parent' }])] })).not.toThrow();
+            expect(fails({ members: [observed([{ type: 'resize', of: 'chart-area' }])] })).toMatchObject({ declaration: 'charts', field: 'updates.observations' });
+            expect(fails({ members: [observed([{ type: 'resize', of: { argument: 'missing' } }])] }).message).toContain('observes the receiver, an argument of the member or an observation target by its name');
             expect(fails({ members: [observed([{ type: 'resize' }])] }).message).toContain('observes the receiver');
         });
 

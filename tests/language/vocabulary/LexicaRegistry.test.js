@@ -121,10 +121,14 @@ describe('LexicaRegistry', () => {
     describe('observation types', () => {
         const startTicks = () => ({ stop() {} });
         const types = [{ name: 'ticks', contract: 'invalidation', implementation: startTicks }, { name: 'sampled', contract: 'maintained' }];
+        const targets = [{ name: 'page' }, { name: 'frame', from: 'receiver' }, { name: 'frames', from: 'receiver', count: 'many' }];
         const watching = (updates = {}, moduleTypes = types) => new LexicaModule('charts', {
             observationTypes: moduleTypes,
+            observationTargets: targets,
             members: [declaration({ name: 'charts', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'ticks', of: 'receiver' }], ...updates } })],
         });
+        // A module of its own whose member observes, through the charts module's types, the targets it declares.
+        const observingFrom = (of, overrides = {}) => new LexicaModule('later', { members: [declaration({ name: 'later', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'ticks', of }] }, ...overrides })] });
 
         it('are declared by a module, which its members and the members of later modules use', () => {
             const later = new LexicaModule('later', { members: [declaration({ name: 'later', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'ticks', of: 'receiver' }] } })] });
@@ -147,9 +151,21 @@ describe('LexicaRegistry', () => {
             expect(messageOf(() => new LexicaRegistry([watching({ observations: [{ type: 'sampled', of: 'receiver' }] })]))).toContain('reads maintained values');
         });
 
-        it('give a maintained observation one target, never the roots of a receiver, which are as many as its ancestry has', () => {
-            expect(() => new LexicaRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'root' }] })])).not.toThrow();
-            expect(messageOf(() => new LexicaRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'roots' }] })]))).toContain("The maintained observation 'sampled' gives one sample, so it observes one target, never a receiver's roots");
+        it('observe a target the module declaring their type declares, whichever module names it', () => {
+            expect(() => new LexicaRegistry([watching({ observations: [{ type: 'ticks', of: 'page' }, { type: 'ticks', of: 'frames' }] })])).not.toThrow();
+            expect(() => new LexicaRegistry([watching(), observingFrom('frame')])).not.toThrow();
+            expect(refusalOf(() => new LexicaRegistry([watching(), observingFrom('panel')]))).toMatchObject({ declaration: 'later', field: 'updates.observations' });
+            expect(messageOf(() => new LexicaRegistry([watching(), observingFrom('panel')]))).toContain("The observation 'ticks' observes 'panel', and the module 'charts', which declares 'ticks', declares no target of that name");
+        });
+
+        it('observe a target found from the receiver for a member with a target alone', () => {
+            expect(() => new LexicaRegistry([watching(), observingFrom('page', { target: undefined })])).not.toThrow();
+            expect(messageOf(() => new LexicaRegistry([watching(), observingFrom('frames', { target: undefined })]))).toContain("The observation 'ticks' observes 'frames', a target found from the receiver, and a member without a target has no receiver");
+        });
+
+        it('give a maintained observation one target, never a target of several', () => {
+            expect(() => new LexicaRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'frame' }] })])).not.toThrow();
+            expect(messageOf(() => new LexicaRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'frames' }] })]))).toContain("The maintained observation 'sampled' gives one sample, so it observes one target, never 'frames', a target of several");
         });
 
         it('start with the implementation their module gives', () => {

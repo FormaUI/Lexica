@@ -84,13 +84,17 @@ export class LexicaRegistry {
 
         const observationTypes = new Map([...this.#observationTypes, ...module.observationTypes.map(type => [type.name, type])]);
 
+        // A target belongs to the module that declares the observation type observing it, this module's own types observing this module's own targets.
+        const ownObservationTypes = new Set(module.observationTypes);
+        const ownerOf = type => (ownObservationTypes.has(type) ? module : this.#modules.get(this.#owners.get(type)));
+
         // Every type a declaration names is one Lexica defines, one the module declares, wherever it declares it, or one a module registered before it declares.
         const types = new Map([...this.#types, ...module.types.map(type => [type.name, type])]);
 
         LexicaRegistry.#checkTypeNames(module, types, fail);
 
         for (const declaration of [...module.members, ...module.predicates]) {
-            LexicaRegistry.#validateObservations(declaration, observationTypes, fail);
+            LexicaRegistry.#validateObservations(declaration, observationTypes, ownerOf, fail);
         }
 
         // A module declares members and predicates on any type, its own or another module's, by any name, and module members, which have no target, by any name its own module members do not take.
@@ -361,8 +365,11 @@ export class LexicaRegistry {
         }
     }
 
-    /** Refuses an observation of a type no module declares, a maintained observation of a receiver's roots, and a member that reads maintained values without a maintained observation, or any other that has one. */
-    static #validateObservations(declaration, observationTypes, fail) {
+    /**
+     * Refuses an observation of a type no module declares; one of a target its observation type's module declares none of, one of a target found from the receiver for a member without one,
+     * and a maintained one of a target of several; and a member that reads maintained values without a maintained observation, or any other that has one.
+     */
+    static #validateObservations(declaration, observationTypes, ownerOf, fail) {
         const { updates } = declaration;
 
         if (updates === undefined) {
@@ -378,9 +385,8 @@ export class LexicaRegistry {
                 fail(`The observation type '${observationDeclaration.type}' is declared by no module`, declaration.name, 'updates.observations');
             }
 
-            // A maintained observation gives the member one sample, and a receiver's roots are as many as its ancestry has.
-            if (type.contract === 'maintained' && observationDeclaration.of === 'roots') {
-                fail(`The maintained observation '${observationDeclaration.type}' gives one sample, so it observes one target, never a receiver's roots`, declaration.name, 'updates.observations');
+            if (typeof observationDeclaration.of === 'string' && observationDeclaration.of !== 'receiver') {
+                LexicaRegistry.#validateTarget(declaration, observationDeclaration, type, ownerOf(type), fail);
             }
 
             hasMaintained ||= type.contract === 'maintained';
@@ -388,6 +394,23 @@ export class LexicaRegistry {
 
         if ((updates.reads === 'maintained') !== hasMaintained) {
             fail(updates.reads === 'maintained' ? 'It reads maintained values, so it names a maintained observation' : 'It names a maintained observation, so it reads maintained values', declaration.name, 'updates');
+        }
+    }
+
+    /** Refuses a target its observation type's module does not declare, one found from the receiver for a member without one, and one of several for a maintained observation, which gives its member one sample. */
+    static #validateTarget(declaration, observationDeclaration, type, owner, fail) {
+        const target = owner.observationTargets.find(candidate => candidate.name === observationDeclaration.of);
+
+        if (target === undefined) {
+            fail(`The observation '${type.name}' observes '${observationDeclaration.of}', and the module '${owner.name}', which declares '${type.name}', declares no target of that name`, declaration.name, 'updates.observations');
+        }
+
+        if (target.from === 'receiver' && declaration.target === undefined) {
+            fail(`The observation '${type.name}' observes '${target.name}', a target found from the receiver, and a member without a target has no receiver`, declaration.name, 'updates.observations');
+        }
+
+        if (type.contract === 'maintained' && target.count === 'many') {
+            fail(`The maintained observation '${type.name}' gives one sample, so it observes one target, never '${target.name}', a target of several`, declaration.name, 'updates.observations');
         }
     }
 

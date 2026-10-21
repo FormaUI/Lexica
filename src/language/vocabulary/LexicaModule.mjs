@@ -30,12 +30,6 @@ const OBSERVATION_CONTRACTS = ['invalidation', 'maintained'];
 /** The categories whose changes observations cover. */
 const OBSERVED_CHANGE_CATEGORIES = ['observable', 'partly-observable'];
 
-/** What an observation observes, besides a target an argument names. */
-const OBSERVATION_TARGETS = ['receiver', 'root', 'roots', 'window', 'document'];
-
-/** The observation targets only a receiver gives, which a member without a target has none of. */
-const RECEIVER_TARGETS = ['receiver', 'root', 'roots'];
-
 /** The names of the types Lexica defines, which a declaration names without any module declaring them. */
 const BUILT_IN_TYPE_NAMES = ['number', 'string', 'boolean', 'node', 'element', 'document', 'documentFragment', 'shadowRoot', 'shadow', 'aria', 'window'];
 
@@ -49,7 +43,7 @@ const RESERVED_TYPE_NAMES = new Set([...BUILT_IN_TYPE_NAMES, 'list', 'event', 'n
 const DATA_TYPE_NAMES = ['number', 'string', 'boolean'];
 
 /** What a module can declare. */
-const CONTENTS = ['types', 'members', 'predicates', 'eventTypes', 'observationTypes', 'conversions'];
+const CONTENTS = ['types', 'members', 'predicates', 'eventTypes', 'observationTypes', 'observationTargets', 'conversions'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
 const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'implementation'];
@@ -65,6 +59,7 @@ const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 
 const TYPE_KEYS = ['name', 'fields'];
 const EVENT_TYPE_KEYS = ['name', 'data'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'implementation'];
+const OBSERVATION_TARGET_KEYS = ['name', 'from', 'count'];
 const PREDICATE_KEYS = ['name', 'target', 'verb', 'updates', 'implementation'];
 const CONVERSION_KEYS = ['from', 'to', 'implementation'];
 
@@ -81,6 +76,7 @@ export class LexicaModule {
     #predicates;
     #eventTypes;
     #observationTypes;
+    #observationTargets;
     #conversions;
 
     /**
@@ -91,6 +87,7 @@ export class LexicaModule {
      * @param {object[]} [contents.predicates] The predicates it declares, each a Boolean of its receivers that its verb asks by its name.
      * @param {object[]} [contents.eventTypes] The event types it declares, each with the type of its event data.
      * @param {object[]} [contents.observationTypes] The types of observation it declares.
+     * @param {object[]} [contents.observationTargets] The targets its observation types observe besides a receiver and an argument, each found from the receiver or independent of it, one target or several.
      * @param {object[]} [contents.conversions] The conversions it declares, each from a type of data to another.
      */
     constructor(name, contents = {}) {
@@ -112,9 +109,9 @@ export class LexicaModule {
             }
         }
 
-        const { types = [], members = [], predicates = [], eventTypes = [], observationTypes = [], conversions = [] } = contents;
+        const { types = [], members = [], predicates = [], eventTypes = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
 
-        for (const [key, list] of Object.entries({ types, members, predicates, eventTypes, observationTypes, conversions })) {
+        for (const [key, list] of Object.entries({ types, members, predicates, eventTypes, observationTypes, observationTargets, conversions })) {
             if (!Array.isArray(list)) {
                 fail(`A module's ${key} are a list`, undefined, key);
             }
@@ -126,6 +123,7 @@ export class LexicaModule {
         this.#predicates = LexicaModule.#freezeItems(predicates.map(predicate => LexicaModule.#validatePredicate(predicate, fail)));
         this.#eventTypes = LexicaModule.#freezeItems(eventTypes.map(eventType => LexicaModule.#validateEventType(eventType, fail)));
         this.#observationTypes = LexicaModule.#freezeItems(observationTypes.map(type => LexicaModule.#validateObservationType(type, fail)));
+        this.#observationTargets = LexicaModule.#freezeItems(LexicaModule.#validateObservationTargets(observationTargets, fail));
         this.#conversions = LexicaModule.#freezeItems(conversions.map(conversion => LexicaModule.#validateConversion(conversion, fail)));
     }
 
@@ -157,6 +155,11 @@ export class LexicaModule {
     /** The types of observation the module declares. */
     get observationTypes() {
         return this.#observationTypes;
+    }
+
+    /** The targets the module's observation types observe besides a receiver and an argument. */
+    get observationTargets() {
+        return this.#observationTargets;
     }
 
     /** The conversions the module declares. */
@@ -365,14 +368,15 @@ export class LexicaModule {
             fail(`The observation '${observationDeclaration.type}' is given the parameter '${functionArgument.argument}', a function that lasts only while the member's invocation does`, name, field);
         }
 
-        const isTarget = OBSERVATION_TARGETS.includes(observationDeclaration.of) || LexicaModule.#isArgumentReference(observationDeclaration.of, parameters);
+        // A target is named as a name is, and whether its observation type's module declares it is the registry's to check, which knows every module.
+        const isTarget = Names.isName(observationDeclaration.of) || LexicaModule.#isArgumentReference(observationDeclaration.of, parameters);
 
         if (!isTarget) {
-            fail(`The observation '${observationDeclaration.type}' observes the receiver, its root, its roots, the window, the document or an argument of the member, and not '${JSON.stringify(observationDeclaration.of)}'`, name, field);
+            fail(`The observation '${observationDeclaration.type}' observes the receiver, an argument of the member or an observation target by its name, and not '${JSON.stringify(observationDeclaration.of)}'`, name, field);
         }
 
-        if (!hasReceiver && RECEIVER_TARGETS.includes(observationDeclaration.of)) {
-            fail(`The observation '${observationDeclaration.type}' observes the receiver's ${observationDeclaration.of === 'receiver' ? 'self' : observationDeclaration.of}, and a member without a target has no receiver`, name, field);
+        if (!hasReceiver && observationDeclaration.of === 'receiver') {
+            fail(`The observation '${observationDeclaration.type}' observes the receiver, and a member without a target has no receiver`, name, field);
         }
 
         for (const [key, value] of Object.entries(observationDeclaration)) {
@@ -407,6 +411,41 @@ export class LexicaModule {
         }
 
         return LexicaModule.#isArgumentReference(value, parameters) || LexicaModule.#isPrefixedArgumentReference(value, parameters);
+    }
+
+    /** Validates the targets a module declares: each named once, never `receiver`, found from the receiver where it says `from: 'receiver'`, and several where it says `count: 'many'`. */
+    static #validateObservationTargets(targets, fail) {
+        const names = new Set();
+
+        return targets.map(declared => {
+            const target = LexicaModule.#defined(declared);
+
+            LexicaModule.#validateKeys(target, OBSERVATION_TARGET_KEYS, 'An observation target', fail);
+
+            if (!Names.isName(target.name)) {
+                fail('An observation target is named as a name is', String(target.name), 'name');
+            }
+
+            if (target.name === 'receiver') {
+                fail("'receiver' names an observation's receiver, so no target is named by it", target.name, 'name');
+            }
+
+            if (names.has(target.name)) {
+                fail(`The observation target '${target.name}' is declared twice`, target.name, 'name');
+            }
+
+            names.add(target.name);
+
+            if (target.from !== undefined && target.from !== 'receiver') {
+                fail("A target found from the receiver says from: 'receiver', and one independent of it leaves from out", target.name, 'from');
+            }
+
+            if (target.count !== undefined && target.count !== 'many') {
+                fail("A target of several says count: 'many', and one target leaves count out", target.name, 'count');
+            }
+
+            return LexicaModule.#copyOf(target);
+        });
     }
 
     static #validateObservationType(declared, fail) {

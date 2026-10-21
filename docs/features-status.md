@@ -38,7 +38,7 @@ The specification describes language version `1.0.0-alpha.32`, definition versio
 | Lexica's own vocabulary: list members, verbs, conversions | Implemented | | [Lexica's own vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own) |
 | Predicates and observation types | Implemented | | [Vocabulary](../spec/vocabulary.md) |
 | Type selectors and selectable types | Planned | Event types stand where type selectors will | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
-| Observation targets declared by modules | Planned | Lexica still knows `window`, `document`, `root` and `roots` by name | [Observation targets](../spec/vocabulary.md#observations-targets) |
+| Observation targets declared by modules | Implemented | | [Observation targets](../spec/vocabulary.md#observations-targets) |
 | Namespaces and module members | Planned | Module members are registered but nothing reads them yet | [Namespaces](../spec/modules.md#namespaces) |
 | Qualified access, a null receiver propagating | Planned | | [Qualified access](../spec/modules.md#namespaces-qualified-access) |
 | Owner precedence and extension ambiguity | Planned | Two modules declaring one name on overlapping receivers are refused at registration until it lands | [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions) |
@@ -74,17 +74,16 @@ Version 32 removes the DOM from the language: Lexica knows no domain, and a host
 | Slice | Status | What it delivers |
 | --- | --- | --- |
 | 1. The declaration shape | Implemented | One shape for every declaration, with valid combinations for each kind; implementations carried in their declarations and called with one object; an evaluator refused for a resolution that uses a declaration or conversion without an implementation |
-| 2. The version 32 definition | Planned | Observation targets declared by modules; the `it`, `root` and `namespace` nodes; module members read through namespaces; qualified access, whose receiver argument propagates null; a registry reading text with its module names |
+| 2. The version 32 definition | In progress | Observation targets declared by modules, which are built; the `it`, `root` and `namespace` nodes; module members read through namespaces; qualified access, whose receiver argument propagates null; a registry reading text with its module names |
 | 3. Reference types | Planned | Reference types, classification, declared binding types and casts within a hierarchy; the built-in node types removed; the source of every projected item; owner precedence and extension ambiguity |
 
-**What works.** Everything version 31 defines, and the declaration shape of version 32.
+**What works.** Everything version 31 defines, the declaration shape of version 32, and the observation targets modules declare.
 
 **What is missing.** The definition still has version 31's shape, and Lexica still carries DOM knowledge that version 32 removes:
 
 | Gap | Where the contract differs | Closed by |
 | --- | --- | --- |
 | The roots `document` and `window` are language nodes the evaluator reads from the environment | Version 32 has no such roots: a module declares what a script reads of its domain, through module members | Slice 2 |
-| Observation targets `window`, `document`, `root` and `roots` are built into Lexica | A module declares its targets, and its host resolves them | Slice 2 |
 | `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria` and `window` are built-in types, recognized by a value's `nodeType` | No type is built in but the language's own: a module declares its reference types, each with its test | Slice 3 |
 | A projected item's source is recorded only for a DOM node | Every projected item records its source | Slice 3 |
 | Two modules declaring one name on overlapping receivers are refused at registration | Both register, and resolution refuses an ambiguous use | Slice 3 |
@@ -94,11 +93,9 @@ Version 32 removes the DOM from the language: Lexica knows no domain, and a host
 
 **Next steps.**
 
-1. Decide the order of slice 2: observation targets first, at version 31, since they change module contents and not definitions; then the version 32 switch as one change.
-2. Build observation targets, declared by modules and resolved by their hosts.
-3. Build the version 32 switch: the new nodes, namespaces, qualified access with its null rule, and a registry reading text with its module names; test each qualified form against its receiver form.
-4. Build slice 3, the source of every projected item checked against duplicate references, repeated equal data values, null inputs and reordered items.
-5. Resolve and evaluate the specification's examples against a module of [the examples' vocabulary](../spec/examples-vocabulary.md); today they are only parsed and formatted.
+1. Build the version 32 switch: the new nodes, namespaces, qualified access with its null rule, and a registry reading text with its module names; test each qualified form against its receiver form.
+2. Build slice 3, the source of every projected item checked against duplicate references, repeated equal data values, null inputs and reordered items.
+3. Resolve and evaluate the specification's examples against a module of [the examples' vocabulary](../spec/examples-vocabulary.md); today they are only parsed and formatted.
 
 ## Host calls
 
@@ -143,7 +140,6 @@ The beta makes the language and its module API ready for external use: no breaki
 
 | Decision | State |
 | --- | --- |
-| The order of slice 2 | Proposed: observation targets at version 31 first, then the version 32 switch as one change. Awaiting the maintainer. |
 | How a type annotation is spelled | Open until annotations are designed: whether `name: type = value` writes the type bare while `as` and `to` quote theirs, or every form writes it alike. |
 
 ## Deferred
