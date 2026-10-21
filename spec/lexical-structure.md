@@ -95,7 +95,7 @@ The **keywords** are the reserved words other than the literals' words and `root
 An identifier's spelling decides no meaning; where it stands does:
 
 - **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, field, conditional binding or function parameter of its name, and otherwise the script parameter.
-- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local or field of its name, the spelling of a reserved word among them: `@to`.
+- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
 - **Where the position expects a name,** after `.`, `?.`, `:` or `?:`, after `as` or `to`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
 - **In text read through a registry,** a [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is no reserved word, but an identifier the registry gives that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. Text read without a registry knows no module's name.
@@ -123,7 +123,7 @@ The same rule applies to member and indexer names after `.`, `?.`, `:` and `?:`.
 
 In a script, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and in text read through a registry holding `home`, after `let home = 1`, an unprefixed `home` still begins the module's namespace.
 
-A **lexical reference**, `@` directly before an identifier, reads the nearest local or field of that name:
+A **lexical reference**, `@` directly before an identifier, reads the nearest local, field, conditional binding or function parameter of that name:
 
 ```lexica
 { let to = "3", value = @to to number }
@@ -131,7 +131,7 @@ A **lexical reference**, `@` directly before an identifier, reads the nearest lo
 
 It is needed where the identifier alone means something else, a reserved word or, in text read through a registry, a module's name, and allowed before any identifier: after `let total = 2`, `@total` reads the local as `total` does. Canonical text writes `@` only where it is needed.
 
-A lexical reference with no such local or field is a structure error:
+A lexical reference that no local, field, conditional binding or function parameter in scope answers is a structure error:
 
 > No local or field named 'it' is in scope. Use '~it' to read the script parameter.
 

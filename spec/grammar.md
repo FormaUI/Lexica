@@ -231,7 +231,7 @@ The grammar uses several terms more narrowly than the prose:
 | --- | --- |
 | `value` | The forms listed by that production: the implicit parameter, the object root or a literal |
 | `identifier` | An identifier's spelling, every name and every unprefixed reference written with it; which identifiers a position takes, and what one means there, are the [interpretation rules](lexical-structure.md#names-and-reserved-words-what-an-identifier-means), which the grammar's one production leaves to them |
-| `lexical-reference` | `@` and an identifier, reading the nearest local or field of that name, whatever its spelling |
+| `lexical-reference` | `@` and an identifier, reading the nearest local, field, conditional binding or function parameter of that name, whatever its spelling |
 | `script-parameter` | `~` and an identifier, selecting the script parameter of that name explicitly |
 | `module-name` | An identifier that begins a namespace where a value stands, in text read through a registry holding a module of that name |
 | `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; text read without a registry has no module names, so it has none |
