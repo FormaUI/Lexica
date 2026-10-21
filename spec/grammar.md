@@ -27,7 +27,7 @@ In this document:
 | Simple expressions | `simple-expression`, `simple-value-expression` | [Simple expressions](expressions.md#simple-expressions) |
 | Names and references | `value`, `identifier`, `local-name`, `field-name`, `member-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
 | Objects | `object`, `object-content`, `field` | [Objects](values.md#objects) |
-| Literals and strings | `literal`, `number`, `string` and its forms, `interpolated-string` and its parts | [Lexical structure](lexical-structure.md), [interpolated strings](expressions.md#interpolated-strings) |
+| Literals and strings | `literal`, `Number`, `String` and its forms, `interpolated-string` and its parts | [Lexical structure](lexical-structure.md), [interpolated strings](expressions.md#interpolated-strings) |
 | Trivia | `trivia`, `whitespace`, `line-comment`, `block-comment` | [Comments](lexical-structure.md#comments) |
 
 <a id="grammar-the-grammar"></a>

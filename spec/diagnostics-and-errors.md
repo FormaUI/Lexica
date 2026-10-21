@@ -56,7 +56,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A comparison chain whose operators point two ways | A syntax error at the operator that turns it |
 | `@` in a declaration or before a field's or a member's name, or `@` with no identifier directly after it | A syntax error giving the form to write |
 | `~` with no identifier directly after it | A syntax error saying a script parameter is named directly after `~` |
-| A string where a cast or a conversion names its type, as `device as "light"` | A syntax error giving the type's name written bare, `device as light` |
+| A string where a cast or a conversion names its type, as `device as "Light"` | A syntax error giving the type's name written bare, `device as Light` |
 | A keyword where a value stands | A syntax error giving the lexical reference; `then`, `elseif`, `else` and `end` give the value expected instead: `Expected a value, found 'then'` |
 | A conditional without its `end`, a conditional whose branches give their results in two styles, anything after a body's result, or a `return` with no value | A syntax error |
 | Locals whose body's result has no `return` | A syntax error: `Introduce the body's result with return.` |
@@ -86,9 +86,19 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A cast in a definition whose target is none text could write | A structure error at the target |
 | A `root` written outside every object expression | A structure error: `'root' refers to the outermost object being built, and no object expression encloses it here` |
 | A numeric literal no finite number holds, as `1e999`, in text or in a definition | A structure error: `A literal is a string, a finite number, a Boolean or null` |
-| Bindings that are no plain object, a binding not named by a letter followed by letters and digits, one that is no data and that no reference type's test accepts, or one classification finds ambiguous | A structure error naming the binding, as `A binding is named by a letter followed by letters and digits` |
+| Bindings that are no plain object, a binding not named by a letter followed by letters and digits, one that is no data and that no module recognizes, one modules recognize as unrelated types, a declared type the value does not belong to, or bindings made by another registry | A structure error naming the binding, as `A binding is named by a letter followed by letters and digits` |
 
-A module whose declarations break the declaration contract, a type or a member named by what is no name among them, or whose names registration finds taken or colliding within the module, fails with an error of its own kind, `module`, when it is created or registered, naming the module and the declaration.
+A module whose declarations break the declaration contract, a type or a member named by what is no identifier among them, or whose names registration finds taken or colliding within the module, fails with an error of its own kind, `module`, when it is created or registered, naming the module, the type a nested declaration stands in, and the declaration. Among them:
+
+| Situation | Result |
+| --- | --- |
+| A field a declaration's kind does not take, a type-level `fields` collection, `target`, `syntax` or `default` on a member, or an `internal` that is no Boolean | A module error naming the field |
+| A type whose name begins with no capital letter, or a name another module's type has | A module error naming the type |
+| A supertype that is no reference type, or a hierarchy that is a cycle | A module error naming the types |
+| A reference type without `isInstance`, or a `typeOf` or an `isInstance` that is no function | A module error naming the declaration |
+| A declaration naming another module's internal type or member, or a public one exposing an internal type through its signature | A module error naming the declaration and the internal type or member |
+| A declared cast to its own type, its supertype or a type beneath it; a conversion operator neither of whose types is its module's | A module error naming the operator |
+| Two members of one name, two default indexers, or two operators of one name and destination, on overlapping receivers of one module; a field and another member of its name | A module error naming both |
 
 <a id="preparation-and-type-errors"></a>
 
@@ -102,7 +112,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | A name no local or field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
 | `it` where nothing gives it a value | A structure error where the text alone shows it, as outside every argument at the top level; a validation error within an argument of a member call or of a local function call, whose function decides |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
-| A cast to a name that is no reference type, or of a target that can never be of its type | A validation error naming the types |
+| A cast to a name that is no reference type, or of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |
+| A script reaching an internal declaration of any module, through any form | A validation error naming the declaration, as if no declaration of its name were accessible |
+| Several applicable extensions, or several applicable operators of one destination, none of them the owner's | A validation error naming the modules and the qualified forms to write |
 | An equality of two values whose types fit neither way, or of a value that is no string, number, Boolean or reference value with one that is not null | A validation error naming the types, and the test to write where a value is compared with the name of one of its Boolean members |
 | An operand of `and`, `or` or `not`, a condition or a conditional binding of what is no value | A validation error naming what it is |
 | An arithmetic operand that can be null, or that is no number | A validation error naming the operand, and the fallback to give it |
@@ -132,7 +144,8 @@ A module whose declarations break the declaration contract, a type or a member n
 
 | Situation | Result |
 | --- | --- |
-| A value a strict cast rejects, or a value a conversion rejects | An evaluation error naming what was rejected; null under `try` |
+| A value a strict cast rejects, by its destination's membership or by its operator's `reject`, or a value a conversion rejects | An evaluation error naming what was rejected; null under `try` |
+| A `typeOf` naming no reference type of its module, an abstract one, or one the value does not belong to; an `isInstance` answering no Boolean or throwing | A fault naming the module or the type and what asked; no attempt catches it |
 | A division or a remainder by zero, or an arithmetic result no finite number holds | An evaluation error at the operation |
 | A module returning a value of a type other than the one it declared | An evaluation error |
 | A member failing unexpectedly while it evaluates | An evaluation error |

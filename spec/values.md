@@ -3,7 +3,7 @@
 <a id="values"></a>
 <a id="values-and-types"></a>
 
-A value is a number, a string, a Boolean, null, a list, an object, a structured value such as a `climate`, a reference value such as a `light` or a `room`, or a function. A script's values enter it through its bindings and its members, and leave it through its result, which holds data alone.
+A value is a number, a string, a Boolean, null, a list, an object, a structured value such as a `Climate`, a reference value such as a `Light` or a `Room`, or a function. A script's values enter it through its bindings and its members, and leave it through its result, which holds data alone.
 
 Values are immutable. No expression changes a value once it exists, and none assigns a name twice; a binding is a frozen copy of the data its host gives, and each evaluation produces a new result.
 
@@ -12,7 +12,7 @@ room {
     name = it.name,                                 // A string.
     warmth = it.climate?.temperature ?? 0,          // A number, a fallback where there is none.
     devices = it.devices { name = it.name },        // A list of objects, one for each device.
-    level = it.device("lamp")?:["level"] to number  // A setting's text, converted.
+    level = it.device("lamp")?:["level"] to Number  // A setting's text, converted.
 }
 ```
 
@@ -93,7 +93,7 @@ Where a conditional or `??` can give either of two references, both must refer t
 ## Lists
 
 - A list keeps the order of its source: a member that makes a list says where its order comes from, and a bound list keeps its host's; `where`, and an object expression following a list, keep its items in that order.
-- An object expression following a list applies to each item and answers a list of the same length, in the same order; an item that is null answers null at its position, so over a list whose items can be null it answers a list of objects that can be null: `xs { a = 1 }` over a `list<device?>` is a `list<{ a: number }?>`.
+- An object expression following a list applies to each item and answers a list of the same length, in the same order; an item that is null answers null at its position, so over a list whose items can be null it answers a list of objects that can be null: `xs { a = 1 }` over a `List<Device?>` is a `List<{ a: Number }?>`.
 - A member following a list is a member of the list itself, as [list members](vocabulary.md#vocabulary-list-members) set out: `room.devices.count` counts the room's devices.
 
 <a id="null"></a>
@@ -135,20 +135,20 @@ Each evaluation produces a new result, immutable throughout: its lists and objec
 
 ## Conversions
 
-A conversion answers a value converted to another type of data: `value to type` evaluates its value, carries out the conversion the vocabulary declares from the value's type to the type it names, and answers the converted value. A [cast](types.md#casts) converts nothing, and a conversion casts nothing.
+A conversion answers a value converted to another type of data: `value to Type` evaluates its value, carries out the [conversion operator](modules.md#modules-operators) the vocabulary declares from the value's type to the type it names, and answers the converted value. A [cast](types.md#casts) converts nothing, and a conversion casts nothing.
 
 ```lexica
-device:["level"] to number
-device:["level"] to number ?? 0
-device:["night-mode"] to boolean
-room.devices.count to string
+device:["level"] to Number
+device:["level"] to Number ?? 0
+device:["night-mode"] to Boolean
+room.devices.count to String
 ```
 
 <a id="conversions-target-type"></a>
 
 ### The type a conversion names
 
-The type is a type's name, written bare, as `to number` writes it, and a string in its place, `to "number"`, is a syntax error giving the bare name. It is `number`, `string`, `boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `climate` holds its readings.
+The type is a type's name, written bare, as `to Number` writes it, and a string in its place, `to "Number"`, is a syntax error giving the bare name. It is `Number`, `String`, `Boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `Climate` holds its readings.
 
 A conversion converts data, so a reference value and a structured type that holds one are no type it converts between, and what reads a host's state stays a member's, which declares how it changes; a reference value is cast to a type of its hierarchy with `as`.
 
@@ -158,13 +158,13 @@ A list itself is no type a conversion converts between, and neither is a type th
 
 ### One declared conversion
 
-A value converts to another type only through the one conversion the vocabulary declares from its type to that type, as [conversions](vocabulary.md#vocabulary-conversions) declare them. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to number` is still a validation error, whose message names the types a Boolean converts to. A script that means both conversions writes both.
+A value converts to another type only through the one conversion operator the vocabulary declares from its type to that type, as [conversions](vocabulary.md#vocabulary-conversions) declare them, selected by the owner of its type where several modules declare one, as [owners and extensions](modules.md#namespaces-owners-and-extensions) set out. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to Number` is still a validation error, whose message names the types a Boolean converts to. A script that means both conversions writes both.
 
 <a id="conversions-a-value-already-of-the-type"></a>
 
 ### A value already of the type
 
-A value already of the type answers itself, so `5 to number` is 5. This is the language's rule, and no conversion is declared from a type to itself.
+A value already of the type answers itself, so `5 to Number` is 5. This is the language's rule, and no conversion is declared from a type to itself.
 
 <a id="conversions-null"></a>
 
@@ -172,13 +172,13 @@ A value already of the type answers itself, so `5 to number` is 5. This is the l
 
 A conversion of null answers null without converting, and its type is the type it converts to, made nullable where its value can be null.
 
-A value of the type null, a null binding, converts to any type a conversion can name, however many conversions reach it, since nothing is converted; a value whose type is known is checked by that type without null, so `room.device(name) to string` is a validation error, as a conversion from a device is declared nowhere.
+A value of the type null, a null binding, converts to any type a conversion can name, however many conversions reach it, since nothing is converted; a value whose type is known is checked by that type without null, so `room.device(name) to String` is a validation error, as a conversion from a device is declared nowhere.
 
 <a id="conversions-what-fails"></a>
 
 ### What fails
 
-A value its conversion rejects, as `"40%" to number`, fails the evaluation with an evaluation error naming the conversion, the reason it gave and where it stands. A conversion that fails otherwise, by throwing or by answering a value not of its type, has a fault, which fails the evaluation too.
+A value its conversion rejects, as `"40%" to Number`, fails the evaluation with an evaluation error naming the conversion, the reason it gave and where it stands. A conversion that fails otherwise, by throwing or by answering a value not of its type, has a fault, which fails the evaluation too.
 
 A failure never answers null or a default: `?? 0` gives a missing setting a value, and leaves a malformed one an error, for which [an attempt](expressions.md#attempts) answers null instead.
 

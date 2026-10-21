@@ -2,7 +2,7 @@
 
 What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come.
 
-The specification describes language version `1.0.0-alpha.32` and definition version 32. **The implementation reads definition version 32** and implements language version `1.0.0-alpha.32`, save for the reference types of its third slice, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are implemented.
+The specification describes language version `1.0.0-alpha.33` and definition version 32. **The implementation reads definition version 32** and implements language version `1.0.0-alpha.32`, without the types and members that language version `1.0.0-alpha.33` describes and version 32's third slice builds, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are implemented.
 
 | Status | Meaning |
 | --- | --- |
@@ -21,7 +21,7 @@ The specification describes language version `1.0.0-alpha.32` and definition ver
 | Scripts: parameters, bindings, names, bodies and locals | Implemented | | [Scripts](../spec/scripts.md) |
 | Lexical structure: tokens, names, strings, comments | Implemented | | [Lexical structure](../spec/lexical-structure.md) |
 | Values: objects, the object root, lists, null, results and conversions | Implemented | | [Values](../spec/values.md) |
-| Types | Partial | Reference types declared by modules; the DOM's node types are still built into Lexica, and a cast takes only `node` and its kinds | [Types](../spec/types.md) |
+| Types | Partial | Types declared with their members, in PascalCase; reference types recognized by `typeOf` and checked by `isInstance`; type parameters by scope; casts by hierarchy or a declared cast; the DOM's node types are still built into Lexica, and a cast takes only `node` and its kinds | [Types](../spec/types.md) |
 | Expressions: operators, conditionals, coalescing, attempts, interpolated strings | Implemented | | [Expressions](../spec/expressions.md) |
 | Functions: regular and arrow functions, function values, function references, implicit bodies | Implemented | | [Functions](../spec/functions.md) |
 | Members: forms, bracket property access, arguments | Implemented | | [Members](../spec/members.md) |
@@ -43,8 +43,10 @@ The specification describes language version `1.0.0-alpha.32` and definition ver
 | Namespaces and module members | Implemented | | [Namespaces](../spec/modules.md#namespaces) |
 | Qualified access, a null receiver propagating | Implemented | | [Qualified access](../spec/modules.md#namespaces-qualified-access) |
 | A module's own collisions | Implemented | | [A module's own collisions](../spec/modules.md#namespaces-a-modules-own-collisions) |
+| Types declaring their members, fields, indexer kinds and operators; extension blocks | Planned | Members are declared flat, with `target`, `syntax` and `default`, structured types with `fields`, and conversions at module level | [Declaring a type](../spec/modules.md#modules-declaring-a-type), [operators](../spec/modules.md#modules-operators) |
+| Internal declarations | Planned | | [Internal declarations](../spec/modules.md#modules-internal-declarations) |
 | Owner precedence and extension ambiguity | Planned | Two modules declaring one name on overlapping receivers are refused at registration until it lands | [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions) |
-| Reference types, classification and declared binding types | Planned | | [Reference types](../spec/types.md#reference-types) |
+| Reference types, recognition, membership and declared binding types | Planned | Bindings are typed without a registry, by `lexica.bind` | [Reference types](../spec/types.md#reference-types), [bindings](../spec/runtime.md#runtime-bindings) |
 | Qualified extension indexers | Deferred | Beyond version 32, until a use needs one | [Indexer selection](../spec/modules.md#namespaces-indexers) |
 
 ### The runtime
@@ -77,24 +79,33 @@ Version 32 removes the DOM from the language: Lexica knows no domain, and a host
 | --- | --- | --- |
 | 1. The declaration shape | Implemented | One shape for every declaration, with valid combinations for each kind; implementations carried in their declarations and called with one object; an evaluator refused for a resolution that uses a declaration or conversion without an implementation |
 | 2. The version 32 definition | Implemented | Observation targets declared by modules, which are built; the `it`, `root` and `namespace` nodes; module members read through namespaces; qualified access, whose null receiver argument skips the member and its arguments; a registry parsing, formatting and quoting text with its module names; function references and implicit bodies; expression and predicate arguments taking a function of the item beside their body; the verbs given a test, and Boolean functions in place of predicates; a cast's and a conversion's type written bare; a version 31 definition refused |
-| 3. Reference types | Planned | Reference types, classification, declared binding types and casts within a hierarchy; the built-in node types removed; the source of every projected item; owner precedence and extension ambiguity |
+| 3. Types and their members | Planned | Types declaring their members, fields, indexer kinds and operators, named in PascalCase; extension blocks, generic `List<T>` and the verbs' extension on `T`; reference types recognized by `typeOf` and checked by `isInstance`, abstract types, and registry-aware bindings with declared types; casts by hierarchy or a declared cast, and conversions as operators; owner precedence through inheritance and ambiguity at resolution; internal declarations; the built-in DOM types removed; the source of every projected item |
 
 **What works.** The declaration shape and the version 32 definition: its `it`, `root` and `namespace` nodes, a version 31 definition refused; a registry parsing, formatting and quoting text with its module names, and refusing a definition read without them; module members, qualified forms and function references, a null receiver argument skipping the member and its own arguments wherever a reference is held, passed or chosen; the verbs given a test, an implicit body recognized by its own `it` among its forms, and Boolean functions in place of predicates; an expression or a predicate argument given an arrow function, a function a name holds or a function reference, under its own result policy; a cast's and a conversion's type written bare; and the observation targets modules declare. Six of the specification's examples resolve and evaluate.
 
-**What is missing.** Lexica still carries DOM knowledge that slice 3 removes:
+**What is missing.** The model slice 3 builds is specified and not implemented:
 
 | Gap | Where the contract differs | Closed by |
 | --- | --- | --- |
-| `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria` and `window` are built-in types, recognized by a value's `nodeType` | No type is built in but the language's own: a module declares its reference types, each with its test | Slice 3 |
-| A projected item's source is recorded only for a DOM node | Every projected item records its source | Slice 3 |
-| Two modules declaring one name on overlapping receivers are refused at registration | Both register, and resolution refuses an ambiguous use | Slice 3 |
+| Members are declared flat with `target`, `syntax` and `default`; structured types with `fields`; conversions at module level; code under `implementation` | A type holds its members, fields among them, the indexer kinds and the operators; extensions hold the members a module adds to another's types; code is `impl` | Step 1 |
+| Type names are lowercase, and every single capital letter is a type parameter | Types are named in PascalCase, a capital letter first, and a type parameter is one where its declaration declares it | Step 1 |
+| `node`, `element`, `document`, `documentFragment`, `shadowRoot`, `shadow`, `aria` and `window` are built-in types, recognized by a value's `nodeType`, and `lexica.bind` types bindings without a registry | No type is built in but the language's own: a module declares its reference types with their `isInstance`, recognizes its values by `typeOf`, and a registry binds | Step 2 |
+| A cast takes only `node` and its kinds | A cast reaches its hierarchy and the casts modules declare | Steps 2 and 3 |
+| Two modules declaring one name on overlapping receivers are refused at registration | Both register, the owner's member wins, and resolution refuses an ambiguous use | Step 4 |
+| No declaration is internal | A type or a member is available within its declaring module alone where it says so | Step 5 |
+| A projected item's source is recorded only for a DOM node | Every projected item records its source | Step 6 |
 
-**Dependencies.** Owner precedence waits for slice 3, because a module owns a type only once it declares it as a reference type. The implementation reads version 32 alone, so the switch from version 31 was one change, which every host follows in a change of its own.
+**Steps.** Each step lands in Lexica and DOMQL together and passes both repositories' gates:
 
-**Next steps.**
+1. **The declaration shape.** Types holding their members; fields in place of `fields`; `indexer` and `default-indexer` in place of `syntax` and `default`; `impl` in place of `implementation`; extension blocks; Lexica's `List`, `typeParameters: ['T']`, and the verbs as an extension on `T`; type parameters recognized by their declaration's scope; PascalCase type names, with the initial-capital rule at registration; and the declaration helpers without receivers, with `field` and indexer helpers. DOMQL's vocabulary moves to the shape, `on` one declaration in each of `Element`, `Document` and `Window`.
+2. **Reference types.** `typeOf`, `isInstance` and `abstract`; `registry.bind` with declared types, its bindings captured once, and resolutions invalidated by registering; hierarchies in assignability, list supertypes, applicability, result checks and hierarchy casts; Lexica's built-in DOM types removed, and DOMQL declaring `Node`, `Element`, `Document`, `DocumentFragment`, `ShadowRoot`, `Window`, `Aria` and `Shadow`. Binding and repeated evaluation are measured with DOMQL's scale workloads before any membership answer is cached, and a cache comes with its validity defined.
+3. **Operators.** Declared casts, their `impl` optional, and conversions as operators of their source types, a foreign source type's in an extension; DOMQL's cast from `Aria` to `Element`.
+4. **Ownership.** Owner precedence through inheritance, internal candidates left out, extensions that compete both registering, and ambiguity refused at resolution, for members, indexers and operators.
+5. **Internal declarations.** Registration's checks, including public signatures exposing public types alone; resolution's refusals through every access form; and tooling's filtering, together.
+6. **Sources.** Every projected item's source, checked against reordered and duplicate references, repeated equal data, distinct data values, null inputs, empty projections and successive projections, together with DOMQL's comparer matching by identity only where both lists give a unique, non-null reference source for every item.
+7. **Examples.** The specification's 28 remaining examples resolved and evaluated against a module of [the examples' vocabulary](../spec/examples-vocabulary.md), once step 2 gives their bindings a type.
 
-1. Build slice 3, the source of every projected item checked against duplicate references, repeated equal data values, null inputs and reordered items.
-2. Resolve and evaluate the specification's other 28 examples against a module of [the examples' vocabulary](../spec/examples-vocabulary.md), which read the home's rooms, devices, lights, thermostats or sensors and are parsed and formatted until reference types and declared binding types give their bindings a type.
+**Dependencies.** Extension blocks, in step 1, precede conversions on foreign source types, in step 3; reference types, in step 2, precede the examples, in step 7; internal declarations' registration checks, resolution rules and tooling filtering arrive together, in step 5; and the general sources arrive with DOMQL's comparer, in step 6. The definition stays at version 32: a cast's or a conversion's type is any identifier either way, so PascalCase changes the values definitions hold, not which are accepted, while the language and the runtime change incompatibly.
 
 ## Host calls
 
@@ -130,3 +141,7 @@ No decision is open.
 | Saying which declaration a null receiver or an empty list means | A cast to a kind of node already says it for a null receiver; nothing says it for declarations on other types, which are refused as ambiguous | An extension whose declarations collide that way in real use; a declared parameter type is the leading candidate |
 | Incremental reparsing, specialized tree machinery, a public tree schema shared by C# and JavaScript | No tool needs them yet | A concrete tooling need |
 | Expression, predicate and function arguments to a host call | A host call's arguments are prepared as values its host keeps; an argument the evaluator evaluates as its member calls it would need an evaluation context and a lifetime designed for a host call | A host call that must call back into its script, with that context and lifetime designed |
+| An extension block naming several types | A convenience: one declaration reused in each type serves the cases today | A vocabulary repeating many members across unrelated types |
+| Selecting one module's operator where several compete | No syntax selects an operator by module, and a qualified call reaches none | Competing operators in real use |
+| Casts of structured data, conversions between references and data, and operators beyond `cast` and `convert` | Each needs its own definition of what is checked and what is copied | A use the two operators do not serve |
+| A call into a module's internal declarations through Lexica | Implementations are JavaScript and reach their own values directly | An internal-call API, with the module context it carries |

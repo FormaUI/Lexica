@@ -15,7 +15,7 @@ Three layers meet in every evaluation, and each owns its part:
 A host uses the runtime in four steps: it binds its values, resolves the script against its registry, creates an evaluator, and evaluates it as often as it needs.
 
 ```js
-const bindings = lexica.bind({ room: livingRoom });
+const bindings = registry.bind({ room: livingRoom });
 const resolution = registry.resolve('{ name = room.name, total = room.devices.count }', bindings);
 const evaluator = resolution.createEvaluator(bindings, env);
 const { value, metadata } = evaluator.evaluate();
@@ -34,7 +34,12 @@ In this document:
 
 ## Bindings
 
-`lexica.bind(values)` binds a host's values to a script's parameters by name. It copies and freezes their data recursively and keeps each reference value as it is, by its identity, a reference nested in data among them, neither copied nor frozen. It refuses an unsupported value and a cycle. How each binding is typed is set out in [script parameters and bindings](scripts.md#scripts-script-parameters).
+`registry.bind(values, options)` binds a host's values to a script's parameters by name, against the registry, since its modules' `typeOf` decide which values are references: it asks them of each value before copying it, keeps each reference value as it is, by its identity, a reference nested in data among them, neither copied nor frozen, and copies and freezes the rest of the data recursively. It refuses an unsupported value and a cycle. How each binding is typed is set out in [script parameters and bindings](scripts.md#scripts-script-parameters).
+
+- **Declared types.** `options.types` declares the reference type of a top-level binding by its name, as `registry.bind({ panel }, { types: { panel: 'Node' } })` binds a DOM element as a `Node`; the value must belong to the type, and no `typeOf` is asked for it, as [a declared type](types.md#reference-types) sets out. No other binding, and no value nested in one, takes a declared type.
+- **Captured once.** A binding set captures its values and their types when it is made. Registering a module afterwards invalidates the registry's resolutions, which a host resolves again, and leaves a binding set as it was: its values and their types stay those it captured, and a binding set made afterwards uses the registry's recognition as it then is.
+- **Its registry.** A binding set is the registry's that made it, and resolving or evaluating against another registry is refused, saying to bind with that one. Plain values given to `registry.resolve` or to an evaluator are bound by that registry, as `registry.bind` binds them.
+- **What it answers.** It answers whether it holds a binding of a name, `has`, the value, `get`, and the type, `typeOf`, of each, and its resolution key, as soon as it is made.
 
 A binding set has a **resolution key**: each binding's type, and each primitive binding's value, since a string a script reads can select what a member reads, as a bracket property access's name does.
 
@@ -147,7 +152,7 @@ if (call.kind === 'prepared') {
 | Nothing, a field missing or `undefined` among them | Null where its type is nullable; the projection fails where it is not |
 | Null | Null where its type is nullable; the projection fails where it is not |
 | A value its type admits | The value, a structure as its declared fields alone, and a list item by item |
-| A reference of another type, where a nullable reference type is declared | Null, so the value keeps only the reference its type names, as a `light?` field holding a thermostat is null |
+| A reference of another type, where a nullable reference type is declared | Null, so the value keeps only the reference its type names, as a `Light?` field holding a thermostat is null |
 | Any other value, data its type does not admit among them | The projection fails with an evaluation error naming the call and the part of the value |
 
 A list holds no missing item, as every list does. Narrowing a reference is the one thing capturing turns into null, so mistyped data fails whatever its type's nullability. A member's answer is never captured: its implementation answers what its member declares.

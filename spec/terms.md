@@ -24,11 +24,15 @@ In this document:
 | Expression tree | The nodes of an expression, each with its `kind`, which the definition records with the version of its format | [Definition](definition.md#definition) |
 | Result | The data produced by an expression | [Values and types](values.md#values-and-types) |
 | Type | The category of a value and the members it supports | [Types](types.md#types) |
-| Reference type | A type a module declares whose values have identity, naming at most one supertype and declaring the test a value of it passes | [Reference types](types.md#reference-types) |
+| Reference type | A type a module declares whose values have identity, naming at most one supertype, declaring its `isInstance`, and abstract or not | [Reference types](types.md#reference-types) |
+| Structured type | A type of immutable data a module declares, its stored shape its fields | [Declaring a type](modules.md#modules-declaring-a-type) |
+| Membership | Whether a value belongs to a reference type, which the `isInstance` of the type and of every supertype above it answers | [Reference types](types.md#reference-types) |
+| Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
+| Type parameter | A type a declaration leaves open, as `List`'s `T`, standing within the declaration that declares it | [Type parameters](types.md#types-type-parameters) |
 | Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](types.md#reference-types) |
 | Object expression | An expression that names the fields of its output object | [Objects](values.md#objects) |
 | Object type | A description of an object's fields and their types | [Types](types.md#types) |
-| Field | A named value included in an object | [Objects](values.md#objects) |
+| Field | A named value included in an object; in a structured type, a member of `kind: 'field'`, its stored data | [Objects](values.md#objects), [declaring a type](modules.md#modules-declaring-a-type) |
 | Body | What a script, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](scripts.md#bodies) |
 | Do block | `do … end`, a body evaluated where it stands, giving its result | [Bodies](scripts.md#bodies) |
 | Local | A name declared with `let` in a body or an object expression, visible after its declaration through its scope, holding a value or a function | [Locals](scripts.md#locals) |
@@ -62,7 +66,7 @@ In this document:
 | Property access | A property read using a dot or brackets | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
 | Function call | `name(…)`, written after a receiver to call a function, which the evaluator or the host invokes, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](members.md#property-access-calls-and-indexers-calls) |
 | Named indexer | A keyed function written after a colon | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
-| Default indexer | `:[key]`, the named indexer designated as the default for the receiver's type, as its owner's precedence selects | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers-default-indexers) |
+| Default indexer | `:[key]`, the indexer the receiver's type declares `kind: 'default-indexer'`, as its owner's precedence selects, reached by its name too | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers-default-indexers) |
 | Argument | An expression supplied to a function call, or an indexer's key | [Arguments](members.md#arguments) |
 | Argument form | What a member's arguments supply, positional, its parameters in order, or options, one options object whose fields name them | [Parameters and arguments](members.md#arguments) |
 | Options object | The one object expression given to a member that takes options, whose fields supply its parameters | [Arguments](members.md#arguments-options) |
@@ -86,7 +90,8 @@ In this document:
 | Conditional binding | `if let` or `elseif let`, naming and testing a value once | [Conditionals](expressions.md#conditionals) |
 | Coalescing operator | `??`, returning its fallback only when its value is null | [Coalescing operators](expressions.md#coalescing-operators) |
 | Parenthesized expression | An expression grouped by parentheses | [Logical expressions](expressions.md#logical-expressions-negations-and-groups) |
-| Cast | `as`, answering a reference value as a type of its hierarchy, checked by that type's test | [Casts](types.md#casts) |
+| Cast | `as`, answering a reference value as a type of its hierarchy, or one a declared cast operator reaches, checked by that type's membership | [Casts](types.md#casts) |
+| Operator | A member of `kind: 'operator'`, `cast` or `convert`, which `as` or `to` alone invokes | [Operators](modules.md#modules-operators) |
 | Conversion | `to`, converting data to another declared type | [Conversions](values.md#conversions) |
 | Attempt | `try`, returning null when the one cast or conversion it attempts rejects its value | [Attempts](expressions.md#attempts) |
 | Arithmetic negation | `-` before a number, negating it | [Arithmetic](expressions.md#arithmetic) |
@@ -106,13 +111,14 @@ In this document:
 | --- | --- | --- |
 | Vocabulary | A set of types and their declared members | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
 | Module | A unit of registration declaring types and their members, made by `createModule`, registered with `registerModule`, and reached in text through its namespace | [Namespaces](modules.md#namespaces) |
+| Internal declaration | A type or a member declared `internal: true`, available within its declaring module alone | [Internal declarations](modules.md#modules-internal-declarations) |
 | Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
 | Namespace | A module's name in text read through its registry, through which its module members and its qualified forms are reached | [Namespaces](modules.md#namespaces) |
 | Module member | A member a module declares on no type, read through its namespace, as `home.rooms` | [Module members](modules.md#namespaces-module-members) |
 | Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
-| Extension | A member or indexer a module declares on a type another module owns | [Extensions](modules.md#extensions) |
+| Extension | A member, an indexer or an operator a module declares on a type another module owns, in the module's `extensions` | [Extensions](modules.md#extensions) |
 | Qualified form | A member called through its module's namespace, the receiver first, as `energy.usage(device)` | [Qualified access](modules.md#namespaces-qualified-access) |
-| Boolean function | A function whose result is a `boolean`, the form a module gives a test of its receiver, as `device.active()` | [Boolean functions](vocabulary.md#vocabulary-boolean-functions) |
+| Boolean function | A function whose result is a `Boolean`, the form a module gives a test of its receiver, as `device.active()` | [Boolean functions](vocabulary.md#vocabulary-boolean-functions) |
 | Verb | `is`, `has` or `supports`, Lexica's function answering whether its receiver passes the test it is given | [The verbs](vocabulary.md#vocabulary-verbs) |
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](vocabulary.md#observations) |
 | Observation type | A module's declaration of an observation, its contract an invalidation or maintained | [Observations](vocabulary.md#observations) |
@@ -140,7 +146,7 @@ When naming the implicit parameter or concepts associated with it, implementatio
 | Concept | Name in code | As in |
 | --- | --- | --- |
 | [Implicit parameter](scripts.md#names-and-resolution) | `context` | `context`, `contextType`, `projectionContext`, a parameter declaration's `context: 'item'` |
-| A member's code | `implementation` | the function that carries a member out |
+| A member's code | `impl` | the function that carries a member out |
 | What the host supplies an evaluation | `env` | an implementation's `env` |
 | [Receiver](members.md#access-and-calls) | `receiver` | an implementation's `receiver` |
 | A call's arguments, by parameter name | `args` | an implementation's `args` |

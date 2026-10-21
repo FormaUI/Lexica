@@ -30,11 +30,11 @@ In this document:
 
 ## Member kinds and host calls
 
-A member's kind is `property` or `function`. A property is read, and a function called, by the evaluator as it evaluates a script, or, for a function whose declaration says so, `invokedBy: 'host'`, by the host. A script gives a value, or ends in a **host call**, a call of a function the host invokes; the last member of its chain, before any object expression following it, decides which:
+A member's kind is `field`, `property`, `function`, `indexer`, `default-indexer` or `operator`. A field is a structured type's stored data, read as a property is; a property is read, and a function, an indexer and a default indexer called, by the evaluator as it evaluates a script, or, for a function whose declaration says so, `invokedBy: 'host'`, by the host; and an operator is invoked by `as` or `to` alone, as [operators](modules.md#modules-operators) set out. A script gives a value, or ends in a **host call**, a call of a function the host invokes; the last member of its chain, before any object expression following it, decides which:
 
 | A script whose chain ends in | Gives |
 | --- | --- |
-| A property, a function the evaluator invokes, or no member | A value: it reads, and answers data |
+| A field, a property, a function or an indexer the evaluator invokes, or no member | A value: it reads, and answers data |
 | A function the host invokes | A host call: Lexica prepares its receiver and arguments, the host invokes it, and the object expression following it shapes each value the host supplies |
 
 Evaluating a script only reads, and the evaluator never invokes a host call, so no evaluation changes the host's state. What a host call does, and when, is the host's own; Lexica's part is set out in [host calls](#members-host-calls) and the [runtime](runtime.md#runtime-host-calls).
@@ -88,13 +88,13 @@ An equality without its left operand is an error as well; write both values, for
 
 ### Required access and optional chains
 
-Required access needs a receiver whose type cannot be null. A nullable receiver is a validation error that suggests optional access: `room.device(name).battery` is a validation error, since `device` answers a `device?`.
+Required access needs a receiver whose type cannot be null. A nullable receiver is a validation error that suggests optional access: `room.device(name).battery` is a validation error, since `device` answers a `Device?`.
 
-Optional access reads or invokes the member only when its receiver is not null. Otherwise it answers null and skips the remainder of that chain, including argument or key evaluation. `room.device(name)?.battery` answers null without invoking `battery` where the room has no device of that name; its type is `number?`, since an optional chain is nullable where an optional access of it can meet null. A member written with `?.` or `?:` answers null for a null receiver, so `room.device(name)?.active()` is a `boolean?` that is null where there is no such device.
+Optional access reads or invokes the member only when its receiver is not null. Otherwise it answers null and skips the remainder of that chain, including argument or key evaluation. `room.device(name)?.battery` answers null without invoking `battery` where the room has no device of that name; its type is `Number?`, since an optional chain is nullable where an optional access of it can meet null. A member written with `?.` or `?:` answers null for a null receiver, so `room.device(name)?.active()` is a `Boolean?` that is null where there is no such device.
 
 For example, `room.device(name)?.room.devices.count` answers null when the room has no device of that name. Otherwise `.count` counts the devices of the device's room.
 
-A group ends the optional chain. In `(room.device(name)?.room.devices).count`, `.count` receives a `list<device>?`, so this is a validation error.
+A group ends the optional chain. In `(room.device(name)?.room.devices).count`, `.count` receives a `List<Device>?`, so this is a validation error.
 
 Optional access is also valid on a receiver whose current type cannot be null. A parameter typed by one binding may be nullable under another.
 
@@ -107,8 +107,8 @@ Optional access is also valid on a receiver whose current type cannot be null. A
 | Written | Equivalent accesses |
 | --- | --- |
 | `(?room.device(name).room.climate.temperature)` | `room?.device(name)?.room?.climate?.temperature` |
-| `(?(room.device(name) as light).brightness)` | `(room?.device(name) as light)?.brightness` |
-| `(?((a.x ?? b) as light).brightness)` | `((a.x ?? b) as light)?.brightness` |
+| `(?(room.device(name) as Light).brightness)` | `(room?.device(name) as Light)?.brightness` |
+| `(?((a.x ?? b) as Light).brightness)` | `((a.x ?? b) as Light)?.brightness` |
 
 The enclosed form requires a receiver followed by at least one property access, function call or indexer. Its receiver is an input, `it`, a script parameter, `root`, a namespace's member, a literal, an interpolated string, a local, a local function's call or an object expression, or a grouped cast.
 
@@ -153,14 +153,14 @@ A colon after a complete value can only begin an indexer. In `{ mode = it:settin
 
 ### Default indexers
 
-Omitting the indexer name selects the receiver type's default indexer, a named indexer its module designates as the default:
+Omitting the indexer name selects the receiver type's default indexer, the indexer declared `kind: 'default-indexer'`, which keeps its name, so it is reached by name too:
 
 | Form | Equivalent named indexer |
 | --- | --- |
 | `it:["mode"]` on a device | `it:setting["mode"]` |
 | `list:[2]` | `list:item[2]`, the third item |
 
-`?:[…]` is the optional form. A module designates at most one default indexer for a receiver type, and [which designation applies](modules.md#namespaces-indexers) follows the type's owner. If none applies, resolution fails with a validation error asking for an indexer name.
+`?:[…]` is the optional form. A module declares at most one default indexer for a receiver type, and [which one applies](modules.md#namespaces-indexers) follows the type's owner. If none applies, resolution fails with a validation error asking for an indexer name.
 
 <a id="property-access-calls-and-indexers-member-form-and-parsing"></a>
 
@@ -234,7 +234,7 @@ An expression outside the permitted forms, such as `it[it:["mode"]]`, is a valid
 
 ### Validation and result type
 
-Every possible name must be a property of the receiver. Their result types must merge as conditional branches do. In the example above, `it[name]` is a `number?`.
+Every possible name must be a property of the receiver. Their result types must merge as conditional branches do. In the example above, `it[name]` is a `Number?`.
 
 A resolution is kept for the strings the current bindings supply. Binding another string to a name requires resolving again.
 
@@ -323,41 +323,44 @@ A member's value is known only once it is evaluated, so an expression that needs
 
 ## Declaring a member
 
-A module declares each member as data. Its fields are its signature, which lets resolution check every use of it before evaluation, and its evaluation contract, which tells a host how the member reads and changes:
+A module declares each member as data, in the `members` of the type it belongs to, of an extension of a type another module owns, or of the module itself for a [module member](modules.md#namespaces-module-members). A member in a type or an extension takes that type as its receiver and names none, and a module member has none. Its fields are its signature, which lets resolution check every use of it before evaluation, and its evaluation contract, which tells a host how the member reads and changes:
 
 | Field | Holds |
 | --- | --- |
-| `name` | The member's name in the language, a [name](lexical-structure.md#names-and-reserved-words), a letter followed by letters and digits |
-| `kind` | `property` or `function` |
+| `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words); an operator's names its operation, `cast` or `convert` |
+| `kind` | `field`, `property`, `function`, `indexer`, `default-indexer` or `operator` |
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
-| `target` | The types whose values have the member, a type, a list of types, `any`, or a type parameter `T` that binds the receiver's type; left out for a [module member](modules.md#namespaces-module-members), whose implementation is given no receiver |
-| `syntax` | How a member that is no property is written: `function-call`, or `indexer` for a function whose one required value parameter is its key |
-| `default` | For an indexer, whether it is the default of its receivers |
-| `arguments` | The argument form, where the member has parameters: `positional` or `options` |
+| `arguments` | The argument form of a function with parameters: `positional` or `options` |
 | `parameters` | Each parameter's name, kind, type, whether it is required and its default where it is not, its null policy, whether it is fixed and what it selects, and its implicit parameter or callback contract by its kind, as [parameter fields](#members-parameter-fields) set out |
-| `result` | The type the member must return; for a host call, the type of each value its host supplies, left out where it supplies none |
+| `result` | The type the member answers: a field's the type of its value, an operator's its destination, and a host call's the type of each value its host supplies, left out where it supplies none |
 | `updates` | How it reads and changes, as [updates](#members-updates) set out |
-| `implementation` | The function that carries it out, optional, as [declarations without an implementation](modules.md#modules-declarations-without-an-implementation) set out; a host call takes none |
+| `impl` | The function that carries it out, optional, as [declarations without an implementation](modules.md#modules-declarations-without-an-implementation) set out |
+| `internal` | Whether it is available within its declaring module alone, `false` where left out, as [internal declarations](modules.md#modules-internal-declarations) set out |
 
-Each member takes the fields it needs alone:
+Each member takes the fields it needs alone, and every one takes `name`, `kind` and `internal`:
 
-| Member | `target` | `syntax` | `arguments` | `parameters` | `updates` | `result` | `implementation` |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| A property | Optional | Refused | Refused | Refused | Required | Required | Optional |
-| A function the evaluator invokes | Optional | `function-call`, the default, or `indexer` | Required where it has parameters, refused where it has none; `positional` for an indexer | Any kind; a function parameter only here | Required | Required | Optional |
-| A function the host invokes | Optional | `function-call` | As a function's | Value parameters, of which a fixed one may select a type | Refused | Optional | Refused |
+| Member | `arguments` | `parameters` | `updates` | `result` | `impl` |
+| --- | --- | --- | --- | --- | --- |
+| A field, of a structured type alone | Refused | Refused | Refused | Required | Refused |
+| A property | Refused | Refused | Required | Required | Optional |
+| A function the evaluator invokes | Required where it has parameters, refused where it has none | Any kind; a function parameter only here | Required | Required | Optional |
+| An indexer or a default indexer | Refused, since its arguments are positional | One required value parameter, its key, and optional ones after it | Required | Required | Optional |
+| A function the host invokes | As a function's | Value parameters, of which a fixed one may select a type | Refused | Optional | Refused |
+| An operator | Refused | Refused | Refused | Required | Optional |
+
+`target`, `syntax` and `default` are taken by no member: a member's place gives its receiver, and its kind how it is written.
 
 A host call takes value parameters alone, a deliberate restriction, which a design giving such arguments an evaluation context and a lifetime could lift: its arguments are prepared as values its host keeps, while an expression, a predicate or a function argument is evaluated by the evaluator as its member calls it, which for a host call would come after preparation ends and need an evaluation context and a lifetime no host call declares. A value parameter's type holds data and reference values, and a function is never given to one, as [functions as values](functions.md#functions-as-values) sets out, so a prepared argument holds no function at any depth, in an object or a list among them.
 
-A member without a target, a module member, refuses what only a receiver gives: the `indexer` syntax, being a default indexer, and an observation of the receiver or of a target found from it, in its own `updates` and in any observation it names.
+A module member is a property or a function, and refuses what only a receiver gives: the indexer kinds, and an observation of the receiver or of a target found from it, in its own `updates` and in any observation it names.
 
 <a id="what-a-member-declares-call-and-indexer-forms"></a>
 
 ### Function call and indexer forms
 
-A function is written as a function call. A function the evaluator invokes may instead declare an indexer with exactly one required value parameter, supplied as its bracketed key. Its argument form is positional, and its key has the declared parameter type.
+A function is written as a function call. An indexer, `kind: 'indexer'`, is written with its name and brackets, `x:name[key]`, and a default indexer, `kind: 'default-indexer'`, is written so too, and with no name, `x:[key]`; each takes its required value parameter as its bracketed key, positionally, the key of the parameter's declared type.
 
-An indexer may be designated the default for its receivers, a module designating at most one for a receiver type; which designation an access selects follows the receiver type's owner, as [indexer selection](modules.md#namespaces-indexers) sets out.
+A module declares at most one default indexer for a receiver type; which one an access selects follows the receiver type's owner, as [indexer selection](modules.md#namespaces-indexers) sets out.
 
 Positional arguments list parameters in order, with required parameters before optional ones; creating the module checks this order. Options take one object whose fields supply the declared parameters.
 
@@ -369,7 +372,7 @@ Changing a member's argument form is a breaking change, like renaming it. A func
 
 A parameter is a value, an expression, a predicate or a function. An expression and a predicate are evaluated against each item of the list the member follows, `context: 'item'`, and an expression declares the type it produces. A parameter declares whether it is required, its default where it is not, and whether a null argument propagates, making the call answer null, or is accepted. A fixed parameter names something the vocabulary resolves before any evaluation, and declares what it selects, a type, `selects: 'type'`, through the type selector its `selector` names.
 
-Only a function the evaluator invokes declares a function parameter, which is required, has no null policy and is given to no observation; it declares the types of the arguments it is called with, `parameters`, and its type is its result's. Those types may write a type parameter its member's target binds, as `T` in `list<T>`, or a target `T`, which takes a receiver of any type and binds `T` to it, so a callback takes the receiver as its own type, as the verbs' test does.
+Only a function the evaluator invokes declares a function parameter, which is required, has no null policy and is given to no observation; it declares the types of the arguments it is called with, `parameters`, and its type is its result's. Those types may write a type parameter the type or the extension around the member declares, as `List`'s `T`, or that of an extension on any type `T`, which takes a receiver of any type and binds `T` to it, so a callback takes the receiver as its own type, as the verbs' test does.
 
 <a id="what-a-member-declares-evaluation-contract"></a>
 <a id="members-updates"></a>
@@ -384,13 +387,13 @@ A member's evaluation contract is grouped under `updates`: how it reads, `reads`
 
 ### Numeric tolerance
 
-A member may declare a tolerance for its numeric result and every number within a structured result, as `sensor.temperature` declares `0.5`. A result's [metadata](runtime.md#runtime-results) carries it, and a host that compares results treats an absolute difference no greater than it as unchanged, and compares exactly where the member declares none. The rule applies regardless of the member's form. `tolerance` is taken by a member whose result is a `number`, a `number?` or a structured type, nullable or not, where it applies to every number the structure holds, and refused by any other, a list among them.
+A member may declare a tolerance for its numeric result and every number within a structured result, as `sensor.temperature` declares `0.5`. A result's [metadata](runtime.md#runtime-results) carries it, and a host that compares results treats an absolute difference no greater than it as unchanged, and compares exactly where the member declares none. The rule applies regardless of the member's form. `tolerance` is taken by a member whose result is a `Number`, a `Number?` or a structured type, nullable or not, where it applies to every number the structure holds, and refused by any other, a list among them.
 
 <a id="members-what-an-implementation-receives"></a>
 
 ### What an implementation receives
 
-An implementation is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica calls no implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and a conversion's `value` and `reject`. The contract is JavaScript's alone, and no script is written differently for it.
+An `impl` is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica calls no implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and an operator's `value` and `reject`. A field has none, since Lexica reads it from the data, and the hooks `typeOf` and `isInstance` are given the value alone. The contract is JavaScript's alone, and no script is written differently for it.
 
 <a id="how-a-member-reads"></a>
 
@@ -405,7 +408,7 @@ A script is evaluated synchronously, without yielding, and a member's implementa
 | Captured | Kept from what happened before as well as read from the state as it is, as `room.highestTemperature` keeps the highest temperature the room has reported since its host began to hold the evaluation. |
 | Derived | As the items it selects and the expression it evaluates read, such as a list's `count` or `max`. |
 
-Facts that must describe one measurement are fields of one structured value, which is captured once and read by each of its fields, as a `climate`'s temperature and humidity are.
+Facts that must describe one measurement are fields of one structured value, which is captured once and read by each of its fields, as a `Climate`'s temperature and humidity are.
 
 A maintained member's observation starts the first time an evaluation reads it, and the member is **pending** until its first sample arrives. An evaluation that reads a pending member reads it as null and tells its host it is pending, and a host that cannot wait for the sample fails the evaluation instead; when a host waits for first samples is the host's to decide.
 
@@ -460,4 +463,4 @@ A host call's `result` is the type of each value its host supplies for projectio
 
 The object expression following a host call is its **result projection**, evaluated against each value its host supplies, which is its implicit parameter. It reads that value's own data, the locals the script declares before the call, with the values the call was [prepared](runtime.md#runtime-host-calls) with, and anything a script parameter reaches; its members are read once for each value and never evaluated again for it, so an unobserved member is allowed in it. A host call that declares no `result` takes no result projection, and one written is a validation error.
 
-A fixed argument can choose the type of the values its host supplies, as `on`'s `"motion"` does through the home's `event` [type selector](vocabulary.md#vocabulary-type-selectors), so the result projection following `sensor.on("motion")` evaluates against a `{ at: number, strength: number }`.
+A fixed argument can choose the type of the values its host supplies, as `on`'s `"motion"` does through the home's `event` [type selector](vocabulary.md#vocabulary-type-selectors), so the result projection following `sensor.on("motion")` evaluates against a `{ at: Number, strength: Number }`.

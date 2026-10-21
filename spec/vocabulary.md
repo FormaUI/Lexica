@@ -3,7 +3,7 @@
 <a id="vocabulary"></a>
 <a id="vocabulary-contracts"></a>
 
-A script's **vocabulary** is everything it can name beyond the language itself: the types, members, type selectors, observation types and conversions of every module the registry it is resolved against holds. Lexica's own module is always among them, and every other module contributes by the same contracts, whatever its domain. A module's own specification gives its declarations and what each does in its domain; this document gives the contracts every one keeps, beside [members](members.md) and [types](types.md).
+A script's **vocabulary** is everything it can name beyond the language itself: the types, with their members and operators, the extensions, module members, type selectors and observation types of every module the registry it is resolved against holds, internal declarations aside. Lexica's own module is always among them, and every other module contributes by the same contracts, whatever its domain. A module's own specification gives its declarations and what each does in its domain; this document gives the contracts every one keeps, beside [members](members.md) and [types](types.md).
 
 In this document:
 
@@ -17,7 +17,7 @@ In this document:
 
 ## Lexica's own vocabulary
 
-Lexica's own module owns the language's types, `list`, `number`, `string` and `boolean` among them, and has no namespace. It declares the members of lists, the three verbs that test a receiver, and the conversions between the language's types of data.
+Lexica's own module owns the language's types, `List`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List`, `typeParameters: ['T']`, with the members of lists; the three verbs that test a receiver, in an extension on any type `T`; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-list-members"></a>
 
@@ -31,9 +31,9 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | `first`, `last` | The first or the last item, null for an empty list |
 | `item`, the default indexer `:[index]` | The item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0` |
 | `where` | The items its predicate is truthy for, in the list's order, leaving out an item whose predicate is null or false; the predicate may produce any value |
-| `max`, `min`, `sum` | Evaluate a number expression against each item and require `number?` |
+| `max`, `min`, `sum` | Evaluate a number expression against each item and require `Number?` |
 
-`where`, `item`, `first` and `last` preserve `T` from a `list<T>`.
+`where`, `item`, `first` and `last` preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`.
 
 Aggregates consume null per item rather than propagating it to the entire call. `max` and `min` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Thus `room.devices.max(it.battery)` and `home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
 
@@ -43,7 +43,7 @@ An expression parameter declares the item type it evaluates against and the resu
 
 ### The verbs
 
-`is`, `has` and `supports` are Lexica's own functions of a receiver of any type, each answering whether its receiver passes a test. Each declares one [function parameter](members.md#arguments-kinds), its **test**, whose callback contract takes the receiver and answers a `boolean`, and answers what the test answers of its receiver: Lexica declares each on any receiver, `target: 'T'`, and its test's callback on that receiver's type, `parameters: ['T']`, so the test takes the receiver as its static type, `(T) => boolean`, made non-null where `?.` reads the verb. The three read differently and do the same:
+`is`, `has` and `supports` are Lexica's own functions of a receiver of any type, each answering whether its receiver passes a test. Each declares one [function parameter](members.md#arguments-kinds), its **test**, whose callback contract takes the receiver and answers a `Boolean`, and answers what the test answers of its receiver: Lexica declares the three in an extension on any type, `{ type: 'T', typeParameters: ['T'] }`, and its test's callback on that receiver's type, `parameters: ['T']`, so the test takes the receiver as its static type, `(T) => Boolean`, made non-null where `?.` reads the verb: an `Element` receiver gives its test an `Element`. The three read differently and do the same:
 
 | Verb | Reads as a test of | As in |
 | --- | --- | --- |
@@ -64,13 +64,13 @@ The test takes any form a function argument takes, as [functions passed to membe
 - **A module's function by [reference](functions.md#functions-module-functions)**, `device.is(home.active)`, which tests the receiver with that declaration, as `device.active()` does.
 - **An [implicit body](functions.md#functions-implicit-bodies)**, `device.has(it.battery != null)`, an expression whose `it` is the receiver.
 
-A name holding no function is a validation error saying the verb takes a test, as `device.is(metered)` is for a Boolean `metered`, and so is a test that does not take the receiver's type or that answers anything but a `boolean`.
+A name holding no function is a validation error saying the verb takes a test, as `device.is(metered)` is for a Boolean `metered`, and so is a test that does not take the receiver's type or that answers anything but a `Boolean`.
 
 <a id="vocabulary-verbs-what-a-verb-answers"></a>
 
 #### What a verb answers
 
-A verb answers its test's result, a Boolean that cannot be null, and converts no truthiness: a test answering a `boolean?`, or any other type, is a validation error, and a module's function whose implementation answers anything but a Boolean fails the evaluation with an evaluation error naming the function and its module. `.` requires a receiver that cannot be null, and `?.is(…)` answers null for a null receiver without evaluating its test or calling it, so `room.device(name)?.is(home.active)` is a `boolean?`.
+A verb answers its test's result, a Boolean that cannot be null, and converts no truthiness: a test answering a `Boolean?`, or any other type, is a validation error, and a module's function whose implementation answers anything but a Boolean fails the evaluation with an evaluation error naming the function and its module. `.` requires a receiver that cannot be null, and `?.is(…)` answers null for a null receiver without evaluating its test or calling it, so `room.device(name)?.is(home.active)` is a `Boolean?`.
 
 A verb reads what its test reads: a module's function, what its declaration's `updates` say, its observations included; an arrow function or an implicit body, the reads it makes. Creating the test reads nothing, and the verb calls it once, while its own call lasts.
 
@@ -79,7 +79,7 @@ A verb reads what its test reads: a module's function, what its declaration's `u
 
 ## Boolean functions
 
-A module declares a test of a receiver as a function whose result is a `boolean`, as `home` declares `active` and `offline` on `device` and `occupied` on `room`. It is a member as any other: its receivers, its implementation, its `updates`, the changes it misses and the observations that cover it are its declaration's, and its failures name it and its module. A script calls it directly, `device.active()`, through its module, `home.active(device)`, or passes it to a verb by reference, `device.is(home.active)`, and each way reaches the one declaration, so a host's policy for a partly observable test concerns that test however it is reached.
+A module declares a test of a receiver as a function whose result is a `Boolean`, as `home` declares `active` and `offline` on `Device` and `occupied` on `Room`. It is a member as any other: its receivers, its implementation, its `updates`, the changes it misses and the observations that cover it are its declaration's, and its failures name it and its module. A script calls it directly, `device.active()`, through its module, `home.active(device)`, or passes it to a verb by reference, `device.is(home.active)`, and each way reaches the one declaration, so a host's policy for a partly observable test concerns that test however it is reached.
 
 A test is declared as a function, since only a function has a [reference](functions.md#functions-module-functions) a script passes; a property is read where it is written. Boolean functions compose as Booleans do: `device.active() and not device.offline()`.
 
@@ -112,7 +112,7 @@ Lexica knows no target by name: it validates the declarations and every referenc
 
 ### Naming observations
 
-A member names its observations by type, each of its receiver, of an argument, or of an observation target its observation type's module declares, as `placement` is of the home, and gives the arguments its type takes: a literal, a list of values, or an argument of the member, `{ argument }`, which can carry a prefix, a string joined before the argument of a value parameter of type `string`. A target the observation type's module does not declare is refused when the module is registered.
+A member names its observations by type, each of its receiver, of an argument, or of an observation target its observation type's module declares, as `placement` is of the home, and gives the arguments its type takes: a literal, a list of values, or an argument of the member, `{ argument }`, which can carry a prefix, a string joined before the argument of a value parameter of type `String`. A target the observation type's module does not declare is refused when the module is registered.
 
 An observable member names observations that cover every change to its result, a partly observable one those it can make, and a member of any other category names none. A member that reads maintained values names a maintained observation, whose sample it reads; no other member does. A maintained observation gives its member one sample, so it observes one target, never a target of several. A module member, which has no receiver, observes no target found from one.
 
@@ -122,7 +122,7 @@ An observable member names observations that cover every change to its result, a
 
 ## Type selectors
 
-A **type selector** is a declaration of a module that maps keys to types, so a function's fixed argument can choose the type the function answers. The home declares the selector `event`, whose keys are the reports a device makes: `"change"` maps to `{ setting: string, value: string? }` and `"motion"` to `{ at: number, strength: number }`, so the values a host supplies for `sensor.on("motion")` are of the second.
+A **type selector** is a declaration of a module that maps keys to types, so a function's fixed argument can choose the type the function answers. The home declares the selector `event`, whose keys are the reports a device makes: `"change"` maps to `{ setting: String, value: String? }` and `"motion"` to `{ at: Number, strength: Number }`, so the values a host supplies for `sensor.on("motion")` are of the second.
 
 - **Declaring a selector.** A module declares a selector in its `typeSelectors` by its name alone. A selector is named once across every module, as a type is, so its name identifies the module that declares it, and a module declaring a selector of a name already declared is refused at registration with a module error naming the selector and the module that declared it.
 - **Its keys.** A module declares each key in its `selectableTypes`, a declaration named by the key, with the `selector` it belongs to and the `type` it maps to. Any module declares keys for any selector, its own or one a module registered before it declares, so one module extends another's selector as it extends another's types, and is registered after the module it extends. A key stands once in its selector: a second, from the same module or another, is refused at registration with a module error naming the selector, the key and the module that declared it first, and no key once registered is replaced. A key of a selector no registered module declares is refused too.
@@ -134,6 +134,6 @@ A **type selector** is a declaration of a module that maps keys to types, so a f
 
 ## Conversions
 
-A **conversion** is a declaration of a module: the type of data it converts from, the one it converts to and its implementation, one for each source type and target across every module registered, and none from a type to itself. Its types are `number`, `string`, `boolean` and the structured types that hold data alone: a reference value is left to members, which declare how they change, so a conversion adds no dependency on a host's state.
+A **conversion** is a [conversion operator](modules.md#modules-operators) of a type of data, `{ kind: 'operator', name: 'convert', result: 'Number', impl }`, which `to` invokes and nothing else: one for each source type and destination across every module registered, and none from a type to itself. Its types are `Number`, `String`, `Boolean` and the structured types that hold data alone: a reference value is left to members, which declare how they change, so a conversion adds no dependency on a host's state. A module declares one in the members of its own source type, and in an extension where the source type is another module's and the destination its own, as `measurements` declares one from `Number` to `Temperature`.
 
-Its implementation reads `value`, never null, and nothing else, and answers the converted value, or calls `reject(reason)` with a diagnostic string. `reject` throws a signal private to Lexica and to that attempt, so it never returns and the conversion stops where it calls it, unlike a promise's `reject`. What `to` and `try … to` make of a rejection and of any other failure is set out in [conversions](values.md#conversions) and [attempts](expressions.md#attempts).
+Its `impl` reads `value`, never null, and nothing else, and answers the converted value, or calls `reject(reason)` with a diagnostic string. `reject` throws a signal private to Lexica and to that attempt, so it never returns and the conversion stops where it calls it, unlike a promise's `reject`. What `to` and `try … to` make of a rejection and of any other failure is set out in [conversions](values.md#conversions) and [attempts](expressions.md#attempts).

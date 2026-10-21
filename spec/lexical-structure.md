@@ -155,7 +155,7 @@ A string containing a reserved word remains an ordinary string:
 
 ## Strings and escapes
 
-Strings come in two families: a **string**, written in double quotes, whose backslashes begin escapes, and a **raw string**, written in single quotes, whose backslashes are text. Each is written inline, on one line, or as a **block**, on lines of its own, and `$` before either makes it interpolated, as [Interpolated strings](expressions.md#interpolated-strings) describes. Every form gives an ordinary `string`:
+Strings come in two families: a **string**, written in double quotes, whose backslashes begin escapes, and a **raw string**, written in single quotes, whose backslashes are text. Each is written inline, on one line, or as a **block**, on lines of its own, and `$` before either makes it interpolated, as [Interpolated strings](expressions.md#interpolated-strings) describes. Every form gives an ordinary `String`:
 
 | Form | Name |
 | --- | --- |
@@ -240,7 +240,7 @@ A block is opened by three or more matching quotes, `$` directly before them whe
 
 ### Where a string literal is required
 
-No production requires a string literal: a cast's and a conversion's type is a name written bare, `device as light` and `value to number`, and a string in its place, whatever its form, is a syntax error giving the bare name, so `device as "light"` and `device as 'light'` are refused alike. Every form that does not interpolate is a literal wherever a literal stands, and an interpolated form is an expression, even with text alone.
+No production requires a string literal: a cast's and a conversion's type is a name written bare, `device as Light` and `value to Number`, and a string in its place, whatever its form, is a syntax error giving the bare name, so `device as "light"` and `device as 'light'` are refused alike. Every form that does not interpolate is a literal wherever a literal stands, and an interpolated form is an expression, even with text alone.
 
 <a id="comments"></a>
 

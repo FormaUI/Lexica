@@ -53,10 +53,10 @@ A script names its parameters and never holds their values, so one script serves
 
 A binding takes its type from its value, unless the host declares it.
 
-- A reference value is of the type [classification](types.md#reference-types) gives it, so a light is a `light`, or of the type its host declares for it, as [a declared type](types.md#reference-types) sets out; a value no reference type's test accepts, and that is no data, is no binding, and one classification finds ambiguous is refused.
-- A number, a string and a Boolean are `number`, `string` and `boolean`.
-- Null is a `null`.
-- A list is a `list<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `list<device>` and `[light, null]` a `list<light?>`. A list of nulls alone, `[null]` or `[null, null]`, is a `list<null>`, whose items can only be null, and the empty list is a `list<never>`, which holds no item.
+- A reference value is of the type its registry's modules [recognize](types.md#reference-types) it as, so a light is a `Light`, or of the type its host declares for it, as [a declared type](types.md#reference-types) sets out; a value no module recognizes, and that is no data, is no binding, and one several modules recognize as unrelated types is refused as ambiguous. A reference nested in data is recognized as one bound alone is.
+- A number, a string and a Boolean are `Number`, `String` and `Boolean`.
+- Null is of the type `null`.
+- A list is a `List<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `List<Device>` and `[light, null]` a `List<Light?>`. A declared cast between two types gives them no type to share. A list of nulls alone, `[null]` or `[null, null]`, is a `List<null>`, whose items can only be null, and the empty list is a `List<Never>`, which holds no item.
 - An object is of the object type of its fields' types, each typed as a binding is.
 - A list whose items share no type has no type, because Lexica has no union types and a list holds items of one type, so binding `[1, "two"]`, or a room and a light together, is a structure error.
 
@@ -129,7 +129,7 @@ At the top level, `{ level = light.brightness, active = light.active() }` has no
 - **A value argument reads it.** A value argument is evaluated where the call is written, against the `it` already there.
 - **None is no value.** `it` where no body gives one is an error.
 
-Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a verb's test requires a `boolean`. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is no function value.
+Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a verb's test requires a `Boolean`. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is no function value.
 
 <a id="names-and-resolution-projection-example"></a>
 

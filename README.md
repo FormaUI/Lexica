@@ -10,11 +10,11 @@ return {
 }
 ```
 
-> **Alpha.** Lexica's runtime implements language version `1.0.0-alpha.32`, save for the reference types the specification describes, which modules are to declare in place of the DOM's built-in ones. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
+> **Alpha.** Lexica's runtime implements language version `1.0.0-alpha.32`; the specification describes `1.0.0-alpha.33`, whose types declare their members and whose reference types modules declare in place of the DOM's built-in ones. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
 
 ## Features
 
-### Language (`1.0.0-alpha.32`)
+### Language (`1.0.0-alpha.33`)
 
 - Typed vocabulary modules, declared as data and reached through their namespaces
 - Object expressions and list projections that shape data

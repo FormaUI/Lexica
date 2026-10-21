@@ -1,4 +1,4 @@
-# Lexica Specification v1.0.0-alpha.32
+# Lexica Specification v1.0.0-alpha.33
 
 Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host. Lexica knows no application domain of its own: modules declare the types and members available to a script, and adding them never changes the grammar.
 
@@ -6,7 +6,7 @@ This specification is the authoritative contract for the language and for the ru
 
 <a id="version"></a>
 
-**Version.** This specification describes language version `1.0.0-alpha.32`, and describes definition version 32. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](definition.md#definition) sets out; one change can advance both. A runtime says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
+**Version.** This specification describes language version `1.0.0-alpha.33`, and describes definition version 32. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](definition.md#definition) sets out; one change can advance both. A runtime says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
 
 ## What it covers
 
@@ -22,7 +22,7 @@ Three layers meet whenever a script runs, and this specification covers the firs
 
 ## Reading this specification
 
-Start with [scripts](scripts.md), which shows a complete script with its parameters and its result. Examples illustrate the rules. Code containing `…` is a fragment, and examples explicitly described as errors are intentionally invalid. Type notation such as `T?`, `list<T>` and `never` describes types; it does not declare a type in a script. Every example reads the fictional vocabulary that [the examples' vocabulary](examples-vocabulary.md) declares.
+Start with [scripts](scripts.md), which shows a complete script with its parameters and its result. Examples illustrate the rules. Code containing `…` is a fragment, and examples explicitly described as errors are intentionally invalid. Type notation such as `T?`, `List<T>` and `Never` describes types; it does not declare a type in a script. Every example reads the fictional vocabulary that [the examples' vocabulary](examples-vocabulary.md) declares.
 
 ## Documents
 
