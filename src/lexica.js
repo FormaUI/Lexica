@@ -121,13 +121,16 @@ const resolutionOf = (registry, definition, parameterBindings) => {
             }
         };
 
+        // A prepared call projects through the same entry, so each projection checks the registry and evaluates alone, as an evaluation does.
+        const prepareCall = () => {
+            const call = enter(() => evaluator.prepareCall());
+
+            return call.project === undefined ? call : Object.freeze({ ...call, project: (value, host = null) => enter(() => call.project(value, host)) });
+        };
+
         return Object.freeze({
             evaluate: (host = null) => enter(() => evaluator.evaluate(host)),
-            project: (event, host = null) => enter(() => evaluator.project(event, host)),
-            resolveSource: () => enter(() => evaluator.resolveSource()),
-            resolveAction: () => enter(() => evaluator.resolveAction()),
-            resolveBehavior: () => enter(() => evaluator.resolveBehavior()),
-            projectResult: (result, execution) => enter(() => evaluator.projectResult(result, execution)),
+            prepareCall,
         });
     };
 
@@ -144,7 +147,6 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
     return Object.freeze({
         definition,
-        kind: resolved.kind,
         hostCall: hostCall === null ? null : Object.freeze({ name: hostCall.name, declaration: hostCall.declaration }),
         type: resolved.type === null ? null : String(resolved.type),
         usedDeclarations,

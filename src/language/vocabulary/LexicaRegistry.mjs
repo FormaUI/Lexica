@@ -18,9 +18,6 @@ export class LexicaRegistry {
     /** @type {Map<string, object>} */
     #types = new Map();
 
-    /** @type {Map<string, object>} */
-    #eventTypes = new Map();
-
     /** Each type selector, by its name. @type {Map<string, object>} */
     #typeSelectors = new Map();
 
@@ -73,12 +70,6 @@ export class LexicaRegistry {
         for (const type of module.types) {
             if (this.#types.has(type.name)) {
                 fail(`The type '${type.name}' is declared already`, type.name);
-            }
-        }
-
-        for (const event of module.eventTypes) {
-            if (this.#eventTypes.has(event.name)) {
-                fail(`The event '${event.name}' is declared already`, event.name);
             }
         }
 
@@ -161,10 +152,6 @@ export class LexicaRegistry {
             this.#types.set(type.name, type);
         }
 
-        for (const event of module.eventTypes) {
-            this.#eventTypes.set(event.name, event);
-        }
-
         for (const selector of module.typeSelectors) {
             this.#typeSelectors.set(selector.name, selector);
             this.#selectableTypes.set(selector.name, new Map());
@@ -240,11 +227,6 @@ export class LexicaRegistry {
     /** The type of each field named so, as its structured type declares it, across every structured type. */
     getFieldTypes(name) {
         return [...this.#types.values()].flatMap(type => (Object.hasOwn(type.fields, name) ? [type.fields[name]] : []));
-    }
-
-    /** The event type declared so, or undefined. */
-    getEventType(name) {
-        return this.#eventTypes.get(name);
     }
 
     /** The type selector declared so, or undefined. */
@@ -336,7 +318,6 @@ export class LexicaRegistry {
             Object.values(type.fields).forEach(notation => check(notation, type.name));
         }
 
-        module.eventTypes.forEach(eventType => check(eventType.data, eventType.name));
         module.selectableTypes.forEach(selectable => check(selectable.type, selectable.name));
 
         for (const predicate of module.predicates) {
@@ -374,7 +355,6 @@ export class LexicaRegistry {
             case 'named':
                 return [type.name];
             case 'list':
-            case 'event':
                 return LexicaRegistry.#namedTypesOf(type.itemType);
             case 'object':
                 return [...type.fieldTypes.values()].flatMap(fieldType => LexicaRegistry.#namedTypesOf(fieldType));
@@ -408,7 +388,7 @@ export class LexicaRegistry {
         }
     }
 
-    /** Whether the type admits a default: a value of data, its nullability, its items and a structure's fields as declared, and never a node or an event source. */
+    /** Whether the type admits a default: a value of data, its nullability, its items and a structure's fields as declared, and never a node. */
     static #admits(value, type, types) {
         if (value === null) {
             return type.isNullable;

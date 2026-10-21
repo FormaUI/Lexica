@@ -19,9 +19,10 @@ const hostCall = (name, result, options) => lexica.declarations.function(name, '
 
 /**
  * A home's module: a light dimmed to a level, which supplies the level it reached; a thermostat held at a target, which supplies nothing; a sensor watched for motion, which supplies each motion; a device's reports of a kind,
- * each of the type the selector `event` maps the kind to; a device's reading of a name, of the type the selector `reading` maps the name to; and a device's room.
+ * each of the type the selector `event` maps the kind to; a device's reading of a name, of the type the selector `reading` maps the name to; a device's room; the level a device is set to and whether a room is occupied, each read
+ * from the environment as it is when read; and a device's partner, which none has. The room and the level record each invocation, so a test sees which ran.
  */
-const createHome = () => lexica.createModule('home', {
+const createHome = (invoked = []) => lexica.createModule('home', {
     types: [{ name: 'motion', fields: { at: 'number', strength: 'number' } }, { name: 'change', fields: { setting: 'string', value: 'string?' } }],
     typeSelectors: [{ name: 'event' }, { name: 'reading' }],
     selectableTypes: [
@@ -36,7 +37,10 @@ const createHome = () => lexica.createModule('home', {
         hostCall('watch', 'motion'),
         hostCall('on', '@selected', { parameters: [valueParameter('type', 'string', { fixed: true, selects: 'type', selector: 'event' })] }),
         lexica.declarations.function('reading', 'string', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'type', selector: 'reading' })], implementation: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
-        property('room', 'string', 'string', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => `${receiver}'s room` }),
+        property('room', 'string', 'string', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`room:${receiver}`), `${receiver}'s room`) }),
+        property('level', 'string', 'number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => (invoked.push(`level:${receiver}`), env.levels[receiver]) }),
+        property('occupied', 'string', 'boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => env.occupied.includes(receiver) }),
+        property('partner', 'string', 'string?', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => null }),
     ],
 });
 
@@ -51,7 +55,6 @@ describe('host calls', () => {
         const registry = lexica.createRegistry([home]);
         const resolution = registry.resolve('light.dim({ to = 40 })', bindings);
 
-        expect(resolution.kind).toBe('hostCall');
         expect(resolution.hostCall).toEqual({ name: 'dim', declaration: home.members[0] });
         expect(Object.isFrozen(resolution.hostCall)).toBe(true);
         expect(registry.getOwner(resolution.hostCall.declaration)).toBe('home');
@@ -113,13 +116,13 @@ describe('host calls', () => {
             members: [lexica.declarations.function('dim', 'number', 'number', { updates: { changes: 'constant', reads: 'fresh' }, arguments: 'options', parameters: [valueParameter('to', 'number')], implementation: ({ args }) => args.to })],
         });
 
-        expect(resolve('thing?.dim({ to = 40 })', { thing: null })).toMatchObject({ kind: 'hostCall', type: 'number?', hostCall: { name: 'dim', declaration: null } });
+        expect(resolve('thing?.dim({ to = 40 })', { thing: null })).toMatchObject({ type: 'number?', hostCall: { name: 'dim', declaration: null } });
         expect(resolve('thing?.hold({ target = 21 })', { thing: null }).type).toBeNull();
 
         const refused = getError(() => resolve('thing?.dim({ to = 40 })', { thing: null }, [createHome(), dimmer]));
 
         expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression/target' } });
-        expect(refused.message).toContain("'dim' follows a value whose type is unknown, and its declarations make a host call or a value, so what it requests is ambiguous");
+        expect(refused.message).toContain("'dim' follows a value whose type is unknown, and its declarations disagree on who invokes it, the evaluator or the host, so whether the script ends in a host call is ambiguous");
     });
 
     it('supply values of the type a fixed argument selects through a type selector, a bound parameter settling it as a literal does', () => {
@@ -145,7 +148,7 @@ describe('host calls', () => {
         const refused = getError(() => evaluator.evaluate());
 
         expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: '/expression' } });
-        expect(refused.message).toContain("The script ends in the host call 'dim', which its host invokes, so it is never evaluated");
+        expect(refused.message).toContain("The script ends in the host call 'dim', which its host invokes, so it is never evaluated; prepare it");
     });
 
     it('leave the definition as version 31 writes any call, validated and formatted as one', () => {
@@ -153,5 +156,131 @@ describe('host calls', () => {
 
         expect(lexica.validate(definition)).toEqual(definition);
         expect(lexica.format(definition)).toBe('let target = 21\nreturn thermostat.hold({ target = target })');
+    });
+});
+
+describe('prepared calls', () => {
+    /** An evaluator of the text against a registry holding the home's module, with the home's bindings and the environment given, and the registry itself. */
+    const evaluatorOf = (text, { values = bindings, env = { levels: {}, occupied: [] }, invoked = [] } = {}) => {
+        const home = createHome(invoked);
+        const registry = lexica.createRegistry([home]);
+
+        return { evaluator: registry.resolve(text, values).createEvaluator(values, env), home, registry };
+    };
+
+    it('hold the declaration, the receiver and the arguments by parameter name, prepared once, and where the call stands', () => {
+        const { evaluator, home } = evaluatorOf('light.dim({ to = 40 })');
+        const call = evaluator.prepareCall();
+
+        expect(call).toMatchObject({ kind: 'prepared', declaration: home.members[0], receiver: 'hall', args: { to: 40 }, location: { pointer: '/expression', line: 1 } });
+        expect(typeof call.project).toBe('function');
+        expect(Object.isFrozen(call)).toBe(true);
+    });
+
+    it('project each value their host supplies, checked against the type the call declares, answering as an evaluation does', () => {
+        const dimmed = evaluatorOf('light.dim({ to = 40 })').evaluator.prepareCall();
+        const watched = evaluatorOf('sensor.watch() { at = context.at, strong = context.strength > 0.8 }').evaluator.prepareCall();
+        const projected = watched.project({ at: 5, strength: 0.9 });
+
+        expect(dimmed.project(35)).toMatchObject({ value: 35, isPending: false });
+        expect(projected.value).toEqual({ at: 5, strong: true });
+        expect(watched.project({ at: 6, strength: 0.2 }).value).toEqual({ at: 6, strong: false });
+        expect(Object.isFrozen(projected.value)).toBe(true);
+        expect(projected.metadata.origin).toBeDefined();
+
+        const refused = getError(() => dimmed.project('bright'));
+
+        expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: '/expression' } });
+        expect(refused.message).toContain("The host call 'dim' supplied \"bright\", and it declares number");
+    });
+
+    it('project for the host given, which is told as each projection ends', () => {
+        const outcomes = [];
+        const call = evaluatorOf('light.dim({ to = 40 })').evaluator.prepareCall();
+
+        call.project(35, { afterEvaluation: outcome => outcomes.push(outcome) });
+
+        expect(outcomes).toEqual([{ kind: 'completed', value: 35 }]);
+    });
+
+    it('have no project where their host supplies nothing', () => {
+        const call = evaluatorOf('thermostat.hold({ target = 21 })').evaluator.prepareCall();
+
+        expect(call).toMatchObject({ kind: 'prepared', args: { target: 21 } });
+        expect('project' in call).toBe(false);
+    });
+
+    it('are skipped where the receiver, or an argument whose parameter propagates null, is null, or the call has no declaration yet, so there is nothing to invoke or project', () => {
+        const skipped = [
+            ['light.partner?.dim({ to = 40 })', bindings, '/expression/target'],
+            ['light.dim({ to = level })', { ...bindings, level: null }, '/expression'],
+            ['thing?.dim({ to = 40 })', { thing: null }, '/expression/target'],
+        ];
+
+        for (const [text, values, pointer] of skipped) {
+            const call = evaluatorOf(text, { values }).evaluator.prepareCall();
+
+            expect(call, text).toEqual({ kind: 'skipped', location: expect.objectContaining({ pointer }) });
+            expect(Object.isFrozen(call), text).toBe(true);
+        }
+    });
+
+    it('are refused for a script that gives a value, which is evaluated', () => {
+        const refused = getError(() => evaluatorOf('light.room').evaluator.prepareCall());
+
+        expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: '/expression' } });
+        expect(refused.message).toContain('The script gives a value and ends in no host call, so there is nothing to prepare; evaluate it');
+    });
+
+    it('evaluate the locals before the call once, and read them as prepared in every projection, never running their initializers again', () => {
+        const invoked = [];
+        const call = evaluatorOf('let room = sensor.room return sensor.watch() { at = context.at, room = room }', { invoked }).evaluator.prepareCall();
+
+        expect(invoked).toEqual(['room:porch']);
+        expect([1, 2, 3].map(at => call.project({ at, strength: 1 }).value)).toEqual([1, 2, 3].map(at => ({ at, room: "porch's room" })));
+        expect(invoked).toEqual(['room:porch']);
+    });
+
+    it('read a member through a local as the projection reads it, and keep a value a local holds as it was prepared', () => {
+        const env = { levels: {}, occupied: [] };
+        const call = evaluatorOf('let room = sensor.room let occupied = room.occupied return sensor.watch() { isOccupied = room.occupied, wasOccupied = occupied }', { env }).evaluator.prepareCall();
+
+        env.occupied.push("porch's room");
+
+        expect(call.project({ at: 1, strength: 1 }).value).toEqual({ isOccupied: true, wasOccupied: false });
+    });
+
+    it('call a function a local before the call holds in any projection', () => {
+        const call = evaluatorOf('let label = level => $"{level} lux" return light.dim({ to = 40 }) { reached = label(context) }').evaluator.prepareCall();
+
+        expect(call.project(35).value).toEqual({ reached: '35 lux' });
+        expect(call.project(38).value).toEqual({ reached: '38 lux' });
+    });
+
+    it('of one evaluator stay apart, each projecting against the locals it was prepared with, interleaved, none evaluated again', () => {
+        const invoked = [];
+        const env = { levels: { hall: 40 }, occupied: [] };
+        const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = context, asked = level }', { env, invoked });
+        const first = evaluator.prepareCall();
+
+        env.levels.hall = 60;
+
+        const second = evaluator.prepareCall();
+
+        expect([first.args, second.args]).toEqual([{ to: 40 }, { to: 60 }]);
+        expect(first.project(35).value).toEqual({ reached: 35, asked: 40 });
+        expect(second.project(55).value).toEqual({ reached: 55, asked: 60 });
+        expect(first.project(38).value).toEqual({ reached: 38, asked: 40 });
+        expect(second.project(58).value).toEqual({ reached: 58, asked: 60 });
+        expect(invoked).toEqual(['level:hall', 'level:hall']);
+    });
+
+    it('project through the checks every evaluation goes through, refusing a registry that moved since the resolution', () => {
+        const { evaluator, registry } = evaluatorOf('light.dim({ to = 40 })');
+        const call = evaluator.prepareCall();
+
+        registry.registerModule(lexica.createModule('later', {}));
+
+        expect(getError(() => call.project(35))).toMatchObject({ kind: 'structure', message: expect.stringContaining('stale') });
     });
 });

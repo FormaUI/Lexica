@@ -1,5 +1,5 @@
 /**
- * Evaluator — evaluates a resolved request against its registry for the host that asks, answering detached data: an expression's value as it reads now, a subscription's projection of each event its source delivers, and an action's result read through the object expression that follows it
+ * Evaluator — evaluates a resolved script against its registry for the host that asks, answering detached data: a script's value as it reads now, and for a script that ends in a host call, the call prepared for its host and each value its host supplies projected through it
  */
 
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
@@ -164,8 +164,8 @@ export class Evaluator {
     #copiedIdentities = null;
 
     /**
-     * The terminal member's node and value while evaluating its projection.
-     * The value is an event or an action result, which the implicit parameter stands for; null outside a projection.
+     * The host call's node and the value its host supplied, while the call's result projection is evaluated against it.
+     * The value is what the implicit parameter stands for, and the call's node answers it; null outside a projection.
      * @type {{ node: object, value: unknown } | null}
      */
     #projectionContext = null;
@@ -205,110 +205,99 @@ export class Evaluator {
     }
 
     /**
-     * Resolves the event source the subscription ends in into what starts it: the source's name, the function that carries it out, the receiver and arguments it is called with and the environment, how each event it delivers is captured, and where it stands, for a failure to name.
-     * The receiver and arguments are evaluated once, now; where one of them is null there is nothing to listen to, and the answer is null.
-     * `capture` answers an event as the fields its type declares, read as it is called: a field the event does not carry as a value its type admits is null where the type is nullable, and fails the capture where it is not; an event of a type with no fields is taken whole, where it is of its type.
-     * @returns {{ name: string, start: Function, capture: (event: unknown) => unknown, receiver: unknown, args: Record<string, unknown>, environment: Environment, location: object } | null}
+     * Prepares the host call the script ends in for its host: evaluates the locals before it, each body's along the script's terminal position in order, then its receiver and its arguments, once, as `evaluate` evaluates a script without a host.
+     * It answers a prepared call, with its declaration, its receiver, its arguments by parameter name and where it stands, whose `project` projects each value its host supplies where the call declares a result; or a skipped call where the
+     * receiver, or an argument whose parameter propagates null, is null, or the call has no declaration yet, its receiver's type unknown, so there is nothing to invoke. Each prepared call keeps the locals it was prepared with, so the prepared
+     * calls of one evaluator stay apart.
+     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, location: object, project?: (value: unknown, host?: Host | null) => EvaluationResult } | { kind: 'skipped', location: object }}
      */
-    resolveSource() {
-        const call = this.#resolveCall('subscription', 'subscribed to');
+    prepareCall() {
+        const { hostCall } = this.#resolvedDefinition;
 
-        return call.args === null ? null : { name: call.name, start: call.implementation, capture: event => this.#captureEvent(event, call.node), receiver: call.receiver, args: call.args, environment: call.environment, location: call.location };
+        if (hostCall === null) {
+            this.#fail('The script gives a value and ends in no host call, so there is nothing to prepare; evaluate it', '/expression');
+        }
+
+        const { node, pointer, declaration } = hostCall;
+        const location = this.#locate(pointer);
+        const enclosingLocals = this.#localsFrame;
+
+        try {
+            const projection = this.#evaluateLocalsBefore();
+            const frame = this.#localsFrame;
+            const receiver = declaration === null ? null : this.#evaluateNode(node.target, null);
+            const args = receiver === null ? null : this.#evaluateArguments(this.#resolvedDefinition.resolutionOf(node), null);
+
+            if (args === null) {
+                return Object.freeze({ kind: 'skipped', location });
+            }
+
+            const call = { kind: 'prepared', declaration, receiver, args, location };
+
+            // A call whose host supplies nothing has nothing to project.
+            if (declaration.result !== undefined) {
+                call.project = (value, host = null) => this.#run(host, () => this.#project(frame, projection, value));
+            }
+
+            return Object.freeze(call);
+        } finally {
+            this.#localsFrame = enclosingLocals;
+            this.#selections = null;
+        }
     }
 
     /**
-     * Resolves the action the request ends in into what executes it: the action's name, the function that carries it out, the receiver and arguments it is called with and the environment, and where it stands, for a failure to name.
-     * The receiver and arguments are evaluated once, now, as `evaluate` evaluates them without a host; where one of them is null the action is not executed, and the answer is null.
-     * @returns {{ name: string, execute: Function, receiver: unknown, args: Record<string, unknown>, environment: Environment, location: object } | null}
+     * Evaluates the locals of each body along the script's terminal position into a frame of its own, in order, as a run of each body does, leaving the innermost frame the one in scope, and answers the node the terminal position holds
+     * after its bodies: the result projection, the optional chain or the host call itself.
      */
-    resolveAction() {
-        const call = this.#resolveCall('action', 'executed');
+    #evaluateLocalsBefore() {
+        let node = this.#resolvedDefinition.definition.expression;
 
-        return call.args === null ? null : { name: call.name, execute: call.implementation, receiver: call.receiver, args: call.args, environment: call.environment, location: call.location };
+        while (node.kind === 'body' || node.kind === 'do') {
+            if (node.kind === 'body') {
+                const frame = { node, item: null, values: new Map(), enclosing: this.#localsFrame };
+
+                this.#localsFrame = frame;
+
+                for (const local of node.locals) {
+                    this.#selections = null;
+
+                    const value = this.#getCompiledFunction(local.value)(this, null);
+
+                    frame.values.set(local.name, { value, selections: this.#selections });
+                }
+            }
+
+            node = node.kind === 'body' ? node.result : node.body;
+        }
+
+        return node;
     }
 
     /**
-     * Resolves the behavior the request ends in into what starts it: the behavior's declaration and name, the function that carries it out, the receiver and arguments it is called with and the environment, and where it stands, for a failure to name.
-     * The receiver and arguments are evaluated now, as `evaluate` evaluates them without a host; where one of them is null there is nothing to start, and the arguments are null.
-     * @returns {{ declaration: object, name: string, start: Function, receiver: unknown, args: Record<string, unknown> | null, environment: Environment, location: object }}
+     * Projects one value the host supplied for a prepared call: checks it against the type the call declares and takes it as the evaluator takes any member's answer, then evaluates the result projection against it as an evaluation of its own,
+     * within the frame of the locals the call was prepared with, which it reads and never evaluates again.
      */
-    resolveBehavior() {
-        const call = this.#resolveCall('behavior', 'applied');
+    #project(frame, projection, value) {
+        const { node, pointer, declaration } = this.#resolvedDefinition.hostCall;
+        const { type } = this.#resolvedDefinition.resolutionOf(node);
 
-        return { declaration: call.declaration, name: call.name, start: call.implementation, receiver: call.receiver, args: call.args, environment: call.environment, location: call.location };
-    }
-
-    /**
-     * The result of an action, checked against the type the action declares and read through the object expression that follows it, if one does: an immutable snapshot containing no live DOM references.
-     * The object expression is evaluated as `evaluate` evaluates an expression without a host, so a member maintained by an observation fails it. A result of another type, or an object expression that fails, throws an evaluation error.
-     * @param {unknown} result What the action's function answered, or null for an action that was not executed, since its receiver or an argument was null.
-     * @param {{ wasExecuted?: boolean }} [execution] Whether the action was executed, so its result is checked against the type it declares.
-     */
-    projectResult(result, { wasExecuted = true } = {}) {
-        const { node, pointer } = this.#findTerminalMember();
-        const { declaration, type } = this.#resolvedDefinition.resolutionOf(node);
-
-        if (wasExecuted && !this.#conforms(result, type)) {
-            this.#fail(`The action '${declaration.name}' answered ${Evaluator.#describe(result)}, and it declares ${type}`, pointer);
+        if (!this.#conforms(value, type)) {
+            this.#fail(`The host call '${declaration.name}' supplied ${Evaluator.#describe(value)}, and it declares ${type}`, pointer);
         }
 
         const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
+        const enclosingLocals = this.#localsFrame;
 
-        this.#projectionContext = { node, value: copyStructures === null ? result : copyStructures(result) };
+        this.#localsFrame = frame;
+        this.#projectionContext = { node, value: copyStructures === null ? value : copyStructures(value) };
 
         try {
-            return this.#evaluateResult().value;
+            return this.#evaluateResult(projection);
         } finally {
             this.#projectionContext = null;
+            this.#localsFrame = enclosingLocals;
         }
-    }
-
-    /**
-     * The member the request ends in, evaluated up to its call: its declaration, the function that carries it out, and its receiver and arguments, which are null where the receiver or an argument is.
-     * A member that follows a receiver of unknown type has no declaration and no function, and its receiver is null.
-     */
-    #resolveCall(kind, operationDescription) {
-        if (this.#resolvedDefinition.kind !== kind) {
-            this.#fail(`A ${this.#resolvedDefinition.kind} request is not ${operationDescription}`, '/expression');
-        }
-
-        const { node, pointer } = this.#findTerminalMember();
-        const resolution = this.#resolvedDefinition.resolutionOf(node);
-        const { declaration } = resolution;
-        const receiver = this.#evaluateNode(node.target, null);
-
-        if (declaration === null) {
-            return { declaration, name: node.name, implementation: null, receiver, args: null, environment: this.#environment, location: this.#locate(pointer), node };
-        }
-
-        const args = receiver === null ? null : this.#evaluateArguments(resolution, null);
-
-        const implementation = this.#moduleRegistry.getImplementation(declaration);
-
-        if (implementation === undefined) {
-            this.#fail(`The module '${this.#moduleRegistry.getOwner(declaration)}' gives '${declaration.name}' no implementation`, pointer);
-        }
-
-        return { declaration, name: declaration.name, implementation, receiver, args, environment: this.#environment, location: this.#locate(pointer), node };
-    }
-
-    /**
-     * Evaluates the object expression that follows the event source against one event, as its source captured it, for the host given, answering as `evaluate` does.
-     * @param {unknown} event The event, as `capture` answered it.
-     * @param {Host | null} [host] What the evaluation is carried out for.
-     */
-    project(event, host = null) {
-        return this.#run(host, () => {
-            const { node } = this.#findTerminalMember();
-
-            this.#projectionContext = { node, value: event };
-
-            try {
-                return this.#evaluateResult();
-            } finally {
-                this.#projectionContext = null;
-            }
-        });
     }
 
     /**
@@ -365,14 +354,10 @@ export class Evaluator {
         const { hostCall } = this.#resolvedDefinition;
 
         if (hostCall !== null) {
-            this.#fail(`The script ends in the host call '${hostCall.name}', which its host invokes, so it is never evaluated`, hostCall.pointer);
+            this.#fail(`The script ends in the host call '${hostCall.name}', which its host invokes, so it is never evaluated; prepare it`, hostCall.pointer);
         }
 
-        if (this.#resolvedDefinition.kind !== 'value') {
-            this.#fail(`A ${this.#resolvedDefinition.kind} request is not evaluated`, '/expression');
-        }
-
-        return this.#evaluateResult();
+        return this.#evaluateResult(this.#resolvedDefinition.definition.expression);
     }
 
     #evaluateNode(node, context) {
@@ -807,7 +792,7 @@ export class Evaluator {
         const evaluateArguments = this.#compileArguments(resolution);
 
         return (evaluator, context) => {
-            // A projection stands the event or the result where its member is, so that member is never read again.
+            // A projection stands the value its host supplied where the host call is, so the call is never evaluated.
             if (evaluator.#projectionContext !== null && node === evaluator.#projectionContext.node) {
                 return evaluator.#projectionContext.value;
             }
@@ -1291,7 +1276,7 @@ export class Evaluator {
     }
 
     #evaluateMember(node, context) {
-        // A projection stands the event or the result where its member is, so that member is never read again.
+        // A projection stands the value its host supplied where the host call is, so the call is never evaluated.
         if (node === this.#projectionContext?.node) {
             return this.#projectionContext.value;
         }
@@ -1504,54 +1489,6 @@ export class Evaluator {
         throw LexicaError.evaluation(`The host failed ${moment} of ${this.#subjectOf(declaration, node).replace(/^The /, 'the ').replace(/,$/, '')}: ${error?.message ?? String(error)}`, this.#locate(this.#pointerOf(node)), { cause: error });
     }
 
-
-    /** The member a subscription, an action or a behavior request ends in, and where it stands: the object expressions of a request each follow the one before, and the first follows that member, which an optional chain may hold. */
-    #findTerminalMember() {
-        let node = this.#resolvedDefinition.definition.expression;
-        let pointer = '/expression';
-
-        while (node.kind === 'object' || node.kind === 'optionalChain') {
-            node = node.target;
-            pointer = `${pointer}/target`;
-        }
-
-        return { node, pointer };
-    }
-
-    /** The event as the fields its type declares, each read and checked now as the event gives it, or the event itself where its type declares no structure; copying the projection's result is what isolates the data it answers. */
-    #captureEvent(event, node) {
-        const pointer = this.#pointerOf(node);
-        const { declaration, type } = this.#resolvedDefinition.resolutionOf(node);
-        const { itemType } = type;
-        const structure = itemType.kind === 'named' ? this.#moduleRegistry.getType(itemType.name) : undefined;
-
-        if (structure === undefined) {
-            if (!this.#conforms(event, itemType)) {
-                this.#fail(`The event source '${declaration.name}' delivered ${Evaluator.#describe(event)}, and its event data is ${itemType}`, pointer);
-            }
-
-            return event;
-        }
-
-        const captured = {};
-
-        for (const [name, fieldType] of Evaluator.#fieldTypesOf(structure)) {
-            const value = event?.[name];
-
-            if (this.#conforms(value, fieldType)) {
-                const copyStructures = Evaluator.#compileStructureCopy(fieldType, this.#moduleRegistry);
-
-                captured[name] = copyStructures === null ? value : copyStructures(value);
-            } else if (fieldType.isNullable) {
-                captured[name] = null;
-            } else {
-                this.#fail(`The event source '${declaration.name}' delivered an event whose '${name}' is ${Evaluator.#describe(value)}, and its type declares ${fieldType}`, pointer);
-            }
-        }
-
-        return captured;
-    }
-
     /** Whether the value is one the type admits. */
     #conforms(value, type) {
         if (value === undefined) {
@@ -1694,14 +1631,16 @@ export class Evaluator {
         }
     }
 
-    /** The expression evaluated and detached, with the metadata that describes it, built from the identities the copy left, which the evaluator lets go of once it hands them over, so it holds no element between evaluations. */
-    #evaluateResult() {
+    /**
+     * The node evaluated and detached, the script's expression or a host call's result projection, with the metadata that describes it, built from the identities the copy left, which the evaluator lets go of once it hands them over,
+     * so it holds no element between evaluations.
+     */
+    #evaluateResult(node) {
         this.#sourceElementsByList = new WeakMap();
         this.#fieldSelectionsByObject = new WeakMap();
         this.#selections = null;
 
         try {
-            const node = this.#resolvedDefinition.definition.expression;
             const value = this.#copyResult(this.#evaluateNode(node, null));
 
             // The metadata is described where it is first read, from identities no later evaluation changes, so a caller that reads the value alone pays nothing for it.

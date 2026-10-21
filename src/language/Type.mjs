@@ -1,5 +1,5 @@
 /**
- * Type — a Lexica type: a named type, a list, an event source, an object type, the object root, a function value or a type parameter, each nullable or not, the type of null, and the type no value has
+ * Type — a Lexica type: a named type, a list, an object type, the object root, a function value or a type parameter, each nullable or not, the type of null, and the type no value has
  */
 
 const NAME = /^@?[A-Za-z][A-Za-z0-9]*$/;
@@ -9,13 +9,13 @@ export class Type {
     /** @type {Map<string, Type | null>} */
     static #parsed = new Map();
 
-    /** The type's kind: named, list, event, object, root, function, typeParameter, null or never. */
+    /** The type's kind: named, list, object, root, function, typeParameter, null or never. */
     kind;
 
     /** The type's name, for a named type or a type parameter. */
     name;
 
-    /** The type of a list's items, or of an event source's event data. */
+    /** The type of a list's items. */
     itemType;
 
     /** An object type's field types by name, or the fields of the outermost object the object root reads. */
@@ -58,11 +58,6 @@ export class Type {
     /** A list of the item type. */
     static createListType(itemType, isNullable = false) {
         return new Type('list', { itemType, isNullable });
-    }
-
-    /** An event source whose events carry data of the item type. */
-    static createEventType(itemType, isNullable = false) {
-        return new Type('event', { itemType, isNullable });
     }
 
     /** The object type of the field types, by name. */
@@ -143,8 +138,7 @@ export class Type {
 
         switch (this.kind) {
             case 'list':
-            case 'event':
-                text = `${this.kind}<${this.itemType}>`;
+                text = `list<${this.itemType}>`;
                 break;
             case 'object':
                 text = `{ ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType}`).join(', ')} }`;
@@ -305,7 +299,7 @@ export class Type {
         return isNullable ? firstType.toNullable() : firstType;
     }
 
-    /** Whether a value of this type may stand where the other type is declared, a list by its items, and an event source by its event data. */
+    /** Whether a value of this type may stand where the other type is declared, a list by its items. */
     isAssignableTo(otherType) {
         if (this.kind === 'never') {
             return true;
@@ -364,7 +358,7 @@ class TypeReader {
         let type;
 
         if (this.#text[this.#offset] === '<') {
-            if (match[0] !== 'list' && match[0] !== 'event') {
+            if (match[0] !== 'list') {
                 return null;
             }
 
@@ -376,14 +370,14 @@ class TypeReader {
             }
 
             this.#offset++;
-            type = match[0] === 'list' ? Type.createListType(itemType) : Type.createEventType(itemType);
+            type = Type.createListType(itemType);
         } else if (match[0] === 'null') {
             type = Type.null;
         } else if (match[0] === 'never') {
             type = Type.never;
         } else if (TYPE_PARAMETER.test(match[0])) {
             type = Type.createTypeParameter(match[0]);
-        } else if (match[0] === 'list' || match[0] === 'event') {
+        } else if (match[0] === 'list') {
             return null;
         } else {
             type = Type.createNamedType(match[0]);

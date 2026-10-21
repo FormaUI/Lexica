@@ -48,19 +48,18 @@ export class LanguageResolver {
 
         // A host call that supplies nothing gives no result, and one that supplies values gives, for each, what its result projection makes of it, or the value itself.
         const type = result.suppliesNothing === true ? null : result.type;
-        const resultType = result.kind === 'subscription' && result.type.kind === 'event' ? result.type.itemType : type;
 
-        if (resultType !== null && LanguageResolver.#heldReferenceOf(resultType) === 'function') {
+        if (type !== null && LanguageResolver.#heldReferenceOf(type) === 'function') {
             this.#fail('The result would hold a function, which is used within the expression and never part of its result: call it, as name(…)', '/expression');
         }
 
-        if (resultType !== null && result.kind !== 'behavior' && !this.#isData(resultType)) {
-            this.#fail(`The result would hold ${resultType}, which is no data; read the facts it needs through an object expression`, '/expression');
+        if (type !== null && !this.#isData(type)) {
+            this.#fail(`The result would hold ${type}, which is no data; read the facts it needs through an object expression`, '/expression');
         }
 
         const hostCall = result.kind === 'hostCall' ? this.#hostCallOf(definition.expression, '/expression') : null;
 
-        return new ResolvedDefinition(definition, result.kind, type, hostCall, this.#resolutions, this.#usedDeclarations, this.#instances);
+        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#usedDeclarations, this.#instances);
     }
 
     /** Resolves the node in the script's terminal position, where a host call may stand: the script's expression, the result a body there returns and the body a `do` there holds. */
@@ -655,7 +654,7 @@ export class LanguageResolver {
         }
     }
 
-    /** Refuses what is no value where one is tested for its truthiness, an event source, an action or a behavior, and a value whose type no receiver gives, which tells nothing of whether it can be falsey. */
+    /** Refuses what is no value where one is tested for its truthiness, a host call, and a value whose type no receiver gives, which tells nothing of whether it can be falsey. */
     #requireValue(result, what, pointer) {
         if (result.kind !== 'value') {
             this.#fail(`${what} is a value, and this one is ${LanguageResolver.#descriptionOf(result.kind)}`, pointer);
@@ -700,7 +699,7 @@ export class LanguageResolver {
         const resultScope = { ...scope, locals };
         const result = isTerminal ? this.#resolveTerminal(node.result, resultPointer, resultScope) : this.#resolveNode(node.result, resultPointer, resultScope);
 
-        // A body gives a value, as a field holds one, and returns a host call only where it stands in the script's terminal position: an event source, an action and a behavior are requests of their own.
+        // A body gives a value, as a field holds one, and returns a host call only where it stands in the script's terminal position.
         if (result.kind !== 'value' && !(isTerminal && result.kind === 'hostCall')) {
             this.#fail(result.kind === 'hostCall' ? 'A host call ends the script, and this body gives its result to the expression around it, which takes a value' : `A body gives a value, and its result is ${LanguageResolver.#descriptionOf(result.kind)}`, resultPointer);
         }
@@ -1198,7 +1197,7 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a name applied to a receiver of unknown type, which chooses no declaration among the candidates, those of its name or, for a default indexer, every default indexer. A property is accepted whatever its name, since a bound object's fields are named by its data; a call or an indexer must be a member's, written in the form and given the arguments one of its declarations takes. The declarations that take it agree on the kind of request they make.
+     * Resolves a name applied to a receiver of unknown type, which chooses no declaration among the candidates, those of its name or, for a default indexer, every default indexer. A property is accepted whatever its name, since a bound object's fields are named by its data; a call or an indexer must be a member's, written in the form and given the arguments one of its declarations takes. The declarations that take it agree on who invokes it, the evaluator or the host.
      * Its type is the result type they share, made nullable, or left to the optional chain an optional access of null ends, and null where they share none or the name is no member's. Nothing applied to such a receiver is evaluated, so its arguments leave no resolution behind.
      */
     #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#moduleRegistry.getMembers(node.name)) {
@@ -1235,7 +1234,7 @@ export class LanguageResolver {
         const kinds = new Set([...fitting.map(({ declaration }) => LanguageResolver.#requestKindOf(declaration)), ...(isAccess ? ['value'] : [])]);
 
         if (kinds.size > 1) {
-            this.#fail(`'${node.name}' follows a value whose type is unknown, and its declarations make ${[...kinds].map(kind => LanguageResolver.#descriptionOf(kind)).join(' or ')}, so what it requests is ambiguous`, pointer);
+            this.#fail(`'${node.name}' follows a value whose type is unknown, and its declarations disagree on who invokes it, the evaluator or the host, so whether the script ends in a host call is ambiguous`, pointer);
         }
 
         const resultTypes = [
@@ -1522,15 +1521,6 @@ export class LanguageResolver {
         const name = result.value;
 
         switch (parameter.selects) {
-            case 'eventType': {
-                const event = this.#moduleRegistry.getEventType(name);
-
-                if (event === undefined) {
-                    this.#fail(`'${name}' is no event type the vocabulary declares`, pointer);
-                }
-
-                return { selected: { name, type: Type.parse(event.data) } };
-            }
             case 'type': {
                 const selectable = this.#moduleRegistry.getSelectableType(parameter.selector, name);
 
@@ -1600,16 +1590,12 @@ export class LanguageResolver {
     #resolveObject(node, pointer, scope) {
         const target = node.target === undefined ? null : this.#resolveNode(node.target, `${pointer}/target`, scope);
 
-        if (target?.kind === 'behavior') {
-            this.#fail('A behavior request ends its chain and takes no object expression', pointer);
-        }
-
         if (target?.suppliesNothing === true) {
             this.#fail('The host call this object expression follows declares no result, since its host supplies no values, so it takes no result projection', pointer);
         }
 
-        // An object expression that follows an action shapes its result, and the request stays an action; one that follows an event source keeps it a subscription; one that follows a host call is its result projection.
-        const kind = target?.kind === 'action' || target?.kind === 'subscription' || target?.kind === 'hostCall' ? target.kind : 'value';
+        // An object expression that follows a host call is its result projection, and the script still ends in the call.
+        const kind = target?.kind === 'hostCall' ? 'hostCall' : 'value';
 
         let contextType = scope.contextType;
         let contextKey = scope.contextKey;
@@ -1617,7 +1603,7 @@ export class LanguageResolver {
         if (target !== null) {
             contextKey = {};
 
-            const appliedType = target.type.kind === 'list' || target.type.kind === 'event' ? target.type.itemType : target.type;
+            const appliedType = target.type.kind === 'list' ? target.type.itemType : target.type;
 
             // An object expression following null, or each item of a list of nulls, is never applied, so its fields are resolved against no value.
             contextType = appliedType.kind === 'null' ? Type.never : appliedType.toNonNullable();
@@ -1698,10 +1684,6 @@ export class LanguageResolver {
             return { type: Type.createListType(target.type.itemType.isNullable ? objectType.toNullable() : objectType, isNullable), kind, isFixed: false };
         }
 
-        if (target?.type.kind === 'event') {
-            return { type: Type.createEventType(objectType, isNullable), kind: 'subscription', isFixed: false };
-        }
-
         return { type: isNullable ? objectType.toNullable() : objectType, kind, isFixed: false };
     }
 
@@ -1754,7 +1736,6 @@ export class LanguageResolver {
             case 'function':
                 return type.kind;
             case 'list':
-            case 'event':
                 return LanguageResolver.#heldReferenceOf(type.itemType);
             case 'object':
                 return [...type.fieldTypes.values()].reduce((held, fieldType) => held ?? LanguageResolver.#heldReferenceOf(fieldType), null);
@@ -1855,18 +1836,9 @@ export class LanguageResolver {
     /** The copy of a function's body each call resolves, with the pointer it is resolved under and the pointer of the body it copies. @type {{ node: object, pointer: string, source: string }[]} */
     #instances = [];
 
-    /** What a request of the kind is, for a message: a subscription is an event source. */
+    /** What a resolved node of the kind is, for a message: a host call, a function a local holds, or a value. */
     static #descriptionOf(kind) {
-        switch (kind) {
-            case 'subscription':
-                return 'an event source';
-            case 'action':
-                return 'an action';
-            case 'hostCall':
-                return 'a host call';
-            default:
-                return `a ${kind}`;
-        }
+        return kind === 'hostCall' ? 'a host call' : `a ${kind}`;
     }
 
     /** The property access that writes the node's name after its receiver, optional where the node is. */
@@ -1874,18 +1846,9 @@ export class LanguageResolver {
         return { kind: 'member', target: node.target, name: node.name, ...(node.optional === true ? { optional: true } : {}) };
     }
 
+    /** What a call of the declaration makes: a host call where its host invokes it, and a value otherwise. */
     static #requestKindOf(declaration) {
-        switch (declaration.kind) {
-            case 'eventSource':
-                return 'subscription';
-            case 'action':
-            case 'behavior':
-                return declaration.kind;
-            case 'function':
-                return LexicaModule.isHostCall(declaration) ? 'hostCall' : 'value';
-            default:
-                return 'value';
-        }
+        return LexicaModule.isHostCall(declaration) ? 'hostCall' : 'value';
     }
 
     /** Whether the type says nothing of what its value would be: null's, a null binding's, and never's, which no value has. */
@@ -1908,7 +1871,7 @@ export class LanguageResolver {
 
     /**
      * The member's name qualified by the type of the declaration the receiver matched, as `node.root` and `shadow.root` are, so two members of one name are told apart; a declaration for any receiver keeps its name alone.
-     * A list or an event source is named by its kind, as `list.count` is.
+     * A list is named by its kind, as `list.count` is.
      */
     static #qualifiedNameOf(declaration, receiverType) {
         const base = receiverType.toNonNullable();

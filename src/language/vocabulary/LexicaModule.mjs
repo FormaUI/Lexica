@@ -7,7 +7,7 @@ import { LexicaError } from '../LexicaError.mjs';
 import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 
-const MEMBER_KINDS = ['property', 'function', 'eventSource', 'action', 'behavior'];
+const MEMBER_KINDS = ['property', 'function'];
 
 /** Who invokes a function: the evaluator, as it evaluates the script, or the host, which the script's host call is prepared for. */
 const INVOKERS = ['evaluator', 'host'];
@@ -24,7 +24,7 @@ const CHANGE_CATEGORIES = ['constant', 'observable', 'partly-observable', 'unobs
 /** How a member reads, as the specification's modes name it, `derived` for a contract that comes from the items and expression a member selects or evaluates. */
 const READING_MODES = ['fresh', 'maintained', 'captured', 'derived'];
 const NULL_POLICIES = ['propagate', 'accept'];
-const SELECTION_KINDS = ['eventType', 'predicate', 'type'];
+const SELECTION_KINDS = ['predicate', 'type'];
 const PARAMETER_KINDS = ['value', 'expression', 'predicate', 'function'];
 
 /** What an observation type provides: a signal that an answer may have changed, or a sampled value a member reads. */
@@ -40,27 +40,23 @@ const BUILT_IN_TYPE_NAMES = ['number', 'string', 'boolean', 'node', 'element', '
 const UNTOLERATED_TYPE_NAMES = new Set(BUILT_IN_TYPE_NAMES.filter(name => name !== 'number'));
 
 /** The names no module declares a type by: those Lexica defines, and the words of the type notation. */
-const RESERVED_TYPE_NAMES = new Set([...BUILT_IN_TYPE_NAMES, 'list', 'event', 'null', 'never']);
+const RESERVED_TYPE_NAMES = new Set([...BUILT_IN_TYPE_NAMES, 'list', 'null', 'never']);
 
 /** The types of data Lexica defines, which a conversion converts between, as it does between them and the structured types modules declare. */
 const DATA_TYPE_NAMES = ['number', 'string', 'boolean'];
 
 /** What a module can declare. */
-const CONTENTS = ['types', 'members', 'predicates', 'typeSelectors', 'selectableTypes', 'eventTypes', 'observationTypes', 'observationTargets', 'conversions'];
+const CONTENTS = ['types', 'members', 'predicates', 'typeSelectors', 'selectableTypes', 'observationTypes', 'observationTargets', 'conversions'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
 const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'implementation'];
 const MEMBER_KEYS_BY_KIND = {
     property: ['updates'],
     function: ['invokedBy', 'syntax', 'arguments', 'default', 'parameters', 'updates'],
-    eventSource: ['syntax', 'arguments', 'parameters', 'updates'],
-    action: ['syntax', 'arguments', 'parameters'],
-    behavior: ['syntax', 'arguments', 'parameters'],
 };
 const UPDATES_KEYS = ['changes', 'reads', 'misses', 'tolerance', 'observations'];
 const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameters'];
 const TYPE_KEYS = ['name', 'fields'];
-const EVENT_TYPE_KEYS = ['name', 'data'];
 const TYPE_SELECTOR_KEYS = ['name'];
 const SELECTABLE_TYPE_KEYS = ['name', 'selector', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'implementation'];
@@ -71,7 +67,7 @@ const CONVERSION_KEYS = ['from', 'to', 'implementation'];
 /** The verbs that ask a predicate, each its own kind of Boolean question: `is` a state, `has` a possession or a presence, and `supports` a capability. */
 export const PREDICATE_VERBS = Object.freeze(['is', 'has', 'supports']);
 
-/** How a selectable type's key is written: a letter, then letters, digits, colons and hyphens, as an event's name is. */
+/** How a selectable type's key is written: a letter, then letters, digits, colons and hyphens, as `motion` and `door:open` are. */
 const SELECTABLE_KEY = /^[A-Za-z][A-Za-z0-9:-]*$/;
 
 /** How a predicate is named: words of letters and digits joined by hyphens, as `focus-within` is. */
@@ -84,7 +80,6 @@ export class LexicaModule {
     #predicates;
     #typeSelectors;
     #selectableTypes;
-    #eventTypes;
     #observationTypes;
     #observationTargets;
     #conversions;
@@ -93,11 +88,10 @@ export class LexicaModule {
      * @param {string} name The module's name.
      * @param {object} contents What the module declares, each declaration that runs code carrying its implementation.
      * @param {object[]} [contents.types] The structured types it declares, each with its fields.
-     * @param {object[]} [contents.members] The properties, functions, event sources, actions and behaviors it adds, a member without a target a module member.
+     * @param {object[]} [contents.members] The properties and functions it adds, a function its host invokes among them, a member without a target a module member.
      * @param {object[]} [contents.predicates] The predicates it declares, each a Boolean of its receivers that its verb asks by its name.
      * @param {object[]} [contents.typeSelectors] The type selectors it declares, each by its name alone, through which a function's fixed argument selects the type of its result.
      * @param {object[]} [contents.selectableTypes] The keys it declares for type selectors, its own or another module's, each with the selector it belongs to and the type it maps to.
-     * @param {object[]} [contents.eventTypes] The event types it declares, each with the type of its event data.
      * @param {object[]} [contents.observationTypes] The types of observation it declares.
      * @param {object[]} [contents.observationTargets] The targets its observation types observe besides a receiver and an argument, each found from the receiver or independent of it, one target or several.
      * @param {object[]} [contents.conversions] The conversions it declares, each from a type of data to another.
@@ -121,9 +115,9 @@ export class LexicaModule {
             }
         }
 
-        const { types = [], members = [], predicates = [], typeSelectors = [], selectableTypes = [], eventTypes = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
+        const { types = [], members = [], predicates = [], typeSelectors = [], selectableTypes = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
 
-        for (const [key, list] of Object.entries({ types, members, predicates, typeSelectors, selectableTypes, eventTypes, observationTypes, observationTargets, conversions })) {
+        for (const [key, list] of Object.entries({ types, members, predicates, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions })) {
             if (!Array.isArray(list)) {
                 fail(`A module's ${key} are a list`, undefined, key);
             }
@@ -135,7 +129,6 @@ export class LexicaModule {
         this.#predicates = LexicaModule.#freezeItems(predicates.map(predicate => LexicaModule.#validatePredicate(predicate, fail)));
         this.#typeSelectors = LexicaModule.#freezeItems(LexicaModule.#validateTypeSelectors(typeSelectors, fail));
         this.#selectableTypes = LexicaModule.#freezeItems(selectableTypes.map(selectable => LexicaModule.#validateSelectableType(selectable, fail)));
-        this.#eventTypes = LexicaModule.#freezeItems(eventTypes.map(eventType => LexicaModule.#validateEventType(eventType, fail)));
         this.#observationTypes = LexicaModule.#freezeItems(observationTypes.map(type => LexicaModule.#validateObservationType(type, fail)));
         this.#observationTargets = LexicaModule.#freezeItems(LexicaModule.#validateObservationTargets(observationTargets, fail));
         this.#conversions = LexicaModule.#freezeItems(conversions.map(conversion => LexicaModule.#validateConversion(conversion, fail)));
@@ -159,11 +152,6 @@ export class LexicaModule {
     /** The predicates the module declares. */
     get predicates() {
         return this.#predicates;
-    }
-
-    /** The event types the module declares. */
-    get eventTypes() {
-        return this.#eventTypes;
     }
 
     /** The type selectors the module declares. */
@@ -281,7 +269,6 @@ export class LexicaModule {
                 case 'typeParameter':
                     return type.name === '@selected';
                 case 'list':
-                case 'event':
                     return writes(type.itemType);
                 case 'object':
                     return [...type.fieldTypes.values()].some(writes);
@@ -323,16 +310,6 @@ export class LexicaModule {
         return LexicaModule.#copyOf(type);
     }
 
-    static #validateEventType(eventType, fail) {
-        LexicaModule.#validateKeys(eventType, EVENT_TYPE_KEYS, 'An event type', fail);
-
-        if (typeof eventType?.name !== 'string' || !/^[A-Za-z][A-Za-z0-9:-]*$/.test(eventType.name) || !LexicaModule.#isTypeNotation(eventType.data)) {
-            fail('An event type declares the name of the event and the type of its event data', eventType?.name, typeof eventType?.name === 'string' ? 'data' : 'name');
-        }
-
-        return LexicaModule.#copyOf(eventType);
-    }
-
     /** Validates the type selectors a module declares, each named as a name is, once in the module. */
     static #validateTypeSelectors(selectors, fail) {
         const names = new Set();
@@ -356,7 +333,7 @@ export class LexicaModule {
         });
     }
 
-    /** Validates a selectable type: its key, written as an event's name is, the selector it belongs to, and the type it maps to. */
+    /** Validates a selectable type: its key, the selector it belongs to, and the type it maps to. */
     static #validateSelectableType(declared, fail) {
         const selectable = LexicaModule.#defined(declared);
 
@@ -623,7 +600,7 @@ export class LexicaModule {
 
         LexicaModule.#validateUpdates({ ...predicate, result: 'boolean' }, new Map(), true, name, fail);
 
-        // A predicate is a Boolean of its receiver, read as it is or kept by an observation; it selects no items and captures no event.
+        // A predicate is a Boolean of its receiver, read as it is or kept by an observation; it selects no items and keeps no history.
         if (predicate.updates.changes === 'derived' || (predicate.updates.reads !== 'fresh' && predicate.updates.reads !== 'maintained')) {
             fail('A predicate changes as constant, observable, partly-observable or unobserved, and reads fresh or maintained', name, 'updates');
         }
@@ -670,10 +647,6 @@ export class LexicaModule {
             fail(isHostCall ? 'It declares the type of each value its host supplies, or none, where it supplies none' : 'It declares the type of its result', name, 'result');
         }
 
-        if (member.kind === 'eventSource' && Type.parse(member.result).kind !== 'event') {
-            fail('An event source delivers events, so its result is an event<…>', name, 'result');
-        }
-
         const parameters = Array.isArray(member.parameters) ? member.parameters.map(parameter => LexicaModule.#defined(parameter)) : (member.parameters ?? []);
 
         if (!Array.isArray(parameters)) {
@@ -684,11 +657,6 @@ export class LexicaModule {
 
         for (const parameter of parameters) {
             LexicaModule.#validateParameter(parameter, name, fail);
-
-            // Only a member of kind `function` calls what it is given while its own invocation lasts.
-            if (parameter.kind === 'function' && member.kind !== 'function') {
-                fail(`The parameter '${parameter.name}' belongs to a member of kind 'function', which calls it while its own invocation lasts`, name, 'parameters');
-            }
 
             if (parameterNames.has(parameter.name)) {
                 fail(`The parameter '${parameter.name}' is declared twice`, name, 'parameters');
@@ -710,10 +678,6 @@ export class LexicaModule {
             }
 
             LexicaModule.#validateUpdates(member, new Map(parameters.map(parameter => [parameter.name, parameter])), hasReceiver, name, fail);
-
-            if (member.kind === 'eventSource' && member.updates.reads !== 'captured') {
-                fail('An event source captures each event as it happens, so it reads captured', name, 'updates.reads');
-            }
         }
 
         if (LexicaModule.isVerb(member) && member.implementation !== undefined) {
@@ -759,37 +723,24 @@ export class LexicaModule {
     }
 
     /**
-     * Checks the fixed parameters a member's kind allows: an event source's one designated parameter that selects its event type, a verb's one that selects the predicate it asks, and a function's one at most that selects a type,
-     * whose result writes `@selected` where that type stands, as a function selecting none writes none.
+     * Checks the fixed parameters a member takes: a verb's one that selects the predicate it asks, and a function's one at most that selects a type, whose result writes `@selected` where that type stands, as a member selecting none
+     * writes none.
      */
     static #validateSelections(member, parameters, name, fail) {
         const selecting = parameters.filter(parameter => parameter.fixed === true);
-        const eventTypeSelections = selecting.filter(parameter => parameter.selects === 'eventType');
         const predicateSelections = selecting.filter(parameter => parameter.selects === 'predicate');
         const typeSelections = selecting.filter(parameter => parameter.selects === 'type');
-
-        if (typeSelections.length > 0 && member.kind !== 'function') {
-            fail('Only a function has a parameter that selects a type', name, 'parameters');
-        }
 
         if (typeSelections.length > 1) {
             fail(`A function has one parameter at most that selects a type, since its result writes one @selected, and ${typeSelections.map(parameter => `'${parameter.name}'`).join(' and ')} each select one`, name, 'parameters');
         }
 
-        if (member.kind === 'function' && typeSelections.length === 1 && !LexicaModule.#writesSelected(member.result)) {
+        if (typeSelections.length === 1 && !LexicaModule.#writesSelected(member.result)) {
             fail(`Its parameter '${typeSelections[0].name}' selects a type, so its result writes @selected where that type stands`, name, 'result');
         }
 
-        if (member.kind === 'function' && typeSelections.length === 0 && LexicaModule.#writesSelected(member.result)) {
+        if (typeSelections.length === 0 && LexicaModule.#writesSelected(member.result)) {
             fail('Its result writes @selected, and none of its parameters selects a type', name, 'result');
-        }
-
-        if (member.kind === 'eventSource' && (eventTypeSelections.length !== 1 || selecting.length !== 1)) {
-            fail('An event source designates one fixed parameter that selects its event type, and its other parameters select nothing', name, 'parameters');
-        }
-
-        if (member.kind !== 'eventSource' && eventTypeSelections.length > 0) {
-            fail('Only an event source has a parameter that selects an event type', name, 'parameters');
         }
 
         if (predicateSelections.length > 0) {
@@ -823,7 +774,7 @@ export class LexicaModule {
         if (member.syntax === 'indexer') {
             const [parameter] = parameters;
 
-            if (member.kind !== 'function' || parameters.length !== 1 || parameter.kind !== 'value' || !parameter.required) {
+            if (parameters.length !== 1 || parameter.kind !== 'value' || !parameter.required) {
                 fail('An indexer is a function whose key is its one parameter, a required value parameter', name, 'syntax');
             }
 
@@ -931,7 +882,7 @@ export class LexicaModule {
 
         // A type is selected through the type selector the parameter names, and anything else is selected by its name alone.
         if (parameter.selects === 'type' ? !Names.isName(parameter.selector) : parameter.selector !== undefined) {
-            fail(parameter.selects === 'type' ? `The fixed parameter '${parameter.name}' selects a type, so it names the type selector it selects through` : `The fixed parameter '${parameter.name}' selects ${parameter.selects === 'eventType' ? 'an event type' : 'a predicate'}, which no type selector maps`, memberName, field);
+            fail(parameter.selects === 'type' ? `The fixed parameter '${parameter.name}' selects a type, so it names the type selector it selects through` : `The fixed parameter '${parameter.name}' selects a predicate, which no type selector maps`, memberName, field);
         }
 
         // A fixed argument names a declaration, which only a string can.

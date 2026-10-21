@@ -33,7 +33,7 @@ describe('Vocabulary', () => {
         expect(module.types).toEqual([]);
         expect(module.predicates).toEqual([]);
         expect(module.observationTypes).toEqual([]);
-        expect(module.eventTypes).toEqual([]);
+        expect([module.typeSelectors, module.selectableTypes]).toEqual([[], []]);
     });
 
     it.each(['is', 'has', 'supports'])('declares %s as the one function call that asks a predicate of its verb, of any receiver, carried out by the predicate it selects', verb => {

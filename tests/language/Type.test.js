@@ -18,14 +18,14 @@ describe('Type', () => {
             expect(type).toMatchObject({ kind, name, isNullable });
         });
 
-        it('reads lists and events by their item types', () => {
+        it('reads lists by their item types, the type a selector selects among them', () => {
             expect(Type.parse('list<number>').itemType.name).toBe('number');
             expect(Type.parse('list<T>?')).toMatchObject({ kind: 'list', isNullable: true });
-            expect(Type.parse('event<@selected>').itemType.kind).toBe('typeParameter');
+            expect(Type.parse('list<@selected>').itemType.kind).toBe('typeParameter');
             expect(Type.parse('list<list<element?>>').itemType.itemType.isNullable).toBe(true);
         });
 
-        it.each(['', 'list', 'list<>', 'list<number', 'number<number>', '1number', 'a-b', 'list<number>>', 'number?!', null, 5])('refuses %s', text => {
+        it.each(['', 'list', 'list<>', 'list<number', 'number<number>', 'event<number>', '1number', 'a-b', 'list<number>>', 'number?!', null, 5])('refuses %s', text => {
             expect(Type.parse(text)).toBeNull();
         });
 
@@ -38,14 +38,13 @@ describe('Type', () => {
         it('makes each kind of type, nullable where asked', () => {
             expect(Type.createNamedType('number').equals(Type.parse('number'))).toBe(true);
             expect(Type.createListType(Type.parse('element'), true).equals(Type.parse('list<element>?'))).toBe(true);
-            expect(Type.createEventType(Type.parse('number')).equals(Type.parse('event<number>'))).toBe(true);
             expect(Type.createTypeParameter('T', true).equals(Type.parse('T?'))).toBe(true);
             expect(Type.createObjectType(new Map([['width', Type.parse('number')]]), true).toString()).toBe('{ width: number }?');
         });
     });
 
     describe('toString', () => {
-        it.each(['number', 'element?', 'list<T>', 'list<element>?', 'event<@selected>', 'null', 'never', 'list<never>', 'list<null>'])('writes %s back as it was read', text => {
+        it.each(['number', 'element?', 'list<T>', 'list<element>?', '@selected', 'list<@selected>', 'null', 'never', 'list<never>', 'list<null>'])('writes %s back as it was read', text => {
             expect(Type.parse(text).toString()).toBe(text);
         });
 
@@ -79,7 +78,6 @@ describe('Type', () => {
 
         it.each([
             ['list<T>', 'number'],
-            ['list<T>', 'event<number>'],
             ['element', 'window'],
             ['rectangle', 'size'],
         ])('refuses %s against %s', (declaredType, actualType) => {

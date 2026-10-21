@@ -217,8 +217,8 @@ export interface LexicaParameterDeclaration {
     default?: unknown;
     /** Whether the argument names something the vocabulary resolves before any evaluation; a fixed parameter is a value parameter of type `string`. */
     fixed?: boolean;
-    /** What a fixed parameter names, and only a fixed one: an event source's event type, the predicate a verb asks, or a type, which a function's result writes as `@selected`, through the type selector `selector` names. */
-    selects?: 'eventType' | 'predicate' | 'type';
+    /** What a fixed parameter names, and only a fixed one: the predicate a verb asks, or a type, which a function's result writes as `@selected`, through the type selector `selector` names. */
+    selects?: 'predicate' | 'type';
     /** The type selector a parameter that selects a type selects through. */
     selector?: string;
     /** Whether a null argument makes the call answer null, or is accepted; a function parameter leaves it out, since a function is never null. */
@@ -236,22 +236,16 @@ export interface LexicaImplementationInput {
     readonly env: unknown;
     /** A member that reads maintained values: its observations' latest samples, in the order its declaration names them. */
     readonly samples?: readonly unknown[];
-    /** An event source: the function each event is handed to. */
-    readonly deliver?: (event: unknown) => void;
-    /** An action: the host's signal that aborts it, as an `AbortSignal` is. */
-    readonly signal?: { readonly aborted: boolean; readonly reason?: unknown };
-    /** A behavior: where a failure while it runs is reported. */
-    readonly reportError?: (error: unknown) => void;
 }
 
 /**
- * A property, function, event source, action or behavior a module adds, each kind taking the fields it needs alone; a member without a target is a module member, read through its module's namespace.
- * A property answers a value; a function its result; an event source an object whose `stop` ends the listening; an action its result or a promise of it; and a behavior an object whose `update(receiver, args)` applies new arguments and whose `dispose` ends it.
+ * A property or a function a module adds, each taking the fields it needs alone; a member without a target is a module member, read through its module's namespace.
+ * A property answers a value, and a function the evaluator invokes its result; a function the host invokes is a host call, which a script ends in, and has no implementation Lexica calls.
  */
 export interface LexicaMemberDeclaration {
     /** The Lexica name. */
     name: string;
-    kind: 'property' | 'function' | 'eventSource' | 'action' | 'behavior';
+    kind: 'property' | 'function';
     /** Who invokes a function: the evaluator, the default, or the host, which a script ending in a call of it is prepared for; a function the host invokes takes value parameters alone, and neither updates nor an implementation. */
     invokedBy?: 'evaluator' | 'host';
     /** The types it applies to, in Lexica's notation, or none for a module member. */
@@ -264,9 +258,9 @@ export interface LexicaMemberDeclaration {
     default?: boolean;
     /** Its parameters; a property takes none. */
     parameters?: LexicaParameterDeclaration[];
-    /** The type of its result, in Lexica's notation; an event source's is `event<T>`; a host call's is the type of each value its host supplies, left out where it supplies none. */
+    /** The type of its result, in Lexica's notation; a host call's is the type of each value its host supplies, left out where it supplies none. */
     result?: string;
-    /** How it changes and reads; a property, a function and an event source take it, and an action and a behavior refuse it. */
+    /** How it changes and reads; a property and a function the evaluator invokes take it, and a host call refuses it. */
     updates?: LexicaUpdates;
     /** What carries it out, given one object it reads by name; a member without one is resolved against and never invoked, and a verb, which its predicate carries out, takes none. */
     implementation?: (input: LexicaImplementationInput) => unknown;
@@ -279,8 +273,6 @@ export interface LexicaModuleContents {
     members?: LexicaMemberDeclaration[];
     /** The predicates it declares, each asked by name with its verb. */
     predicates?: LexicaPredicateDeclaration[];
-    /** The event types it declares, each with the type of its event data. */
-    eventTypes?: { name: string; data: string }[];
     /** The type selectors it declares, each by its name alone, named once across every module. */
     typeSelectors?: LexicaTypeSelectorDeclaration[];
     /** The keys it declares for type selectors, its own or a module's registered before it, each once in its selector. */
@@ -317,7 +309,6 @@ export interface LexicaModule {
     readonly predicates: readonly LexicaPredicateDeclaration[];
     readonly typeSelectors: readonly LexicaTypeSelectorDeclaration[];
     readonly selectableTypes: readonly LexicaSelectableTypeDeclaration[];
-    readonly eventTypes: readonly { readonly name: string; readonly data: string }[];
     readonly observationTypes: readonly LexicaObservationTypeDeclaration[];
     readonly observationTargets: readonly LexicaObservationTargetDeclaration[];
     readonly conversions: readonly LexicaConversionDeclaration[];
@@ -366,12 +357,31 @@ export interface LexicaEvaluation {
 
 /** An evaluator of a resolution: one binding set and the environment the host owns, evaluating one evaluation at a time while its registry stays at the resolution's revision. */
 export interface LexicaEvaluator {
+    /** Evaluates a script that gives a value, refusing one that ends in a host call. */
     evaluate(host?: LexicaHost | null): LexicaEvaluation;
-    project(event: unknown, host?: LexicaHost | null): LexicaEvaluation;
-    resolveSource(): object | null;
-    resolveAction(): object | null;
-    resolveBehavior(): object;
-    projectResult(result: unknown, execution?: { wasExecuted?: boolean }): unknown;
+    /** Prepares the host call a script ends in: evaluates the locals before it, then its receiver and arguments, once, refusing a script that gives a value. */
+    prepareCall(): LexicaPreparedCall | LexicaSkippedCall;
+}
+
+/** A host call prepared for its host, which keeps the locals it was prepared with, apart from every other prepared call of its evaluator. */
+export interface LexicaPreparedCall {
+    readonly kind: 'prepared';
+    readonly declaration: LexicaMemberDeclaration;
+    readonly receiver: unknown;
+    /** Its arguments, by parameter name. */
+    readonly args: Readonly<Record<string, unknown>>;
+    readonly location: LexicaErrorLocation;
+    /**
+     * Projects one value its host supplies: checks it against the call's declared result, then evaluates the result projection against it, reading the locals the call was prepared with, as an evaluation for the host given;
+     * a call whose host supplies nothing has none.
+     */
+    readonly project?: (value: unknown, host?: LexicaHost | null) => LexicaEvaluation;
+}
+
+/** A host call there is nothing to invoke for: its receiver, or an argument whose parameter propagates null, is null, or it has no declaration yet. */
+export interface LexicaSkippedCall {
+    readonly kind: 'skipped';
+    readonly location: LexicaErrorLocation;
 }
 
 /** A declaration a resolution uses, with the name a message gives it and where it is used. */
@@ -384,7 +394,6 @@ export interface LexicaUsedDeclaration {
 /** An expression resolved against a registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at. */
 export interface LexicaResolution {
     readonly definition: LexicaDefinition;
-    readonly kind: 'value' | 'hostCall' | 'subscription' | 'action' | 'behavior';
     /** The host call the script ends in, null for a script that gives a value. */
     readonly hostCall: LexicaHostCall | null;
     /** The type of the result, in type notation, null for a host call whose host supplies no values. */

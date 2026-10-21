@@ -42,7 +42,7 @@ describe('a host of plain data', () => {
         const registry = lexica.createRegistry([createShop()]);
         const resolution = registry.resolve('{ total = order.total, cut = order.discount(code) }', lexica.bind({ order: 'a', code: 'TEN' }));
 
-        expect(resolution.kind).toBe('value');
+        expect(resolution.hostCall).toBeNull();
         expect(resolution.type).toBe('{ total: price, cut: number }');
         expect(resolution.typeAt(['total', 'amount'])).toBe('number');
         expect(resolution.usedDeclarations.map(({ name, pointer }) => [name, pointer])).toEqual([['string.total', '/expression/fields/0/value'], ['string.discount', '/expression/fields/1/value']]);

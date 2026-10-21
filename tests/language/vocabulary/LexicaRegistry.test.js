@@ -28,7 +28,7 @@ describe('LexicaRegistry', () => {
         expect(failing({ members: [declaration({ name: 'charts', result: 'chart' })] })).toContain("'chart' names the type 'chart', which neither Lexica nor a module registered with it declares");
         expect(failing({ members: [declaration({ name: 'charts', result: 'list<chart?>' })] })).toContain("'list<chart?>' names the type 'chart'");
         expect(failing({ types: [{ name: 'chart', fields: { axis: 'axis' } }] })).toContain("names the type 'axis'");
-        expect(failing({ eventTypes: [{ name: 'chartclick', data: 'chartEvent' }] })).toContain("names the type 'chartEvent'");
+        expect(failing({ typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'chartclick', selector: 'report', type: 'chartEvent' }] })).toContain("names the type 'chartEvent'");
         expect(failing({ members: [functionDeclaration({ name: 'charts', parameters: [parameter({ name: 'range', type: 'range' })] })] })).toContain("names the type 'range'");
     });
 
@@ -112,10 +112,10 @@ describe('LexicaRegistry', () => {
         });
     });
 
-    it('refuses an event or a type declared twice', () => {
-        const events = () => new LexicaModule('twice', { types: [{ name: 'ping', fields: { at: 'number' } }], eventTypes: [{ name: 'tick', data: 'ping' }] });
+    it('refuses a type declared twice', () => {
+        const pings = name => new LexicaModule(name, { types: [{ name: 'ping', fields: { at: 'number' } }] });
 
-        expect(messageOf(() => new LexicaRegistry([new LexicaModule('first', { types: [{ name: 'pong', fields: { at: 'number' } }], eventTypes: [{ name: 'tick', data: 'pong' }] }), events()]))).toContain("'tick' is declared already");
+        expect(refusalOf(() => new LexicaRegistry([pings('first'), pings('second')]))).toMatchObject({ module: 'second', declaration: 'ping', message: expect.stringContaining("The type 'ping' is declared already") });
     });
 
     describe('observation types', () => {

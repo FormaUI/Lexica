@@ -45,7 +45,7 @@ export class Declarations {
             declaration.default = true;
         }
 
-        if (kind !== 'action' && kind !== 'behavior' && invokedBy !== 'host') {
+        if (invokedBy !== 'host') {
             declaration.updates = updates;
         }
 

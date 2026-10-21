@@ -2,7 +2,7 @@
 
 What this repository implements today, what is being built, and what remains. The [specification](../spec/README.md) is the contract and the [design](lexica-design.md) the architecture; this document tracks how far the implementation has come.
 
-The specification describes language version `1.0.0-alpha.32`, definition version 32 and host calls. **The implementation reads definition version 31** and implements language version `1.0.0-alpha.31`, and the work to reach version 32 is under way, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are planned.
+The specification describes language version `1.0.0-alpha.32`, definition version 32 and host calls. **The implementation reads definition version 31** and implements language version `1.0.0-alpha.31`, and the work to reach version 32 is under way, as [definition version 32](#definition-version-32) sets out; [host calls](#host-calls) are implemented.
 
 | Status | Meaning |
 | --- | --- |
@@ -25,7 +25,7 @@ The specification describes language version `1.0.0-alpha.32`, definition versio
 | Expressions: operators, conditionals, coalescing, attempts, interpolated strings | Implemented | | [Expressions](../spec/expressions.md) |
 | Functions: regular and arrow functions, function values | Implemented | | [Functions](../spec/functions.md) |
 | Members: forms, bracket property access, arguments | Implemented | | [Members](../spec/members.md) |
-| Host calls: functions the host invokes, where they stand, the values a host supplies | In progress | Preparing and projecting a host call; members still take the kinds `eventSource`, `action` and `behavior`, and scripts the request kinds | [Host calls](../spec/members.md#members-host-calls) |
+| Host calls: functions the host invokes, where they stand, the values a host supplies | Implemented | | [Host calls](../spec/members.md#members-host-calls) |
 | Definition and canonical text | Implemented, version 31 | Version 32's nodes | [Definition](../spec/definition.md), [Grammar](../spec/grammar.md) |
 | Diagnostics: kinds, messages and locations | Implemented | Stable codes are [proposed](proposals/diagnostic-codes.md) | [Diagnostics and errors](../spec/diagnostics-and-errors.md) |
 
@@ -37,7 +37,7 @@ The specification describes language version `1.0.0-alpha.32`, definition versio
 | Registries: registration checked whole, revisions | Implemented | Reading text with the registry's module names | [Registries](../spec/modules.md#modules-registries) |
 | Lexica's own vocabulary: list members, verbs, conversions | Implemented | | [Lexica's own vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own) |
 | Predicates and observation types | Implemented | | [Vocabulary](../spec/vocabulary.md) |
-| Type selectors and selectable types | Implemented | Event types remain beside them until host calls replace event sources | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
+| Type selectors and selectable types | Implemented | | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
 | Observation targets declared by modules | Implemented | | [Observation targets](../spec/vocabulary.md#observations-targets) |
 | Namespaces and module members | Planned | Module members are registered but nothing reads them yet | [Namespaces](../spec/modules.md#namespaces) |
 | Qualified access, a null receiver propagating | Planned | | [Qualified access](../spec/modules.md#namespaces-qualified-access) |
@@ -53,7 +53,7 @@ The specification describes language version `1.0.0-alpha.32`, definition versio
 | Bindings, resolution and reuse by resolution key | Implemented | | [Runtime](../spec/runtime.md#runtime-bindings) |
 | Evaluation for any host, with its hooks | Implemented | | [Evaluation](../spec/runtime.md#runtime-evaluation) |
 | Frozen results and result metadata | Partial | A projected item's source is recorded only where the item is a DOM node, until reference types land | [Results and their metadata](../spec/runtime.md#runtime-results) |
-| Preparing a host call and projecting the values its host supplies | Planned | The evaluator prepares and projects each request kind through an entry point of its own | [Host calls](../spec/runtime.md#runtime-host-calls) |
+| Preparing a host call and projecting the values its host supplies | Implemented | | [Host calls](../spec/runtime.md#runtime-host-calls) |
 
 ### Delivery and tooling
 
@@ -99,27 +99,11 @@ Version 32 removes the DOM from the language: Lexica knows no domain, and a host
 
 ## Host calls
 
-The specification describes host calls: a function's declaration says who invokes it, and Lexica prepares a host call and projects the values its host supplies, knowing none of the lifecycles a host gives its calls. It changes declarations and the evaluator's API, and no definition, so the definition version stays where it is.
+Host calls are implemented as the specification describes them: a function's declaration says who invokes it, and Lexica prepares a host call and projects the values its host supplies, knowing none of the lifecycles a host gives its calls. They changed declarations and the evaluator's API, and no definition, so the definition version stays where it was.
 
-**What works.** A function its declaration says the host invokes, `invokedBy: 'host'`, with value parameters alone and no updates or implementation; its call resolved in the script's terminal position alone, a body there returning it after its locals and a `do` block there holding it, and refused anywhere else by a validation error; a result projection where its host supplies values; a fixed argument selecting the type of the values through a type selector, whose keys any module declares once; and `resolution.hostCall`, with a result type that is null where its host supplies none.
+**What works.** A function its declaration says the host invokes, `invokedBy: 'host'`, with value parameters alone and no updates or implementation; its call resolved in the script's terminal position alone, a body there returning it after its locals and a `do` block there holding it, and refused anywhere else by a validation error; a fixed argument selecting the type of the values its host supplies through a type selector, whose keys any module declares once; `resolution.hostCall`, with a result type that is null where its host supplies none; `prepareCall`, which evaluates the locals before the call once, into the frame the prepared call keeps, and answers a skipped call where there is nothing to invoke; and each prepared call's `project`, which checks a supplied value against the declared result and evaluates the result projection against it, apart from every other prepared call of its evaluator, a call whose host supplies nothing having none. Event sources, actions, behaviors, event types and the request kinds they made are gone.
 
-**What is missing.** The implementation still has the member kinds and request kinds host calls replace:
-
-| Gap | Where the contract differs |
-| --- | --- |
-| Members of the kinds `eventSource`, `action` and `behavior`, each with field rules of its own | A `function` whose declaration says `invokedBy: 'host'`, with no `updates` and no implementation |
-| `eventTypes`, the type `event<T>`, and a parameter that selects an event type, beside type selectors | Type selectors alone, through which a parameter selects a type that `@selected` stands for |
-| `resolution.kind`, with the request kinds `value`, `hostCall`, `subscription`, `action` and `behavior` | `resolution.hostCall` alone, null for a script that gives a value |
-| The evaluator's `resolveSource`, `resolveAction`, `resolveBehavior`, `projectResult` and `project(event)`, which answer null for a null receiver | The evaluator's `prepareCall()`, whose skipped call says there is nothing to invoke, and each prepared call's `project(value, host?)`, present where the call declares a result |
-| The implementation inputs `deliver`, `signal` and `reportError` | A host call has no implementation Lexica calls |
-| Actions and behaviors take expression and predicate parameters | A host call takes value parameters alone |
-| A behavior declares a `result` nothing reads | A host call that supplies nothing declares no result, and takes no result projection |
-
-**Dependencies.** Independent of the version 32 slices. Every host follows it in the change that lands it, since the request kinds and the evaluator's entry points it replaces go with it, and the README's list of features moves with it.
-
-**Next steps.**
-
-1. Build `prepareCall` and each prepared call's `project`, and remove the request kinds, the entry points and the implementation inputs they replace; test each refusal, a skipped call, a value of the wrong type, a call that supplies nothing having no `project`, the locals before a call evaluated once and read by every projection, a reference a local holds read as a projection reads it, a function a local holds called in a projection, and two prepared calls of one evaluator projecting apart.
+**Hosts.** A host follows host calls in a change of its own, since the request kinds and the evaluator's entry points they replace are gone.
 
 ## Packages
 
