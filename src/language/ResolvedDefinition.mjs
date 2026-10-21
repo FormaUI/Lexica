@@ -1,11 +1,12 @@
 /**
- * ResolvedDefinition — a definition resolved against the vocabulary: its request kind, the type of its result, and what each of its nodes resolved to
+ * ResolvedDefinition — a definition resolved against the vocabulary: its request kind, the host call it ends in, the type of its result, and what each of its nodes resolved to
  */
 
 export class ResolvedDefinition {
     #definition;
     #kind;
     #type;
+    #hostCall;
     #resolutions;
     #usedDeclarations;
 
@@ -17,16 +18,18 @@ export class ResolvedDefinition {
 
     /**
      * @param {object} definition The request's definition, whose every node is an object of its own.
-     * @param {'value' | 'subscription' | 'action' | 'behavior'} kind The request's kind.
-     * @param {import('./Type.mjs').Type} type The type of its result.
+     * @param {'value' | 'hostCall' | 'subscription' | 'action' | 'behavior'} kind The request's kind.
+     * @param {import('./Type.mjs').Type | null} type The type of its result, null for a host call that supplies nothing.
+     * @param {{ node: object, pointer: string, name: string, declaration: object | null } | null} hostCall The host call the script ends in, null for one that gives a value.
      * @param {Map<string, object>} resolutions What each member node, by its JSON Pointer, resolved to.
      * @param {object[]} usedDeclarations The declarations the request uses, each with the pointer that used it and the name a message gives it, qualified by the type its declaration is for.
      * @param {{ node: object, pointer: string, source: string }[]} instances The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
      */
-    constructor(definition, kind, type, resolutions, usedDeclarations, instances = []) {
+    constructor(definition, kind, type, hostCall, resolutions, usedDeclarations, instances = []) {
         this.#definition = definition;
         this.#kind = kind;
         this.#type = type;
+        this.#hostCall = hostCall;
         this.#resolutions = resolutions;
         this.#usedDeclarations = Object.freeze([...usedDeclarations]);
         this.#instances = instances;
@@ -63,14 +66,19 @@ export class ResolvedDefinition {
         return this.#definition;
     }
 
-    /** The request's kind: a value, a subscription, an action or a behavior request. */
+    /** The request's kind: a value, a host call, a subscription, an action or a behavior request. */
     get kind() {
         return this.#kind;
     }
 
-    /** The type of the request's result. */
+    /** The type of the request's result, null for a host call that supplies nothing. */
     get type() {
         return this.#type;
+    }
+
+    /** The host call the script ends in: its node, where it stands, its name and its declaration, null on a receiver of unknown type; null for a script that gives a value. */
+    get hostCall() {
+        return this.#hostCall;
     }
 
     /** The declarations the request uses, with where each is used and the name a message gives it. */

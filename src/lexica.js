@@ -86,8 +86,8 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
         requireCurrent();
 
-        // A declaration without an implementation is resolved against and never invoked, so an expression that uses one, in a branch it may not take among them, is refused before anything is evaluated.
-        const unimplemented = usedDeclarations.find(use => use.declaration.implementation === undefined);
+        // A declaration without an implementation is resolved against and never invoked, so an expression that uses one, in a branch it may not take among them, is refused before anything is evaluated; a host call has none, its host invoking it.
+        const unimplemented = usedDeclarations.find(use => use.declaration.implementation === undefined && !LexicaModule.isHostCall(use.declaration));
 
         if (unimplemented !== undefined) {
             throw LexicaError.module(`'${unimplemented.name}' has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
@@ -131,12 +131,24 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         });
     };
 
+    const { hostCall } = resolved;
+
+    // A host call that supplies nothing gives no result, so no path reaches into one.
+    const typeAt = path => {
+        if (resolved.type === null) {
+            throw LexicaError.validation(`The script ends in the host call '${hostCall.name}', whose host supplies no values, so it has no result for a path to reach`, locate(definition, '/expression'));
+        }
+
+        return String(ResultPath.typeAt(resolved.type, path, registry, () => locate(definition, '/expression')));
+    };
+
     return Object.freeze({
         definition,
         kind: resolved.kind,
-        type: String(resolved.type),
+        hostCall: hostCall === null ? null : Object.freeze({ name: hostCall.name, declaration: hostCall.declaration }),
+        type: resolved.type === null ? null : String(resolved.type),
         usedDeclarations,
-        typeAt: path => String(ResultPath.typeAt(resolved.type, path, registry, () => locate(definition, '/expression'))),
+        typeAt,
         locate: pointer => locate(definition, pointer),
         createEvaluator,
     });

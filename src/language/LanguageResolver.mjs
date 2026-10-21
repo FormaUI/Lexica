@@ -7,6 +7,7 @@ import { LexicaError } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { ResolvedDefinition } from './ResolvedDefinition.mjs';
 import { Type } from './Type.mjs';
+import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
 const DATA_TYPE_NAMES = new Set(['number', 'string', 'boolean']);
 
@@ -43,19 +44,50 @@ export class LanguageResolver {
 
     /** Resolves and types the definition, answering what it resolved to or throwing where it cannot. */
     resolveDefinition(definition) {
-        const result = this.#resolveNode(definition.expression, '/expression', { contextType: null, contextKey: {}, locals: new Map(), facts: NO_FACTS, objectRoot: null });
+        const result = this.#resolveTerminal(definition.expression, '/expression', { contextType: null, contextKey: {}, locals: new Map(), facts: NO_FACTS, objectRoot: null });
 
-        const resultType = result.kind === 'subscription' && result.type.kind === 'event' ? result.type.itemType : result.type;
+        // A host call that supplies nothing gives no result, and one that supplies values gives, for each, what its result projection makes of it, or the value itself.
+        const type = result.suppliesNothing === true ? null : result.type;
+        const resultType = result.kind === 'subscription' && result.type.kind === 'event' ? result.type.itemType : type;
 
-        if (LanguageResolver.#heldReferenceOf(resultType) === 'function') {
+        if (resultType !== null && LanguageResolver.#heldReferenceOf(resultType) === 'function') {
             this.#fail('The result would hold a function, which is used within the expression and never part of its result: call it, as name(…)', '/expression');
         }
 
-        if (result.kind !== 'behavior' && !this.#isData(resultType)) {
+        if (resultType !== null && result.kind !== 'behavior' && !this.#isData(resultType)) {
             this.#fail(`The result would hold ${resultType}, which is no data; read the facts it needs through an object expression`, '/expression');
         }
 
-        return new ResolvedDefinition(definition, result.kind, result.type, this.#resolutions, this.#usedDeclarations, this.#instances);
+        const hostCall = result.kind === 'hostCall' ? this.#hostCallOf(definition.expression, '/expression') : null;
+
+        return new ResolvedDefinition(definition, result.kind, type, hostCall, this.#resolutions, this.#usedDeclarations, this.#instances);
+    }
+
+    /** Resolves the node in the script's terminal position, where a host call may stand: the script's expression, the result a body there returns and the body a `do` there holds. */
+    #resolveTerminal(node, pointer, scope) {
+        switch (node.kind) {
+            case 'body':
+                return this.#resolveBody(node, pointer, scope, true);
+            case 'do':
+                return this.#resolveTerminal(node.body, `${pointer}/body`, scope);
+            default:
+                return this.#resolveNode(node, pointer, scope);
+        }
+    }
+
+    /** The host call the script ends in, found along its terminal position through bodies, `do` blocks, result projections and its optional chain: its node, where it stands, its name and its declaration, null on a receiver of unknown type. */
+    #hostCallOf(node, pointer) {
+        switch (node.kind) {
+            case 'body':
+                return this.#hostCallOf(node.result, `${pointer}/result`);
+            case 'do':
+                return this.#hostCallOf(node.body, `${pointer}/body`);
+            case 'object':
+            case 'optionalChain':
+                return this.#hostCallOf(node.target, `${pointer}/target`);
+            default:
+                return { node, pointer, name: node.name, declaration: this.#resolutions.get(pointer).declaration };
+        }
     }
 
     #resolveNode(node, pointer, scope) {
@@ -185,7 +217,7 @@ export class LanguageResolver {
         try {
             const result = this.#resolveNode(node.target, `${pointer}/target`, scope);
 
-            return chain.shortCircuits ? { type: result.type.toNullable(), kind: result.kind, isFixed: false } : result;
+            return chain.shortCircuits ? { ...result, type: result.type.toNullable(), isFixed: false } : result;
         } finally {
             this.#chains.pop();
         }
@@ -638,7 +670,8 @@ export class LanguageResolver {
      * Resolves a body: each local against the scope and the locals before it, a value, and the result against them all, its type the result's.
      * It is fixed only where every local and its result are, so a read a local makes, used or not, is never discarded.
      */
-    #resolveBody(node, pointer, scope) {
+    /** Resolves a body: its locals, each a value, and its result, which is a value too, or the host call the script ends in where the body stands in the script's terminal position. */
+    #resolveBody(node, pointer, scope, isTerminal = false) {
         let locals = scope.locals;
         let isFixed = true;
 
@@ -663,14 +696,16 @@ export class LanguageResolver {
             locals = new Map(locals).set(local.name, { result, value: local.value, scope: localScope });
         });
 
-        const result = this.#resolveNode(node.result, `${pointer}/result`, { ...scope, locals });
+        const resultPointer = `${pointer}/result`;
+        const resultScope = { ...scope, locals };
+        const result = isTerminal ? this.#resolveTerminal(node.result, resultPointer, resultScope) : this.#resolveNode(node.result, resultPointer, resultScope);
 
-        // A body gives a value, as a field holds one: an event source, an action and a behavior are requests of their own.
-        if (result.kind !== 'value') {
-            this.#fail(`A body gives a value, and its result is ${LanguageResolver.#descriptionOf(result.kind)}`, `${pointer}/result`);
+        // A body gives a value, as a field holds one, and returns a host call only where it stands in the script's terminal position: an event source, an action and a behavior are requests of their own.
+        if (result.kind !== 'value' && !(isTerminal && result.kind === 'hostCall')) {
+            this.#fail(result.kind === 'hostCall' ? 'A host call ends the script, and this body gives its result to the expression around it, which takes a value' : `A body gives a value, and its result is ${LanguageResolver.#descriptionOf(result.kind)}`, resultPointer);
         }
 
-        return isFixed && result.isFixed ? result : { type: result.type, kind: result.kind, isFixed: false };
+        return isFixed && result.isFixed ? result : { ...result, isFixed: false };
     }
 
     /** The local a function declaration gives its name: the function, where it is declared, and the scope it captures, its locals and its implicit parameter. */
@@ -1147,7 +1182,8 @@ export class LanguageResolver {
             resultTypeArguments.set('@selected', resolved.selected.type);
         }
 
-        const declared = Type.parse(declaration.result).resolveTypeParameters(resultTypeArguments);
+        // A host call that supplies nothing has no value to type, so it is typed as a never, which no value has.
+        const declared = declaration.result === undefined ? Type.never : Type.parse(declaration.result).resolveTypeParameters(resultTypeArguments);
 
         // A predicate carries the request out as it declares itself, so its contract is the one a host checks and the evaluation follows, beside the declaration the request invokes.
         const contract = resolved.selected?.contract ?? null;
@@ -1158,7 +1194,7 @@ export class LanguageResolver {
 
         const type = receiverType.isNullable || resolved.isNullable ? declared.toNullable() : declared;
 
-        return { type, kind: LanguageResolver.#requestKindOf(declaration), isFixed: false };
+        return { type, kind: LanguageResolver.#requestKindOf(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) };
     }
 
     /**
@@ -1203,7 +1239,7 @@ export class LanguageResolver {
         }
 
         const resultTypes = [
-            ...fitting.map(({ declaration, resolved }) => Type.parse(declaration.result).resolveTypeParameters(new Map(resolved.selected === undefined ? [] : [['@selected', resolved.selected.type]]))),
+            ...fitting.filter(({ declaration }) => declaration.result !== undefined).map(({ declaration, resolved }) => Type.parse(declaration.result).resolveTypeParameters(new Map(resolved.selected === undefined ? [] : [['@selected', resolved.selected.type]]))),
             ...fields.map(text => Type.parse(text)),
         ];
         const shared = resultTypes.reduce((merged, type) => (merged === null ? null : Type.merge(merged, type)), Type.never);
@@ -1216,7 +1252,10 @@ export class LanguageResolver {
 
         this.#resolutions.set(pointer, { kind: 'member', declaration: null, receiverType, type, arguments: [] });
 
-        return { type, kind: [...kinds][0], isFixed: false };
+        // Host calls that agree on their host supplying nothing take no result projection, whichever of them a receiver's type will choose.
+        const suppliesNothing = fitting.length > 0 && fitting.every(({ declaration }) => declaration.result === undefined);
+
+        return { type, kind: [...kinds][0], isFixed: false, ...(suppliesNothing ? { suppliesNothing: true } : {}) };
     }
 
     /** Resolves the arguments the declaration would take, leaving no resolution and no use behind, and answers them or the failure that refuses them. */
@@ -1556,8 +1595,12 @@ export class LanguageResolver {
             this.#fail('A behavior request ends its chain and takes no object expression', pointer);
         }
 
-        // An object expression that follows an action shapes its result, and the request stays an action; one that follows an event source keeps it a subscription.
-        const kind = target?.kind === 'action' || target?.kind === 'subscription' ? target.kind : 'value';
+        if (target?.suppliesNothing === true) {
+            this.#fail('The host call this object expression follows declares no result, since its host supplies no values, so it takes no result projection', pointer);
+        }
+
+        // An object expression that follows an action shapes its result, and the request stays an action; one that follows an event source keeps it a subscription; one that follows a host call is its result projection.
+        const kind = target?.kind === 'action' || target?.kind === 'subscription' || target?.kind === 'hostCall' ? target.kind : 'value';
 
         let contextType = scope.contextType;
         let contextKey = scope.contextKey;
@@ -1810,6 +1853,8 @@ export class LanguageResolver {
                 return 'an event source';
             case 'action':
                 return 'an action';
+            case 'hostCall':
+                return 'a host call';
             default:
                 return `a ${kind}`;
         }
@@ -1827,6 +1872,8 @@ export class LanguageResolver {
             case 'action':
             case 'behavior':
                 return declaration.kind;
+            case 'function':
+                return LexicaModule.isHostCall(declaration) ? 'hostCall' : 'value';
             default:
                 return 'value';
         }

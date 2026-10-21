@@ -138,6 +138,36 @@ describe('LexicaModule', () => {
         });
     });
 
+    describe('host calls, functions the host invokes', () => {
+        const hostCall = (overrides = {}) => functionDeclaration({ name: 'dim', invokedBy: 'host', updates: undefined, ...overrides });
+
+        it('are kept as declared, with value parameters, a result where the host supplies values and none where it supplies none', () => {
+            const module = new LexicaModule('charts', { members: [hostCall(), hostCall({ name: 'hold', result: undefined }), hostCall({ name: 'reset', target: undefined, parameters: [], arguments: undefined })] });
+
+            expect(module.members.map(member => [member.name, member.invokedBy, member.syntax, member.result, 'updates' in member])).toEqual([['dim', 'host', 'function-call', 'number', false], ['hold', 'host', 'function-call', undefined, false], ['reset', 'host', 'function-call', 'number', false]]);
+            expect(() => new LexicaModule('charts', { members: [functionDeclaration({ invokedBy: 'evaluator' })] })).not.toThrow();
+        });
+
+        it('are invoked by the evaluator or by the host, a function alone saying which', () => {
+            refusal({ members: [hostCall({ invokedBy: 'user' })] }, 'dim', 'invokedBy', 'A function is invoked by one of evaluator, host');
+            refusal({ members: [declaration({ invokedBy: 'host' })] }, 'zoom', 'invokedBy', "A member of kind 'property' declares");
+            refusal({ members: [functionDeclaration({ result: undefined })] }, 'zoom', 'result', 'It declares the type of its result');
+            refusal({ members: [hostCall({ result: 'list<' })] }, 'dim', 'result', 'It declares the type of each value its host supplies, or none');
+        });
+
+        it('declare neither updates, since they are never evaluated, nor an implementation, since their host invokes them', () => {
+            refusal({ members: [hostCall({ updates: { changes: 'constant', reads: 'fresh' } })] }, 'dim', 'updates', 'the evaluator never evaluates it, so it declares no updates');
+            refusal({ members: [hostCall({ implementation: () => 1 })] }, 'dim', 'implementation', 'its module gives Lexica no implementation of it');
+        });
+
+        it('are written as a function call and take value parameters alone, refusing the verbs', () => {
+            refusal({ members: [hostCall({ syntax: 'indexer' })] }, 'dim', 'syntax', 'A host call is written as a function call');
+            refusal({ members: [hostCall({ parameters: [parameter({ name: 'by', kind: 'expression', context: 'item' })] })] }, 'dim', 'parameters', "A host call takes value parameters alone, each argument prepared as a value its host keeps, and 'by' is an expression parameter");
+            refusal({ members: [hostCall({ parameters: [parameter({ name: 'f', kind: 'function', parameters: [], nulls: undefined })] })] }, 'dim', 'parameters', "'f' is a function parameter");
+            refusal({ members: [hostCall({ name: 'is', target: 'any', result: 'boolean', parameters: [parameter({ name: 'name', type: 'string', fixed: true, selects: 'predicate' })] })] }, 'is', 'invokedBy', 'It selects a predicate, which the evaluator carries out, so its host never invokes it');
+        });
+    });
+
     describe('event sources', () => {
         const type = parameter({ name: 'type', type: 'string', fixed: true, selects: 'eventType' });
         const source = overrides => functionDeclaration({ name: 'on', kind: 'eventSource', result: 'event<@selected>', parameters: [type], updates: { changes: 'constant', reads: 'captured' }, ...overrides });

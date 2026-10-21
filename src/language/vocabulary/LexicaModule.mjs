@@ -9,6 +9,9 @@ import { Type } from '../Type.mjs';
 
 const MEMBER_KINDS = ['property', 'function', 'eventSource', 'action', 'behavior'];
 
+/** Who invokes a function: the evaluator, as it evaluates the script, or the host, which the script's host call is prepared for. */
+const INVOKERS = ['evaluator', 'host'];
+
 /** How a member that is no property is written: a function call, `it.device("lamp")`, or a named indexer, `it:setting["mode"]`. */
 const SYNTAXES = ['function-call', 'indexer'];
 
@@ -49,7 +52,7 @@ const CONTENTS = ['types', 'members', 'predicates', 'eventTypes', 'observationTy
 const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'implementation'];
 const MEMBER_KEYS_BY_KIND = {
     property: ['updates'],
-    function: ['syntax', 'arguments', 'default', 'parameters', 'updates'],
+    function: ['invokedBy', 'syntax', 'arguments', 'default', 'parameters', 'updates'],
     eventSource: ['syntax', 'arguments', 'parameters', 'updates'],
     action: ['syntax', 'arguments', 'parameters'],
     behavior: ['syntax', 'arguments', 'parameters'],
@@ -185,6 +188,11 @@ export class LexicaModule {
     /** Whether the value is a module `createModule` made. */
     static isModule(value) {
         return value instanceof LexicaModule;
+    }
+
+    /** Whether the declaration is a host call's: a function the host invokes, which the evaluator never does. */
+    static isHostCall(declaration) {
+        return declaration.invokedBy === 'host';
     }
 
     /** Whether the declaration is a verb, a member whose fixed argument selects the predicate that carries it out, so it has no implementation of its own. */
@@ -567,8 +575,15 @@ export class LexicaModule {
             LexicaModule.#validateTarget(member, name, fail);
         }
 
-        if (!LexicaModule.#isTypeNotation(member.result)) {
-            fail('It declares the type of its result', name, 'result');
+        if (member.invokedBy !== undefined && !INVOKERS.includes(member.invokedBy)) {
+            fail(`A function is invoked by one of ${INVOKERS.join(', ')}, the evaluator where it says none`, name, 'invokedBy');
+        }
+
+        const isHostCall = LexicaModule.isHostCall(member);
+
+        // A host call's result is the type of each value its host supplies, and one that supplies none declares none.
+        if (!(isHostCall && member.result === undefined) && !LexicaModule.#isTypeNotation(member.result)) {
+            fail(isHostCall ? 'It declares the type of each value its host supplies, or none, where it supplies none' : 'It declares the type of its result', name, 'result');
         }
 
         if (member.kind === 'eventSource' && Type.parse(member.result).kind !== 'event') {
@@ -598,10 +613,14 @@ export class LexicaModule {
             parameterNames.add(parameter.name);
         }
 
+        if (isHostCall) {
+            LexicaModule.#validateHostCall(member, parameters, name, fail);
+        }
+
         LexicaModule.#validateSelections(member, parameters, name, fail);
         LexicaModule.#validateSyntax(member, parameters, hasReceiver, name, fail);
 
-        if (MEMBER_KEYS_BY_KIND[member.kind].includes('updates')) {
+        if (MEMBER_KEYS_BY_KIND[member.kind].includes('updates') && !isHostCall) {
             if (member.updates === undefined) {
                 fail('It declares its updates, how it changes and how it reads', name, 'updates');
             }
@@ -625,6 +644,34 @@ export class LexicaModule {
 
         // A property is read with no arguments, so it keeps an empty list of parameters, which every member then has.
         return LexicaModule.#copyOf({ ...syntax, ...argumentForm, ...member, parameters, ...updates });
+    }
+
+    /**
+     * Refuses what a host call cannot take: updates, since it is never evaluated; an implementation, since its host invokes it; the indexer syntax; a parameter other than a value parameter, whose argument is prepared as a value its host keeps;
+     * and the verbs, whose predicate the evaluator carries out.
+     */
+    static #validateHostCall(member, parameters, name, fail) {
+        if (member.updates !== undefined) {
+            fail('Its host invokes it, and the evaluator never evaluates it, so it declares no updates', name, 'updates');
+        }
+
+        if (member.implementation !== undefined) {
+            fail('Its host invokes it, so its module gives Lexica no implementation of it', name, 'implementation');
+        }
+
+        if (member.syntax !== undefined && member.syntax !== 'function-call') {
+            fail('A host call is written as a function call', name, 'syntax');
+        }
+
+        const unprepared = parameters.find(parameter => parameter.kind !== 'value');
+
+        if (unprepared !== undefined) {
+            fail(`A host call takes value parameters alone, each argument prepared as a value its host keeps, and '${unprepared.name}' is ${unprepared.kind === 'expression' ? 'an' : 'a'} ${unprepared.kind} parameter`, name, 'parameters');
+        }
+
+        if (LexicaModule.isVerb(member)) {
+            fail('It selects a predicate, which the evaluator carries out, so its host never invokes it', name, 'invokedBy');
+        }
     }
 
     /** Checks the fixed parameters a member's kind allows: an event source's one designated parameter that selects its event type, and a verb's one that selects the predicate it asks. */

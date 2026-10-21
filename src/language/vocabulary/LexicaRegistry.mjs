@@ -280,12 +280,16 @@ export class LexicaRegistry {
 
         for (const declaration of module.members) {
             [declaration.target ?? []].flat().filter(notation => notation !== 'any').forEach(notation => check(notation, declaration.name));
-            check(declaration.result, declaration.name);
 
-            // A tolerance applies to a numeric result, or to the numbers a structured result holds, which only now, every type known, is told apart from a reference type.
-            const resultType = Type.parse(declaration.result);
+            // A host call that supplies nothing declares no result.
+            if (declaration.result !== undefined) {
+                check(declaration.result, declaration.name);
+            }
 
-            if (declaration.updates?.tolerance !== undefined && resultType.name !== 'number' && !types.has(resultType.name)) {
+            // A tolerance applies to a numeric result, or to the numbers a structured result holds, which only now, every type known, is told apart from a reference type; a member with updates always declares a result.
+            const resultType = declaration.updates?.tolerance === undefined ? null : Type.parse(declaration.result);
+
+            if (resultType !== null && resultType.name !== 'number' && !types.has(resultType.name)) {
                 fail('A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', declaration.name, 'updates.tolerance');
             }
 

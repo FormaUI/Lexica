@@ -25,7 +25,7 @@ The specification describes language version `1.0.0-alpha.32`, definition versio
 | Expressions: operators, conditionals, coalescing, attempts, interpolated strings | Implemented | | [Expressions](../spec/expressions.md) |
 | Functions: regular and arrow functions, function values | Implemented | | [Functions](../spec/functions.md) |
 | Members: forms, bracket property access, arguments | Implemented | | [Members](../spec/members.md) |
-| Host calls: functions the host invokes, where they stand, the values a host supplies | Planned | Members still take the kinds `eventSource`, `action` and `behavior`, and scripts the request kinds | [Host calls](../spec/members.md#members-host-calls) |
+| Host calls: functions the host invokes, where they stand, the values a host supplies | In progress | Type selectors, and preparing and projecting a host call; members still take the kinds `eventSource`, `action` and `behavior`, and scripts the request kinds | [Host calls](../spec/members.md#members-host-calls) |
 | Definition and canonical text | Implemented, version 31 | Version 32's nodes | [Definition](../spec/definition.md), [Grammar](../spec/grammar.md) |
 | Diagnostics: kinds, messages and locations | Implemented | Stable codes are [proposed](proposals/diagnostic-codes.md) | [Diagnostics and errors](../spec/diagnostics-and-errors.md) |
 
@@ -101,26 +101,26 @@ Version 32 removes the DOM from the language: Lexica knows no domain, and a host
 
 The specification describes host calls: a function's declaration says who invokes it, and Lexica prepares a host call and projects the values its host supplies, knowing none of the lifecycles a host gives its calls. It changes declarations and the evaluator's API, and no definition, so the definition version stays where it is.
 
+**What works.** A function its declaration says the host invokes, `invokedBy: 'host'`, with value parameters alone and no updates or implementation; its call resolved in the script's terminal position alone, a body there returning it after its locals and a `do` block there holding it, and refused anywhere else by a validation error; a result projection where its host supplies values; and `resolution.hostCall`, with a result type that is null where its host supplies none.
+
 **What is missing.** The implementation still has the member kinds and request kinds host calls replace:
 
 | Gap | Where the contract differs |
 | --- | --- |
 | Members of the kinds `eventSource`, `action` and `behavior`, each with field rules of its own | A `function` whose declaration says `invokedBy: 'host'`, with no `updates` and no implementation |
 | `eventTypes`, the type `event<T>`, and a parameter that selects an event type | Type selectors and their selectable types, a parameter that selects a type through a selector, and `@selected` as a result |
-| `resolution.kind`, with the request kinds `value`, `subscription`, `action` and `behavior` | `resolution.hostCall`, null for a script that gives a value |
+| `resolution.kind`, with the request kinds `value`, `hostCall`, `subscription`, `action` and `behavior` | `resolution.hostCall` alone, null for a script that gives a value |
 | The evaluator's `resolveSource`, `resolveAction`, `resolveBehavior`, `projectResult` and `project(event)`, which answer null for a null receiver | The evaluator's `prepareCall()`, whose skipped call says there is nothing to invoke, and each prepared call's `project(value, host?)`, present where the call declares a result |
 | The implementation inputs `deliver`, `signal` and `reportError` | A host call has no implementation Lexica calls |
 | Actions and behaviors take expression and predicate parameters | A host call takes value parameters alone |
-| A body's result must be a value | A script's body may return a host call, its locals before it, evaluated once when the call is prepared and read by every projection |
 | A behavior declares a `result` nothing reads | A host call that supplies nothing declares no result, and takes no result projection |
 
 **Dependencies.** Independent of the version 32 slices. Every host follows it in the change that lands it, since the request kinds and the evaluator's entry points it replaces go with it, and the README's list of features moves with it.
 
 **Next steps.**
 
-1. Build `invokedBy` and the host call's place: its declaration's fields, its refusal anywhere but at a script's end, a body returning one, and `resolution.hostCall`.
-2. Build type selectors and selectable types: a selector named once, a key once in its selector and never replaced, a key of an unregistered selector refused, at most one parameter selecting a type, the revision advancing with every key registered, and the refusal of a key no selector maps; test each refusal's module error.
-3. Build `prepareCall` and each prepared call's `project`, and remove the request kinds, the entry points and the implementation inputs they replace; test each refusal, a skipped call, a value of the wrong type, a call that supplies nothing having no `project`, the locals before a call evaluated once and read by every projection, a reference a local holds read as a projection reads it, a function a local holds called in a projection, and two prepared calls of one evaluator projecting apart.
+1. Build type selectors and selectable types: a selector named once, a key once in its selector and never replaced, a key of an unregistered selector refused, at most one parameter selecting a type, the revision advancing with every key registered, and the refusal of a key no selector maps; test each refused declaration by its module error, and a key a script names that its selector does not map by its validation error.
+2. Build `prepareCall` and each prepared call's `project`, and remove the request kinds, the entry points and the implementation inputs they replace; test each refusal, a skipped call, a value of the wrong type, a call that supplies nothing having no `project`, the locals before a call evaluated once and read by every projection, a reference a local holds read as a projection reads it, a function a local holds called in a projection, and two prepared calls of one evaluator projecting apart.
 
 ## Packages
 

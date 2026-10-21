@@ -235,6 +235,8 @@ export interface LexicaMemberDeclaration {
     /** The Lexica name. */
     name: string;
     kind: 'property' | 'function' | 'eventSource' | 'action' | 'behavior';
+    /** Who invokes a function: the evaluator, the default, or the host, which a script ending in a call of it is prepared for; a function the host invokes takes value parameters alone, and neither updates nor an implementation. */
+    invokedBy?: 'evaluator' | 'host';
     /** The types it applies to, in Lexica's notation, or none for a module member. */
     target?: string | string[];
     /** How a member that is no property is written: a function call, `it.device("lamp")`, the default, or a named indexer, `it:setting["mode"]`, a function whose one required value parameter is its key. A property takes none. */
@@ -245,8 +247,8 @@ export interface LexicaMemberDeclaration {
     default?: boolean;
     /** Its parameters; a property takes none. */
     parameters?: LexicaParameterDeclaration[];
-    /** The type of its result, in Lexica's notation; an event source's is `event<T>`. */
-    result: string;
+    /** The type of its result, in Lexica's notation; an event source's is `event<T>`; a host call's is the type of each value its host supplies, left out where it supplies none. */
+    result?: string;
     /** How it changes and reads; a property, a function and an event source take it, and an action and a behavior refuse it. */
     updates?: LexicaUpdates;
     /** What carries it out, given one object it reads by name; a member without one is resolved against and never invoked, and a verb, which its predicate carries out, takes none. */
@@ -359,9 +361,11 @@ export interface LexicaUsedDeclaration {
 /** An expression resolved against a registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at. */
 export interface LexicaResolution {
     readonly definition: LexicaDefinition;
-    readonly kind: 'value' | 'subscription' | 'action' | 'behavior';
-    /** The type of the result, in type notation. */
-    readonly type: string;
+    readonly kind: 'value' | 'hostCall' | 'subscription' | 'action' | 'behavior';
+    /** The host call the script ends in, null for a script that gives a value. */
+    readonly hostCall: LexicaHostCall | null;
+    /** The type of the result, in type notation, null for a host call whose host supplies no values. */
+    readonly type: string | null;
     readonly usedDeclarations: readonly LexicaUsedDeclaration[];
     /** The type a result path reaches, in type notation, refusing a path the type does not hold. */
     typeAt(path: readonly (string | number)[]): string;
@@ -369,6 +373,12 @@ export interface LexicaResolution {
     locate(pointer: string): LexicaErrorLocation;
     /** An evaluator holding bindings of this resolution's key and the environment the host gives it. */
     createEvaluator(bindings: LexicaBindings | LexicaBindingValues, env?: unknown): LexicaEvaluator;
+}
+
+/** The host call a script ends in: its name, and the declaration it resolved to, null while its receiver's type is unknown. */
+export interface LexicaHostCall {
+    readonly name: string;
+    readonly declaration: LexicaMemberDeclaration | null;
 }
 
 /** A registry a host resolves expressions against: Lexica's own module and the modules the host registers. No registry is shared. */
@@ -392,8 +402,8 @@ export interface LexicaRegistry {
 /** The declaration helpers, each giving a declaration as a module declares it. */
 export interface LexicaDeclarations {
     property(name: string, target: string | readonly string[] | null, result: string, options?: object): LexicaMemberDeclaration;
-    /** A member the expression calls with arguments. */
-    function(name: string, target: string | readonly string[] | null, result: string, options?: object): LexicaMemberDeclaration;
+    /** A member the expression calls with arguments, or, with `invokedBy: 'host'`, that its host invokes, its result left out where its host supplies nothing. */
+    function(name: string, target: string | readonly string[] | null, result: string | undefined, options?: object): LexicaMemberDeclaration;
     predicate(name: string, target: string | readonly string[], implementation?: (input: LexicaImplementationInput) => boolean, options?: object): LexicaPredicateDeclaration;
     valueParameter(name: string, type: string, options?: object): LexicaParameterDeclaration;
     expressionParameter(type: string, options?: object): LexicaParameterDeclaration;

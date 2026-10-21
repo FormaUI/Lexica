@@ -362,6 +362,12 @@ export class Evaluator {
 
     /** The detached result, and the metadata that describes it, which the result itself never holds. */
     #evaluateValue() {
+        const { hostCall } = this.#resolvedDefinition;
+
+        if (hostCall !== null) {
+            this.#fail(`The script ends in the host call '${hostCall.name}', which its host invokes, so it is never evaluated`, hostCall.pointer);
+        }
+
         if (this.#resolvedDefinition.kind !== 'value') {
             this.#fail(`A ${this.#resolvedDefinition.kind} request is not evaluated`, '/expression');
         }
