@@ -117,7 +117,7 @@ A module whose declarations break the declaration contract, or whose names regis
 | A host call anywhere but the script's terminal operation: in a field, an argument, a condition, an operand, a function's body or another call's result projection | A validation error |
 | A result projection following a host call that declares no result | A validation error |
 | A type selector's key the selector maps no type to | A validation error naming the selector and the key |
-| Preparing a script that ends in no host call, or projecting a value for a host call that declares no result | An evaluation error |
+| Preparing a script that ends in no host call | An evaluation error |
 | A value a host supplies that is not of its host call's declared result | An evaluation error naming the call |
 
 <a id="evaluation-errors"></a>

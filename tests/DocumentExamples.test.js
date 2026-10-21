@@ -93,7 +93,9 @@ const DOCUMENTS = {
     ],
     'spec/modules.md': [],
     'spec/vocabulary.md': [],
-    'spec/runtime.md': [],
+    'spec/runtime.md': [
+        { about: 'a result projection reading a local before its host call' },
+    ],
     'spec/definition.md': [],
     'spec/diagnostics-and-errors.md': [],
     'spec/grammar.md': [],

@@ -114,7 +114,7 @@ Declarations that disagree on who invokes them are refused as ambiguous, and a c
 
 ### What it answers
 
-A call the evaluator invokes answers null, and a host call's preparation is skipped, as with any null receiver.
+A call the evaluator invokes answers null, and preparing a host call answers a skipped call, as with any null receiver.
 
 Its type is the result type those declarations share, made nullable for a receiver of the type `null`, which answers null, and as they declare it for a `never`, which is never evaluated, so `rooms { count = it.devices.count }` is valid where `rooms` is bound to an empty list and `rooms { count = it.devices.cuont }` is refused.
 

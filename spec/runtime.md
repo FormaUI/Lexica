@@ -126,16 +126,29 @@ The runtime gives the facts, and a host its policy, as comparing one result with
 A script that ends in a [host call](members.md#members-host-calls) is resolved as any other, and its resolution answers the call: `resolution.hostCall`, its `name` and the `declaration` it resolved to, null while its receiver's type is unknown. The runtime prepares the call and projects each value its host supplies; invoking it, when and how often, and for how long what it starts runs, are the host's.
 
 ```js
-const preparation = evaluator.prepareCall();
+const call = evaluator.prepareCall();
 
-if (preparation.kind === 'prepared') {
-    const brightness = await invokeHostCall(preparation.declaration, preparation.receiver, preparation.args);
-    const { value } = evaluator.project(brightness);
+if (call.kind === 'prepared') {
+    const brightness = await invokeHostCall(call.declaration, call.receiver, call.args);
+    const { value } = call.project(brightness);
 }
 ```
 
-- **`evaluator.prepareCall()`** evaluates the host call's receiver and arguments once, as `evaluate` evaluates a script without a host, and answers its **preparation**: `{ kind: 'prepared', declaration, receiver, args, location }`, the arguments by parameter name; or `{ kind: 'skipped', location }` where the receiver is null, an argument whose parameter propagates null is null, or the call has no declaration yet, so there is nothing to invoke. A skipped call is never invoked, and what its host answers for one is the host's to say. Preparing a script that gives a value is refused with an evaluation error.
-- **`evaluator.project(value, host?)`** projects one value the host supplies: it checks the value against the call's declared `result` and takes it as the evaluator takes any member's answer, then evaluates the result projection against it, as `evaluate` evaluates a script for the host given, and answers as `evaluate` does. A host call followed by no result projection answers the value itself. A value of another type fails with an evaluation error naming the call, and projecting for a call that declares no result is refused.
+- **`evaluator.prepareCall()`** evaluates the locals the script declares before the host call, then the call's receiver and arguments, once, as `evaluate` evaluates a script without a host, and answers a **prepared call**, `{ kind: 'prepared', declaration, receiver, args, location }`, the arguments by parameter name; or a **skipped call**, `{ kind: 'skipped', location }`, where the receiver is null, an argument whose parameter propagates null is null, or the call has no declaration yet, so there is nothing to invoke and nothing to project. A skipped call is never invoked, and what its host answers for one is the host's to say. Preparing a script that gives a value is refused with an evaluation error. An evaluator prepares its call as often as it is asked, and each prepared call is its own, so the prepared calls of one evaluator coexist without affecting one another.
+- **`call.project(value, host?)`** projects one value the host supplies for the prepared call: it checks the value against the call's declared `result` and takes it as the evaluator takes any member's answer, then evaluates the result projection against it, as `evaluate` evaluates a script for the host given, and answers as `evaluate` does, with the value, whether a member it read was pending, and the metadata. A host call followed by no result projection answers the supplied value itself in that shape. A value of another type fails with an evaluation error naming the call. A call that declares no `result` supplies nothing to project, so its prepared call has no `project`.
+
+A projection reads what the call was prepared with, and evaluates the rest anew:
+
+- **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, so what a projection reads through it is read as the projection reads it: `let room = sensor.room` gives each projection the room, whose name it reads then, and `let roomName = sensor.room.name` gives each the name as it was when the call was prepared.
+- **Its own evaluation.** Each projection is an evaluation of its own, with its own supplied value, host and state; the result projection's own locals are evaluated in each, and projecting a value for one prepared call never changes what another was prepared with.
+- **Function values.** A function a local before the call holds is called in any projection, as a function value is anywhere within the script; a function a projection gives a member lasts while that member's invocation does, as every function given to a member does. A host call's arguments are values, so no function reaches the host.
+
+```lexica
+let room = sensor.room
+return sensor.on("motion") { at = it.at, room = room.name }
+```
+
+Lexica requires no disposal of a prepared call, which starts nothing; the lifetime of whatever its host starts is the host's. A prepared call holds the locals and the references it was prepared with for as long as it is reachable. Each projection goes through the checks every evaluation does, the refusal of a registry that has moved since the resolution among them.
 
 A host projects each value as it arrives, once for a value its call answers once and once for each of several it supplies over time, so the runtime treats them alike. Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, and the lifetime of whatever a host call starts, are the host's.
 

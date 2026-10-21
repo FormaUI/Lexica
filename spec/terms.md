@@ -118,7 +118,7 @@ In this document:
 | Type selector | A module's declaration mapping keys to types, which a fixed argument selects the type of a function's result through | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
 | Selectable type | One key of a type selector and the type it maps to, which any module may declare | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
 | Host call | A call of a function the host invokes, `invokedBy: 'host'`, which ends a script; Lexica resolves and prepares it, and never invokes it | [Host calls](members.md#members-host-calls) |
-| Preparation | What preparing a host call answers: its declaration, receiver and arguments, or that it is skipped | [Host calls](runtime.md#runtime-host-calls) |
+| Prepared call, skipped call | What preparing a host call answers: a prepared call, its declaration, receiver and arguments, which projects each value its host supplies where the call declares a result; or a skipped call, where there is nothing to invoke | [Host calls](runtime.md#runtime-host-calls) |
 | Result projection | The object expression following a host call, evaluated against each value its host supplies | [The values a host supplies](members.md#members-host-calls-the-values-a-host-supplies) |
 | Definition | The JSON document recording a script's meaning | [Definition](definition.md#definition) |
 | Runtime | What carries a script out for a host: reading, resolving and evaluating it | [Runtime](runtime.md#runtime) |

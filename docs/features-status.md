@@ -108,10 +108,10 @@ The specification describes host calls: a function's declaration says who invoke
 | Members of the kinds `eventSource`, `action` and `behavior`, each with field rules of its own | A `function` whose declaration says `invokedBy: 'host'`, with no `updates` and no implementation |
 | `eventTypes`, the type `event<T>`, and a parameter that selects an event type | Type selectors and their selectable types, a parameter that selects a type through a selector, and `@selected` as a result |
 | `resolution.kind`, with the request kinds `value`, `subscription`, `action` and `behavior` | `resolution.hostCall`, null for a script that gives a value |
-| The evaluator's `resolveSource`, `resolveAction`, `resolveBehavior`, `projectResult` and `project(event)`, which answer null for a null receiver | `prepareCall()`, whose `skipped` preparation says there is nothing to invoke, and `project(value)` |
+| The evaluator's `resolveSource`, `resolveAction`, `resolveBehavior`, `projectResult` and `project(event)`, which answer null for a null receiver | The evaluator's `prepareCall()`, whose skipped call says there is nothing to invoke, and each prepared call's `project(value, host?)`, present where the call declares a result |
 | The implementation inputs `deliver`, `signal` and `reportError` | A host call has no implementation Lexica calls |
 | Actions and behaviors take expression and predicate parameters | A host call takes value parameters alone |
-| A body's result must be a value | A script's body may return a host call, its locals before it |
+| A body's result must be a value | A script's body may return a host call, its locals before it, evaluated once when the call is prepared and read by every projection |
 | A behavior declares a `result` nothing reads | A host call that supplies nothing declares no result, and takes no result projection |
 
 **Dependencies.** Independent of the version 32 slices. Every host follows it in the change that lands it, since the request kinds and the evaluator's entry points it replaces go with it, and the README's list of features moves with it.
@@ -120,7 +120,7 @@ The specification describes host calls: a function's declaration says who invoke
 
 1. Build `invokedBy` and the host call's place: its declaration's fields, its refusal anywhere but at a script's end, a body returning one, and `resolution.hostCall`.
 2. Build type selectors and selectable types: a selector named once, a key once in its selector and never replaced, a key of an unregistered selector refused, at most one parameter selecting a type, the revision advancing with every key registered, and the refusal of a key no selector maps; test each refusal's module error.
-3. Build `prepareCall` and `project`, and remove the request kinds, the entry points and the implementation inputs they replace; test each refusal, a skipped preparation and a value of the wrong type.
+3. Build `prepareCall` and each prepared call's `project`, and remove the request kinds, the entry points and the implementation inputs they replace; test each refusal, a skipped call, a value of the wrong type, a call that supplies nothing having no `project`, the locals before a call evaluated once and read by every projection, a reference a local holds read as a projection reads it, a function a local holds called in a projection, and two prepared calls of one evaluator projecting apart.
 
 ## Packages
 
