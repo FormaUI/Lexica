@@ -1,6 +1,6 @@
 # Proposal: diagnostic codes
 
-**State: proposed.** Not accepted, and not implemented. Accepting it changes the contract [diagnostics and errors](../../spec/diagnostics-and-errors.md) sets out; [the status overview](../features-status.md) tracks it.
+**State: proposed.** Pending, and not implemented. Accepting it changes the contract [diagnostics and errors](../../spec/diagnostics-and-errors.md) sets out; [the status overview](../features-status.md) tracks it.
 
 ## The problem
 
