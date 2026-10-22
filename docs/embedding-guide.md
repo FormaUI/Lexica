@@ -31,7 +31,7 @@ A module declares what expressions can read: its types, and the members it adds 
 ```js
 const { property, function: fn, valueParameter } = lexica.declarations;
 
-const shop = lexica.createModule('shop', {
+const shop = lexica.createModule('Shop', {
     types: [{ name: 'Price', fields: { amount: 'Number', currency: 'String' } }],
     members: [
         property('price', 'String', 'Price', {

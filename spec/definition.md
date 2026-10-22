@@ -40,7 +40,7 @@ Each node is an object whose `kind` says what it is:
 | `comparison` | `operands`, two or more expressions, and `operators`, one of `<`, `<=`, `>` and `>=` between each two | A comparison, or a chain of them |
 | `conditional` | `condition`, the expression it tests, or `binding`, the `name` it binds and the `value` it binds to it, one of them; and `consequent` and `alternative`, two expressions | A conditional, `if let` holding a binding; an `elseif` is a conditional nested in the alternative before it |
 | `coalescing` | `value` and `fallback`, two expressions | A coalescing operator |
-| `cast` | `type`, the name of the reference type it casts to, its local name, `Light`, or qualified by its module, `home.Light`, as written; and `target`, the expression it casts | A cast |
+| `cast` | `type`, the name of the reference type it casts to, its local name, `Light`, or qualified by its module, `Home.Light`, as written; and `target`, the expression it casts | A cast |
 | `conversion` | `type`, the name of the type it converts to, its local name or qualified by its module, as written; and `target`, the expression it converts | A conversion |
 | `try` | `target`, the conversion or the cast it attempts | An attempt |
 | `optionalChain` | `target`, the chain it holds | An optional chain: the chain of property accesses, calls, indexers and object expressions whose optional accesses end at it, holding at least one |
@@ -61,7 +61,7 @@ A parenthesized expression does not add a node, the expression it holds standing
 }
 ```
 
-Every property access, call and indexer holds its receiver as its `target`, and every equality its `left` and its `right`, required, and an omitted target never stands for `it`, so `it.power` and `device.power` are distinct definitions. A member read or a qualified form called through a namespace holds a `namespace` node as its target, so `home.rooms` is a `member` whose target is `{ "kind": "namespace", "name": "home" }`, and `energy.usage(device)` a `call` whose target is `energy`'s namespace and whose first argument is the receiver. A [function reference](functions.md#functions-module-functions) is a `member` node through a namespace, `home.active` as `home.rooms` is, which resolution tells apart by the declaration it names, and an [implicit body](functions.md#functions-implicit-bodies) is an argument node as it is written. An indexer after a property access holds that `member` node as its target, so `device.setting["mode"]` and `room.devices[0]` have one shape, and resolution tells a named indexer from a property's answer indexed by the declaration the name gives.
+Every property access, call and indexer holds its receiver as its `target`, and every equality its `left` and its `right`, required, and an omitted target never stands for `it`, so `it.power` and `device.power` are distinct definitions. A member read or a qualified form called through a namespace holds a `namespace` node as its target, so `Home.rooms` is a `member` whose target is `{ "kind": "namespace", "name": "Home" }`, and `Energy.usage(device)` a `call` whose target is `Energy`'s namespace and whose first argument is the receiver. A [function reference](functions.md#functions-module-functions) is a `member` node through a namespace, `Home.active` as `Home.rooms` is, which resolution tells apart by the declaration it names, and an [implicit body](functions.md#functions-implicit-bodies) is an argument node as it is written. An indexer after a property access holds that `member` node as its target, so `device.setting["mode"]` and `room.devices[0]` have one shape, and resolution tells a named indexer from a property's answer indexed by the declaration the name gives.
 
 A call's `arguments` are its argument nodes in order, and an indexer's `argument` its key's node, each recorded as written; where a call's member takes options, its one argument is an object node whose fields resolution maps onto the member's parameters.
 
@@ -72,7 +72,7 @@ A field is an object holding its `name` and its `value` node, both required; an 
 ```json
 {
   "version": 34,
-  "imports": ["energy", "home"],
+  "imports": ["Energy", "Home"],
   "expression": {
     "kind": "object",
     "target": { "kind": "parameter", "name": "room" },
@@ -118,7 +118,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 
 | Area | Required structure |
 | --- | --- |
-| Imports | Each names a module, by a name that is not a reserved word and not `lexica`, once and in order of name; every `namespace` node names one of them. |
+| Imports | Each names a module, by a name that is not a reserved word and not `Lexica`, once and in order of name; every `namespace` node names one of them. |
 | Fields | Every field has a name and value; names are unique within an object expression; an object expression has at least one field. |
 | Locals | Each has a name and value; names are unique within a body or object expression; references name an in-scope local or field. |
 | Declaration order | No reference uses a local before its declaration or within its own initializer. A name written alone cannot fall back to a script parameter when that local is declared later in the same scope. |
@@ -142,7 +142,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 
 A cast's target is checked whole: a receiver, which is the implicit parameter, a script parameter, `root`, a namespace's member, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](types.md#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
 
-A script parameter may be named `it`, `root` or a module's name, as any name can, and a script reads it as `~it`, `~root`, or `~home` where the script imports `home`.
+A script parameter may be named `it`, `root` or a module's name, as any name can, and a script reads it as `~it`, `~root`, or `~Home` where the script imports `Home`.
 
 <a id="definition-canonical-text"></a>
 

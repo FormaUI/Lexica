@@ -2,11 +2,11 @@
 
 <a id="the-examples-vocabulary"></a>
 
-Every example reads one fictional smart home, through the vocabulary of two modules a host registers, `home` and `energy`, and supplies to every script as its imports, so no example writes them. They are not part of the language, nor part of [Lexica's own vocabulary](vocabulary.md#vocabulary-lexicas-own): Lexica ships neither; they exist so the examples share one model whose types, names and relationships build on each other. A section that needs a declaration this table lacks adds it to the same home.
+Every example reads one fictional smart home, through the vocabulary of two modules a host registers, `Home` and `Energy`, and supplies to every script as its imports, so no example writes them. They are not part of the language, nor part of [Lexica's own vocabulary](vocabulary.md#vocabulary-lexicas-own): Lexica ships neither; they exist so the examples share one model whose types, names and relationships build on each other. A section that needs a declaration this table lacks adds it to the same home.
 
 An example's bindings are supplied parameters, each bound by the host to a value of the type its name suggests: `room` is a `Room`, `device` a `Device`, `light` a `Light`, `thermostat` a `Thermostat`, `sensor` a `Sensor`, `rooms` a `List<Room>`, `name` a `String`, `property` a `String?`, `metered` a `Boolean` and `limit` a `Number`; any other name an example reads without declaring it is a binding of the type its use requires, as `preferred` and `fallback` are devices, `lamp` a light, and `living` and `bedroom` rooms. Declaring a type does not supply a value of it, so an example that reads `room` reads the room its host bound. The examples' home holds those values as fixtures, among them a device whose `level` setting is `"40"`.
 
-**Types.** `home` declares five reference types, whose values have identity, and one structured type, whose values are data, each holding its members. Its `typeOf` recognizes each of the home's values as the most specific of its types, and each reference type's `isInstance` accepts the home's values of that type; `Device` is concrete, so a device that is not a light, thermostat or sensor is bound as a `Device`:
+**Types.** `Home` declares five reference types, whose values have identity, and one structured type, whose values are data, each holding its members. Its `typeOf` recognizes each of the home's values as the most specific of its types, and each reference type's `isInstance` accepts the home's values of that type; `Device` is concrete, so a device that is not a light, thermostat or sensor is bound as a `Device`:
 
 | Type | Kind | Supertype | What it is |
 | --- | --- | --- | --- |
@@ -21,8 +21,8 @@ An example's bindings are supplied parameters, each bound by the host to a value
 
 | Member | Signature | Changes | Reads | Tolerance |
 | --- | --- | --- | --- | --- |
-| `home.rooms` | `List<Room>` | Observable: `placement` | Fresh | |
-| `home.now` | `Number`, the time in seconds | Unobserved | Fresh | |
+| `Home.rooms` | `List<Room>` | Observable: `placement` | Fresh | |
+| `Home.now` | `Number`, the time in seconds | Unobserved | Fresh | |
 | `room.name` | `String` | Constant | Fresh | |
 | `room.devices` | `List<Device>` | Observable: `placement` | Fresh | |
 | `room.floorArea` | `Number`, in square meters | Constant | Fresh | |
@@ -40,7 +40,7 @@ An example's bindings are supplied parameters, each bound by the host to a value
 
 A setting is a string, so an example that needs a number converts it, as `device["level"] to Number` does.
 
-**Boolean functions.** The home's tests, each a function of its receiver that takes no arguments and answers a `Boolean`, called as `device.active()` or passed to a verb as `device.is(home.active)`:
+**Boolean functions.** The home's tests, each a function of its receiver that takes no arguments and answers a `Boolean`, called as `device.active()` or passed to a verb as `device.is(Home.active)`:
 
 | Function | Answers | Changes |
 | --- | --- | --- |
@@ -60,7 +60,7 @@ A setting is a string, so an example that needs a number converts it, as `device
 | `presence` | The receiver | Invalidation | A room becoming occupied or empty |
 | `reading` | The receiver | Maintained | Each temperature a sensor reports, kept as its sample |
 
-`home` declares the observation target `home`, the home itself, which `placement` observes.
+`Home` declares the observation target `Home`, the home itself, which `placement` observes.
 
 **Host calls.** Functions the host invokes, and the values it supplies for each:
 
@@ -70,9 +70,9 @@ A setting is a string, so an example that needs a number converts it, as `device
 | `light.dim({ to })` | `to`: `Number`, optional, `0` by default → `Number` | Dims the light once, and supplies the brightness reached |
 | `thermostat.hold({ target, until })` | `target`: `Number`, `until`: `Number?`, no result | Holds the target until `until`, or until the host ends it, and supplies nothing |
 
-`home` declares the type selector `event`, whose keys `change` and `motion` map to the two types above.
+`Home` declares the type selector `event`, whose keys `change` and `motion` map to the two types above.
 
-**The `energy` module** extends `home`'s `Device`, in its extension `DeviceExtensions`, with what an energy meter knows:
+**The `Energy` module** extends `Home`'s `Device`, in its extension `Device`, with what an energy meter knows:
 
 | Member | Signature | Changes | Tolerance |
 | --- | --- | --- | --- |
@@ -82,6 +82,6 @@ A setting is a string, so an example that needs a number converts it, as `device
 
 Its observation type `meter`, of the receiver, is an invalidation, reporting each new meter reading.
 
-`energy` also declares the reference type `Meter`, the meter's view of a device: `device.meter`, a constant `Meter`, answers the device itself, which `Meter`'s `isInstance` accepts, since it accepts every device, and a declared cast from `Meter` to `home.Device`, with no `impl`, answers it as a device again. `device as Meter` is refused, because the declared cast goes from `Meter` to `Device` only; `Meter` accepting every device doesn't make the two types related.
+`Energy` also declares the reference type `Meter`, the meter's view of a device: `device.meter`, a constant `Meter`, answers the device itself, which `Meter`'s `isInstance` accepts, since it accepts every device, and a declared cast from `Meter` to `Home.Device`, with no `impl`, answers it as a device again. `device as Meter` is refused, because the declared cast goes from `Meter` to `Device` only; `Meter` accepting every device doesn't make the two types related.
 
-`device.usage` is an extension member, read as `device.usage`, or through its extension explicitly, `device:DeviceExtensions.usage`. `device.power` is declared both by `home`, which owns `Device`, and by `energy`: written `device.power`, it reads `home`'s, since the owner's member wins, and `device:DeviceExtensions.power` reads the meter's.
+`device.usage` is an extension member, read as `device.usage`, or through its extension explicitly, `device:Device.usage`. `device.power` is declared both by `Home`, which owns `Device`, and by `Energy`: written `device.power`, it reads `Home`'s, since the owner's member wins, and `device:Device.power` reads the meter's.

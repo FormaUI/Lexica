@@ -12,7 +12,7 @@ Place extension containers in the module's `types` collection. Each has a name, 
 
 ```javascript
 {
-    name: 'collections',
+    name: 'Collections',
     types: [
         {
             name: 'ListExtensions<T>',
@@ -96,7 +96,7 @@ Ordinary member lookup first determines which targets the receiver satisfies, by
 - `List<String>` makes the string extension applicable.
 - An empty list typed `List<Never>` satisfies both targets through list covariance. If the remaining lookup rules do not select one, the access is ambiguous.
 
-Explicit extension access resolves that ambiguity, as `values:NumericList.total` and `values:StringList.total`, and module qualification remains available, as `values:measurements.NumericList.total`. The selected extension's target must still accept the receiver: explicit selection does not bypass type checking. No specialization-precedence rule is needed; target applicability, the existing lookup rules and explicit extension selection decide.
+Explicit extension access resolves that ambiguity, as `values:NumericList.total` and `values:StringList.total`, and module qualification remains available, as `values:Measurements.NumericList.total`. The selected extension's target must still accept the receiver: explicit selection does not bypass type checking. No specialization-precedence rule is needed; target applicability, the existing lookup rules and explicit extension selection decide.
 
 ### Explicit access
 

@@ -35,7 +35,7 @@ A member following a list is a member of the list itself: `room.devices.count` c
 
 `where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`.
 
-Aggregates consume null per item rather than propagating it to the entire call. `max` and `min` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Thus `room.devices.max(it.battery)` and `home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
+Aggregates consume null per item rather than propagating it to the entire call. `max` and `min` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Thus `room.devices.max(it.battery)` and `Home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
 
 An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
 
@@ -47,9 +47,9 @@ An expression parameter declares the item type it evaluates against and the resu
 
 | Verb | Reads as a test of | As in |
 | --- | --- | --- |
-| `is` | A state its receiver enters and leaves | `room.is(home.occupied)` |
+| `is` | A state its receiver enters and leaves | `room.is(Home.occupied)` |
 | `has` | A possession or a presence | `device.has(it.battery != null)` |
-| `supports` | A capability | `device.supports(home.dimmable)` |
+| `supports` | A capability | `device.supports(Home.dimmable)` |
 
 No verb is tied to a test, and no test to a verb: a module declares its tests as [Boolean functions](#vocabulary-boolean-functions), and a script asks any of them with any verb, or calls it directly.
 
@@ -61,7 +61,7 @@ The test takes any form a function argument takes, as [functions passed to membe
 
 - **An arrow function**, `device.is(d => d.power > 0)`, which keeps the implicit parameter of the place it is written, as every arrow function does.
 - **A function value a name holds**, `light.is(lit)` after `let lit = (l) => l.brightness > 0`, read as every name is: `device.is(active)` reads a local, a field, a function parameter or a script parameter named `active`, and no bare name reaches a module's function.
-- **A module's function by [reference](functions.md#functions-module-functions)**, `device.is(home.active)`, which tests the receiver with that declaration, as `device.active()` does.
+- **A module's function by [reference](functions.md#functions-module-functions)**, `device.is(Home.active)`, which tests the receiver with that declaration, as `device.active()` does.
 - **An [implicit body](functions.md#functions-implicit-bodies)**, `device.has(it.battery != null)`, an expression whose `it` is the receiver.
 
 A name that does not hold a function is a validation error saying the verb takes a test, as `device.is(metered)` is for a Boolean `metered`, and so is a test that does not take the receiver's type or that answers anything but a `Boolean`.
@@ -70,7 +70,7 @@ A name that does not hold a function is a validation error saying the verb takes
 
 #### What a verb answers
 
-A verb answers its test's result, a Boolean that cannot be null, and converts no truthiness: a test answering a `Boolean?`, or any other type, is a validation error, and a module's function whose implementation answers anything but a Boolean fails the evaluation with an evaluation error naming the function and its module. `.` requires a receiver that cannot be null, and `?.is(…)` answers null for a null receiver without evaluating its test or calling it, so `room.device(name)?.is(home.active)` is a `Boolean?`.
+A verb answers its test's result, a Boolean that cannot be null, and converts no truthiness: a test answering a `Boolean?`, or any other type, is a validation error, and a module's function whose implementation answers anything but a Boolean fails the evaluation with an evaluation error naming the function and its module. `.` requires a receiver that cannot be null, and `?.is(…)` answers null for a null receiver without evaluating its test or calling it, so `room.device(name)?.is(Home.active)` is a `Boolean?`.
 
 A verb reads what its test reads: a module's function, what its declaration's `updates` say, its observations included; an arrow function or an implicit body, the reads it makes. Creating the test reads nothing, and the verb calls it once, while its own call lasts.
 
@@ -79,7 +79,7 @@ A verb reads what its test reads: a module's function, what its declaration's `u
 
 ## Boolean functions
 
-A module declares a test of a receiver as a function whose result is a `Boolean`, as `home` declares `active` and `offline` on `Device` and `occupied` on `Room`. It is a member as any other: its receivers, its implementation, its `updates`, the changes it misses and the observations that cover it are its declaration's, and its failures name it and its module. A script calls it directly, `device.active()`, through its module, `home.active(device)`, or passes it to a verb by reference, `device.is(home.active)`, and each way reaches the one declaration, so a host's policy for a partly observable test concerns that test however it is reached.
+A module declares a test of a receiver as a function whose result is a `Boolean`, as `Home` declares `active` and `offline` on `Device` and `occupied` on `Room`. It is a member as any other: its receivers, its implementation, its `updates`, the changes it misses and the observations that cover it are its declaration's, and its failures name it and its module. A script calls it directly, `device.active()`, through its module, `Home.active(device)`, or passes it to a verb by reference, `device.is(Home.active)`, and each way reaches the one declaration, so a host's policy for a partly observable test concerns that test however it is reached.
 
 A test is declared as a function, since only a function has a [reference](functions.md#functions-module-functions) a script passes; a property is read where it is written. Boolean functions compose as Booleans do: `device.active() and not device.offline()`.
 
@@ -134,6 +134,6 @@ A **type selector** is a declaration of a module that maps keys to types, so a f
 
 ## Conversions
 
-A **conversion** is a [conversion operator](modules.md#modules-operators) of a type of data, `{ kind: 'operator', name: 'convert', result: 'Number', impl }`, which `to` invokes and nothing else: one for each source type and destination across every module registered, and none from a type to itself. Its types are `Number`, `String`, `Boolean` and the structured types that hold data alone: a reference value is left to members, which declare how they change, so a conversion adds no dependency on a host's state. A module declares one in the members of its own source type, and in an extension where the source type is another module's and the destination its own, as `measurements` declares one from `Number` to `Temperature`.
+A **conversion** is a [conversion operator](modules.md#modules-operators) of a type of data, `{ kind: 'operator', name: 'convert', result: 'Number', impl }`, which `to` invokes and nothing else: one for each source type and destination across every module registered, and none from a type to itself. Its types are `Number`, `String`, `Boolean` and the structured types that hold data alone: a reference value is left to members, which declare how they change, so a conversion adds no dependency on a host's state. A module declares one in the members of its own source type, and in an extension where the source type is another module's and the destination its own, as `Measurements` declares one from `Number` to `Temperature`.
 
 Its `impl` reads `value`, never null, and nothing else, and answers the converted value, or calls `reject(reason)` with a diagnostic string. `reject` throws a signal private to Lexica and to that attempt, so it never returns and the conversion stops where it calls it, unlike a promise's `reject`. What `to` and `try … to` make of a rejection and of any other failure is set out in [conversions](values.md#conversions) and [attempts](expressions.md#attempts).

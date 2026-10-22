@@ -40,4 +40,4 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 12. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
 13. [Grammar](grammar.md): the formal grammar, grouped by subject.
 14. [Terms](terms.md): the glossary.
-15. [The examples' vocabulary](examples-vocabulary.md): the fictional `home` and `energy` modules every example reads.
+15. [The examples' vocabulary](examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.

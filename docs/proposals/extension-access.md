@@ -7,7 +7,7 @@ Related proposals: [named extension types](named-extension-types.md), which decl
 ## Settled rules
 
 1. **Optional access is `?:`.** `device?:DeviceExtensions.usage`, `device?:DeviceExtensions.reset(3)` and `device?:DeviceExtensions.setting["mode"]` follow the existing optional-chain rules: the receiver is evaluated once, and where it is null the access short-circuits without evaluating the member's arguments or keys. Extension-name resolution and declaration validation happen as for `:`.
-2. **`:` requires an extension type.** The parser reads a type-name reference after `:`, as `device:DeviceExtensions.usage`, `device:energy.DeviceExtensions.usage` and `list:ListExtensions[0]`, and resolution verifies that it identifies an accessible declaration of `kind: 'extension'`; naming an ordinary type is insufficient. The selector resolves among the script's accessible declarations: an unqualified name resolves uniquely, and module qualification selects the intended declaration, respecting imports and visibility.
+2. **`:` requires an extension type.** The parser reads a type-name reference after `:`, as `device:DeviceExtensions.usage`, `device:Energy.DeviceExtensions.usage` and `list:ListExtensions[0]`, and resolution verifies that it identifies an accessible declaration of `kind: 'extension'`; naming an ordinary type is insufficient. The selector resolves among the script's accessible extensions, ordinary types taking no part, as [capitalized module namespaces](capitalized-module-namespaces.md#settled-rules) settle: an unqualified name resolves uniquely, and module qualification selects the intended declaration, respecting imports and visibility.
 3. **An extension's name follows a type's.** Its local name begins with a capital letter, as any type's does, and the suffix `Extensions` is a convention its author may follow or leave, as `NumericList` leaves it: the `:` operator identifies explicit extension access, `kind: 'extension'` establishes the declaration's semantics, and a name's spelling never makes a declaration an extension.
 4. **Indexer syntax remains as specified.** The colon indexer forms removed in part 1 stay removed: `device.setting["mode"]` is a named indexer, `list[0]` an unnamed one, and `device.[name]` computed property access. `device:setting["mode"]` cannot select the receiver's `setting` member, since the position after `:` requires an extension-type reference; a diagnostic may suggest `device.setting["mode"]`. `it:[name]` remains invalid, and its hint distinguishes the indexer `it[name]` from computed property access `it.[name]`.
 5. **A function accessed without invocation is a bound reference.** Resolution determines the selected member's kind: accessing a property reads it, `device:DeviceExtensions.active()` invokes a function, and `device:DeviceExtensions.active` is a function reference bound to the receiver, evaluated and captured once when the reference is created, under the existing function-reference restrictions, those concerning host calls among them. Where the receiver is supplied later, an arrow function expresses the operation: `d => d:DeviceExtensions.active()`.
@@ -43,7 +43,7 @@ An extension is declared in a module's `types` collection with `kind: 'extension
 {
     name: 'DeviceExtensions',
     kind: 'extension',
-    target: 'home.Device',
+    target: 'Home.Device',
     members: [
         // Property, function, and indexer declarations.
     ]
@@ -91,7 +91,7 @@ device:DeviceExtensions.usage
 A module-qualified name identifies the declaration in that module:
 
 ```text
-device:energy.DeviceExtensions.usage
+device:Energy.DeviceExtensions.usage
 ```
 
 If an unqualified name is ambiguous, resolution reports the matching qualified names. Qualification remains subject to the normal import and visibility rules.
@@ -125,7 +125,7 @@ A receiver can be a binding, a member access, a call result, or a parenthesized 
 ```text
 device:DeviceExtensions.usage
 room.device:DeviceExtensions.usage
-home.device(room, "lamp"):DeviceExtensions.usage
+Home.device(room, "lamp"):DeviceExtensions.usage
 (left + right):NumberExtensions.description
 ```
 

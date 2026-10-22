@@ -35,7 +35,7 @@ members: [
 - **With a `name`,** it is a named indexer, written `x.name[k]`. Its name is a member name, so it collides with a property or a function of that name on the same type, and a type declares as many named indexers as it needs.
 - **The `default-indexer` kind goes,** and so do `syntax` and `default`: a name, or its absence, says how an indexer is written.
 
-A type whose keyed values belong together may still give them a view instead, a property answering the receiver as a type with an unnamed indexer, as `energy`'s `Meter` view is reached through `device.meter`. A reader writes the same `x.name[k]` either way; whether a module declares a named indexer or a view is its own choice.
+A type whose keyed values belong together may still give them a view instead, a property answering the receiver as a type with an unnamed indexer, as `Energy`'s `Meter` view is reached through `device.meter`. A reader writes the same `x.name[k]` either way; whether a module declares a named indexer or a view is its own choice.
 
 ### Reading `x.name[k]`
 

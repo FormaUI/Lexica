@@ -148,7 +148,7 @@ room.devices.count to String
 
 ### The type a conversion names
 
-The type is a type's name, written bare, as `to Number` writes it, its local name or qualified by its module, `to measurements.Temperature`, and found as [type identity](types.md#types-type-identity) sets out; a string in its place, `to "Number"`, is a syntax error giving the bare name. It is `Number`, `String`, `Boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `Climate` holds its readings.
+The type is a type's name, written bare, as `to Number` writes it, its local name or qualified by its module, `to Measurements.Temperature`, and found as [type identity](types.md#types-type-identity) sets out; a string in its place, `to "Number"`, is a syntax error giving the bare name. It is `Number`, `String`, `Boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `Climate` holds its readings.
 
 A conversion converts data, so a reference value and a structured type that holds one are not types it converts between, and what reads a host's state stays a member's, which declares how it changes; a reference value is cast to a type of its hierarchy with `as`.
 

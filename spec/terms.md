@@ -28,7 +28,7 @@ In this document:
 | Structured type | A type of immutable data a module declares, its stored shape its stored properties | [Declaring a type](modules.md#modules-declaring-a-type) |
 | Membership | Whether a value belongs to a reference type, which the `isInstance` of the type and of every supertype above it answers | [Reference types](types.md#reference-types) |
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
-| Type identity | A module's type's module and local name together, as `home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
+| Type identity | A module's type's module and local name together, as `Home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
 | Import | A type's `import`, the modules whose public types its declaration names unqualified, reaching that declaration alone | [Type identity](types.md#types-type-identity) |
 | Type parameter | A type a declaration leaves open, declared after its name in angle brackets, as `ListExtensions<T>`'s `T`, standing within the declaration that declares it, and inferred, never written in a script | [Type parameters](types.md#types-type-parameters) |
 | `Any` | The type a declaration names where it accepts or answers a value of any type, whose members are selected when it is evaluated | [Values of `Any`](types.md#types-any) |
@@ -44,7 +44,7 @@ In this document:
 | Regular function | `function(…) … end`, whose body is a body | [Functions](functions.md#functions-declaring-one) |
 | Arrow function | `parameters => expression`, whose body is one simple expression, a local's initializer or an argument | [Functions](functions.md#functions-declaring-one) |
 | Function value | A function read by its name without a call, an arrow function written as an argument, a function reference or an implicit body, used within the expression and never part of its result | [Functions as values](functions.md#functions-as-values) |
-| Function reference | A module's function read through its namespace without a call, as `home.active`, taking its receiver first and its own arguments after it | [Module functions as values](functions.md#functions-module-functions) |
+| Function reference | A module's function read through its namespace without a call, as `Home.active`, taking its receiver first and its own arguments after it | [Module functions as values](functions.md#functions-module-functions) |
 | Implicit body | An expression reading `it`, given to a function parameter whose callback takes one argument, which is its `it` | [Implicit bodies](functions.md#functions-implicit-bodies) |
 | Callback contract | The argument types and the result type a member declares for a function parameter, which a function given to it is checked against | [Arguments](members.md#arguments) |
 | Function parameter | A name a function declares, holding the argument each call gives it | [Functions](functions.md#functions) |
@@ -118,13 +118,13 @@ In this document:
 | Module | A unit of registration declaring types and their members, made by `createModule`, registered with `registerModule`, and reached in text through its namespace | [Namespaces](modules.md#namespaces) |
 | Internal declaration | A type or a member declared `internal: true`, available within its declaring module alone | [Internal declarations](modules.md#modules-internal-declarations) |
 | Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
-| Import | A script's declaration that it uses a module's vocabulary, `import home`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
+| Import | A script's declaration that it uses a module's vocabulary, `import Home`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
 | Namespace | A module's name in a script importing the module, through which its module members and its qualified forms are reached, and which qualifies its types' and extensions' names | [Namespaces](modules.md#namespaces) |
-| Module member | A member a module declares on no type, read through its namespace, as `home.rooms` | [Module members](modules.md#namespaces-module-members) |
+| Module member | A member a module declares on no type, read through its namespace, as `Home.rooms` | [Module members](modules.md#namespaces-module-members) |
 | Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
 | Extension | A named group a module declares among its `types`, `kind: 'extension'`, of the members, indexers and operators it adds to its `target`, a type another module owns | [Extensions](modules.md#extensions) |
-| Extension access | An extension's member selected explicitly, `device:DeviceExtensions.usage` | [Extension access](members.md#property-access-calls-and-indexers-extension-access) |
-| Qualified form | A member of a module's own type called through its namespace, the receiver first, as `home.device(room, "lamp")` | [Qualified access](modules.md#namespaces-qualified-access) |
+| Extension access | An extension's member selected explicitly, `device:Device.usage` | [Extension access](members.md#property-access-calls-and-indexers-extension-access) |
+| Qualified form | A member of a module's own type called through its namespace, the receiver first, as `Home.device(room, "lamp")` | [Qualified access](modules.md#namespaces-qualified-access) |
 | Boolean function | A function whose result is a `Boolean`, the form a module gives a test of its receiver, as `device.active()` | [Boolean functions](vocabulary.md#vocabulary-boolean-functions) |
 | Verb | `is`, `has` or `supports`, Lexica's function answering whether its receiver passes the test it is given | [The verbs](vocabulary.md#vocabulary-verbs) |
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](vocabulary.md#observations) |

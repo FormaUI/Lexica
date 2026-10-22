@@ -59,7 +59,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A colon in a member chain that doesn't name an extension, as `it:[name]` or `it?:[name]` | A syntax error giving the unnamed indexer `it[name]` or the computed property access `it.[name]`, and their optional forms |
 | A string where a cast or a conversion names its type, as `device as "Light"` | A syntax error giving the type's name written bare, `device as Light` |
 | `import` anywhere but a script's start, as after its first local or expression | A syntax error saying imports stand at the start of the script |
-| `import lexica` | A syntax error saying Lexica's own vocabulary is always available, so no script imports it |
+| `import Lexica` | A syntax error saying Lexica's own vocabulary is always available, so no script imports it |
 | A keyword where a value stands | A syntax error giving the lexical reference; `then`, `elseif`, `else` and `end` give the value expected instead: `Expected a value, found 'then'` |
 | A conditional without its `end`, a conditional whose branches give their results in two styles, anything after a body's result, or a `return` with no value | A syntax error |
 | Locals whose body's result has no `return` | A syntax error: `Introduce the body's result with return.` |
@@ -81,7 +81,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | --- | --- |
 | A definition that does not follow its structure | A structure error, with its node's location |
 | A definition of a version other than the one the implementation reads, as a version 33 definition is for version 34 | A structure error naming both versions |
-| A definition's imports that are not names of modules, each once and in order of name, or that name `lexica`; or a `namespace` node naming a module its imports leave out | A structure error located at the import or the namespace |
+| A definition's imports that are not names of modules, each once and in order of name, or that name `Lexica`; or a `namespace` node naming a module its imports leave out | A structure error located at the import or the namespace |
 | A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a computed property access or an interpolation | A structure error naming the part, which a local holds first |
 | A lexical reference, or a definition's local, that no local, field, conditional binding or function parameter in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
 | A function calling itself or one declared after it, or two parameters of one name | A structure error |
@@ -97,6 +97,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | --- | --- |
 | A member other than an indexer declared without a `name`, a field a declaration's kind does not take, a type-level `fields` collection, `target`, `syntax` or `default` on a member, or an `internal` that is no Boolean | A module error naming the field |
 | A type whose name begins with no capital letter, a name its module already declares, or a name of Lexica's own types or `Null` | A module error naming the type |
+| A module whose name begins with no capital letter, is already registered, is a reserved word or `Lexica`, or names one of Lexica's own types or extensions | A module error naming the module, `Module name 'energy' must begin with a capital letter.` |
 | Empty angle brackets after a declaration's name, a type parameter without a name, one declared twice, one named as a type its declaration reaches unqualified, an imported one included, or a member declaring a parameter its extension declares | A module error naming the declaration and the parameter |
 | A member whose result writes a type parameter that neither its extension's target, nor its value parameters, nor its callbacks' results could establish, or whose callback's input needs another callback's result | A module error naming the member and the parameter |
 | An extension that names no `target`, or whose target its own module owns | A module error naming the extension |
@@ -116,7 +117,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | --- | --- |
 | A misspelled member or extension, or a script parameter the host did not bind | A validation error, with its location |
 | An import naming a module the registry does not hold | A validation error naming the module |
-| A module's name read where a value stands in a script that does not import it, where the registry holds the module and no script parameter of its name is bound | A validation error giving the import, `import home` |
+| A module's name read where a value stands in a script that does not import it, where the registry holds the module and no script parameter of its name is bound | A validation error giving the import, `import Home` |
 | A member that only modules the script does not import declare on its receiver | A validation error naming the modules and giving the import |
 | A fixed argument resolution cannot settle | A validation error: `The argument 'type' of 'on' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, …` |
 | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
@@ -129,7 +130,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | A cast to a name that is not a reference type, or of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |
 | A script reaching an internal declaration of any module, through any form | A validation error naming the declaration, as if no declaration of its name were accessible |
 | Several applicable extensions, or several applicable operators of one destination, none of them the owner's | A validation error naming the modules, and the extension accesses to write where they are members |
-| An extension access naming no declaration, one several share unqualified, one that is not of `kind: 'extension'`, or a member the extension does not declare | A validation error giving the written name, the qualified names where several share it, or the extension and the member; `device:setting["mode"]` gives `device.setting["mode"]` where the receiver has that member |
+| An extension access naming no extension, one several extensions share unqualified, or a member the extension does not declare | A validation error giving the written name, saying so where only an ordinary type has it, the qualified names where several share it, or the extension and the member; `device:setting["mode"]` gives `device.setting["mode"]` where the receiver has that member |
 | An extension access whose receiver does not satisfy the extension's target, or can be null where it is written with `:` | A validation error naming the target and the receiver's type, giving `?:` for a nullable receiver |
 | A call's type parameter given candidates of different types, or an argument that does not satisfy a binding its receiver established | A validation error naming the parameter and each candidate, or the argument and the binding |
 | A deferred call given an argument whose reading depends on the declaration it selects, an implicit body or a predicate | A validation error giving the arrow function to write, or saying to make the receiver known or to select its extension explicitly |

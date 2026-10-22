@@ -2,12 +2,12 @@
 
 <a id="modules"></a>
 
-A **module** is a named set of declarations a host registers: the types it owns with their members, the members it adds to other modules' types, its module members, type selectors and their keys, observation types and observation targets, all contributing to a script's [vocabulary](vocabulary.md). A script resolves against the declarations of every module its registry holds, and reaches a module's own names through the module's namespace, as `home.rooms` does.
+A **module** is a named set of declarations a host registers: the types it owns with their members, the members it adds to other modules' types, its module members, type selectors and their keys, observation types and observation targets, all contributing to a script's [vocabulary](vocabulary.md). A script resolves against the declarations of every module its registry holds, and reaches a module's own names through the module's namespace, as `Home.rooms` does.
 
-A module's declarations are data, apart from the code that carries them out, so a tool reads them and checks a script against them without running anything. Here the examples' `home` module declares the type `Room`, with its member `device(name)`, and is registered with a registry of its own:
+A module's declarations are data, apart from the code that carries them out, so a tool reads them and checks a script against them without running anything. Here the examples' `Home` module declares the type `Room`, with its member `device(name)`, and is registered with a registry of its own:
 
 ```js
-const home = lexica.createModule('home', {
+const home = lexica.createModule('Home', {
     typeOf: value => homeTypeOf(value),
     types: [
         {
@@ -21,7 +21,7 @@ const home = lexica.createModule('home', {
                     arguments: 'positional',
                     result: 'Device?',
                     parameters: [{ name: 'name', kind: 'value', type: 'String', required: true, fixed: false, nulls: 'propagate' }],
-                    updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'placement', of: 'home' }] },
+                    updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'placement', of: 'Home' }] },
                     impl: ({ receiver, args }) => receiver.find(args.name),
                 },
             ],
@@ -32,7 +32,7 @@ const home = lexica.createModule('home', {
     typeSelectors: [{ name: 'event' }],
     selectableTypes: [/* change, motion */],
     observationTypes: [/* placement, state, climate, presence, reading */],
-    observationTargets: [{ name: 'home' }],
+    observationTargets: [{ name: 'Home' }],
 });
 const registry = lexica.createRegistry([home]);
 ```
@@ -108,7 +108,7 @@ A module declares each type it owns in its `types`, its `kind` saying which fami
 - **A structured type** is `kind: 'structured'`, a type of immutable data. Its stored shape is its stored properties, the properties it declares directly without `updates`, each naming the type of its value in `result` and taking no `impl`; Lexica reads the stored property of each name from the data, and validates, copies and freezes a structured value by them, never invoking a computed property to do so. A stored property is read as any property is, `room.climate?.temperature`, and its computed properties, which declare `updates`, and its other members compute what they answer through their `impl`, which a tool may leave out without changing the stored shape. An extension adds no stored property to a type, and a property declared without `updates` anywhere but directly in a structured type is refused.
 - **An extension** is `kind: 'extension'`, holding the members it adds to its `target`, as [extensions](#extensions) set out, and never a value's type.
 - **A type's name** is unique within its module and written in PascalCase, as [type names](types.md#types-type-names) set out, and the type is identified by its module and that name.
-- **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['home']`; every other foreign type it names is qualified, `home.Device`, as [type identity](types.md#types-type-identity) sets out.
+- **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['Home']`; every other foreign type it names is qualified, `Home.Device`, as [type identity](types.md#types-type-identity) sets out.
 
 Lexica's own `List<T>` is the one generic value type, its parameter `T` the type of its items, which its members' declarations write. A module's own reference and structured types don't declare type parameters, and an extension and a member declare their own, as [type parameters](types.md#types-type-parameters) set out.
 
@@ -119,14 +119,14 @@ Lexica's own `List<T>` is the one generic value type, its parameter `T` the type
 A type's members may hold **operators**, `kind: 'operator'`, which the language's own syntax invokes and nothing else: `name: 'cast'`, which `as` invokes, and `name: 'convert'`, which `to` invokes, each naming its destination type in `result`.
 
 ```js
-{ kind: 'operator', name: 'cast', result: 'home.Device' }
+{ kind: 'operator', name: 'cast', result: 'Home.Device' }
 { kind: 'operator', name: 'convert', result: 'Temperature', impl: ({ value }) => ({ value, unit: 'C' }) }
 ```
 
-- **Only through their syntax.** An operator is not a member a script calls: `value.convert(…)`, a qualified form such as `measurements.convert(value)`, an extension access and a function reference reach none, and a function a module declares named `convert` is an ordinary member of its own. Operators and ordinary members are looked up apart, so a `cast` beside a property of that name is not a collision.
+- **Only through their syntax.** An operator is not a member a script calls: `value.convert(…)`, a qualified form such as `Measurements.convert(value)`, an extension access and a function reference reach none, and a function a module declares named `convert` is an ordinary member of its own. Operators and ordinary members are looked up apart, so a `cast` beside a property of that name is not a collision.
 - **Selected by their destination.** An operator is selected by its receiver's type, its name and its result together, so a type declares several of each, one for each destination type, and two for one destination collide.
 - **A cast operator** is declared on a reference type, and its result is another reference type, outside its hierarchy: it permits that one directed cast, and its `impl` is optional, as [casts](types.md#casts-what-it-narrows) set out.
-- **A conversion operator** is declared on a type of data, and its result is another type of data: `Number`, `String`, `Boolean` or a structured type holding data alone. Its `impl` reads `{ value, reject }` and answers the converted value, as [conversions](vocabulary.md#vocabulary-conversions) set out. A module declares a conversion whose source or destination is one of its own types, a rule Lexica's own module alone is exempt from, for the conversions between the language's types, and declares one on a type it does not own in an extension, as `measurements` declares one from `Number` to its `Temperature` in its `NumberExtensions`.
+- **A conversion operator** is declared on a type of data, and its result is another type of data: `Number`, `String`, `Boolean` or a structured type holding data alone. Its `impl` reads `{ value, reject }` and answers the converted value, as [conversions](vocabulary.md#vocabulary-conversions) set out. A module declares a conversion whose source or destination is one of its own types, a rule Lexica's own module alone is exempt from, for the conversions between the language's types, and declares one on a type it does not own in an extension, as `Measurements` declares one from `Number` to its `Temperature` in its `NumberExtensions`.
 
 <a id="modules-internal-declarations"></a>
 
@@ -182,7 +182,7 @@ A declaration without an `impl` is resolved against as any other, so a tool read
 A **registry** holds the modules a host resolves and evaluates against. `lexica.createRegistry(modules)` creates one holding Lexica's own module and the modules given; no registry is shared, so two hosts never see each other's modules.
 
 - **The registry holds definitions.** A registry holds the declarations of every module registered with it, shared by all the host's callers. What a host's callers start through host calls, and the state it keeps, is scoped to those callers, never to the registry.
-- **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. A module's name is registered once, and no module is named by a word the language reserves. A type is named once within its module, its name begins with a capital letter, and no module's type is named as one of Lexica's own types or `Null`; type selectors and observation types are each named once across every module, Lexica's own included, a selectable type once in its selector, and a name already declared is refused. A type a declaration names resolves to one the module declares or a module registered before it declares, as [type identity](types.md#types-type-identity) sets out, and an `import` that does not name a registered module, a reference that resolves to no type or to several, and a foreign type named unqualified outside its import are refused; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
+- **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. A module's name begins with a capital letter, is registered once, and is neither a word the language reserves, nor `Lexica`, nor the name of one of Lexica's own types or extensions, which an extension access could not qualify. A type is named once within its module, its name begins with a capital letter, and no module's type is named as one of Lexica's own types or `Null`; type selectors and observation types are each named once across every module, Lexica's own included, a selectable type once in its selector, and a name already declared is refused. A type a declaration names resolves to one the module declares or a module registered before it declares, as [type identity](types.md#types-type-identity) sets out, and an `import` that does not name a registered module, a reference that resolves to no type or to several, and a foreign type named unqualified outside its import are refused; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
 - **Its revision.** A registry answers a revision that changes whenever its vocabulary does, so a host that keeps resolutions knows when to resolve again.
 - **It reads and writes text as Lexica does.** `registry.parse(text, options)`, `registry.format(source, options)` and `registry.quote(source, options)` read and write a text as `lexica.parse`, `lexica.format` and `lexica.quote` do, its [imports](scripts.md#scripts-imports) deciding which of its names are namespaces, and `registry.resolve` reads a text as `registry.parse` does; [module names in text](#names-and-reserved-words-module-names) sets out how a name reads.
 - **Registering is not invoking.** Registering a module makes its capability understood; a host invoking one of its host calls starts what that call starts, for its caller, and ending it leaves the module registered.
@@ -192,25 +192,25 @@ A **registry** holds the modules a host resolves and evaluates against. `lexica.
 
 ## Namespaces
 
-A module's namespace is how a script reaches what the module declares: in a script [importing](scripts.md#scripts-imports) the module, its name, a dot and the name of one of its declarations, as `home.rooms` and `home.device(room, "lamp")` are, and the qualifier of one of its extensions' names, as `device:energy.DeviceExtensions.usage` writes it.
+A module's namespace is how a script reaches what the module declares: in a script [importing](scripts.md#scripts-imports) the module, its name, a dot and the name of one of its declarations, as `Home.rooms` and `Home.device(room, "lamp")` are, and the qualifier of one of its extensions' names, as `device:Energy.Device.usage` writes it.
 
 <a id="namespaces-module-members"></a>
 
 ### Module members
 
-A member a module declares in its own `members`, with no type it applies to, is a **module member**, read through the namespace alone: `home.rooms` reads the home's rooms, and `home.now` the time. Its implementation is given no receiver. Two modules may each declare a module member of one name, since each is read through its own namespace. Reading a member through a namespace says nothing of how its value changes: `home.now` is unobserved, and changes between evaluations.
+A member a module declares in its own `members`, with no type it applies to, is a **module member**, read through the namespace alone: `Home.rooms` reads the home's rooms, and `Home.now` the time. Its implementation is given no receiver. Two modules may each declare a module member of one name, since each is read through its own namespace. Reading a member through a namespace says nothing of how its value changes: `Home.now` is unobserved, and changes between evaluations.
 
 <a id="namespaces-owners-and-extensions"></a>
 
 ### Owners and extensions
 
-A module may declare members on any type, its own in their declarations or another module's in its [extensions](#extensions). The module that declares a type **owns** it, and a member another module declares on it is an **extension**, as `energy`'s `device.usage` is. An unqualified member resolves by the owner of its receiver's static type, among the declarations applicable to the receiver and accessible to the script, those of Lexica's own module and of the modules the script [imports](scripts.md#scripts-imports):
+A module may declare members on any type, its own in their declarations or another module's in its [extensions](#extensions). The module that declares a type **owns** it, and a member another module declares on it is an **extension**, as `Energy`'s `device.usage` is. An unqualified member resolves by the owner of its receiver's static type, among the declarations applicable to the receiver and accessible to the script, those of Lexica's own module and of the modules the script [imports](scripts.md#scripts-imports):
 
-- An applicable member the owner declares wins over every extension, so `device.power` reads `home`'s, whatever `energy` declares. A member the owner declares on a supertype it also owns takes part with the owner's priority, while one another module declares on a supertype is applicable with no priority over other extensions. An extension on a more specific receiver never defeats an applicable member of the owner.
-- Otherwise one applicable extension resolves as any member does, so `device.usage` reads `energy`'s.
-- Several applicable extensions are refused as ambiguous when the script is resolved, before anything is evaluated, and both still register, since refusing one would leave it unreachable where explicit access selects it. Were a module `solar` to declare `usage` on `Device` too, in an extension also named `DeviceExtensions`, `device.usage` is refused in a script importing both, and reads `energy`'s in one importing `energy` alone:
+- An applicable member the owner declares wins over every extension, so `device.power` reads `Home`'s, whatever `Energy` declares. A member the owner declares on a supertype it also owns takes part with the owner's priority, while one another module declares on a supertype is applicable with no priority over other extensions. An extension on a more specific receiver never defeats an applicable member of the owner.
+- Otherwise one applicable extension resolves as any member does, so `device.usage` reads `Energy`'s.
+- Several applicable extensions are refused as ambiguous when the script is resolved, before anything is evaluated, and both still register, since refusing one would leave it unreachable where explicit access selects it. Were a module `Solar` to declare `usage` on `Device` too, in an extension also named `Device`, `device.usage` is refused in a script importing both, and reads `Energy`'s in one importing `Energy` alone:
 
-> Member 'usage' on 'Device' is ambiguous between modules 'energy' and 'solar'. Use 'device:energy.DeviceExtensions.usage' or 'device:solar.DeviceExtensions.usage' to select one.
+> Member 'usage' on 'Device' is ambiguous between modules 'Energy' and 'Solar'. Use 'device:Energy.Device.usage' or 'device:Solar.Device.usage' to select one.
 
 Applicability follows the receiver's type and the access form, so one name on unrelated types is never ambiguous, and an [internal](#modules-internal-declarations) declaration is not a candidate, so an accessible extension resolves where the owner's member of its name is internal. Registration order never decides. Lexica's own module owns the language's types, `List`, `Number`, `String` and `Boolean` among them, so `rooms.count` reads Lexica's whatever an extension declares; that module has no namespace, and its name is reserved nowhere. Indexers follow the same precedence, as [indexer selection](#namespaces-indexers) sets out, and so do [operators](#modules-operators): a cast or a conversion is selected among the operators of its name and destination applicable to its receiver, the owner's winning, one extension's resolving where the owner declares none, and several refused as ambiguous, since no syntax selects one module's operator, extension access among them.
 
@@ -218,18 +218,18 @@ Applicability follows the receiver's type and the access form, so one name on un
 
 ### Qualified access
 
-Every member a module declares on one of its own types is also reached through the module's namespace, the receiver its first argument and the member's own arguments after it: `home.device(room, "lamp")` and `home.active(device)`. The qualified form selects that module's declaration and reuses its implementation and its contract, and the unqualified form stays available beside it, so no module declares a second implementation to make a member addressable. An extension's member is selected explicitly through its extension instead, `device:DeviceExtensions.usage`, as [extension access](members.md#property-access-calls-and-indexers-extension-access) sets out, and no namespace reaches it.
+Every member a module declares on one of its own types is also reached through the module's namespace, the receiver its first argument and the member's own arguments after it: `Home.device(room, "lamp")` and `Home.active(device)`. The qualified form selects that module's declaration and reuses its implementation and its contract, and the unqualified form stays available beside it, so no module declares a second implementation to make a member addressable. An extension's member is selected explicitly through its extension instead, `device:Device.usage`, as [extension access](members.md#property-access-calls-and-indexers-extension-access) sets out, and no namespace reaches it.
 
 In a qualified call to a receiver member, the receiver argument propagates null. If it is null, the member's implementation is not invoked and the call produces null. The result type includes null whenever the receiver argument's type includes null, so each qualified form is a receiver form selecting that module's declaration:
 
 | Qualified form | Equivalent receiver form |
 | --- | --- |
-| `home.device(room, "lamp")`, `room` not nullable | `room.device("lamp")`, selecting `home`'s declaration |
-| `home.device(room, "lamp")`, `room` nullable | `room?.device("lamp")`, selecting `home`'s declaration |
+| `Home.device(room, "lamp")`, `room` not nullable | `room.device("lamp")`, selecting `Home`'s declaration |
+| `Home.device(room, "lamp")`, `room` nullable | `room?.device("lamp")`, selecting `Home`'s declaration |
 
-The rule belongs to the receiver argument alone: the member's own arguments keep their declared null policies, and a module member has no receiver argument for it to apply to. A qualified call evaluates its receiver argument first, and a null one skips the member's own arguments as `?.` does, so `home.device(room, name)` evaluates `name` only where `room` is not null. A null receiver argument skips the member and its arguments, never what the receiver argument reads, so an evaluation still reports every read its receiver argument makes.
+The rule belongs to the receiver argument alone: the member's own arguments keep their declared null policies, and a module member has no receiver argument for it to apply to. A qualified call evaluates its receiver argument first, and a null one skips the member's own arguments as `?.` does, so `Home.device(room, name)` evaluates `name` only where `room` is not null. A null receiver argument skips the member and its arguments, never what the receiver argument reads, so an evaluation still reports every read its receiver argument makes.
 
-A module's function written through its namespace without a call is a [function reference](functions.md#functions-module-functions), which a verb or any function parameter takes, as `device.is(home.active)` does, and which the qualified form's rules govern when it is called.
+A module's function written through its namespace without a call is a [function reference](functions.md#functions-module-functions), which a verb or any function parameter takes, as `device.is(Home.active)` does, and which the qualified form's rules govern when it is called.
 
 <a id="namespaces-indexers"></a>
 
@@ -238,17 +238,17 @@ A module's function written through its namespace without a call is a [function 
 An indexer is selected by the owner of its receiver's type, as a member is, and keeps its key, its receiver and its contract however it is selected:
 
 - **A named indexer**, `x.name[key]`, resolves as an unqualified member does: the owner's indexer of that name wins over every extension's, one applicable extension's indexer resolves, and several are refused as ambiguous when the script is resolved, the error naming the indexer, its receiver's type and the competing modules.
-- **An unnamed indexer**, `x[key]`, selects the indexer declared without a name for its receiver's type: the owner's wins, one extension's resolves where the owner declares none, and several are refused as ambiguous, as named ones are. So `device["mode"]` reads `home`'s, whatever an extension declares, and `rooms[0]` reads `List`'s.
+- **An unnamed indexer**, `x[key]`, selects the indexer declared without a name for its receiver's type: the owner's wins, one extension's resolves where the owner declares none, and several are refused as ambiguous, as named ones are. So `device["mode"]` reads `Home`'s, whatever an extension declares, and `rooms[0]` reads `List`'s.
 
-No qualified form reaches an indexer, and an extension's indexer is selected explicitly through its extension, `device:DeviceExtensions.setting["mode"]` and `values:ListExtensions[0]`, as [extension access](members.md#property-access-calls-and-indexers-extension-access) sets out, so one that the owner's indexer of its name outranks, or that another extension's competes with, is still reached that way.
+No qualified form reaches an indexer, and an extension's indexer is selected explicitly through its extension, `device:Device.setting["mode"]` and `values:ListExtensions[0]`, as [extension access](members.md#property-access-calls-and-indexers-extension-access) sets out, so one that the owner's indexer of its name outranks, or that another extension's competes with, is still reached that way.
 
 <a id="namespaces-a-modules-own-collisions"></a>
 
 ### A module's own collisions
 
-Within one module, members of one name collide where their receivers overlap, one receiver's type assignable to the other's, a type and its supertype among them, and a module declaring them is refused at registration: were `home` to declare `active` on `Light` beside the one on `Device`, a light would have two, and `home` would be refused. A `List<Light>` and a `List<Device>` overlap so, while a `List<Number>` and a `List<String>` don't, though an empty list satisfies both, as [extensions on different targets](#extensions-different-targets) set out. Two unnamed indexers whose receivers overlap collide too, and so do two operators of one name and destination whose receivers overlap. Members of one name on unrelated receivers do not collide, since the receiver selects one, written unqualified or qualified, and a [function reference](functions.md#functions-module-functions) selects one by the callback contract it is passed to, refusing one that several take.
+Within one module, members of one name collide where their receivers overlap, one receiver's type assignable to the other's, a type and its supertype among them, and a module declaring them is refused at registration: were `Home` to declare `active` on `Light` beside the one on `Device`, a light would have two, and `Home` would be refused. A `List<Light>` and a `List<Device>` overlap so, while a `List<Number>` and a `List<String>` don't, though an empty list satisfies both, as [extensions on different targets](#extensions-different-targets) set out. Two unnamed indexers whose receivers overlap collide too, and so do two operators of one name and destination whose receivers overlap. Members of one name on unrelated receivers do not collide, since the receiver selects one, written unqualified or qualified, and a [function reference](functions.md#functions-module-functions) selects one by the callback contract it is passed to, refusing one that several take.
 
-A module member, which has no receiver, reserves its name in the module's namespace: a member of that name on one of the module's own types is refused beside it, since `home.rooms` would read the one and call or reference the other. Owner precedence and ambiguity between modules are set out in [owners and extensions](#namespaces-owners-and-extensions).
+A module member, which has no receiver, reserves its name in the module's namespace: a member of that name on one of the module's own types is refused beside it, since `Home.rooms` would read the one and call or reference the other. Owner precedence and ambiguity between modules are set out in [owners and extensions](#namespaces-owners-and-extensions).
 
 <a id="names-and-reserved-words-module-names"></a>
 <a id="namespaces-text-and-registries"></a>
@@ -257,9 +257,9 @@ A module member, which has no receiver, reserves its name in the module's namesp
 
 A module's name decides how a text reads, so a script's [imports](scripts.md#scripts-imports) decide which of its names are namespaces, and every reader reads a text alike: `lexica.parse` and `registry.parse` give one text one definition, and registering a module never changes how a text reads.
 
-A module's name is an identifier, and in a script importing the module, its name begins that module's namespace where it stands unprefixed in place of a value, as `home` and `energy` do in the examples. It is a contextual name, never a reserved word of the language: `home.rooms` reads the module's member, `@home` the nearest local, field, conditional binding or function parameter named `home`, and `~home` the script parameter `home`, and a position that expects a name reads it in that role, so a member, a field, a local or a function parameter named `home` is declared and read as any is, importing the module invalidating none of them. No module is named by a word the language reserves. In a script that does not import `home`, `home` is an identifier, read as any name is, and resolution refuses it as a missing import where the registry holds a module of its name and no script parameter of its name is bound.
+A module's name is an identifier written in PascalCase, `Home` and `SmartHome`, beginning with a capital letter as registering it requires, so a qualified name reads alike for a type, `Home.Device`, a module member, `Home.rooms`, and an extension, `device:Energy.Device.usage`. In a script importing the module, its name begins that module's namespace where it stands unprefixed in place of a value, as `Home` and `Energy` do in the examples. It is a contextual name, never a reserved word of the language: `Home.rooms` reads the module's member, `@Home` the nearest local, field, conditional binding or function parameter named `Home`, and `~Home` the script parameter `Home`, and a position that expects a name reads it in that role, so a member, a field, a local or a function parameter named `Home` is declared and read as any is, importing the module invalidating none of them. No module is named by a word the language reserves. In a script that does not import `Home`, `Home` is an identifier, read as any name is, and resolution refuses it as a missing import where the registry holds a module of its name and no script parameter of its name is bound.
 
-Text is written by the same names: formatting writes a namespace as the module's name, `home`, a local or a field named after an imported module as a lexical reference, `@home`, and a script parameter named after one with `~`, `~home`. Canonical text writes every import its definition records, so it reads back as the same definition wherever it is parsed; a caller may name the imports its destination supplies, `format(source, { imports: ['home'] })`, which the text leaves out, and that text reads back as the same definition where it is parsed with them supplied.
+Text is written by the same names: formatting writes a namespace as the module's name, `Home`, a local or a field named after an imported module as a lexical reference, `@Home`, and a script parameter named after one with `~`, `~Home`. Canonical text writes every import its definition records, so it reads back as the same definition wherever it is parsed; a caller may name the imports its destination supplies, `format(source, { imports: ['Home'] })`, which the text leaves out, and that text reads back as the same definition where it is parsed with them supplied.
 
 Parsing reads an import and its namespace without asking a registry, so whether the module is registered is checked when the script is resolved, which refuses an import of a module the registry does not hold. A definition's namespace naming a module its imports leave out is a structure error. Parsed texts are kept by their text and the imports supplied to them.
 
@@ -267,15 +267,15 @@ Parsing reads an import and its namespace without asking a registry, so whether 
 
 ## Extensions
 
-An **extension** is a named group of the members and indexers a module declares on a type another module owns, as `energy`'s `DeviceExtensions` adds `device.usage` to `home`'s `Device`. A module declares each among its `types`, of `kind: 'extension'`, naming the `target` its members extend, which take that type as their receiver as a type's own members do:
+An **extension** is a named group of the members and indexers a module declares on a type another module owns, as `Energy`'s `Device` adds `device.usage` to `Home`'s `Device`. A module declares each among its `types`, of `kind: 'extension'`, naming the `target` its members extend, which take that type as their receiver as a type's own members do:
 
 ```js
-const energy = lexica.createModule('energy', {
+const energy = lexica.createModule('Energy', {
     types: [
         {
-            name: 'DeviceExtensions',
+            name: 'Device',
             kind: 'extension',
-            target: 'home.Device',
+            target: 'Home.Device',
             members: [/* usage, power, meter */],
         },
     ],
@@ -283,8 +283,8 @@ const energy = lexica.createModule('energy', {
 ```
 
 - **Its name.** An extension is a declaration of its module, identified by its module and its local name as a type is, so a module declares a name once among its types, and an ordinary type and an extension never share one. Its local name begins with a capital letter, as a type's does, and a suffix such as `Extensions` is its author's choice: `kind: 'extension'` makes a declaration an extension, and its spelling never does. Its name may declare [type parameters](types.md#types-type-parameters) its target and its members share, `ListExtensions<T>`, which the receiver binds at each access.
-- **Its target.** An extension has one target, and a module declares as many extensions as it groups its members into, on one target or several. A target names a foreign type qualified, `home.Device`, one of Lexica's own types as it is, `List<Number>`, or a parameter its extension declares, `{ name: 'VerbExtensions<T>', kind: 'extension', target: 'T' }`, which extends a receiver of any type, as Lexica's verbs are declared. An extension declares no `import`: within it, its own module's types and Lexica's resolve unqualified, a foreign type is written qualified, and it does not inherit an import of the type it extends.
-- **What it is.** An extension owns its members and is addressable for [extension access](members.md#property-access-calls-and-indexers-extension-access), `device:DeviceExtensions.usage`. It is never a value's type: it never wraps a receiver or changes a type's identity, and its target is never its supertype.
+- **Its target.** An extension has one target, and a module declares as many extensions as it groups its members into, on one target or several. A target names a foreign type qualified, `Home.Device`, one of Lexica's own types as it is, `List<Number>`, or a parameter its extension declares, `{ name: 'VerbExtensions<T>', kind: 'extension', target: 'T' }`, which extends a receiver of any type, as Lexica's verbs are declared. An extension declares no `import`: within it, its own module's types and Lexica's resolve unqualified, a foreign type is written qualified, and it does not inherit an import of the type it extends.
+- **What it is.** An extension owns its members and is addressable for [extension access](members.md#property-access-calls-and-indexers-extension-access), `device:Device.usage`. It is never a value's type: it never wraps a receiver or changes a type's identity, and its target is never its supertype.
 - **What it adds.** Members alone: it changes no type's `isInstance`, stored properties, hierarchy, abstractness or `internal` flag, and no module's `typeOf`. A property it declares is computed, never stored, and it never attaches state to a receiver.
 
 Every module may declare them, on any type another module owns, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](#namespaces-owners-and-extensions) set out, so extensions that compete both register and are told apart by extension access. A type that the module itself owns takes its members in its own declaration, and a target no module declares is refused when the module is registered, so a misspelled type never becomes an extension.
@@ -300,4 +300,4 @@ Extensions whose targets differ may declare members of one name, in one module o
 { name: 'StringList', kind: 'extension', target: 'List<String>', members: [/* total */] }
 ```
 
-Ordinary lookup first takes the extensions whose targets the receiver satisfies, by the assignability rules, and then applies ownership and ambiguity, as [owners and extensions](#namespaces-owners-and-extensions) set out: `values.total` reads `NumericList`'s for a `List<Number>`, and `StringList`'s for a `List<String>`. An empty list, a `List<Never>`, satisfies both targets through list covariance, so where the remaining rules select neither, `values.total` is refused as ambiguous, and an [extension access](members.md#property-access-calls-and-indexers-extension-access) resolves it: `values:NumericList.total`, `values:StringList.total`, or one its module qualifies, `values:measurements.NumericList.total`. The selected extension's target still accepts the receiver, since selecting one never bypasses type checking, and no specialization precedence decides between them.
+Ordinary lookup first takes the extensions whose targets the receiver satisfies, by the assignability rules, and then applies ownership and ambiguity, as [owners and extensions](#namespaces-owners-and-extensions) set out: `values.total` reads `NumericList`'s for a `List<Number>`, and `StringList`'s for a `List<String>`. An empty list, a `List<Never>`, satisfies both targets through list covariance, so where the remaining rules select neither, `values.total` is refused as ambiguous, and an [extension access](members.md#property-access-calls-and-indexers-extension-access) resolves it: `values:NumericList.total`, `values:StringList.total`, or one its module qualifies, `values:Measurements.NumericList.total`. The selected extension's target still accepts the receiver, since selecting one never bypasses type checking, and no specialization precedence decides between them.
