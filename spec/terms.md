@@ -118,8 +118,9 @@ In this document:
 | Module | A unit of registration declaring types and their members, made by `createModule`, registered with `registerModule`, and reached in text through its namespace | [Namespaces](modules.md#namespaces) |
 | Internal declaration | A type or a member declared `internal: true`, available within its declaring module alone | [Internal declarations](modules.md#modules-internal-declarations) |
 | Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
-| Import | A script's declaration that it uses a module's vocabulary, `import Home`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
-| Namespace | A module's name in a script importing the module, through which its module members and its qualified forms are reached, and which qualifies its types' and extensions' names | [Namespaces](modules.md#namespaces) |
+| Import | A script's declaration that it uses a module's vocabulary, `import Home`, or one type's, `import Home.Sensor`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
+| Alias | The local name an import gives in place of its module's or its type's own, `import Measures = Measurements` | [Imports](scripts.md#scripts-imports) |
+| Namespace | The local name a script's import gives a module, its own or an alias, through which its module members and its qualified forms are reached, and which qualifies its types' and extensions' names | [Namespaces](modules.md#namespaces) |
 | Module member | A member a module declares on no type, read through its namespace, as `Home.rooms` | [Module members](modules.md#namespaces-module-members) |
 | Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
 | Extension | A named group a module declares among its `types`, `kind: 'extension'`, of the members, indexers and operators it adds to its `target`, a type another module owns | [Extensions](modules.md#extensions) |

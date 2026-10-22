@@ -36,7 +36,11 @@ In this document:
 
 ```ebnf
 script                        = { import-declaration } body end-of-input
-import-declaration            = "import" module-name
+import-declaration            = "import" [ import-alias "=" ] import-source
+import-alias                  = identifier
+import-source                 = identifier [ "." identifier ]
+                              (* a registered module, or a type
+                                 qualified by its registered module *)
 
 body                          = { local } "return" expression
                               | expression
@@ -135,8 +139,8 @@ namespace-access              = module-name "." member-name
                                 [ "(" [ argument-list ] ")" ]
                               (* no indexer is written through a namespace *)
 module-name                   = identifier
-                              (* a namespace where the script imports
-                                 a module of that name *)
+                              (* a namespace where the script's imports
+                                 give a module that name *)
 
 enclosed-expression           = parenthesized-expression | optional-enclosed-access
 
@@ -149,8 +153,8 @@ member-call                   = ( "." | "?." ) member-name
 indexer                       = ( "[" | "?[" ) simple-expression "]"
 extension-access              = ( ":" | "?:" ) extension-name extension-member
 extension-name                = [ module-name "." ] identifier
-                              (* a module-name where the script imports
-                                 a module of that name *)
+                              (* a module-name where the script's imports
+                                 give a module that name *)
 extension-member              = "." member-name [ "(" [ argument-list ] ")" ]
                               | "[" simple-expression "]"
 
@@ -239,10 +243,11 @@ The grammar uses several terms more narrowly than the prose:
 | `identifier` | An identifier's spelling, every name and every unprefixed reference written with it; which identifiers a position takes, and what one means there, are the [interpretation rules](lexical-structure.md#names-and-reserved-words-what-an-identifier-means), which the grammar's one production leaves to them |
 | `lexical-reference` | `@` and an identifier, reading the nearest local, field, conditional binding or function parameter of that name, whatever its spelling |
 | `script-parameter` | `~` and an identifier, selecting the script parameter of that name explicitly |
-| `module-name` | An identifier naming a module: the module imported, after `import`, and where a value stands, the namespace of a module the script imports |
+| `import-declaration` | An import: its alias and `=` where it gives one, then its source, a registered module's name, and a dot and a type's local name where it imports one type |
+| `module-name` | An identifier naming a module where a value stands, or qualifying a type's or an extension's name: the local name the script's imports give a module, its own or an alias |
 | `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; a script importing no module has none |
 | `extension-access` | An extension selected explicitly, `:` or `?:` and the extension's name, its local name or one its module qualifies, then the one member operation it supplies; a named indexer's key follows as an `indexer`, as after a `dot-property-access` |
-| `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by its module's name and a dot where written so; a qualified name parses alike whatever the script imports, and resolution decides whether the script imports the module |
+| `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by the local name the script's imports give its module and a dot where written so; a qualified name parses alike whatever the script imports, and resolution decides whether the script imports the module |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
 | `indexer` | Brackets and a key after a value: its type's unnamed indexer, or, after a `dot-property-access`, the named indexer that access names where its receiver's type declares one, which resolution decides, as [named indexers](members.md#property-access-calls-and-indexers-named-indexers) set out |

@@ -4,7 +4,7 @@
 
 A script's **definition** is a JSON document recording its meaning, its **expression tree** with the version of its format: every script, read from its source or created directly, has one definition, and validation, resolution and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
 
-A document holds the definition's `version`, its `imports` and the `expression` node, the root of its expression tree. Its imports are the names of the modules the script [imports](scripts.md#scripts-imports), those its text writes and those its host supplies alike, each once and in order of name, and an empty list where it imports none; which ones a host supplied is not recorded, since that does not change what the script means. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error naming both, so an implementation of version 34 refuses a definition of version 33, though every node one holds is one a version 34 definition may hold: no implementation reads two versions or converts one into another. Version 34 records a script's imports, and an extension an access selects explicitly.
+A document holds the definition's `version`, its `imports` and the `expression` node, the root of its expression tree. Its imports are the script's [imports](scripts.md#scripts-imports), those its text writes and those its host supplies alike, each an object of its `module`, the registered module's name, its `type`, the local name of the type it imports where it imports one, and its `alias`, where it gives a local name other than its own, `{ "module": "Home", "type": "Sensor", "alias": "HomeSensor" }`, each once and in order of the local name it gives, and an empty list where it imports none; which ones a host supplied is not recorded, since that does not change what the script means. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error naming both, so an implementation of version 34 refuses a definition of version 33, though every node one holds is one a version 34 definition may hold: no implementation reads two versions or converts one into another. Version 34 records a script's imports, aliases among them, and an extension an access selects explicitly.
 
 In this document:
 
@@ -22,10 +22,10 @@ Each node is an object whose `kind` says what it is:
 | Kind | Properties | Records |
 | --- | --- | --- |
 | `literal` | `value`, a JSON string, a finite number, a Boolean or null | A literal |
-| `parameter` | `name` | A script parameter; text writes it alone where its name is not a reserved word, nor the name of a module the definition imports, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and with `~` before its name otherwise |
+| `parameter` | `name` | A script parameter; text writes it alone where its name is not a reserved word, nor a local name the definition's imports give a module, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and with `~` before its name otherwise |
 | `it` | None | The implicit parameter |
 | `root` | None | The object root |
-| `namespace` | `name`, the module's name | A module's namespace, the target of a `member` or a `call` node that reads one of the module's members or calls a qualified form through it |
+| `namespace` | `name`, the local name the script's imports give the module | A module's namespace, the target of a `member` or a `call` node that reads one of the module's members or calls a qualified form through it |
 | `local` | `name` | A use of a local, a function parameter or a field, one in scope where it stands |
 | `member` | `name`, the member's name, or for a computed property access whose expression is not a string literal that is a name, that expression's node; `target`, the receiver; `optional`, true, where it is written with `?.` or `?:`; and `extension`, where an extension is selected explicitly, its `name` and, where its module qualifies it, its `module` | A property access, a computed property access, or an extension's property or named indexer selected explicitly |
 | `call` | `name`; `arguments`, its arguments in order, empty where it is given none; `target`, the receiver; `optional`, true, where it is written with `?.` or `?:`; and `extension`, as a `member` node holds it | A function call |
@@ -72,7 +72,7 @@ A field is an object holding its `name` and its `value` node, both required; an 
 ```json
 {
   "version": 34,
-  "imports": ["Energy", "Home"],
+  "imports": [{ "module": "Energy" }, { "module": "Home" }],
   "expression": {
     "kind": "object",
     "target": { "kind": "parameter", "name": "room" },
@@ -118,14 +118,14 @@ Text must follow the syntax. A directly created definition must follow the same 
 
 | Area | Required structure |
 | --- | --- |
-| Imports | Each names a module, by a name that is not a reserved word and not `Lexica`, once and in order of name; every `namespace` node names one of them. |
+| Imports | Each holds a `module`, an identifier other than `Lexica`; a `type`, an identifier, where it imports one type; and an `alias` only where it differs from the name the import gives without one, its `type` or else its `module`. The local name each gives begins with a capital letter, and is neither a reserved word, nor `Lexica`, nor the name of one of Lexica's own types or extensions; they are in order of it, each once, so two imports giving one local name to different declarations conflict; and every `namespace` node, and every extension selection's `module`, names a module one of them gives. |
 | Fields | Every field has a name and value; names are unique within an object expression; an object expression has at least one field. |
 | Locals | Each has a name and value; names are unique within a body or object expression; references name an in-scope local or field. |
 | Declaration order | No reference uses a local before its declaration or within its own initializer. A name written alone cannot fall back to a script parameter when that local is declared later in the same scope. |
 | Script parameters | A definition's `parameter` node, written with `~` when necessary, reads the script parameter regardless of local declarations. |
 | Simple expressions | Arguments, indexer keys, computed property names and interpolations obey the restrictions recursively; an object expression within one, as an options object, declares no locals, though it may use those in scope. |
 | Members | Every property access, call and indexer has a receiver. |
-| Extension selections | An `extension` holds a `name`, an identifier, and a `module` only where its module qualifies it, one the definition imports; a computed property access holds none, and a named indexer's holds it on the `member` node of its name. |
+| Extension selections | An `extension` holds a `name`, an identifier, as written, and a `module` only where its module qualifies it, a local name the definition's imports give a module; a computed property access holds none, and a named indexer's holds it on the `member` node of its name. |
 | Equality | Both operands are present. |
 | Comparisons | At least two operands; exactly one operator between each pair; every operator is one of `<`, `<=`, `>`, `>=` and points in the same direction. |
 | Interpolated strings | Every part is text containing a string, or an expression part. |
@@ -155,7 +155,7 @@ Every definition has one canonical text, which `lexica.format` and `lexica.quote
 - **What it keeps.** The definition's meaning, and the order of its locals and fields as declared; comments and the original layout are discarded, as a definition holds neither.
 - **What it needs.** Neither bindings, nor a vocabulary, nor a registry: it parses and checks structure as `lexica.parse` does, and resolves nothing, the definition's imports deciding which names it writes as namespaces, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
 - **The imports a destination supplies.** `format(source, { imports })` names the imports the text's destination supplies: it reads a text with them supplied, and leaves them out of the text it writes, which reads back as the same definition only where it is parsed with them supplied.
-- **The layout.** Each import on a line of its own, in order of name, and an empty line between the last and the body; four spaces of indentation for each level of an object expression; an object expression of one field and no locals on one line where its value is, `{ name = it.name }`, and any other with one line for each entry; a conditional with an `elseif`, or whose branches give their results with `return`, on one line for each clause and one for its `end`, each branch's locals and result a level within it; a body's locals and result each on a line of their own, a `do` block's a level within its `do` and its `end`; a string's line feed, carriage return, tab and escape character as `\n`, `\r`, `\t` and `\e`, and every other control, format or separator character in it but the space as `\u{…}`; an interpolated string's text as a string's with each brace doubled, and each interpolation's expression on one line, grouped in parentheses where it begins with one; one space on each side of `and`, `or`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `??`, `+`, `-`, `*`, `/`, `%`, `as` and `to`, and none between a negation's `-` and what it negates, nor around an extension access's `:` or `?:`, whose extension's name it writes as the definition holds it, qualified where it is; and no trailing comma.
+- **The layout.** Each import on a line of its own, in order of the local name it gives, its alias and `=` before its source where it has one, a space on each side of the `=`, `import Measures = Measurements`, and an empty line between the last and the body; four spaces of indentation for each level of an object expression; an object expression of one field and no locals on one line where its value is, `{ name = it.name }`, and any other with one line for each entry; a conditional with an `elseif`, or whose branches give their results with `return`, on one line for each clause and one for its `end`, each branch's locals and result a level within it; a body's locals and result each on a line of their own, a `do` block's a level within its `do` and its `end`; a string's line feed, carriage return, tab and escape character as `\n`, `\r`, `\t` and `\e`, and every other control, format or separator character in it but the space as `\u{…}`; an interpolated string's text as a string's with each brace doubled, and each interpolation's expression on one line, grouped in parentheses where it begins with one; one space on each side of `and`, `or`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `??`, `+`, `-`, `*`, `/`, `%`, `as` and `to`, and none between a negation's `-` and what it negates, nor around an extension access's `:` or `?:`, whose extension's name it writes as the definition holds it, qualified where it is; and no trailing comma.
 - **It is stable.** Formatting text already formatted gives the same text.
 
 <a id="names-and-reserved-words-canonical-spelling-of-names"></a>
@@ -169,7 +169,8 @@ Every definition has one canonical text, which `lexica.format` and `lexica.quote
 | Reference to a script parameter | Its name if it needs no prefix and is not hidden; `~` and its name otherwise |
 | The object root | `root` |
 | The implicit parameter | `it` |
-| A namespace | The module's name |
+| An import | Its alias, `=` and its source, or its source alone |
+| A namespace | The local name the script's imports give the module |
 | A cast's or a conversion's type | Its name |
 
 These rules also apply to extension declarations and definitions created directly. A definition stores names without `@` or `~`; its node kind distinguishes a local reference from a parameter, and `it` produces an `it` node.
