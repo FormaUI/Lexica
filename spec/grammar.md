@@ -171,7 +171,7 @@ member-name                   = identifier
 reserved-word                 = "true" | "false" | "null" | "root" | keyword
 keyword                       = "it" | "not" | "try" | "as" | "to" | "and" | "or"
                               | "if" | "then" | "elseif" | "else" | "let"
-                              | "do" | "end" | "return" | "function"
+                              | "do" | "end" | "return" | "function" | "import"
 
 number                        = integer [ fraction ] [ exponent ]
 integer                       = "0" | nonzero-digit { digit }

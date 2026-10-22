@@ -27,7 +27,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 
 | Unit | Work | State |
 | --- | --- | --- |
-| 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | Decisions taken; their specification and the diagnostic codes planned |
+| 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | Stage 1, the decisions in the specification, done; the catalog and the codes planned |
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | Planned |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
