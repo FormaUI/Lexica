@@ -30,7 +30,9 @@ In this document:
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
 | Type identity | A module's type's module and local name together, as `home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
 | Import | A type's `import`, the modules whose public types its declaration names unqualified, reaching that declaration alone | [Type identity](types.md#types-type-identity) |
-| Type parameter | A type a declaration leaves open, declared after its name in angle brackets, as `List<T>`'s `T`, standing within the declaration that declares it | [Type parameters](types.md#types-type-parameters) |
+| Type parameter | A type a declaration leaves open, declared after its name in angle brackets, as `ListExtensions<T>`'s `T`, standing within the declaration that declares it, and inferred, never written in a script | [Type parameters](types.md#types-type-parameters) |
+| `Any` | The type a declaration names where it accepts or answers a value of any type, whose members are selected when it is evaluated | [Values of `Any`](types.md#types-any) |
+| Deferred member access | An access whose member is selected when its receiver is evaluated, since its receiver's type is unknown before | [Deferred member selection](types.md#types-any-deferred-selection) |
 | Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](types.md#reference-types) |
 | Object expression | An expression that names the fields of its output object | [Objects](values.md#objects) |
 | Object type | A description of an object's fields and their types | [Types](types.md#types) |
@@ -117,11 +119,12 @@ In this document:
 | Internal declaration | A type or a member declared `internal: true`, available within its declaring module alone | [Internal declarations](modules.md#modules-internal-declarations) |
 | Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
 | Import | A script's declaration that it uses a module's vocabulary, `import home`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
-| Namespace | A module's name in a script importing the module, through which its module members and its qualified forms are reached | [Namespaces](modules.md#namespaces) |
+| Namespace | A module's name in a script importing the module, through which its module members and its qualified forms are reached, and which qualifies its types' and extensions' names | [Namespaces](modules.md#namespaces) |
 | Module member | A member a module declares on no type, read through its namespace, as `home.rooms` | [Module members](modules.md#namespaces-module-members) |
 | Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
-| Extension | A member, an indexer or an operator a module declares on a type another module owns, in the module's `extensions` | [Extensions](modules.md#extensions) |
-| Qualified form | A member called through its module's namespace, the receiver first, as `energy.usage(device)` | [Qualified access](modules.md#namespaces-qualified-access) |
+| Extension | A named group a module declares among its `types`, `kind: 'extension'`, of the members, indexers and operators it adds to its `target`, a type another module owns | [Extensions](modules.md#extensions) |
+| Extension access | An extension's member selected explicitly, `device:DeviceExtensions.usage` | [Extension access](members.md#property-access-calls-and-indexers-extension-access) |
+| Qualified form | A member of a module's own type called through its namespace, the receiver first, as `home.device(room, "lamp")` | [Qualified access](modules.md#namespaces-qualified-access) |
 | Boolean function | A function whose result is a `Boolean`, the form a module gives a test of its receiver, as `device.active()` | [Boolean functions](vocabulary.md#vocabulary-boolean-functions) |
 | Verb | `is`, `has` or `supports`, Lexica's function answering whether its receiver passes the test it is given | [The verbs](vocabulary.md#vocabulary-verbs) |
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](vocabulary.md#observations) |

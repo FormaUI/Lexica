@@ -72,7 +72,7 @@ A setting is a string, so an example that needs a number converts it, as `device
 
 `home` declares the type selector `event`, whose keys `change` and `motion` map to the two types above.
 
-**The `energy` module** extends `home`'s `Device`, in an extension of that type, with what an energy meter knows:
+**The `energy` module** extends `home`'s `Device`, in its extension `DeviceExtensions`, with what an energy meter knows:
 
 | Member | Signature | Changes | Tolerance |
 | --- | --- | --- | --- |
@@ -84,4 +84,4 @@ Its observation type `meter`, of the receiver, is an invalidation, reporting eac
 
 `energy` also declares the reference type `Meter`, the meter's view of a device: `device.meter`, a constant `Meter`, answers the device itself, which `Meter`'s `isInstance` accepts, since it accepts every device, and a declared cast from `Meter` to `home.Device`, with no `impl`, answers it as a device again. `device as Meter` is refused, because the declared cast goes from `Meter` to `Device` only; `Meter` accepting every device doesn't make the two types related.
 
-`device.usage` is an extension, read as `device.usage` or in its qualified form, `energy.usage(device)`. `device.power` is declared both by `home`, which owns `Device`, and by `energy`: written `device.power`, it reads `home`'s, since the owner's member wins, and `energy.power(device)` reads the meter's.
+`device.usage` is an extension member, read as `device.usage`, or through its extension explicitly, `device:DeviceExtensions.usage`. `device.power` is declared both by `home`, which owns `Device`, and by `energy`: written `device.power`, it reads `home`'s, since the owner's member wins, and `device:DeviceExtensions.power` reads the meter's.

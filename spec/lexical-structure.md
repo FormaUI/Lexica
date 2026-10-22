@@ -24,6 +24,7 @@ The following forms are each one token and cannot contain whitespace:
 | --- | --- |
 | `?.` | `? .` |
 | `?[` | `? [` |
+| `?:` | `? :` |
 | `??` | `? ?` |
 | `(?` | `( ?` |
 | `<=` | `< =` |
@@ -38,11 +39,11 @@ Whitespace, including line breaks, and comments are **trivia**. Trivia may appea
 
 ### Assignment and member punctuation
 
-Fields, locals and conditional bindings put `=` between a name and its value; a colon belongs only inside strings and comments.
+Fields, locals and conditional bindings put `=` between a name and its value. A colon in a member chain begins an [extension access](members.md#property-access-calls-and-indexers-extension-access), `device:DeviceExtensions.usage`, and anywhere else belongs only inside strings and comments.
 
 - `count: it.devices.count` is a syntax error that suggests `count = …`.
 - `=` in another position is a syntax error that explains that `==` compares values.
-- Computed property access is written after a dot. `it:[name]` and `it?:[name]` are syntax errors that suggest `it.[name]` and `it?.[name]`.
+- Computed property access is written after a dot. `it:[name]` and `it?:[name]`, which don't name an extension, are syntax errors that suggest `it[name]` for an unnamed indexer or `it.[name]` for a computed property access, and their optional forms.
 
 <a id="tokens-and-whitespace-numbers-and-the-minus-sign"></a>
 
@@ -96,7 +97,7 @@ An identifier's spelling decides no meaning; where it stands does:
 - **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, field, conditional binding or function parameter of its name, and otherwise the script parameter.
 - **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
-- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
+- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, after an [extension access](members.md#property-access-calls-and-indexers-extension-access)'s `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
 - **Where the script imports a module,** the [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
 
 Declarations keep their own restrictions besides: no module is named by a word the language reserves, a type is named once within its module, and no module's type is named as one of Lexica's own, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.

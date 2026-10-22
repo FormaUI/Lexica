@@ -56,7 +56,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A comparison chain whose operators point two ways | A syntax error at the operator that turns it |
 | `@` in a declaration or before a field's or a member's name, or `@` with no identifier directly after it | A syntax error giving the form to write |
 | `~` with no identifier directly after it | A syntax error saying a script parameter is named directly after `~` |
-| A colon in a member chain, as `device:setting["mode"]` or `it:[name]` | A syntax error giving `device.setting["mode"]`, or the computed property access `it.[name]` |
+| A colon in a member chain that doesn't name an extension, as `it:[name]` or `it?:[name]` | A syntax error giving the unnamed indexer `it[name]` or the computed property access `it.[name]`, and their optional forms |
 | A string where a cast or a conversion names its type, as `device as "Light"` | A syntax error giving the type's name written bare, `device as Light` |
 | `import` anywhere but a script's start, as after its first local or expression | A syntax error saying imports stand at the start of the script |
 | `import lexica` | A syntax error saying Lexica's own vocabulary is always available, so no script imports it |
@@ -97,7 +97,10 @@ A module whose declarations break the declaration contract, a type or a member n
 | --- | --- |
 | A member other than an indexer declared without a `name`, a field a declaration's kind does not take, a type-level `fields` collection, `target`, `syntax` or `default` on a member, or an `internal` that is no Boolean | A module error naming the field |
 | A type whose name begins with no capital letter, a name its module already declares, or a name of Lexica's own types or `Null` | A module error naming the type |
-| Empty angle brackets after a declaration's name, an empty type parameter's name, a parameter declared twice or already declared by the member's type or extension, or a member of an extension on any type that does not declare the parameter its type names | A module error naming the declaration and the parameter |
+| Empty angle brackets after a declaration's name, a type parameter without a name, one declared twice, one named as a type its declaration reaches unqualified, an imported one included, or a member declaring a parameter its extension declares | A module error naming the declaration and the parameter |
+| A member whose result writes a type parameter that neither its extension's target, nor its value parameters, nor its callbacks' results could establish, or whose callback's input needs another callback's result | A module error naming the member and the parameter |
+| An extension that names no `target`, or whose target its own module owns | A module error naming the extension |
+| A module member named as one of the module's extensions, or a type named as one of Lexica's own extensions | A module error naming both |
 | An `import` that does not name a registered module, a type reference resolving to no type or to several, or a foreign type named unqualified outside its import | A module error naming the declaration and, where several match, the qualified candidates |
 | A supertype that is not a reference type, or a hierarchy that is a cycle | A module error naming the types |
 | A reference type without `isInstance`, or a `typeOf` or an `isInstance` that is not a function | A module error naming the declaration |
@@ -125,7 +128,11 @@ A module whose declarations break the declaration contract, a type or a member n
 | A cast or a conversion naming a type that neither Lexica nor a module the script imports declares publicly, or one several of them share unqualified | A validation error, giving the import where a module the script does not import declares it, and the qualified names where several share it |
 | A cast to a name that is not a reference type, or of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |
 | A script reaching an internal declaration of any module, through any form | A validation error naming the declaration, as if no declaration of its name were accessible |
-| Several applicable extensions, or several applicable operators of one destination, none of them the owner's | A validation error naming the modules and the qualified forms to write |
+| Several applicable extensions, or several applicable operators of one destination, none of them the owner's | A validation error naming the modules, and the extension accesses to write where they are members |
+| An extension access naming no declaration, one several share unqualified, one that is not of `kind: 'extension'`, or a member the extension does not declare | A validation error giving the written name, the qualified names where several share it, or the extension and the member; `device:setting["mode"]` gives `device.setting["mode"]` where the receiver has that member |
+| An extension access whose receiver does not satisfy the extension's target, or can be null where it is written with `:` | A validation error naming the target and the receiver's type, giving `?:` for a nullable receiver |
+| A call's type parameter given candidates of different types, or an argument that does not satisfy a binding its receiver established | A validation error naming the parameter and each candidate, or the argument and the binding |
+| A deferred call given an argument whose reading depends on the declaration it selects, an implicit body or a predicate | A validation error giving the arrow function to write, or saying to make the receiver known or to select its extension explicitly |
 | An equality of two values whose types fit neither way, or of a value that is not a string, number, Boolean or reference value with one that is not null | A validation error naming the types, and the test to write where a value is compared with the name of one of its Boolean members |
 | An operand of `and`, `or` or `not`, a condition or a conditional binding of what is not a value | A validation error naming what it is |
 | An arithmetic operand that can be null, or that is not a number | A validation error naming the operand, and the fallback to give it |
@@ -160,6 +167,8 @@ A module whose declarations break the declaration contract, a type or a member n
 | A division or a remainder by zero, or an arithmetic result no finite number holds | An evaluation error at the operation |
 | A module returning a value of a type other than the one it declared | An evaluation error |
 | A member failing unexpectedly while it evaluates | An evaluation error |
+| A deferred access whose receiver's actual type lacks the member, or doesn't satisfy it, an `Any` argument that does not satisfy its parameter, or a direct access on null, `.` or `:` | An evaluation error naming the access and the actual type, and giving `?.` or `?:` for null |
+| A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |
 
 A script is validated before any evaluation, as [what resolution checks](runtime.md#validation-vocabulary-and-types) sets out. An evaluation error fails the whole result, and the host receives the error in its place.
 

@@ -29,7 +29,7 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 1. [Scripts](scripts.md): what a script is, its parameters and bindings, names and scope, the implicit parameter, bodies and locals.
 2. [Lexical structure](lexical-structure.md): tokens, names and reserved words, strings and escapes, comments and case.
 3. [Values](values.md): objects and the object root, lists, null, supplied data, results and conversions.
-4. [Types](types.md): type families, reference types, nullability, receivers of unknown type and casts.
+4. [Types](types.md): type families, type parameters, reference types, nullability, receivers of unknown type, values of `Any` and casts.
 5. [Expressions](expressions.md): precedence, tests, truthiness, equalities, arithmetic, comparisons, logical expressions, conditionals, `do` expressions, coalescing, attempts, interpolated strings and simple expressions.
 6. [Functions](functions.md): regular and arrow functions declared in a script, their values, references to a module's functions, what they see, what a call reads, and implicit bodies.
 7. [Members](members.md): member kinds, writing a member, computed property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.

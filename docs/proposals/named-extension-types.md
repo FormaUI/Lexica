@@ -1,8 +1,8 @@
 # Proposal: named extension types
 
-**State: accepted, with a point awaiting agreement.** Not specified, and not implemented. It answers where extensions live and how they are called. It keeps the extension containers of the decision of October 22, 2026, whose removal of generics [contract generics](contract-generics.md) supersedes, and it changes the extension blocks the [specification](../../spec/modules.md#extensions) sets out and the plan of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations).
+**State: accepted.** Specified, and not implemented. It answers where extensions live and how they are called. It keeps the extension containers of the decision of October 22, 2026, whose removal of generics [contract generics](contract-generics.md) supersedes, and it changes the extension blocks the [specification](../../spec/modules.md#extensions) sets out and the plan of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations).
 
-Related proposals: [contract generics](contract-generics.md), which sets out the type parameters a container may declare, and [`Any` and deferred selection](any-and-deferred-selection.md), which sets out how a member is selected where its receiver's type is not known before evaluation.
+Related proposals: [contract generics](contract-generics.md), which sets out the type parameters a container may declare, [explicit extension access](extension-access.md), which selects a container's member explicitly, and [`Any` and deferred selection](any-and-deferred-selection.md), which sets out how a member is selected where its receiver's type is not known before evaluation.
 
 ## Accepted
 
@@ -33,7 +33,7 @@ Place extension containers in the module's `types` collection. Each has a name, 
 | `target` | The receiver type its members extend. |
 | `members` | The operations contributed to that receiver type. |
 
-Replace the separate module-level `extensions` collection with these containers. The suffix `Extensions` is a naming convention, not a language requirement.
+Replace the separate module-level `extensions` collection with these containers. The suffix `Extensions` is a naming convention, not a language requirement: an extension's name begins with a capital letter, as any type's does, and `kind: 'extension'` alone makes it an extension.
 
 Each container has one target. A module can declare multiple named containers for related groups of operations on the same or different targets.
 
@@ -64,38 +64,48 @@ There is no generic arity dimension: `ListExtensions<T>` and `ListExtensions` ar
 
 Different modules may use the same local name. Existing qualification and visibility rules distinguish their declarations.
 
-### Calls through a container
+### Extensions on different targets
 
-A callable extension member can be invoked with its receiver supplied explicitly:
+Extension types with different concrete targets may declare members of one name, in one module or in several:
 
-```text
-ListExtensions.someMember(receiver, ...)
+```javascript
+{
+    name: 'NumericList',
+    kind: 'extension',
+    target: 'List<Number>',
+    members: [
+        { name: 'total', /* ... */ }
+    ]
+}
+
+{
+    name: 'StringList',
+    kind: 'extension',
+    target: 'List<String>',
+    members: [
+        { name: 'total', /* ... */ }
+    ]
+}
 ```
 
-The first argument is the receiver and must satisfy the container's target contract, binding the container's parameters as a receiver does. Remaining arguments correspond to the member's declared arguments. The receiver contract comes from `target`; the member does not redundantly declare it as an ordinary parameter.
+Both register. Each extension type has its own identity, and sharing a member name across them is valid. Declaration names stay unique within a module, so an ordinary type and an extension type are never both named `NumericList` there.
 
-For a callable member available through extension access:
+Ordinary member lookup first determines which targets the receiver satisfies, by the existing assignability rules, then applies the existing ownership and ambiguity rules:
 
-```text
-receiver.someMember(...)
-ListExtensions.someMember(receiver, ...)
-```
+- `List<Number>` makes the numeric extension applicable.
+- `List<String>` makes the string extension applicable.
+- An empty list typed `List<Never>` satisfies both targets through list covariance. If the remaining lookup rules do not select one, the access is ambiguous.
 
-Receiver access uses normal extension lookup. Container access explicitly selects the declaring container. When both resolve to the same member, they use the same receiver, argument, and result checks. The receiver is evaluated once per call.
+Explicit extension access resolves that ambiguity, as `values:NumericList.total` and `values:StringList.total`, and module qualification remains available, as `values:measurements.NumericList.total`. The selected extension's target must still accept the receiver: explicit selection does not bypass type checking. No specialization-precedence rule is needed; target applicability, the existing lookup rules and explicit extension selection decide.
 
-“Static access” here means access through the named container. It does not introduce static type declarations or generic arguments into scripts.
+### Explicit access
 
-This call syntax applies to callable members. It does not automatically convert properties or indexers into functions. Their explicit container-access syntax, if needed, must be specified separately.
-
-## Awaiting agreement
-
-- **Containers on different instantiations.** Containers targeting `List<Number>` and `List<String>` may each declare a member of one name, since their receivers do not overlap. An empty list, a `List<Never>`, fits both, and is refused as ambiguous by the existing rules.
+A script selects an extension's member explicitly with the [extension access operator](extension-access.md), `device:DeviceExtensions.usage`, whose syntax and rules are that proposal's.
 
 ## Migration
 
 1. Replace module-level extension blocks with named extension types using `target`.
-2. Support explicit container calls with the receiver as the first argument.
-3. Update Lexica's declarations, documentation, tooling, and tests, and a host's migration, together.
+2. Update Lexica's declarations, documentation, tooling, and tests, and a host's migration, together.
 
 Review the effects on grammar, serialized definitions, resolution metadata, and runtime behavior before assigning version changes.
 
@@ -105,5 +115,5 @@ Verify that:
 
 - Extensions are registered through named containers under `types`, one target each, a concrete one among them.
 - Duplicate names in one module are refused, extension containers' included, and identical names in different modules keep distinct identities.
-- Explicit container calls require a compatible receiver, and agree with receiver access when they select the same member.
+- Extensions targeting `List<Number>` and `List<String>` may each declare `total`, in one module or two; a `List<Number>` and a `List<String>` each select their own, an empty list is ambiguous between them, and explicit extension access selects either.
 - An extension member doesn't declare a stored property or attach state to its receiver.

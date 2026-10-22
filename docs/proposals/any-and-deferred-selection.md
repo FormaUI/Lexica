@@ -1,8 +1,8 @@
 # Proposal: `Any` and deferred selection
 
-**State: accepted.** Not specified, and not implemented. It answers what happens when a receiver's concrete type is not known yet. It adds deferred selection beside the [receivers of unknown type](../../spec/types.md#receivers-of-unknown-type) the specification sets out, which keep their own rules, changes the [resolution](../../spec/runtime.md#runtime-bindings-and-resolution) it sets out, and the plan of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations).
+**State: accepted.** Specified, and not implemented. It answers what happens when a receiver's concrete type is not known yet. It adds deferred selection beside the [receivers of unknown type](../../spec/types.md#receivers-of-unknown-type) the specification sets out, which keep their own rules, changes the [resolution](../../spec/runtime.md#runtime-bindings-and-resolution) it sets out, and the plan of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations).
 
-Related proposals: [contract generics](contract-generics.md), which keeps the types that resolution can know before evaluation, and [named extension types](named-extension-types.md), whose container calls select a member explicitly.
+Related proposals: [contract generics](contract-generics.md), which keeps the types that resolution can know before evaluation, and [explicit extension access](extension-access.md), which selects an extension's member explicitly.
 
 ## Accepted
 
@@ -40,7 +40,7 @@ Any caching of a selection accounts for the receiver's actual type, so separate 
 ### Arguments and host calls
 
 - **Arguments are read without the declaration.** A deferred call cannot require declaration-dependent interpretation of its argument expressions. Explicitly written function values have one meaning and are accepted; implicit-body and predicate interpretation is selected early.
-- **Host calls are selected early,** since their special invocation behavior needs an unambiguous contract before anything is evaluated. Explicit [container calls](named-extension-types.md#calls-through-a-container) provide that where necessary. A deferred access whose selection would be a host call is refused before anything is invoked, saying to make its receiver known or to call it through its container.
+- **Host calls are selected early,** since their special invocation behavior needs an unambiguous contract before anything is evaluated. [Explicit extension access](extension-access.md) provides that where necessary. A deferred access whose selection would be a host call is refused before anything is invoked, saying to make its receiver known or to select its extension explicitly.
 - **An `Any` argument of a selected call** is checked against the selected contract when its value becomes available.
 - **Null at a deferred access.** A direct access on null fails, its error naming the access; an optional access answers null without invoking anything.
 
@@ -52,7 +52,7 @@ Before invoking a member selected during evaluation, a property's getter include
 
 A resolution reports the declarations it has already selected and, separately, where deferred accesses remain; it never presents the selected declarations as an exhaustive list of everything execution might use. A host that requires a complete declaration list before execution has two options:
 
-- Require those accesses to be resolved in advance, through known receiver types or explicit container calls.
+- Require those accesses to be resolved in advance, through known receiver types or explicit extension access.
 - Request a conservative candidate analysis, and accept its possible overestimation.
 
 A conservative analysis includes every declaration runtime selection could choose, through the actual lookup rules: the applicable members of the access's name, inherited members and the visible extensions reachable from the script among them. Extra candidates are acceptable, and the analysis reports itself as an overestimate.

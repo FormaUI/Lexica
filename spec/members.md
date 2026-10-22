@@ -53,6 +53,7 @@ Property access, function calls and indexers are distinct constructs. A member's
 | Function call | `receiver.function(…)` | `receiver?.function(…)` | `room.device("lamp")` |
 | Named indexer | `receiver.indexer[key]` | `receiver?.indexer[key]` | `device.setting["mode"]` |
 | Unnamed indexer | `receiver[key]` | `receiver?[key]` | `rooms[0]` |
+| Extension access | `receiver:Extension.member` | `receiver?:Extension.member` | `device:DeviceExtensions.usage` |
 
 ```lexica
 room.devices.count                                // A dot property access.
@@ -183,6 +184,28 @@ A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` 
 
 [Which unnamed indexer applies](modules.md#namespaces-indexers) follows the type's owner, as any member's does. A type with none refuses `x[key]`, and where `key` is a string and `x` has a property it could name, the validation error gives the computed form, `x.[key]`.
 
+<a id="property-access-calls-and-indexers-extension-access"></a>
+
+### Extension access
+
+`receiver:Extension.member` selects an [extension](modules.md#extensions) explicitly: the expression before `:` is the receiver, the name after it identifies the extension that supplies the member, and the member keeps its own form.
+
+| Member form | Required form | Optional form |
+| --- | --- | --- |
+| Property | `device:DeviceExtensions.usage` | `device?:DeviceExtensions.usage` |
+| Function | `device:DeviceExtensions.reset(3)` | `device?:DeviceExtensions.reset(3)` |
+| Named indexer | `device:DeviceExtensions.setting["mode"]` | `device?:DeviceExtensions.setting["mode"]` |
+| Unnamed indexer | `values:ListExtensions[0]` | `values?:ListExtensions[0]` |
+
+- **The extension's name.** After `:` stands a type's name, its local name or one its module qualifies, `device:energy.DeviceExtensions.usage`, where a name the script [imports](scripts.md#scripts-imports) as a module, followed by a dot, is the qualifier, so the text alone decides where the name ends. Resolution reads it as a script's type name is read, among Lexica's own declarations and the public ones of the modules the script imports, one only, several refused with their qualified names given, and requires a declaration of `kind: 'extension'`: naming an ordinary type is refused.
+- **Its members alone.** Lookup is limited to the extension's members, so a member it does not declare is an error at that selection, never falling through to another extension or to the receiver's own members, and an extension that ordinary lookup outranks is still reached. The receiver satisfies the extension's target, binding its parameters as [binding a call's parameters](types.md#types-type-parameters-binding) sets out, and visibility and the host's policy apply as to any access.
+- **One member operation.** The selection applies to one member operation, and what follows it applies to that operation's answer as usual: `device:DeviceExtensions.details.name` reads the `name` of what `details` answers, and `device:DeviceExtensions.readings[0]` indexes it, unless `readings` is a named indexer, whose declaration decides. A later colon selects another extension for the intermediate value: `device:DeviceExtensions.readings:ListExtensions.first`.
+- **A postfix of its receiver.** It binds as a member access does, so in `left + right:NumberExtensions.description` it belongs to `right`, and in `(left + right):NumberExtensions.description` to the sum.
+- **Null.** `:` takes a receiver that cannot be null, one that can being refused with the form `?:`, as `.` is with `?.`, and a null found during evaluation failing the access. `?:` evaluates its receiver once and, where it is null, answers null without evaluating the member's arguments or keys, as `?.` does, the extension's name still resolved and its declaration still checked. The items of a `List<Device?>` don't make the list null.
+- **A function without a call** is a function reference bound to its receiver: `device:DeviceExtensions.active` evaluates and captures `device` once, when the reference is created, and takes the member's own arguments alone, under the restrictions every [function reference](functions.md#functions-module-functions) follows, so a host call has none. Where the receiver is supplied later, an arrow function writes it: `d => d:DeviceExtensions.active()`.
+- **A receiver of `Any`.** The selection names the declaration, so its arguments are read by it, and the receiver is checked against the target when it is evaluated, as [values of `Any`](types.md#types-any) set out; selecting an extension doesn't make an unknown type known, so what inference still needs from the value is refused as for any call.
+- **Evaluation.** The receiver is evaluated once and checked against the target, and a failed check invokes nothing; the arguments or keys follow the member's contract, the host's `beforeInvoke` decides before the member is invoked, a property's getter and an indexer included, and the answer is checked as any member's is. A host call selected so keeps its terminal position, its preparation and its projection, and a resolution reports the selected member among its used declarations.
+
 <a id="property-access-calls-and-indexers-member-form-and-parsing"></a>
 
 ### Member form and parsing
@@ -197,12 +220,13 @@ A form these rules leave without a meaning is refused with the form that has one
 
 | Written | Refused, giving |
 | --- | --- |
-| `device:setting["mode"]` or `it:[name]`, a colon in a member chain | `device.setting["mode"]` or `it.[name]` |
+| `device:setting["mode"]`, a member's name where an extension's stands | `device.setting["mode"]`, where an extension of that name isn't reachable |
+| `it:[name]` or `it?:[name]`, brackets where an extension's name stands | `it[name]` for an unnamed indexer, or `it.[name]` for a computed property access |
 | `rooms.[0]`, a number where a computed property's name stands | `rooms[0]` |
 | `room["name"]` on a type without an unnamed indexer | `room.["name"]` |
 | `room.device["lamp"]`, a function's argument in brackets | `room.device("lamp")` |
 
-The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace is recognized by the script's imports, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
+The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace, and the module qualifying an extension's name, are recognized by the script's imports, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
 
 <a id="computed-property-access"></a>
 <a id="bracket-property-access"></a>
@@ -359,7 +383,7 @@ A member's value is known only once it is evaluated, so an expression that needs
 
 ## Declaring a member
 
-A module declares each member as data, in the `members` of the type it belongs to, of an extension of a type another module owns, or of the module itself for a [module member](modules.md#namespaces-module-members). A member in a type or an extension takes that type as its receiver and names none, and a module member has none. Its fields are its signature, which lets resolution check every use of it before evaluation, and its evaluation contract, which tells a host how the member reads and changes:
+A module declares each member as data, in the `members` of the type it belongs to, of an [extension](modules.md#extensions) of a type another module owns, or of the module itself for a [module member](modules.md#namespaces-module-members). A member in a type or an extension takes that type as its receiver and names none, and a module member has none. Its fields are its signature, which lets resolution check every use of it before evaluation, and its evaluation contract, which tells a host how the member reads and changes:
 
 | Field | Holds |
 | --- | --- |
@@ -368,7 +392,7 @@ A module declares each member as data, in the `members` of the type it belongs t
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
 | `arguments` | The argument form of a function with parameters: `positional` or `options` |
 | `parameters` | Each parameter's name, kind, type, whether it is required and its default where it is not, its null policy, whether it is fixed and what it selects, and its implicit parameter or callback contract by its kind, as [parameter fields](#members-parameter-fields) set out |
-| `result` | The type the member answers: a field's the type of its value, an operator's its destination, and a host call's the type of each value its host supplies, left out where it supplies none |
+| `result` | The type the member answers, [`Any`](types.md#types-any) for a value of any type: a field's the type of its value, an operator's its destination, and a host call's the type of each value its host supplies, left out where it supplies none, which `Any` never is |
 | `updates` | How it reads and changes, as [updates](#members-updates) set out |
 | `impl` | The function that carries it out, optional, as [declarations without an implementation](modules.md#modules-declarations-without-an-implementation) set out |
 | `internal` | Whether it is available within its declaring module alone, `false` where left out, as [internal declarations](modules.md#modules-internal-declarations) set out |

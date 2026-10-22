@@ -4,7 +4,7 @@
 
 Every value has a type, and every expression is typed before it is evaluated. The language defines the scalar types, lists and object types; a module declares the rest, its reference types and its structured types. A script never declares a type: Lexica infers each expression's type from the types its bindings and its vocabulary give it. Every type a script names already exists, the language's own or one a module declares, and a script names one in two places alone: a [cast](#casts), which answers a reference as another type the hierarchy or a declared cast permits, and a [conversion](values.md#conversions), which converts data to another type of data. `device as Light` and `value to Number` each name an existing type, written bare as a member's name is.
 
-Every member declares the types it accepts and returns, and resolution checks every expression against them before evaluation. A script that cannot be typed fails with a validation error identifying the location, the expected type and the actual type.
+Every member declares the types it accepts and returns, and resolution checks every expression against them before evaluation, an access on a [value of `Any`](#types-any) waiting for the value to be known. A script that cannot be typed fails with a validation error identifying the location, the expected type and the actual type.
 
 ```lexica
 room {
@@ -24,7 +24,8 @@ In this document:
 6. [No implicit conversion](#no-implicit-conversion)
 7. [Nullability](#nullability)
 8. [Receivers of unknown type](#receivers-of-unknown-type)
-9. [Casts](#casts)
+9. [Values of `Any`](#types-any)
+10. [Casts](#casts)
 
 <a id="types-type-families"></a>
 
@@ -37,6 +38,7 @@ In this document:
 | Lists | `List<T>`, a list whose items have type `T` |
 | Structured values | Data a module declares, its stored shape its stored properties, as `Climate` |
 | Object types | The field types inferred from an object expression, as `{ name: String, count: Number }` |
+| `Any` | A value of any type, its concrete type known when it is evaluated, as [values of `Any`](#types-any) set out |
 
 The scalar types, lists and object types are the language's own, which Lexica's own module owns; every reference type and structured type comes from a module, which [declares it](modules.md#modules-declaring-a-type) with its members.
 
@@ -54,6 +56,7 @@ A type is named in PascalCase, beginning with a capital letter, Lexica's own and
 | `null` | The type whose only value is null, the type of the literal `null` and of a null binding; fits every nullable type |
 | `Never` | A type with no values; fits every type |
 | `List<Never>` | The type of an empty list; fits every list type |
+| `Any` | A value of any type, whose members are selected when it is evaluated; distinct from a result left out |
 
 `null` is the language's intrinsic type, written as the literal is, in a declaration, an inferred type and a diagnostic alike; no type is named `Null`, and a module declares none of that name. `Boolean?` admits `true`, `false` and `null`. `Never` is the name of a type, and no word of the expression language.
 
@@ -69,7 +72,7 @@ A type is named in PascalCase, beginning with a capital letter, Lexica's own and
 
 ## Type identity
 
-A type a module declares is identified by its module and its local name, so `home.Sensor` and `garden.Sensor` are two types. A local name is unique within its module, and two modules may each declare a type of one name. Lexica's own types keep their names: no module declares a type named `Number`, `String`, `Boolean`, `List` or `Never`, and none declares one named `Null`, since the type whose only value is null is the intrinsic `null`.
+A type a module declares is identified by its module and its local name, so `home.Sensor` and `garden.Sensor` are two types. A local name is unique within its module, and two modules may each declare a type of one name. Lexica's own types keep their names: no module declares a type named `Number`, `String`, `Boolean`, `List`, `Never` or `Any`, and none declares one named `Null`, since the type whose only value is null is the intrinsic `null`. Lexica's own extensions keep theirs as well, `VerbExtensions`, which a module can't qualify, so a module never declares a type of that name.
 
 - **In a type's declaration.** A type reference resolves, without a qualifier, to a type parameter the declaration declares, one of Lexica's own types, a type of the declaring module, or a type of a module the type's `import` names, `import: ['home']`. An import covers that type's declaration whole: its supertype, its fields, its members' parameters, callbacks and results, and its operators' destinations. It reaches no other type, no module member, no extension and no script, a type beneath it inherits none, and naming the type passes none on. A type of the declaring module wins over an imported one of its name, and no import replaces one of Lexica's own types. Two imported modules declaring a type of one name make an unqualified reference to it ambiguous, unless the declaring module declares one, and import order never decides.
 - **Qualified, anywhere in a declaration.** A reference may name a foreign type qualified by its module, `home.Device`, `home.Light?` or `List<garden.Sensor>`, whether or not its module is imported, and an unqualified reference does not search a module outside the scopes above.
@@ -83,13 +86,78 @@ A type a module declares is identified by its module and its local name, so `hom
 
 ## Type parameters
 
-A type parameter stands for a type its declaration leaves open. A declaration declares its type parameters after its name, in angle brackets, as a reference writes a generic type's arguments: `name: 'List<T>'` declares the type `List` and its parameter `T`, and `name: 'identity<T>'` a function and its own `T`. No other field declares them.
+A type parameter stands for a type a declaration leaves open, so that a member's result and arguments follow the types its receiver and its arguments give it. Type parameters belong to module contracts alone: a script never writes one, and Lexica infers each from what a call gives it.
 
-- **Its local name.** Registration separates a declaration's local name from the type parameters it declares, so `List<T>` is named `List`, and a type is identified by its module and its local name alone, as [type identity](#types-type-identity) sets out, its parameters taking no part.
-- **Its scope.** A type parameter stands within the declaration that declares it, that declaration's members included: `List`'s `T` is the type of the list's items in each of its members, so `rooms.first` is a `Room?` for a `List<Room>`. A member's own stands within that member alone.
-- **In an extension.** An extension of a generic type declares the parameters in its `type`, every one of its members writing them: `{ type: 'List<T>', members: [{ name: 'first', result: 'T?', … }] }`. An extension on any type writes its `type` as `<T>`, and each of its members declares the parameter that type names, in its own name: `{ type: '<T>', members: [{ name: 'is<T>', … }] }`. Its `T` is each member's own, never shared across the extension, and binds to the member's receiver, so a test given to `light.is(…)` takes a `Light`; a member that does not declare the parameter its extension's type names is refused.
-- **Otherwise a type's name.** A name that no declaration around it declares as a type parameter names a type, a single capital letter as any other, so a module may name a type `X`, and `X` there is that type.
-- **Refusals.** Empty angle brackets, `List<>`, an empty parameter's name, `List<T,>`, a parameter declared twice, `List<T,T>`, and a member's parameter of a name its type or its extension already declares are refused when the module is created, with a module error naming the declaration and the parameter. A parameter is named as a type is.
+```js
+{
+    name: 'ListExtensions<T>',
+    kind: 'extension',
+    target: 'List<T>',
+    members: [
+        { name: 'first', kind: 'property', result: 'T?', /* … */ },
+    ],
+}
+```
+
+- **Where they are declared.** A declaration's name declares its parameters, bare, in angle brackets after its local name: a member's own, `identity<T>`, whoever declares the member, a type, an extension or the module itself; and an [extension](modules.md#extensions)'s, `ListExtensions<T>`, which its target and its members share. Lexica's own `List<T>` is the one generic value type. A module's own reference and structured types don't declare parameters, so stored data is never generic.
+- **Declaring and referring positions.** A declaration's name declares, and every other position refers: an extension's `target`, a member's `result`, a parameter's type and a callback's types. A name in a referring position that a declaration around it declares is that parameter, and any other names a type, an unknown type where none exists, whatever its length, so a module may name a type `T`, and `T` there is that type. Whether a name is a parameter is never decided by whether a type of its name happens to exist.
+- **Scope.** An extension's parameters stand within it and every one of its members, and a member's own within that member alone.
+- **Its local name.** Registration separates a declaration's local name from the parameters it declares: `ListExtensions<T>` is named `ListExtensions`, identified by its module and that name as every declaration is, its parameters never taking part, so a module declares that name once.
+- **A receiver of any type.** An extension that declares a parameter and targets it, `{ name: 'VerbExtensions<T>', kind: 'extension', target: 'T' }`, extends every type, and its `T` is bound afresh at each call to that call's receiver.
+- **Conflicts are refused.** Empty brackets, `ListExtensions<>`; a parameter without a name, `ListExtensions<T,>`; a parameter declared twice, `ListExtensions<T,T>`; a parameter named as a type its declaration reaches unqualified, one of Lexica's own, one of its module's, or one of a module it imports; and a member declaring a parameter its extension declares are refused, with a module error naming the declaration and the parameter. A conflicting declaration is never given another meaning.
+
+<a id="types-type-parameters-nullability"></a>
+
+### Nullable parameters
+
+`?` applies in referring positions, to a parameter as to a concrete type, and means that the value may also be null: `T?` is whatever type `T` stands for, plus null. It doesn't make a generic argument optional, or introduce a separate parameter.
+
+| Contract | Meaning |
+| --- | --- |
+| `List<T>` | A list of values of type `T` |
+| `List<T?>` | A list whose items may also be null |
+| `List<T>?` | The list itself may be null |
+| `List<T?>?` | Both the list and its items may be null |
+
+The same notation serves concrete types: `Number?`, `Device?` and `List<Device?>`.
+
+<a id="types-type-parameters-binding"></a>
+
+### Binding a call's parameters
+
+Inference satisfies the whole call, so the order of a call's arguments never decides whether it is valid. Extracting a binding and checking compatibility against an established one are separate steps.
+
+- **The receiver establishes an extension's parameters.** The extension's target is matched against the receiver's non-null branch, which strips the receiver's outer nullability alone, so the items of a `List<Device?>` keep theirs. A null receiver is never silently accepted: an access with `.` on a receiver that can be null is refused as [nullability](#nullability) sets out, and an optional access answers null without invoking the member.
+- **Extracting a binding is exact.** Matching `T` against a type gives `T` that type as a candidate, nullable or not; matching `T?` against a type gives it that type without null; and matching `List<P>` against `List<Y>` matches `P` against `Y`. Matching `List<Device>` against `List<T>` establishes `T` as `Device`.
+- **Checking compatibility follows the type rules.** A later argument satisfies an established binding without changing it: where a receiver binds `T` to `Device`, a `Device?` given for a parameter of type `T` is checked by that parameter's null policy, and never makes `T` a `Device?`. A concrete part is checked as any type is, so a `List<Light>` given where a `List<Device>` is declared is accepted, by [list covariance](#types-type-parameters-list-covariance), however exact extraction is.
+- **A member's own parameters come from its value arguments and its callbacks' results.** Every value argument's binding is collected before any callback is resolved, whatever the order of the arguments.
+- **Nullable candidates combine, different types do not.** A member's own parameter whose candidates are one type differing only in nullability takes the nullable type, so a `Device` and a `Device?` give `Device?`. Candidates of different types are refused as inconsistent, whichever comes first: a member taking two arguments of `T`, given a `Device` and a `Light`, is refused, and a common base type is never inferred.
+- **Null and `Never` are different evidence.** `Never`, the item of an empty list, isn't evidence of any type. A null argument given for an occurrence written `T` is evidence that the occurrence accepts null, which inference keeps even where it cannot determine an underlying type; one given for an occurrence written `T?` adds no constraint, since that occurrence accepts null already.
+
+  | Occurrence and evidence | Binding |
+  | --- | --- |
+  | `T` receives only null | `T` is `null` |
+  | `T` receives null and another source | The other source's type, made nullable |
+  | `T` receives only `Never` | `T` is `Never` |
+  | `T?` receives null and another source | The other source's type |
+  | `T?` receives only null | `T` is `Never`, so `T?` is `null` |
+
+  So `identity<T>` given null answers a value of the type `null`, never an impossible result. Binding `T` to `Never` where `T?` receives only null is never a fallback for a parameter without a source, which registration refuses.
+- **A callback's result is a source.** A callback's inputs are established from the bindings its extension's target and the member's value arguments give; the callback, a function argument or an expression argument evaluated against each item, is resolved against them; and its result then establishes the parameters its result contract writes. A member taking a list's items, `List<T>`, and a projection of each, `(T) => U`, answers a `List<U>`: the receiver establishes `T`, and the projection's result `U`. This is the one path through a function's signature inference takes, and a callback's result never establishes another callback's inputs. An expression parameter keeps its scope and its evaluation rules.
+- **Every occurrence satisfies the binding.** Each argument, each callback's types and the result are checked against it, and an inconsistent, ambiguous or insufficient binding is refused.
+- **A contract decides what a member answers.** `first` of an empty list answers null because its contract, `T?`, and its implementation say so; inferring a parameter never determines a member's runtime behavior.
+
+<a id="types-type-parameters-registration"></a>
+
+### Registration checks that inference is possible
+
+A member is refused at registration where a parameter its result writes has no possible source, neither its extension's target, nor any of its value parameters' types, nor any of its callbacks' result contracts writing it, and where its callback's input writes a parameter that only another callback's result could establish, since callback results do not chain. Registration checks this structurally; a particular call can still be refused where the types it gives are incompatible or insufficient.
+
+<a id="types-type-parameters-list-covariance"></a>
+
+### List covariance
+
+Lists are immutable values, so a `List<Light>` stands where a `List<Device>` is declared, its items checked by their own types. This is the one variance the language has.
 
 <a id="reference-types"></a>
 
@@ -174,6 +242,44 @@ Whether the name applies to its receiver is checked once the receiver's type is 
 An object expression following such a receiver, or applied to the items of a `List<Never>`, resolves its fields against a `Never`, so a call in it is still checked; its type is the object type of its fields, made nullable after a null, and a list of it after an empty list, which answers the empty list.
 
 A member read on a `List<Never>` runs, as on any list, so it resolves to one declaration as any receiver does: the vocabulary declares a name once for any receiver, and where more than one of its declarations takes a `List<Never>`, as only a type holding `Never` allows, the call is refused as ambiguous.
+
+<a id="types-any"></a>
+
+## Values of `Any`
+
+`Any` is a reserved type that a parameter or a result declares where it accepts or answers a value without restricting its concrete type. It is distinct from a result left out, which doesn't answer a value, as a host call that supplies nothing does, and an omitted result never becomes `Any`. A receiver of any type is an extension targeting a parameter, as [type parameters](#types-type-parameters) set out, never `target: 'Any'`, which keeps the relationship between a receiver and a result where a member needs it.
+
+| Concept | Meaning |
+| --- | --- |
+| `Any` | A declaration accepts or answers a value without restricting its concrete type |
+| `null` | An actual null value, and its type |
+| `Never` | No possible value, as the item of an empty list |
+| Deferred member access | Member selection waits for the receiver's value |
+
+That a type is unknown before evaluation is a fact of resolution, never another type. `null` and `Never` keep their own rules, as [receivers of unknown type](#receivers-of-unknown-type) set them out: a null receiver is known to be null, and `Never` describes the absence of a value, never one whose type remains to be discovered.
+
+<a id="types-any-deferred-selection"></a>
+
+### Deferred member selection
+
+A member is selected by one lookup at one of two moments:
+
+- **During resolution,** where its receiver's type is known.
+- **During evaluation,** where it is not, as for a value of `Any`: the receiver expression and the access are kept, and the member is selected when the receiver is evaluated, by the actual value's type.
+
+Both apply the same visibility, inheritance, ownership and ambiguity rules, and an `Any` argument never defers a call its receiver selects. A missing member, an incompatible receiver and an invalid argument stay errors, raised when the facts are known, never refused only because they were unknown before evaluation. A direct access on null fails, its error naming the access, and an optional one answers null without invoking anything.
+
+- **Its arguments are read without the declaration.** A deferred call never takes an argument whose reading depends on the declaration it selects: a value and an explicitly written function, an arrow function, a local function or a function reference, have one meaning and are accepted, and an implicit body or a predicate is refused, saying to make the receiver known or to select its extension explicitly with [extension access](members.md#property-access-calls-and-indexers-extension-access).
+- **Host calls are selected during resolution.** A deferred access whose selection would be a host call is refused before anything is invoked, saying to make its receiver known or to select its extension explicitly.
+- **An `Any` argument of a selected call** is checked against that call's contract when its value is known.
+- **The host is asked first.** Before a member selected during evaluation is invoked, a property's getter included, the host's `beforeInvoke` decides whether it is permitted, as [the evaluator's hooks](runtime.md#runtime-evaluation) set out, and ownership, visibility, ambiguity and execution-position rules are applied without running a restricted member to learn whether it was allowed.
+- **A selection is kept for one type.** A selection is kept by its node and the receiver's actual type within one registry context, a change to the registry's contents discarding it, so an evaluation never reuses a selection made for a receiver of another type. A plain structured object's fields are looked up on each object, since objects of one general type need not hold the same fields.
+
+<a id="types-any-identity"></a>
+
+### A value keeps its identity
+
+`Any` neither establishes a value's concrete identity nor erases it. A typed value keeps its identity through an unrestricted contract, so a `Climate` returned through `Any` remains a `Climate`; an untyped object arriving without one is plain structured data; and a concrete result declaration establishes a checked identity at its boundary. A reference value's type is what its modules recognize it as, as [reference types](#reference-types) set out.
 
 <a id="casts"></a>
 
