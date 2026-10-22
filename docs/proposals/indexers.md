@@ -1,6 +1,6 @@
 # Proposal: indexers and computed properties
 
-**State: proposed.** Pending, and not implemented. Accepting it changes the contract [members](../../spec/members.md), [modules](../../spec/modules.md#namespaces-indexers), the [grammar](../../spec/grammar.md) and the [definition](../../spec/definition.md) set out, and joins step 1 of [the status overview](../features-status.md#next-type-and-member-declarations), beside definition version 33.
+**State: accepted.** Specified, and not implemented. It changes the contract [members](../../spec/members.md), [modules](../../spec/modules.md#namespaces-indexers), the [grammar](../../spec/grammar.md) and the [definition](../../spec/definition.md) set out, and joins step 1 of [the status overview](../features-status.md#indexers-and-computed-properties), beside definition version 33.
 
 ## The problem
 
@@ -16,9 +16,9 @@ C# has one syntax for an indexer, `x[k]`, and what it does depends on `x`'s type
 | `x.name(args)` | A function | `kind: 'function'` | `room.device("lamp")` |
 | `x.name[k]` | A named indexer of `x`'s type, or the indexer of what the property `name` answers | `kind: 'indexer'` with a `name` | `device.setting["mode"]` |
 | `x[k]` | The indexer of `x`'s type | `kind: 'indexer'` without a `name` | `rooms[0]`, `device["mode"]` |
-| `x:[p]` | A property by a computed name | Nothing: it reads the property `x.p` names | `it:["climate"]`, `it:[p]` |
+| `x.[p]` | A property by a computed name | Nothing: it reads the property `x.p` names | `it.["climate"]`, `it.[p]` |
 
-The optional forms follow the same pattern: `x?.name`, `x?.name[k]`, `x?[k]` and `x?:[p]`.
+The optional forms follow the same pattern: `x?.name`, `x?.name[k]`, `x?[k]` and `x?.[p]`.
 
 ### Declaring an indexer
 
@@ -65,21 +65,21 @@ An optional access skips the rest of its chain where its receiver is null, its k
 
 ### Computed names select properties alone
 
-`x:[p]` reads a property, and nothing else. A computed name never selects a named indexer: in `device:[p][k]`, `device:[p]` reads the property `p` names and `[k]` indexes its answer, so where `p` settles to `"setting"`, a named indexer of that name isn't a candidate, and the computed name is refused, since no property has that name. Each form keeps its one job, though the definition records an ordinary and a computed property access alike as `member` nodes: the named-indexer reading applies only to a member access whose name is written, never to one whose name is an expression.
+`x.[p]` reads a property, and nothing else. A computed name never selects a named indexer: in `device.[p][k]`, `device.[p]` reads the property `p` names and `[k]` indexes its answer, so where `p` settles to `"setting"`, a named indexer of that name isn't a candidate, and the computed name is refused, since no property has that name. Each form keeps its one job, though the definition records an ordinary and a computed property access alike as `member` nodes: the named-indexer reading applies only to a member access whose name is written, never to one whose name is an expression.
 
 ### The indexer of a type
 
-`x[k]` calls the unnamed indexer of `x`'s static type, selected by owner precedence as a member is: the owner's indexer wins, one extension's applies where the owner declares none, and several are refused as ambiguous. A type with none refuses `x[k]`, and, where `k` is a string and `x` has a property it could name, the refusal gives the computed-property form, `x:[k]`.
+`x[k]` calls the unnamed indexer of `x`'s static type, selected by owner precedence as a member is: the owner's indexer wins, one extension's applies where the owner declares none, and several are refused as ambiguous. A type with none refuses `x[k]`, and, where `k` is a string and `x` has a property it could name, the refusal gives the computed-property form, `x.[k]`.
 
 Lexica's own `List` declares its unnamed indexer, the item at an index counted from zero, so `rooms[0]` is the first room and `rooms?[i]` answers null for a null list; the named indexer `item` goes.
 
 ### Properties by a computed name
 
-`x:[p]` is today's bracket property access, written with a colon: it reads the property its name names, resolving to exactly the member `x.p` would, with its type, its null behavior and its observations. The rules that settle its possible names when the script is resolved stay as they are, so a literal, a script parameter, a local or a conditional binding holding one, and a conditional, `??`, `and` or `or` of them give its name, and a name that can be null, or that reads the host's state to settle, is refused.
+`x.[p]` is today's bracket property access, written after a dot, as JavaScript's optional form `x?.[p]` is: it reads the property its name names, resolving to exactly the member `x.p` would, with its type, its null behavior and its observations. The rules that settle its possible names when the script is resolved stay as they are, so a literal, a script parameter, a local or a conditional binding holding one, and a conditional, `??`, `and` or `or` of them give its name, and a name that can be null, or that reads the host's state to settle, is refused.
 
 ### The definition
 
-- **A computed property** stays a `member` node whose `name` is an expression node; only its text changes, from `x[p]` to `x:[p]`.
+- **A computed property** stays a `member` node whose `name` is an expression node; only its text changes, from `x[p]` to `x.[p]`.
 - **An indexer** is an `indexer` node of `target` and `argument`, and no `name`: `x[k]` holds `x` as its target, and `x.name[k]` holds the `member` node of `name` as its target, which the resolution reads as a named indexer where the receiver's type declares one.
 - **Canonical text** writes each as it was written, so text and definition round-trip without a vocabulary.
 
@@ -92,8 +92,8 @@ A form these rules leave without a meaning is refused with the form that has one
 | Written | Refused, giving |
 | --- | --- |
 | `device:setting["mode"]`, a name after a colon | `device.setting["mode"]` |
-| `rooms:[0]`, a number where a computed property's name stands | `rooms[0]` |
-| `room["name"]` on a type with no indexer | `room:["name"]` |
+| `rooms.[0]`, a number where a computed property's name stands | `rooms[0]` |
+| `room["name"]` on a type with no indexer | `room.["name"]` |
 
 ## Settled
 

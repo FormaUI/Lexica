@@ -30,7 +30,7 @@ The following table gives the relative binding of operators. Restrictions below 
 
 | From tighter to looser | Forms |
 | --- | --- |
-| Member chains and projection | `.`, `?.`, `[…]`, `?[…]`, `:name[…]`, `?:name[…]`, `{ … }` |
+| Member chains and projection | `.`, `?.`, `[…]`, `?[…]`, `.[…]`, `?.[…]`, `{ … }` |
 | Casts and conversions | `as`, `to`; `try` applies to one cast or conversion |
 | Arithmetic negation | Unary `-` |
 | Multiplication and division | `*`, `/`, `%` |
@@ -67,7 +67,7 @@ Numeric comparisons may form a chain only when every operator points the same wa
 | Script parameter | `~to` |
 | Property | `range.to` |
 | Call | `range.to()` |
-| Indexer | `range:to[1]` |
+| Indexer | `range.to[1]` |
 
 <a id="expression-structure-and-precedence-attempt-boundaries"></a>
 
@@ -114,7 +114,7 @@ device.has(it.battery != null)
 
 A test is a property or a function whose result is a `Boolean` or a `Boolean?`: `it.occupied()` asks whether a room is occupied, and `it.batteryPowered()` whether a device runs on a battery. A verb asks the test it is given of its receiver, `room.is(home.occupied)` or `device.has(it.battery != null)`, as [the verbs](vocabulary.md#vocabulary-verbs) set out.
 
-A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `Boolean?`, and a bracket property access reads a Boolean property a binding names as it reads any other. A module declares a test as it declares any member, a [Boolean function](vocabulary.md#vocabulary-boolean-functions).
+A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `Boolean?`, and a computed property access reads a Boolean property a binding names as it reads any other. A module declares a test as it declares any member, a [Boolean function](vocabulary.md#vocabulary-boolean-functions).
 
 <a id="tests-no-test-by-name-after-"></a>
 
@@ -185,7 +185,7 @@ Narrowing changes neither evaluation nor the requirement to validate every opera
 ```lexica
 mode == "eco"
 room.device(name) == null
-left:["mode"] == right:["mode"]
+left["mode"] == right["mode"]
 (try device as Light) == light
 count != 0
 ```
@@ -224,7 +224,7 @@ An equality answers a `Boolean`, never null, evaluating both operands once, from
 
 ### How an equality binds
 
-A dot binds tighter than `==`, and so do an indexer, a cast, a conversion, an attempt and arithmetic, so `device:["mode"] == null` tests the setting and `device.active() == false` tests the function's answer.
+A dot binds tighter than `==`, and so do an indexer, a cast, a conversion, an attempt and arithmetic, so `device["mode"] == null` tests the setting and `device.active() == false` tests the function's answer.
 
 An equality takes an additive expression on either side, including a chain, cast, conversion, attempt or arithmetic expression, and does not chain, so `a == b == c` is a syntax error and `(a == b) == c` compares the first's result; it stands beside a coalescing operator or a [comparison](#comparisons) only where a group holds one of them, `(count ?? 0) == 0` and `(a < b) == c`.
 
@@ -263,7 +263,7 @@ Both operands are numbers, and nothing converts to one but `to`, so `"2" + 1` is
 
 An arithmetic negation binds tightest of them, then `*`, `/` and `%`, then `+` and `-`; operators of one level associate to the left, so `10 - 3 - 2` is 5, and parentheses group as they do anywhere.
 
-Arithmetic binds tighter than an equality and a comparison and looser than a conversion, so `device:["level"] to Number + 1` converts the setting and then adds one, a validation error since the setting can be missing, written `(device:["level"] to Number ?? 0) + 1` to give it a fallback first, and `(a + b) to String` converts the sum. `-x to Number` negates the converted value, and `(-x) to Number` converts the negated one.
+Arithmetic binds tighter than an equality and a comparison and looser than a conversion, so `device["level"] to Number + 1` converts the setting and then adds one, a validation error since the setting can be missing, written `(device["level"] to Number ?? 0) + 1` to give it a fallback first, and `(a + b) to String` converts the sum. `-x to Number` negates the converted value, and `(-x) to Number` converts the negated one.
 
 <a id="arithmetic-attempts"></a>
 
@@ -359,7 +359,7 @@ light.active() and metered
 device.offline() or (device.batteryPowered() and (device.battery ?? 0) < 10)
 room { free = not it.occupied() and not busy }
 room { let lamp = it.device("lamp"), power = lamp and lamp.power }
-device:["label"] or "untitled"
+device["label"] or "untitled"
 ```
 
 <a id="logical-expressions-negations-and-groups-operands"></a>
@@ -524,7 +524,7 @@ A coalescing operator answers its value where it is not null, and otherwise its 
 
 ```lexica
 sensor.temperature ?? 0
-device:["label"] ?? device:["name"] ?? "untitled"
+device["label"] ?? device["name"] ?? "untitled"
 room.device("lamp")?.active() ?? true
 ```
 
@@ -571,13 +571,13 @@ A coalescing operator stands beside `not`, `and`, `or`, an equality and a compar
 It handles a value its operation rejects without failing, as `??` handles a missing one, so the two together give a value either way:
 
 ```lexica
-device { level = try it:["level"] to Number ?? 0 }
+device { level = try it["level"] to Number ?? 0 }
 (try room.device(name) as Light)?.brightness
 ```
 
 A missing setting is null, which converts to null, and malformed text is rejected, so both give zero, and text that converts gives its number; a device that is no light is rejected, so the brightness is null for it, as it is for a missing device.
 
-A [conditional binding](#conditionals) gives the converted value a name where a script uses it more than once, `if let level = try it:["level"] to Number then … else … end`.
+A [conditional binding](#conditionals) gives the converted value a name where a script uses it more than once, `if let level = try it["level"] to Number then … else … end`.
 
 <a id="attempts-one-operation"></a>
 
@@ -627,7 +627,7 @@ A result that keeps the converted number and tells a missing value from a malfor
 
 ```lexica
 device {
-    let level = it:["level"],
+    let level = it["level"],
     level = if let n = try level to Number then { status = "valid", value = n }
     elseif level == null then { status = "missing", value = null }
     else { status = "malformed", value = null } end
@@ -642,7 +642,7 @@ device {
 
 ```lexica
 room {
-    label = $"{it.device("lamp")?:["level"] ?? "no"} level across {it.devices.count} devices",
+    label = $"{it.device("lamp")?["level"] ?? "no"} level across {it.devices.count} devices",
     title = $"{{room}} {it.name}"
 }
 ```
@@ -688,7 +688,7 @@ Interpolation calls no module-registered conversion. The result is plain text, e
 
 An interpolated string returns a non-null `String` and can start a chain, like a string literal.
 
-It cannot settle a fixed argument or a bracket property's possible names, even if it contains text alone. It also cannot replace a string literal required by the grammar, such as a cast or conversion type name.
+It cannot settle a fixed argument or a computed property's possible names, even if it contains text alone. It also cannot replace a string literal required by the grammar, such as a cast or conversion type name.
 
 Interpolations evaluate once each, from left to right. A shared local is evaluated once under the local's rules. A failed interpolation fails the entire string; no partial text is returned.
 
@@ -702,7 +702,7 @@ A **simple expression** is an expression allowed in a delimited value position:
 
 - A member call's or local function call's argument.
 - An indexer's key.
-- The name expression in bracket property access.
+- The name expression in computed property access.
 - An interpolation in an interpolated string.
 
 Simple expressions include values, references, arithmetic, comparisons, logical expressions, property accesses, indexers, function calls, and object expressions or interpolated strings whose contents are also simple. They also include a simple conditional: one `if` branch and one `else` branch, each containing one simple value.
@@ -735,7 +735,7 @@ A function declaration is a syntax error there, as anywhere a function stands ot
 
 ### Recursive restrictions
 
-The restrictions apply through parentheses, conditional tests and branches, nested calls, indexers, bracket property access, object fields and interpolations. Adding parentheses or line breaks does not change them.
+The restrictions apply through parentheses, conditional tests and branches, nested calls, indexers, computed property access, object fields and interpolations. Adding parentheses or line breaks does not change them.
 
 `calculate((do return 10 end))` is refused. `calculate((if metered then 10 else 20 end))` is allowed.
 

@@ -106,7 +106,7 @@ A reference type is a type a module declares whose values have identity: a value
 
 Lexica performs no implicit type conversion. Explicit data conversion uses [`to`](values.md#conversions).
 
-A `Number` is not a `Boolean`, a `String` is not a `Number`, and a `Device` is not a `String`. `device:[200]`, whose default indexer takes a setting's name, `light.dim({ to = "full" })`, and a device supplied where a list is required are validation errors; a list's default indexer takes a number, so `rooms:[2]` is valid.
+A `Number` is not a `Boolean`, a `String` is not a `Number`, and a `Device` is not a `String`. `device[200]`, whose unnamed indexer takes a setting's name, `light.dim({ to = "full" })`, and a device supplied where a list is required are validation errors; a list's unnamed indexer takes a number, so `rooms[2]` is valid.
 
 [Truthiness](expressions.md#truthiness) tests a value without converting its type. A predicate takes any value, and its member receives the value's truthiness: every number, zero included, is truthy, so `xs.where(it)` keeps every item of a list of numbers.
 

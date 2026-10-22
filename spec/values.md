@@ -12,7 +12,7 @@ room {
     name = it.name,                                 // A string.
     warmth = it.climate?.temperature ?? 0,          // A number, a fallback where there is none.
     devices = it.devices { name = it.name },        // A list of objects, one for each device.
-    level = it.device("lamp")?:["level"] to Number  // A setting's text, converted.
+    level = it.device("lamp")?["level"] to Number  // A setting's text, converted.
 }
 ```
 
@@ -138,9 +138,9 @@ Each evaluation produces a new result, immutable throughout: its lists and objec
 A conversion answers a value converted to another type of data: `value to Type` evaluates its value, carries out the [conversion operator](modules.md#modules-operators) the vocabulary declares from the value's type to the type it names, and answers the converted value. A [cast](types.md#casts) converts nothing, and a conversion casts nothing.
 
 ```lexica
-device:["level"] to Number
-device:["level"] to Number ?? 0
-device:["night-mode"] to Boolean
+device["level"] to Number
+device["level"] to Number ?? 0
+device["night-mode"] to Boolean
 room.devices.count to String
 ```
 

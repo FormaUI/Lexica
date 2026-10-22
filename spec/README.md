@@ -32,7 +32,7 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 4. [Types](types.md): type families, reference types, nullability, receivers of unknown type and casts.
 5. [Expressions](expressions.md): precedence, tests, truthiness, equalities, arithmetic, comparisons, logical expressions, conditionals, `do` expressions, coalescing, attempts, interpolated strings and simple expressions.
 6. [Functions](functions.md): regular and arrow functions declared in a script, their values, references to a module's functions, what they see, what a call reads, and implicit bodies.
-7. [Members](members.md): member kinds, writing a member, bracket property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
+7. [Members](members.md): member kinds, writing a member, computed property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
 8. [Modules](modules.md): creating a module, its declarations, registries, namespaces and extensions.
 9. [Vocabulary](vocabulary.md): Lexica's own vocabulary, Boolean functions, observations, type selectors and conversions.
 10. [Runtime](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.

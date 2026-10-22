@@ -143,7 +143,7 @@ A type or a member declares `internal: true` to be available within its declarin
   | An internal member using its module's `ReadingState` | Registered |
   | The public `Reading` holding an internal field of type `ReadingState` | Registered |
 
-- **At resolution.** A script reaches no internal declaration through any form: a member read or called, a field read by name or by bracket property access, a qualified form, a function reference, an indexer, and a cast or a conversion naming an internal type or selecting an internal operator. An internal declaration is no candidate where [owner precedence](#namespaces-owners-and-extensions) chooses, so an accessible extension resolves where the owner's member of its name is internal.
+- **At resolution.** A script reaches no internal declaration through any form: a member read or called, a field read by name or by computed property access, a qualified form, a function reference, an indexer, and a cast or a conversion naming an internal type or selecting an internal operator. An internal declaration is no candidate where [owner precedence](#namespaces-owners-and-extensions) chooses, so an accessible extension resolves where the owner's member of its name is internal.
 - **In tooling.** Completion and every listing a script's author reads leave internal declarations out.
 
 `internal` decides what scripts and other modules' declarations name, and nothing else: an implementation is JavaScript, and works with its values and its helpers as it always does, and a value a result holds keeps what it holds, an internal field among them, since what a script can name and what its host receives are separate.
@@ -236,8 +236,8 @@ A module's function written through its namespace without a call is a [function 
 
 An indexer is selected by the owner of its receiver's type, as a member is, and keeps its key, its receiver and its contract however it is selected:
 
-- **A named indexer**, `x:name[key]`, resolves as an unqualified member does: the owner's indexer of that name, of `kind: 'indexer'` or `kind: 'default-indexer'`, wins over every extension's, one applicable extension's indexer resolves, and several are refused as ambiguous when the script is resolved, the error naming the indexer, its receiver's type and the competing modules.
-- **A default indexer**, `x:[key]`, selects the indexer declared `kind: 'default-indexer'` for its receiver's type, which keeps its name, so `x:name[key]` reads it too: the owner's wins, one extension's resolves where the owner declares none, and several are refused as ambiguous, as named ones are. So `device:["mode"]` reads `home`'s `setting`, whatever an extension declares.
+- **A named indexer**, `x.name[key]`, resolves as an unqualified member does: the owner's indexer of that name wins over every extension's, one applicable extension's indexer resolves, and several are refused as ambiguous when the script is resolved, the error naming the indexer, its receiver's type and the competing modules.
+- **An unnamed indexer**, `x[key]`, selects the indexer declared without a name for its receiver's type: the owner's wins, one extension's resolves where the owner declares none, and several are refused as ambiguous, as named ones are. So `device["mode"]` reads `home`'s, whatever an extension declares, and `rooms[0]` reads `List`'s.
 
 Version 32 has no qualified form of an indexer, and selecting an extension's indexer explicitly is deferred beyond it. An extension's indexer is reached only where unqualified selection gives it: one that the owner's indexer of its name outranks is never reached, and one that another extension's competes with is refused as ambiguous wherever it is written.
 
@@ -245,7 +245,7 @@ Version 32 has no qualified form of an indexer, and selecting an extension's ind
 
 ### A module's own collisions
 
-Within one module, members of one name collide where their receivers overlap, a type and its supertype among them, and a module declaring them is refused at registration: were `home` to declare `active` on `Light` beside the one on `Device`, a light would have two, and `home` would be refused. A field and another member of its name collide too, and so do two default indexers whose receivers overlap, whatever their names, and two operators of one name and destination whose receivers overlap. Members of one name on unrelated receivers do not collide, since the receiver selects one, written unqualified or qualified, and a [function reference](functions.md#functions-module-functions) selects one by the callback contract it is passed to, refusing one that several take.
+Within one module, members of one name collide where their receivers overlap, a type and its supertype among them, and a module declaring them is refused at registration: were `home` to declare `active` on `Light` beside the one on `Device`, a light would have two, and `home` would be refused. A field and another member of its name collide too, and so do two unnamed indexers whose receivers overlap, and two operators of one name and destination whose receivers overlap. Members of one name on unrelated receivers do not collide, since the receiver selects one, written unqualified or qualified, and a [function reference](functions.md#functions-module-functions) selects one by the callback contract it is passed to, refusing one that several take.
 
 A module member, which has no receiver, reserves its name in the module's namespace: a member of that name on a receiver is refused beside it, since `home.rooms` would read the one and call or reference the other. Owner precedence and ambiguity between modules are set out in [owners and extensions](#namespaces-owners-and-extensions).
 

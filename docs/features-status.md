@@ -35,22 +35,30 @@ The [specification](../spec/README.md) defines the contract; the [design](lexica
 | --- | --- |
 | Flat members with `target` | Members within their declaring type; extension blocks for members added to other types |
 | Structured types with `fields` | Field declarations among a type's members |
-| `syntax` and `default` | `indexer` and `default-indexer` kinds |
+| `syntax` and `default` | The `indexer` kind, with a `name` for a named indexer and without one for a type's unnamed indexer |
 | `implementation` | `impl` |
 | Implicit type parameters | Explicit `typeParameters`, such as `['T']` |
 | Declaration helpers with receivers | Helpers without receivers, plus `field` and indexer helpers |
 
 Declare Lexica's generic `List<T>` and the verbs as an extension on `T`. Establish the type and extension structure for operators; their behavior is implemented in step 3.
 
+### Indexers and computed properties
+
+- Write a named indexer as `x.name[k]`, a type's unnamed indexer as `x[k]`, and a property by a computed name as `x.[p]`, in place of `x:name[k]`, `x:[k]` and `x[p]`.
+- Resolve `x.name[k]` as the named indexer where the receiver's type declares one, and otherwise as the property's answer indexed.
+- Declare `List`'s unnamed indexer in place of `item`.
+- Refuse the replaced forms, each with the form to write.
+- Check the specification's computed property example again, which the document examples skip as `pending` until the parser reads `x.[p]`.
+
 ### Definition version 33
 
-Allow qualified type names in casts and conversions. This widens the values a definition's `type` can hold and requires definition version 33.
+Allow qualified type names in casts and conversions, and record an indexer without a `name`, a named indexer's target being the `member` node of its name. These widen the values a definition's `type` can hold, change the `indexer` node, and require definition version 33.
 
 PascalCase names, nested declarations, and imports alone do not change the definition format. The declaration redesign still makes incompatible changes to the language and runtime API.
 
 **Completion:** the declaration changes and definition version 33 pass the gate. A host follows with its corresponding migration.
 
-Contracts: [Types](../spec/types.md), [declaring a type](../spec/modules.md#modules-declaring-a-type), [declaring a member](../spec/members.md#members-declaring-a-member), [Definition](../spec/definition.md), [Grammar](../spec/grammar.md).
+Contracts: [Types](../spec/types.md), [declaring a type](../spec/modules.md#modules-declaring-a-type), [writing a member](../spec/members.md#property-access-calls-and-indexers), [declaring a member](../spec/members.md#members-declaring-a-member), [Definition](../spec/definition.md), [Grammar](../spec/grammar.md).
 
 ## Remaining implementation sequence
 

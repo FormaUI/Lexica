@@ -44,7 +44,8 @@ const examples = lexica.createRegistry([lexica.createModule('home', {}), lexica.
 /**
  * Each document's examples, in order: what each is about, whether each of its lines is an example of its own, the context it is written in, and, for an example that reads none of the home's reference values,
  * what resolving and evaluating it gives: its value, or the kind of error that refuses it. Every example reads as a definition and gives its canonical text again, read and written with the examples' module names;
- * those that read the home's rooms, devices, lights, thermostats or sensors are resolved once reference types and declared binding types give their bindings a type.
+ * those that read the home's rooms, devices, lights, thermostats or sensors are resolved once reference types and declared binding types give their bindings a type. An example written in a syntax the
+ * implementation does not read yet says what implements it, `pending`, and is skipped until then.
  */
 const DOCUMENTS = {
     'spec/README.md': [],
@@ -92,7 +93,7 @@ const DOCUMENTS = {
     'spec/members.md': [
         { about: 'a member of each kind', each: true },
         { about: 'the forms of a member', each: true, context: 'cell { value = % }' },
-        { about: 'bracket property access' },
+        { about: 'computed property access', pending: 'step 1 reads the dot before a computed name' },
         { about: 'host calls', each: true },
     ],
     'spec/modules.md': [],
@@ -121,7 +122,14 @@ describe('the examples of the documents', () => {
             expect(blocks.length).toBe(entries.length);
         });
 
-        it.each(entries.map((entry, index) => [`${entry.about}, the block at line ${blocks[index]?.line}`, entry, blocks[index]]))('%s', (_, entry, block) => {
+        const cases = entries.map((entry, index) => [`${entry.about}, the block at line ${blocks[index]?.line}`, entry, blocks[index]]);
+        const pending = cases.filter(([, entry]) => entry.pending !== undefined).map(([title, entry]) => [`${title}, pending until ${entry.pending}`]);
+
+        if (pending.length > 0) {
+            it.skip.each(pending)('%s', () => {});
+        }
+
+        it.each(cases.filter(([, entry]) => entry.pending === undefined))('%s', (_, entry, block) => {
             textsOf(block, entry).forEach(text => {
                 const written = (entry.context ?? '%').replace('%', () => text);
                 const formatted = examples.format(written);

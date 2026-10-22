@@ -65,10 +65,11 @@ In this document:
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](expressions.md#expression-structure-and-precedence) |
 | Receiver | The value before a member access, function call or indexer | [Access and calls](members.md#access-and-calls) |
 | Member | A property, function or other declared facility of a type | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
-| Property access | A property read using a dot or brackets | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
+| Property access | A property read by its name after a dot, or by a computed name, `.[name]` | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
+| Computed property access | `.[name]`, a property read by the name an expression gives, settled when the script is resolved | [Computed property access](members.md#computed-property-access) |
 | Function call | `name(…)`, written after a receiver to call a function, which the evaluator or the host invokes, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](members.md#property-access-calls-and-indexers-calls) |
-| Named indexer | A keyed function written after a colon | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
-| Default indexer | `:[key]`, the indexer the receiver's type declares `kind: 'default-indexer'`, as its owner's precedence selects, reached by its name too | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers-default-indexers) |
+| Named indexer | `.name[key]`, an indexer its type declares with a name, invoked with one key | [Named indexers](members.md#property-access-calls-and-indexers-named-indexers) |
+| Unnamed indexer | `[key]`, the indexer the receiver's type declares without a name, as its owner's precedence selects | [Unnamed indexers](members.md#property-access-calls-and-indexers-unnamed-indexers) |
 | Argument | An expression supplied to a function call, or an indexer's key | [Arguments](members.md#arguments) |
 | Argument form | What a member's arguments supply, positional, its parameters in order, or options, one options object whose fields name them | [Parameters and arguments](members.md#arguments) |
 | Options object | The one object expression given to a member that takes options, whose fields supply its parameters | [Arguments](members.md#arguments-options) |
@@ -102,7 +103,7 @@ In this document:
 | Raw string | `'…'`, text whose backslashes are text and whose doubled quote is one quote | [Raw strings](lexical-structure.md#strings-and-escapes-raw-strings) |
 | Interpolated string | `$"…"`, or `$'…'` for an interpolated raw string, text holding interpolations | [Interpolated strings](expressions.md#interpolated-strings) |
 | Block | A string, raw or not and interpolated or not, written on lines of its own between delimiters of three or more quotes, its margin removed | [Blocks](lexical-structure.md#strings-and-escapes-blocks) |
-| Simple expression | The restricted expression an argument, an indexer's key, a bracket property name or an interpolation holds | [Simple expressions](expressions.md#simple-expressions) |
+| Simple expression | The restricted expression an argument, an indexer's key, a computed property name or an interpolation holds | [Simple expressions](expressions.md#simple-expressions) |
 
 <a id="vocabulary-and-host-calls"></a>
 <a id="vocabulary-and-requests"></a>

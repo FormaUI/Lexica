@@ -24,7 +24,6 @@ The following forms are each one token and cannot contain whitespace:
 | --- | --- |
 | `?.` | `? .` |
 | `?[` | `? [` |
-| `?:` | `? :` |
 | `??` | `? ?` |
 | `(?` | `( ?` |
 | `<=` | `< =` |
@@ -39,11 +38,11 @@ Whitespace, including line breaks, and comments are **trivia**. Trivia may appea
 
 ### Assignment and member punctuation
 
-Fields, locals and conditional bindings put `=` between a name and its value. A colon after a name begins an indexer.
+Fields, locals and conditional bindings put `=` between a name and its value; a colon belongs only inside strings and comments.
 
 - `count: it.devices.count` is a syntax error that suggests `count = …`.
 - `=` in another position is a syntax error that explains that `==` compares values.
-- Bracket property access has no preceding dot. `it.[name]` and `it?.[name]` are syntax errors that suggest `it[name]` and `it?[name]`.
+- Computed property access is written after a dot. `it:[name]` and `it?:[name]` are syntax errors that suggest `it.[name]` and `it?.[name]`.
 
 <a id="tokens-and-whitespace-numbers-and-the-minus-sign"></a>
 
@@ -59,7 +58,7 @@ A number token has no sign. `-` is always an operator: arithmetic negation or su
 
 In a property access such as `it.floor-area`, where the receiver has no member `floor` and has the corresponding camelCase member, the diagnostic suggests `it.floorArea`. A bare `floor-area` reads `floor` and `area` as names, with no such suggestion.
 
-A name containing a hyphen is written as a string: `device:["night-mode"]`.
+A name containing a hyphen is written as a string: `device["night-mode"]`.
 
 `/` divides unless it begins a comment: `a / b` divides, while `a //b` begins a line comment.
 
@@ -97,7 +96,7 @@ An identifier's spelling decides no meaning; where it stands does:
 - **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, field, conditional binding or function parameter of its name, and otherwise the script parameter.
 - **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
-- **Where the position expects a name,** after `.`, `?.`, `:` or `?:`, after `as` or `to`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
+- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
 - **In text read through a registry,** a [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is no reserved word, but an identifier the registry gives that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. Text read without a registry knows no module's name.
 
 Declarations keep their own restrictions besides: no module is named by a word the language reserves, a type is named once within its module, and no module's type is named as one of Lexica's own, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production makes no identifier valid in every position.
@@ -112,7 +111,7 @@ A declaration accepts any identifier, a reserved word among them. This applies t
 light { true = true, it = it.active() }
 ```
 
-The same rule applies to member and indexer names after `.`, `?.`, `:` and `?:`. For example, `value.null` reads a member named `null`, and `device:end["key"]` invokes an indexer named `end`.
+The same rule applies to member and indexer names after `.` and `?.`. For example, `value.null` reads a member named `null`, and `device.end["key"]` invokes an indexer named `end`.
 
 `let @to = 1`, `{ @true = 1 }` and `value.@null` are syntax errors.
 
@@ -148,8 +147,8 @@ An identifier must follow `@` directly, and a keyword alone reads no local or fi
 
 A string containing a reserved word remains an ordinary string:
 
-- `device:["null"]` reads a setting named `null`.
-- `value["null"]` is bracket property access and resolves the member `value.null`.
+- `device["null"]` reads a setting named `null`.
+- `value.["null"]` is computed property access and resolves the member `value.null`.
 
 <a id="strings-and-escapes"></a>
 
@@ -262,7 +261,7 @@ Every name in Lexica is case-sensitive, and nothing normalizes one: `name` and `
 
 ### Member names
 
-Members are named in camelCase, properties and functions alike: `name`, `floorArea`, `brightness`, `device`. A member has one name, the same in a text and a definition. `it["floorArea"]` reads that property by the same name.
+Members are named in camelCase, properties and functions alike: `name`, `floorArea`, `brightness`, `device`. A member has one name, the same in a text and a definition. `it.["floorArea"]` reads that property by the same name.
 
 <a id="case-sensitive-names-field-names-and-bindings"></a>
 
@@ -274,6 +273,6 @@ Field names and script parameters keep the exact spelling their author gave them
 
 ### Strings are preserved
 
-Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a bracket property access, which reads the one its string names, exactly, a data field whose key is no Lexica name among them, as `o["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or a type selector's key, follows that module's own case rules.
+Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a computed property access, which reads the one its string names, exactly, a data field whose key is no Lexica name among them, as `o.["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or a type selector's key, follows that module's own case rules.
 
 A field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `isOn` from `ison` reports the ambiguity, and the language is unaffected. How a module names a member, and which JavaScript function carries it out, is the module's declaration.

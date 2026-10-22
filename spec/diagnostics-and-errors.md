@@ -56,6 +56,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A comparison chain whose operators point two ways | A syntax error at the operator that turns it |
 | `@` in a declaration or before a field's or a member's name, or `@` with no identifier directly after it | A syntax error giving the form to write |
 | `~` with no identifier directly after it | A syntax error saying a script parameter is named directly after `~` |
+| A colon in a member chain, as `device:setting["mode"]` or `it:[name]` | A syntax error giving `device.setting["mode"]`, or the computed property access `it.[name]` |
 | A string where a cast or a conversion names its type, as `device as "Light"` | A syntax error giving the type's name written bare, `device as Light` |
 | A keyword where a value stands | A syntax error giving the lexical reference; `then`, `elseif`, `else` and `end` give the value expected instead: `Expected a value, found 'then'` |
 | A conditional without its `end`, a conditional whose branches give their results in two styles, anything after a body's result, or a `return` with no value | A syntax error |
@@ -79,7 +80,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A definition that does not follow its structure | A structure error, with its node's location |
 | A definition of a version other than the one the implementation reads, as a version 32 definition is for version 33 | A structure error naming both versions |
 | A definition holding a namespace given to `lexica.format` or `lexica.quote`, a definition read without a registry's module names that names one of them, or a namespace naming no module the registry holds | A structure error saying to read or write the text with the registry, located at the namespace, or at the name where the text first writes it alone |
-| A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a bracket property access or an interpolation | A structure error naming the part, which a local holds first |
+| A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a computed property access or an interpolation | A structure error naming the part, which a local holds first |
 | A lexical reference, or a definition's local, that no local, field, conditional binding or function parameter in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
 | A function calling itself or one declared after it, or two parameters of one name | A structure error |
 | A body anywhere but the script's, a do block's, a function's or a conditional branch's | A structure error: `A body is the script's, a do block's, a function's or a conditional branch's, and stands nowhere else` |
@@ -92,14 +93,14 @@ A module whose declarations break the declaration contract, a type or a member n
 
 | Situation | Result |
 | --- | --- |
-| A field a declaration's kind does not take, a type-level `fields` collection, `target`, `syntax` or `default` on a member, or an `internal` that is no Boolean | A module error naming the field |
+| A member other than an indexer declared without a `name`, a field a declaration's kind does not take, a type-level `fields` collection, `target`, `syntax` or `default` on a member, or an `internal` that is no Boolean | A module error naming the field |
 | A type whose name begins with no capital letter, a name its module already declares, or a name of Lexica's own types or `Null` | A module error naming the type |
 | An `import` naming no registered module, a type reference resolving to no type or to several, or a foreign type named unqualified outside its import | A module error naming the declaration and, where several match, the qualified candidates |
 | A supertype that is no reference type, or a hierarchy that is a cycle | A module error naming the types |
 | A reference type without `isInstance`, or a `typeOf` or an `isInstance` that is no function | A module error naming the declaration |
 | A declaration naming another module's internal type or member, or a public one exposing an internal type through its signature | A module error naming the declaration and the internal type or member |
 | A declared cast to its own type, its supertype or a type beneath it; a conversion operator neither of whose types is its module's | A module error naming the operator |
-| Two members of one name, two default indexers, or two operators of one name and destination, on overlapping receivers of one module; a field and another member of its name | A module error naming both |
+| Two members of one name, two unnamed indexers, or two operators of one name and destination, on overlapping receivers of one module; a field and another member of its name | A module error naming both |
 
 <a id="preparation-and-type-errors"></a>
 
@@ -112,6 +113,8 @@ A module whose declarations break the declaration contract, a type or a member n
 | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
 | A name no local or field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
 | `it` where nothing gives it a value | A structure error where the text alone shows it, as outside every argument at the top level; a validation error within an argument of a member call or of a local function call, whose function decides |
+| A named indexer written without its key or as a call, or with `?[` after its name, as `x?.setting?[k]` | A validation error giving its form, `x.setting[…]` or `x?.setting[k]` |
+| An unnamed indexer on a type that declares none, or a number where a computed property's name stands, as `rooms.[0]` | A validation error, giving `room.["name"]` where the key is a string the receiver has a property of, and `rooms[0]` for the number |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
 | A cast or a conversion naming a type no public type of the registry has, or one several share unqualified | A validation error, giving the qualified names where several share it |
 | A cast to a name that is no reference type, or of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |

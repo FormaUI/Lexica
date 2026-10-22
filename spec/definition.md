@@ -27,9 +27,9 @@ Each node is an object whose `kind` says what it is:
 | `root` | None | The object root |
 | `namespace` | `name`, the module's name | A module's namespace, the target of a `member` or a `call` node that reads one of the module's members or calls a qualified form through it |
 | `local` | `name` | A use of a local, a function parameter or a field, one in scope where it stands |
-| `member` | `name`, the member's name, or for a bracket property access whose expression is no string literal that is a name, that expression's node; `target`, the receiver; and `optional`, true, where it is written with `?.` or `?[` | A property access, or a bracket property access |
+| `member` | `name`, the member's name, or for a computed property access whose expression is no string literal that is a name, that expression's node; `target`, the receiver; and `optional`, true, where it is written with `?.` | A property access, or a computed property access |
 | `call` | `name`; `arguments`, its arguments in order, empty where it is given none; `target`, the receiver; and `optional`, true, where it is written with `?.` | A function call |
-| `indexer` | `name`, left out for the default indexer; `argument`, its key; `target`, the receiver; and `optional`, true, where it is written with `?:` | A named indexer, or the receiver's default indexer |
+| `indexer` | `argument`, its key; `target`, the receiver, or for a named indexer the `member` node of its name, which [resolution reads](members.md#property-access-calls-and-indexers-named-indexers) as one where the receiver's type declares it; and `optional`, true, where it is written with `?[` | An indexer: the receiver's unnamed indexer, a named indexer, or the unnamed indexer of a property's answer |
 | `object` | `fields`; `locals`, where it has any; and `target`, the node the object expression follows | An object expression; without a target, one keeping the implicit parameter around it, which at the top level is absent |
 | `equality` | `left` and `right`, the two expressions it compares | An equality; `!=` is a `not` holding one |
 | `body` | `locals`, each its `name` and its `value`, in order, and `result`, the value the body gives | A body: the root expression's, a `do` block's, a function's or a conditional branch's, and nowhere else |
@@ -61,7 +61,7 @@ A parenthesized expression adds no node, the expression it holds standing in its
 }
 ```
 
-Every property access, call and indexer holds its receiver as its `target`, and every equality its `left` and its `right`, required, and an omitted target never stands for `it`, so `it.power` and `device.power` are distinct definitions. A member read or a qualified form called through a namespace holds a `namespace` node as its target, so `home.rooms` is a `member` whose target is `{ "kind": "namespace", "name": "home" }`, and `energy.usage(device)` a `call` whose target is `energy`'s namespace and whose first argument is the receiver. A [function reference](functions.md#functions-module-functions) is a `member` node through a namespace, `home.active` as `home.rooms` is, which resolution tells apart by the declaration it names, and an [implicit body](functions.md#functions-implicit-bodies) is an argument node as it is written.
+Every property access, call and indexer holds its receiver as its `target`, and every equality its `left` and its `right`, required, and an omitted target never stands for `it`, so `it.power` and `device.power` are distinct definitions. A member read or a qualified form called through a namespace holds a `namespace` node as its target, so `home.rooms` is a `member` whose target is `{ "kind": "namespace", "name": "home" }`, and `energy.usage(device)` a `call` whose target is `energy`'s namespace and whose first argument is the receiver. A [function reference](functions.md#functions-module-functions) is a `member` node through a namespace, `home.active` as `home.rooms` is, which resolution tells apart by the declaration it names, and an [implicit body](functions.md#functions-implicit-bodies) is an argument node as it is written. An indexer after a property access holds that `member` node as its target, so `device.setting["mode"]` and `room.devices[0]` have one shape, and resolution tells a named indexer from a property's answer indexed by the declaration the name gives.
 
 A call's `arguments` are its argument nodes in order, and an indexer's `argument` its key's node, each recorded as written; where a call's member takes options, its one argument is an object node whose fields resolution maps onto the member's parameters.
 
@@ -121,7 +121,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Locals | Each has a name and value; names are unique within a body or object expression; references name an in-scope local or field. |
 | Declaration order | No reference uses a local before its declaration or within its own initializer. A name written alone cannot fall back to a script parameter when that local is declared later in the same scope. |
 | Script parameters | A definition's `parameter` node, written with `~` when necessary, reads the script parameter regardless of local declarations. |
-| Simple expressions | Arguments, indexer keys, bracket property names and interpolations obey the restrictions recursively; an object expression within one, as an options object, declares no locals, though it may use those in scope. |
+| Simple expressions | Arguments, indexer keys, computed property names and interpolations obey the restrictions recursively; an object expression within one, as an options object, declares no locals, though it may use those in scope. |
 | Members | Every property access, call and indexer has a receiver. |
 | Equality | Both operands are present. |
 | Comparisons | At least two operands; exactly one operator between each pair; every operator is one of `<`, `<=`, `>`, `>=` and points in the same direction. |

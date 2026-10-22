@@ -7,7 +7,7 @@ A **member** is what a module declares on a type, or on no type for a [module me
 ```lexica
 room.devices.count                    // A property, then another: the room's devices, counted.
 room.device("lamp")?.battery          // A function, then a property of what it found, if anything.
-device:setting["mode"]                // A named indexer, given its key.
+device.setting["mode"]                // A named indexer, given its key.
 light.dim({ to = 40 })                // A function the host invokes, given its options.
 sensor.on("motion") { at = it.at }    // A function the host invokes, each value it supplies shaped by the object after it.
 ```
@@ -16,7 +16,7 @@ In this document:
 
 1. [Member kinds and host calls](#members-member-kinds-and-host-calls)
 2. [Writing a member](#property-access-calls-and-indexers)
-3. [Bracket property access](#bracket-property-access)
+3. [Computed property access](#computed-property-access)
 4. [Parameters and arguments](#arguments)
 5. [Declaring a member](#members-declaring-a-member)
 6. [How a member reads](#how-a-member-reads)
@@ -30,7 +30,7 @@ In this document:
 
 ## Member kinds and host calls
 
-A member's kind is `field`, `property`, `function`, `indexer`, `default-indexer` or `operator`. A field is a structured type's stored data, read as a property is; a property is read, and a function, an indexer and a default indexer called, by the evaluator as it evaluates a script, or, for a function whose declaration says so, `invokedBy: 'host'`, by the host; and an operator is invoked by `as` or `to` alone, as [operators](modules.md#modules-operators) set out. A script gives a value, or ends in a **host call**, a call of a function the host invokes; the last member of its chain, before any object expression following it, decides which:
+A member's kind is `field`, `property`, `function`, `indexer` or `operator`. A field is a structured type's stored data, read as a property is; a property is read, and a function and an indexer called, by the evaluator as it evaluates a script, or, for a function whose declaration says so, `invokedBy: 'host'`, by the host; and an operator is invoked by `as` or `to` alone, as [operators](modules.md#modules-operators) set out. A script gives a value, or ends in a **host call**, a call of a function the host invokes; the last member of its chain, before any object expression following it, decides which:
 
 | A script whose chain ends in | Gives |
 | --- | --- |
@@ -49,16 +49,16 @@ Property access, function calls and indexers are distinct constructs. A member's
 | Construct | Required form | Optional form | Example |
 | --- | --- | --- | --- |
 | Dot property access | `receiver.property` | `receiver?.property` | `room.devices.count` |
-| Bracket property access | `receiver[name]` | `receiver?[name]` | `device[name]` |
+| Computed property access | `receiver.[name]` | `receiver?.[name]` | `device.[name]` |
 | Function call | `receiver.function(…)` | `receiver?.function(…)` | `room.device("lamp")` |
-| Named indexer | `receiver:indexer[key]` | `receiver?:indexer[key]` | `device:setting["mode"]` |
-| Default indexer | `receiver:[key]` | `receiver?:[key]` | `device:["mode"]` |
+| Named indexer | `receiver.indexer[key]` | `receiver?.indexer[key]` | `device.setting["mode"]` |
+| Unnamed indexer | `receiver[key]` | `receiver?[key]` | `rooms[0]` |
 
 ```lexica
 room.devices.count                                // A dot property access.
 room.device("lamp")?.battery                      // A function call, then optional access.
-device:setting["mode"]                            // A named indexer.
-rooms:item[0]                                     // Another named indexer, a list's.
+device.setting["mode"]                            // A named indexer.
+rooms[0]                                          // A list's unnamed indexer: its first room.
 room.device("lamp")?.active() ?? false
 ```
 
@@ -68,7 +68,7 @@ room.device("lamp")?.active() ?? false
 
 A dot property access reads a property and takes no arguments. Whitespace cannot replace the dot: `it climate temperature` is an error suggesting `it.climate`.
 
-Bracket property access chooses a property by name. It follows the same member contract as dot access; see [Bracket property access](#bracket-property-access).
+Computed property access chooses a property by a name an expression gives. It follows the same member contract as dot access; see [Computed property access](#computed-property-access).
 
 <a id="names-and-resolution-explicit-receivers"></a>
 
@@ -90,7 +90,7 @@ An equality without its left operand is an error as well; write both values, for
 
 Required access needs a receiver whose type cannot be null. A nullable receiver is a validation error that suggests optional access: `room.device(name).battery` is a validation error, since `device` answers a `Device?`.
 
-Optional access reads or invokes the member only when its receiver is not null. Otherwise it answers null and skips the remainder of that chain, including argument or key evaluation. `room.device(name)?.battery` answers null without invoking `battery` where the room has no device of that name; its type is `Number?`, since an optional chain is nullable where an optional access of it can meet null. A member written with `?.` or `?:` answers null for a null receiver, so `room.device(name)?.active()` is a `Boolean?` that is null where there is no such device.
+Optional access reads or invokes the member only when its receiver is not null. Otherwise it answers null and skips the remainder of that chain, including argument or key evaluation. `room.device(name)?.battery` answers null without invoking `battery` where the room has no device of that name; its type is `Number?`, since an optional chain is nullable where an optional access of it can meet null. A member written with `?.` or `?[` answers null for a null receiver, so `room.device(name)?.active()` is a `Boolean?` that is null where there is no such device.
 
 For example, `room.device(name)?.room.devices.count` answers null when the room has no device of that name. Otherwise `.count` counts the devices of the device's room.
 
@@ -112,13 +112,13 @@ Optional access is also valid on a receiver whose current type cannot be null. A
 
 The enclosed form requires a receiver followed by at least one property access, function call or indexer. Its receiver is an input, `it`, a script parameter, `root`, a namespace's member, a literal, an interpolated string, a local, a local function's call or an object expression, or a grouped cast.
 
-Accesses in a grouped cast's target also become optional. A coalescing target in parentheses, an already optional enclosed target, call arguments, indexer keys and bracket property names retain their own rules.
+Accesses in a grouped cast's target also become optional. A coalescing target in parentheses, an already optional enclosed target, call arguments, indexer keys and computed property names retain their own rules.
 
 An optional enclosed access written directly as a call's argument is a syntax error, since `(?` is one token: the call writes it in parentheses of its own, `.device((?…))`.
 
 The closing parenthesis ends the enclosed optional chain. `(?x.y.z)?.a.b` is `(x?.y?.z)?.a.b`; `.b` still requires a non-null `a`.
 
-A projection or any other expression beyond that member chain is a syntax error. The definition records the individual accesses as optional, and the [canonical text](definition.md#definition-canonical-text) writes `?.`, `?[` and `?:` rather than the enclosed shorthand.
+A projection or any other expression beyond that member chain is a syntax error. The definition records the individual accesses as optional, and the [canonical text](definition.md#definition-canonical-text) writes `?.` and `?[` rather than the enclosed shorthand.
 
 <a id="property-access-calls-and-indexers-calls"></a>
 
@@ -134,62 +134,90 @@ Calls do not accept named arguments. `room.device(name = "lamp")` is a syntax er
 
 ### Named indexers
 
-A named indexer takes one key, written in brackets after the colon and name. The key is a [simple expression](expressions.md#simple-expressions).
+A named indexer takes one key, written in brackets after its name. The key is a [simple expression](expressions.md#simple-expressions).
 
 | Form | Meaning |
 | --- | --- |
-| `device:setting["mode"]` | Invoke `setting` with one key |
-| `device:setting[name]` | Compute the key and invoke `setting` |
-| `x:lookup["a"]["b"]` | Invoke `lookup`, then read property `b` of its result |
-| `room.climate?["temperature"]` | Read property `temperature` of `climate` |
+| `device.setting["mode"]` | Invoke `setting` with one key |
+| `device.setting[name]` | Compute the key and invoke `setting` |
+| `x.lookup["a"].["b"]` | Invoke `lookup`, then read property `b` of its result |
+| `room.climate?.["temperature"]` | Read property `temperature` of `climate` |
 
-The indexer's brackets are required. `device:setting`, `device:setting[]` and `device:setting["a", "b"]` are syntax errors.
+The text reads `x.name[key]` as it is written, the member `name` and then brackets, and resolution decides what it is by the receiver's type:
 
-`?:` is the optional form. For a null receiver it answers null without evaluating the key.
+- Where the receiver's type has a named indexer `name` the script can reach, `x.name[key]` invokes it with the key.
+- Otherwise `name` is a property, and the brackets invoke the [unnamed indexer](#property-access-calls-and-indexers-unnamed-indexers) of the type it answers, as `room.devices[0]` reads the room's first device.
 
-A colon after a complete value can only begin an indexer. In `{ mode = it:setting["mode"] }`, the `=` introduces the field value, and the colon invokes its indexer.
+The two readings never both apply, since a named indexer and a property of one name on one type collide, and [owner precedence](modules.md#namespaces-owners-and-extensions) chooses one declaration of a name. Resolution reads the pair together: where the member access names a named indexer of its receiver's type, it supplies the receiver and the indexer's name and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index.
 
+A group leaves the definition as it is, so `(device.setting)["mode"]` is `device.setting["mode"]`.
+
+A named indexer takes its key in brackets. Written without them, `device.setting`, or as a call, `device.setting("mode")`, it is a validation error that gives `device.setting[…]`; `device.setting[]` and `device.setting["a", "b"]` are syntax errors.
+
+An optional access before the name makes the receiver optional, and for a null receiver answers null without evaluating the key:
+
+| Written | Where `name` is a named indexer | Where `name` is a property |
+| --- | --- | --- |
+| `x?.name[k]` | Null where `x` is null; otherwise the indexer invoked with `k` | Null where `x` is null; otherwise the property read and its answer indexed, which must not be null |
+| `x?.name?[k]` | A validation error that gives `x?.name[k]`, since a named indexer gives a value only once its key is given | Null where `x` is null or the property answers null, `k` unevaluated in either case |
+
+A group ends an optional chain, as everywhere: in `(device?.setting)["mode"]` the group holds a named indexer written without its key, which is refused.
+
+A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` reads the property `p` names and `[k]` indexes its answer, so where `p` settles to `"setting"`, the named indexer of that name isn't a candidate, and the computed name is refused, since `setting` names an indexer rather than a property. The named-indexer reading applies only to a member access whose name is written, never to one whose name is an expression.
+
+<a id="property-access-calls-and-indexers-unnamed-indexers"></a>
 <a id="property-access-calls-and-indexers-default-indexers"></a>
 
-### Default indexers
+### Unnamed indexers
 
-Omitting the indexer name selects the receiver type's default indexer, the indexer declared `kind: 'default-indexer'`, which keeps its name, so it is reached by name too:
+`x[key]` invokes the unnamed indexer of `x`'s type, the indexer declared without a name, of which a type has at most one. Lexica's own `List` declares one, the item at an index counted from zero, so `rooms[0]` is the first room, and `home`'s `Device` declares one reading a setting, so `device["mode"]` reads the setting `mode`.
 
-| Form | Equivalent named indexer |
+| Form | Meaning |
 | --- | --- |
-| `it:["mode"]` on a device | `it:setting["mode"]` |
-| `list:[2]` | `list:item[2]`, the third item |
+| `rooms[0]` | The first room |
+| `rooms?[i]` | Null for a null list, `i` unevaluated; otherwise the item at `i` |
+| `device["mode"]` | The setting `mode`, as `device.setting["mode"]` reads it |
 
-`?:[…]` is the optional form. A module declares at most one default indexer for a receiver type, and [which one applies](modules.md#namespaces-indexers) follows the type's owner. If none applies, resolution fails with a validation error asking for an indexer name.
+[Which unnamed indexer applies](modules.md#namespaces-indexers) follows the type's owner, as any member's does. A type with none refuses `x[key]`, and where `key` is a string and `x` has a property it could name, the validation error gives the computed form, `x.[key]`.
 
 <a id="property-access-calls-and-indexers-member-form-and-parsing"></a>
 
 ### Member form and parsing
 
-A property must be read as a property. A function uses a function call, and only a function the evaluator invokes can be declared an indexer, which is invoked as one.
+A property must be read as a property, a function called, and an indexer given its key in brackets; only a function the evaluator invokes can be declared an indexer.
 
 Using another form is a validation error that gives the required form:
 
-> 'setting' is an indexer: write 'it:setting[…]'
+> 'setting' is an indexer: write 'it.setting[…]'
+
+A form these rules leave without a meaning is refused with the form that has one:
+
+| Written | Refused, giving |
+| --- | --- |
+| `device:setting["mode"]` or `it:[name]`, a colon in a member chain | `device.setting["mode"]` or `it.[name]` |
+| `rooms.[0]`, a number where a computed property's name stands | `rooms[0]` |
+| `room["name"]` on a type without an unnamed indexer | `room.["name"]` |
 
 The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace is recognized by the module names the text is read with, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
 
+<a id="computed-property-access"></a>
 <a id="bracket-property-access"></a>
 
-## Bracket property access
+## Computed property access
 
-Bracket property access chooses a property by name. `it["climate"]` and `it.climate` resolve the same member, with the same implementation, type, null behavior and observations.
+Computed property access chooses a property by a name an expression gives. `it.["climate"]` and `it.climate` resolve the same member, with the same implementation, type, null behavior and observations.
 
 ```lexica
 device {
     let name = if metered then "power" else "battery" end,
 
-    reading = it["power"],
-    chosen = it[name],
-    named = it[property ?? "power"]
+    reading = it.["power"],
+    chosen = it.[name],
+    named = it.[property ?? "power"]
 }
 ```
 
+<a id="computed-property-access-determining-possible-names"></a>
 <a id="bracket-property-access-determining-possible-names"></a>
 
 ### Determining possible names
@@ -210,53 +238,57 @@ Resolution must determine every property name the expression can produce, since 
 
 A fixed test or operand can decide the selection during resolution. An unreached branch, fallback or operand contributes no names. A test decided only at evaluation leaves both branches' names possible; evaluation reads the selected property.
 
-Every branch, fallback and operand is still validated for syntax and types. In `it["power" ?? it:["x"]]`, only `power` needs name resolution; the fallback is neither evaluated nor read.
+Every branch, fallback and operand is still validated for syntax and types. In `it.["power" ?? it["x"]]`, only `power` needs name resolution; the fallback is neither evaluated nor read.
 
-A bracket property access is refused where an outcome can be null or false or names no property; a binding is typed by its value, so `device[name]` is a validation error where `name` is bound to null.
+A computed property access is refused where an outcome can be null or false or names no property; a binding is typed by its value, so `device.[name]` is a validation error where `name` is bound to null.
 
+<a id="computed-property-access-name-expression-types"></a>
 <a id="bracket-property-access-name-expression-types"></a>
 
 ### Name expression types
 
 The complete expression must produce a string. Null is allowed within it only where removed, as `property ?? "power"` removes a null binding. A possible false or other non-string value is a validation error.
 
-Logical expressions participate only when their types fit. `it[metered and "power" or "battery"]` can select either string when its fixed operands settle it.
+Logical expressions participate only when their types fit. `it.[metered and "power" or "battery"]` can select either string when its fixed operands settle it.
 
-The falsey part can also be known from a nullable non-Boolean operand: `it.room.device("lamp") and "power"` gives null or a name. The final bracket expression must still remove the possible null.
+The falsey part can also be known from a nullable non-Boolean operand: `it.room.device("lamp") and "power"` gives null or a name. The final name expression must still remove the possible null.
 
-`it[it.active() and "power" or "battery"]` is refused because no type holds both false and a string. Write the choice as a conditional:
+`it.[it.active() and "power" or "battery"]` is refused because no type holds both false and a string. Write the choice as a conditional:
 
-`it[if it.active() then "power" else "battery" end]`.
+`it.[if it.active() then "power" else "battery" end]`.
 
-An expression outside the permitted forms, such as `it[it:["mode"]]`, is a validation error saying its names cannot be determined.
+An expression outside the permitted forms, such as `it.[it["mode"]]`, is a validation error saying its names cannot be determined.
 
+<a id="computed-property-access-validation-and-result-type"></a>
 <a id="bracket-property-access-validation-and-result-type"></a>
 
 ### Validation and result type
 
-Every possible name must be a property of the receiver. Their result types must merge as conditional branches do. In the example above, `it[name]` is a `Number?`.
+Every possible name must be a property of the receiver. Their result types must merge as conditional branches do. In the example above, `it.[name]` is a `Number?`.
 
 A resolution is kept for the strings the current bindings supply. Binding another string to a name requires resolving again.
 
+<a id="computed-property-access-evaluation-and-observation"></a>
 <a id="bracket-property-access-evaluation-and-observation"></a>
 
-### Evaluating a bracket property access
+### Evaluating a computed property access
 
-The name is computed once, then the selected property is read. `[…]` requires a non-null receiver. `?[…]` answers null for a null receiver without evaluating the name.
+The name is computed once, then the selected property is read. `.[…]` requires a non-null receiver. `?.[…]` answers null for a null receiver without evaluating the name.
 
 For an unknown receiver type, resolution still determines the possible names. Whether each names a property is checked when the receiver type becomes known.
 
 An evaluation reads both what computing the name reads and the selected property, and a later evaluation may select another property where what computes the name changed.
 
+<a id="computed-property-access-one-property-at-a-time"></a>
 <a id="bracket-property-access-one-property-at-a-time"></a>
 
 ### One property at a time
 
-A name selects one property. `it["climate.temperature"]` does not follow a path. Functions require function calls; numeric list indexing uses the default indexer, `list:[2]`.
+A name selects one property. `it.["climate.temperature"]` does not follow a path. Functions require function calls; numeric list indexing uses the list's unnamed indexer, `list[2]`, and a number where a computed property's name stands is a validation error that gives that form.
 
-A field is always named, as in `reading = it["power"]`.
+A field is always named, as in `reading = it.["power"]`.
 
-When the name is a string literal that is a Lexica name, its definition is the same as dot access: `it["power"]` has the definition of `it.power`.
+When the name is a string literal that is a Lexica name, its definition is the same as dot access: `it.["power"]` has the definition of `it.power`.
 
 <a id="arguments"></a>
 
@@ -268,7 +300,7 @@ A member declares its **parameters**, and a script gives it **arguments**. A fun
 
 ### Positional arguments
 
-The arguments supply the member's parameters in order, as `"lamp"` supplies the name in `room.device("lamp")` and `"mode"` the name in `device:setting["mode"]`. An indexer's one argument is its bracketed key, so its form is positional.
+The arguments supply the member's parameters in order, as `"lamp"` supplies the name in `room.device("lamp")` and `"mode"` the name in `device.setting["mode"]`. An indexer's one argument is its bracketed key, so its form is positional.
 
 Its required parameters come before its optional ones, so the parameters left out are the last: a required one must be given, a missing optional one takes its default, and more arguments than it has parameters is a validation error, `'device' takes one argument, and is given 2`, which for a member with optional parameters says how many it takes at most, `'…' takes at most 2 arguments, and is given 3`.
 
@@ -292,7 +324,7 @@ Every parameter of a member is declared as one of four kinds, and the evaluator 
 
 - A **value argument** is evaluated once, where the call is written, against the same implicit parameter as the chain it appears in, so its `it` is that implicit parameter. In `room { own = it.device(it.name) }`, the argument's `it.name` is the room's name, not a device's. At the top level, where there is no implicit parameter, a value argument starts from a script parameter, `root`, a namespace's member, a local, a literal, an object expression or another input: `room.device(name)`.
 - An **expression argument** is a body of each item of the list the member follows, which is its `it`, and its result must be of the type the parameter declares. In `room.devices.max(it.power)`, `it` is each device. It is written as its body, an expression the member evaluates against each item, or as a function of the item, which the member calls with each: an arrow function, `room.devices.max(d => d.power)`, a function value a name holds, or a [function reference](functions.md#functions-module-functions), each checked against the contract of one argument, the item's type, and the parameter's result type, as a function argument is. A body that reads no `it` gives each item the same value, so `room.devices.sum(1)` counts them, and one that reads `it` and gives a function is a validation error, since a function of the item is written as the argument itself. Lexica's own module's expression parameters are those of `max`, `min` and `sum`.
-- A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against or calls it with: in `room.devices.where(it:["mode"])`, the device's setting is truthy wherever it is present, empty or not, and `room.devices.where(home.active)` keeps the active devices. A Boolean name that holds no function is its body, the same for every item, so it keeps every item or none. Lexica's own module's predicate parameter is that of `where`.
+- A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against or calls it with: in `room.devices.where(it["mode"])`, the device's setting is truthy wherever it is present, empty or not, and `room.devices.where(home.active)` keeps the active devices. A Boolean name that holds no function is its body, the same for every item, so it keeps every item or none. Lexica's own module's predicate parameter is that of `where`.
 - A **function argument** is a function, which the member calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type: an arrow function written as the argument, a function value a name holds, a [function reference](functions.md#functions-module-functions) to a module's function, as `home.active` is, or, for a contract of one argument, an [implicit body](functions.md#functions-implicit-bodies), an expression reading `it`, which is that argument. Resolution checks each function the argument may be against the contract, its argument types and its result type, and refuses a name holding no function, so `device.is(metered)` is a validation error for a Boolean `metered`; evaluation checks the result an implementation answers. The member calls it only while its own invocation lasts, and a call after that fails. Lexica's own function parameters are its verbs' tests, `is`, `has` and `supports`. Where an expression argument's body that reads no `it` is a value the same for every item, a function argument's is no function, so `device.is(metered)` is refused where `room.devices.where(metered)` keeps every device or none; `device.is(d => metered)` writes a test of a Boolean.
 
 Because the kind is part of the signature, resolution validates every kind before evaluation, and evaluation reports the reads of value, expression, predicate and function arguments.
@@ -327,8 +359,8 @@ A module declares each member as data, in the `members` of the type it belongs t
 
 | Field | Holds |
 | --- | --- |
-| `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words); an operator's names its operation, `cast` or `convert` |
-| `kind` | `field`, `property`, `function`, `indexer`, `default-indexer` or `operator` |
+| `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words); an operator's names its operation, `cast` or `convert`; left out for a type's unnamed indexer |
+| `kind` | `field`, `property`, `function`, `indexer` or `operator` |
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
 | `arguments` | The argument form of a function with parameters: `positional` or `options` |
 | `parameters` | Each parameter's name, kind, type, whether it is required and its default where it is not, its null policy, whether it is fixed and what it selects, and its implicit parameter or callback contract by its kind, as [parameter fields](#members-parameter-fields) set out |
@@ -337,30 +369,37 @@ A module declares each member as data, in the `members` of the type it belongs t
 | `impl` | The function that carries it out, optional, as [declarations without an implementation](modules.md#modules-declarations-without-an-implementation) set out |
 | `internal` | Whether it is available within its declaring module alone, `false` where left out, as [internal declarations](modules.md#modules-internal-declarations) set out |
 
-Each member takes the fields it needs alone, and every one takes `name`, `kind` and `internal`:
+Each member takes the fields it needs alone; every one takes `kind` and `internal`, and every one but an unnamed indexer takes `name`:
 
 | Member | `arguments` | `parameters` | `updates` | `result` | `impl` |
 | --- | --- | --- | --- | --- | --- |
 | A field, of a structured type alone | Refused | Refused | Refused | Required | Refused |
 | A property | Refused | Refused | Required | Required | Optional |
 | A function the evaluator invokes | Required where it has parameters, refused where it has none | Any kind; a function parameter only here | Required | Required | Optional |
-| An indexer or a default indexer | Refused, since its arguments are positional | One required value parameter, its key, and optional ones after it | Required | Required | Optional |
+| An indexer, named or unnamed | Refused, since its arguments are positional | One required value parameter, its key, and optional ones after it | Required | Required | Optional |
 | A function the host invokes | As a function's | Value parameters, of which a fixed one may select a type | Refused | Optional | Refused |
 | An operator | Refused | Refused | Refused | Required | Optional |
 
-`target`, `syntax` and `default` are taken by no member: a member's place gives its receiver, and its kind how it is written.
+`target`, `syntax` and `default` are taken by no member: a member's place gives its receiver, and its kind and its name, or an indexer's lack of one, how it is written.
 
 A host call takes value parameters alone, a deliberate restriction, which a design giving such arguments an evaluation context and a lifetime could lift: its arguments are prepared as values its host keeps, while an expression, a predicate or a function argument is evaluated by the evaluator as its member calls it, which for a host call would come after preparation ends and need an evaluation context and a lifetime no host call declares. A value parameter's type holds data and reference values, and a function is never given to one, as [functions as values](functions.md#functions-as-values) sets out, so a prepared argument holds no function at any depth, in an object or a list among them.
 
-A module member is a property or a function, and refuses what only a receiver gives: the indexer kinds, and an observation of the receiver or of a target found from it, in its own `updates` and in any observation it names.
+A module member is a property or a function, and refuses what only a receiver gives: an indexer, and an observation of the receiver or of a target found from it, in its own `updates` and in any observation it names.
 
 <a id="what-a-member-declares-call-and-indexer-forms"></a>
 
 ### Function call and indexer forms
 
-A function is written as a function call. An indexer, `kind: 'indexer'`, is written with its name and brackets, `x:name[key]`, and a default indexer, `kind: 'default-indexer'`, is written so too, and with no name, `x:[key]`; each takes its required value parameter as its bracketed key, positionally, the key of the parameter's declared type.
+A function is written as a function call. An indexer, `kind: 'indexer'`, is written with its name and brackets, `x.name[key]`, where it declares a `name`, and with brackets alone, `x[key]`, where it declares none; each takes its required value parameter as its bracketed key, positionally, the key of the parameter's declared type.
 
-A module declares at most one default indexer for a receiver type; which one an access selects follows the receiver type's owner, as [indexer selection](modules.md#namespaces-indexers) sets out.
+```js
+members: [
+    { kind: 'indexer', parameters: [/* index */], result: 'T?', updates, impl },                       // rooms[0]
+    { kind: 'indexer', name: 'setting', parameters: [/* key */], result: 'String?', updates, impl },  // device.setting["mode"]
+]
+```
+
+A named indexer's name is a member name, so it collides with a property or a function of that name on the same type, and a type declares as many named indexers as it needs. A module declares at most one unnamed indexer for a receiver type; which one an access selects follows the receiver type's owner, as [indexer selection](modules.md#namespaces-indexers) sets out.
 
 Positional arguments list parameters in order, with required parameters before optional ones; creating the module checks this order. Options take one object whose fields supply the declared parameters.
 

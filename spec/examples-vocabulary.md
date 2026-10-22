@@ -33,12 +33,12 @@ An example's bindings are supplied parameters, each bound by the host to a value
 | `device.room` | `Room` | Observable: `placement` | Fresh | |
 | `device.power` | `Number`, in watts | Observable: `state` | Fresh | `1` |
 | `device.battery` | `Number?`, a percentage, null for a wired device | Partly observable: `state`, missing the drain between the device's reports | Fresh | `1` |
-| `device:setting[name]`, the default indexer `device:[name]` | `name`: `String` → `String?` | Observable: `state` | Fresh | |
+| `device.setting[name]`, and the unnamed indexer `device[name]`, which reads the same setting | `name`: `String` → `String?` | Observable: `state` | Fresh | |
 | `light.brightness` | `Number`, from 0 to 100 | Observable: `state` | Fresh | `1` |
 | `thermostat.target` | `Number`, in degrees | Observable: `state` | Fresh | |
 | `sensor.temperature` | `Number?`, in degrees, null before the first reading | Observable: `reading` | Maintained | `0.5` |
 
-A setting is a string, so an example that needs a number converts it, as `device:["level"] to Number` does.
+A setting is a string, so an example that needs a number converts it, as `device["level"] to Number` does.
 
 **Boolean functions.** The home's tests, each a function of its receiver that takes no arguments and answers a `Boolean`, called as `device.active()` or passed to a verb as `device.is(home.active)`:
 

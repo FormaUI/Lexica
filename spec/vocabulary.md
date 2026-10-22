@@ -23,17 +23,17 @@ Lexica's own module owns the language's types, `List`, `Number`, `String` and `B
 
 ### List members
 
-A member following a list is a member of the list itself: `room.devices.count` counts the room's devices. Lexica's own module declares `count`, `first`, `last`, `item`, `max`, `min`, `sum` and `where`, and each reads and changes as the items it selects and the expression it evaluates do.
+A member following a list is a member of the list itself: `room.devices.count` counts the room's devices. Lexica's own module declares `count`, `first`, `last`, `max`, `min`, `sum` and `where`, and its unnamed indexer, and each reads and changes as the items it selects and the expression it evaluates do.
 
 | List member | Contract |
 | --- | --- |
 | `count` | The number of items, 0 for an empty list |
 | `first`, `last` | The first or the last item, null for an empty list |
-| `item`, the default indexer `:[index]` | The item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0` |
+| The unnamed indexer, `[index]` | The item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0` |
 | `where` | The items its predicate is truthy for, in the list's order, leaving out an item whose predicate is null or false; the predicate may produce any value |
 | `max`, `min`, `sum` | Evaluate a number expression against each item and require `Number?` |
 
-`where`, `item`, `first` and `last` preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`.
+`where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`.
 
 Aggregates consume null per item rather than propagating it to the entire call. `max` and `min` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Thus `room.devices.max(it.battery)` and `home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
 
