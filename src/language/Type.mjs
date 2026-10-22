@@ -15,8 +15,11 @@ export class Type {
     /** The type's kind: named, list, object, root, function, typeParameter, null or never. */
     kind;
 
-    /** The type's name, for a named type or a type parameter. */
+    /** The type's name, for a named type or a type parameter: a named type's local name, unique within its module. */
     name;
+
+    /** The name of the module that declares a named type, null for one of Lexica's own types and for a name no module qualifies yet. */
+    module;
 
     /** The type of a list's items. */
     itemType;
@@ -33,9 +36,10 @@ export class Type {
     /** Whether the type admits null. */
     isNullable;
 
-    constructor(kind, { name = null, itemType = null, fieldTypes = null, objectExpression = null, functions = null, isNullable = false } = {}) {
+    constructor(kind, { name = null, module = null, itemType = null, fieldTypes = null, objectExpression = null, functions = null, isNullable = false } = {}) {
         this.kind = kind;
         this.name = name;
+        this.module = module;
         this.itemType = itemType;
         this.fieldTypes = fieldTypes;
         this.objectExpression = objectExpression;
@@ -44,7 +48,7 @@ export class Type {
         Object.freeze(this);
     }
 
-    /** The type the notation writes, or null where it is not a type. */
+    /** The type the notation writes, or null where it is not a type: a named type qualified where its module's name and a dot precede it. */
     static parse(text) {
         if (!Type.#parsed.has(text)) {
             Type.#parsed.set(text, new TypeReader(text).readAll());
@@ -53,9 +57,18 @@ export class Type {
         return Type.#parsed.get(text);
     }
 
-    /** A named type. */
-    static createNamedType(name, isNullable = false) {
-        return new Type('named', { name, isNullable });
+    /** A named type, one of Lexica's own types where no module declares it. */
+    static createNamedType(name, isNullable = false, module = null) {
+        return new Type('named', { name, module, isNullable });
+    }
+
+    /** A named type's identity, its module's name and its local name, or its local name alone for one of Lexica's own types; null for any other type. */
+    get identity() {
+        if (this.kind !== 'named') {
+            return null;
+        }
+
+        return this.module === null ? this.name : `${this.module}.${this.name}`;
     }
 
     /** The type of a string, a number or a Boolean, the language's `String`, `Number` or `Boolean`. */
@@ -111,17 +124,17 @@ export class Type {
             return Type.null;
         }
 
-        return this.isNullable ? this : new Type(this.kind, { name: this.name, itemType: this.itemType, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: true });
+        return this.isNullable ? this : new Type(this.kind, { name: this.name, module: this.module, itemType: this.itemType, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: true });
     }
 
     /** The same type, admitting no null. */
     toNonNullable() {
-        return !this.isNullable || this.kind === 'null' ? this : new Type(this.kind, { name: this.name, itemType: this.itemType, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: false });
+        return !this.isNullable || this.kind === 'null' ? this : new Type(this.kind, { name: this.name, module: this.module, itemType: this.itemType, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: false });
     }
 
     /** Whether the two types are the same, nullability included. */
     equals(otherType) {
-        if (this.kind !== otherType.kind || this.name !== otherType.name || this.objectExpression !== otherType.objectExpression || this.isNullable !== otherType.isNullable) {
+        if (this.kind !== otherType.kind || this.name !== otherType.name || this.module !== otherType.module || this.objectExpression !== otherType.objectExpression || this.isNullable !== otherType.isNullable) {
             return false;
         }
 
@@ -140,13 +153,13 @@ export class Type {
         return true;
     }
 
-    /** The notation of the type. */
-    toString() {
+    /** The notation of the type, each named type in it by its local name, or by its identity where it is written qualified. */
+    toString(isQualified = false) {
         let text;
 
         switch (this.kind) {
             case 'list':
-                text = `List<${this.itemType}>`;
+                text = `List<${this.itemType.toString(isQualified)}>`;
                 break;
             case 'object':
                 text = `{ ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType}`).join(', ')} }`;
@@ -161,6 +174,9 @@ export class Type {
                 return 'null';
             case 'never':
                 return 'Never';
+            case 'named':
+                text = isQualified ? this.identity : this.name;
+                break;
             default:
                 text = this.name;
         }
@@ -168,17 +184,24 @@ export class Type {
         return this.isNullable ? `${text}?` : text;
     }
 
+    /** How a message writes two types it names together: each by its local names, and both qualified where they read alike and are different types, as `home.Sensor` and `garden.Sensor`. */
+    static namesOf(firstType, secondType) {
+        const isAlike = String(firstType) === String(secondType) && !firstType.equals(secondType);
+
+        return [firstType.toString(isAlike), secondType.toString(isAlike)];
+    }
+
     /** The kinds of node, each of which fits where a node is declared. */
     static nodeKinds = Object.freeze(['Element', 'Document', 'DocumentFragment', 'ShadowRoot']);
 
-    /** Whether the type is a node or one of its kinds. */
+    /** Whether the type is a node or one of its kinds, Lexica's own. */
     get isNode() {
-        return this.kind === 'named' && (this.name === 'Node' || Type.nodeKinds.includes(this.name));
+        return this.kind === 'named' && this.module === null && (this.name === 'Node' || Type.nodeKinds.includes(this.name));
     }
 
-    /** Whether a value of the actual type is a value of the declared type by kind: the same named type, or a kind of node where a node is declared. */
+    /** Whether a value of the actual type is a value of the declared type by kind: the same named type, by its identity, or a kind of node where a node is declared. */
     static #fitsByName(declaredType, actualType) {
-        return declaredType.name === actualType.name || (declaredType.name === 'Node' && actualType.isNode);
+        return (declaredType.name === actualType.name && declaredType.module === actualType.module) || (declaredType.name === 'Node' && declaredType.module === null && actualType.isNode);
     }
 
     /**
@@ -273,7 +296,7 @@ export class Type {
             return Type.createNamedType('Node', isNullable);
         }
 
-        if (firstType.kind !== secondType.kind || firstType.name !== secondType.name) {
+        if (firstType.kind !== secondType.kind || firstType.name !== secondType.name || firstType.module !== secondType.module) {
             return null;
         }
 
@@ -363,6 +386,20 @@ class TypeReader {
 
         this.#offset = word.lastIndex;
 
+        // A name its module's name and a dot qualify is a type that module declares.
+        if (this.#text[this.#offset] === '.' && !match[0].startsWith('@')) {
+            word.lastIndex = this.#offset + 1;
+            const local = word.exec(this.#text);
+
+            if (local === null || local[0].startsWith('@')) {
+                return null;
+            }
+
+            this.#offset = word.lastIndex;
+
+            return this.#readNullable(Type.createNamedType(local[0], false, match[0]));
+        }
+
         let type;
 
         if (this.#text[this.#offset] === '<') {
@@ -391,9 +428,15 @@ class TypeReader {
             type = Type.createNamedType(match[0]);
         }
 
+        return this.#readNullable(type);
+    }
+
+    /** The type, made nullable where `?` follows it. */
+    #readNullable(type) {
         if (this.#text[this.#offset] === '?') {
             this.#offset++;
-            type = type.toNullable();
+
+            return type.toNullable();
         }
 
         return type;

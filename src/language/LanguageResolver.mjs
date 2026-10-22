@@ -278,7 +278,7 @@ export class LanguageResolver {
 
         const receiverType = left.type.toNonNullable();
         const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isHostCall(candidate) && (candidate.kind === 'property' || (candidate.syntax === 'function-call' && candidate.parameters.every(parameter => !parameter.required)));
-        const declaration = this.#moduleRegistry.getMembers(right.value).find(candidate => isTest(candidate) && LanguageResolver.#matchesReceiver(candidate, receiverType, new Map()));
+        const declaration = this.#moduleRegistry.getMembers(right.value).find(candidate => isTest(candidate) && this.#matchesReceiver(candidate, receiverType, new Map()));
 
         if (declaration === undefined) {
             return '';
@@ -533,7 +533,7 @@ export class LanguageResolver {
      */
     #resolveCast(node, pointer, scope) {
         const target = this.#resolveNode(node.target, `${pointer}/target`, scope);
-        const type = Type.createNamedType(this.#localTypeNameOf(node.type, pointer));
+        const type = this.#typeNamed(node.type, pointer);
 
         if (target.kind !== 'value') {
             this.#fail(`A cast's target is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/target`);
@@ -554,29 +554,38 @@ export class LanguageResolver {
     }
 
     /**
-     * The local name of the type a cast or a conversion names: the name as written, or, where its module's name qualifies it, the name of the type that registered module declares, refused where no module of that name
-     * is registered or the module does not declare a type of that name.
+     * The type a cast or a conversion names: where its module's name qualifies it, the type that registered module declares, refused where no module of that name is registered or the module does not declare a type of
+     * that name; otherwise the one type of its name among Lexica's own and the registry's modules', refused where several share it, and a name none declares left to the cast or the conversion to refuse.
      */
-    #localTypeNameOf(name, pointer) {
+    #typeNamed(name, pointer) {
         const dot = name.indexOf('.');
 
-        if (dot < 0) {
-            return name;
+        if (dot >= 0) {
+            const moduleName = name.slice(0, dot);
+            const localName = name.slice(dot + 1);
+            const module = this.#moduleRegistry.getModule(moduleName);
+
+            if (module === undefined) {
+                this.#fail(`No module named '${moduleName}' is registered, so '${name}' does not name a type`, pointer);
+            }
+
+            if (!module.types.some(type => type.name === localName)) {
+                this.#fail(`The module '${moduleName}' does not declare a type named '${localName}'`, pointer);
+            }
+
+            return Type.createNamedType(localName, false, moduleName);
         }
 
-        const moduleName = name.slice(0, dot);
-        const localName = name.slice(dot + 1);
-        const module = this.#moduleRegistry.getModule(moduleName);
+        const modules = this.#moduleRegistry.getModulesDeclaringType(name);
+        const isOwn = LexicaModule.builtInTypeNames.includes(name);
 
-        if (module === undefined) {
-            this.#fail(`No module named '${moduleName}' is registered, so '${name}' does not name a type`, pointer);
+        if (modules.length + (isOwn ? 1 : 0) > 1) {
+            const candidates = [...(isOwn ? [name] : []), ...modules.map(moduleName => `${moduleName}.${name}`)];
+
+            this.#fail(`'${name}' names a type several declare, ${candidates.join(' and ')}, so it is named qualified by its module`, pointer);
         }
 
-        if (!module.types.some(type => type.name === localName)) {
-            this.#fail(`The module '${moduleName}' does not declare a type named '${localName}'`, pointer);
-        }
-
-        return localName;
+        return Type.createNamedType(name, false, modules[0] ?? null);
     }
 
     /** Resolves an attempt: the conversion or the cast it attempts, as it resolves strictly, its result made nullable, since a rejection answers null. */
@@ -598,9 +607,9 @@ export class LanguageResolver {
             this.#fail(`What 'to' converts is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/target`);
         }
 
-        const to = Type.parse(this.#localTypeNameOf(node.type, pointer));
+        const to = this.#typeNamed(node.type, pointer);
 
-        if (to === null || to.kind !== 'named' || to.isNullable || !this.#moduleRegistry.isConvertible(to.name)) {
+        if (!this.#moduleRegistry.isConvertible(to)) {
             const cast = to?.kind === 'named' && to.isNode ? `; a node is cast to one of its kinds with 'as', as in … as ${node.type}` : '';
 
             this.#fail(`'to' converts to a type of data named as it is declared, Number, String, Boolean or a structured type the vocabulary declares, and '${node.type}' is none of them${cast}`, pointer);
@@ -615,11 +624,11 @@ export class LanguageResolver {
         }
 
         const source = from.toNonNullable();
-        const isIdentity = source.kind === 'named' && source.name === to.name;
-        const declaration = isIdentity || source.kind !== 'named' ? undefined : this.#moduleRegistry.getConversion(source.name, to.name);
+        const isIdentity = source.kind === 'named' && source.equals(to);
+        const declaration = isIdentity || source.kind !== 'named' ? undefined : this.#moduleRegistry.getConversion(source, to);
 
         if (!isIdentity && declaration === undefined) {
-            const targets = source.kind === 'named' ? this.#moduleRegistry.getConversionTargets(source.name) : [];
+            const targets = source.kind === 'named' ? this.#moduleRegistry.getConversionTargets(source) : [];
             const available = targets.length === 0 ? `${source} converts to nothing` : `${source} converts to ${targets.join(', ')}`;
 
             this.#fail(`No conversion from ${source} to ${to.name} is declared, and ${available}`, pointer);
@@ -835,7 +844,7 @@ export class LanguageResolver {
             const receiver = this.#resolveReceiverArgument(node, pointer, scope, `'${node.name}'`);
             const receiverType = receiver.type.toNonNullable();
 
-            if (!LanguageResolver.#isOfUnknownType(receiverType) && !LanguageResolver.#matchesReceiver(declaration, receiverType, new Map())) {
+            if (!LanguageResolver.#isOfUnknownType(receiverType) && !this.#matchesReceiver(declaration, receiverType, new Map())) {
                 this.#fail(`'${node.name}' holds a reference to '${written}', which takes a receiver of ${[declaration.target].flat().join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
             }
 
@@ -874,7 +883,7 @@ export class LanguageResolver {
         if (hasReceiver) {
             const receiverType = results[0].type;
 
-            if (!LanguageResolver.#isOfUnknownType(receiverType.toNonNullable()) && !LanguageResolver.#matchesReceiver(declaration, receiverType.toNonNullable(), typeArguments)) {
+            if (!LanguageResolver.#isOfUnknownType(receiverType.toNonNullable()) && !this.#matchesReceiver(declaration, receiverType.toNonNullable(), typeArguments)) {
                 this.#fail(`'${node.name}' may hold a reference to '${written}', which takes a receiver of ${[declaration.target].flat().join(', ')}, and is given ${receiverType.toNonNullable()}`, `${pointer}/arguments/0`);
             }
 
@@ -883,14 +892,14 @@ export class LanguageResolver {
 
         own.forEach((result, index) => {
             const parameter = parameters[index];
-            const expected = Type.parse(parameter.type).resolveTypeParameters(typeArguments);
+            const expected = this.#moduleRegistry.getDeclaredType(declaration, parameter.type).resolveTypeParameters(typeArguments);
 
             if (!this.#checkValue(result, expected, parameter, declaration, `${pointer}/arguments/${index + (hasReceiver ? 1 : 0)}`)) {
                 isNullable = true;
             }
         });
 
-        const declared = Type.parse(declaration.result).resolveTypeParameters(typeArguments);
+        const declared = this.#moduleRegistry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(typeArguments);
 
         return { reference: declaration, type: isNullable ? declared.toNullable() : declared, invocation: { hasReceiver, names: parameters.slice(0, own.length).map(parameter => parameter.name), defaults: parameters.slice(own.length).map(parameter => [parameter.name, parameter.default]) } };
     }
@@ -996,7 +1005,7 @@ export class LanguageResolver {
             return `${receiver}.${name}`;
         }
 
-        const declaration = this.#moduleRegistry.getMembers(name).find(candidate => LanguageResolver.#matchesReceiver(candidate, type, new Map()));
+        const declaration = this.#moduleRegistry.getMembers(name).find(candidate => this.#matchesReceiver(candidate, type, new Map()));
 
         if (declaration === undefined) {
             return null;
@@ -1131,7 +1140,7 @@ export class LanguageResolver {
             return null;
         }
 
-        return declarations.find(declaration => LanguageResolver.#matchesReceiver(declaration, receiverType, new Map()))?.syntax ?? null;
+        return declarations.find(declaration => this.#matchesReceiver(declaration, receiverType, new Map()))?.syntax ?? null;
     }
 
     /**
@@ -1149,12 +1158,12 @@ export class LanguageResolver {
             return this.#resolveObjectRootField(node, pointer, receiverType);
         }
 
-        const matching = defaults.filter(declaration => LanguageResolver.#matchesReceiver(declaration, receiverType, new Map()));
+        const matching = defaults.filter(declaration => this.#matchesReceiver(declaration, receiverType, new Map()));
 
         if (matching.length === 0) {
             // A string key may name a property of the receiver, which a computed property access reads.
             const key = node.argument.kind === 'literal' ? node.argument.value : null;
-            const isNamed = typeof key === 'string' && (this.#fieldTypeOf(receiverType, key) !== null || this.#moduleRegistry.getMembers(key).some(declaration => declaration.kind === 'property' && LanguageResolver.#matchesReceiver(declaration, receiverType, new Map())));
+            const isNamed = typeof key === 'string' && (this.#fieldTypeOf(receiverType, key) !== null || this.#moduleRegistry.getMembers(key).some(declaration => declaration.kind === 'property' && this.#matchesReceiver(declaration, receiverType, new Map())));
             const computed = isNamed ? DefinitionWriter.write({ kind: 'member', target: node.target, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
 
             this.#fail(`${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
@@ -1360,7 +1369,7 @@ export class LanguageResolver {
             this.#fail(`'${node.name}' is no member of the vocabulary${this.#joinedNameHintOf(node, receiverType)}`, pointer);
         }
 
-        const matching = candidates.filter(candidate => LanguageResolver.#matchesReceiver(candidate, receiverType, new Map()));
+        const matching = candidates.filter(candidate => this.#matchesReceiver(candidate, receiverType, new Map()));
 
         if (matching.length === 0) {
             this.#fail(`'${node.name}' is not available on ${receiverType.toNonNullable()}; it is available on ${candidates.flatMap(candidate => [candidate.target].flat()).join(', ')}`, pointer);
@@ -1375,7 +1384,7 @@ export class LanguageResolver {
 
         this.#checkForm(declaration, node, pointer);
 
-        const { result, resolution } = this.#resolveInvocation(declaration, node, pointer, scope, receiverType, receiverType.isNullable, { name: LanguageResolver.#qualifiedNameOf(declaration, receiverType) });
+        const { result, resolution } = this.#resolveInvocation(declaration, node, pointer, scope, receiverType, receiverType.isNullable, { name: this.#qualifiedNameOf(declaration, receiverType) });
 
         this.#resolutions.set(pointer, resolution);
 
@@ -1390,7 +1399,7 @@ export class LanguageResolver {
         const typeArguments = new Map();
 
         if (receiverType !== null) {
-            LanguageResolver.#matchesReceiver(declaration, receiverType, typeArguments);
+            this.#matchesReceiver(declaration, receiverType, typeArguments);
         }
 
         const resolved = this.#resolveArguments(declaration, node, pointer, scope, receiverType, typeArguments, offset);
@@ -1401,7 +1410,7 @@ export class LanguageResolver {
         }
 
         // A host call that supplies nothing has no value to type, so it is typed as a never, which no value has.
-        const declared = declaration.result === undefined ? Type.never : Type.parse(declaration.result).resolveTypeParameters(resultTypeArguments);
+        const declared = declaration.result === undefined ? Type.never : this.#moduleRegistry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(resultTypeArguments);
         const resolution = { kind: 'member', declaration, receiverType, type: declared, arguments: resolved.arguments, selected: resolved.selected, buildsObjectRoot: resolved.buildsObjectRoot, qualified };
 
         this.#usedDeclarations.push({ declaration, name, pointer });
@@ -1447,7 +1456,7 @@ export class LanguageResolver {
                 this.#fail(`'${written}' is a property, read as ${written}, and takes no argument`, pointer);
             }
 
-            const type = Type.parse(declaration.result);
+            const type = this.#moduleRegistry.getDeclaredType(declaration, declaration.result);
 
             this.#usedDeclarations.push({ declaration, name: written, pointer });
             this.#resolutions.set(pointer, { kind: 'member', declaration, receiverType: null, type, arguments: [], qualified: false });
@@ -1483,7 +1492,7 @@ export class LanguageResolver {
             return this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
         }
 
-        const matching = declarations.filter(declaration => LanguageResolver.#matchesReceiver(declaration, receiverType, new Map()));
+        const matching = declarations.filter(declaration => this.#matchesReceiver(declaration, receiverType, new Map()));
 
         if (matching.length === 0) {
             this.#fail(`'${written}' takes a receiver of ${declarations.flatMap(declaration => [declaration.target].flat()).join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
@@ -1495,7 +1504,7 @@ export class LanguageResolver {
         }
 
         const [declaration] = matching;
-        const { result, resolution } = this.#resolveInvocation(declaration, node, pointer, scope, receiverType, isReceiverNullable, { offset: 1, qualified: true, name: LanguageResolver.#qualifiedNameOf(declaration, receiverType) });
+        const { result, resolution } = this.#resolveInvocation(declaration, node, pointer, scope, receiverType, isReceiverNullable, { offset: 1, qualified: true, name: this.#qualifiedNameOf(declaration, receiverType) });
 
         this.#resolutions.set(pointer, resolution);
 
@@ -1593,7 +1602,7 @@ export class LanguageResolver {
         if (hasReceiver) {
             const [receiverType] = parameterTypes;
 
-            if (receiverType === undefined || receiverType.isNullable || (!fitsAny(receiverType) && !LanguageResolver.#matchesReceiver(declaration, receiverType, typeArguments))) {
+            if (receiverType === undefined || receiverType.isNullable || (!fitsAny(receiverType) && !this.#matchesReceiver(declaration, receiverType, typeArguments))) {
                 return false;
             }
         }
@@ -1609,8 +1618,8 @@ export class LanguageResolver {
             return false;
         }
 
-        const fitsParameters = own.every((type, index) => fitsAny(type) || type.isAssignableTo(Type.parse(parameters[index].type).resolveTypeParameters(typeArguments)));
-        const declared = Type.parse(declaration.result).resolveTypeParameters(typeArguments);
+        const fitsParameters = own.every((type, index) => fitsAny(type) || type.isAssignableTo(this.#moduleRegistry.getDeclaredType(declaration, parameters[index].type).resolveTypeParameters(typeArguments)));
+        const declared = this.#moduleRegistry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(typeArguments);
 
         return fitsParameters && (resultType === null || fitsAny(resultType) || declared.isAssignableTo(resultType));
     }
@@ -1659,8 +1668,8 @@ export class LanguageResolver {
         }
 
         const resultTypes = [
-            ...fitting.filter(({ declaration }) => declaration.result !== undefined).map(({ declaration, resolved }) => Type.parse(declaration.result).resolveTypeParameters(new Map(resolved.selected === undefined ? [] : [['@selected', resolved.selected.type]]))),
-            ...fields.map(text => Type.parse(text)),
+            ...fitting.filter(({ declaration }) => declaration.result !== undefined).map(({ declaration, resolved }) => this.#moduleRegistry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(new Map(resolved.selected === undefined ? [] : [['@selected', resolved.selected.type]]))),
+            ...fields,
         ];
         const shared = resultTypes.reduce((merged, type) => (merged === null ? null : Type.merge(merged, type)), Type.never);
         // A member of a never is never evaluated, since no value has that type, so it answers what its declarations share as they declare it, and where none says what it would answer, nothing yet: a never, which fits wherever a value of any type is required.
@@ -1818,7 +1827,7 @@ export class LanguageResolver {
             }
 
             const valuePointer = given.pointer;
-            const expected = Type.parse(parameter.type).resolveTypeParameters(typeArguments);
+            const expected = this.#moduleRegistry.getDeclaredType(declaration, parameter.type).resolveTypeParameters(typeArguments);
             let result;
             let callback;
 
@@ -1895,7 +1904,11 @@ export class LanguageResolver {
     /** Checks a value argument against its parameter, answering false where a null makes the call answer null. */
     #checkValue(result, expected, parameter, declaration, pointer) {
         const actual = result.type;
-        const wrong = () => this.#fail(`The argument '${parameter.name}' of '${declaration.name}' expects ${expected} and finds ${actual}`, pointer);
+        const wrong = () => {
+            const [expectedName, actualName] = Type.namesOf(expected, actual);
+
+            this.#fail(`The argument '${parameter.name}' of '${declaration.name}' expects ${expectedName} and finds ${actualName}`, pointer);
+        };
 
         if (LanguageResolver.#heldReferenceOf(actual) === 'function') {
             this.#fail(`The argument '${parameter.name}' of '${declaration.name}' takes a value, and a function is none: a function is passed to a local function, or to a parameter its member declares to take one`, pointer);
@@ -1947,7 +1960,7 @@ export class LanguageResolver {
             this.#fail(`The type selector '${parameter.selector}' maps no type to the key '${name}'`, pointer);
         }
 
-        return { selected: { name, type: Type.parse(selectable.type) } };
+        return { selected: { name, type: this.#moduleRegistry.getDeclaredType(selectable, selectable.type) } };
     }
 
     #resolveObject(node, pointer, scope) {
@@ -2117,7 +2130,7 @@ export class LanguageResolver {
     #contractOf(parameter, declaration, receiverType, typeArguments) {
         const isOfUnknownType = receiverType !== null && LanguageResolver.#isOfUnknownType(receiverType);
         const resolve = text => {
-            const type = Type.parse(text).resolveTypeParameters(typeArguments);
+            const type = this.#moduleRegistry.getDeclaredType(declaration, text).resolveTypeParameters(typeArguments);
 
             return isOfUnknownType && LanguageResolver.#holdsTypeParameter(type) ? Type.never : type;
         };
@@ -2262,10 +2275,10 @@ export class LanguageResolver {
             return type.fieldTypes.get(name) ?? null;
         }
 
-        const structure = type.kind === 'named' ? this.#moduleRegistry.getType(type.name) : undefined;
+        const structure = this.#moduleRegistry.getStructure(type);
         const text = structure?.fields[name];
 
-        return text === undefined ? null : Type.parse(text);
+        return text === undefined ? null : this.#moduleRegistry.getDeclaredType(structure, text);
     }
 
     /** Whether values of the type are data; a structure already being checked counts as data where it holds itself, since its other fields are checked where it is first met. */
@@ -2279,19 +2292,19 @@ export class LanguageResolver {
             case 'object':
                 return [...type.fieldTypes.values()].every(fieldType => this.#isData(fieldType, checking));
             case 'named': {
-                if (DATA_TYPE_NAMES.has(type.name) || checking.has(type.name)) {
+                if ((type.module === null && DATA_TYPE_NAMES.has(type.name)) || checking.has(type.identity)) {
                     return true;
                 }
 
-                const structure = this.#moduleRegistry.getType(type.name);
+                const structure = this.#moduleRegistry.getStructure(type);
 
                 if (structure === undefined) {
                     return false;
                 }
 
-                checking.add(type.name);
+                checking.add(type.identity);
 
-                return Object.values(structure.fields).every(text => this.#isData(Type.parse(text), checking));
+                return this.#moduleRegistry.getFieldTypesOf(structure).every(([, fieldType]) => this.#isData(fieldType, checking));
             }
             default:
                 return false;
@@ -2344,15 +2357,13 @@ export class LanguageResolver {
      * The member's name qualified by the type of the declaration the receiver matched, as `node.root` and `shadow.root` are, so two members of one name are told apart; a declaration for any receiver keeps its name alone.
      * A list is named by its kind, as `list.count` is.
      */
-    static #qualifiedNameOf(declaration, receiverType) {
+    #qualifiedNameOf(declaration, receiverType) {
         const base = receiverType.toNonNullable();
-        const on = [declaration.target].flat().find(text => text !== 'any' && Type.parse(text).kind !== 'typeParameter' && Type.tryMatchType(Type.parse(text), base, new Map()));
+        const type = this.#moduleRegistry.getTargetTypes(declaration).find(target => target !== 'any' && target.kind !== 'typeParameter' && Type.tryMatchType(target, base, new Map()));
 
-        if (on === undefined) {
+        if (type === undefined) {
             return declaration.name;
         }
-
-        const type = Type.parse(on);
 
         return `${type.kind === 'named' ? type.name : type.kind}.${declaration.name}`;
     }
@@ -2368,20 +2379,14 @@ export class LanguageResolver {
     }
 
     /** Whether the declaration applies to the receiver, recording the arguments of the type parameters its types write. */
-    static #matchesReceiver(declaration, receiverType, typeArguments) {
-        return LanguageResolver.#matchesAny(declaration.target, receiverType, typeArguments);
-    }
-
-    static #matchesAny(on, receiverType, typeArguments = new Map()) {
+    #matchesReceiver(declaration, receiverType, typeArguments) {
         const base = receiverType.toNonNullable();
         const isValue = base.kind === 'named' || base.kind === 'list' || base.kind === 'object';
 
-        return [on].flat().some(text => {
-            if (text === 'any') {
+        return this.#moduleRegistry.getTargetTypes(declaration).some(type => {
+            if (type === 'any') {
                 return isValue;
             }
-
-            const type = Type.parse(text);
 
             // A target that is a type parameter alone takes a receiver of any type a value has, and binds the parameter to it.
             return (type.kind !== 'typeParameter' || isValue) && Type.tryMatchType(type, base, typeArguments);

@@ -664,7 +664,9 @@ export class Evaluator {
      */
     #compileCast(node, isAttempted) {
         const target = this.#getCompiledFunction(node.target);
-        const { type } = node;
+        const { type: name } = node;
+        // A cast casts to a node or one of its kinds, Lexica's own.
+        const type = Type.createNamedType(name);
 
         return (evaluator, context) => {
             const value = target(evaluator, context);
@@ -979,7 +981,7 @@ export class Evaluator {
 
             const declaration = target.reference;
             const hasReceiver = declaration.target !== undefined;
-            const type = Type.parse(declaration.result);
+            const type = this.#moduleRegistry.getDeclaredType(declaration, declaration.result);
 
             return { reference: declaration, hasReceiver, parameters: declaration.parameters, conforms: Evaluator.#compileTypeCheck(type, this.#moduleRegistry), copyStructures: Evaluator.#compileStructureCopy(type, this.#moduleRegistry), type };
         });
@@ -1251,7 +1253,7 @@ export class Evaluator {
                 return copyItem === null ? null : value => (value === null ? null : value.map(item => (item === null ? null : copyItem(item))));
             }
             case 'named': {
-                const structure = moduleRegistry.getType(type.name);
+                const structure = moduleRegistry.getStructure(type);
 
                 if (structure === undefined) {
                     return null;
@@ -1267,7 +1269,7 @@ export class Evaluator {
                     }
 
                     if (fields === null) {
-                        fields = Evaluator.#fieldTypesOf(structure).map(([name, fieldType]) => [name, Evaluator.#compileStructureCopy(fieldType, moduleRegistry)]);
+                        fields = Evaluator.#fieldTypesOf(structure, moduleRegistry).map(([name, fieldType]) => [name, Evaluator.#compileStructureCopy(fieldType, moduleRegistry)]);
                         isFlat = fields.every(([, copyField]) => copyField === null);
                     }
 
@@ -1336,10 +1338,10 @@ export class Evaluator {
             }
             default: {
                 const { name } = type;
-                const structure = moduleRegistry.getType(name);
+                const structure = moduleRegistry.getStructure(type);
 
                 if (structure === undefined) {
-                    return value => Evaluator.#isOfBuiltIn(value, name) ?? false;
+                    return value => (type.module === null && Evaluator.#isOfBuiltIn(value, name)) ?? false;
                 }
 
                 let fields = null;
@@ -1349,7 +1351,7 @@ export class Evaluator {
                         return false;
                     }
 
-                    fields ??= Evaluator.#fieldTypesOf(structure).map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, moduleRegistry)]);
+                    fields ??= Evaluator.#fieldTypesOf(structure, moduleRegistry).map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, moduleRegistry)]);
 
                     return fields.every(([field, conforms]) => conforms(value[field]));
                 };
@@ -1649,7 +1651,7 @@ export class Evaluator {
 
     /** A value captured as a named type: a built-in type's value as it is, a reference of another type null where a nullable reference type is declared, and a structure as its declared fields, each captured in turn. */
     #captureNamed(value, type, path, fail) {
-        const isOfBuiltIn = Evaluator.#isOfBuiltIn(value, type.name);
+        const isOfBuiltIn = type.module === null ? Evaluator.#isOfBuiltIn(value, type.name) : undefined;
 
         if (isOfBuiltIn !== undefined) {
             if (isOfBuiltIn) {
@@ -1664,13 +1666,13 @@ export class Evaluator {
             fail(path, value, type);
         }
 
-        const structure = this.#moduleRegistry.getType(type.name);
+        const structure = this.#moduleRegistry.getStructure(type);
 
         if (structure === undefined || !ObjectUtils.isNonArrayObject(value)) {
             fail(path, value, type);
         }
 
-        return Object.fromEntries(Evaluator.#fieldTypesOf(structure).map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, Evaluator.#pathOf(path, name), fail)]));
+        return Object.fromEntries(Evaluator.#fieldTypesOf(structure, this.#moduleRegistry).map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, Evaluator.#pathOf(path, name), fail)]));
     }
 
     /** The path of a field within the path of the value that holds it. */
@@ -1701,20 +1703,20 @@ export class Evaluator {
             case 'object':
                 return ObjectUtils.isNonArrayObject(value) && [...type.fieldTypes].every(([name, fieldType]) => this.#conforms(value[name], fieldType));
             default:
-                return this.#conformsNamed(value, type.name);
+                return this.#conformsNamed(value, type);
         }
     }
 
-    #conformsNamed(value, name) {
-        const isOfBuiltIn = Evaluator.#isOfBuiltIn(value, name);
+    #conformsNamed(value, type) {
+        const isOfBuiltIn = type.module === null ? Evaluator.#isOfBuiltIn(value, type.name) : undefined;
 
         if (isOfBuiltIn !== undefined) {
             return isOfBuiltIn;
         }
 
-        const structure = this.#moduleRegistry.getType(name);
+        const structure = this.#moduleRegistry.getStructure(type);
 
-        return structure !== undefined && ObjectUtils.isNonArrayObject(value) && Evaluator.#fieldTypesOf(structure).every(([field, type]) => this.#conforms(value[field], type));
+        return structure !== undefined && ObjectUtils.isNonArrayObject(value) && Evaluator.#fieldTypesOf(structure, this.#moduleRegistry).every(([field, type]) => this.#conforms(value[field], type));
     }
 
     /** Whether the value is of the built-in type the name names, or undefined where the name names a structure a module declares. */
@@ -1763,11 +1765,11 @@ export class Evaluator {
     }
 
     /** The fields of the declared structure, in order, each with its type. */
-    static #fieldTypesOf(structure) {
+    static #fieldTypesOf(structure, moduleRegistry) {
         let fields = Evaluator.#fieldTypesByStructure.get(structure);
 
         if (fields === undefined) {
-            fields = Object.entries(structure.fields).map(([name, text]) => [name, Type.parse(text)]);
+            fields = moduleRegistry.getFieldTypesOf(structure);
             Evaluator.#fieldTypesByStructure.set(structure, fields);
         }
 

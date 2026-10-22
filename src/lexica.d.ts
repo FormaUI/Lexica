@@ -270,8 +270,8 @@ export interface LexicaMemberDeclaration {
 
 /** What a module declares. */
 export interface LexicaModuleContents {
-    /** The structured types it declares, each with its fields' types. */
-    types?: { name: string; fields: Record<string, string> }[];
+    /** The structured types it declares, each with its fields' types and the modules whose types its fields name unqualified. */
+    types?: { name: string; fields: Record<string, string>; import?: string[] }[];
     /** Its members, each named as a name is; a test of a receiver is a function whose result is a boolean. */
     members?: LexicaMemberDeclaration[];
     /** The type selectors it declares, each by its name alone, named once across every module. */
@@ -289,7 +289,7 @@ export interface LexicaModuleContents {
 /** A vocabulary's declarations as data, each that runs code carrying its implementation. */
 export interface LexicaModule {
     readonly name: string;
-    readonly types: readonly { readonly name: string; readonly fields: Readonly<Record<string, string>> }[];
+    readonly types: readonly { readonly name: string; readonly fields: Readonly<Record<string, string>>; readonly import?: readonly string[] }[];
     readonly members: readonly LexicaMemberDeclaration[];
     readonly typeSelectors: readonly LexicaTypeSelectorDeclaration[];
     readonly selectableTypes: readonly LexicaSelectableTypeDeclaration[];

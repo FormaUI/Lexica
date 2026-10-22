@@ -39,8 +39,9 @@ const BUILT_IN_TYPE_NAMES = ['Number', 'String', 'Boolean', 'Node', 'Element', '
 /** The names of the types Lexica defines whose values hold no number, so a tolerance means nothing for them. */
 const UNTOLERATED_TYPE_NAMES = new Set(BUILT_IN_TYPE_NAMES.filter(name => name !== 'Number'));
 
-/** The names no module declares a type by: those Lexica defines, and the words of the type notation. */
-const RESERVED_TYPE_NAMES = new Set([...BUILT_IN_TYPE_NAMES, 'List', 'Null', 'Never']);
+/** The names no module declares a type by: those of Lexica's own types that stay its own, and the words of the type notation. */
+const RESERVED_TYPE_NAMES = new Set(['Number', 'String', 'Boolean', 'List', 'Null', 'Never']);
+
 
 /** The types of data Lexica defines, which a conversion converts between, as it does between them and the structured types modules declare. */
 const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
@@ -56,7 +57,7 @@ const MEMBER_KEYS_BY_KIND = {
 };
 const UPDATES_KEYS = ['changes', 'reads', 'misses', 'tolerance', 'observations'];
 const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameters'];
-const TYPE_KEYS = ['name', 'fields'];
+const TYPE_KEYS = ['name', 'fields', 'import'];
 const TYPE_SELECTOR_KEYS = ['name'];
 const SELECTABLE_TYPE_KEYS = ['name', 'selector', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'implementation'];
@@ -278,9 +279,21 @@ export class LexicaModule {
             fail(`'${type.name}' is the name of one of Lexica's own types, which no module declares`, type.name, 'name');
         }
 
-        // Every single capital letter is a type parameter until a declaration declares its own, so a type of one letter would be read as one wherever it is named.
+        // Every single capital letter is a type parameter, so a type of one letter would be read as one wherever it is named.
         if (type.name.length === 1) {
             fail(`'${type.name}', a single capital letter, is read as a type parameter, so a type is named by more than one letter`, type.name, 'name');
+        }
+
+        const imports = type.import ?? [];
+
+        if (!Array.isArray(imports) || !imports.every(moduleName => Names.isIdentifier(moduleName))) {
+            fail('A type imports modules by their names, as a list', type.name, 'import');
+        }
+
+        const repeated = imports.find((moduleName, index) => imports.indexOf(moduleName) < index);
+
+        if (repeated !== undefined) {
+            fail(`The type imports the module '${repeated}' twice`, type.name, 'import');
         }
 
         const fields = Object.entries(type.fields ?? {});
@@ -542,9 +555,9 @@ export class LexicaModule {
         const name = LexicaModule.conversionNameOf(conversion);
 
         for (const key of ['from', 'to']) {
-            const typeName = conversion[key];
+            const type = Type.parse(conversion[key]);
 
-            if (!Names.isIdentifier(typeName) || !/^[A-Z]/.test(typeName) || (RESERVED_TYPE_NAMES.has(typeName) && !DATA_TYPE_NAMES.includes(typeName))) {
+            if (type?.kind !== 'named' || type.isNullable || !/^[A-Z]/.test(type.name) || (type.module === null && RESERVED_TYPE_NAMES.has(type.name) && !DATA_TYPE_NAMES.includes(type.name))) {
                 fail(`A conversion is from a type of data to another, each named as it is declared: ${DATA_TYPE_NAMES.join(', ')} or a structured type, and its '${key}' is none of them`, name, key);
             }
         }

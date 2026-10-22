@@ -9,7 +9,7 @@
 | Language | `1.0.0-alpha.33` | `1.0.0-alpha.34` |
 | Definition format | 33 | 34 |
 
-The implementation reads definition version 33, the language's indexers, computed properties and qualified type names, and its types' names in PascalCase, but still uses flat member declarations and built-in DOM types. Until the declaration model replaces them, an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. Removing the built-in DOM types follows in step 2.
+The implementation reads definition version 33, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module, but still uses flat member declarations, implicit type parameters and built-in DOM types. Until the declaration model replaces them, an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. Removing the built-in DOM types follows in step 2.
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Six specification examples resolve and evaluate; 28 remain.
 
@@ -26,15 +26,14 @@ It lands in four parts. Each part is a checkpoint: Lexica's change and DOMQL's m
 | Part | Work | State |
 | --- | --- | --- |
 | 1 | Parser and definition format: [indexers and computed properties](#indexers-and-computed-properties) and qualified type names in casts and conversions, in [definition version 33](#definition-version-33) | Implemented |
-| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move: names in PascalCase first, then identity, imports and qualified references, with [script imports](../spec/scripts.md#scripts-imports) in definition version 34 | In progress: names in PascalCase implemented |
+| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move: names in PascalCase first, then identity, imports and qualified references, with [script imports](../spec/scripts.md#scripts-imports) in definition version 34 | In progress: names in PascalCase and type identity implemented |
 | 3 | [Declaration structure](#declaration-structure) and registration | Planned |
 | 4 | Built-in declarations and integration: `List<T>` and its unnamed indexer, and the verbs as an extension on any type, `<T>` | Planned; joins part 3 where part 3 alone cannot leave a working runtime |
 
 ### Type identity and names
 
-- Identify a type by its module and local name, allowing different modules to declare the same local name.
-- Support type-local `import` and qualified type references. Registration resolves every reference to its identity.
-- **Implemented:** type names in PascalCase, Lexica's own and the built-in DOM types' among them, `Number`, `List<T>` and `Element`, and a module's type checked for its initial capital when the module is created. Lexica's own names are reserved; the built-in DOM types' names are reserved too until identity tells a module's `Element` from the built-in one, and are not reserved after.
+- **Implemented:** type names in PascalCase, Lexica's own and the built-in DOM types' among them, `Number`, `List<T>` and `Element`, and a module's type checked for its initial capital when the module is created. Lexica's own names are reserved, and the built-in DOM types' are not, since a module's `Element` is its own.
+- **Implemented:** a type identified by its module and local name, so different modules declare the same local name; a structured type's `import` and qualified type references, every reference resolved to its identity at registration; and an argument's diagnostic writing the type it expects and the one it finds by their qualified names where they share a local name. Until script imports, a script's type names resolve across the registry, unqualified where one type has the name.
 - **Generics:** the accepted [named extension types](proposals/named-extension-types.md) proposal removes generics, the type parameters the specification sets out among them, and declares extensions as named types in a module's `types`. It is specified next, before script imports and before parts 3 and 4, which it changes.
 - **Temporary limitation:** until generics are removed, the implementation reads every single capital letter in a declaration's types, as `T`, as an implicit type parameter, and refuses a type named by one letter. The final rule differs: `T` may be an ordinary declared type, and a name that resolves to no type is an unknown type, whatever its length, never a parameter.
 - Read a script's [imports](../spec/scripts.md#scripts-imports), written or supplied by its host, and record them in definition version 34; resolve a script's namespaces, members and type names among the modules it imports.

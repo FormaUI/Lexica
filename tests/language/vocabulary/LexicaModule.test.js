@@ -406,7 +406,7 @@ describe('LexicaModule', () => {
             refusal({ types: [{ name: 'Chart', fields: { size: 'Number' }, implementation: () => 1 }] }, 'Chart', 'implementation', "'implementation' is none of them");
         });
 
-        it.each(['Element', 'List', 'Null', 'Never'])('refuse a structured type named %s, the name of one of Lexica\'s own types', name => {
+        it.each(['Number', 'List', 'Null', 'Never'])('refuse a structured type named %s, the name of one of Lexica\'s own types', name => {
             refusal({ types: [{ name, fields: { level: 'Number' } }] }, name, 'name', "is the name of one of Lexica's own types");
         });
 
@@ -416,6 +416,16 @@ describe('LexicaModule', () => {
 
         it('refuse a structured type named by one capital letter, which is read as a type parameter', () => {
             refusal({ types: [{ name: 'X', fields: { level: 'Number' } }] }, 'X', 'name', "'X', a single capital letter, is read as a type parameter");
+        });
+
+        it('take a structured type named as a node of Lexica\'s, which its module tells apart', () => {
+            expect(() => new LexicaModule('charts', { types: [{ name: 'Element', fields: { level: 'Number' } }] })).not.toThrow();
+        });
+
+        it('take the modules a structured type imports, by their names, each once', () => {
+            expect(new LexicaModule('charts', { types: [{ name: 'Chart', fields: { level: 'Number' }, import: ['axes'] }] }).types[0].import).toEqual(['axes']);
+            refusal({ types: [{ name: 'Chart', fields: { level: 'Number' }, import: 'axes' }] }, 'Chart', 'import', 'A type imports modules by their names, as a list');
+            refusal({ types: [{ name: 'Chart', fields: { level: 'Number' }, import: ['axes', 'axes'] }] }, 'Chart', 'import', "imports the module 'axes' twice");
         });
 
         it('refuse a field they do not take', () => {
@@ -458,9 +468,6 @@ describe('conversions', () => {
     });
 
     it.each([
-        ['a node', { from: 'Element' }, 'from'],
-        ['the window', { to: 'Window' }, 'to'],
-        ['a shadow view', { from: 'Shadow' }, 'from'],
         ['a list', { to: 'List<Number>' }, 'to'],
         ['a nullable type', { from: 'String?' }, 'from'],
         ['null', { to: 'null' }, 'to'],

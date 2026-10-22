@@ -18,6 +18,16 @@ describe('Type', () => {
             expect(type).toMatchObject({ kind, name, isNullable });
         });
 
+        it('reads a name qualified by its module\'s name, a list\'s item among them', () => {
+            expect(Type.parse('home.Sensor?')).toMatchObject({ kind: 'named', name: 'Sensor', module: 'home', isNullable: true, identity: 'home.Sensor' });
+            expect(Type.parse('List<garden.Sensor>').itemType.identity).toBe('garden.Sensor');
+            expect(Type.parse('T.Sensor')).toMatchObject({ kind: 'named', module: 'T' });
+        });
+
+        it.each(['home.', 'home.Sensor.Light', '@selected.Sensor', 'home.@selected', '.Sensor'])('refuses the qualified name %s', text => {
+            expect(Type.parse(text)).toBeNull();
+        });
+
         it('reads lists by their item types, the type a selector selects among them', () => {
             expect(Type.parse('List<Number>').itemType.name).toBe('Number');
             expect(Type.parse('List<T>?')).toMatchObject({ kind: 'list', isNullable: true });
@@ -40,6 +50,31 @@ describe('Type', () => {
             expect(Type.createListType(Type.parse('Element'), true).equals(Type.parse('List<Element>?'))).toBe(true);
             expect(Type.createTypeParameter('T', true).equals(Type.parse('T?'))).toBe(true);
             expect(Type.createObjectType(new Map([['width', Type.parse('Number')]]), true).toString()).toBe('{ width: Number }?');
+        });
+    });
+
+    describe('identity', () => {
+        it('tells two types of one local name apart by their modules, Lexica\'s own unqualified', () => {
+            expect(Type.parse('home.Sensor').equals(Type.parse('garden.Sensor'))).toBe(false);
+            expect(Type.parse('home.Sensor').equals(Type.createNamedType('Sensor', false, 'home'))).toBe(true);
+            expect(Type.parse('home.Sensor').isAssignableTo(Type.parse('garden.Sensor'))).toBe(false);
+            expect(Type.merge(Type.parse('home.Sensor'), Type.parse('garden.Sensor'))).toBeNull();
+            expect(Type.parse('Number').identity).toBe('Number');
+            expect(Type.parse('List<Number>').identity).toBeNull();
+        });
+
+        it('takes a node of Lexica\'s alone where a node is declared', () => {
+            expect(Type.parse('home.Element').isNode).toBe(false);
+            expect(Type.parse('home.Element').isAssignableTo(Type.parse('Node'))).toBe(false);
+            expect(Type.parse('Element').isAssignableTo(Type.parse('Node'))).toBe(true);
+        });
+
+        it('writes two types by their local names, and both qualified where those read alike', () => {
+            expect(String(Type.parse('home.Sensor'))).toBe('Sensor');
+            expect(Type.namesOf(Type.parse('home.Sensor?'), Type.parse('garden.Sensor?'))).toEqual(['home.Sensor?', 'garden.Sensor?']);
+            expect(Type.namesOf(Type.parse('List<home.Sensor>'), Type.parse('List<garden.Sensor>'))).toEqual(['List<home.Sensor>', 'List<garden.Sensor>']);
+            expect(Type.namesOf(Type.parse('home.Sensor'), Type.parse('Number'))).toEqual(['Sensor', 'Number']);
+            expect(Type.namesOf(Type.parse('home.Sensor'), Type.parse('home.Sensor?'))).toEqual(['Sensor', 'Sensor?']);
         });
     });
 
