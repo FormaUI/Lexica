@@ -32,15 +32,15 @@ A module declares what expressions can read: its types, and the members it adds 
 const { property, function: fn, valueParameter } = lexica.declarations;
 
 const shop = lexica.createModule('shop', {
-    types: [{ name: 'price', fields: { amount: 'number', currency: 'string' } }],
+    types: [{ name: 'Price', fields: { amount: 'Number', currency: 'String' } }],
     members: [
-        property('price', 'string', 'price', {
+        property('price', 'String', 'Price', {
             updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 },
             implementation: ({ receiver, env }) => ({ amount: env.catalog[receiver], currency: 'EUR' }),
         }),
-        fn('discount', 'string', 'number', {
+        fn('discount', 'String', 'Number', {
             updates: { changes: 'constant', reads: 'fresh' },
-            parameters: [valueParameter('code', 'string')],
+            parameters: [valueParameter('code', 'String')],
             implementation: ({ args }) => (args.code === 'TEN' ? 10 : 0),
         }),
     ],
@@ -58,9 +58,9 @@ const registry = lexica.createRegistry([shop]);
 const bindings = lexica.bind({ product: 'tea', code: 'TEN' });
 const resolution = registry.resolve('{ price = product.price, cut = product.discount(code) }', bindings);
 
-resolution.type;                       // '{ price: price, cut: number }'
-resolution.typeAt(['price', 'amount']); // 'number'
-resolution.usedDeclarations.map(used => used.name); // ['string.price', 'string.discount']
+resolution.type;                       // '{ price: Price, cut: Number }'
+resolution.typeAt(['price', 'amount']); // 'Number'
+resolution.usedDeclarations.map(used => used.name); // ['String.price', 'String.discount']
 ```
 
 `lexica.bind` keeps a frozen copy of the data it is given, so later changes to the original never reach an expression. A resolution is reused for bindings of the same types and the same primitive values.

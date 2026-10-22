@@ -18,9 +18,9 @@ const constant = { changes: 'constant', reads: 'fresh' };
 /** A plain host's module of text: a word's letter by its index, a named indexer, and its words, a list, which a word without any has none of. */
 const createText = () => lexica.createModule('text', {
     members: [
-        lexica.declarations.function('letter', 'string', 'string?', { syntax: 'indexer', updates: constant, parameters: [valueParameter('index', 'number')], implementation: ({ receiver, args }) => receiver[args.index] ?? null }),
-        property('words', 'string', 'list<string>', { updates: constant, implementation: ({ receiver }) => receiver.split(' ') }),
-        property('someWords', 'string', 'list<string>?', { updates: constant, implementation: ({ receiver }) => (receiver === '' ? null : receiver.split(' ')) }),
+        lexica.declarations.function('letter', 'String', 'String?', { syntax: 'indexer', updates: constant, parameters: [valueParameter('index', 'Number')], implementation: ({ receiver, args }) => receiver[args.index] ?? null }),
+        property('words', 'String', 'List<String>', { updates: constant, implementation: ({ receiver }) => receiver.split(' ') }),
+        property('someWords', 'String', 'List<String>?', { updates: constant, implementation: ({ receiver }) => (receiver === '' ? null : receiver.split(' ')) }),
     ],
 });
 
@@ -109,7 +109,7 @@ describe('indexers and computed properties', () => {
 
         it('refuses a receiver that can be null where only its brackets are optional, which protect nothing before its name', () => {
             const registry = lexica.createRegistry([createText(), lexica.createModule('maybe', {
-                members: [property('maybe', 'string', 'string?', { updates: constant, implementation: ({ receiver }) => (receiver === '' ? null : receiver) })],
+                members: [property('maybe', 'String', 'String?', { updates: constant, implementation: ({ receiver }) => (receiver === '' ? null : receiver) })],
             })]);
 
             expect(getError(() => registry.resolve('item.maybe.letter?[1]', { item: 'latte' })).message).toContain("write 'item.maybe?.letter?[1]'");
@@ -119,7 +119,7 @@ describe('indexers and computed properties', () => {
         it('answers null for a null receiver written optionally, its key unevaluated', () => {
             const keys = [];
             const registry = lexica.createRegistry([createText(), lexica.createModule('keys', {
-                members: [property('key', 'string', 'number', { updates: constant, implementation: ({ receiver }) => (keys.push(receiver), 1) })],
+                members: [property('key', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => (keys.push(receiver), 1) })],
             })]);
 
             expect(registry.resolve('item?.letter[other.key]', { item: null, other: 'x' }).createEvaluator({ item: null, other: 'x' }).evaluate().value).toBeNull();
@@ -138,7 +138,7 @@ describe('indexers and computed properties', () => {
 
         it('refuses a function written with brackets, giving its call', () => {
             const registry = lexica.createRegistry([lexica.createModule('cut', {
-                members: [lexica.declarations.function('cut', 'string', 'number', { updates: constant, parameters: [valueParameter('percent', 'number')], implementation: ({ args }) => args.percent })],
+                members: [lexica.declarations.function('cut', 'String', 'Number', { updates: constant, parameters: [valueParameter('percent', 'Number')], implementation: ({ args }) => args.percent })],
             })]);
 
             expect(getError(() => registry.resolve('item.cut[5]', { item: 'latte' })).message).toContain("'cut' uses call syntax: write 'item.cut(5)'");
@@ -161,7 +161,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses a receiver whose type has none, giving the computed property access a string key may mean', () => {
-            expect(refusalOf('item[0]', { item: 'latte' }).message).toContain('string has no unnamed indexer');
+            expect(refusalOf('item[0]', { item: 'latte' }).message).toContain('String has no unnamed indexer');
             expect(refusalOf('item["words"]', { item: 'latte' }).message).toContain("write 'item.[\"words\"]'");
         });
 
@@ -172,18 +172,18 @@ describe('indexers and computed properties', () => {
 
     describe('a type name qualified by its module', () => {
         const createCups = () => lexica.createModule('cups', {
-            types: [{ name: 'cup', fields: { size: 'number' } }],
-            conversions: [{ from: 'string', to: 'cup', implementation: ({ value }) => ({ size: value.length }) }],
+            types: [{ name: 'Cup', fields: { size: 'Number' } }],
+            conversions: [{ from: 'String', to: 'Cup', implementation: ({ value }) => ({ size: value.length }) }],
         });
 
         it('is read and written as it is, in text read without a registry too', () => {
-            expect(lexica.parse('order to cups.cup').expression).toEqual({ kind: 'conversion', type: 'cups.cup', target: { kind: 'parameter', name: 'order' } });
-            expect(lexica.format('(order to cups.cup).size')).toBe('(order to cups.cup).size');
+            expect(lexica.parse('order to cups.Cup').expression).toEqual({ kind: 'conversion', type: 'cups.Cup', target: { kind: 'parameter', name: 'order' } });
+            expect(lexica.format('(order to cups.Cup).size')).toBe('(order to cups.Cup).size');
             expect(lexica.format('node as dom.element')).toBe('node as dom.element');
         });
 
         it('names the type its registered module declares', () => {
-            const resolution = lexica.createRegistry([createCups()]).resolve('(order to cups.cup).size', { order: 'tall' });
+            const resolution = lexica.createRegistry([createCups()]).resolve('(order to cups.Cup).size', { order: 'tall' });
 
             expect(resolution.createEvaluator({ order: 'tall' }).evaluate().value).toBe(4);
         });
@@ -191,8 +191,8 @@ describe('indexers and computed properties', () => {
         it('refuses a module no registry holds, and a type its module does not declare', () => {
             const registry = lexica.createRegistry([createCups()]);
 
-            expect(getError(() => registry.resolve('order to mugs.cup', { order: 'tall' })).message).toContain("No module named 'mugs' is registered");
-            expect(getError(() => registry.resolve('order to cups.mug', { order: 'tall' })).message).toContain("The module 'cups' does not declare a type named 'mug'");
+            expect(getError(() => registry.resolve('order to mugs.Cup', { order: 'tall' })).message).toContain("No module named 'mugs' is registered");
+            expect(getError(() => registry.resolve('order to cups.Mug', { order: 'tall' })).message).toContain("The module 'cups' does not declare a type named 'Mug'");
         });
     });
 });

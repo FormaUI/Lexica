@@ -25,22 +25,22 @@ const createPantry = () => {
 
     return lexica.createModule('pantry', {
         members: [
-            property('size', 'string', 'number', { updates: constant, implementation: ({ receiver }) => receiver.length }),
-            lexica.declarations.function('weight', 'string', 'number', { updates: constant, implementation: ({ receiver }) => receiver.length * 10 }),
-            lexica.declarations.function('vegan', 'string', 'boolean', { updates: constant, implementation: ({ receiver }) => receiver.startsWith('oat') }),
-            lexica.declarations.function('keepWhere', 'list<string>', 'number', { updates: derived, parameters: [predicateParameter()], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
-            lexica.declarations.function('callKept', 'string', 'boolean', { updates: derived, implementation: ({ receiver }) => kept(receiver) }),
-            lexica.declarations.function('passes', 'string', 'boolean', { updates: derived, parameters: [functionParameter('test', 'boolean', ['string'])], implementation: ({ receiver, args }) => args.test(receiver) }),
-            lexica.declarations.function('check', 'string', 'boolean', {
+            property('size', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => receiver.length }),
+            lexica.declarations.function('weight', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => receiver.length * 10 }),
+            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver.startsWith('oat') }),
+            lexica.declarations.function('keepWhere', 'List<String>', 'Number', { updates: derived, parameters: [predicateParameter()], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
+            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: derived, implementation: ({ receiver }) => kept(receiver) }),
+            lexica.declarations.function('passes', 'String', 'Boolean', { updates: derived, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ receiver, args }) => args.test(receiver) }),
+            lexica.declarations.function('check', 'String', 'Boolean', {
                 updates: derived,
                 arguments: 'options',
-                parameters: [functionParameter('test', 'boolean', ['string']), valueParameter('note', 'boolean?', { default: null })],
+                parameters: [functionParameter('test', 'Boolean', ['String']), valueParameter('note', 'Boolean?', { default: null })],
                 implementation: ({ receiver, args }) => args.test(receiver),
             }),
-            lexica.declarations.function('pick', 'list<string>', 'number', {
+            lexica.declarations.function('pick', 'List<String>', 'Number', {
                 updates: derived,
                 arguments: 'options',
-                parameters: [{ ...expressionParameter('number'), name: 'by' }, { ...predicateParameter(), name: 'keep' }],
+                parameters: [{ ...expressionParameter('Number'), name: 'by' }, { ...predicateParameter(), name: 'keep' }],
                 implementation: ({ receiver, args }) => receiver.filter(word => args.keep(word)).reduce((sum, word) => sum + args.by(word), 0),
             }),
         ],
@@ -69,8 +69,8 @@ describe('the implicit parameter', () => {
         });
 
         it('keeps the expression\'s result policy for a function as for a body, refusing a result of another type', () => {
-            expect(getError(() => resolve('words.sum(w => w)')).message).toContain("The function given as 'expression' of 'sum' gives string, and its contract takes number");
-            expect(getError(() => resolve('words.sum(it)')).message).toContain("The expression of 'sum' must produce number");
+            expect(getError(() => resolve('words.sum(w => w)')).message).toContain("The function given as 'expression' of 'sum' gives String, and its contract takes Number");
+            expect(getError(() => resolve('words.sum(it)')).message).toContain("The expression of 'sum' must produce Number");
             expect(getError(() => resolve('words.sum(pantry.vegan)')).message).toContain("'pantry.vegan' names no function that takes those or answers that");
         });
 

@@ -22,7 +22,7 @@ export class Declarations {
 
     /** A required predicate parameter, an expression evaluated against each item whose truthiness its implementation receives. */
     static predicateParameter() {
-        return { name: 'expression', kind: 'predicate', type: 'boolean', context: 'item', required: true, fixed: false, nulls: 'accept' };
+        return { name: 'expression', kind: 'predicate', type: 'Boolean', context: 'item', required: true, fixed: false, nulls: 'accept' };
     }
 
     /** A function parameter, always required: its callback contract, the types of the arguments the member calls the function with, in order, and the type of the result it takes from it. */

@@ -63,7 +63,7 @@ Numeric comparisons may form a chain only when every operator points the same wa
 | Use | Example |
 | --- | --- |
 | Field | `{ from = 1, to = 2 }` |
-| Local | `{ let to = "3", value = @to to number }` |
+| Local | `{ let to = "3", value = @to to Number }` |
 | Script parameter | `~to` |
 | Property | `range.to` |
 | Call | `range.to()` |

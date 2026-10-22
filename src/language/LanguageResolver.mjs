@@ -9,7 +9,7 @@ import { ResolvedDefinition } from './ResolvedDefinition.mjs';
 import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
-const DATA_TYPE_NAMES = new Set(['number', 'string', 'boolean']);
+const DATA_TYPE_NAMES = new Set(['Number', 'String', 'Boolean']);
 
 /** How each form of a declaration is written, and the node that writes it. */
 const FORM_NODE_KINDS = { access: 'member', 'function-call': 'call', indexer: 'indexer' };
@@ -133,11 +133,11 @@ export class LanguageResolver {
                     this.#requireNumber(this.#resolveNode(node[side], `${pointer}/${side}`, scope), `The ${side} operand of '${node.operator}'`, `${pointer}/${side}`);
                 }
 
-                return { type: Type.createNamedType('number'), kind: 'value', isFixed: false };
+                return { type: Type.createNamedType('Number'), kind: 'value', isFixed: false };
             case 'negate':
                 this.#requireNumber(this.#resolveNode(node.operand, `${pointer}/operand`, scope), "What '-' negates", `${pointer}/operand`);
 
-                return { type: Type.createNamedType('number'), kind: 'value', isFixed: false };
+                return { type: Type.createNamedType('Number'), kind: 'value', isFixed: false };
             case 'interpolatedString':
                 node.parts.forEach((part, index) => {
                     if (part.kind === 'expression') {
@@ -145,7 +145,7 @@ export class LanguageResolver {
                     }
                 });
 
-                return { type: Type.createNamedType('string'), kind: 'value', isFixed: false };
+                return { type: Type.createNamedType('String'), kind: 'value', isFixed: false };
             case 'comparison':
                 // Each operand is named by the operator it stands after, the first by the one after it.
                 node.operands.forEach((operand, index) => {
@@ -154,7 +154,7 @@ export class LanguageResolver {
                     this.#requireNumber(this.#resolveNode(operand, `${pointer}/operands/${index}`, scope), what, `${pointer}/operands/${index}`, 'a comparison');
                 });
 
-                return { type: Type.createNamedType('boolean'), kind: 'value', isFixed: false };
+                return { type: Type.createNamedType('Boolean'), kind: 'value', isFixed: false };
             case 'conditional':
                 return this.#resolveConditional(node, pointer, scope);
             case 'body':
@@ -264,7 +264,7 @@ export class LanguageResolver {
             }
         }
 
-        return { type: Type.createNamedType('boolean'), kind: 'value', isFixed: false };
+        return { type: Type.createNamedType('Boolean'), kind: 'value', isFixed: false };
     }
 
     /**
@@ -277,7 +277,7 @@ export class LanguageResolver {
         }
 
         const receiverType = left.type.toNonNullable();
-        const isTest = candidate => candidate.result === 'boolean' && !LexicaModule.isHostCall(candidate) && (candidate.kind === 'property' || (candidate.syntax === 'function-call' && candidate.parameters.every(parameter => !parameter.required)));
+        const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isHostCall(candidate) && (candidate.kind === 'property' || (candidate.syntax === 'function-call' && candidate.parameters.every(parameter => !parameter.required)));
         const declaration = this.#moduleRegistry.getMembers(right.value).find(candidate => isTest(candidate) && LanguageResolver.#matchesReceiver(candidate, receiverType, new Map()));
 
         if (declaration === undefined) {
@@ -398,7 +398,7 @@ export class LanguageResolver {
 
     /** The type a value of the type has where it is falsey: a Boolean where it is one, null where it can be null, and never where it is always truthy. */
     static #falseyPartOf(type) {
-        if (type.kind === 'named' && type.name === 'boolean') {
+        if (type.kind === 'named' && type.name === 'Boolean') {
             return type;
         }
 
@@ -420,7 +420,7 @@ export class LanguageResolver {
             return [];
         }
 
-        if (isTruthy === null || !(part.kind === 'named' && part.name === 'boolean')) {
+        if (isTruthy === null || !(part.kind === 'named' && part.name === 'Boolean')) {
             return [String(part)];
         }
 
@@ -540,11 +540,11 @@ export class LanguageResolver {
         }
 
         if (!type.isNode) {
-            this.#fail(`'as' casts to node or one of its kinds, ${Type.nodeKinds.join(', ')}, and '${node.type}' is none of them`, pointer);
+            this.#fail(`'as' casts to Node or one of its kinds, ${Type.nodeKinds.join(', ')}, and '${node.type}' is none of them`, pointer);
         }
 
         const from = target.type;
-        const canBe = from.kind === 'null' || from.kind === 'never' || (from.isNode && (from.name === 'node' || type.name === 'node' || from.name === type.name));
+        const canBe = from.kind === 'null' || from.kind === 'never' || (from.isNode && (from.name === 'Node' || type.name === 'Node' || from.name === type.name));
 
         if (!canBe) {
             this.#fail(`A value of ${from.toNonNullable()} can never be cast to ${node.type}: the cast would always reject it`, pointer);
@@ -603,7 +603,7 @@ export class LanguageResolver {
         if (to === null || to.kind !== 'named' || to.isNullable || !this.#moduleRegistry.isConvertible(to.name)) {
             const cast = to?.kind === 'named' && to.isNode ? `; a node is cast to one of its kinds with 'as', as in … as ${node.type}` : '';
 
-            this.#fail(`'to' converts to a type of data named as it is declared, number, string, boolean or a structured type the vocabulary declares, and '${node.type}' is none of them${cast}`, pointer);
+            this.#fail(`'to' converts to a type of data named as it is declared, Number, String, Boolean or a structured type the vocabulary declares, and '${node.type}' is none of them${cast}`, pointer);
         }
 
         const from = target.type;
@@ -642,7 +642,7 @@ export class LanguageResolver {
 
         this.#requireValue(operand, "What 'not' negates", `${pointer}/operand`);
 
-        return { type: Type.createNamedType('boolean'), kind: 'value', isFixed: false };
+        return { type: Type.createNamedType('Boolean'), kind: 'value', isFixed: false };
     }
 
     /**
@@ -662,8 +662,8 @@ export class LanguageResolver {
             this.#fail(`${what} can be null, and ${operation} takes numbers alone: give it a fallback, as in (… ?? 0), or test it first`, pointer);
         }
 
-        if (type.kind !== 'named' || type.name !== 'number') {
-            this.#fail(`${what} is a number, and this one is ${type}; a conversion makes a number of text, as in … to number`, pointer);
+        if (type.kind !== 'named' || type.name !== 'Number') {
+            this.#fail(`${what} is a number, and this one is ${type}; a conversion makes a number of text, as in … to Number`, pointer);
         }
     }
 
@@ -683,8 +683,8 @@ export class LanguageResolver {
             this.#fail(`${what} can be null: give it a fallback, as in (… ?? "…"), or test it first`, pointer);
         }
 
-        if (type.kind !== 'named' || (type.name !== 'string' && type.name !== 'number')) {
-            const hint = type.kind === 'named' && type.name === 'boolean' ? '; give its text with … to string, or choose it with a conditional' : '';
+        if (type.kind !== 'named' || (type.name !== 'String' && type.name !== 'Number')) {
+            const hint = type.kind === 'named' && type.name === 'Boolean' ? '; give its text with … to String, or choose it with a conditional' : '';
 
             this.#fail(`${what} inserts a string or a number, and this one is ${type}${hint}`, pointer);
         }
@@ -1011,7 +1011,7 @@ export class LanguageResolver {
 
     #resolveLiteral(node) {
         const { value } = node;
-        const type = value === null ? Type.null : Type.createNamedType(typeof value);
+        const type = value === null ? Type.null : Type.createPrimitiveType(value);
 
         return { type, kind: 'value', isFixed: true, value };
     }
@@ -1327,7 +1327,7 @@ export class LanguageResolver {
 
     /** The falsey values a value of the type can give, which no name is: false for a Boolean and null where it can be null. */
     static #falseyPossibleOf(type) {
-        const isBoolean = type.kind === 'named' && type.name === 'boolean';
+        const isBoolean = type.kind === 'named' && type.name === 'Boolean';
 
         return { names: new Set(), canBeNull: type.isNullable, canBeFalse: isBoolean, canBeOther: false };
     }
@@ -2364,7 +2364,7 @@ export class LanguageResolver {
 
     /** Whether values of the type are compared with each other, rather than with null alone: strings, numbers, Booleans and nodes. */
     static #isComparable(type) {
-        return type.kind === 'named' && (['string', 'number', 'boolean'].includes(type.name) || type.isNode);
+        return type.kind === 'named' && (['String', 'Number', 'Boolean'].includes(type.name) || type.isNode);
     }
 
     /** Whether the declaration applies to the receiver, recording the arguments of the type parameters its types write. */

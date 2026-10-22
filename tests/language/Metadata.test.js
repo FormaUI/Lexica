@@ -17,12 +17,12 @@ const parts = [createPart('a'), createPart('b')];
 /** A plain host's module on names: a size measured within half a unit, a length, a list of references and each reference's label. */
 const constant = { changes: 'constant', reads: 'fresh' };
 const shapes = new LexicaModule('shapes', {
-    types: [{ name: 'size', fields: { width: 'number', height: 'number' } }],
+    types: [{ name: 'Size', fields: { width: 'Number', height: 'Number' } }],
     members: [
-        property('size', 'string', 'size', { updates: { ...constant, tolerance: 0.5 }, implementation: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
-        property('length', 'string', 'number', { updates: constant, implementation: ({ receiver }) => receiver.length }),
-        property('parts', 'string', 'list<element>', { updates: constant, implementation: () => parts }),
-        property('label', 'element', 'string', { updates: constant, implementation: ({ receiver }) => receiver.id }),
+        property('size', 'String', 'Size', { updates: { ...constant, tolerance: 0.5 }, implementation: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
+        property('length', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => receiver.length }),
+        property('parts', 'String', 'List<Element>', { updates: constant, implementation: () => parts }),
+        property('label', 'Element', 'String', { updates: constant, implementation: ({ receiver }) => receiver.id }),
     ],
 });
 

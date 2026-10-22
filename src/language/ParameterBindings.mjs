@@ -89,7 +89,7 @@ export class ParameterBindings {
         }
 
         if (typeof value !== 'object') {
-            return Type.createNamedType(typeof value);
+            return Type.createPrimitiveType(value);
         }
 
         if (Array.isArray(value)) {
@@ -142,7 +142,7 @@ export class ParameterBindings {
         return Object.freeze(copy);
     }
 
-    /** The kind of node the value is, element, document, documentFragment or shadowRoot, or null where it is none of them. */
+    /** The kind of node the value is, Element, Document, DocumentFragment or ShadowRoot, or null where it is none of them. */
     static #nodeKindOf(value) {
         if (typeof Node === 'undefined' || !(value instanceof Node)) {
             return null;
@@ -150,11 +150,11 @@ export class ParameterBindings {
 
         switch (value.nodeType) {
             case Node.ELEMENT_NODE:
-                return 'element';
+                return 'Element';
             case Node.DOCUMENT_NODE:
-                return 'document';
+                return 'Document';
             case Node.DOCUMENT_FRAGMENT_NODE:
-                return value.host === undefined ? 'documentFragment' : 'shadowRoot';
+                return value.host === undefined ? 'DocumentFragment' : 'ShadowRoot';
             default:
                 return null;
         }

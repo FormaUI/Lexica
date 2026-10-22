@@ -26,7 +26,7 @@ describe('the package', () => {
 
         expect(error).toBe('');
         expect(status).toBe(0);
-        expect(JSON.parse(output)).toEqual({ value: { total: 6 }, type: '{ total: number }', tolerance: null });
+        expect(JSON.parse(output)).toEqual({ value: { total: 6 }, type: '{ total: Number }', tolerance: null });
     });
 
     it('exports its entry point alone, refusing a module of its sources', () => {

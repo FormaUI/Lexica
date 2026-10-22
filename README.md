@@ -48,7 +48,7 @@ const registry = lexica.createRegistry();
 const bindings = lexica.bind({ price: 4, quantity: 3 });
 const resolution = registry.resolve(definition, bindings);
 
-resolution.type; // '{ total: number }'
+resolution.type; // '{ total: Number }'
 resolution.createEvaluator(bindings).evaluate().value; // { total: 12 }
 ```
 

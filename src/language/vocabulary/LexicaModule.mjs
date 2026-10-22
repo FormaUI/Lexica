@@ -34,16 +34,16 @@ const OBSERVATION_CONTRACTS = ['invalidation', 'maintained'];
 const OBSERVED_CHANGE_CATEGORIES = ['observable', 'partly-observable'];
 
 /** The names of the types Lexica defines, which a declaration names without any module declaring them. */
-const BUILT_IN_TYPE_NAMES = ['number', 'string', 'boolean', 'node', 'element', 'document', 'documentFragment', 'shadowRoot', 'shadow', 'aria', 'window'];
+const BUILT_IN_TYPE_NAMES = ['Number', 'String', 'Boolean', 'Node', 'Element', 'Document', 'DocumentFragment', 'ShadowRoot', 'Shadow', 'Aria', 'Window'];
 
 /** The names of the types Lexica defines whose values hold no number, so a tolerance means nothing for them. */
-const UNTOLERATED_TYPE_NAMES = new Set(BUILT_IN_TYPE_NAMES.filter(name => name !== 'number'));
+const UNTOLERATED_TYPE_NAMES = new Set(BUILT_IN_TYPE_NAMES.filter(name => name !== 'Number'));
 
 /** The names no module declares a type by: those Lexica defines, and the words of the type notation. */
-const RESERVED_TYPE_NAMES = new Set([...BUILT_IN_TYPE_NAMES, 'list', 'null', 'never']);
+const RESERVED_TYPE_NAMES = new Set([...BUILT_IN_TYPE_NAMES, 'List', 'Null', 'Never']);
 
 /** The types of data Lexica defines, which a conversion converts between, as it does between them and the structured types modules declare. */
-const DATA_TYPE_NAMES = ['number', 'string', 'boolean'];
+const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 
 /** What a module can declare. */
 const CONTENTS = ['types', 'members', 'typeSelectors', 'selectableTypes', 'observationTypes', 'observationTargets', 'conversions'];
@@ -174,7 +174,7 @@ export class LexicaModule {
         return DATA_TYPE_NAMES;
     }
 
-    /** How a conversion is named where a message names it: its source type and its target, as `string to number`. */
+    /** How a conversion is named where a message names it: its source type and its target, as `String to Number`. */
     static conversionNameOf(conversion) {
         return `${conversion.from} to ${conversion.to}`;
     }
@@ -270,8 +270,17 @@ export class LexicaModule {
     static #validateTypeDeclaration(type, fail) {
         LexicaModule.#validateKeys(type, TYPE_KEYS, 'A type', fail);
 
-        if (!Names.isIdentifier(type?.name) || RESERVED_TYPE_NAMES.has(type.name)) {
-            fail('A type is named as a name is and takes none of the built-in names', type?.name, 'name');
+        if (!Names.isIdentifier(type?.name) || !/^[A-Z]/.test(type.name)) {
+            fail('A type is named in PascalCase, an identifier beginning with a capital letter', type?.name, 'name');
+        }
+
+        if (RESERVED_TYPE_NAMES.has(type.name)) {
+            fail(`'${type.name}' is the name of one of Lexica's own types, which no module declares`, type.name, 'name');
+        }
+
+        // Every single capital letter is a type parameter until a declaration declares its own, so a type of one letter would be read as one wherever it is named.
+        if (type.name.length === 1) {
+            fail(`'${type.name}', a single capital letter, is read as a type parameter, so a type is named by more than one letter`, type.name, 'name');
         }
 
         const fields = Object.entries(type.fields ?? {});
@@ -447,7 +456,7 @@ export class LexicaModule {
 
         const parameter = parameters.get(value.argument);
 
-        return parameter?.kind === 'value' && parameter.type === 'string';
+        return parameter?.kind === 'value' && parameter.type === 'String';
     }
 
     static #isObservationValue(value, parameters) {
@@ -535,7 +544,7 @@ export class LexicaModule {
         for (const key of ['from', 'to']) {
             const typeName = conversion[key];
 
-            if (!Names.isIdentifier(typeName) || (RESERVED_TYPE_NAMES.has(typeName) && !DATA_TYPE_NAMES.includes(typeName))) {
+            if (!Names.isIdentifier(typeName) || !/^[A-Z]/.test(typeName) || (RESERVED_TYPE_NAMES.has(typeName) && !DATA_TYPE_NAMES.includes(typeName))) {
                 fail(`A conversion is from a type of data to another, each named as it is declared: ${DATA_TYPE_NAMES.join(', ')} or a structured type, and its '${key}' is none of them`, name, key);
             }
         }
@@ -777,7 +786,7 @@ export class LexicaModule {
         }
 
         // A predicate's expression gives any value, and its implementation receives that value's truthiness.
-        if (parameter.kind === 'predicate' && parameter.type !== 'boolean') {
+        if (parameter.kind === 'predicate' && parameter.type !== 'Boolean') {
             fail(`The predicate parameter '${parameter.name}' is of type boolean, the truthiness its implementation receives`, memberName, field);
         }
 
@@ -805,7 +814,7 @@ export class LexicaModule {
         }
 
         // A fixed argument names a declaration, which only a string can.
-        if (parameter.kind !== 'value' || parameter.type !== 'string') {
+        if (parameter.kind !== 'value' || parameter.type !== 'String') {
             fail(`The fixed parameter '${parameter.name}' is a value parameter of type string, since it names what it selects`, memberName, field);
         }
     }

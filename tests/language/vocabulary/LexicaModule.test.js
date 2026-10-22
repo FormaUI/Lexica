@@ -16,7 +16,7 @@ describe('LexicaModule', () => {
         const implementation = () => 2;
         const module = new LexicaModule('charts', { members: [declaration({ name: 'charts', implementation })] });
 
-        expect(module.members[0]).toMatchObject({ name: 'charts', target: 'element', parameters: [], updates: { changes: 'constant', reads: 'fresh', observations: [] } });
+        expect(module.members[0]).toMatchObject({ name: 'charts', target: 'Element', parameters: [], updates: { changes: 'constant', reads: 'fresh', observations: [] } });
         expect(module.members[0].implementation).toBe(implementation);
         expect(Object.isFrozen(module.members[0])).toBe(true);
         expect(Object.isFrozen(module.members[0].updates)).toBe(true);
@@ -25,7 +25,7 @@ describe('LexicaModule', () => {
 
     it('fills a member\'s defaults: a function call, its arguments positional for an indexer, and empty parameters and observations', () => {
         const module = new LexicaModule('charts', {
-            members: [functionDeclaration({ name: 'level' }), functionDeclaration({ name: 'key', syntax: 'indexer', arguments: undefined, parameters: [parameter({ name: 'key', type: 'string' })] })],
+            members: [functionDeclaration({ name: 'level' }), functionDeclaration({ name: 'key', syntax: 'indexer', arguments: undefined, parameters: [parameter({ name: 'key', type: 'String' })] })],
         });
 
         expect(module.members.map(member => [member.syntax, member.arguments])).toEqual([['function-call', 'positional'], ['indexer', 'positional']]);
@@ -37,12 +37,12 @@ describe('LexicaModule', () => {
     });
 
     it('names a property, a function, an indexer and a field of a structured type with any word, a keyword and a literal\'s word among them, read after a dot or a colon', () => {
-        const types = [{ name: 'chart', fields: { else: 'number' } }];
-        const key = [parameter({ name: 'key', type: 'string' })];
+        const types = [{ name: 'Chart', fields: { else: 'Number' } }];
+        const key = [parameter({ name: 'key', type: 'String' })];
 
-        expect(() => new LexicaModule('charts', { types, members: [declaration({ name: 'then', target: 'chart' }), functionDeclaration({ name: 'if', target: 'chart', parameters: key })] })).not.toThrow();
-        expect(() => new LexicaModule('charts', { types, members: [functionDeclaration({ name: 'if', syntax: 'indexer', target: 'chart', parameters: key })] })).not.toThrow();
-        expect(() => new LexicaModule('charts', { types, members: [declaration({ name: 'null', target: 'chart' })] })).not.toThrow();
+        expect(() => new LexicaModule('charts', { types, members: [declaration({ name: 'then', target: 'Chart' }), functionDeclaration({ name: 'if', target: 'Chart', parameters: key })] })).not.toThrow();
+        expect(() => new LexicaModule('charts', { types, members: [functionDeclaration({ name: 'if', syntax: 'indexer', target: 'Chart', parameters: key })] })).not.toThrow();
+        expect(() => new LexicaModule('charts', { types, members: [declaration({ name: 'null', target: 'Chart' })] })).not.toThrow();
     });
 
     it('offers no way to make a module exempt from the registry\'s rules, whatever its name', () => {
@@ -75,7 +75,7 @@ describe('LexicaModule', () => {
             refusal({ members: [declaration({ parameters: [] })] }, 'zoom', 'parameters', "A member of kind 'property' declares");
             refusal({ members: [declaration({ default: true })] }, 'zoom', 'default', "A member of kind 'property' declares");
             refusal({ members: [functionDeclaration({ tolerence: 1 })] }, 'zoom', 'tolerence', "'tolerence' is none of them");
-            refusal({ members: [declaration({ on: 'element' })] }, 'zoom', 'on', "'on' is none of them");
+            refusal({ members: [declaration({ on: 'Element' })] }, 'zoom', 'on', "'on' is none of them");
             refusal({ members: [declaration({ function: 'zoom' })] }, 'zoom', 'function', "'function' is none of them");
         });
 
@@ -88,14 +88,14 @@ describe('LexicaModule', () => {
         });
 
         it('declare the types they apply to, or none for a module member', () => {
-            expect(() => new LexicaModule('charts', { members: [declaration({ target: ['element', 'document'] }), declaration({ name: 'any', target: 'any' })] })).not.toThrow();
+            expect(() => new LexicaModule('charts', { members: [declaration({ target: ['Element', 'Document'] }), declaration({ name: 'any', target: 'any' })] })).not.toThrow();
             expect(() => new LexicaModule('charts', { members: [declaration({ target: undefined })] })).not.toThrow();
             refusal({ members: [declaration({ target: [] })] }, 'zoom', 'target', 'It declares the types it applies to');
-            refusal({ members: [declaration({ target: 'list<' })] }, 'zoom', 'target', 'It declares the types it applies to');
+            refusal({ members: [declaration({ target: 'List<' })] }, 'zoom', 'target', 'It declares the types it applies to');
         });
 
         it('declare their result', () => {
-            refusal({ members: [declaration({ result: 'list<' })] }, 'zoom', 'result', 'type of its result');
+            refusal({ members: [declaration({ result: 'List<' })] }, 'zoom', 'result', 'type of its result');
             refusal({ members: [declaration({ result: undefined })] }, 'zoom', 'result', 'type of its result');
         });
 
@@ -145,7 +145,7 @@ describe('LexicaModule', () => {
         it('are kept as declared, with value parameters, a result where the host supplies values and none where it supplies none', () => {
             const module = new LexicaModule('charts', { members: [hostCall(), hostCall({ name: 'hold', result: undefined }), hostCall({ name: 'reset', target: undefined, parameters: [], arguments: undefined })] });
 
-            expect(module.members.map(member => [member.name, member.invokedBy, member.syntax, member.result, 'updates' in member])).toEqual([['dim', 'host', 'function-call', 'number', false], ['hold', 'host', 'function-call', undefined, false], ['reset', 'host', 'function-call', 'number', false]]);
+            expect(module.members.map(member => [member.name, member.invokedBy, member.syntax, member.result, 'updates' in member])).toEqual([['dim', 'host', 'function-call', 'Number', false], ['hold', 'host', 'function-call', undefined, false], ['reset', 'host', 'function-call', 'Number', false]]);
             expect(() => new LexicaModule('charts', { members: [functionDeclaration({ invokedBy: 'evaluator' })] })).not.toThrow();
         });
 
@@ -153,7 +153,7 @@ describe('LexicaModule', () => {
             refusal({ members: [hostCall({ invokedBy: 'user' })] }, 'dim', 'invokedBy', 'A function is invoked by one of evaluator, host');
             refusal({ members: [declaration({ invokedBy: 'host' })] }, 'zoom', 'invokedBy', "A member of kind 'property' declares");
             refusal({ members: [functionDeclaration({ result: undefined })] }, 'zoom', 'result', 'It declares the type of its result');
-            refusal({ members: [hostCall({ result: 'list<' })] }, 'dim', 'result', 'It declares the type of each value its host supplies, or none');
+            refusal({ members: [hostCall({ result: 'List<' })] }, 'dim', 'result', 'It declares the type of each value its host supplies, or none');
         });
 
         it('declare neither updates, since they are never evaluated, nor an implementation, since their host invokes them', () => {
@@ -185,13 +185,13 @@ describe('LexicaModule', () => {
 
     describe('type selectors and their keys', () => {
         const fails = contents => refusalOf(() => new LexicaModule('charts', contents));
-        const selecting = (overrides = {}) => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'type', selector: 'report' })], ...overrides });
+        const selecting = (overrides = {}) => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameter({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report' })], ...overrides });
 
         it('are kept as frozen data, a selector by its name alone and a key with the selector it belongs to and the type it maps to', () => {
-            const module = new LexicaModule('charts', { typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'motion', selector: 'report', type: 'number' }, { name: 'door:open', selector: 'report', type: 'list<string>' }] });
+            const module = new LexicaModule('charts', { typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number' }, { name: 'door:open', selector: 'report', type: 'List<String>' }] });
 
             expect(module.typeSelectors).toEqual([{ name: 'report' }]);
-            expect(module.selectableTypes).toEqual([{ name: 'motion', selector: 'report', type: 'number' }, { name: 'door:open', selector: 'report', type: 'list<string>' }]);
+            expect(module.selectableTypes).toEqual([{ name: 'motion', selector: 'report', type: 'Number' }, { name: 'door:open', selector: 'report', type: 'List<String>' }]);
             expect([...module.typeSelectors, ...module.selectableTypes].every(Object.isFrozen)).toBe(true);
         });
 
@@ -202,24 +202,24 @@ describe('LexicaModule', () => {
         });
 
         it('name a key as an event is named, with the selector it belongs to and the type it maps to, and declare nothing else of it', () => {
-            expect(fails({ selectableTypes: [{ name: '1st', selector: 'report', type: 'number' }] })).toMatchObject({ declaration: '1st', field: 'name' });
-            expect(fails({ selectableTypes: [{ name: 'motion', type: 'number' }] })).toMatchObject({ declaration: 'motion', field: 'selector' });
-            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'list<' }] })).toMatchObject({ declaration: 'motion', field: 'type' });
-            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'number', implementation: () => 1 }] })).toMatchObject({ declaration: 'motion', field: 'implementation' });
+            expect(fails({ selectableTypes: [{ name: '1st', selector: 'report', type: 'Number' }] })).toMatchObject({ declaration: '1st', field: 'name' });
+            expect(fails({ selectableTypes: [{ name: 'motion', type: 'Number' }] })).toMatchObject({ declaration: 'motion', field: 'selector' });
+            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'List<' }] })).toMatchObject({ declaration: 'motion', field: 'type' });
+            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number', implementation: () => 1 }] })).toMatchObject({ declaration: 'motion', field: 'implementation' });
         });
 
         it('are selected through by a function\'s one fixed parameter that names its selector, whose result writes @selected', () => {
-            expect(() => new LexicaModule('charts', { members: [selecting(), selecting({ name: 'reports', result: 'list<@selected>' })] })).not.toThrow();
-            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'type' })] })] }).message).toContain("The fixed parameter 'kind' selects a type, so it names the type selector it selects through");
-            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', fixed: true, selects: 'predicate', selector: 'report' })] })] }).message).toContain("The fixed parameter 'kind' declares what it selects, one of type; a test of the receiver is passed as a function, to a function parameter");
-            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'string', selector: 'report' })] })] }).message).toContain("The parameter 'kind' selects nothing, since it is not fixed");
+            expect(() => new LexicaModule('charts', { members: [selecting(), selecting({ name: 'reports', result: 'List<@selected>' })] })).not.toThrow();
+            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'String', fixed: true, selects: 'type' })] })] }).message).toContain("The fixed parameter 'kind' selects a type, so it names the type selector it selects through");
+            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'String', fixed: true, selects: 'predicate', selector: 'report' })] })] }).message).toContain("The fixed parameter 'kind' declares what it selects, one of type; a test of the receiver is passed as a function, to a function parameter");
+            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'String', selector: 'report' })] })] }).message).toContain("The parameter 'kind' selects nothing, since it is not fixed");
         });
 
         it('are selected through by one parameter at most, and a result writes @selected exactly where a parameter selects a type', () => {
-            const kind = name => parameter({ name, type: 'string', fixed: true, selects: 'type', selector: 'report' });
+            const kind = name => parameter({ name, type: 'String', fixed: true, selects: 'type', selector: 'report' });
 
             expect(fails({ members: [selecting({ parameters: [kind('first'), kind('second')] })] })).toMatchObject({ declaration: 'report', field: 'parameters', message: expect.stringContaining("A function has one parameter at most that selects a type, since its result writes one @selected, and 'first' and 'second' each select one") });
-            expect(fails({ members: [selecting({ result: 'number' })] })).toMatchObject({ declaration: 'report', field: 'result', message: expect.stringContaining("Its parameter 'kind' selects a type, so its result writes @selected where that type stands") });
+            expect(fails({ members: [selecting({ result: 'Number' })] })).toMatchObject({ declaration: 'report', field: 'result', message: expect.stringContaining("Its parameter 'kind' selects a type, so its result writes @selected where that type stands") });
             expect(fails({ members: [functionDeclaration({ result: '@selected' })] })).toMatchObject({ declaration: 'zoom', field: 'result', message: expect.stringContaining('Its result writes @selected, and none of its parameters selects a type') });
         });
     });
@@ -243,7 +243,7 @@ describe('LexicaModule', () => {
         });
 
         it('say from: \'receiver\' and count: \'many\', or leave them out, and declare nothing else', () => {
-            expect(fails([{ name: 'page', from: 'document' }])).toMatchObject({ declaration: 'page', field: 'from' });
+            expect(fails([{ name: 'page', from: 'Document' }])).toMatchObject({ declaration: 'page', field: 'from' });
             expect(fails([{ name: 'page', count: 2 }])).toMatchObject({ declaration: 'page', field: 'count' });
             expect(fails([{ name: 'page', scope: 'all' }])).toMatchObject({ declaration: 'page', field: 'scope' });
             expect(fails([null]).message).toContain('An observation target is an object declaring name, from, count');
@@ -274,13 +274,13 @@ describe('LexicaModule', () => {
 
         it('take a tolerance that is not negative, for a numeric or a structured result alone', () => {
             expect(() => new LexicaModule('charts', updating({ changes: 'unobserved', reads: 'fresh', tolerance: 0.5 }))).not.toThrow();
-            expect(() => new LexicaModule('charts', { types: [{ name: 'box', fields: { width: 'number' } }], members: [declaration({ result: 'box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
+            expect(() => new LexicaModule('charts', { types: [{ name: 'Box', fields: { width: 'Number' } }], members: [declaration({ result: 'Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
 
             for (const tolerance of [-1, '1', Infinity, null]) {
                 refusal(updating({ changes: 'unobserved', reads: 'fresh', tolerance }), 'zoom', 'updates.tolerance', 'tolerance');
             }
 
-            for (const result of ['string', 'boolean?', 'list<number>', 'element']) {
+            for (const result of ['String', 'Boolean?', 'List<Number>', 'Element']) {
                 refusal({ members: [declaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] }, 'zoom', 'updates.tolerance', 'A tolerance applies to a numeric result');
             }
         });
@@ -292,7 +292,7 @@ describe('LexicaModule', () => {
         const fails = contents => refusalOf(() => new LexicaModule('charts', contents));
 
         it('observe the receiver, an argument of the member or an observation target by its name, which the registry finds', () => {
-            const parameters = [parameter({ name: 'other', type: 'element' })];
+            const parameters = [parameter({ name: 'other', type: 'Element' })];
 
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'resize', of: { argument: 'other' } }], { kind: 'function', arguments: 'positional', parameters })] })).not.toThrow();
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'event', of: 'window', types: ['focus'] }, { type: 'visibility', of: 'parent' }])] })).not.toThrow();
@@ -302,7 +302,7 @@ describe('LexicaModule', () => {
         });
 
         it('give their arguments literals, lists of literals and arguments of the member', () => {
-            const parameters = [parameter({ name: 'name', type: 'string' })];
+            const parameters = [parameter({ name: 'name', type: 'String' })];
 
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name' }, 'type'], subtree: false, depth: 2 }], { kind: 'function', arguments: 'positional', parameters })] })).not.toThrow();
             expect(fails({ members: [observed([{ type: 'mutation', of: 'receiver', attributes: { anything: 1 } }])] }).message).toContain('no literal, list of literals or argument of the member');
@@ -310,15 +310,15 @@ describe('LexicaModule', () => {
         });
 
         it('join a prefix, a string, to an argument of a string value parameter, and nowhere else', () => {
-            const prefixed = (prefix, type = 'string', kind = 'value') => ({ members: [observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name', prefix }] }], { kind: 'function', arguments: 'positional', parameters: [parameter({ name: 'name', type, kind, ...(kind === 'expression' ? { context: 'item' } : {}) })] })] });
+            const prefixed = (prefix, type = 'String', kind = 'value') => ({ members: [observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name', prefix }] }], { kind: 'function', arguments: 'positional', parameters: [parameter({ name: 'name', type, kind, ...(kind === 'expression' ? { context: 'item' } : {}) })] })] });
             const message = 'which a prefix, a string, is joined to only where its parameter is a value parameter of type string';
 
             expect(() => new LexicaModule('charts', prefixed('aria-'))).not.toThrow();
             expect(fails(prefixed('')).message).toContain(message);
             expect(fails(prefixed(1)).message).toContain(message);
-            expect(fails(prefixed('aria-', 'number')).message).toContain(message);
-            expect(fails(prefixed('aria-', 'string?')).message).toContain(message);
-            expect(fails(prefixed('aria-', 'string', 'expression')).message).toContain(message);
+            expect(fails(prefixed('aria-', 'Number')).message).toContain(message);
+            expect(fails(prefixed('aria-', 'String?')).message).toContain(message);
+            expect(fails(prefixed('aria-', 'String', 'expression')).message).toContain(message);
         });
 
         it('are never given a function parameter, which lasts only while the member\'s invocation does', () => {
@@ -353,16 +353,16 @@ describe('LexicaModule', () => {
         });
 
         it('refuse a fixed parameter that is no Boolean, one that selects without being fixed, and one that is no value parameter of type string', () => {
-            refusal(declaring({ type: 'string', fixed: 'yes' }), 'zoom', 'parameters', 'declares whether it is fixed as a Boolean');
-            refusal(declaring({ type: 'string', selects: 'type', selector: 'report' }), 'zoom', 'parameters', 'selects nothing, since it is not fixed');
-            refusal(declaring({ type: 'number', fixed: true, selects: 'type', selector: 'report' }), 'zoom', 'parameters', 'is a value parameter of type string');
-            refusal(declaring({ type: 'string', fixed: true, selects: 'member' }), 'zoom', 'parameters', 'declares what it selects, one of type');
-            refusal(declaring({ type: 'string', fixed: true, selects: 'eventType' }), 'zoom', 'parameters', 'declares what it selects, one of type');
+            refusal(declaring({ type: 'String', fixed: 'yes' }), 'zoom', 'parameters', 'declares whether it is fixed as a Boolean');
+            refusal(declaring({ type: 'String', selects: 'type', selector: 'report' }), 'zoom', 'parameters', 'selects nothing, since it is not fixed');
+            refusal(declaring({ type: 'Number', fixed: true, selects: 'type', selector: 'report' }), 'zoom', 'parameters', 'is a value parameter of type string');
+            refusal(declaring({ type: 'String', fixed: true, selects: 'member' }), 'zoom', 'parameters', 'declares what it selects, one of type');
+            refusal(declaring({ type: 'String', fixed: true, selects: 'eventType' }), 'zoom', 'parameters', 'declares what it selects, one of type');
         });
 
         it('refuse an expression or a predicate parameter that declares no item as its implicit parameter, saying the key that declares it', () => {
             refusal(declaring({ name: 'by', kind: 'expression', nulls: 'accept' }), 'zoom', 'parameters', "The expression parameter 'by' declares its implicit parameter as context: 'item'");
-            refusal(declaring({ name: 'by', kind: 'predicate', type: 'boolean', nulls: 'accept' }), 'zoom', 'parameters', "The predicate parameter 'by' declares its implicit parameter as context: 'item'");
+            refusal(declaring({ name: 'by', kind: 'predicate', type: 'Boolean', nulls: 'accept' }), 'zoom', 'parameters', "The predicate parameter 'by' declares its implicit parameter as context: 'item'");
         });
 
         it('refuse a function parameter that is optional, fixed, given a context, or declares no list of the types it is called with', () => {
@@ -377,13 +377,13 @@ describe('LexicaModule', () => {
     });
 
     describe('Boolean functions, the tests of a receiver', () => {
-        const test = (overrides = {}) => functionDeclaration({ name: 'lit', result: 'boolean', parameters: [], arguments: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'mutation', of: 'receiver', attributes: ['data-lit'] }] }, ...overrides });
+        const test = (overrides = {}) => functionDeclaration({ name: 'lit', result: 'Boolean', parameters: [], arguments: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'mutation', of: 'receiver', attributes: ['data-lit'] }] }, ...overrides });
 
         it('are members as any other, each a function whose result is a boolean, with its updates and its implementation', () => {
             const implementation = () => true;
             const [kept] = new LexicaModule('lit', { members: [test({ implementation })] }).members;
 
-            expect(kept).toMatchObject({ name: 'lit', kind: 'function', target: 'element', result: 'boolean', parameters: [] });
+            expect(kept).toMatchObject({ name: 'lit', kind: 'function', target: 'Element', result: 'Boolean', parameters: [] });
             expect(kept.implementation).toBe(implementation);
         });
 
@@ -395,23 +395,31 @@ describe('LexicaModule', () => {
 
     describe('function parameters on any receiver', () => {
         it('take a callback of the receiver\'s own type, a target that is a type parameter binding it', () => {
-            const tested = functionDeclaration({ name: 'passes', target: 'T', result: 'boolean', parameters: [parameter({ name: 'test', kind: 'function', type: 'boolean', parameters: ['T'], nulls: undefined })], updates: { changes: 'derived', reads: 'derived' } });
+            const tested = functionDeclaration({ name: 'passes', target: 'T', result: 'Boolean', parameters: [parameter({ name: 'test', kind: 'function', type: 'Boolean', parameters: ['T'], nulls: undefined })], updates: { changes: 'derived', reads: 'derived' } });
 
-            expect(new LexicaModule('charts', { members: [tested] }).members[0]).toMatchObject({ target: 'T', parameters: [{ kind: 'function', parameters: ['T'], type: 'boolean' }] });
+            expect(new LexicaModule('charts', { members: [tested] }).members[0]).toMatchObject({ target: 'T', parameters: [{ kind: 'function', parameters: ['T'], type: 'Boolean' }] });
         });
     });
 
     describe('types, which run nothing', () => {
         it('refuse an implementation, which would mean nothing for them', () => {
-            refusal({ types: [{ name: 'chart', fields: { size: 'number' }, implementation: () => 1 }] }, 'chart', 'implementation', "'implementation' is none of them");
+            refusal({ types: [{ name: 'Chart', fields: { size: 'Number' }, implementation: () => 1 }] }, 'Chart', 'implementation', "'implementation' is none of them");
         });
 
-        it.each(['element', 'list', 'null', 'never'])('refuse a structured type named %s, a built-in name', name => {
-            refusal({ types: [{ name, fields: { level: 'number' } }] }, name, 'name', 'built-in names');
+        it.each(['Element', 'List', 'Null', 'Never'])('refuse a structured type named %s, the name of one of Lexica\'s own types', name => {
+            refusal({ types: [{ name, fields: { level: 'Number' } }] }, name, 'name', "is the name of one of Lexica's own types");
+        });
+
+        it.each(['chart', 'null', 'number'])('refuse a structured type named %s, which no capital letter begins', name => {
+            refusal({ types: [{ name, fields: { level: 'Number' } }] }, name, 'name', 'A type is named in PascalCase');
+        });
+
+        it('refuse a structured type named by one capital letter, which is read as a type parameter', () => {
+            refusal({ types: [{ name: 'X', fields: { level: 'Number' } }] }, 'X', 'name', "'X', a single capital letter, is read as a type parameter");
         });
 
         it('refuse a field they do not take', () => {
-            refusal({ types: [{ name: 'chart', fields: { size: 'number' }, field: {} }] }, 'chart', 'field', "'field' is none of them");
+            refusal({ types: [{ name: 'Chart', fields: { size: 'Number' }, field: {} }] }, 'Chart', 'field', "'field' is none of them");
         });
     });
 
@@ -440,21 +448,21 @@ describe('LexicaModule', () => {
 });
 
 describe('conversions', () => {
-    const conversion = (overrides = {}) => ({ from: 'string', to: 'chart', ...overrides });
-    const declaring = conversions => new LexicaModule('charts', { types: [{ name: 'chart', fields: { points: 'number' } }], conversions });
+    const conversion = (overrides = {}) => ({ from: 'String', to: 'Chart', ...overrides });
+    const declaring = conversions => new LexicaModule('charts', { types: [{ name: 'Chart', fields: { points: 'Number' } }], conversions });
 
     it('are kept as data, each from a type to another with its implementation', () => {
         const implementation = ({ value }) => ({ points: value.length });
 
-        expect(declaring([conversion({ implementation })]).conversions[0]).toMatchObject({ from: 'string', to: 'chart', implementation });
+        expect(declaring([conversion({ implementation })]).conversions[0]).toMatchObject({ from: 'String', to: 'Chart', implementation });
     });
 
     it.each([
-        ['a node', { from: 'element' }, 'from'],
-        ['the window', { to: 'window' }, 'to'],
-        ['a shadow view', { from: 'shadow' }, 'from'],
-        ['a list', { to: 'list<number>' }, 'to'],
-        ['a nullable type', { from: 'string?' }, 'from'],
+        ['a node', { from: 'Element' }, 'from'],
+        ['the window', { to: 'Window' }, 'to'],
+        ['a shadow view', { from: 'Shadow' }, 'from'],
+        ['a list', { to: 'List<Number>' }, 'to'],
+        ['a nullable type', { from: 'String?' }, 'from'],
         ['null', { to: 'null' }, 'to'],
     ])('convert between types of data alone, never %s', (_, overrides, field) => {
         const refused = refusalOf(() => declaring([conversion(overrides)]));
@@ -464,12 +472,12 @@ describe('conversions', () => {
     });
 
     it('are never declared from a type to itself, which a value already of it converts to', () => {
-        expect(messageOf(() => declaring([conversion({ from: 'chart', to: 'chart' })]))).toContain('A value already of a type converts to itself');
+        expect(messageOf(() => declaring([conversion({ from: 'Chart', to: 'Chart' })]))).toContain('A value already of a type converts to itself');
     });
 
     it('take from, to and implementation alone, the implementation a function', () => {
-        expect(refusalOf(() => declaring([conversion({ function: 'parse' })]))).toMatchObject({ declaration: 'string to chart', field: 'function' });
-        expect(refusalOf(() => declaring([conversion({ implementation: 'parse' })]))).toMatchObject({ declaration: 'string to chart', field: 'implementation' });
+        expect(refusalOf(() => declaring([conversion({ function: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', field: 'function' });
+        expect(refusalOf(() => declaring([conversion({ implementation: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', field: 'implementation' });
     });
 
     it('take to as a member name, a property, a function call or an indexer, since it converts only after a value', () => {

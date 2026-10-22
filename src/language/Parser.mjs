@@ -633,7 +633,7 @@ export class Parser {
         return Parser.#node(kind, children);
     }
 
-    /** Reads a unary expression: `-` and what it negates, another unary expression or an equality operand, so `-x to number` negates the converted value; or an equality operand alone. */
+    /** Reads a unary expression: `-` and what it negates, another unary expression or an equality operand, so `-x to Number` negates the converted value; or an equality operand alone. */
     #parseUnary() {
         if (this.#token.type !== '-') {
             return this.#parseEqualityOperand();
@@ -717,7 +717,7 @@ export class Parser {
     /** Reads a conversion after the value it converts: `to` and the name of the type it converts to, written bare. It ends its chain, and another conversion may follow it. */
     #parseConversion(target) {
         const toKeyword = this.#take();
-        const type = this.#readTypeName('to', 'converts to', 'number');
+        const type = this.#readTypeName('to', 'converts to', 'Number');
         const node = Parser.#node('conversion', [target, toKeyword, type]);
         const name = this.#text.slice(SyntaxTree.startOf(type), SyntaxTree.endOf(type));
 
@@ -817,7 +817,7 @@ export class Parser {
     /** Reads `as` and the type's name after a cast's target, which nothing continues but a group. */
     #readCast(target) {
         const asKeyword = this.#take();
-        const type = this.#readTypeName('as', 'casts to', 'element');
+        const type = this.#readTypeName('as', 'casts to', 'Element');
         const node = Parser.#node('cast', [target, asKeyword, type]);
         const name = this.#text.slice(SyntaxTree.startOf(type), SyntaxTree.endOf(type));
 
@@ -882,7 +882,7 @@ export class Parser {
         const target = this.#parseCastTarget(this.#token.start);
 
         if (!this.#isKeyword('as')) {
-            throw this.#fail('A group as the receiver of an optional enclosed access holds a cast, as in (?(node.parent as element).rect)', this.#token.start);
+            throw this.#fail('A group as the receiver of an optional enclosed access holds a cast, as in (?(node.parent as Element).rect)', this.#token.start);
         }
 
         const cast = this.#readCast(target);
@@ -904,7 +904,7 @@ export class Parser {
             }
 
             if (this.#continuesChain() && this.#token.type !== '{') {
-                throw this.#fail('A grouped target is cast as it is, with nothing after it but its cast, as in ((a ?? b) as element)', this.#token.start);
+                throw this.#fail('A grouped target is cast as it is, with nothing after it but its cast, as in ((a ?? b) as Element)', this.#token.start);
             }
 
             return target;

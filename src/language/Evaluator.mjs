@@ -1680,7 +1680,7 @@ export class Evaluator {
 
     /** Whether the value is a reference, a value of a reference type the language defines: a node or a window. */
     static #isReference(value) {
-        return Evaluator.#isOfBuiltIn(value, 'node') || Evaluator.#isOfBuiltIn(value, 'window');
+        return Evaluator.#isOfBuiltIn(value, 'Node') || Evaluator.#isOfBuiltIn(value, 'Window');
     }
 
     /** Whether the value is one the type admits. */
@@ -1720,27 +1720,27 @@ export class Evaluator {
     /** Whether the value is of the built-in type the name names, or undefined where the name names a structure a module declares. */
     static #isOfBuiltIn(value, name) {
         switch (name) {
-            case 'number':
+            case 'Number':
                 return Number.isFinite(value);
-            case 'string':
+            case 'String':
                 return typeof value === 'string';
-            case 'boolean':
+            case 'Boolean':
                 return typeof value === 'boolean';
-            case 'element':
+            case 'Element':
                 return value?.nodeType === 1;
-            case 'document':
+            case 'Document':
                 return value?.nodeType === 9;
-            case 'documentFragment':
+            case 'DocumentFragment':
                 return value?.nodeType === 11 && value.host === undefined;
-            case 'shadowRoot':
+            case 'ShadowRoot':
                 return value?.nodeType === 11 && value.host !== undefined;
-            case 'node':
+            case 'Node':
                 return value?.nodeType === 1 || value?.nodeType === 9 || value?.nodeType === 11;
             // An element's shadow view and its ARIA view are the element itself, which their types, never their values, tell from the element.
-            case 'shadow':
-            case 'aria':
+            case 'Shadow':
+            case 'Aria':
                 return value?.nodeType === 1;
-            case 'window':
+            case 'Window':
                 return value?.window === value;
             default:
                 return undefined;

@@ -15,7 +15,7 @@ const getError = call => {
 const { property, valueParameter } = lexica.declarations;
 
 /** A host call of a device, named by a string: a function its host invokes, which supplies values of the result's type, or none where it declares none. */
-const hostCall = (name, result, options) => lexica.declarations.function(name, 'string', result, { invokedBy: 'host', ...options });
+const hostCall = (name, result, options) => lexica.declarations.function(name, 'String', result, { invokedBy: 'host', ...options });
 
 /**
  * A home's module: a light dimmed to a level, which supplies the level it reached; a thermostat held at a target, which supplies nothing; a sensor watched for motion, which supplies each motion; a device's reports of a kind,
@@ -23,24 +23,24 @@ const hostCall = (name, result, options) => lexica.declarations.function(name, '
  * from the environment as it is when read; and a device's partner, which none has. The room and the level record each invocation, so a test sees which ran.
  */
 const createHome = (invoked = []) => lexica.createModule('home', {
-    types: [{ name: 'motion', fields: { at: 'number', strength: 'number' } }, { name: 'change', fields: { setting: 'string', value: 'string?' } }],
+    types: [{ name: 'Motion', fields: { at: 'Number', strength: 'Number' } }, { name: 'Change', fields: { setting: 'String', value: 'String?' } }],
     typeSelectors: [{ name: 'event' }, { name: 'reading' }],
     selectableTypes: [
-        { name: 'motion', selector: 'event', type: 'motion' },
-        { name: 'change', selector: 'event', type: 'change' },
-        { name: 'level', selector: 'reading', type: 'number' },
-        { name: 'tone', selector: 'reading', type: 'string' },
+        { name: 'motion', selector: 'event', type: 'Motion' },
+        { name: 'change', selector: 'event', type: 'Change' },
+        { name: 'level', selector: 'reading', type: 'Number' },
+        { name: 'tone', selector: 'reading', type: 'String' },
     ],
     members: [
-        hostCall('dim', 'number', { arguments: 'options', parameters: [valueParameter('to', 'number')] }),
-        hostCall('hold', undefined, { arguments: 'options', parameters: [valueParameter('target', 'number')] }),
-        hostCall('watch', 'motion'),
-        hostCall('on', '@selected', { parameters: [valueParameter('type', 'string', { fixed: true, selects: 'type', selector: 'event' })] }),
-        lexica.declarations.function('reading', 'string', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('name', 'string', { fixed: true, selects: 'type', selector: 'reading' })], implementation: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
-        property('room', 'string', 'string', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`room:${receiver}`), `${receiver}'s room`) }),
-        property('level', 'string', 'number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => (invoked.push(`level:${receiver}`), env.levels[receiver]) }),
-        property('occupied', 'string', 'boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => env.occupied.includes(receiver) }),
-        property('partner', 'string', 'string?', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => null }),
+        hostCall('dim', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
+        hostCall('hold', undefined, { arguments: 'options', parameters: [valueParameter('target', 'Number')] }),
+        hostCall('watch', 'Motion'),
+        hostCall('on', '@selected', { parameters: [valueParameter('type', 'String', { fixed: true, selects: 'type', selector: 'event' })] }),
+        lexica.declarations.function('reading', 'String', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('name', 'String', { fixed: true, selects: 'type', selector: 'reading' })], implementation: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
+        property('room', 'String', 'String', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`room:${receiver}`), `${receiver}'s room`) }),
+        property('level', 'String', 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => (invoked.push(`level:${receiver}`), env.levels[receiver]) }),
+        property('occupied', 'String', 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => env.occupied.includes(receiver) }),
+        property('partner', 'String', 'String?', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => null }),
     ],
 });
 
@@ -58,13 +58,13 @@ describe('host calls', () => {
         expect(resolution.hostCall).toEqual({ name: 'dim', declaration: home.members[0] });
         expect(Object.isFrozen(resolution.hostCall)).toBe(true);
         expect(registry.getOwner(resolution.hostCall.declaration)).toBe('home');
-        expect(resolution.usedDeclarations.map(({ name, pointer }) => [name, pointer])).toEqual([['string.dim', '/expression']]);
+        expect(resolution.usedDeclarations.map(({ name, pointer }) => [name, pointer])).toEqual([['String.dim', '/expression']]);
         expect(resolve('light.room').hostCall).toBeNull();
     });
 
     it('are typed by the values their host supplies, as their result projection makes them, and give no result where their host supplies none', () => {
-        expect(resolve('light.dim({ to = 40 })').type).toBe('number');
-        expect(resolve('sensor.watch() { at = it.at, strong = it.strength > 0.8 }').type).toBe('{ at: number, strong: boolean }');
+        expect(resolve('light.dim({ to = 40 })').type).toBe('Number');
+        expect(resolve('sensor.watch() { at = it.at, strong = it.strength > 0.8 }').type).toBe('{ at: Number, strong: Boolean }');
         expect(resolve('thermostat.hold({ target = 21 })').type).toBeNull();
 
         const refused = getError(() => resolve('thermostat.hold({ target = 21 })').typeAt([]));
@@ -77,7 +77,7 @@ describe('host calls', () => {
     it('stand at the end of a body, its locals before them, and in a do block there, as the script\'s terminal position', () => {
         expect(resolve('let target = 21 return thermostat.hold({ target = target })').hostCall.name).toBe('hold');
         expect(resolve('do let level = 40 return light.dim({ to = level }) end').hostCall.name).toBe('dim');
-        expect(resolve('let room = sensor.room return sensor.watch() { at = it.at, room = room }').type).toBe('{ at: number, room: string }');
+        expect(resolve('let room = sensor.room return sensor.watch() { at = it.at, room = room }').type).toBe('{ at: Number, room: String }');
         expect(resolve('light?.dim({ to = 40 })').hostCall.name).toBe('dim');
     });
 
@@ -113,10 +113,10 @@ describe('host calls', () => {
 
     it('on a receiver of unknown type, keep their name and have no declaration yet, and are refused where the declarations disagree on who invokes them', () => {
         const dimmer = lexica.createModule('dimmer', {
-            members: [lexica.declarations.function('dim', 'number', 'number', { updates: { changes: 'constant', reads: 'fresh' }, arguments: 'options', parameters: [valueParameter('to', 'number')], implementation: ({ args }) => args.to })],
+            members: [lexica.declarations.function('dim', 'Number', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, arguments: 'options', parameters: [valueParameter('to', 'Number')], implementation: ({ args }) => args.to })],
         });
 
-        expect(resolve('thing?.dim({ to = 40 })', { thing: null })).toMatchObject({ type: 'number?', hostCall: { name: 'dim', declaration: null } });
+        expect(resolve('thing?.dim({ to = 40 })', { thing: null })).toMatchObject({ type: 'Number?', hostCall: { name: 'dim', declaration: null } });
         expect(resolve('thing?.hold({ target = 21 })', { thing: null }).type).toBeNull();
 
         const refused = getError(() => resolve('thing?.dim({ to = 40 })', { thing: null }, [createHome(), dimmer]));
@@ -126,9 +126,9 @@ describe('host calls', () => {
     });
 
     it('supply values of the type a fixed argument selects through a type selector, a bound parameter settling it as a literal does', () => {
-        expect(resolve('sensor.on("motion") { at = it.at, strong = it.strength > 0.8 }').type).toBe('{ at: number, strong: boolean }');
-        expect(resolve('sensor.on("change")').type).toBe('change');
-        expect(resolve('sensor.on(kind)', { ...bindings, kind: 'motion' }).type).toBe('motion');
+        expect(resolve('sensor.on("motion") { at = it.at, strong = it.strength > 0.8 }').type).toBe('{ at: Number, strong: Boolean }');
+        expect(resolve('sensor.on("change")').type).toBe('Change');
+        expect(resolve('sensor.on(kind)', { ...bindings, kind: 'motion' }).type).toBe('Motion');
 
         const refused = getError(() => resolve('sensor.on("smoke")'));
 
@@ -139,7 +139,7 @@ describe('host calls', () => {
     it('select a type for a function the evaluator invokes as for one the host invokes', () => {
         const resolution = resolve('{ level = light.reading("level"), tone = light.reading("tone") }');
 
-        expect(resolution.type).toBe('{ level: number, tone: string }');
+        expect(resolution.type).toBe('{ level: Number, tone: String }');
         expect(resolution.createEvaluator(bindings).evaluate().value).toEqual({ level: 3, tone: 'warm' });
     });
 
@@ -191,7 +191,7 @@ describe('prepared calls', () => {
         const refused = getError(() => dimmed.project('bright'));
 
         expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: '/expression' } });
-        expect(refused.message).toContain("The host call 'dim' supplied \"bright\", and it declares number");
+        expect(refused.message).toContain("The host call 'dim' supplied \"bright\", and it declares Number");
     });
 
     it('project for the host given, which is told as each projection ends', () => {
@@ -293,13 +293,13 @@ describe('values a host supplies', () => {
     /** A desk's module: a report its host supplies, with references, data and spots nested in it; a spot that may be none; and a spot a member answers, which its implementation answers with no label. */
     const createReports = () => lexica.createModule('reports', {
         types: [
-            { name: 'spot', fields: { x: 'number', label: 'string?' } },
-            { name: 'report', fields: { target: 'element?', owner: 'element', note: 'string?', count: 'number', spot: 'spot?', spots: 'list<spot>' } },
+            { name: 'Spot', fields: { x: 'Number', label: 'String?' } },
+            { name: 'Report', fields: { target: 'Element?', owner: 'Element', note: 'String?', count: 'Number', spot: 'Spot?', spots: 'List<Spot>' } },
         ],
         members: [
-            lexica.declarations.function('report', 'string', 'report', { invokedBy: 'host' }),
-            lexica.declarations.function('maybe', 'string', 'spot?', { invokedBy: 'host' }),
-            property('spotted', 'string', 'spot', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => ({ x: 1 }) }),
+            lexica.declarations.function('report', 'String', 'Report', { invokedBy: 'host' }),
+            lexica.declarations.function('maybe', 'String', 'Spot?', { invokedBy: 'host' }),
+            property('spotted', 'String', 'Spot', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => ({ x: 1 }) }),
         ],
     });
 
@@ -328,27 +328,27 @@ describe('values a host supplies', () => {
 
         expect(reporting().project(withoutNullables).value).toMatchObject({ note: null, spot: null });
         expect(reporting().project(report({ spot: { x: 4 } })).value.spot).toEqual({ x: 4, label: null });
-        expect(refusalOf(reporting(), withoutCount)).toContain("The host call 'report' supplied a value without 'count', and 'count' is declared number");
+        expect(refusalOf(reporting(), withoutCount)).toContain("The host call 'report' supplied a value without 'count', and 'count' is declared Number");
         expect(prepared('desk.maybe()').project(undefined).value).toBeNull();
     });
 
     it('take null where the type is nullable, and fail where it is not, the value itself among them', () => {
         expect(reporting().project(report({ note: null })).value.note).toBeNull();
         expect(prepared('desk.maybe()').project(null).value).toBeNull();
-        expect(refusalOf(reporting(), report({ owner: null }))).toContain("supplied a value whose 'owner' is null, and 'owner' is declared element");
-        expect(refusalOf(reporting(), null)).toContain("The host call 'report' supplied null, and it declares report");
+        expect(refusalOf(reporting(), report({ owner: null }))).toContain("supplied a value whose 'owner' is null, and 'owner' is declared Element");
+        expect(refusalOf(reporting(), null)).toContain("The host call 'report' supplied null, and it declares Report");
     });
 
     it('narrow a reference of another type to null where a nullable reference type is declared, and fail where the type is not nullable', () => {
         expect(reporting().project(report({ target: document })).value.hasTarget).toBe(false);
-        expect(refusalOf(reporting(), report({ owner: document }))).toContain("supplied a value whose 'owner' is a node, and 'owner' is declared element");
+        expect(refusalOf(reporting(), report({ owner: document }))).toContain("supplied a value whose 'owner' is a node, and 'owner' is declared Element");
     });
 
     it('fail on mistyped data whatever its type\'s nullability, naming the part of the value by its path at every level', () => {
-        expect(refusalOf(reporting(), report({ note: 5 }))).toContain("supplied a value whose 'note' is 5, and 'note' is declared string?");
-        expect(refusalOf(reporting(), report({ target: 'desk' }))).toContain("supplied a value whose 'target' is \"desk\", and 'target' is declared element?");
-        expect(refusalOf(reporting(), report({ spot: { x: 'far' } }))).toContain("supplied a value whose 'spot.x' is \"far\", and 'spot.x' is declared number");
-        expect(refusalOf(reporting(), report({ spots: [{ x: 1 }, { x: 'b' }] }))).toContain("supplied a value whose 'spots[1].x' is \"b\", and 'spots[1].x' is declared number");
+        expect(refusalOf(reporting(), report({ note: 5 }))).toContain("supplied a value whose 'note' is 5, and 'note' is declared String?");
+        expect(refusalOf(reporting(), report({ target: 'desk' }))).toContain("supplied a value whose 'target' is \"desk\", and 'target' is declared Element?");
+        expect(refusalOf(reporting(), report({ spot: { x: 'far' } }))).toContain("supplied a value whose 'spot.x' is \"far\", and 'spot.x' is declared Number");
+        expect(refusalOf(reporting(), report({ spots: [{ x: 1 }, { x: 'b' }] }))).toContain("supplied a value whose 'spots[1].x' is \"b\", and 'spots[1].x' is declared Number");
         expect(refusalOf(reporting(), report({ spots: [, { x: 1 }] }))).toContain("supplied a value whose 'spots' is");
     });
 

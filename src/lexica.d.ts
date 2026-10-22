@@ -65,7 +65,7 @@ export interface LexicaBindings {
     has(name: string): boolean;
     /** The value bound to the name: data as a frozen copy, a reference as itself. */
     get(name: string): unknown;
-    /** The type the value bound to the name gives it, in type notation, as `list<number?>`. */
+    /** The type the value bound to the name gives it, in type notation, as `List<Number?>`. */
     typeOf(name: string): string | undefined;
 }
 
@@ -108,7 +108,7 @@ export interface LexicaArgumentReference {
     argument: string;
 }
 
-/** An argument of the member with a prefix joined to it, for a value parameter of type `string`, as `{ argument: 'name', prefix: 'aria-' }` names the attribute `aria-` and the name. */
+/** An argument of the member with a prefix joined to it, for a value parameter of type `String`, as `{ argument: 'name', prefix: 'aria-' }` names the attribute `aria-` and the name. */
 export interface LexicaPrefixedArgumentReference extends LexicaArgumentReference {
     /** What is joined before the argument, a string no empty one. */
     prefix: string;
@@ -195,9 +195,9 @@ export interface LexicaConversionImplementationInput {
 
 /** A conversion from one type of data to another, which `to` asks for: a value already of a type converts to itself, so none is declared from a type to itself. */
 export interface LexicaConversionDeclaration {
-    /** The type it converts from: `number`, `string`, `boolean` or a structured type. */
+    /** The type it converts from: `Number`, `String`, `Boolean` or a structured type. */
     from: string;
-    /** The type it converts to: `number`, `string`, `boolean` or a structured type. */
+    /** The type it converts to: `Number`, `String`, `Boolean` or a structured type. */
     to: string;
     /** Converts the value, reading nothing else, and answers the converted value, of the type it converts to, or calls `reject` where the value has none. */
     implementation?: (input: LexicaConversionImplementationInput) => unknown;
@@ -211,13 +211,13 @@ export interface LexicaParameterDeclaration {
      * by reference or an implicit body, which the implementation calls while its own invocation lasts and only a member of kind `function` takes.
      */
     kind: 'value' | 'expression' | 'predicate' | 'function';
-    /** The parameter's type, in Lexica's notation; a predicate's is `boolean`, what the implementation receives, and a function parameter's the type of its function's result. */
+    /** The parameter's type, in Lexica's notation; a predicate's is `Boolean`, what the implementation receives, and a function parameter's the type of its function's result. */
     type: string;
     /** The types its function is called with, in order, in Lexica's notation, which may write a type parameter its member's target binds; only a function parameter declares them. */
     parameters?: string[];
     required: boolean;
     default?: unknown;
-    /** Whether the argument names something the vocabulary resolves before any evaluation; a fixed parameter is a value parameter of type `string`. */
+    /** Whether the argument names something the vocabulary resolves before any evaluation; a fixed parameter is a value parameter of type `String`. */
     fixed?: boolean;
     /** What a fixed parameter names, and only a fixed one: a type, which a function's result writes as `@selected`, through the type selector `selector` names. */
     selects?: 'type';

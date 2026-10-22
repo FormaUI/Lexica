@@ -24,13 +24,13 @@ const createPantry = (invoked = []) => {
 
     return lexica.createModule('pantry', {
         members: [
-            property('size', 'string', 'number', { updates: constant, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
-            lexica.declarations.function('vegan', 'string', 'boolean', { updates: constant, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
-            lexica.declarations.function('fresh', 'string', 'boolean', { updates: constant, implementation: () => 'yes' }),
-            lexica.declarations.function('even', 'number', 'boolean', { updates: constant, implementation: ({ receiver }) => receiver % 2 === 0 }),
-            lexica.declarations.function('ignore', 'string', 'boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'boolean', ['string'])], implementation: () => true }),
-            lexica.declarations.function('keep', 'string', 'boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'boolean', ['string'])], implementation: ({ args }) => ((kept = args.test), true) }),
-            lexica.declarations.function('callKept', 'string', 'boolean', { updates: { changes: 'derived', reads: 'derived' }, implementation: ({ receiver }) => kept(receiver) }),
+            property('size', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
+            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
+            lexica.declarations.function('fresh', 'String', 'Boolean', { updates: constant, implementation: () => 'yes' }),
+            lexica.declarations.function('even', 'Number', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver % 2 === 0 }),
+            lexica.declarations.function('ignore', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: () => true }),
+            lexica.declarations.function('keep', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ args }) => ((kept = args.test), true) }),
+            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, implementation: ({ receiver }) => kept(receiver) }),
         ],
     });
 };
@@ -67,21 +67,21 @@ describe('the verbs', () => {
     it('test a receiver of any type, their test taking the receiver as its own type, and answer null without testing it where ?. meets null', () => {
         expect(evaluate('{ list = words.is(ws => ws.count > 2), number = (4).is(pantry.even), text = word.is(w => w.size == 3) }').value).toEqual({ list: true, number: true, text: true });
         expect(evaluate('missing?.is(w => w.size > 2)')).toEqual({ value: null, invoked: [], asked: [] });
-        expect(resolve('missing?.is(it.size > 2)').type).toBe('boolean?');
+        expect(resolve('missing?.is(it.size > 2)').type).toBe('Boolean?');
         expect(getError(() => resolve('word.is(pantry.even)'))).toMatchObject({ kind: 'validation' });
     });
 
     it('refuse a test that is no function, one that does not take the receiver\'s type, one of another number of arguments, and one answering anything but a boolean', () => {
-        expect(getError(() => resolve('word.is(metered)', { ...values, metered: true }))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The parameter 'test' of 'is' takes a function, as an arrow function, a function a name holds, a module's function by reference or an implicit body gives, and finds boolean") });
+        expect(getError(() => resolve('word.is(metered)', { ...values, metered: true }))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The parameter 'test' of 'is' takes a function, as an arrow function, a function a name holds, a module's function by reference or an implicit body gives, and finds Boolean") });
         expect(getError(() => resolve('word.is((a, b) => true)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes 2 arguments, and its contract passes 1') });
-        expect(getError(() => resolve('word.is(w => w.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives number, and its contract takes boolean') });
-        expect(getError(() => resolve('word.is(it.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The implicit body given as 'test' of 'is' gives number, and its contract takes boolean") });
-        expect(getError(() => resolve('word.is(w => if w.size > 2 then true else null end)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives boolean?, and its contract takes boolean') });
+        expect(getError(() => resolve('word.is(w => w.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Number, and its contract takes Boolean') });
+        expect(getError(() => resolve('word.is(it.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The implicit body given as 'test' of 'is' gives Number, and its contract takes Boolean") });
+        expect(getError(() => resolve('word.is(w => if w.size > 2 then true else null end)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Boolean?, and its contract takes Boolean') });
     });
 
     it('take a Boolean that cannot be null and convert no truthiness, failing where a module\'s function answers anything else', () => {
         expect(getError(() => evaluate('word.is(pantry.fresh)'))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("The member 'fresh' answered") });
-        expect(getError(() => resolve('word.is(w => w)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives string, and its contract takes boolean') });
+        expect(getError(() => resolve('word.is(w => w)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives String, and its contract takes Boolean') });
     });
 
     it('read what their test reads: a module\'s function as its declaration says, and an arrow function or an implicit body the reads it makes', () => {

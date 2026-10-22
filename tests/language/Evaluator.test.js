@@ -28,9 +28,9 @@ const getError = call => {
 const createPrices = invoked => new LexicaModule('prices', {
     observationTypes: [{ name: 'quote', contract: 'maintained', implementation: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
     members: [
-        property('price', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`price:${receiver}`), receiver.length) }),
-        property('rate', 'string', 'number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ env }) => env.rate }),
-        property('quoted', 'string', 'number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, implementation: ({ samples: [quote] }) => quote }),
+        property('price', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`price:${receiver}`), receiver.length) }),
+        property('rate', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ env }) => env.rate }),
+        property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, implementation: ({ samples: [quote] }) => quote }),
     ],
 });
 

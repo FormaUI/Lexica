@@ -125,7 +125,7 @@ In a script, a reserved word retains its language meaning regardless of scope. A
 A **lexical reference**, `@` directly before an identifier, reads the nearest local, field, conditional binding or function parameter of that name:
 
 ```lexica
-{ let to = "3", value = @to to number }
+{ let to = "3", value = @to to Number }
 ```
 
 It is needed where the identifier alone means something else, a reserved word or, in text read through a registry, a module's name, and allowed before any identifier: after `let total = 2`, `@total` reads the local as `total` does. Canonical text writes `@` only where it is needed.

@@ -21,15 +21,15 @@ const constant = { changes: 'constant', reads: 'fresh' };
  */
 const createShop = (invoked = []) => lexica.createModule('shop', {
     members: [
-        property('open', null, 'boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: input => (invoked.push(['open', input]), true) }),
-        lexica.declarations.function('greet', null, 'string', { updates: constant, parameters: [valueParameter('name', 'string')], implementation: ({ args }) => (invoked.push(['greet', args.name]), `hi ${args.name}`) }),
-        property('size', 'string', 'number', { updates: constant, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
-        lexica.declarations.function('pad', 'string', 'string', { updates: constant, parameters: [valueParameter('width', 'number')], implementation: ({ receiver, args }) => (invoked.push(['pad', receiver]), receiver.padEnd(args.width, '.')) }),
-        lexica.declarations.function('vegan', 'string', 'boolean', { updates: constant, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
-        property('partner', 'string', 'string?', { updates: constant, implementation: ({ receiver }) => (invoked.push(['partner', receiver]), receiver.startsWith('p') ? null : `${receiver}'s`) }),
-        lexica.declarations.function('fits', 'string', 'boolean', { updates: constant, implementation: ({ receiver }) => receiver.length < 5 }),
-        lexica.declarations.function('fits', 'number', 'boolean', { updates: constant, implementation: ({ receiver }) => receiver < 5 }),
-        lexica.declarations.function('order', 'string', 'number', { invokedBy: 'host', parameters: [valueParameter('count', 'number')] }),
+        property('open', null, 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: input => (invoked.push(['open', input]), true) }),
+        lexica.declarations.function('greet', null, 'String', { updates: constant, parameters: [valueParameter('name', 'String')], implementation: ({ args }) => (invoked.push(['greet', args.name]), `hi ${args.name}`) }),
+        property('size', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
+        lexica.declarations.function('pad', 'String', 'String', { updates: constant, parameters: [valueParameter('width', 'Number')], implementation: ({ receiver, args }) => (invoked.push(['pad', receiver]), receiver.padEnd(args.width, '.')) }),
+        lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
+        property('partner', 'String', 'String?', { updates: constant, implementation: ({ receiver }) => (invoked.push(['partner', receiver]), receiver.startsWith('p') ? null : `${receiver}'s`) }),
+        lexica.declarations.function('fits', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver.length < 5 }),
+        lexica.declarations.function('fits', 'Number', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver < 5 }),
+        lexica.declarations.function('order', 'String', 'Number', { invokedBy: 'host', parameters: [valueParameter('count', 'Number')] }),
     ],
 });
 
@@ -78,7 +78,7 @@ describe("a registry's text", () => {
         expect(getError(() => lexica.format(registry.parse('shop.open')))).toMatchObject({ kind: 'structure', message: expect.stringContaining("reads through the namespace 'shop', which text read without a registry's module names cannot write") });
         expect(getError(() => lexica.quote(registry.parse('shop.open')))).toMatchObject({ kind: 'structure' });
         expect(getError(() => registry.resolve(lexica.parse('shop.open')))).toMatchObject({ kind: 'structure', message: expect.stringContaining("writes 'shop' alone, which this registry reads as the namespace of its module 'shop'") });
-        expect(registry.resolve(lexica.parse('~shop + 1'), { shop: 1 })).toMatchObject({ type: 'number' });
+        expect(registry.resolve(lexica.parse('~shop + 1'), { shop: 1 })).toMatchObject({ type: 'Number' });
     });
 
     it('locates a name a definition read without the module names writes alone where the text first writes it', () => {
@@ -92,7 +92,7 @@ describe("a registry's text", () => {
         const read = growing.parse('bakery + 1');
 
         expect(getError(() => registry.resolve(bakery))).toMatchObject({ kind: 'structure', message: expect.stringContaining("reads through the namespace 'bakery', and this registry holds no module of that name"), location: { pointer: '/expression/target' } });
-        expect(growing.resolve(read, { bakery: 1 })).toMatchObject({ type: 'number' });
+        expect(growing.resolve(read, { bakery: 1 })).toMatchObject({ type: 'Number' });
 
         growing.registerModule(lexica.createModule('bakery', {}));
 
@@ -145,14 +145,14 @@ describe('qualified forms', () => {
         expect(qualified.invoked).toEqual([]);
         expect(optional.invoked).toEqual([]);
         expect(evaluate('shop.pad(word.partner, other.size)', { word: 'pear', other: 'milk' }).invoked).toEqual([['partner', 'pear']]);
-        expect(resolve('shop.pad(missing, other.size)').type).toBe('string?');
-        expect(resolve('shop.pad(word.partner, 2)').type).toBe('string?');
-        expect(resolve('shop.pad(word, 2)').type).toBe('string');
+        expect(resolve('shop.pad(missing, other.size)').type).toBe('String?');
+        expect(resolve('shop.pad(word.partner, 2)').type).toBe('String?');
+        expect(resolve('shop.pad(word, 2)').type).toBe('String');
     });
 
     it('select the declaration their receiver takes, refusing one no declaration takes, a call without its receiver and an indexer', () => {
         expect(evaluate('{ word = shop.fits(word), number = shop.fits(7) }').value).toEqual({ word: true, number: false });
-        expect(getError(() => resolve('shop.pad(3, 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' takes a receiver of string, and is given number") });
+        expect(getError(() => resolve('shop.pad(3, 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' takes a receiver of String, and is given Number") });
         expect(getError(() => resolve('shop.pad()'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes the receiver as its first argument') });
         expect(getError(() => resolve('shop.size(word, 1)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'size' takes no argument") });
     });
@@ -182,7 +182,7 @@ describe('function references', () => {
         expect([held.value, chosen.value, arrow.value]).toEqual([null, null, null]);
         expect([held.invoked, chosen.invoked]).toEqual([[], []]);
         expect(arrow.invoked).toEqual([['size', 'milk']]);
-        expect(resolve('let pad = shop.pad return pad(missing, 2)').type).toBe('string?');
+        expect(resolve('let pad = shop.pad return pad(missing, 2)').type).toBe('String?');
     });
 
     it('name a declaration where they are written: the one a callback contract takes where they are passed, and the module\'s one function of the name anywhere else', () => {
@@ -194,7 +194,7 @@ describe('function references', () => {
         expect(getError(() => resolve('let size = shop.size return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.size' is a property, read with its receiver as shop.size(receiver), and only a function has a reference") });
         expect(getError(() => resolve('let order = shop.order return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.order' is a host call, which its host invokes, so it has no reference") });
         expect(getError(() => resolve('word.is(shop.pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("and 'shop.pad' names no function that takes those or answers that") });
-        expect(getError(() => resolve('let pad = shop.pad return word.is(pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' is (string, number) => string") });
+        expect(getError(() => resolve('let pad = shop.pad return word.is(pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' is (String, Number) => String") });
     });
 
     it('read and invoke nothing as they are created, each call reading what its declaration does, and are used declarations of the script', () => {

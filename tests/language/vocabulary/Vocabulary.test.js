@@ -27,9 +27,9 @@ describe('Vocabulary', () => {
 
     it('declares the members of lists, the verbs that test a receiver, and the conversions between strings, numbers and Booleans, and nothing of any domain', () => {
         expect(module.members.map(member => `${member.target}.${member.name}`)).toEqual([
-            'list<T>.count', 'list<T>.first', 'list<T>.last', 'list<T>.item', 'T.is', 'T.has', 'T.supports', 'list<T>.max', 'list<T>.min', 'list<T>.sum', 'list<T>.where',
+            'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>.item', 'T.is', 'T.has', 'T.supports', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where',
         ]);
-        expect(module.conversions.map(conversion => `${conversion.from} to ${conversion.to}`)).toEqual(['string to number', 'number to string', 'boolean to string', 'string to boolean']);
+        expect(module.conversions.map(conversion => `${conversion.from} to ${conversion.to}`)).toEqual(['String to Number', 'Number to String', 'Boolean to String', 'String to Boolean']);
         expect(module.types).toEqual([]);
         expect(module.observationTypes).toEqual([]);
         expect([module.typeSelectors, module.selectableTypes]).toEqual([[], []]);
@@ -39,8 +39,8 @@ describe('Vocabulary', () => {
         const [declaration] = registry.getMembers(verb);
 
         expect(registry.getMembers(verb)).toHaveLength(1);
-        expect(declaration).toMatchObject({ kind: 'function', syntax: 'function-call', target: 'T', result: 'boolean', updates: { changes: 'derived', reads: 'derived' } });
-        expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'boolean', parameters: ['T'], required: true }]);
+        expect(declaration).toMatchObject({ kind: 'function', syntax: 'function-call', target: 'T', result: 'Boolean', updates: { changes: 'derived', reads: 'derived' } });
+        expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'Boolean', parameters: ['T'], required: true }]);
         expect([read(verb, 'oat', { test: receiver => receiver === 'oat' }), read(verb, 'milk', { test: receiver => receiver === 'oat' })]).toEqual([true, false]);
     });
 
@@ -62,11 +62,11 @@ describe('Vocabulary', () => {
     });
 
     it('converts text to a number as HTML\'s valid floating-point number, and between Booleans and text, rejecting a text that is neither', () => {
-        expect([' 12 ', '-3.5', '.5', '1e3'].map(text => convert('string', 'number', text))).toEqual([12, -3.5, 0.5, 1000]);
-        expect(convert('string', 'number', '12px')).toContain('rejected: "12px" is no number');
-        expect(convert('string', 'number', '1e999')).toContain('is too large a number to be finite');
-        expect([convert('number', 'string', -0), convert('boolean', 'string', true)]).toEqual(['0', 'true']);
-        expect([convert('string', 'boolean', 'true'), convert('string', 'boolean', 'false')]).toEqual([true, false]);
-        expect(convert('string', 'boolean', 'yes')).toContain('rejected: "yes" is no Boolean');
+        expect([' 12 ', '-3.5', '.5', '1e3'].map(text => convert('String', 'Number', text))).toEqual([12, -3.5, 0.5, 1000]);
+        expect(convert('String', 'Number', '12px')).toContain('rejected: "12px" is no number');
+        expect(convert('String', 'Number', '1e999')).toContain('is too large a number to be finite');
+        expect([convert('Number', 'String', -0), convert('Boolean', 'String', true)]).toEqual(['0', 'true']);
+        expect([convert('String', 'Boolean', 'true'), convert('String', 'Boolean', 'false')]).toEqual([true, false]);
+        expect(convert('String', 'Boolean', 'yes')).toContain('rejected: "yes" is no Boolean');
     });
 });

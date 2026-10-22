@@ -5,6 +5,9 @@
 const NAME = /^@?[A-Za-z][A-Za-z0-9]*$/;
 const TYPE_PARAMETER = /^(?:[A-Z]|@[A-Za-z][A-Za-z0-9]*)$/;
 
+/** The name of the type of a JavaScript primitive, by what `typeof` answers for it. */
+const PRIMITIVE_TYPE_NAMES = Object.freeze({ string: 'String', number: 'Number', boolean: 'Boolean' });
+
 export class Type {
     /** @type {Map<string, Type | null>} */
     static #parsed = new Map();
@@ -53,6 +56,11 @@ export class Type {
     /** A named type. */
     static createNamedType(name, isNullable = false) {
         return new Type('named', { name, isNullable });
+    }
+
+    /** The type of a string, a number or a Boolean, the language's `String`, `Number` or `Boolean`. */
+    static createPrimitiveType(value) {
+        return Type.createNamedType(PRIMITIVE_TYPE_NAMES[typeof value]);
     }
 
     /** A list of the item type. */
@@ -138,7 +146,7 @@ export class Type {
 
         switch (this.kind) {
             case 'list':
-                text = `list<${this.itemType}>`;
+                text = `List<${this.itemType}>`;
                 break;
             case 'object':
                 text = `{ ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType}`).join(', ')} }`;
@@ -152,7 +160,7 @@ export class Type {
             case 'null':
                 return 'null';
             case 'never':
-                return 'never';
+                return 'Never';
             default:
                 text = this.name;
         }
@@ -161,16 +169,16 @@ export class Type {
     }
 
     /** The kinds of node, each of which fits where a node is declared. */
-    static nodeKinds = Object.freeze(['element', 'document', 'documentFragment', 'shadowRoot']);
+    static nodeKinds = Object.freeze(['Element', 'Document', 'DocumentFragment', 'ShadowRoot']);
 
     /** Whether the type is a node or one of its kinds. */
     get isNode() {
-        return this.kind === 'named' && (this.name === 'node' || Type.nodeKinds.includes(this.name));
+        return this.kind === 'named' && (this.name === 'Node' || Type.nodeKinds.includes(this.name));
     }
 
     /** Whether a value of the actual type is a value of the declared type by kind: the same named type, or a kind of node where a node is declared. */
     static #fitsByName(declaredType, actualType) {
-        return declaredType.name === actualType.name || (declaredType.name === 'node' && actualType.isNode);
+        return declaredType.name === actualType.name || (declaredType.name === 'Node' && actualType.isNode);
     }
 
     /**
@@ -262,7 +270,7 @@ export class Type {
 
         // Two kinds of node are both nodes, the least type holding either.
         if (firstType.isNode && secondType.isNode && firstType.name !== secondType.name) {
-            return Type.createNamedType('node', isNullable);
+            return Type.createNamedType('Node', isNullable);
         }
 
         if (firstType.kind !== secondType.kind || firstType.name !== secondType.name) {
@@ -358,7 +366,7 @@ class TypeReader {
         let type;
 
         if (this.#text[this.#offset] === '<') {
-            if (match[0] !== 'list') {
+            if (match[0] !== 'List') {
                 return null;
             }
 
@@ -373,11 +381,11 @@ class TypeReader {
             type = Type.createListType(itemType);
         } else if (match[0] === 'null') {
             type = Type.null;
-        } else if (match[0] === 'never') {
+        } else if (match[0] === 'Never') {
             type = Type.never;
         } else if (TYPE_PARAMETER.test(match[0])) {
             type = Type.createTypeParameter(match[0]);
-        } else if (match[0] === 'list') {
+        } else if (match[0] === 'List') {
             return null;
         } else {
             type = Type.createNamedType(match[0]);

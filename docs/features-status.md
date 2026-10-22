@@ -9,7 +9,7 @@
 | Language | `1.0.0-alpha.33` | `1.0.0-alpha.33` |
 | Definition format | 33 | 33 |
 
-The implementation reads definition version 33 and the language's indexers, computed properties and qualified type names, but still uses flat member declarations and built-in DOM types. Until the declaration model replaces them, an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. Removing the built-in DOM types follows in step 2.
+The implementation reads definition version 33, the language's indexers, computed properties and qualified type names, and its types' names in PascalCase, but still uses flat member declarations and built-in DOM types. Until the declaration model replaces them, an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. Removing the built-in DOM types follows in step 2.
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Six specification examples resolve and evaluate; 28 remain.
 
@@ -26,7 +26,7 @@ It lands in four parts. Each part is a checkpoint: Lexica's change and DOMQL's m
 | Part | Work | State |
 | --- | --- | --- |
 | 1 | Parser and definition format: [indexers and computed properties](#indexers-and-computed-properties) and qualified type names in casts and conversions, in [definition version 33](#definition-version-33) | Implemented |
-| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move | Planned |
+| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move: names in PascalCase first, then identity, imports and qualified references | In progress: names in PascalCase implemented |
 | 3 | [Declaration structure](#declaration-structure) and registration | Planned |
 | 4 | Built-in declarations and integration: `List<T>` and its unnamed indexer, and the verbs as an extension on `T` | Planned; joins part 3 where part 3 alone cannot leave a working runtime |
 
@@ -34,7 +34,7 @@ It lands in four parts. Each part is a checkpoint: Lexica's change and DOMQL's m
 
 - Identify a type by its module and local name, allowing different modules to declare the same local name.
 - Support type-local `import` and qualified type references. Registration resolves every reference to its identity.
-- Require PascalCase type names, checking the initial capital at registration. Reserve Lexica's own type names.
+- **Implemented:** type names in PascalCase, Lexica's own and the built-in DOM types' among them, `Number`, `List<T>` and `Element`, and a module's type checked for its initial capital when the module is created. Lexica's own names are reserved; the built-in DOM types' names are reserved too until identity tells a module's `Element` from the built-in one, and are not reserved after, and a type of one letter is refused until a type parameter is one only where a declaration declares it.
 - Recognize type parameters only within the scope that declares them, instead of treating every single capital letter as a type parameter.
 - Let scripts name a type unqualified when exactly one public type has that name, or qualified by its module. Support unqualified and qualified type names in declared bindings; registry-aware binding itself arrives in step 2.
 

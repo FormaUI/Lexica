@@ -83,13 +83,13 @@ describe('lexica', () => {
     });
 
     it('writes a cast\'s and a conversion\'s type bare, a reserved word among them, and refuses a string in its place with the bare name', () => {
-        expect(lexica.parse('value to number').expression).toEqual({ kind: 'conversion', type: 'number', target: { kind: 'parameter', name: 'value' } });
-        expect(lexica.format('(try value to number) ?? 0')).toBe('try value to number ?? 0');
-        expect(lexica.format('(node as element)?.size')).toBe('(node as element)?.size');
+        expect(lexica.parse('value to Number').expression).toEqual({ kind: 'conversion', type: 'Number', target: { kind: 'parameter', name: 'value' } });
+        expect(lexica.format('(try value to Number) ?? 0')).toBe('try value to Number ?? 0');
+        expect(lexica.format('(node as Element)?.size')).toBe('(node as Element)?.size');
         expect(lexica.format('a as end')).toBe('a as end');
-        expect(getError(() => lexica.parse('value to "number"'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("'to' names the type it converts to bare, as a member's name is written: write 'to number'") });
-        expect(getError(() => lexica.parse("node as 'element'"))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("write 'as element'") });
-        expect(getError(() => lexica.validate({ version: Versions.definition, expression: { kind: 'conversion', type: 'list<number>', target: { kind: 'literal', value: 1 } } }))).toMatchObject({ kind: 'structure', location: { pointer: '/expression/type' } });
+        expect(getError(() => lexica.parse('value to "Number"'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("'to' names the type it converts to bare, as a member's name is written: write 'to Number'") });
+        expect(getError(() => lexica.parse("node as 'Element'"))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("write 'as Element'") });
+        expect(getError(() => lexica.validate({ version: Versions.definition, expression: { kind: 'conversion', type: 'List<Number>', target: { kind: 'literal', value: 1 } } }))).toMatchObject({ kind: 'structure', location: { pointer: '/expression/type' } });
     });
 
     it('refuses a text that is no expression with a syntax error at its place', () => {
@@ -99,7 +99,7 @@ describe('lexica', () => {
 
     it('creates a module from the vocabulary it declares', () => {
         const module = lexica.createModule('price', {
-            members: [{ name: 'price', kind: 'property', target: 'string', result: 'number', updates: { changes: 'constant', reads: 'fresh' }, implementation: () => 1 }],
+            members: [{ name: 'price', kind: 'property', target: 'String', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, implementation: () => 1 }],
         });
 
         expect(module.name).toBe('price');
@@ -108,15 +108,15 @@ describe('lexica', () => {
 
     it('resolves an expression against a registry of its built-in vocabulary and the modules a host registers, each registry its own', () => {
         const prices = lexica.createModule('price', {
-            types: [{ name: 'item', fields: { price: 'number', quantity: 'number' } }],
-            members: [{ name: 'price', kind: 'property', target: 'string', result: 'number', updates: { changes: 'constant', reads: 'fresh' } }],
+            types: [{ name: 'Item', fields: { price: 'Number', quantity: 'Number' } }],
+            members: [{ name: 'price', kind: 'property', target: 'String', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }],
         });
         const registry = lexica.createRegistry([prices]);
         const items = [{ price: 2, quantity: 3 }];
 
         expect(registry.moduleNames).toEqual(['lexica', 'price']);
-        expect(registry.resolve('items { total = it.price * it.quantity }.count', { items })).toMatchObject({ hostCall: null, type: 'number' });
-        expect(registry.resolve('"10".price + 1')).toMatchObject({ hostCall: null, type: 'number' });
+        expect(registry.resolve('items { total = it.price * it.quantity }.count', { items })).toMatchObject({ hostCall: null, type: 'Number' });
+        expect(registry.resolve('"10".price + 1')).toMatchObject({ hostCall: null, type: 'Number' });
         expect(lexica.createRegistry().moduleNames).toEqual(['lexica']);
         expect(getError(() => lexica.createRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
@@ -125,10 +125,10 @@ describe('lexica', () => {
         const registry = lexica.createRegistry();
 
         registry.registerModule(lexica.createModule('double', {
-            members: [{ name: 'double', kind: 'property', target: 'number', result: 'number', updates: { changes: 'constant', reads: 'fresh' } }],
+            members: [{ name: 'double', kind: 'property', target: 'Number', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }],
         }));
 
-        expect(registry.resolve('(2).double')).toMatchObject({ hostCall: null, type: 'number' });
+        expect(registry.resolve('(2).double')).toMatchObject({ hostCall: null, type: 'Number' });
     });
 
     it('says which build it is and which specification it follows', () => {

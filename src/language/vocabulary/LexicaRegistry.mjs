@@ -333,7 +333,7 @@ export class LexicaRegistry {
             // A tolerance applies to a numeric result, or to the numbers a structured result holds, which only now, every type known, is told apart from a reference type; a member with updates always declares a result.
             const resultType = declaration.updates?.tolerance === undefined ? null : Type.parse(declaration.result);
 
-            if (resultType !== null && resultType.name !== 'number' && !types.has(resultType.name)) {
+            if (resultType !== null && resultType.name !== 'Number' && !types.has(resultType.name)) {
                 fail('A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', declaration.name, 'updates.tolerance');
             }
 
@@ -398,8 +398,8 @@ export class LexicaRegistry {
             case 'list':
                 return Array.isArray(value) && value.every(item => LexicaRegistry.#admits(item, type.itemType, types));
             case 'named': {
-                if (['number', 'string', 'boolean'].includes(type.name)) {
-                    return typeof value === type.name;
+                if (['Number', 'String', 'Boolean'].includes(type.name)) {
+                    return typeof value === type.name.toLowerCase();
                 }
 
                 const structure = types.get(type.name);
