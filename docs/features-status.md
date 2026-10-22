@@ -26,7 +26,7 @@ It lands in four parts. Each part is a checkpoint: Lexica's change and DOMQL's m
 | Part | Work | State |
 | --- | --- | --- |
 | 1 | Parser and definition format: [indexers and computed properties](#indexers-and-computed-properties) and qualified type names in casts and conversions, in [definition version 33](#definition-version-33) | Implemented |
-| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move: names in PascalCase first, then identity, imports and qualified references | In progress: names in PascalCase implemented |
+| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move: names in PascalCase first, then identity, imports and qualified references, with [script imports](proposals/script-imports.md), whose proposal is pending, as definition version 34 | In progress: names in PascalCase implemented |
 | 3 | [Declaration structure](#declaration-structure) and registration | Planned |
 | 4 | Built-in declarations and integration: `List<T>` and its unnamed indexer, and the verbs as an extension on `T` | Planned; joins part 3 where part 3 alone cannot leave a working runtime |
 
