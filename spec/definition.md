@@ -4,7 +4,7 @@
 
 A script's **definition** is a JSON document recording its meaning, its **expression tree** with the version of its format: every script, read from its source or created directly, has one definition, and validation, resolution and evaluation work on the definition alone. It records what the text means, never its punctuation, and comments, commas and layout leave no trace in it.
 
-A document holds the definition's `version` and the `expression` node, the root of its expression tree. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error naming both, so an implementation of version 33 refuses a definition of version 32, though every node one holds is one a version 33 definition may hold: no implementation reads two versions or converts one into another. Version 33 admits a cast's and a conversion's type qualified by its module.
+A document holds the definition's `version`, its `imports` and the `expression` node, the root of its expression tree. Its imports are the names of the modules the script [imports](scripts.md#scripts-imports), those its text writes and those its host supplies alike, each once and in order of name, and an empty list where it imports none; which ones a host supplied is not recorded, since that does not change what the script means. The version is the definition format's, and changes whenever the serialized definition's contract does, the nodes it holds, their fields and the values those take; a change to the language that leaves that contract as it was advances the language specification's version alone. A definition of a version other than the one an implementation reads is a structure error naming both, so an implementation of version 34 refuses a definition of version 33, though every node one holds is one a version 34 definition may hold: no implementation reads two versions or converts one into another. Version 34 records a script's imports.
 
 In this document:
 
@@ -22,7 +22,7 @@ Each node is an object whose `kind` says what it is:
 | Kind | Properties | Records |
 | --- | --- | --- |
 | `literal` | `value`, a JSON string, a finite number, a Boolean or null | A literal |
-| `parameter` | `name` | A script parameter; text writes it alone where its name is not a reserved word, nor a module's name of the registry writing it, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and with `~` before its name otherwise |
+| `parameter` | `name` | A script parameter; text writes it alone where its name is not a reserved word, nor the name of a module the definition imports, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and with `~` before its name otherwise |
 | `it` | None | The implicit parameter |
 | `root` | None | The object root |
 | `namespace` | `name`, the module's name | A module's namespace, the target of a `member` or a `call` node that reads one of the module's members or calls a qualified form through it |
@@ -71,7 +71,8 @@ A field is an object holding its `name` and its `value` node, both required; an 
 
 ```json
 {
-  "version": 33,
+  "version": 34,
+  "imports": ["energy", "home"],
   "expression": {
     "kind": "object",
     "target": { "kind": "parameter", "name": "room" },
@@ -117,6 +118,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 
 | Area | Required structure |
 | --- | --- |
+| Imports | Each names a module, by a name that is not a reserved word and not `lexica`, once and in order of name; every `namespace` node names one of them. |
 | Fields | Every field has a name and value; names are unique within an object expression; an object expression has at least one field. |
 | Locals | Each has a name and value; names are unique within a body or object expression; references name an in-scope local or field. |
 | Declaration order | No reference uses a local before its declaration or within its own initializer. A name written alone cannot fall back to a script parameter when that local is declared later in the same scope. |
@@ -139,19 +141,20 @@ Text must follow the syntax. A directly created definition must follow the same 
 
 A cast's target is checked whole: a receiver, which is the implicit parameter, a script parameter, `root`, a namespace's member, a local, a literal, an interpolated string, a function call, an untargeted object expression or a grouped cast, and the property accesses, calls and indexers after it, an optional chain of them included; or a coalescing operator or a cast as it is, grouped, as the [cast rules](types.md#casts) set out. A definition whose cast target is otherwise is a structure error, so every definition accepted writes text that parses.
 
-A script parameter may be named `it`, `root` or a module's name, as any name can, and a script reads it as `~it`, `~root` or `~home`.
+A script parameter may be named `it`, `root` or a module's name, as any name can, and a script reads it as `~it`, `~root`, or `~home` where the script imports `home`.
 
 <a id="definition-canonical-text"></a>
 
 ## Canonical text
 
-Every definition has one canonical text, which `lexica.format` and `lexica.quote` write, and a registry's `format` and `quote` with its module names: text that reads back as the same definition when parsed with the same set of module names used to format it, whether the definition came from text or was created directly. A comment and the layout a source was written in leave no trace in it.
+Every definition has one canonical text, which `lexica.format` and `lexica.quote` write, and a registry's `format` and `quote` alike: text that writes every import the definition records, so it reads back as the same definition wherever it is parsed, whether the definition came from text or was created directly. A comment and the layout a source was written in leave no trace in it.
 
 `lexica.format(source)` takes a text or a definition, and both give the same canonical text.
 
 - **What it keeps.** The definition's meaning, and the order of its locals and fields as declared; comments and the original layout are discarded, as a definition holds neither.
-- **What it needs.** Neither bindings nor a vocabulary: it parses and checks structure as `lexica.parse` does, and resolves nothing. `registry.format` writes with the registry's module names, reading none of its declarations, and `lexica.format` refuses a definition holding a namespace, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
-- **The layout.** Four spaces of indentation for each level of an object expression; an object expression of one field and no locals on one line where its value is, `{ name = it.name }`, and any other with one line for each entry; a conditional with an `elseif`, or whose branches give their results with `return`, on one line for each clause and one for its `end`, each branch's locals and result a level within it; a body's locals and result each on a line of their own, a `do` block's a level within its `do` and its `end`; a string's line feed, carriage return, tab and escape character as `\n`, `\r`, `\t` and `\e`, and every other control, format or separator character in it but the space as `\u{…}`; an interpolated string's text as a string's with each brace doubled, and each interpolation's expression on one line, grouped in parentheses where it begins with one; one space on each side of `and`, `or`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `??`, `+`, `-`, `*`, `/`, `%`, `as` and `to`, and none between a negation's `-` and what it negates; and no trailing comma.
+- **What it needs.** Neither bindings, nor a vocabulary, nor a registry: it parses and checks structure as `lexica.parse` does, and resolves nothing, the definition's imports deciding which names it writes as namespaces, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
+- **The imports a destination supplies.** `format(source, { imports })` names the imports the text's destination supplies: it reads a text with them supplied, and leaves them out of the text it writes, which reads back as the same definition only where it is parsed with them supplied.
+- **The layout.** Each import on a line of its own, in order of name, and an empty line between the last and the body; four spaces of indentation for each level of an object expression; an object expression of one field and no locals on one line where its value is, `{ name = it.name }`, and any other with one line for each entry; a conditional with an `elseif`, or whose branches give their results with `return`, on one line for each clause and one for its `end`, each branch's locals and result a level within it; a body's locals and result each on a line of their own, a `do` block's a level within its `do` and its `end`; a string's line feed, carriage return, tab and escape character as `\n`, `\r`, `\t` and `\e`, and every other control, format or separator character in it but the space as `\u{…}`; an interpolated string's text as a string's with each brace doubled, and each interpolation's expression on one line, grouped in parentheses where it begins with one; one space on each side of `and`, `or`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `??`, `+`, `-`, `*`, `/`, `%`, `as` and `to`, and none between a negation's `-` and what it negates; and no trailing comma.
 - **It is stable.** Formatting text already formatted gives the same text.
 
 <a id="names-and-reserved-words-canonical-spelling-of-names"></a>

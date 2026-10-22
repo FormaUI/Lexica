@@ -202,7 +202,7 @@ A form these rules leave without a meaning is refused with the form that has one
 | `room["name"]` on a type without an unnamed indexer | `room.["name"]` |
 | `room.device["lamp"]`, a function's argument in brackets | `room.device("lamp")` |
 
-The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace is recognized by the module names the text is read with, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
+The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace is recognized by the script's imports, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
 
 <a id="computed-property-access"></a>
 <a id="bracket-property-access"></a>
@@ -363,7 +363,7 @@ A module declares each member as data, in the `members` of the type it belongs t
 
 | Field | Holds |
 | --- | --- |
-| `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words); an operator's names its operation, `cast` or `convert`; left out for a type's unnamed indexer |
+| `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words), followed by the [type parameters](types.md#types-type-parameters) it declares, `identity<T>`; an operator's names its operation, `cast` or `convert`; left out for a type's unnamed indexer |
 | `kind` | `property`, `function`, `indexer` or `operator` |
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
 | `arguments` | The argument form of a function with parameters: `positional` or `options` |

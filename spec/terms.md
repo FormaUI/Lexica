@@ -30,7 +30,7 @@ In this document:
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
 | Type identity | A module's type's module and local name together, as `home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
 | Import | A type's `import`, the modules whose public types its declaration names unqualified, reaching that declaration alone | [Type identity](types.md#types-type-identity) |
-| Type parameter | A type a declaration leaves open, as `List`'s `T`, standing within the declaration that declares it | [Type parameters](types.md#types-type-parameters) |
+| Type parameter | A type a declaration leaves open, declared after its name in angle brackets, as `List<T>`'s `T`, standing within the declaration that declares it | [Type parameters](types.md#types-type-parameters) |
 | Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](types.md#reference-types) |
 | Object expression | An expression that names the fields of its output object | [Objects](values.md#objects) |
 | Object type | A description of an object's fields and their types | [Types](types.md#types) |
@@ -50,7 +50,7 @@ In this document:
 | Binding | The value a host supplies for a script parameter | [Script parameters](scripts.md#scripts-script-parameters) |
 | Identifier | A letter followed by letters and digits, the spelling of every name and every reference to a binding, whose position decides what it means | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading the fields whose initializers have completed; the language's one root | [The object root](values.md#locals-the-object-root) |
-| Reserved word | A word that keeps its language meaning where a value stands: a literal's word, `root` or a keyword; a module's name is none, though it begins its namespace there in text read through a registry | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
+| Reserved word | A word that keeps its language meaning where a value stands: a literal's word, `root` or a keyword; a module's name is none, though it begins its namespace there in a script importing the module | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Keyword | A reserved word other than the literals' words and `root`, as `let`, `if` and `it` | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, field, conditional binding or function parameter of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |
 | Implicit parameter | The value against which the current expression runs, read as `it` | [Names and resolution](scripts.md#names-and-resolution) |
@@ -116,7 +116,8 @@ In this document:
 | Module | A unit of registration declaring types and their members, made by `createModule`, registered with `registerModule`, and reached in text through its namespace | [Namespaces](modules.md#namespaces) |
 | Internal declaration | A type or a member declared `internal: true`, available within its declaring module alone | [Internal declarations](modules.md#modules-internal-declarations) |
 | Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
-| Namespace | A module's name in text read through its registry, through which its module members and its qualified forms are reached | [Namespaces](modules.md#namespaces) |
+| Import | A script's declaration that it uses a module's vocabulary, `import home`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
+| Namespace | A module's name in a script importing the module, through which its module members and its qualified forms are reached | [Namespaces](modules.md#namespaces) |
 | Module member | A member a module declares on no type, read through its namespace, as `home.rooms` | [Module members](modules.md#namespaces-module-members) |
 | Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
 | Extension | A member, an indexer or an operator a module declares on a type another module owns, in the module's `extensions` | [Extensions](modules.md#extensions) |

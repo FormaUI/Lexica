@@ -6,8 +6,8 @@
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.33` | `1.0.0-alpha.33` |
-| Definition format | 33 | 33 |
+| Language | `1.0.0-alpha.33` | `1.0.0-alpha.34` |
+| Definition format | 33 | 34 |
 
 The implementation reads definition version 33, the language's indexers, computed properties and qualified type names, and its types' names in PascalCase, but still uses flat member declarations and built-in DOM types. Until the declaration model replaces them, an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. Removing the built-in DOM types follows in step 2.
 
@@ -26,17 +26,18 @@ It lands in four parts. Each part is a checkpoint: Lexica's change and DOMQL's m
 | Part | Work | State |
 | --- | --- | --- |
 | 1 | Parser and definition format: [indexers and computed properties](#indexers-and-computed-properties) and qualified type names in casts and conversions, in [definition version 33](#definition-version-33) | Implemented |
-| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move: names in PascalCase first, then identity, imports and qualified references, with [script imports](proposals/script-imports.md), whose proposal is pending, as definition version 34 | In progress: names in PascalCase implemented |
+| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move: names in PascalCase first, then identity, imports and qualified references, with [script imports](../spec/scripts.md#scripts-imports) in definition version 34 | In progress: names in PascalCase implemented |
 | 3 | [Declaration structure](#declaration-structure) and registration | Planned |
-| 4 | Built-in declarations and integration: `List<T>` and its unnamed indexer, and the verbs as an extension on `T` | Planned; joins part 3 where part 3 alone cannot leave a working runtime |
+| 4 | Built-in declarations and integration: `List<T>` and its unnamed indexer, and the verbs as an extension on any type, `<T>` | Planned; joins part 3 where part 3 alone cannot leave a working runtime |
 
 ### Type identity and names
 
 - Identify a type by its module and local name, allowing different modules to declare the same local name.
 - Support type-local `import` and qualified type references. Registration resolves every reference to its identity.
-- **Implemented:** type names in PascalCase, Lexica's own and the built-in DOM types' among them, `Number`, `List<T>` and `Element`, and a module's type checked for its initial capital when the module is created. Lexica's own names are reserved; the built-in DOM types' names are reserved too until identity tells a module's `Element` from the built-in one, and are not reserved after, and a type of one letter is refused until a type parameter is one only where a declaration declares it.
-- Recognize type parameters only within the scope that declares them, instead of treating every single capital letter as a type parameter.
-- Let scripts name a type unqualified when exactly one public type has that name, or qualified by its module. Support unqualified and qualified type names in declared bindings; registry-aware binding itself arrives in step 2.
+- **Implemented:** type names in PascalCase, Lexica's own and the built-in DOM types' among them, `Number`, `List<T>` and `Element`, and a module's type checked for its initial capital when the module is created. Lexica's own names are reserved; the built-in DOM types' names are reserved too until identity tells a module's `Element` from the built-in one, and are not reserved after, and a type of one letter is refused until a type parameter is one only where a declaration declares it, which follows in this part.
+- Declare [type parameters](../spec/types.md#types-type-parameters) after a declaration's name, `List<T>` and `identity<T>`, scoped to the declaration that declares them; identify a type by its local name without them, and accept a type named by one letter.
+- Read a script's [imports](../spec/scripts.md#scripts-imports), written or supplied by its host, and record them in definition version 34; resolve a script's namespaces, members and type names among the modules it imports.
+- Let a script name a type unqualified where exactly one public type of its imports has that name, or qualified by its module. Resolve declared binding types against the registry, unqualified or qualified; registry-aware binding itself arrives in step 2.
 
 ### Declaration structure
 
@@ -46,7 +47,6 @@ It lands in four parts. Each part is a checkpoint: Lexica's change and DOMQL's m
 | Structured types with `fields` | [Stored properties](../spec/modules.md#modules-declaring-a-type) among a type's members, properties declared without `updates` |
 | `syntax` and `default` | The `indexer` kind, with a `name` for a named indexer and without one for a type's unnamed indexer |
 | `implementation` | `impl` |
-| Implicit type parameters | Explicit `typeParameters`, such as `['T']` |
 | Declaration helpers with receivers | Helpers without receivers, plus stored property and indexer helpers |
 
 Declare Lexica's generic `List<T>`, with its unnamed indexer in place of `item`, and the verbs as an extension on `T`. Establish the type and extension structure for operators; their behavior is implemented in step 3. The bridge from indexers to flat declarations goes with the flat declarations.
@@ -59,7 +59,7 @@ Declare Lexica's generic `List<T>`, with its unnamed indexer in place of `item`,
 
 **Implemented.** Casts and conversions name a type qualified by its module, as `to home.Climate`, and an indexer is recorded without a `name`, a named indexer's target being the `member` node of its name. A qualified name resolves to the type its registered module declares; identifying every type by its module follows in part 2.
 
-PascalCase names, nested declarations, and imports alone do not change the definition format. The declaration redesign still makes incompatible changes to the language and runtime API.
+PascalCase names, nested declarations, and a type's `import` alone do not change the definition format; a script's imports do, in version 34. The declaration redesign still makes incompatible changes to the language and runtime API.
 
 **Completion:** the declaration changes and definition version 33 pass the gate. A host follows with its corresponding migration.
 

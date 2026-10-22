@@ -1,6 +1,6 @@
 # Proposal: script imports
 
-**State: proposed.** Pending, and not implemented; its questions are settled. Accepting it changes the contract [scripts](../../spec/scripts.md), the [grammar](../../spec/grammar.md), [lexical structure](../../spec/lexical-structure.md#names-and-reserved-words), [modules](../../spec/modules.md#names-and-reserved-words-module-names), [types](../../spec/types.md#types-type-identity), the [definition](../../spec/definition.md) and the [runtime](../../spec/runtime.md) set out, and joins part 2 of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations), with type identity, as definition version 34.
+**State: accepted.** Specified, and not implemented. It changes the contract [scripts](../../spec/scripts.md), the [grammar](../../spec/grammar.md), [lexical structure](../../spec/lexical-structure.md#names-and-reserved-words), [modules](../../spec/modules.md#names-and-reserved-words-module-names), [types](../../spec/types.md#types-type-identity), the [definition](../../spec/definition.md) and the [runtime](../../spec/runtime.md) set out, and joins part 2 of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations), with type identity, as definition version 34.
 
 ## The problem
 

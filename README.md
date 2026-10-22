@@ -14,9 +14,9 @@ return {
 
 ## Features
 
-### Language (`1.0.0-alpha.33`)
+### Language (`1.0.0-alpha.34`)
 
-- Typed vocabulary modules, declared as data and reached through their namespaces
+- Typed vocabulary modules, declared as data, imported by the scripts that use them and reached through their namespaces
 - Object expressions and list projections that shape data
 - Optional access, fallbacks and conditionals
 - Arithmetic, comparisons and logical expressions

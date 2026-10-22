@@ -32,7 +32,7 @@ describe('Alignment', () => {
     });
 
     it('has a specification whose example definition is of the definition version it describes', () => {
-        const [, version] = read('spec/definition.md').match(/"version": (\d+),\s+"expression"/);
+        const [, version] = read('spec/definition.md').match(/"version": (\d+),/);
         const [, described] = specification.match(/describes definition version (\d+)\./);
 
         expect(Number(version)).toBe(Number(described));

@@ -18,7 +18,7 @@ In this document:
 
 | Group | Productions | Meaning in |
 | --- | --- | --- |
-| A script and its bodies | `script`, `body`, `local`, `local-initializer`, `do-expression` | [Scripts](scripts.md) |
+| A script and its bodies | `script`, `import-declaration`, `body`, `local`, `local-initializer`, `do-expression` | [Scripts](scripts.md) |
 | Conditionals | `conditional-expression`, `conditional-clause`, `conditional-binding`, `simple-conditional-expression` | [Conditionals](expressions.md#conditionals) |
 | Functions | `function-expression`, `function-parameter-list`, `function-parameter`, `arrow-function`, `arrow-parameters`, `function-call` | [Functions](functions.md) |
 | Operators | `coalescing`, `disjunction`, `conjunction`, `negation`, `equality`, `comparison`, `additive`, `multiplicative`, `arithmetic-negation` and their operands | [Expressions](expressions.md) |
@@ -35,7 +35,8 @@ In this document:
 ## The grammar
 
 ```ebnf
-script                        = body end-of-input
+script                        = { import-declaration } body end-of-input
+import-declaration            = "import" module-name
 
 body                          = { local } "return" expression
                               | expression
@@ -232,9 +233,9 @@ The grammar uses several terms more narrowly than the prose:
 | `identifier` | An identifier's spelling, every name and every unprefixed reference written with it; which identifiers a position takes, and what one means there, are the [interpretation rules](lexical-structure.md#names-and-reserved-words-what-an-identifier-means), which the grammar's one production leaves to them |
 | `lexical-reference` | `@` and an identifier, reading the nearest local, field, conditional binding or function parameter of that name, whatever its spelling |
 | `script-parameter` | `~` and an identifier, selecting the script parameter of that name explicitly |
-| `module-name` | An identifier that begins a namespace where a value stands, in text read through a registry holding a module of that name |
-| `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; text read without a registry has no module names, so it has none |
-| `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by its module's name and a dot where written so; text read without a registry parses a qualified name alike, and resolution decides whether the module is registered |
+| `module-name` | An identifier naming a module: the module imported, after `import`, and where a value stands, the namespace of a module the script imports |
+| `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; a script importing no module has none |
+| `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by its module's name and a dot where written so; a qualified name parses alike whatever the script imports, and resolution decides whether the script imports the module |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
 | `indexer` | Brackets and a key after a value: its type's unnamed indexer, or, after a `dot-property-access`, the named indexer that access names where its receiver's type declares one, which resolution decides, as [named indexers](members.md#property-access-calls-and-indexers-named-indexers) set out |

@@ -81,7 +81,7 @@ The language reserves some words, which keep its own meaning where a value stand
 | Literals | `true`, `false`, `null` |
 | The object root | `root` |
 | The implicit parameter and operators | `it`, `not`, `try`, `as`, `to`, `and`, `or` |
-| Control flow and declarations | `if`, `then`, `elseif`, `else`, `let`, `do`, `end`, `return`, `function` |
+| Control flow and declarations | `if`, `then`, `elseif`, `else`, `let`, `do`, `end`, `return`, `function`, `import` |
 
 Reserved words match whole identifiers, exactly, so `isVisible` and `nullable` are reserved by no word they hold. Identifiers are case-sensitive, so `TRUE` and `It` are not reserved words either.
 
@@ -97,7 +97,7 @@ An identifier's spelling decides no meaning; where it stands does:
 - **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
 - **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
-- **In text read through a registry,** a [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the registry gives that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. Text read without a registry does not know any module's name.
+- **Where the script imports a module,** the [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
 
 Declarations keep their own restrictions besides: no module is named by a word the language reserves, a type is named once within its module, and no module's type is named as one of Lexica's own, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.
 
@@ -120,7 +120,7 @@ The same rule applies to member and indexer names after `.` and `?.`. For exampl
 
 ### Lexical references
 
-In a script, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and in text read through a registry holding `home`, after `let home = 1`, an unprefixed `home` still begins the module's namespace.
+In a script, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and in a script importing `home`, after `let home = 1`, an unprefixed `home` still begins the module's namespace.
 
 A **lexical reference**, `@` directly before an identifier, reads the nearest local, field, conditional binding or function parameter of that name:
 
@@ -128,7 +128,7 @@ A **lexical reference**, `@` directly before an identifier, reads the nearest lo
 { let to = "3", value = @to to Number }
 ```
 
-It is needed where the identifier alone means something else, a reserved word or, in text read through a registry, a module's name, and allowed before any identifier: after `let total = 2`, `@total` reads the local as `total` does. Canonical text writes `@` only where it is needed.
+It is needed where the identifier alone means something else, a reserved word or, in a script importing it, a module's name, and allowed before any identifier: after `let total = 2`, `@total` reads the local as `total` does. Canonical text writes `@` only where it is needed.
 
 A lexical reference that no local, field, conditional binding or function parameter in scope answers is a structure error:
 

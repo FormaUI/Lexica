@@ -1,6 +1,6 @@
-# Lexica Design v1.0.0-alpha.33
+# Lexica Design v1.0.0-alpha.34
 
-The [Lexica specification](../spec/README.md) is the contract: the language, and the [runtime](../spec/runtime.md) a host builds on. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes version 33, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
+The [Lexica specification](../spec/README.md) is the contract: the language, and the [runtime](../spec/runtime.md) a host builds on. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes version 34, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
 
 In this document:
 
@@ -22,7 +22,7 @@ A script passes through five stages. Each stage's output is the next one's input
 | Resolution | Every member resolved against a registry, the result typed, the used declarations recorded | `LanguageResolver`, `ResolvedDefinition` |
 | Evaluation | The value and its metadata, each read reported to the host | `Evaluator` |
 
-The domain enters as late as it can. Reading knows the language, and, for text read through a registry, the registry's module names alone, which the parser reads, since a module's name decides whether an identifier written where a value stands begins a namespace; the tokenizer reads an identifier by its spelling alone, and reading knows nothing else of any module. Lowering and validation know the language alone, so a text is checked, stored and formatted without a vocabulary. Resolution reads a module's declarations as data and runs none of its code; evaluation is the one stage that invokes implementations. That split is what lets a tool check a script before running it, and a host know what an evaluation will depend on before it starts.
+The domain enters as late as it can. Reading knows the language and the script's imports alone, which the parser reads, since an import decides whether a module's name written where a value stands begins a namespace; the tokenizer reads an identifier by its spelling alone, and reading asks no registry and knows nothing else of any module. Lowering and validation know the language alone, so a text is checked, stored and formatted without a vocabulary. Resolution reads a module's declarations as data and runs none of its code; evaluation is the one stage that invokes implementations. That split is what lets a tool check a script before running it, and a host know what an evaluation will depend on before it starts.
 
 `src/lexica.js`, the entry point, composes these stages into the public API and re-exports nothing internal. Nothing in `src/` imports from outside it or reads a browser global, so the runtime runs in any JavaScript host.
 
@@ -34,7 +34,7 @@ A registry indexes what its modules declare: members by name, each name holding 
 
 A test of a receiver is a member, a Boolean function, and a verb takes its test as a function argument, so a module's function passed by reference, a script's arrow function and an implicit body are one mechanism, and what every member has, its qualified form, its observations and its failures, serves a test as it is.
 
-`ParsedTexts` keeps the definitions of the 256 texts parsed most recently, with the module names each was read with, so reading the same text again, as a host does at every evaluation of the same script, costs a lookup.
+`ParsedTexts` keeps the definitions of the 256 texts parsed most recently, with the imports supplied to each, so reading the same text again, as a host does at every evaluation of the same script, costs a lookup.
 
 ## Evaluation
 

@@ -58,6 +58,8 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `~` with no identifier directly after it | A syntax error saying a script parameter is named directly after `~` |
 | A colon in a member chain, as `device:setting["mode"]` or `it:[name]` | A syntax error giving `device.setting["mode"]`, or the computed property access `it.[name]` |
 | A string where a cast or a conversion names its type, as `device as "Light"` | A syntax error giving the type's name written bare, `device as Light` |
+| `import` anywhere but a script's start, as after its first local or expression | A syntax error saying imports stand at the start of the script |
+| `import lexica` | A syntax error saying Lexica's own vocabulary is always available, so no script imports it |
 | A keyword where a value stands | A syntax error giving the lexical reference; `then`, `elseif`, `else` and `end` give the value expected instead: `Expected a value, found 'then'` |
 | A conditional without its `end`, a conditional whose branches give their results in two styles, anything after a body's result, or a `return` with no value | A syntax error |
 | Locals whose body's result has no `return` | A syntax error: `Introduce the body's result with return.` |
@@ -78,8 +80,8 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | Situation | Result |
 | --- | --- |
 | A definition that does not follow its structure | A structure error, with its node's location |
-| A definition of a version other than the one the implementation reads, as a version 32 definition is for version 33 | A structure error naming both versions |
-| A definition holding a namespace given to `lexica.format` or `lexica.quote`, a definition read without a registry's module names that names one of them, or a namespace that does not name a module the registry holds | A structure error saying to read or write the text with the registry, located at the namespace, or at the name where the text first writes it alone |
+| A definition of a version other than the one the implementation reads, as a version 33 definition is for version 34 | A structure error naming both versions |
+| A definition's imports that are not names of modules, each once and in order of name, or that name `lexica`; or a `namespace` node naming a module its imports leave out | A structure error located at the import or the namespace |
 | A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a computed property access or an interpolation | A structure error naming the part, which a local holds first |
 | A lexical reference, or a definition's local, that no local, field, conditional binding or function parameter in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
 | A function calling itself or one declared after it, or two parameters of one name | A structure error |
@@ -95,6 +97,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | --- | --- |
 | A member other than an indexer declared without a `name`, a field a declaration's kind does not take, a type-level `fields` collection, `target`, `syntax` or `default` on a member, or an `internal` that is no Boolean | A module error naming the field |
 | A type whose name begins with no capital letter, a name its module already declares, or a name of Lexica's own types or `Null` | A module error naming the type |
+| Empty angle brackets after a declaration's name, an empty type parameter's name, a parameter declared twice or already declared by the member's type or extension, or a member of an extension on any type that does not declare the parameter its type names | A module error naming the declaration and the parameter |
 | An `import` that does not name a registered module, a type reference resolving to no type or to several, or a foreign type named unqualified outside its import | A module error naming the declaration and, where several match, the qualified candidates |
 | A supertype that is not a reference type, or a hierarchy that is a cycle | A module error naming the types |
 | A reference type without `isInstance`, or a `typeOf` or an `isInstance` that is not a function | A module error naming the declaration |
@@ -109,6 +112,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | Situation | Result |
 | --- | --- |
 | A misspelled member or extension, or a script parameter the host did not bind | A validation error, with its location |
+| An import naming a module the registry does not hold | A validation error naming the module |
+| A module's name read where a value stands in a script that does not import it, where the registry holds the module and no script parameter of its name is bound | A validation error giving the import, `import home` |
+| A member that only modules the script does not import declare on its receiver | A validation error naming the modules and giving the import |
 | A fixed argument resolution cannot settle | A validation error: `The argument 'type' of 'on' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, …` |
 | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
 | A name no local or field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
@@ -116,7 +122,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | A named indexer written without its key or as a call; a function written with its argument in brackets | A validation error giving its form, `x.setting[…]`, or the call |
 | An unnamed indexer on a type that declares none, or a number where a computed property's name stands, as `rooms.[0]` | A validation error, giving `room.["name"]` where the key is a string the receiver has a property of, and `rooms[0]` for the number |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
-| A cast or a conversion naming a type no public type of the registry has, or one several share unqualified | A validation error, giving the qualified names where several share it |
+| A cast or a conversion naming a type that neither Lexica nor a module the script imports declares publicly, or one several of them share unqualified | A validation error, giving the import where a module the script does not import declares it, and the qualified names where several share it |
 | A cast to a name that is not a reference type, or of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |
 | A script reaching an internal declaration of any module, through any form | A validation error naming the declaration, as if no declaration of its name were accessible |
 | Several applicable extensions, or several applicable operators of one destination, none of them the owner's | A validation error naming the modules and the qualified forms to write |

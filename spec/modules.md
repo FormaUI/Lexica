@@ -109,7 +109,7 @@ A module declares each type it owns in its `types`, its `kind` saying which fami
 - **A type's name** is unique within its module and written in PascalCase, as [type names](types.md#types-type-names) set out, and the type is identified by its module and that name.
 - **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['home']`; every other foreign type it names is qualified, `home.Device`, as [type identity](types.md#types-type-identity) sets out.
 
-Lexica's own `List` is the one generic type: it declares `typeParameters: ['T']`, the type of its items, which its members' declarations write, as [type parameters](types.md#types-type-parameters) set out.
+Lexica's own `List` is the one generic type: it is declared `name: 'List<T>'`, its parameter `T` the type of its items, which its members' declarations write, as [type parameters](types.md#types-type-parameters) set out.
 
 <a id="modules-operators"></a>
 
@@ -154,13 +154,13 @@ A type or a member declares `internal: true` to be available within its declarin
 
 One shape serves every declaration, and each kind accepts the fields it needs alone: a field a declaration's kind does not take is refused when the module is created, with a module error whose location names the module, the type a nested declaration stands in, the declaration and the field. A field holding `undefined` counts as left out.
 
-`name` is common to every declaration but an extension, which names the `type` it extends; an operator's names its operation, `cast` or `convert`. A type, a member, a type selector, an observation type and an observation target are named by an [identifier](lexical-structure.md#names-and-reserved-words), as a script writes them, and any other is a module error when the module is created, so a member cannot be named `focus-within`, and is named `focusWithin`; a selectable type is named by its key, which a fixed argument gives as a string. A member's fields, by its kind, are set out in [declaring a member](members.md#members-declaring-a-member); every other declaration takes these:
+`name` is common to every declaration but an extension, which names the `type` it extends; an operator's names its operation, `cast` or `convert`. A type, a member, a type selector, an observation type and an observation target are named by an [identifier](lexical-structure.md#names-and-reserved-words), as a script writes them, a type and a member following it with the [type parameters](types.md#types-type-parameters) they declare, `List<T>` and `identity<T>`, and any other is a module error when the module is created, so a member cannot be named `focus-within`, and is named `focusWithin`; a selectable type is named by its key, which a fixed argument gives as a string. A member's fields, by its kind, are set out in [declaring a member](members.md#members-declaring-a-member); every other declaration takes these:
 
 | Declaration | Takes | Refuses |
 | --- | --- | --- |
 | Reference type | `kind: 'reference'` and `isInstance`, both required; `supertype`, `abstract`, `import`, `members`, `internal` | Any other field, `impl` among them |
 | Structured type | `kind: 'structured'`; `import`, `members`, of which its stored properties are its stored shape, and `internal` | Any other field, a `fields` collection, `isInstance`, `supertype` and `impl` among them |
-| Extension | `type`, required, the type its members extend; `typeParameters`, for an extension on any type; `members` | Any other field, `name` and `import` among them |
+| Extension | `type`, required, the type its members extend, declaring the parameters of a generic one, `List<T>`, and written `<T>` for any type; `members` | Any other field, `name`, `import` and `typeParameters` among them |
 | Type selector | Its name alone | Any other field, `impl` among them |
 | Selectable type | `selector` and `type`, both required, its name being its key | Any other field, `impl` among them |
 | Observation type | `contract`, `identity`, `shared`; `impl` | Any other field |
@@ -183,15 +183,15 @@ A **registry** holds the modules a host resolves and evaluates against. `lexica.
 - **The registry holds definitions.** A registry holds the declarations of every module registered with it, shared by all the host's callers. What a host's callers start through host calls, and the state it keeps, is scoped to those callers, never to the registry.
 - **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. A module's name is registered once, and no module is named by a word the language reserves. A type is named once within its module, its name begins with a capital letter, and no module's type is named as one of Lexica's own types or `Null`; type selectors and observation types are each named once across every module, Lexica's own included, a selectable type once in its selector, and a name already declared is refused. A type a declaration names resolves to one the module declares or a module registered before it declares, as [type identity](types.md#types-type-identity) sets out, and an `import` that does not name a registered module, a reference that resolves to no type or to several, and a foreign type named unqualified outside its import are refused; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
 - **Its revision.** A registry answers a revision that changes whenever its vocabulary does, so a host that keeps resolutions knows when to resolve again.
-- **It reads and writes its own text.** `registry.parse(text)`, `registry.format(source)` and `registry.quote(source)` read and write text with the registry's module names, as `lexica.parse`, `lexica.format` and `lexica.quote` do without any, and `registry.resolve` reads a text as `registry.parse` does; [module names in text](#names-and-reserved-words-module-names) sets out how a name reads.
+- **It reads and writes text as Lexica does.** `registry.parse(text, options)`, `registry.format(source, options)` and `registry.quote(source, options)` read and write a text as `lexica.parse`, `lexica.format` and `lexica.quote` do, its [imports](scripts.md#scripts-imports) deciding which of its names are namespaces, and `registry.resolve` reads a text as `registry.parse` does; [module names in text](#names-and-reserved-words-module-names) sets out how a name reads.
 - **Registering is not invoking.** Registering a module makes its capability understood; a host invoking one of its host calls starts what that call starts, for its caller, and ending it leaves the module registered.
-- **Registering comes first.** A module is registered before a script naming it is resolved, and a member no registered module declares is a validation error naming it.
+- **Registering comes first.** A module is registered before a script importing it is resolved, and an import naming a module the registry does not hold is a validation error naming it, as is a member no module the script imports declares, which gives the import where a registered module declares it.
 
 <a id="namespaces"></a>
 
 ## Namespaces
 
-A module's namespace is how a script reaches what the module declares: in text read through a registry, the module's name, a dot and the name of one of its declarations, as `home.rooms` and `energy.usage(device)` are.
+A module's namespace is how a script reaches what the module declares: in a script [importing](scripts.md#scripts-imports) the module, its name, a dot and the name of one of its declarations, as `home.rooms` and `energy.usage(device)` are.
 
 <a id="namespaces-module-members"></a>
 
@@ -203,11 +203,11 @@ A member a module declares in its own `members`, with no type it applies to, is 
 
 ### Owners and extensions
 
-A module may declare members on any type, its own in its `types` or another module's in its `extensions`. The module that declares a type **owns** it, and a member another module declares on it is an **extension**, as `energy`'s `device.usage` is. An unqualified member resolves by the owner of its receiver's static type, among the declarations applicable to the receiver and accessible to the script:
+A module may declare members on any type, its own in its `types` or another module's in its `extensions`. The module that declares a type **owns** it, and a member another module declares on it is an **extension**, as `energy`'s `device.usage` is. An unqualified member resolves by the owner of its receiver's static type, among the declarations applicable to the receiver and accessible to the script, those of Lexica's own module and of the modules the script [imports](scripts.md#scripts-imports):
 
 - An applicable member the owner declares wins over every extension, so `device.power` reads `home`'s, whatever `energy` declares. A member the owner declares on a supertype it also owns takes part with the owner's priority, while one another module declares on a supertype is applicable with no priority over other extensions. An extension on a more specific receiver never defeats an applicable member of the owner.
 - Otherwise one applicable extension resolves as any member does, so `device.usage` reads `energy`'s.
-- Several applicable extensions are refused as ambiguous when the script is resolved, before anything is evaluated, and both still register, since refusing one would leave its qualified form unusable. Were a module `solar` to declare `usage` on `Device` too, `device.usage` is refused:
+- Several applicable extensions are refused as ambiguous when the script is resolved, before anything is evaluated, and both still register, since refusing one would leave its qualified form unusable. Were a module `solar` to declare `usage` on `Device` too, `device.usage` is refused in a script importing both, and reads `energy`'s in one importing `energy` alone:
 
 > Member 'usage' on 'Device' is ambiguous between modules 'energy' and 'solar'. Use 'energy.usage(device)' or 'solar.usage(device)' to select one.
 
@@ -254,13 +254,13 @@ A module member, which has no receiver, reserves its name in the module's namesp
 
 ### Module names in text
 
-A module's name decides how a text reads, so a registry reads and writes text with its own module names, and `lexica.parse` and `lexica.format`, which read text without a registry, know the language's names alone.
+A module's name decides how a text reads, so a script's [imports](scripts.md#scripts-imports) decide which of its names are namespaces, and every reader reads a text alike: `lexica.parse` and `registry.parse` give one text one definition, and registering a module never changes how a text reads.
 
-A module's name is an identifier, and in text read through a registry, the name of every module registered with it begins that module's namespace where it stands unprefixed in place of a value, as `home` and `energy` do in the examples. It is a contextual name, no reserved word of the language: `home.rooms` reads the module's member, `@home` the nearest local, field, conditional binding or function parameter named `home`, and `~home` the script parameter `home`, and a position that expects a name reads it in that role, so a member, a field, a local or a function parameter named `home` is declared and read as any is, registering the module invalidating none of them. No module is named by a word the language reserves. Text read without a registry does not know any module's name, so `home` is an identifier there, read as any name is.
+A module's name is an identifier, and in a script importing the module, its name begins that module's namespace where it stands unprefixed in place of a value, as `home` and `energy` do in the examples. It is a contextual name, never a reserved word of the language: `home.rooms` reads the module's member, `@home` the nearest local, field, conditional binding or function parameter named `home`, and `~home` the script parameter `home`, and a position that expects a name reads it in that role, so a member, a field, a local or a function parameter named `home` is declared and read as any is, importing the module invalidating none of them. No module is named by a word the language reserves. In a script that does not import `home`, `home` is an identifier, read as any name is, and resolution refuses it as a missing import where the registry holds a module of its name and no script parameter of its name is bound.
 
-A registry writes text by the same names: `registry.format` writes a namespace as the module's name, `home`, a local or a field named after a module as a lexical reference, `@home`, and a script parameter named after one with `~`, `~home`. Canonical text reads back as the same definition when parsed with the same set of module names used to format it: text a registry writes, read by a registry holding the same module names, and text `lexica.format` writes, read by `lexica.parse`.
+Text is written by the same names: formatting writes a namespace as the module's name, `home`, a local or a field named after an imported module as a lexical reference, `@home`, and a script parameter named after one with `~`, `~home`. Canonical text writes every import its definition records, so it reads back as the same definition wherever it is parsed; a caller may name the imports its destination supplies, `format(source, { imports: ['home'] })`, which the text leaves out, and that text reads back as the same definition where it is parsed with them supplied.
 
-Nothing reads a text otherwise unannounced: a registry refuses a definition read without its module names that names one of them, saying to read the text with the registry; a namespace that does not name a module the registry holds is refused as one it lacks; `lexica.format` and `lexica.quote` refuse a definition holding a namespace, which text read without module names cannot write, saying to write it with a registry; and registering a module whose name a definition read earlier uses refuses that definition as one read without the registry's module names, never reading it again silently. Parsed texts are kept by their text and the module names they were read with.
+Parsing reads an import and its namespace without asking a registry, so whether the module is registered is checked when the script is resolved, which refuses an import of a module the registry does not hold. A definition's namespace naming a module its imports leave out is a structure error. Parsed texts are kept by their text and the imports supplied to them.
 
 <a id="extensions"></a>
 
@@ -279,8 +279,8 @@ const energy = lexica.createModule('energy', {
 });
 ```
 
-An extension names a foreign target qualified, `home.Device`, while one of Lexica's own types and an extension on any type keep their notation, `{ type: 'Number' }` and `{ type: 'T', typeParameters: ['T'] }`. It declares no `import`: within it, its own module's types and Lexica's resolve unqualified, a foreign type is written qualified, and it does not inherit an import of the type it extends.
+An extension names a foreign target qualified, `home.Device`, while one of Lexica's own types and an extension on any type keep their notation, `{ type: 'Number' }` and `{ type: '<T>' }`. It declares no `import`: within it, its own module's types and Lexica's resolve unqualified, a foreign type is written qualified, and it does not inherit an import of the type it extends.
 
 Every module may declare them, on any type another module owns, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](#namespaces-owners-and-extensions) set out, so extensions that compete both register and are told apart by their qualified forms. A type that the module itself owns takes its members in its own declaration, and a type no module declares is refused when the module is registered, so a misspelled type never becomes an extension. An extension adds members alone: it changes no type's `isInstance`, fields, hierarchy, abstractness or `internal` flag, and no module's `typeOf`.
 
-An extension on any type declares its type parameter, `{ type: 'T', typeParameters: ['T'], members }`, as Lexica's verbs are declared, so each of its members takes a receiver of any type and binds `T` to it.
+An extension on any type writes its `type` as `<T>`, and each of its members declares that parameter in its own name, `{ type: '<T>', members: [{ name: 'is<T>', … }] }`, as Lexica's verbs are declared, so each member takes a receiver of any type and binds its own `T` to it, as [type parameters](types.md#types-type-parameters) set out.

@@ -24,19 +24,35 @@ Against the examples' home, where the living room holds a lamp that is on and a 
 In this document:
 
 1. [What a script is](#scripts-what-a-script-is)
-2. [Script parameters and bindings](#scripts-script-parameters)
-3. [Names and scope](#scripts-names-and-scope)
-4. [The implicit parameter](#names-and-resolution-implicit-parameter-by-position)
-5. [Bodies](#bodies)
-6. [Locals](#locals)
+2. [Imports](#scripts-imports)
+3. [Script parameters and bindings](#scripts-script-parameters)
+4. [Names and scope](#scripts-names-and-scope)
+5. [The implicit parameter](#names-and-resolution-implicit-parameter-by-position)
+6. [Bodies](#bodies)
+7. [Locals](#locals)
 
 <a id="scripts-what-a-script-is"></a>
 
 ## What a script is
 
-A script is a [body](#bodies): one expression, or locals and the `return` that gives its result. Its text is its source, which [the lexical structure](lexical-structure.md) and [the grammar](grammar.md) read, and its JSON form is its [definition](definition.md). The last member of its chain decides [what it gives](members.md#members-member-kinds-and-host-calls): most scripts give a value, which a host evaluates, and a script whose chain ends in a function the host invokes ends in a host call, which the host carries out.
+A script is its [imports](#scripts-imports) and a [body](#bodies): one expression, or locals and the `return` that gives its result. Its text is its source, which [the lexical structure](lexical-structure.md) and [the grammar](grammar.md) read, and its JSON form is its [definition](definition.md). The last member of its chain decides [what it gives](members.md#members-member-kinds-and-host-calls): most scripts give a value, which a host evaluates, and a script whose chain ends in a function the host invokes ends in a host call, which the host carries out.
 
-A script reads three kinds of names: its script parameters, which its host binds; the names it declares itself, its locals, fields, conditional bindings and function parameters; and its vocabulary's, the members, types and module namespaces of the registry it is resolved against. How a host resolves and evaluates a script is the [runtime](runtime.md)'s contract.
+A script reads three kinds of names: its script parameters, which its host binds; the names it declares itself, its locals, fields, conditional bindings and function parameters; and its vocabulary's, the members, types and module namespaces of the modules it imports. How a host resolves and evaluates a script is the [runtime](runtime.md)'s contract.
+
+<a id="scripts-imports"></a>
+
+## Imports
+
+**Registering** a module with a registry makes it available to scripts, and **importing** it lets a script use it. A script imports each module whose vocabulary it uses in an import declaration, `import` and the module's name, before its body: a script that reads the home's rooms and `energy`'s `usage` of their devices begins `import home` and `import energy`, and its body follows, as `home.rooms { name = it.name, usage = it.devices.sum(it.usage) }`. Only the modules it imports, and Lexica's own, which every script has and none imports, take part in resolving it, so registering another module that declares `usage` on `Device` leaves that script as it is.
+
+- **Where they stand.** Each import declaration names one module, at the start of the script, before the first local or expression of its body, and applies to the whole script. Import order decides nothing, and a module imported twice is imported once. Lexica's own module is always available and has no namespace, so `import lexica` is refused.
+- **What one makes available.** A module's public vocabulary: its namespace, through which its module members, its qualified forms and its function references are read; its public types, by their names, in a cast or a conversion; and the members it declares, its stored properties and its extensions among them, with its type selectors' keys, its conversions and its operators.
+- **Members by their declaring module.** A script accesses a declared member only where the module that declares it is imported, a stored or a computed property, a function, an indexer and an operator alike. An extension is its declaring module's, so it needs that module's import, while the owner of the receiver's type need not be imported: with only `energy` imported, `device.usage` reads `energy`'s extension on a `home.Device` a host binds, while `device.name`, a member `home` declares, needs `import home`. A computed property access follows the rule a written name does, and an object's fields, which no module declares, are read without any import.
+- **Dependencies are not imports.** A module's declarations may use another module's types: a script importing `energy` alone reads a member of it that answers a `garden.Reading`, holds the answer, returns it whole and passes it on, while naming `Reading` or reading a member `garden` declares on it, a stored property among them, needs `import garden`. The registry understands every registered module's types, and recognizing a value's type never imports its module, nor does resolving the type a host declares for a binding against the registry: a script reading a `home.Device` its host binds imports `home` to read the device's members, as it does for any value.
+- **A host's imports.** A host may supply imports of its own through the API, as [the runtime](runtime.md#runtime-bindings-and-resolution) sets out, so a host whose scripts all use its module supplies it, and a script writes its import only where it chooses to, writing it as well being harmless.
+- **Parameters keep their names.** A bound script parameter named after a module is read as that parameter wherever the script does not import the module, so a missing import never turns a parameter into a namespace; a script reading a registered module's name it does not import, where no parameter of that name is bound, is refused, giving the import to write.
+
+The examples are read as their host reads them, which supplies imports of `home` and `energy` to every script, as [the examples' vocabulary](examples-vocabulary.md) sets out.
 
 <a id="scripts-script-parameters"></a>
 <a id="names-and-resolution-parameters-and-roots"></a>
@@ -71,7 +87,7 @@ A tool that checks a script without running it takes the same values, or values 
 
 `~` directly before an identifier, a `script-parameter` in the [grammar](grammar.md#grammar-the-grammar), selects the script parameter of that name explicitly, whatever local, field, conditional binding or function parameter of that name hides it. In `{ room = room.name, devices = ~room.devices.count }`, the field `room` hides the parameter after it, and `~room` still reads the room the host bound.
 
-`~` also selects a parameter named by a reserved word: `~as` and `~home` read the parameters `as` and `home`, which written alone would read the keyword and, in text read through a registry holding `home`, the module's namespace. A parameter the host did not bind is a validation error.
+`~` also selects a parameter named by a reserved word: `~as` and `~home` read the parameters `as` and `home`, which written alone would read the keyword and, in a script importing `home`, the module's namespace. A parameter the host did not bind is a validation error.
 
 The name must follow `~` directly, and `~` alone reads nothing, so it is a syntax error.
 
@@ -84,7 +100,7 @@ The name must follow `~` directly, and `~` alone reads nothing, so it is a synta
 
 A name at the start of a chain, an **identifier**, reads the nearest visible local, field, conditional binding or function parameter of that name. If none is visible, it reads the script parameter of that name, and resolution fails if the host bound none. A name read before a local of that name declared later in the same scope is a structure error, since it does not read a parameter there; a field of that name written later leaves it reading the parameter.
 
-`it` reads the [implicit parameter](#names-and-resolution-implicit-parameter-by-position), and in text read through a registry, the name of a module registered with it begins that module's [namespace](modules.md#namespaces). Members always have an explicit receiver, and equality always has both operands, so a reader needs no vocabulary knowledge to decide what a name applies to.
+`it` reads the [implicit parameter](#names-and-resolution-implicit-parameter-by-position), and the name of a module the script [imports](#scripts-imports) begins that module's [namespace](modules.md#namespaces). Members always have an explicit receiver, and equality always has both operands, so a reader needs no vocabulary knowledge to decide what a name applies to.
 
 When the implicit parameter has a member of the name, the diagnostic suggests its receiver:
 

@@ -17,7 +17,7 @@ In this document:
 
 ## Lexica's own vocabulary
 
-Lexica's own module owns the language's types, `List`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List`, `typeParameters: ['T']`, with the members of lists; the three verbs that test a receiver, in an extension on any type `T`; and the conversions between the language's types of data, as operators of those types.
+Lexica's own module owns the language's types, `List`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, with the members of lists; the three verbs that test a receiver, in an extension on any type, `<T>`, each declaring its own `T`; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-list-members"></a>
 
@@ -43,7 +43,7 @@ An expression parameter declares the item type it evaluates against and the resu
 
 ### The verbs
 
-`is`, `has` and `supports` are Lexica's own functions of a receiver of any type, each answering whether its receiver passes a test. Each declares one [function parameter](members.md#arguments-kinds), its **test**, whose callback contract takes the receiver and answers a `Boolean`, and answers what the test answers of its receiver: Lexica declares the three in an extension on any type, `{ type: 'T', typeParameters: ['T'] }`, and its test's callback on that receiver's type, `parameters: ['T']`, so the test takes the receiver as its static type, `(T) => Boolean`, made non-null where `?.` reads the verb: a `Light` receiver gives its test a `Light`. The three read differently and do the same:
+`is`, `has` and `supports` are Lexica's own functions of a receiver of any type, each answering whether its receiver passes a test. Each declares one [function parameter](members.md#arguments-kinds), its **test**, whose callback contract takes the receiver and answers a `Boolean`, and answers what the test answers of its receiver: Lexica declares the three in an extension on any type, `{ type: '<T>' }`, each declaring its own `T`, `name: 'is<T>'`, and its test's callback on that receiver's type, `parameters: ['T']`, so the test takes the receiver as its static type, `(T) => Boolean`, made non-null where `?.` reads the verb: a `Light` receiver gives its test a `Light`. The three read differently and do the same:
 
 | Verb | Reads as a test of | As in |
 | --- | --- | --- |
