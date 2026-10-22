@@ -2,7 +2,7 @@
 
 <a id="syntax"></a>
 
-The grammar gives every form a script's source can take. It says what text is well formed, and nothing of what it means: each production's meaning, and the restrictions no grammar can state, are in the document its group names.
+The grammar gives every form a script's source can take. It says what text is well formed, and nothing of what it means: each production's meaning, and the restrictions no grammar can state, are in the document its group names; where a line may break, which no production states, [line structure](lexical-structure.md#line-structure) sets out.
 
 In this notation, `[...]` means optional, `{...}` means repetition, `|` separates alternatives, and `? ... ?` describes a special sequence. Each production names a written form or the role a position holds. Trivia never stands inside a token: `@total`, `~room`, `(?` and `$"` are each written whole, with nothing between their characters.
 
@@ -219,11 +219,13 @@ nonzero-digit                 = "1" | "2" | "3" | "4" | "5"
                               | "6" | "7" | "8" | "9"
 
 trivia                        = whitespace | line-comment | block-comment
-whitespace                    = ? a character matched by ECMAScript \s ?
+whitespace                    = ? a character matched by ECMAScript \s, except
+                                  U+2028 and U+2029 ?
 
-line-comment                  = "//" { line-character } [ line-feed ]
-line-character                = ? any character except LF ?
-line-feed                     = ? LF ?
+line-comment                  = "//" { line-character } [ line-break ]
+line-character                = ? any character except a line break,
+                                  U+2028 or U+2029 ?
+line-break                    = ? CR LF, or a lone LF or CR ?
 
 block-comment                 = "/*" block-content "*/"
 block-content                 = ? characters up to, but excluding, the first closing */ ?

@@ -59,6 +59,10 @@ const DOCUMENTS = {
         { about: 'a lexical reference', evaluates: { value: 3 } },
         { about: 'strings of each family', evaluates: { path: 'C:\\Users\\Eyal\\', pattern: '\\d{3}-\\d{2}', message: 'Saved to C:\\Users\\Eyal\\\n\nDone.' } },
         { about: 'a block the source continues after', evaluates: { label: 'Ready', count: 3 } },
+        { about: 'a layout breaking at its break points' },
+        { about: 'a chain breaking inside an operand' },
+        { about: 'an expression continuing after a block\'s end' },
+        { about: 'a body that uses return, each local on its own line' },
     ],
     'spec/values.md': [
         { about: 'values of each kind' },

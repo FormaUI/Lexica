@@ -52,6 +52,9 @@ In this document:
 | Binding | The value a host supplies for a script parameter | [Script parameters](scripts.md#scripts-script-parameters) |
 | Identifier | A letter followed by letters and digits, the spelling of every name and every reference to a binding, whose position decides what it means | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading the fields whose initializers have completed; the language's one root | [The object root](values.md#locals-the-object-root) |
+| Line break | LF, CRLF or a lone CR, the one definition every rule about lines follows | [Line breaks](lexical-structure.md#line-structure-line-breaks) |
+| Line structure | Where a line may break, must break and cannot, which constrains a layout and never changes a reading | [Line structure](lexical-structure.md#line-structure) |
+| Block form | A conditional, a `do` block or a function expression spanning lines, each keyword ending its line and `end` on its own | [Keyword blocks](lexical-structure.md#line-structure-keyword-blocks) |
 | Reserved word | A word that keeps its language meaning where a value stands: a literal's word, `root` or a keyword; a module's name is none, though it begins its namespace there in a script importing the module | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Keyword | A reserved word other than the literals' words and `root`, as `let`, `if` and `it` | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, field, conditional binding or function parameter of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |

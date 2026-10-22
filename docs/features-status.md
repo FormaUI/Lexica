@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls and definition version 33 are implemented. The next work is [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan), which brings the specification into agreement with five decisions before any code relies on them.**
+**The core language, host calls and definition version 33 are implemented. The next work is [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan), which brings the specification into agreement with six decisions before any code relies on them.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -37,13 +37,14 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 
 ### Unit 0 — Decisions and the specification
 
-Unit 0 lands in three stages: the specification takes the five decisions below, then the diagnostics catalog, and then the implementation codes every existing condition.
+Unit 0 lands in three stages: the specification takes the six decisions below, then the diagnostics catalog, and then the implementation codes every existing condition.
 
 1. **Competing conversions register.** The rule of one conversion per source and destination across the registry, in [Lexica's conversions](../spec/vocabulary.md#vocabulary-conversions), is removed. Conversions compete as [operators](../spec/modules.md#modules-operators) do, among the operators a script's imports make available: an applicable owner's operator wins, otherwise one extension's resolves, and several are ambiguous where a script uses them. A module's own operators still collide under its collision rules, and a module still owns a conversion's source or its destination. A qualified destination identifies a type, never an operator, and an extension access reaches none.
 2. **Mappings.** A module's `selectableTypes` become its `mappings`, each `{ selector, key, type }`, its `name` renamed `key`, and a key maps to a named structured type whose properties are stored, as `Home`'s `motion` maps to `Motion`. A key is unique within its selector across the registered modules, its selector and key together its identity, and different selectors may share a key. "Mapping" replaces "selectable type" throughout the specification, the declarations, the helpers, the diagnostics and the tests, and the examples' vocabulary names its payload types. A declaration contract gains no object-type notation.
 3. **Diagnostic codes are accepted,** as [their proposal](proposals/diagnostic-codes.md) settles them. The second stage gives the specification's diagnostics document the catalog and the contract: a code for each condition it sets out, and each error table naming the code of each row. The third stage gives `LexicaError` its `code` and every condition the implementation reports today its code, in one pass, before unit 1; a condition a later unit removes retires its code.
 4. **A projection source says what it is.** Each source records whether it is a reference or data, by its established type, a value carried through `Any` included; null is a recorded source that is neither, distinct from absent source metadata. Sources stay aligned with the projected items, the metadata's containers are frozen, and a referenced host object is kept as it is, never frozen through. Lexica reports each source's classification and identity, and a host decides how to match by them. The metadata's representation is specified here, so unit 1 implements one defined contract.
-5. **Two gaps in the text's specification close.** `import` joins [the grammar](../spec/grammar.md)'s keywords, as [lexical structure](../spec/lexical-structure.md) already reserves it, and [the definition](../spec/definition.md#definition) sets how `quote` writes a definition's imports on one line.
+5. **Line structure,** as [its proposal](proposals/line-structure.md) sets out: line structure constrains which layouts are valid and never changes a reading. A line break is LF, CRLF or a lone CR, U+2028 and U+2029 are refused outside literal string text, and every position between two tokens is inside a one-line construct, at a break point or at a boundary. A line breaks before a binary operator only where parentheses, brackets or a condition enclose its expression, and never after one; a chain breaks before each step; a conditional, a `do` block and a function expression stand on one line or in block form; and each import, and each local and `return` of a body that uses `return`, starts a line of its own.
+6. **Two gaps in the text's specification close.** `import` joins [the grammar](../spec/grammar.md)'s keywords, as [lexical structure](../spec/lexical-structure.md) already reserves it, and [the definition](../spec/definition.md#definition) sets how `quote` writes a definition's imports on one line.
 
 **Completion:** the specification, its proposals and this file state each decision, the catalog codes every condition the specification sets out, every diagnostic the implementation reports carries its code, and the gate passes.
 
@@ -93,18 +94,20 @@ Contracts: [Owners and extensions](../spec/modules.md#namespaces-owners-and-exte
 
 ### Unit 3 — Script text, imports and definition version 34
 
-Scripts write imports and extension access, and the definition records both.
+Scripts write imports and extension access, and the definition records both; a script's lines follow line structure.
 
-1. **The definition's contract:** `import` a keyword; one shared list of Lexica's own names; version 34, structured imports and the `extension` field, validated, with a namespace or an extension's module checked against the imports.
-2. **Imports:** imports, aliases and type imports parsed; namespaces recognized by the script's imports, in place of the registry's module names, so parsing never consults a registry; imports a host supplies to parsing, formatting, quoting and resolution; and parsed texts kept by their text and their imports.
-3. **Resolution by imports:** one lookup context giving the namespaces, the type names, an explicitly imported name first and extensions taking no part, the members the imports make available, and what qualified access reaches; the diagnostics of a missing import; and the imports in the resolution key.
-4. **Extension access:** `:` and `?:` through the chain parser, the lowering and the writer, with the colon diagnostics and named arguments told apart; resolution through the selector, evaluation, bound function references, and host calls reached through an extension.
-5. **Canonical text:** the imports' layout, `format` given the imports a destination supplies, and the syntax tree's node kinds for imports and extension access.
-6. **Versions:** language `1.0.0-alpha.34` and definition version 34, once every part of them is in.
+1. **Line endings:** one definition of a line break, LF, CRLF or a lone CR, for comments, block strings, diagnostics and locations; line comments ending at CR and CRLF; and U+2028 and U+2029 refused outside literal string text. It repairs today's comment handling on its own, before any layout rule.
+2. **The definition's contract:** `import` a keyword; one shared list of Lexica's own names; version 34, structured imports and the `extension` field, validated, with a namespace or an extension's module checked against the imports.
+3. **Imports:** imports, aliases and type imports parsed; namespaces recognized by the script's imports, in place of the registry's module names, so parsing never consults a registry; imports a host supplies to parsing, formatting, quoting and resolution; and parsed texts kept by their text and their imports.
+4. **Resolution by imports:** one lookup context giving the namespaces, the type names, an explicitly imported name first and extensions taking no part, the members the imports make available, and what qualified access reaches; the diagnostics of a missing import; and the imports in the resolution key.
+5. **Extension access:** `:` and `?:` through the chain parser, the lowering and the writer, with the colon diagnostics and named arguments told apart; resolution through the selector, evaluation, bound function references, and host calls reached through an extension.
+6. **Line structure:** one-line constructs, break points, enclosed operator expressions, keyword blocks and boundaries, refused where broken in the parser and the syntax tree, never changing a reading.
+7. **Canonical text:** the imports' layout; keyword blocks in block form wherever they span lines; `quote` compact, breaking lines only where boundaries require; `format` given the imports a destination supplies; and the syntax tree's node kinds for imports and extension access.
+8. **Versions:** language `1.0.0-alpha.34` and definition version 34, once every part of them is in.
 
 **Completion:** the implementation follows language `1.0.0-alpha.34` and reads definition version 34, and the gate passes.
 
-Contracts: [Scripts](../spec/scripts.md), [the grammar](../spec/grammar.md), [the definition](../spec/definition.md), [extension access](../spec/members.md#property-access-calls-and-indexers-extension-access).
+Contracts: [Scripts](../spec/scripts.md), [the grammar](../spec/grammar.md), [line structure](../spec/lexical-structure.md#line-structure), [the definition](../spec/definition.md), [extension access](../spec/members.md#property-access-calls-and-indexers-extension-access).
 
 ### Unit 4 — Specification examples
 

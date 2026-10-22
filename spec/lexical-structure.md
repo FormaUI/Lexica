@@ -10,7 +10,8 @@ In this document:
 2. [Names and reserved words](#names-and-reserved-words)
 3. [Strings and escapes](#strings-and-escapes)
 4. [Comments](#comments)
-5. [Case-sensitive names](#case-sensitive-names)
+5. [Line structure](#line-structure)
+6. [Case-sensitive names](#case-sensitive-names)
 
 <a id="tokens-and-whitespace"></a>
 
@@ -33,7 +34,7 @@ The following forms are each one token and cannot contain whitespace:
 | `==` | `= =` |
 | `!=` | `! =` |
 
-Whitespace, including line breaks, and comments are **trivia**. Trivia may appear between tokens, never inside a token. No rule requires trivia between tokens that are already distinguishable: `it.power>0` means `it.power > 0`.
+Whitespace, including [line breaks](#line-structure-line-breaks), and comments are **trivia**, whose lines [line structure](#line-structure) constrains. Trivia may appear between tokens, never inside a token. No rule requires trivia between tokens that are already distinguishable: `it.power>0` means `it.power > 0`.
 
 <a id="tokens-and-whitespace-assignment-and-member-punctuation"></a>
 
@@ -246,11 +247,167 @@ No production requires a string literal: a cast's and a conversion's type is a n
 
 ## Comments
 
-A line comment begins with `//` and continues to the next LF or the end of input.
+A line comment begins with `//` and continues to the next [line break](#line-structure-line-breaks) or the end of input.
 
 A block comment begins with `/*` and ends at the first `*/`. Block comments do not nest. An unclosed block comment is a syntax error.
 
 Comment markers inside a string are text: `"https://example.com"` and `"/* */"` retain those characters.
+
+<a id="line-structure"></a>
+
+## Line structure
+
+Line structure constrains which layouts of a script are valid. It never decides where an expression ends, and never chooses between readings: for the same tokens, every accepted layout gives the same definition. Strings and comments keep their own rules, by which a block string's lines are its value and a line comment ends at a line break.
+
+<a id="line-structure-line-breaks"></a>
+
+### Line breaks
+
+A **line break** is LF, CRLF or a lone CR, CRLF being one line break wherever it stands. Every rule that speaks of a line follows this one definition: line comments, block strings, which give each line break as LF in their value, diagnostics, and source locations, whose line advances once for CRLF and whose offset counts both its characters. Vertical tab and form feed are whitespace, never line breaks. U+2028 and U+2029 are refused outside a string's literal text, in code, in comments and in an interpolation's expression alike, with a syntax error naming the character; in literal text they are characters of the value, which canonical text writes escaped.
+
+<a id="line-structure-where-a-line-breaks"></a>
+
+### Where a line breaks
+
+Every position between two tokens is one of three kinds: inside a one-line construct, where a line break is refused; at a break point, where one is allowed; or at a boundary, where one is required, with no earlier code on its line. A broken rule is a syntax error naming the construct, never another reading. A comment between two tokens stands for a line break only where it holds one, so a line comment after a completed construct is allowed. Every rule follows the written syntax alone, never what a name resolves to.
+
+**One-line constructs** never hold a line break:
+
+| Construct | Example |
+| --- | --- |
+| A token | `floorArea`, `?.`, `=>`, `40` |
+| An inline string, inline raw string, or interpolated string | `"lamp"`, `'C:\temp'`, `$"{name} is on"` |
+| An interpolation, its `{`, its expression and its `}` | `{reading ?? 0}` |
+| An import declaration | `import Sensor = Home.MotionSensor` |
+| A body local's head, `let`, its name and `=` | `let reading =` |
+| A conditional binding's head | `if let lamp =` |
+| An object local's or a field's head | `let devices =`, `temperature =` |
+| A member step, `.`, `?.`, `:` or `?:` with the name after it | `.where`, `?.temperature` |
+| A computed property access's opening | `x.[`, `x?.[` |
+| A call's `(`, on the line of the name it calls | `device(`, `double(` |
+| An indexer's opening bracket, on the line of what it indexes | `setting[`, `rooms[`, `x?[` |
+| An extension selector, `:` or `?:` with its extension's name, qualified or not | `:Energy.Device`, `?:Device` |
+| A qualified name in a type position, after `as`, `to` or `import` | `as Home.Device`, `to Measures.Temperature` |
+| A cast's or a conversion's keyword with its type | `as Light`, `to Number` |
+| A prefix operator with the start of its operand | `-padding`, `not it.occupied()`, `try value to Number` |
+| An object expression's `{`, on its receiver's line | `room {` |
+| `function` with its `(` | `function (` |
+| An arrow's parameters with its `=>` | `d =>`, `(a, b) =>` |
+| A lexical reference or a script parameter | `@total`, `~home` |
+
+A namespace's member read where a value stands, `Home.rooms`, is a chain, and follows the chain's break points.
+
+**Break points** allow a line break, unless a one-line construct around them refuses it:
+
+| Construct | Where it may break |
+| --- | --- |
+| Arguments, indexer keys, a parenthesized group, a computed property's expression | After `(` or `[`, after a comma, before `)` or `]` |
+| A function's parameter list | After its `(`, after a comma, before its `)` |
+| An object expression | After `{`, after a comma, before `}` |
+| A chain | Before `.`, `?.`, `:` or `?:`, and before an extension access's `.member` |
+| A binary operator | Before the operator, where its expression is [enclosed](#line-structure-operator-expressions), and never after it |
+| A local's, a field's or a conditional binding's value | After its `=` |
+| An arrow function | After `=>` |
+| A conditional, a `do` block or a function expression | As [keyword blocks](#line-structure-keyword-blocks) set out |
+| A block string or block raw string | Within it, by its own rules |
+
+```lexica
+room {
+    lit = it.devices
+        .where(it.active())
+        .count,
+    gap = (it.climate?.temperature
+        - outside),
+    label = if it.occupied()
+        and not it.reserved() then
+        "busy"
+    elseif it.reserved() then
+        "held"
+    else
+        "free"
+    end
+}
+```
+
+<a id="line-structure-operator-expressions"></a>
+
+### Operator expressions
+
+The gaps around a binary operator, arithmetic, a comparison, an equality, `and`, `or` or `??`, follow their own rule. The gap after an operator never holds a line break, and the gap before one holds a line break only where the operator's expression is enclosed, so each continuation line starts with its operator. A break inside an operand follows that operand's own rules, so a chain breaks before its steps whether or not an operator follows it:
+
+```lexica
+let count = room.devices
+    .count + 1
+return count
+```
+
+An expression is **enclosed** where it stands directly in a parenthesized group, a call's argument, an indexer's key, a computed property's expression, or a condition, from `if` or `elseif` to its `then`. Enclosure belongs to that one position: an object's entry, a conditional's branch, and a body's locals and result, a `do` block's, a function's or an arrow's, start unenclosed again, whatever encloses them, so a line breaks before an operator there only inside parentheses of its own.
+
+```text
+gap = it.climate?.temperature
+    - outside                    refused: nothing encloses the expression
+gap = (it.climate?.temperature -
+    outside)                     refused: the line ends with its operator
+call({
+    value = a
+        + b                      refused: the call's parentheses enclose no entry
+})
+```
+
+**Why.** An enclosure makes a continuation visible where its expression begins, and a line that starts with an operator outside one never continues the line above: `let a = b` followed by a line `-1` is refused, never read as `b - 1`. Breaking before the operator puts what continues a line at its start, as a chain's step does.
+
+A chain breaks before each step without an enclosure, since a line that starts with `.`, `?.` or `:` begins nothing else.
+
+<a id="line-structure-keyword-blocks"></a>
+
+### Keyword blocks
+
+A conditional, a `do` block and a function expression are each written in one of two shapes:
+
+1. **On one line,** from its first keyword to its `end`: `if it.occupied() then "busy" else "free" end`, `do 1 end`.
+2. **In block form,** once it spans lines at all: `if <condition> then` and `elseif <condition> then` each end their lines, `then` closing a condition's last line; `else`, `do` and a function's head each end their lines; each branch's or body's content starts on the line after; and `end` starts a line of its own, on which only closing punctuation, `,`, `)`, `]` or `}`, may follow it.
+
+A keyword block spans lines when any line break falls between its first keyword and its `end`, one inside a nested object, call, keyword block or block string included, so block form propagates outward through the keyword blocks around it.
+
+What may follow `end` is this layout's limit, never the grammar's: `(do … end) + 2` reads as a sum, but in block form an expression continuing after the closing parenthesis does so on the line after `end`:
+
+```lexica
+return (do
+    return 1
+end
+) + 2
+```
+
+Any mixture is refused: `then` on a line after its condition, a branch's content on its keyword's line in block form, `else "free" end` sharing a line, `end` after content on its line, or anything but closing punctuation after `end` on its line, `end) + 2` among them.
+
+<a id="line-structure-boundaries"></a>
+
+### Boundaries
+
+Each of these starts on a line of its own, with no earlier code on that line:
+
+- **Each import declaration.**
+- **The script's body,** on a line after its last import.
+- **In a [body](scripts.md#bodies) that uses `return`, each local and the `return`,** at every level, a script's, a function's, a `do` block's and a conditional branch's alike, a body that uses `return` without locals included.
+
+```lexica
+let fallback = 0
+let level = if metered then
+    let reading = sensor.temperature
+    return reading ?? fallback
+else
+    return fallback
+end
+return level
+```
+
+A body of one expression has no boundary, so `if metered then 1 else 2 end` and `do 1 end` stay on one line, and a keyword block holding a body that uses `return` is in block form. An object's locals stay comma-separated entries, `room { let devices = it.devices, count = devices.count }`, and a conditional binding belongs to its conditional's clause, `if let reading = sensor.temperature then reading else 0 end`; their heads follow the one-line rule.
+
+<a id="line-structure-precedence"></a>
+
+### Precedence
+
+An enclosing one-line construct overrides every break point within it: `(a, b) =>` cannot break after its comma, an interpolation cannot break within an object or a call it holds, an import cannot break before its dot, and `as Home.Device` cannot break within its type name. Outside one-line constructs, a boundary or a keyword block's shape overrides a break point.
 
 <a id="case-sensitive-names"></a>
 

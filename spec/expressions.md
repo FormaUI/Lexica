@@ -418,7 +418,7 @@ A parenthesized expression holds an expression and adds nothing of its own, so `
 
 A conditional chooses a branch by truthiness. It starts with `if`, has a `then` branch and an `else` branch, and closes with `end`. Optional `elseif` clauses are tested in order.
 
-Each branch is a [body](scripts.md#bodies): one expression, or locals followed by `return`. Every branch of one conditional must use the same result style.
+Each branch is a [body](scripts.md#bodies): one expression, or locals followed by `return`. Every branch of one conditional must use the same result style. A conditional stands on one line, or in [block form](lexical-structure.md#line-structure-keyword-blocks).
 
 ```lexica
 if metered then light else thermostat end
@@ -510,7 +510,7 @@ A nested conditional chooses its own style. An `else` whose expression is a cond
 
 ## Do expressions
 
-`do … end` is a [body](scripts.md#bodies) evaluated where it stands, giving its result: `doubled = do let half = warmth / 2 return half * 4 end`.
+`do … end` is a [body](scripts.md#bodies) evaluated where it stands, giving its result: `doubled = do warmth * 2 end`, or a body of locals and `return`, written in [block form](lexical-structure.md#line-structure-keyword-blocks).
 
 A `do` block or conditional must be grouped when used as an operand. Neither can be a chain receiver, grouped or not. Bind its value to a local before continuing a chain.
 
@@ -628,9 +628,13 @@ A result that keeps the converted number and tells a missing value from a malfor
 ```lexica
 device {
     let level = it["level"],
-    level = if let n = try level to Number then { status = "valid", value = n }
-    elseif level == null then { status = "missing", value = null }
-    else { status = "malformed", value = null } end
+    level = if let n = try level to Number then
+        { status = "valid", value = n }
+    elseif level == null then
+        { status = "missing", value = null }
+    else
+        { status = "malformed", value = null }
+    end
 }
 ```
 
@@ -726,10 +730,10 @@ A function declaration is a syntax error there, as anywhere a function stands ot
 
 | Invalid expression | Reason |
 | --- | --- |
-| `calculate(do return 10 end)` | Contains a `do` block |
+| `calculate(do 10 end)` | Contains a `do` block |
 | `calculate(if let t = sensor.temperature then t else 0 end)` | Contains a conditional binding |
-| `calculate(if metered then return 10 else return 20 end)` | Contains `return` |
-| `$"Total: {do return 10 end}"` | Contains a `do` block |
+| `calculate(…)` holding a conditional whose branches use `return`, in block form | Contains `return` |
+| `$"Total: {do 10 end}"` | Contains a `do` block |
 
 <a id="simple-expressions-recursive-restrictions"></a>
 
@@ -737,7 +741,7 @@ A function declaration is a syntax error there, as anywhere a function stands ot
 
 The restrictions apply through parentheses, conditional tests and branches, nested calls, indexers, computed property access, object fields and interpolations. Adding parentheses or line breaks does not change them.
 
-`calculate((do return 10 end))` is refused. `calculate((if metered then 10 else 20 end))` is allowed.
+`calculate((do 10 end))` is refused. `calculate((if metered then 10 else 20 end))` is allowed.
 
 A simple conditional cannot contain another conditional anywhere within it. An `elseif`, a nested conditional in a branch, and a conditional inside a call or interpolation within that branch are all refused.
 

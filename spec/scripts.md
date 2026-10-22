@@ -202,9 +202,9 @@ Only locals may precede the result. An unused standalone calculation, such as `l
 
 > Only locals may precede a body's result.
 
-Line breaks do not end an initializer. `let available = width` followed on the next line by `- padding * 2` is still one local declaration.
+A line break never ends an initializer and never continues one by itself, as [line structure](lexical-structure.md#line-structure) sets out: `let available = width` followed on the next line by `- padding * 2` is refused, since nothing encloses the subtraction, and `let available = (width` followed by `- padding * 2)` is one local declaration.
 
-Bodies place local declarations one after another. Object expressions use the same local construct but separate entries with commas.
+Bodies place local declarations one after another, each and the `return` on a line of its own, as [boundaries](lexical-structure.md#line-structure-boundaries) set out. Object expressions use the same local construct but separate entries with commas.
 
 <a id="bodies-one-result-at-the-end"></a>
 
@@ -220,7 +220,7 @@ Nothing follows the result. A later local, a second `return`, or a `return` with
 
 `return` completes the body it ends, never an enclosing body.
 
-In `let x = if wide then let n = 3 return n * 2 else return 0 end`, the truthy branch returns 6 to the initializer. The expression `return x + 1` then gives 7.
+Where `let x` holds a conditional whose truthy branch declares `let n = 3` and gives `return n * 2`, and whose other branch gives `return 0`, the truthy branch returns 6 to the initializer, and a later `return x + 1` gives 7.
 
 A `do` block's `return` similarly gives the block's value, and evaluation continues outside the block.
 
@@ -230,7 +230,7 @@ A `do` block's `return` similarly gives the block's value, and evaluation contin
 
 `return` stands at the end of a script's body, a `do` body, a function body or a conditional branch. It cannot appear among object fields.
 
-A body's local is visible after its initializer, through later locals, the result and everything nested in them. It cannot read itself or a later local. `let a = b let b = 1 return a` is a structure error rather than a read of the script parameter `b`.
+A body's local is visible after its initializer, through later locals, the result and everything nested in them. It cannot read itself or a later local. `let a = b`, followed by `let b = 1` and `return a`, is a structure error rather than a read of the script parameter `b`.
 
 Two locals in one body cannot share a name. A nested body may hide an enclosing name. A local accepts any name, including a reserved word, and is never reassigned.
 

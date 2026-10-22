@@ -59,6 +59,11 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A colon in a member chain that doesn't name an extension, as `it:[name]` or `it?:[name]` | A syntax error giving the unnamed indexer `it[name]` or the computed property access `it.[name]`, and their optional forms |
 | A string where a cast or a conversion names its type, as `device as "Light"` | A syntax error giving the type's name written bare, `device as Light` |
 | `import` anywhere but a script's start, as after its first local or expression | A syntax error saying imports stand at the start of the script |
+| A line break inside a one-line construct, as between `.` and a member's name, or between `let` and its local's name | A syntax error naming the construct and what must share its line, and giving the form joined |
+| A line break before a binary operator whose expression is not enclosed, or after a binary operator | A syntax error saying a line breaks only before an operator, and only inside parentheses, brackets or a condition |
+| A conditional, a `do` block or a function expression spanning lines outside block form, or followed on its `end`'s line by anything but closing punctuation | A syntax error giving its block form |
+| An import, a script's body after its imports, or a local or `return` of a body that uses `return`, sharing its line with earlier code | A syntax error saying it starts on a line of its own |
+| U+2028 or U+2029 outside a string's literal text | A syntax error naming the character |
 | An import of `Lexica` or of one of its types, as `import Lexica` or `import Items = Lexica.List` | A syntax error saying Lexica's own vocabulary is always available, so no script imports it |
 | An import whose local name begins with no capital letter, or is a reserved word, `Lexica` or the name of one of Lexica's own types or extensions | A syntax error naming the local name |
 | Two imports giving one local name to different declarations, as `import Measures = Measurements` and `import Measures = Home.Sensor` | A syntax error naming both imports |
