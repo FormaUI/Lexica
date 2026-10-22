@@ -113,14 +113,22 @@ const { value, metadata, isPending } = evaluator.evaluate({
 
 ## Results and their metadata
 
-An evaluation answers its **value**, whether a member it read was **pending**, and its **metadata**, frozen throughout: the value, every list and structure in it, the metadata and the result that holds them. What an evaluation produced never changes, whatever the host's state does afterwards, and each result and its metadata stay valid after later evaluations. A result is data and does not hold a reference value, as [results](values.md#values-results) require.
+An evaluation answers its **value**, whether a member it read was **pending**, and its **metadata**, frozen throughout: the value, every list and structure in it, the metadata and the result that holds them, all but the host objects its sources hold, which Lexica never freezes. What an evaluation produced never changes, whatever the host's state does afterwards, but for those host objects, which stay the host's own, and each result and its metadata stay valid after later evaluations. A result is data and does not hold a reference value, as [results](values.md#values-results) require.
 
 The metadata describes the value, never part of it: frozen records of `{ origin, tolerance, fields?, items?, sources? }`.
 
 - **Origins.** An origin is an opaque token for the expression that produced a value, the same token exactly where one expression of one resolution, with one candidate selected, produced both values. It lives as long as the resolution, and is comparable across every evaluation of the evaluators made from it, never across resolutions. The runtime follows locals, bodies, `do` blocks, function calls, object-root fields, the branch or operand a conditional, a coalescing, an `and` or an `or` selected, and the property a computed property access selected.
 - **Tolerance.** A value's tolerance is the one its producing member declares. An expression that selects part of an existing value takes that part's metadata, inherited where it is, so `{ let climate = room.climate, warmth = climate?.temperature }` keeps the tolerance `temperature` declares; an expression that computes a new value, as arithmetic does, has an origin of its own and no tolerance unless a member declares one. A part with no record of its own inherits its parent's, and a record's `tolerance: null` overrides an inherited one.
 - **Fields and items.** `fields` holds the record of each field of an object an object expression built, by its name in the order written, and `items` the record of each item of a list a projection built.
-- **Sources.** The record of a list a projection built holds `sources`, each item's input to that projection, before its fields are evaluated: a reference value as itself, its identity kept, a scalar, a structured value or another input as the evaluator holds it, and null where the input was null. A list no projection built has no `sources`, so a null source and absent sources stay apart. A source is not a key: equal values and one reference can each stand more than once, and recording them promises neither uniqueness nor a correspondence between evaluations.
+- **Sources.** The record of a list a projection built holds `sources`, one entry for each item: `sources[i]` describes the input that made item `i`, before its fields are evaluated, a null input included.
+
+  | Entry | Its input | Its `value` |
+  | --- | --- | --- |
+  | `{ kind: 'reference', value }` | A reference value | The host's object as held, its identity kept, never frozen, copied or otherwise changed by being recorded, so it may change afterwards |
+  | `{ kind: 'data', value }` | A scalar, a structured value or any other data | Lexica's own frozen copy, as the evaluator holds it, which never changes |
+  | `{ kind: 'null' }` | Null | None |
+
+  An entry's kind follows its input's established type, a value carried through `Any` included, never a check of the value itself. The array and its entries are frozen, and nothing beneath a reference's `value`. A list no projection built has no `sources` property at all, the one way metadata says no sources were recorded, so a null source and absent sources stay apart, and a projection of no items records `sources: []`. Lexica reports each source's kind and identity, and a host decides how it matches by them. A source is not a key: equal values and one reference can each stand more than once, and recording them promises neither uniqueness nor a correspondence between evaluations.
 
 The runtime gives the facts, and a host its policy, as comparing one result with the next or patching a copy of it.
 
