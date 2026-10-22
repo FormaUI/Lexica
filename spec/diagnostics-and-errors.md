@@ -100,7 +100,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | A reference type without `isInstance`, or a `typeOf` or an `isInstance` that is not a function | A module error naming the declaration |
 | A declaration naming another module's internal type or member, or a public one exposing an internal type through its signature | A module error naming the declaration and the internal type or member |
 | A declared cast to its own type, its supertype or a type beneath it; a conversion operator neither of whose types is its module's | A module error naming the operator |
-| Two members of one name, two unnamed indexers, or two operators of one name and destination, on overlapping receivers of one module; a field and another member of its name | A module error naming both |
+| Two members of one name, two unnamed indexers, or two operators of one name and destination, on overlapping receivers of one module | A module error naming both |
 
 <a id="preparation-and-type-errors"></a>
 

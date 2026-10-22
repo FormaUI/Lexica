@@ -65,14 +65,14 @@ A module is given the capability it exposes, never an instance of it, since inst
 
 ## What a module declares
 
-A module declares types of its own, reference and structured, each holding its members: its fields, properties, functions and indexers, for the evaluator or the host to invoke, Boolean functions among them, and its operators. It adds members to types other modules own in its extensions, declares module members with no receiver, and declares type selectors and their keys, observation types and observation targets. It follows these contracts throughout: every member declares its signature, its argument kinds and its result type, every member the evaluator invokes declares how it changes, and evaluating a script stays read-only and synchronous.
+A module declares types of its own, reference and structured, each holding its members: its properties, a structured type's stored data among them, functions and indexers, for the evaluator or the host to invoke, Boolean functions among them, and its operators. It adds members to types other modules own in its extensions, declares module members with no receiver, and declares type selectors and their keys, observation types and observation targets. It follows these contracts throughout: every member declares its signature, its argument kinds and its result type, every member the evaluator invokes declares how it changes, a structured type's stored properties aside, which are its data, and evaluating a script stays read-only and synchronous.
 
 | Declaration | What it is | Specified in |
 | --- | --- | --- |
 | Reference type | A type whose values have identity: its name, at most one supertype, its `isInstance`, whether it is abstract, and its members | [Reference types](types.md#reference-types), [declaring a type](#modules-declaring-a-type) |
-| Structured type | A type of data: its name, its stored shape in its fields, and its other members | [Declaring a type](#modules-declaring-a-type) |
+| Structured type | A type of data: its name, its stored shape in its stored properties, and its other members | [Declaring a type](#modules-declaring-a-type) |
 | `typeOf` | The module's recognition of a host's value, naming the most specific of its reference types the value is of, or null | [Reference types](types.md#reference-types) |
-| Member | A field, a property, a function, an indexer or an operator of a type, or a property or a function of no type | [Members](members.md), [operators](#modules-operators) |
+| Member | A property, a function, an indexer or an operator of a type, or a property or a function of no type | [Members](members.md), [operators](#modules-operators) |
 | Extension | The members a module adds to a type another module owns | [Extensions](#extensions) |
 | Type selector, selectable type | A mapping from keys to types that a fixed argument selects through, and each key with its type | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
 | Observation type, observation target | What a member names to learn that its result may have changed, and what it may observe | [Observations](vocabulary.md#observations) |
@@ -98,14 +98,14 @@ A module declares each type it owns in its `types`, its `kind` saying which fami
     name: 'Climate',
     kind: 'structured',
     members: [
-        { name: 'temperature', kind: 'field', result: 'Number' },
-        { name: 'humidity', kind: 'field', result: 'Number' },
+        { name: 'temperature', kind: 'property', result: 'Number' },
+        { name: 'humidity', kind: 'property', result: 'Number' },
     ],
 }
 ```
 
 - **A reference type** is `kind: 'reference'`. It declares its `isInstance`, may name a `supertype` and be `abstract`, and holds its members, as [reference types](types.md#reference-types) set out.
-- **A structured type** is `kind: 'structured'`, a type of immutable data. Its stored shape is its fields, members of `kind: 'field'`, each naming the type of its value in `result` and taking no `impl`; Lexica reads the field of each name from the data, and validates, copies and freezes a structured value by them. A field is read as a property is, `room.climate?.temperature`, and its other members compute what they answer through their `impl`. A field and another member of its name collide.
+- **A structured type** is `kind: 'structured'`, a type of immutable data. Its stored shape is its stored properties, the properties it declares directly without `updates`, each naming the type of its value in `result` and taking no `impl`; Lexica reads the stored property of each name from the data, and validates, copies and freezes a structured value by them, never invoking a computed property to do so. A stored property is read as any property is, `room.climate?.temperature`, and its computed properties, which declare `updates`, and its other members compute what they answer through their `impl`, which a tool may leave out without changing the stored shape. An extension adds no stored property to a type, and a property declared without `updates` anywhere but directly in a structured type is refused.
 - **A type's name** is unique within its module and written in PascalCase, as [type names](types.md#types-type-names) set out, and the type is identified by its module and that name.
 - **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['home']`; every other foreign type it names is qualified, `home.Device`, as [type identity](types.md#types-type-identity) sets out.
 
@@ -159,7 +159,7 @@ One shape serves every declaration, and each kind accepts the fields it needs al
 | Declaration | Takes | Refuses |
 | --- | --- | --- |
 | Reference type | `kind: 'reference'` and `isInstance`, both required; `supertype`, `abstract`, `import`, `members`, `internal` | Any other field, `impl` among them |
-| Structured type | `kind: 'structured'`; `import`, `members`, of which its fields are its stored shape, and `internal` | Any other field, a `fields` collection, `isInstance`, `supertype` and `impl` among them |
+| Structured type | `kind: 'structured'`; `import`, `members`, of which its stored properties are its stored shape, and `internal` | Any other field, a `fields` collection, `isInstance`, `supertype` and `impl` among them |
 | Extension | `type`, required, the type its members extend; `typeParameters`, for an extension on any type; `members` | Any other field, `name` and `import` among them |
 | Type selector | Its name alone | Any other field, `impl` among them |
 | Selectable type | `selector` and `type`, both required, its name being its key | Any other field, `impl` among them |
@@ -172,7 +172,7 @@ One shape serves every declaration, and each kind accepts the fields it needs al
 
 ### Declarations without an implementation
 
-A declaration without an `impl` is resolved against as any other, so a tool reads and checks every script that uses it. It is never invoked: creating an evaluator for a resolution any of whose used declarations the evaluator invokes, or any of the conversion operators it uses, has no `impl` is refused, with a module error naming the declaration and its module. A field takes none, since Lexica reads it from the data, and a cast operator needs none, as [operators](#modules-operators) set out. The used declarations include those an unreached branch uses, so whether a script can be evaluated is decided before anything is evaluated, whatever branch its evaluation takes, and a script of a module only some of whose declarations are implemented is evaluated where it uses those alone.
+A declaration without an `impl` is resolved against as any other, so a tool reads and checks every script that uses it. It is never invoked: creating an evaluator for a resolution any of whose used declarations the evaluator invokes, or any of the conversion operators it uses, has no `impl` is refused, with a module error naming the declaration and its module. A stored property takes none, since Lexica reads it from the data, and a cast operator needs none, as [operators](#modules-operators) set out. The used declarations include those an unreached branch uses, so whether a script can be evaluated is decided before anything is evaluated, whatever branch its evaluation takes, and a script of a module only some of whose declarations are implemented is evaluated where it uses those alone.
 
 <a id="modules-registries"></a>
 
@@ -245,7 +245,7 @@ Version 32 has no qualified form of an indexer, and selecting an extension's ind
 
 ### A module's own collisions
 
-Within one module, members of one name collide where their receivers overlap, a type and its supertype among them, and a module declaring them is refused at registration: were `home` to declare `active` on `Light` beside the one on `Device`, a light would have two, and `home` would be refused. A field and another member of its name collide too, and so do two unnamed indexers whose receivers overlap, and two operators of one name and destination whose receivers overlap. Members of one name on unrelated receivers do not collide, since the receiver selects one, written unqualified or qualified, and a [function reference](functions.md#functions-module-functions) selects one by the callback contract it is passed to, refusing one that several take.
+Within one module, members of one name collide where their receivers overlap, a type and its supertype among them, and a module declaring them is refused at registration: were `home` to declare `active` on `Light` beside the one on `Device`, a light would have two, and `home` would be refused. Two unnamed indexers whose receivers overlap collide too, and so do two operators of one name and destination whose receivers overlap. Members of one name on unrelated receivers do not collide, since the receiver selects one, written unqualified or qualified, and a [function reference](functions.md#functions-module-functions) selects one by the callback contract it is passed to, refusing one that several take.
 
 A module member, which has no receiver, reserves its name in the module's namespace: a member of that name on a receiver is refused beside it, since `home.rooms` would read the one and call or reference the other. Owner precedence and ambiguity between modules are set out in [owners and extensions](#namespaces-owners-and-extensions).
 

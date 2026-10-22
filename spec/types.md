@@ -35,7 +35,7 @@ In this document:
 | Scalar data | `Number`, `String`, `Boolean` |
 | Reference types | Types a module declares whose values have identity, as `Room`, `Device` and `Light` |
 | Lists | `List<T>`, a list whose items have type `T` |
-| Structured values | Data a module declares, its stored shape its fields, as `Climate` |
+| Structured values | Data a module declares, its stored shape its stored properties, as `Climate` |
 | Object types | The field types inferred from an object expression, as `{ name: String, count: Number }` |
 
 The scalar types, lists and object types are the language's own, which Lexica's own module owns; every reference type and structured type comes from a module, which [declares it](modules.md#modules-declaring-a-type) with its members.

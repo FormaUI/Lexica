@@ -30,11 +30,11 @@ In this document:
 
 ## Member kinds and host calls
 
-A member's kind is `field`, `property`, `function`, `indexer` or `operator`. A field is a structured type's stored data, read as a property is; a property is read, and a function and an indexer called, by the evaluator as it evaluates a script, or, for a function whose declaration says so, `invokedBy: 'host'`, by the host; and an operator is invoked by `as` or `to` alone, as [operators](modules.md#modules-operators) set out. A script gives a value, or ends in a **host call**, a call of a function the host invokes; the last member of its chain, before any object expression following it, decides which:
+A member's kind is `property`, `function`, `indexer` or `operator`. A property is read, a structured type's stored data among its properties, and a function and an indexer called, by the evaluator as it evaluates a script, or, for a function whose declaration says so, `invokedBy: 'host'`, by the host; and an operator is invoked by `as` or `to` alone, as [operators](modules.md#modules-operators) set out. A script gives a value, or ends in a **host call**, a call of a function the host invokes; the last member of its chain, before any object expression following it, decides which:
 
 | A script whose chain ends in | Gives |
 | --- | --- |
-| A field, a property, a function or an indexer the evaluator invokes, or no member | A value: it reads, and answers data |
+| A property, a function or an indexer the evaluator invokes, or no member | A value: it reads, and answers data |
 | A function the host invokes | A host call: Lexica prepares its receiver and arguments, the host invokes it, and the object expression following it shapes each value the host supplies |
 
 Evaluating a script only reads, and the evaluator never invokes a host call, so no evaluation changes the host's state. What a host call does, and when, is the host's own; Lexica's part is set out in [host calls](#members-host-calls) and the [runtime](runtime.md#runtime-host-calls).
@@ -364,7 +364,7 @@ A module declares each member as data, in the `members` of the type it belongs t
 | Field | Holds |
 | --- | --- |
 | `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words); an operator's names its operation, `cast` or `convert`; left out for a type's unnamed indexer |
-| `kind` | `field`, `property`, `function`, `indexer` or `operator` |
+| `kind` | `property`, `function`, `indexer` or `operator` |
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
 | `arguments` | The argument form of a function with parameters: `positional` or `options` |
 | `parameters` | Each parameter's name, kind, type, whether it is required and its default where it is not, its null policy, whether it is fixed and what it selects, and its implicit parameter or callback contract by its kind, as [parameter fields](#members-parameter-fields) set out |
@@ -377,8 +377,8 @@ Each member takes the fields it needs alone; every one takes `kind` and `interna
 
 | Member | `arguments` | `parameters` | `updates` | `result` | `impl` |
 | --- | --- | --- | --- | --- | --- |
-| A field, of a structured type alone | Refused | Refused | Refused | Required | Refused |
-| A property | Refused | Refused | Required | Required | Optional |
+| A stored property, declared directly in a structured type without `updates` | Refused | Refused | Refused | Required | Refused |
+| A computed property | Refused | Refused | Required | Required | Optional |
 | A function the evaluator invokes | Required where it has parameters, refused where it has none | Any kind; a function parameter only here | Required | Required | Optional |
 | An indexer, named or unnamed | Refused, since its arguments are positional | One required value parameter, its key, and optional ones after it | Required | Required | Optional |
 | A function the host invokes | As a function's | Value parameters, of which a fixed one may select a type | Refused | Optional | Refused |
@@ -422,7 +422,7 @@ Only a function the evaluator invokes declares a function parameter, which is re
 
 ### Updates
 
-A member's evaluation contract is grouped under `updates`: how it reads, `reads`, as [how a member reads](#how-a-member-reads) sets out; how its result changes, `changes`, as [how a member changes](#how-a-member-changes) sets out; the changes it misses, `misses`; the `tolerance` it declares; and the `observations` that cover its changes, as [observations](vocabulary.md#observations) set out. A host call is never evaluated, and leaves `updates` out.
+A member's evaluation contract is grouped under `updates`: how it reads, `reads`, as [how a member reads](#how-a-member-reads) sets out; how its result changes, `changes`, as [how a member changes](#how-a-member-changes) sets out; the changes it misses, `misses`; the `tolerance` it declares; and the `observations` that cover its changes, as [observations](vocabulary.md#observations) set out. A host call is never evaluated, and leaves `updates` out, and a stored property, its structured type's data, declares none: a property declared directly in a structured type is stored where it leaves `updates` out, and computed where it declares them, while one declared anywhere else requires them.
 
 `changes` and `reads` are required. `misses` is required where `changes` is `partly-observable`, and refused otherwise. `observations` are required where `changes` is `observable` or `partly-observable`, and refused otherwise, each observation checked for its type, what it observes and the arguments it gives.
 
@@ -436,7 +436,7 @@ A member may declare a tolerance for its numeric result and every number within 
 
 ### What an implementation receives
 
-An `impl` is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica does not call an implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and an operator's `value` and `reject`. A field has none, since Lexica reads it from the data, and the hooks `typeOf` and `isInstance` are given the value alone. The contract is JavaScript's alone, and no script is written differently for it.
+An `impl` is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica does not call an implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and an operator's `value` and `reject`. A stored property has none, since Lexica reads it from the data, and the hooks `typeOf` and `isInstance` are given the value alone. The contract is JavaScript's alone, and no script is written differently for it.
 
 <a id="how-a-member-reads"></a>
 
@@ -451,7 +451,7 @@ A script is evaluated synchronously, without yielding, and a member's implementa
 | Captured | Kept from what happened before as well as read from the state as it is, as `room.highestTemperature` keeps the highest temperature the room has reported since its host began to hold the evaluation. |
 | Derived | As the items it selects and the expression it evaluates read, such as a list's `count` or `max`. |
 
-Facts that must describe one measurement are fields of one structured value, which is captured once and read by each of its fields, as a `Climate`'s temperature and humidity are.
+Facts that must describe one measurement are stored properties of one structured value, which is captured once and read by each of them, as a `Climate`'s temperature and humidity are.
 
 A maintained member's observation starts the first time an evaluation reads it, and the member is **pending** until its first sample arrives. An evaluation that reads a pending member reads it as null and tells its host it is pending, and a host that cannot wait for the sample fails the evaluation instead; when a host waits for first samples is the host's to decide.
 

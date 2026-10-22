@@ -25,7 +25,7 @@ In this document:
 | Result | The data produced by an expression | [Values and types](values.md#values-and-types) |
 | Type | The category of a value and the members it supports | [Types](types.md#types) |
 | Reference type | A type a module declares whose values have identity, naming at most one supertype, declaring its `isInstance`, and abstract or not | [Reference types](types.md#reference-types) |
-| Structured type | A type of immutable data a module declares, its stored shape its fields | [Declaring a type](modules.md#modules-declaring-a-type) |
+| Structured type | A type of immutable data a module declares, its stored shape its stored properties | [Declaring a type](modules.md#modules-declaring-a-type) |
 | Membership | Whether a value belongs to a reference type, which the `isInstance` of the type and of every supertype above it answers | [Reference types](types.md#reference-types) |
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
 | Type identity | A module's type's module and local name together, as `home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
@@ -34,7 +34,7 @@ In this document:
 | Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](types.md#reference-types) |
 | Object expression | An expression that names the fields of its output object | [Objects](values.md#objects) |
 | Object type | A description of an object's fields and their types | [Types](types.md#types) |
-| Field | A named value included in an object; in a structured type, a member of `kind: 'field'`, its stored data | [Objects](values.md#objects), [declaring a type](modules.md#modules-declaring-a-type) |
+| Field | A named value included in an object | [Objects](values.md#objects), [declaring a type](modules.md#modules-declaring-a-type) |
 | Body | What a script, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](scripts.md#bodies) |
 | Do block | `do … end`, a body evaluated where it stands, giving its result | [Bodies](scripts.md#bodies) |
 | Local | A name declared with `let` in a body or an object expression, visible after its declaration through its scope, holding a value or a function | [Locals](scripts.md#locals) |

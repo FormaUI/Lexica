@@ -43,11 +43,11 @@ It lands in four parts. Each part is a checkpoint: Lexica's change and DOMQL's m
 | Current implementation | Replacement |
 | --- | --- |
 | Flat members with `target` | Members within their declaring type; extension blocks for members added to other types |
-| Structured types with `fields` | Field declarations among a type's members |
+| Structured types with `fields` | [Stored properties](proposals/structured-type-properties.md) among a type's members, properties declared without `updates` |
 | `syntax` and `default` | The `indexer` kind, with a `name` for a named indexer and without one for a type's unnamed indexer |
 | `implementation` | `impl` |
 | Implicit type parameters | Explicit `typeParameters`, such as `['T']` |
-| Declaration helpers with receivers | Helpers without receivers, plus `field` and indexer helpers |
+| Declaration helpers with receivers | Helpers without receivers, plus stored property and indexer helpers |
 
 Declare Lexica's generic `List<T>`, with its unnamed indexer in place of `item`, and the verbs as an extension on `T`. Establish the type and extension structure for operators; their behavior is implemented in step 3. The bridge from indexers to flat declarations goes with the flat declarations.
 

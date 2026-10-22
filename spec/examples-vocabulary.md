@@ -15,7 +15,7 @@ An example's bindings are supplied parameters, each bound by the host to a value
 | `Light` | Reference | `Device` | A dimmable light |
 | `Thermostat` | Reference | `Device` | A heating controller |
 | `Sensor` | Reference | `Device` | A temperature and motion sensor |
-| `Climate` | Structured | | Its fields `temperature: Number` and `humidity: Number`, a room's climate |
+| `Climate` | Structured | | Its stored properties `temperature: Number` and `humidity: Number`, a room's climate |
 
 **Members.** Each member's result type, how it changes and what it reads:
 
