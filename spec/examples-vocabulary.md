@@ -6,7 +6,7 @@ Every example reads one fictional smart home, through the vocabulary of two modu
 
 An example's bindings are supplied parameters, each bound by the host to a value of the type its name suggests: `room` is a `Room`, `device` a `Device`, `light` a `Light`, `thermostat` a `Thermostat`, `sensor` a `Sensor`, `rooms` a `List<Room>`, `name` a `String`, `property` a `String?`, `metered` a `Boolean` and `limit` a `Number`; any other name an example reads without declaring it is a binding of the type its use requires, as `preferred` and `fallback` are devices, `lamp` a light, and `living` and `bedroom` rooms. Declaring a type does not supply a value of it, so an example that reads `room` reads the room its host bound. The examples' home holds those values as fixtures, among them a device whose `level` setting is `"40"`.
 
-**Types.** `Home` declares five reference types, whose values have identity, and one structured type, whose values are data, each holding its members. Its `typeOf` recognizes each of the home's values as the most specific of its types, and each reference type's `isInstance` accepts the home's values of that type; `Device` is concrete, so a device that is not a light, thermostat or sensor is bound as a `Device`:
+**Types.** `Home` declares five reference types, whose values have identity, and three structured types, whose values are data, each holding its members. Its `typeOf` recognizes each of the home's values as the most specific of its types, and each reference type's `isInstance` accepts the home's values of that type; `Device` is concrete, so a device that is not a light, thermostat or sensor is bound as a `Device`:
 
 | Type | Kind | Supertype | What it is |
 | --- | --- | --- | --- |
@@ -16,6 +16,8 @@ An example's bindings are supplied parameters, each bound by the host to a value
 | `Thermostat` | Reference | `Device` | A heating controller |
 | `Sensor` | Reference | `Device` | A temperature and motion sensor |
 | `Climate` | Structured | | Its stored properties `temperature: Number` and `humidity: Number`, a room's climate |
+| `Change` | Structured | | Its stored properties `setting: String` and `value: String?`, a setting a device changed and its new value |
+| `Motion` | Structured | | Its stored properties `at: Number` and `strength: Number`, when and how strongly a sensor sensed motion |
 
 **Members.** Each member's result type, how it changes and what it reads:
 
@@ -66,11 +68,11 @@ A setting is a string, so an example that needs a number converts it, as `device
 
 | Member | Signature | What the host does, and the values it supplies |
 | --- | --- | --- |
-| `device.on(type)` | `type`, a fixed `String` that selects through the selector `event` → `@selected` | Listens to the device's reports of that type, and supplies each as it arrives: `change`, `{ setting: String, value: String? }`, the setting that changed and its new value; `motion`, `{ at: Number, strength: Number }`, when and how strongly it sensed motion, which a sensor alone reports |
+| `device.on(type)` | `type`, a fixed `String` that selects through the selector `event` → `@selected` | Listens to the device's reports of that type, and supplies each as it arrives: a `Change` for `change`, and a `Motion` for `motion`, which a sensor alone reports |
 | `light.dim({ to })` | `to`: `Number`, optional, `0` by default → `Number` | Dims the light once, and supplies the brightness reached |
 | `thermostat.hold({ target, until })` | `target`: `Number`, `until`: `Number?`, no result | Holds the target until `until`, or until the host ends it, and supplies nothing |
 
-`Home` declares the type selector `event`, whose keys `change` and `motion` map to the two types above.
+`Home` declares the type selector `event`, and in its `mappings` maps the key `change` to `Change` and `motion` to `Motion`.
 
 **The `Energy` module** extends `Home`'s `Device`, in its extension `Device`, with what an energy meter knows:
 

@@ -132,7 +132,7 @@ In this document:
 | Observation type | A module's declaration of an observation, its contract an invalidation or maintained | [Observations](vocabulary.md#observations) |
 | Observation target | What a module declares its observations may observe besides the receiver and an argument, independent of the receiver or found from it, one target or several | [Observations](vocabulary.md#observations) |
 | Type selector | A module's declaration mapping keys to types, which a fixed argument selects the type of a function's result through | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
-| Selectable type | One key of a type selector and the type it maps to, which any module may declare | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
+| Mapping | One key of a type selector and the type it maps to, `{ selector, key, type }`, which any module may declare | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
 | Host call | A call of a function the host invokes, `invokedBy: 'host'`, which ends a script; Lexica resolves and prepares it, and never invokes it | [Host calls](members.md#members-host-calls) |
 | Prepared call, skipped call | What preparing a host call answers: a prepared call, its declaration, receiver and arguments, which projects each value its host supplies where the call declares a result; or a skipped call, where there is nothing to invoke | [Host calls](runtime.md#runtime-host-calls) |
 | Result projection | The object expression following a host call, evaluated against each value its host supplies | [The values a host supplies](members.md#members-host-calls-the-values-a-host-supplies) |

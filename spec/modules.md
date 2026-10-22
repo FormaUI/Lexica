@@ -26,11 +26,11 @@ const home = lexica.createModule('Home', {
                 },
             ],
         },
-        /* Device, Light, Thermostat, Sensor, Climate */
+        /* Device, Light, Thermostat, Sensor, Climate, Change, Motion */
     ],
     members: [/* rooms, now */],
     typeSelectors: [{ name: 'event' }],
-    selectableTypes: [/* change, motion */],
+    mappings: [/* change, motion */],
     observationTypes: [/* placement, state, climate, presence, reading */],
     observationTargets: [{ name: 'Home' }],
 });
@@ -53,7 +53,7 @@ In this document:
 
 ## Creating a module
 
-A module is made by `createModule` from its name and its declarations, `{ typeOf, types, members, typeSelectors, selectableTypes, observationTypes, observationTargets }`, its name the module's and its namespace's. Its declarations are validated when it is created and checked against the registry when it is registered with `registerModule`; a declaration that breaks a contract is a module error, raised when the module is created or when it is registered, naming the module, the declaration and the field, and the type a nested declaration stands in.
+A module is made by `createModule` from its name and its declarations, `{ typeOf, types, members, typeSelectors, mappings, observationTypes, observationTargets }`, its name the module's and its namespace's. Its declarations are validated when it is created and checked against the registry when it is registered with `registerModule`; a declaration that breaks a contract is a module error, raised when the module is created or when it is registered, naming the module, the declaration and the field, and the type a nested declaration stands in.
 
 Lexica's own module is one Lexica creates itself, the one module every registry holds, which owns the language's types and has no namespace. Every other module, a host's among them, is made with `createModule`, and no factory, name or flag makes one an exception to the rules.
 
@@ -74,7 +74,7 @@ A module declares types of its own, reference and structured, each holding its m
 | `typeOf` | The module's recognition of a host's value, naming the most specific of its reference types the value is of, or null | [Reference types](types.md#reference-types) |
 | Member | A property, a function, an indexer or an operator of a type, or a property or a function of no type | [Members](members.md), [operators](#modules-operators) |
 | Extension | A named group of the members a module adds to a type another module owns, its `target` | [Extensions](#extensions) |
-| Type selector, selectable type | A mapping from keys to types that a fixed argument selects through, and each key with its type | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
+| Type selector, mapping | A selector a fixed argument chooses a type through, and a mapping of one of its keys to a type | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
 | Observation type, observation target | What a member names to learn that its result may have changed, and what it may observe | [Observations](vocabulary.md#observations) |
 
 A module declares members on any type, its own in their declarations and another module's in its extensions, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](#namespaces-owners-and-extensions) set out. Any type or member may be [internal](#modules-internal-declarations), available within its module alone.
@@ -155,7 +155,7 @@ A type or a member declares `internal: true` to be available within its declarin
 
 One shape serves every declaration, and each kind accepts the fields it needs alone: a field a declaration's kind does not take is refused when the module is created, with a module error whose location names the module, the type a nested declaration stands in, the declaration and the field. A field holding `undefined` counts as left out.
 
-`name` is common to every declaration; an operator's names its operation, `cast` or `convert`. A type, an extension, a member, a type selector, an observation type and an observation target are named by an [identifier](lexical-structure.md#names-and-reserved-words), as a script writes them, an extension and a member following it with the [type parameters](types.md#types-type-parameters) they declare, `ListExtensions<T>` and `identity<T>`, and any other is a module error when the module is created, so a member cannot be named `focus-within`, and is named `focusWithin`; a selectable type is named by its key, which a fixed argument gives as a string. A member's fields, by its kind, are set out in [declaring a member](members.md#members-declaring-a-member); every other declaration takes these:
+`name` is common to every declaration; an operator's names its operation, `cast` or `convert`. A type, an extension, a member, a type selector, an observation type and an observation target are named by an [identifier](lexical-structure.md#names-and-reserved-words), as a script writes them, an extension and a member following it with the [type parameters](types.md#types-type-parameters) they declare, `ListExtensions<T>` and `identity<T>`, and any other is a module error when the module is created, so a member cannot be named `focus-within`, and is named `focusWithin`; a mapping is named by no identifier, its `key` being the string a fixed argument gives. A member's fields, by its kind, are set out in [declaring a member](members.md#members-declaring-a-member); every other declaration takes these:
 
 | Declaration | Takes | Refuses |
 | --- | --- | --- |
@@ -163,7 +163,7 @@ One shape serves every declaration, and each kind accepts the fields it needs al
 | Structured type | `kind: 'structured'`; `import`, `members`, of which its stored properties are its stored shape, and `internal` | Any other field, a `fields` collection, `isInstance`, `supertype` and `impl` among them |
 | Extension | `kind: 'extension'` and `target`, both required; `members` and `internal` | Any other field, `import`, `isInstance`, `supertype`, `type`, `typeParameters` and `impl` among them |
 | Type selector | Its name alone | Any other field, `impl` among them |
-| Selectable type | `selector` and `type`, both required, its name being its key | Any other field, `impl` among them |
+| Mapping | `selector`, `key` and `type`, all required | Any other field, `name` and `impl` among them |
 | Observation type | `contract`, `identity`, `shared`; `impl` | Any other field |
 | Observation target | `from`, which is `receiver` where given; `count`, which is `many` where given | Any other field, `impl` among them, and the name `receiver` |
 
@@ -182,7 +182,7 @@ A declaration without an `impl` is resolved against as any other, so a tool read
 A **registry** holds the modules a host resolves and evaluates against. `lexica.createRegistry(modules)` creates one holding Lexica's own module and the modules given; no registry is shared, so two hosts never see each other's modules.
 
 - **The registry holds definitions.** A registry holds the declarations of every module registered with it, shared by all the host's callers. What a host's callers start through host calls, and the state it keeps, is scoped to those callers, never to the registry.
-- **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. A module's name begins with a capital letter, is registered once, and is neither a word the language reserves, nor `Lexica`, nor the name of one of Lexica's own types or extensions, which an extension access could not qualify. A type is named once within its module, its name begins with a capital letter, and no module's type is named as one of Lexica's own types or `Null`; type selectors and observation types are each named once across every module, Lexica's own included, a selectable type once in its selector, and a name already declared is refused. A type a declaration names resolves to one the module declares or a module registered before it declares, as [type identity](types.md#types-type-identity) sets out, and an `import` that does not name a registered module, a reference that resolves to no type or to several, and a foreign type named unqualified outside its import are refused; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
+- **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. A module's name begins with a capital letter, is registered once, and is neither a word the language reserves, nor `Lexica`, nor the name of one of Lexica's own types or extensions, which an extension access could not qualify. A type is named once within its module, its name begins with a capital letter, and no module's type is named as one of Lexica's own types or `Null`; type selectors and observation types are each named once across every module, Lexica's own included, a mapping's key stands once in its selector, and a name or a key already declared is refused. A type a declaration names resolves to one the module declares or a module registered before it declares, as [type identity](types.md#types-type-identity) sets out, and an `import` that does not name a registered module, a reference that resolves to no type or to several, and a foreign type named unqualified outside its import are refused; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
 - **Its revision.** A registry answers a revision that changes whenever its vocabulary does, so a host that keeps resolutions knows when to resolve again.
 - **It reads and writes text as Lexica does.** `registry.parse(text, options)`, `registry.format(source, options)` and `registry.quote(source, options)` read and write a text as `lexica.parse`, `lexica.format` and `lexica.quote` do, its [imports](scripts.md#scripts-imports) deciding which of its names are namespaces, and `registry.resolve` reads a text as `registry.parse` does; [module names in text](#names-and-reserved-words-module-names) sets out how a name reads.
 - **Registering is not invoking.** Registering a module makes its capability understood; a host invoking one of its host calls starts what that call starts, for its caller, and ending it leaves the module registered.
