@@ -1,6 +1,6 @@
 # Proposal: diagnostic codes
 
-**State: accepted.** Not yet specified or implemented; [Unit 0](../features-status.md#unit-0--decisions-and-the-specification) specifies the catalog and codes every existing condition. It changes the contract [diagnostics and errors](../../spec/diagnostics-and-errors.md) sets out, as [settled rules](#settled-rules) record.
+**State: accepted.** Specified in the catalog of [diagnostics and errors](../../spec/diagnostics-and-errors.md#diagnostics-codes), and not implemented; [Unit 0](../features-status.md#unit-0--decisions-and-the-specification)'s third stage codes every existing condition. It changes the contract [diagnostics and errors](../../spec/diagnostics-and-errors.md) sets out, as [settled rules](#settled-rules) record.
 
 ## The problem
 
@@ -28,4 +28,7 @@ Each condition a diagnostic reports gets a stable **code**, `LEXICA` and four di
 
 1. **Strict operations keep throwing their first error.** The public tooling API collects diagnostics without throwing; accepting codes requires no other tolerant runtime API.
 2. **Lexica owns `LEXICA` codes.** A host gives its own conditions codes of a prefix of its own, and preserves a Lexica error's code when it propagates it.
-3. **One catalog, assigned in one pass.** The specification assigns a code to every condition it sets out at once, and each new condition takes a new code when it is introduced. A diagnostic keeps its `kind`, `message` and `location`; its code identifies its condition independently of its wording or where it is thrown, and a retired code is never reused.
+3. **One catalog, assigned in one pass.** The specification assigns a code to every condition it sets out at once, in a code column of its error tables, so each condition keeps one entry, and each new condition takes a new code when it is introduced. A diagnostic keeps its `kind`, `message` and `location`.
+4. **A code identifies its condition,** never its wording or where it is raised: a reworded message, or the same condition detected elsewhere, keeps its code, and distinct conditions never share one because their messages resemble each other.
+5. **Continuity.** Where a condition splits, the part that keeps its meaning keeps its code and the other parts take new ones; where no part keeps its meaning, its code is retired. A retired code is never reused, and a ledger of retired codes records each one, its condition and the version that retired it.
+6. **Strict and tolerant reading** give one condition the same code; a tolerant reading may report further diagnostics, so their lists are not promised to match.

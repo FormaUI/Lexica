@@ -137,7 +137,7 @@ The runtime gives the facts, and a host its policy, as comparing one result with
 
 ## Host calls
 
-A script that ends in a [host call](members.md#members-host-calls) is resolved as any other, and its resolution answers the call: `resolution.hostCall`, its `name` and the `declaration` it resolved to, null while its receiver's type is unknown. The runtime prepares the call and projects each value its host supplies; invoking it, when and how often, and for how long what it starts runs, are the host's.
+A script that ends in a [host call](members.md#members-host-calls) is resolved as any other, and its resolution answers the call: `resolution.hostCall`, its `name` and the `declaration` it resolved to, null while its receiver's type is unknown. The runtime prepares the call and projects each value its host supplies; invoking it, when and how often, and for how long what it starts runs, are the host's. Such a script is prepared, never evaluated: `evaluate` refuses a script that ends in a host call, and `prepareCall` one that gives a value, each with an [evaluation error](diagnostics-and-errors.md#evaluation-errors).
 
 ```js
 const call = evaluator.prepareCall();

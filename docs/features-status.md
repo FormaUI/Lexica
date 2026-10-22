@@ -23,11 +23,11 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 - **Breaking changes are made directly,** without compatibility layers, migration notes or deprecations, until the beta.
 - **Three host migration checkpoints.** A host building on Lexica builds against a pinned commit, and migrates its declarations and its runtime use once at the end of unit 2, its scripts once at the end of unit 3, and its handling of collections in results once at the end of unit 4. The release then changes how it consumes Lexica, through the published packages.
 - **Documents move with their stage.** The README, the [embedding guide](embedding-guide.md), the type declarations and this file change in the stage that changes what they describe.
-- **Every diagnostic has its code.** Unit 0's third stage gives a [code](proposals/diagnostic-codes.md) to every existing condition, and every later stage gives each condition it introduces its code at once.
+- **Every diagnostic has its code.** Unit 0's third stage gives a [code](proposals/diagnostic-codes.md) to every existing condition, and every later stage gives each condition it introduces its code at once; the tests of each condition assert its code, never only its message.
 
 | Unit | Work | State |
 | --- | --- | --- |
-| 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | Stage 1, the decisions in the specification, done; the catalog and the codes planned |
+| 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | Stages 1 and 2, the decisions and the diagnostics catalog in the specification, done; the codes in the implementation planned |
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | Planned |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
@@ -42,7 +42,7 @@ Unit 0 lands in three stages: the specification takes the six decisions below, t
 
 1. **Competing conversions register.** The rule of one conversion per source and destination across the registry, in [Lexica's conversions](../spec/vocabulary.md#vocabulary-conversions), is removed. Conversions compete as [operators](../spec/modules.md#modules-operators) do, among the operators a script's imports make available: an applicable owner's operator wins, otherwise one extension's resolves, and several are ambiguous where a script uses them. A module's own operators still collide under its collision rules, and a module still owns a conversion's source or its destination. A qualified destination identifies a type, never an operator, and an extension access reaches none.
 2. **Mappings.** A module's `selectableTypes` become its `mappings`, each `{ selector, key, type }`, its `name` renamed `key`, and a key maps to a named structured type whose properties are stored, as `Home`'s `motion` maps to `Motion`. A key is unique within its selector across the registered modules, its selector and key together its identity, and different selectors may share a key. "Mapping" replaces "selectable type" throughout the specification, the declarations, the helpers, the diagnostics and the tests, and the examples' vocabulary names its payload types. A declaration contract gains no object-type notation.
-3. **Diagnostic codes are accepted,** as [their proposal](proposals/diagnostic-codes.md) settles them. The second stage gives the specification's diagnostics document the catalog and the contract: a code for each condition it sets out, and each error table naming the code of each row. The third stage gives `LexicaError` its `code` and every condition the implementation reports today its code, in one pass, before unit 1; a condition a later unit removes retires its code.
+3. **Diagnostic codes are accepted,** as [their proposal](proposals/diagnostic-codes.md) settles them. The second stage gives the specification's diagnostics document the catalog and the contract: a code for each condition it sets out, and each error table naming the code of each row. The third stage gives `LexicaError` its `code` and every condition the implementation reports today its code, in one pass, before unit 1, and the tests assert each condition's code. A condition only language `1.0.0-alpha.33` has takes an unused code of its kind's range, listed under [temporary implementation coverage](#temporary-implementation-coverage) with its condition and its kind and kept out of the specification, and the unit that removes the condition retires its code to the specification's ledger; no code is reused.
 4. **A projection source says what it is.** Each source records whether it is a reference or data, by its established type, a value carried through `Any` included; null is a recorded source that is neither, distinct from absent source metadata. Sources stay aligned with the projected items, the metadata's containers are frozen, and a referenced host object is kept as it is, never frozen through. Lexica reports each source's classification and identity, and a host decides how to match by them. The metadata's representation is specified here, so unit 1 implements one defined contract.
 5. **Line structure,** as [its proposal](proposals/line-structure.md) sets out: line structure constrains which layouts are valid and never changes a reading. A line break is LF, CRLF or a lone CR, U+2028 and U+2029 are refused outside literal string text, and every position between two tokens is inside a one-line construct, at a break point or at a boundary. A line breaks before a binary operator only where parentheses, brackets or a condition enclose its expression, and never after one; a chain breaks before each step; a conditional, a `do` block and a function expression stand on one line or in block form; and each import, and each local and `return` of a body that uses `return`, starts a line of its own.
 6. **Two gaps in the text's specification close.** `import` joins [the grammar](../spec/grammar.md)'s keywords, as [lexical structure](../spec/lexical-structure.md) already reserves it, and [the definition](../spec/definition.md#definition) sets how `quote` writes a definition's imports on one line.
@@ -157,6 +157,15 @@ Publish both, and test them as consumers install them: NuGet in a published appl
 - Set the beta version to `1.0.0-beta` wherever the beta version is written or checked; number packages `1.0.0-beta.N`.
 
 Beta means no breaking redesign is planned and remaining limitations are documented. Breaking changes after beta require migration guidance.
+
+<a id="temporary-implementation-coverage"></a>
+
+## Temporary implementation coverage
+
+Conditions the implementation reports that only language `1.0.0-alpha.33` has, coded so every diagnostic it throws carries a code while units 1 to 3 remove them. They stay out of the specification's catalog; each code retires to its [ledger](../spec/diagnostics-and-errors.md#diagnostics-retired-codes) when its condition's unit lands, and is never reused. Unit 0's third stage fills this table.
+
+| Code | Kind | Condition | Removed by |
+| --- | --- | --- | --- |
 
 ## Implemented capabilities
 
