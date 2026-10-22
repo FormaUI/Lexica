@@ -362,9 +362,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5005` | A division or a remainder by zero | An evaluation error at the operation |
 | `LEXICA5020` | An arithmetic result no finite number holds | An evaluation error at the operation |
 | `LEXICA5006` | A module returning a value of a type other than the one it declared | An evaluation error naming the member and its module |
-| `LEXICA5007` | A member failing unexpectedly while it evaluates | An evaluation error |
+| `LEXICA5007` | A member failing unexpectedly while it evaluates, its implementation throwing | An evaluation error at the member, its `cause` exactly what the implementation threw, as [the evaluator](runtime.md#runtime-evaluation) sets out |
 | `LEXICA5008` | A function given to a member called after that member's invocation has ended | An evaluation error |
-| `LEXICA5009` | A hook that throws: `beforeInvoke`, a host refusing a member among them, `afterInvoke`, or `afterEvaluation` after a completed evaluation | An evaluation error at that member; after a failed evaluation, the cleanup's failure is recorded on the original error |
+| `LEXICA5009` | A hook that throws: `beforeInvoke`, a host refusing a member among them, `afterInvoke`, or `afterEvaluation` after a completed evaluation | An evaluation error at that member, its `cause` exactly what the hook threw, as [a hook that throws](runtime.md#runtime-evaluation) sets out; after a failed evaluation, the cleanup's failure is recorded on the original error |
 | `LEXICA5010` | Evaluating an evaluator from within its own evaluation | An evaluation error |
 | `LEXICA5011` | Evaluating without `beforeInvoke` a script that reads a maintained member | An evaluation error |
 | `LEXICA5012` | A deferred access whose receiver's actual type lacks the member, or doesn't satisfy it | An evaluation error naming the access and the actual type |
