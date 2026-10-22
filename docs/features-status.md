@@ -21,7 +21,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 
 - **A stage is a commit.** Each stage passes the gate, and moves each aspect once: a declaration, a test or a document takes its final form the first time the aspect changes, never an intermediate one a later stage replaces.
 - **Breaking changes are made directly,** without compatibility layers, migration notes or deprecations, until the beta.
-- **Two host migration checkpoints.** A host building on Lexica builds against a pinned commit, and migrates its declarations and its runtime use once at the end of unit 2, and its scripts once at the end of unit 3. The release then changes how it consumes Lexica, through the published packages.
+- **Three host migration checkpoints.** A host building on Lexica builds against a pinned commit, and migrates its declarations and its runtime use once at the end of unit 2, its scripts once at the end of unit 3, and its handling of collections in results once at the end of unit 4. The release then changes how it consumes Lexica, through the published packages.
 - **Documents move with their stage.** The README, the [embedding guide](embedding-guide.md), the type declarations and this file change in the stage that changes what they describe.
 - **Every diagnostic has its code.** Unit 0's third stage gives a [code](proposals/diagnostic-codes.md) to every existing condition, and every later stage gives each condition it introduces its code at once.
 
@@ -31,9 +31,10 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | Planned |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
-| 4 | [Specification examples](#unit-4--specification-examples) | Planned |
-| 5 | [Tooling](#unit-5--tooling) | Planned |
-| 6 | [Release](#unit-6--release) | Planned |
+| 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
+| 5 | [Specification examples](#unit-5--specification-examples) | Planned |
+| 6 | [Tooling](#unit-6--tooling) | Planned |
+| 7 | [Release](#unit-7--release) | Planned |
 
 ### Unit 0 — Decisions and the specification
 
@@ -53,7 +54,7 @@ Unit 0 lands in three stages: the specification takes the six decisions below, t
 Every declaration takes its final shape, and the types those declarations make relate as the specification sets out. Resolution keeps selecting members as it does today, through registry queries whose answers the new declarations give; unit 2 replaces the selection itself.
 
 1. **Registry queries.** The resolver, the evaluator, result paths and the entry point read declarations only through registry queries, never a declaration's `target`, `syntax` or `fields` directly, so the declarations' storage can change behind them. Nothing a script sees changes.
-2. **One type relation.** A registry-aware checker replaces the static assignability, merging, comparability and node checks of `Type`, and the resolver's receiver matching, at every call site. It brings `Any`, distinct from a result left out, and the rules of `null` and `Never`.
+2. **One type relation.** A registry-aware checker replaces the static assignability, merging, comparability and node checks of `Type`, and the resolver's receiver matching, at every call site. It brings `Any`, distinct from a result left out, and the rules of `null` and `Never`, and takes a generic value type by its declaration, never `List` by name, so [collections](proposals/collections.md)' `Dictionary` and `Pair` join it in unit 4 without replacing it; neither is public before then.
 3. **Reference types and binding,** in the current flat member shape:
    - `typeOf`, `isInstance`, `abstract` and `supertype`, a hierarchy refused where it cycles; the hierarchy in assignability, list covariance, merging to the nearest shared supertype, and identity equality of references.
    - `registry.bind`, recognizing values by every module's `typeOf`, with declared binding types resolved against the registry, a binding set captured once and belonging to its registry, and a cycle refused with its own error. Binding and repeated evaluation are measured at scale before any membership answer is cached, and any cache has defined validity rules.
@@ -94,7 +95,7 @@ Contracts: [Owners and extensions](../spec/modules.md#namespaces-owners-and-exte
 
 ### Unit 3 — Script text, imports and definition version 34
 
-Scripts write imports and extension access, and the definition records both; a script's lines follow line structure.
+Scripts write imports and extension access, and the definition records both; a script's lines follow line structure. Collection syntax, collection expressions `[…]`, ranges `..` and from-end indices `^`, is built in unit 4, as [its proposal](proposals/collections.md) designs it: unit 3 builds no placeholder for it, and leaves its tokenizer and chain parser to extend cleanly.
 
 1. **Line endings:** one definition of a line break, LF, CRLF or a lone CR, for comments, block strings, diagnostics and locations; line comments ending at CR and CRLF; and U+2028 and U+2029 refused outside literal string text. It repairs today's comment handling on its own, before any layout rule.
 2. **The definition's contract:** `import` a keyword; one shared list of Lexica's own names; version 34, structured imports and the `extension` field, validated, with a namespace or an extension's module checked against the imports.
@@ -109,11 +110,27 @@ Scripts write imports and extension access, and the definition records both; a s
 
 Contracts: [Scripts](../spec/scripts.md), [the grammar](../spec/grammar.md), [line structure](../spec/lexical-structure.md#line-structure), [the definition](../spec/definition.md), [extension access](../spec/members.md#property-access-calls-and-indexers-extension-access).
 
-### Unit 4 — Specification examples
+### Unit 4 — Collections
+
+The [collections proposal](proposals/collections.md)'s four parts, each settled, specified and implemented in turn. Its accepted decisions stand; each of its open contracts is settled by the stage that depends on it, before that stage implements anything.
+
+1. **The lineage contract:** the smallest representation of provenance that satisfies the proposal's requirements, specified before any transformation propagates provenance, so no temporary representation is built. It is the foundation's first remaining task.
+2. **The foundation:** `Dictionary<K, V>` and `Pair<K, V>`, public from this stage with their checking and capture complete; capture of arrays, maps and sets; typing; key equality; insertion order; null keys; duplicate keys refused; lookup and presence; the exported forms; and metadata realigned through filtering, with lineage through projection.
+3. **Construction and operations:** collection expressions, through the parser, the definition, line structure and canonical text; dictionary construction and grouping; and the member surface, `select` beside object projection.
+4. **Positional operations:** `Index` and `Range`, `..` and `^`, strict slicing beside tolerant lookup, typed indexer signatures, and `pick`.
+5. **Ordering:** `orderBy` and `thenBy`, stable, with their key domains and null placement.
+
+A stage that changes the definition's contract advances its version, as [the definition](../spec/definition.md#definition) sets out.
+
+**Completion:** each accepted decision and each settled contract is specified and implemented, and the gate passes; a host follows at its third checkpoint.
+
+Contract: [Collections](proposals/collections.md).
+
+### Unit 5 — Specification examples
 
 A module implementing [the examples' vocabulary](../spec/examples-vocabulary.md), written once, and a harness giving each example its fixtures, a host, and prepared calls with their projections. Every example the specification gives resolves and evaluates in the gate.
 
-### Unit 5 — Tooling
+### Unit 6 — Tooling
 
 Built once, on the final syntax and visibility rules:
 
@@ -123,7 +140,7 @@ Built once, on the final syntax and visibility rules:
 
 References: [Syntax tree](lexica-design.md#the-syntax-tree), [tooling](lexica-design.md#tooling).
 
-### Unit 6 — Release
+### Unit 7 — Release
 
 **Packages.** One source and build produce both packages locally; neither is published. Both carry the runtime version declared by `src/language/Versions.mjs`.
 
@@ -212,13 +229,14 @@ Contracts: [Host-call declarations](../spec/members.md#members-host-calls), [hos
 
 ## Open decisions
 
-No open decision is recorded for the implementation plan: Unit 0's decisions are taken. Deferred items below require their stated trigger before design or implementation resumes.
+No open decision is recorded for the implementation plan: Unit 0's decisions are taken, and unit 4 settles the collections proposal's open contracts, the lineage representation first. Deferred items below require their stated trigger before design or implementation resumes.
 
 ## Deferred
 
 | Work | Why it waits | Reopened by |
 | --- | --- | --- |
-| Collection model, including `slice`, `take`, `drop`, and collection conversions | Arrays, DOM collections, sets, maps, and plain objects need one native model first. Conversions from or to a list are currently refused at registration. | A collection-model design task |
+| Collection conversions, `values to List` and `entries to Dictionary` | Collections are constructed by members; conversions to or from a collection would extend conversion targets and contracts. | A use members do not serve |
+| Explicit application identity, `identifyBy` | Sources and lineage serve the collection foundation; identities apart from keys and sources need scoping rules of their own. | A host that matches by identities its sources cannot give |
 | Incremental reparsing, specialized tree machinery, and a public tree schema shared by C# and JavaScript | No tool needs them yet. | A concrete tooling need |
 | Expression, predicate, and function arguments to host calls | Prepared arguments are values retained by the host; callbacks need an evaluation context and lifetime. | A host call that must call back into its script, with that context and lifetime designed |
 | An extension targeting several types | Each extension has one target, and reusing a declaration in an extension for each target serves current cases. | Many repeated members across unrelated types |
