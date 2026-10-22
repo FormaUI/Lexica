@@ -113,7 +113,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
 | A name no local or field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
 | `it` where nothing gives it a value | A structure error where the text alone shows it, as outside every argument at the top level; a validation error within an argument of a member call or of a local function call, whose function decides |
-| A named indexer written without its key or as a call, or with `?[` after its name, as `x?.setting?[k]` | A validation error giving its form, `x.setting[…]` or `x?.setting[k]` |
+| A named indexer written without its key or as a call; a function written with its argument in brackets | A validation error giving its form, `x.setting[…]`, or the call |
 | An unnamed indexer on a type that declares none, or a number where a computed property's name stands, as `rooms.[0]` | A validation error, giving `room.["name"]` where the key is a string the receiver has a property of, and `rooms[0]` for the number |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
 | A cast or a conversion naming a type no public type of the registry has, or one several share unqualified | A validation error, giving the qualified names where several share it |

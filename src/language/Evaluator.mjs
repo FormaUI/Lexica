@@ -228,7 +228,7 @@ export class Evaluator {
             const frame = this.#localsFrame;
             // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
             const hasReceiver = declaration === null || declaration.target !== undefined;
-            const receiver = declaration === null ? null : hasReceiver ? this.#evaluateNode(resolution.qualified ? node.arguments[0] : node.target, null) : undefined;
+            const receiver = declaration === null ? null : hasReceiver ? this.#evaluateNode(Evaluator.#receiverNodeOf(node, resolution), null) : undefined;
             const args = receiver === null ? null : this.#evaluateArguments(resolution, null);
 
             if (args === null) {
@@ -769,7 +769,7 @@ export class Evaluator {
 
     /**
      * A property access, a call or an indexer, with its resolution, its function, its arguments and the check of its result made once.
-     * A bracket property access, and a member of a receiver of unknown type, which answers null without reading anything, are evaluated as the node itself says.
+     * A computed property access, and a member of a receiver of unknown type, which answers null without reading anything, are evaluated as the node itself says.
      */
     #compileMember(node) {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
@@ -781,7 +781,7 @@ export class Evaluator {
             return () => closure;
         }
 
-        if (resolution === undefined || resolution.kind === 'bracketPropertyAccess' || (resolution.kind !== 'field' && resolution.kind !== 'objectRootField' && resolution.declaration === null)) {
+        if (resolution === undefined || resolution.kind === 'computedPropertyAccess' || (resolution.kind !== 'field' && resolution.kind !== 'objectRootField' && resolution.declaration === null)) {
             return (evaluator, context) => evaluator.#evaluateMember(node, context);
         }
 
@@ -810,13 +810,14 @@ export class Evaluator {
     }
 
     /**
-     * An invocation of a member's declaration, with its function, its arguments and the check of its result made once: its receiver evaluated first, the node's target, or a qualified form's first argument, a null one answering null before its own
+     * An invocation of a member's declaration, with its function, its arguments and the check of its result made once: its receiver evaluated first, the node's target, a named indexer's the access its name is written in has,
+     * or a qualified form's first argument, a null one answering null before its own
      * arguments are evaluated, and a module member's none; then its arguments, null where one makes the call answer null.
      */
     #compileInvocation(node, resolution) {
         const { type, declaration, qualified } = resolution;
         const hasReceiver = declaration.target !== undefined;
-        const target = !hasReceiver ? null : this.#getCompiledFunction(qualified ? node.arguments[0] : node.target);
+        const target = !hasReceiver ? null : this.#getCompiledFunction(Evaluator.#receiverNodeOf(node, resolution));
         const implementation = this.#moduleRegistry.getImplementation(declaration);
         const conforms = Evaluator.#compileTypeCheck(type, this.#moduleRegistry);
         const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
@@ -1396,6 +1397,15 @@ export class Evaluator {
         return cachedLocal.value;
     }
 
+    /** The node a member's receiver is: a qualified form's first argument, a named indexer's the receiver of the access its name is written in, and any other member's its target. */
+    static #receiverNodeOf(node, resolution) {
+        if (resolution?.qualified === true) {
+            return node.arguments[0];
+        }
+
+        return resolution?.isNamedIndexer === true ? node.target.target : node.target;
+    }
+
     #evaluateMember(node, context) {
         // A projection stands the value its host supplied where the host call is, so the call is never evaluated.
         if (node === this.#projectionContext?.node) {
@@ -1403,17 +1413,17 @@ export class Evaluator {
         }
 
         const resolution = this.#resolvedDefinition.resolutionOf(node);
-        const receiver = this.#evaluateNode(resolution?.qualified === true ? node.arguments[0] : node.target, context);
+        const receiver = this.#evaluateNode(Evaluator.#receiverNodeOf(node, resolution), context);
 
         if (receiver === null) {
             return null;
         }
 
-        if (resolution.kind !== 'bracketPropertyAccess') {
+        if (resolution.kind !== 'computedPropertyAccess') {
             return this.#readResolvedMember(resolution, receiver, node, context);
         }
 
-        // A bracket property access computes its name once and reads the property it selects, which is recorded for the value's place in the result.
+        // A computed property access computes its name once and reads the property it selects, which is recorded for the value's place in the result.
         const name = this.#evaluateNode(node.name, context);
 
         (this.#selections ??= new Map()).set(node, name);
@@ -1892,7 +1902,7 @@ export class Evaluator {
 
     /**
      * The metadata of the value an expression gave at its place in the result, read from the identities its copy left there: the record of the expression that produced it, followed through locals, bodies, `do` blocks, function calls,
-     * object-root fields, the branch or operand a selecting expression selected and the property a bracket property access selected; a field read keeps the record its whole has for that field, or its whole's own.
+     * object-root fields, the branch or operand a selecting expression selected and the property a computed property access selected; a field read keeps the record its whole has for that field, or its whole's own.
      * An object expression's value records each field, and a projection's each item and the reference it came from. The value is undefined where the expression is described for a part read from it, and nothing beyond its record is described then.
      * The context record is the record of the value `it` stands for where the expression stands, the value an object expression follows or the item it projects, or null where there is none.
      */
@@ -1935,7 +1945,7 @@ export class Evaluator {
                     let resolution = this.#resolvedDefinition.resolutionOf(node);
                     let candidate = null;
 
-                    if (resolution?.kind === 'bracketPropertyAccess') {
+                    if (resolution?.kind === 'computedPropertyAccess') {
                         candidate = branches?.get(node) ?? null;
 
                         if (candidate === null) {

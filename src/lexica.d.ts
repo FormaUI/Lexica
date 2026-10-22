@@ -20,7 +20,7 @@ export type LexicaDefinitionNode =
     | { readonly kind: 'local'; readonly name: string }
     | { readonly kind: 'member'; readonly target: LexicaDefinitionNode; readonly name: string | LexicaDefinitionNode; readonly optional?: true }
     | { readonly kind: 'call'; readonly target: LexicaDefinitionNode; readonly name: string; readonly optional?: true; readonly arguments: readonly LexicaDefinitionNode[] }
-    | { readonly kind: 'indexer'; readonly target: LexicaDefinitionNode; readonly name?: string; readonly argument: LexicaDefinitionNode; readonly optional?: true }
+    | { readonly kind: 'indexer'; readonly target: LexicaDefinitionNode; readonly argument: LexicaDefinitionNode; readonly optional?: true }
     | { readonly kind: 'object'; readonly target?: LexicaDefinitionNode; readonly locals?: readonly LexicaDefinitionLocal[]; readonly fields: readonly LexicaDefinitionField[] }
     | { readonly kind: 'optionalChain'; readonly target: LexicaDefinitionNode }
     | { readonly kind: 'coalescing'; readonly value: LexicaDefinitionNode; readonly fallback: LexicaDefinitionNode }
@@ -252,11 +252,11 @@ export interface LexicaMemberDeclaration {
     invokedBy?: 'evaluator' | 'host';
     /** The types it applies to, in Lexica's notation, `any`, or a type parameter `T` that binds the receiver's type; none for a module member. */
     target?: string | string[];
-    /** How a member that is no property is written: a function call, `it.device("lamp")`, the default, or a named indexer, `it:setting["mode"]`, a function whose one required value parameter is its key. A property takes none. */
+    /** How a member that is no property is written: a function call, `it.device("lamp")`, the default, or a named indexer, `it.setting["mode"]`, a function whose one required value parameter is its key. A property takes none. */
     syntax?: 'function-call' | 'indexer';
     /** The form its arguments take where it has parameters, an optional one included: one for each parameter, in order, the required ones before the optional ones, or one options object whose fields supply them; an indexer's is positional. */
     arguments?: 'positional' | 'options';
-    /** Whether an indexer is the default of its receivers, which `:[…]` invokes, as `item` is a list's; a module designates one at most for a receiver type. */
+    /** Whether an indexer is the default of its receivers, which `[…]` invokes, as `item` is a list's; a module designates one at most for a receiver type. */
     default?: boolean;
     /** Its parameters; a property takes none. */
     parameters?: LexicaParameterDeclaration[];

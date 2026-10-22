@@ -186,7 +186,7 @@ describe('the declaration shape', () => {
     });
 
     it('refuses a function call written as an indexer, giving the call to write', () => {
-        expect(getError(() => lexica.createRegistry([createMenu()]).resolve('item:discounted[50]', { item: 'latte' })).message).toContain("'discounted' uses call syntax: write 'item.discounted(50)'");
+        expect(getError(() => lexica.createRegistry([createMenu()]).resolve('item.discounted[50]', { item: 'latte' })).message).toContain("'discounted' uses call syntax: write 'item.discounted(50)'");
     });
 
     it('evaluates an expression of a mixed module that uses its implemented declarations alone', () => {

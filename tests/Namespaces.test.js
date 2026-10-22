@@ -63,9 +63,9 @@ describe("a registry's text", () => {
     });
 
     it("writes a definition's script parameter and local named after a module as a registry reads them, a definition created directly among them", () => {
-        const definition = lexica.validate({ version: 32, expression: { kind: 'arithmetic', operator: '+', left: { kind: 'parameter', name: 'shop' }, right: { kind: 'member', target: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
+        const definition = lexica.validate({ version: 33, expression: { kind: 'arithmetic', operator: '+', left: { kind: 'parameter', name: 'shop' }, right: { kind: 'member', target: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
 
-        expect(registry.format({ version: 32, expression: { kind: 'parameter', name: 'shop' } })).toBe('~shop');
+        expect(registry.format({ version: 33, expression: { kind: 'parameter', name: 'shop' } })).toBe('~shop');
         expect(registry.parse(registry.format(definition))).toEqual(definition);
     });
 
@@ -87,7 +87,7 @@ describe("a registry's text", () => {
     });
 
     it('refuses a namespace no module the registry holds gives, and a definition a module registered since reads otherwise', () => {
-        const bakery = { version: 32, expression: { kind: 'member', target: { kind: 'namespace', name: 'bakery' }, name: 'open' } };
+        const bakery = { version: 33, expression: { kind: 'member', target: { kind: 'namespace', name: 'bakery' }, name: 'open' } };
         const growing = lexica.createRegistry([createShop()]);
         const read = growing.parse('bakery + 1');
 

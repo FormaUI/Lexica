@@ -2,14 +2,14 @@
 
 ## Current state
 
-**The core language and host calls are implemented. The next task is the new type and member declaration model.** Reference types, general casts and conversions, ownership, internal declarations, and general projection sources follow it.
+**The core language, host calls and definition version 33 are implemented. The next task is the rest of the new type and member declaration model.** Reference types, general casts and conversions, ownership, internal declarations, and general projection sources follow it.
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.32` | `1.0.0-alpha.33` |
-| Definition format | 32 | 33 |
+| Language | `1.0.0-alpha.33` | `1.0.0-alpha.33` |
+| Definition format | 33 | 33 |
 
-The implementation still uses flat member declarations and built-in DOM types. The specification describes the replacement, but that work has not started. The next step advances the definition format to 33; removing the built-in DOM types follows in step 2.
+The implementation reads definition version 33 and the language's indexers, computed properties and qualified type names, but still uses flat member declarations and built-in DOM types. Until the declaration model replaces them, an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. Removing the built-in DOM types follows in step 2.
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Six specification examples resolve and evaluate; 28 remain.
 
@@ -19,7 +19,16 @@ The [specification](../spec/README.md) defines the contract; the [design](lexica
 
 ## Next: type and member declarations
 
-**Step 1 — Planned, not started.** Replace the current declaration model and advance the definition format to 33. This is the first step of the types and members work, formerly called the third slice of the version 32 plan.
+**Step 1 — In progress.** Replace the current declaration model and advance the definition format to 33. This is the first step of the types and members work, formerly called the third slice of the version 32 plan.
+
+It lands in four parts. Each part is a checkpoint: Lexica's change and DOMQL's matching migration are prepared together, both gates run, and then each repository commits, DOMQL's status naming the Lexica commit it requires.
+
+| Part | Work | State |
+| --- | --- | --- |
+| 1 | Parser and definition format: [indexers and computed properties](#indexers-and-computed-properties) and qualified type names in casts and conversions, in [definition version 33](#definition-version-33) | Implemented |
+| 2 | [Type identity and names](#type-identity-and-names), so extension targets resolve before declarations move | Planned |
+| 3 | [Declaration structure](#declaration-structure) and registration | Planned |
+| 4 | Built-in declarations and integration: `List<T>` and its unnamed indexer, and the verbs as an extension on `T` | Planned; joins part 3 where part 3 alone cannot leave a working runtime |
 
 ### Type identity and names
 
@@ -40,19 +49,15 @@ The [specification](../spec/README.md) defines the contract; the [design](lexica
 | Implicit type parameters | Explicit `typeParameters`, such as `['T']` |
 | Declaration helpers with receivers | Helpers without receivers, plus `field` and indexer helpers |
 
-Declare Lexica's generic `List<T>` and the verbs as an extension on `T`. Establish the type and extension structure for operators; their behavior is implemented in step 3.
+Declare Lexica's generic `List<T>`, with its unnamed indexer in place of `item`, and the verbs as an extension on `T`. Establish the type and extension structure for operators; their behavior is implemented in step 3. The bridge from indexers to flat declarations goes with the flat declarations.
 
 ### Indexers and computed properties
 
-- Write a named indexer as `x.name[k]`, a type's unnamed indexer as `x[k]`, and a property by a computed name as `x.[p]`, in place of `x:name[k]`, `x:[k]` and `x[p]`.
-- Resolve `x.name[k]` as the named indexer where the receiver's type declares one, and otherwise as the property's answer indexed.
-- Declare `List`'s unnamed indexer in place of `item`.
-- Refuse the replaced forms, each with the form to write.
-- Check the specification's computed property example again, which the document examples skip as `pending` until the parser reads `x.[p]`.
+**Implemented.** A named indexer is written `x.name[k]`, a type's unnamed indexer `x[k]`, and a property by a computed name `x.[p]`, each optional as `x?.name[k]`, `x?[k]` and `x?.[p]`. Resolution reads `x.name[k]` as the named indexer wherever the receiver's type declares one, a key it refuses being its own error, and reads the property and indexes its answer only where none is declared. The colon forms are refused with the form to write.
 
 ### Definition version 33
 
-Allow qualified type names in casts and conversions, and record an indexer without a `name`, a named indexer's target being the `member` node of its name. These widen the values a definition's `type` can hold, change the `indexer` node, and require definition version 33.
+**Implemented.** Casts and conversions name a type qualified by its module, as `to home.Climate`, and an indexer is recorded without a `name`, a named indexer's target being the `member` node of its name. A qualified name resolves to the type its registered module declares; identifying every type by its module follows in part 2.
 
 PascalCase names, nested declarations, and imports alone do not change the definition format. The declaration redesign still makes incompatible changes to the language and runtime API.
 
@@ -177,7 +182,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Observations | Observation types and module-declared observation targets | [Observations](../spec/vocabulary.md#observations), [targets](../spec/vocabulary.md#observations-targets) |
 | Type selection | Type selectors and selectable types | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
 | Namespaces | Module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
-| Text and definitions | Parse, validate, format, quote, and locate; canonical text for definition version 32 | [Definition](../spec/definition.md) |
+| Text and definitions | Parse, validate, format, quote, and locate; canonical text for definition version 33 | [Definition](../spec/definition.md) |
 | Runtime | Bindings, resolution, reuse by resolution key, evaluation with host hooks, and frozen results | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
 | Diagnostics | Error kinds, messages, and locations | [Diagnostics](../spec/diagnostics-and-errors.md) |
 | Build | Bundle and type declarations | [Build](../README.md#build) |

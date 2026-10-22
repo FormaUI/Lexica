@@ -112,7 +112,7 @@ Optional access is also valid on a receiver whose current type cannot be null. A
 
 The enclosed form requires a receiver followed by at least one property access, function call or indexer. Its receiver is an input, `it`, a script parameter, `root`, a namespace's member, a literal, an interpolated string, a local, a local function's call or an object expression, or a grouped cast.
 
-Accesses in a grouped cast's target also become optional. A coalescing target in parentheses, an already optional enclosed target, call arguments, indexer keys and computed property names retain their own rules.
+Accesses in a grouped cast's target also become optional. A coalescing target in parentheses, an already optional enclosed target, call arguments, indexer keys and computed property names retain their own rules. A named indexer's brackets become optional too, which [adds nothing](#property-access-calls-and-indexers-named-indexers) to its receiver's optional access, so `(?device.setting["mode"])` answers as `device?.setting["mode"]` does.
 
 An optional enclosed access written directly as a call's argument is a syntax error, since `(?` is one token: the call writes it in parentheses of its own, `.device((?…))`.
 
@@ -148,22 +148,25 @@ The text reads `x.name[key]` as it is written, the member `name` and then bracke
 - Where the receiver's type has a named indexer `name` the script can reach, `x.name[key]` invokes it with the key.
 - Otherwise `name` is a property, and the brackets invoke the [unnamed indexer](#property-access-calls-and-indexers-unnamed-indexers) of the type it answers, as `room.devices[0]` reads the room's first device.
 
-The two readings never both apply, since a named indexer and a property of one name on one type collide, and [owner precedence](modules.md#namespaces-owners-and-extensions) chooses one declaration of a name. Resolution reads the pair together: where the member access names a named indexer of its receiver's type, it supplies the receiver and the indexer's name and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index.
+The two readings never both apply, since a named indexer and a property of one name on one type collide, and [owner precedence](modules.md#namespaces-owners-and-extensions) chooses one declaration of a name. Resolution reads the pair together: where the member access names a named indexer of its receiver's type, it supplies the receiver and the indexer's name and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index. Once a named indexer applies, the brackets are its key whatever they hold: a key it refuses, as `device.setting[3]` for a setting's name, is that indexer's validation error, and never makes the brackets index the answer of a property instead.
 
 A group leaves the definition as it is, so `(device.setting)["mode"]` is `device.setting["mode"]`.
 
 A named indexer takes its key in brackets. Written without them, `device.setting`, or as a call, `device.setting("mode")`, it is a validation error that gives `device.setting[…]`; `device.setting[]` and `device.setting["a", "b"]` are syntax errors.
 
-An optional access before the name makes the receiver optional, and for a null receiver answers null without evaluating the key:
+An optional access skips its operation where its receiver is null, and answers null without evaluating the key. Before the name, `?.` makes the receiver optional. Optional brackets, `?[`, skip the indexing where what is before them is null, and a named indexer has no value between its name and its key, so for one they add nothing. The definition keeps the marker as written, and its effect follows what the name resolves to:
 
 | Written | Where `name` is a named indexer | Where `name` is a property |
 | --- | --- | --- |
 | `x?.name[k]` | Null where `x` is null; otherwise the indexer invoked with `k` | Null where `x` is null; otherwise the property read and its answer indexed, which must not be null |
-| `x?.name?[k]` | A validation error that gives `x?.name[k]`, since a named indexer gives a value only once its key is given | Null where `x` is null or the property answers null, `k` unevaluated in either case |
+| `x.name?[k]` | The indexer invoked with `k`, as `x.name[k]` invokes it; the brackets' marker adds no protection against a null `x` | The property read, and null where it answers null, `k` unevaluated |
+| `x?.name?[k]` | As `x?.name[k]` | Null where `x` is null or the property answers null, `k` unevaluated in either case |
+
+So an optional enclosed access, which makes every access and every pair of brackets optional, holds a named indexer as it holds any other.
 
 A group ends an optional chain, as everywhere: in `(device?.setting)["mode"]` the group holds a named indexer written without its key, which is refused.
 
-A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` reads the property `p` names and `[k]` indexes its answer, so where `p` settles to `"setting"`, the named indexer of that name isn't a candidate, and the computed name is refused, since `setting` names an indexer rather than a property. The named-indexer reading applies only to a member access whose name is written, never to one whose name is an expression.
+A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` reads the property `p` names and `[k]` indexes its answer, so where `p` settles to `"setting"`, the named indexer of that name isn't a candidate, and the computed name is refused, since `setting` names an indexer rather than a property. The named-indexer reading applies only to a member access whose name is written, never to one whose name is an expression. A string literal that is a Lexica name is the name written, as [one property at a time](#bracket-property-access-one-property-at-a-time) sets out, so `device.["setting"]["mode"]` is `device.setting["mode"]`.
 
 <a id="property-access-calls-and-indexers-unnamed-indexers"></a>
 <a id="property-access-calls-and-indexers-default-indexers"></a>
@@ -197,6 +200,7 @@ A form these rules leave without a meaning is refused with the form that has one
 | `device:setting["mode"]` or `it:[name]`, a colon in a member chain | `device.setting["mode"]` or `it.[name]` |
 | `rooms.[0]`, a number where a computed property's name stands | `rooms[0]` |
 | `room["name"]` on a type without an unnamed indexer | `room.["name"]` |
+| `room.device["lamp"]`, a function's argument in brackets | `room.device("lamp")` |
 
 The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace is recognized by the module names the text is read with, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
 
@@ -394,7 +398,7 @@ A function is written as a function call. An indexer, `kind: 'indexer'`, is writ
 
 ```js
 members: [
-    { kind: 'indexer', parameters: [/* index */], result: 'T?', updates, impl },                       // rooms[0]
+    { kind: 'indexer', parameters: [/* index */], result: 'T?', updates, impl },                      // rooms[0]
     { kind: 'indexer', name: 'setting', parameters: [/* key */], result: 'String?', updates, impl },  // device.setting["mode"]
 ]
 ```

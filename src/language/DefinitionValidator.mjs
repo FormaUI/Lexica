@@ -20,7 +20,7 @@ const NODE_PROPERTIES = {
     local: { properties: ['kind', 'name'], required: ['name'] },
     member: { properties: ['kind', 'target', 'name', 'optional'], required: ['target', 'name'] },
     call: { properties: ['kind', 'target', 'name', 'optional', 'arguments'], required: ['target', 'name', 'arguments'] },
-    indexer: { properties: ['kind', 'target', 'name', 'optional', 'argument'], required: ['target', 'argument'] },
+    indexer: { properties: ['kind', 'target', 'optional', 'argument'], required: ['target', 'argument'] },
     object: { properties: ['kind', 'target', 'locals', 'fields'], required: ['fields'] },
     optionalChain: { properties: ['kind', 'target'], required: ['target'] },
     equality: { properties: ['kind', 'left', 'right'], required: ['left', 'right'] },
@@ -100,7 +100,7 @@ export class DefinitionValidator {
     #chain = null;
 
     /**
-     * The simple expression the node being validated stands in, an argument, an indexer's key, a bracket property access's name or an interpolation's expression, with what its message calls it and whether a conditional holds the node;
+     * The simple expression the node being validated stands in, an argument, an indexer's key, a computed property access's name or an interpolation's expression, with what its message calls it and whether a conditional holds the node;
      * null outside one. A simple expression nested in another keeps the conditional that holds it.
      * @type {{ holder: string, isInConditional: boolean } | null}
      */
@@ -151,7 +151,7 @@ export class DefinitionValidator {
     #validateNode(node, pointer, contextAvailability) {
         // A member that takes an argument is written as a call or an indexer, so an infix call is no node, and the message says which nodes take its place.
         if (ObjectUtils.isNonArrayObject(node) && node.kind === 'infixCall') {
-            this.#fail(pointer, 'An infixCall is no node: a function is a call node, or an indexer node for a named or default indexer');
+            this.#fail(pointer, 'An infixCall is not a node: a function is a call node, or an indexer node for a named or unnamed indexer');
         }
 
         if (!ObjectUtils.isNonArrayObject(node) || !Object.hasOwn(NODE_PROPERTIES, node.kind)) {
@@ -267,8 +267,8 @@ export class DefinitionValidator {
             case 'cast':
                 return this.#validateCast(node, pointer, contextAvailability);
             case 'conversion':
-                if (!Names.isIdentifier(node.type)) {
-                    this.#fail(`${pointer}/type`, 'A conversion names the type it converts to by its name, a letter followed by letters and digits');
+                if (!DefinitionValidator.#isTypeName(node.type)) {
+                    this.#fail(`${pointer}/type`, "A conversion names the type it converts to by its name, a letter followed by letters and digits, or by its module's name, a dot and its name");
                 }
 
                 return Object.freeze({ kind: 'conversion', type: node.type, target: this.#validateNode(node.target, `${pointer}/target`, contextAvailability) });
@@ -403,10 +403,15 @@ export class DefinitionValidator {
         }
     }
 
+    /** Whether the name is a type's as a cast or a conversion writes it: its local name, or its module's name, a dot and its local name, each an identifier. */
+    static #isTypeName(name) {
+        return typeof name === 'string' && name.split('.').length <= 2 && name.split('.').every(part => Names.isIdentifier(part));
+    }
+
     /** Validates a cast: the name of the type it casts to, and its target, which is a receiver and its accesses, a coalescing operator, another cast, or an optional chain, as text can write one. */
     #validateCast(node, pointer, contextAvailability) {
-        if (!Names.isIdentifier(node.type)) {
-            this.#fail(`${pointer}/type`, 'A cast names the type it casts to by its name, a letter followed by letters and digits');
+        if (!DefinitionValidator.#isTypeName(node.type)) {
+            this.#fail(`${pointer}/type`, "A cast names the type it casts to by its name, a letter followed by letters and digits, or by its module's name, a dot and its name");
         }
 
         const target = this.#validateNode(node.target, `${pointer}/target`, contextAvailability);
@@ -715,8 +720,8 @@ export class DefinitionValidator {
 
         const name = node.kind === 'member' && ObjectUtils.isNonArrayObject(node.name) ? this.#validateNameExpression(node.name, `${pointer}/name`, contextAvailability) : node.name;
 
-        // A name a bracket property access's expression gave is checked as that expression, and a default indexer has none; any other is a member's name, which any word can be, a reserved word among them.
-        if (name === node.name && !(node.kind === 'indexer' && name === undefined) && !Names.isIdentifier(name)) {
+        // A name a computed property access's expression gave is checked as that expression, and an indexer has none; any other is a member's name, which any word can be, a reserved word among them.
+        if (name === node.name && node.kind !== 'indexer' && !Names.isIdentifier(name)) {
             this.#fail(`${pointer}/name`, 'A member is named by a letter followed by letters and digits');
         }
 
@@ -774,14 +779,14 @@ export class DefinitionValidator {
         return Object.freeze({ kind: 'namespace', name: namespace.name });
     }
 
-    /** Validates the expression a bracket property access holds, which continues no chain; a string literal that is a name is the name itself, as `.` writes it, so an access has one definition. */
+    /** Validates the expression a computed property access holds, which continues no chain; a string literal that is a name is the name itself, as `.` writes it, so an access has one definition. */
     #validateNameExpression(node, pointer, contextAvailability) {
         const enclosingChain = this.#chain;
 
         this.#chain = null;
 
         try {
-            const expression = this.#validateSimpleExpression(node, pointer, contextAvailability, 'The name a bracket property access reads');
+            const expression = this.#validateSimpleExpression(node, pointer, contextAvailability, 'The name a computed property access reads');
 
             return expression.kind === 'literal' && Names.isIdentifier(expression.value) ? expression.value : expression;
         } finally {

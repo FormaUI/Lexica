@@ -59,7 +59,8 @@ An optional access skips the rest of its chain where its receiver is null, its k
 | Written | Where `name` is a named indexer | Where `name` is a property |
 | --- | --- | --- |
 | `x?.name[k]` | Null where `x` is null, `k` unevaluated; otherwise the indexer called with `k` | Null where `x` is null, `k` unevaluated; otherwise the property read and its answer indexed, which must not be null |
-| `x?.name?[k]` | Refused, giving `x?.name[k]`: a named indexer has no value until its key is given | As above, and null where the property answers null, `k` unevaluated |
+| `x.name?[k]` | The indexer called with `k`; the brackets' marker adds no protection against a null `x`, since a named indexer has no value between its name and its key | The property read, and null where it answers null, `k` unevaluated |
+| `x?.name?[k]` | As `x?.name[k]` | As above, and null where `x` is null |
 
 `x?[k]` answers null where `x` is null, `k` unevaluated, and otherwise calls `x`'s indexer with `k`. A group ends an optional chain, as everywhere: in `(device?.setting)["mode"]` the group holds a named indexer written without its key, which is refused.
 
@@ -97,6 +98,6 @@ A form these rules leave without a meaning is refused with the form that has one
 
 ## Settled
 
-1. **A named indexer's optional form.** `x?.name?[k]` is refused for a named indexer, giving `x?.name[k]`, as [optional forms](#optional-forms) set out.
+1. **A named indexer's optional form.** Optional brackets after a named indexer's name are accepted and add nothing, as [optional forms](#optional-forms) set out, so an optional enclosed access holding one expands as it does any other. The definition keeps the marker as written, since where the name resolves to a property, it skips indexing that property's null answer.
 2. **An unnamed indexer an extension declares.** An extension declares a type's unnamed indexer, selected by owner precedence as any member is, the owner's winning where it declares one; no other selection rule applies.
 3. **Several unnamed indexers told apart by their key's type,** as C# allows, are deferred. A type has one unnamed indexer, and Lexica has no union types, so one indexer accepting keys of two types waits with them.

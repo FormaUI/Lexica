@@ -10,7 +10,7 @@ import { SyntaxTree } from './SyntaxTree.mjs';
 /** @typedef {import('./SyntaxTree.mjs').SyntaxNode} SyntaxNode */
 
 /** The tokens that make an access optional. */
-const OPTIONAL_ACCESSES = new Set(['?.', '?[', '?:']);
+const OPTIONAL_ACCESSES = new Set(['?.', '?[']);
 
 export class Lowering {
     /** @type {WeakMap<object, Span>} */
@@ -141,12 +141,12 @@ export class Lowering {
             case 'attempt':
                 return this.#span({ kind: 'try', target: this.#lower(children[1]) }, child);
             case 'conversion':
-                return this.#span({ kind: 'conversion', type: this.#wordOf(children[2]), target: this.#lower(children[0]) }, child);
+                return this.#span({ kind: 'conversion', type: this.#typeNameOf(children[2]), target: this.#lower(children[0]) }, child);
             case 'cast': {
                 // A cast's target written as a member chain within an optional enclosed access is the optional chain of its accesses.
                 const [target] = children;
 
-                return this.#span({ kind: 'cast', type: this.#wordOf(children[2]), target: target.kind === 'member-chain' ? this.#optionalChainOf(target, target) : this.#lower(target) }, child);
+                return this.#span({ kind: 'cast', type: this.#typeNameOf(children[2]), target: target.kind === 'member-chain' ? this.#optionalChainOf(target, target) : this.#lower(target) }, child);
             }
             case 'namespace-access':
                 return this.#lowerNamespaceAccess(child);
@@ -272,7 +272,7 @@ export class Lowering {
     }
 
     /**
-     * A member after its receiver: a dot property access, a call, a bracket property access, its name the name a string literal is where it is one, or an indexer, spanning from the start given to its own end,
+     * A member after its receiver: a dot property access, a call, a computed property access, its name the name a string literal is where it is one, or an indexer, spanning from the start given to its own end,
      * and optional where its token says so or where every access is, as an optional enclosed access makes them.
      */
     #lowerAccess(part, target, start, isEveryOptional) {
@@ -294,17 +294,16 @@ export class Lowering {
                 node = optional ? { ...call, optional } : call;
                 break;
             }
-            case 'bracket-property-access': {
-                const expression = this.#lower(second);
+            case 'computed-property-access': {
+                const expression = this.#lower(part.children[2]);
                 const name = expression.kind === 'literal' && Names.isIdentifier(expression.value) ? expression.value : expression;
 
                 node = optional ? { kind: 'member', target, name, optional } : { kind: 'member', target, name };
                 break;
             }
             default: {
-                const isNamed = second.type !== '[';
-                const argument = this.#lower(part.children[isNamed ? 3 : 2]);
-                const indexer = isNamed ? { kind: 'indexer', target, name: this.#wordOf(second), argument } : { kind: 'indexer', target, argument };
+                // An indexer's target is what is before its brackets, the member access of a named indexer's name among them, which resolution reads as one.
+                const indexer = { kind: 'indexer', target, argument: this.#lower(second) };
 
                 node = optional ? { ...indexer, optional } : indexer;
             }
@@ -383,6 +382,11 @@ export class Lowering {
     /** The word a token writes, as the text spells it. */
     #wordOf(token) {
         return this.#text.slice(token.start, token.end);
+    }
+
+    /** The name of the type a cast or a conversion names, as written: its local name, or its module's name, a dot and its local name. */
+    #typeNameOf(part) {
+        return SyntaxTree.isToken(part) ? this.#wordOf(part) : `${this.#wordOf(part.children[0])}.${this.#wordOf(part.children[2])}`;
     }
 
     /** Records the part as spanning the syntax node or token. */

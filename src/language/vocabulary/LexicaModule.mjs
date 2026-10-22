@@ -12,7 +12,7 @@ const MEMBER_KINDS = ['property', 'function'];
 /** Who invokes a function: the evaluator, as it evaluates the script, or the host, which the script's host call is prepared for. */
 const INVOKERS = ['evaluator', 'host'];
 
-/** How a member that is no property is written: a function call, `it.device("lamp")`, or a named indexer, `it:setting["mode"]`. */
+/** How a member that is no property is written: a function call, `it.device("lamp")`, or a named indexer, `it.setting["mode"]`. */
 const SYNTAXES = ['function-call', 'indexer'];
 
 /** The form a member's arguments take: one for each parameter in order, or one object whose fields supply them. */

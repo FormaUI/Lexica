@@ -12,7 +12,7 @@ room {
     name = it.name,                                 // A string.
     warmth = it.climate?.temperature ?? 0,          // A number, a fallback where there is none.
     devices = it.devices { name = it.name },        // A list of objects, one for each device.
-    level = it.device("lamp")?["level"] to Number  // A setting's text, converted.
+    level = it.device("lamp")?["level"] to Number   // A setting's text, converted.
 }
 ```
 

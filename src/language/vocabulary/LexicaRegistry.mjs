@@ -126,7 +126,7 @@ export class LexicaRegistry {
 
             this.#checkCollision(declaration, [...this.getMembers(declaration.name), ...earlier], fail);
 
-            // A receiver has one default indexer at most, so `:[…]` names one indexer for it.
+            // A receiver has one default indexer at most, so `[…]` names one indexer for it.
             if (declaration.default === true) {
                 for (const other of [...this.getDefaultIndexers(), ...module.members.slice(0, index).filter(member => member.default === true)]) {
                     const overlapping = [declaration.target].flat().find(mine => [other.target].flat().some(theirs => LexicaRegistry.#overlap(mine, theirs)));

@@ -17,7 +17,7 @@ const TOKEN_DESCRIPTIONS = {
     end: 'the end of the source',
 };
 
-/** The tokens that continue a chain after what is before them. */
+/** The tokens that continue a chain after what is before them, and the colons a chain refuses, which no member follows. */
 const CHAIN_CONTINUATIONS = new Set(['.', '?.', '[', '?[', ':', '?:', '{']);
 
 /** The tokens that, after a space, make the name before them a member written without its receiver, which no local is: an argument. */
@@ -27,13 +27,13 @@ const ARGUMENT_STARTS = new Set(['it', 'literal', 'interpolated-string-start', '
 const STRUCTURAL_KEYWORDS = new Set(['then', 'elseif', 'else', 'end']);
 
 /** The tokens that make an access optional. */
-const OPTIONAL_ACCESSES = new Set(['?.', '?[', '?:']);
+const OPTIONAL_ACCESSES = new Set(['?.', '?[']);
 
 /** The direction each comparison operator points, which every operator of a chain shares. */
 const COMPARISON_DIRECTIONS = Object.freeze({ '<': 'ascending', '<=': 'ascending', '>': 'descending', '>=': 'descending' });
 
 /** The kinds of node a member expression is, each beginning with the token that joins it to its receiver. */
-const MEMBER_EXPRESSIONS = new Set(['dot-property-access', 'bracket-property-access', 'member-call', 'indexer']);
+const MEMBER_EXPRESSIONS = new Set(['dot-property-access', 'computed-property-access', 'member-call', 'indexer']);
 
 export class Parser {
     #text;
@@ -419,7 +419,7 @@ export class Parser {
         const letKeyword = this.#take();
 
         if (!this.#startsEntry()) {
-            this.#refuseName('A conditional binding takes its value after =', 'A conditional binding is written with let, its name and = before its value, as if let key = it:["data-key"] then …', 'if let ');
+            this.#refuseName('A conditional binding takes its value after =', 'A conditional binding is written with let, its name and = before its value, as if let mode = it.setting["mode"] then …', 'if let ');
         }
 
         return Parser.#node('conditional-binding', [letKeyword, this.#take(), this.#take(), this.#parseSimpleValueExpression()]);
@@ -677,7 +677,7 @@ export class Parser {
 
     /**
      * Whether the keyword `to` follows the value, which converts it. A name there is refused: one a colon follows names the next field, which a comma comes before,
-     * and any other is a member written after its receiver without the dot or the colon that joins it, so the message gives the call to write, of the receiver in a group where it is a cast or a conversion, which a chain continues from only so.
+     * and any other is a member written after its receiver without the dot that joins it, so the message gives the call to write, of the receiver in a group where it is a cast or a conversion, which a chain continues from only so.
      */
     #isConversion(value, start) {
         if (this.#isKeyword('to')) {
@@ -704,7 +704,7 @@ export class Parser {
         const next = this.#tokens[this.#index + 1];
         const arguments_ = next.type === '(' || next.type === '{' || ARGUMENT_STARTS.has(next.type) ? '(…)' : '';
 
-        throw this.#fail(`A member follows its receiver after a dot, or after a colon for an indexer: write '${receiver}.${this.#token.value}${arguments_}'`, this.#token.start);
+        throw this.#fail(`A member follows its receiver after a dot: write '${receiver}.${this.#token.value}${arguments_}'`, this.#token.start);
     }
 
     /** Whether the keyword `to` and a type's name stand here, which only a conversion writes, after the value it converts, or a string written in the name's place. */
@@ -719,7 +719,7 @@ export class Parser {
         const toKeyword = this.#take();
         const type = this.#readTypeName('to', 'converts to', 'number');
         const node = Parser.#node('conversion', [target, toKeyword, type]);
-        const name = this.#wordOf(type);
+        const name = this.#text.slice(SyntaxTree.startOf(type), SyntaxTree.endOf(type));
 
         if (this.#continuesChain()) {
             throw this.#fail(`A conversion ends its chain; group it to continue from its result, as in '(… to ${name}).value'`, this.#token.start);
@@ -733,8 +733,8 @@ export class Parser {
     }
 
     /**
-     * Reads the name of the type a cast or a conversion names after its keyword, written bare: any word, a reserved one included, as a member's name is after its dot. A string in its place is refused with the bare name to write,
-     * and anything else with the form the keyword takes.
+     * Reads the name of the type a cast or a conversion names after its keyword, written bare: any word, a reserved one included, as a member's name is after its dot, qualified by its module's name and a dot where one follows it,
+     * which makes a type-name node of the three. A string in its place is refused with the bare name to write, and anything else with the form the keyword takes.
      */
     #readTypeName(keyword, what, example) {
         const token = this.#token;
@@ -749,7 +749,19 @@ export class Parser {
             throw this.#unexpected(`the name of the type it ${what}, as in ${keyword} ${example}`);
         }
 
-        return this.#take();
+        const name = this.#take();
+
+        if (this.#token.type !== '.') {
+            return name;
+        }
+
+        const dot = this.#take();
+
+        if (!this.#isWord(this.#token)) {
+            throw this.#unexpected(`the name of the type '${this.#wordOf(name)}' declares, as in ${keyword} ${this.#wordOf(name)}.${example}`);
+        }
+
+        return Parser.#node('type-name', [name, dot, this.#take()]);
     }
 
     /**
@@ -757,6 +769,7 @@ export class Parser {
      * what its input is, what a group it starts with holds, and whether anything continues it or an object expression is among what does.
      */
     #parseChain() {
+        const { start } = this.#token;
         const input = this.#token.type === '(' ? 'parenthesizedExpression' : this.#token.type === '(?' ? 'optionalEnclosedAccess' : 'input';
         const first = this.#parseChainInput();
         const grouped = Parser.#kindOf(first);
@@ -769,17 +782,12 @@ export class Parser {
         for (;;) {
             if (this.#token.type === '[' || this.#token.type === '?[') {
                 isOptional ||= this.#token.type === '?[';
-                children.push(this.#parseBracketPropertyAccess());
-            } else if (this.#token.type === ':' || this.#token.type === '?:') {
-                isOptional ||= this.#token.type === '?:';
                 children.push(this.#parseIndexer());
+            } else if (this.#token.type === ':' || this.#token.type === '?:') {
+                this.#refuseColon(start);
             } else if (this.#token.type === '.' || this.#token.type === '?.') {
-                const optional = this.#token.type === '?.';
-                const dot = this.#take();
-
-                this.#refuseDotBeforeBrackets(optional);
-                children.push(this.#parseDotPropertyAccessOrMemberCall(dot));
-                isOptional ||= optional;
+                isOptional ||= this.#token.type === '?.';
+                children.push(this.#parseAfterDot(this.#take()));
             } else if (this.#token.type === '{') {
                 children.push(this.#parseObject());
                 hasObject = true;
@@ -811,7 +819,7 @@ export class Parser {
         const asKeyword = this.#take();
         const type = this.#readTypeName('as', 'casts to', 'element');
         const node = Parser.#node('cast', [target, asKeyword, type]);
-        const name = this.#wordOf(type);
+        const name = this.#text.slice(SyntaxTree.startOf(type), SyntaxTree.endOf(type));
 
         if (this.#continuesChain()) {
             throw this.#fail(`A cast continues a chain only from a group: write '(… as ${name})…'`, this.#token.start);
@@ -950,18 +958,15 @@ export class Parser {
     /** Reads the rest of a member chain within an optional enclosed access, the members after its receiver, every one of them optional, and how many there are. */
     #parseMemberChain(receiver) {
         const children = [receiver];
+        const start = SyntaxTree.startOf(receiver);
 
         while (this.#continuesChain() && this.#token.type !== '{') {
             if (this.#token.type === '[' || this.#token.type === '?[') {
-                children.push(this.#parseBracketPropertyAccess());
-            } else if (this.#token.type === ':' || this.#token.type === '?:') {
                 children.push(this.#parseIndexer());
+            } else if (this.#token.type === ':' || this.#token.type === '?:') {
+                this.#refuseColon(start);
             } else {
-                const optional = this.#token.type === '?.';
-                const dot = this.#take();
-
-                this.#refuseDotBeforeBrackets(optional);
-                children.push(this.#parseDotPropertyAccessOrMemberCall(dot));
+                children.push(this.#parseAfterDot(this.#take()));
             }
         }
 
@@ -1100,72 +1105,58 @@ export class Parser {
         }
     }
 
-    /** Whether the current token continues a chain: an access, a bracket property access, an indexer, each optional or not, or an object expression. */
+    /** Whether the current token continues a chain: an access, a computed property access, an indexer, each optional or not, or an object expression, or a colon, which the chain refuses. */
     #continuesChain() {
         return CHAIN_CONTINUATIONS.has(this.#token.type);
     }
 
     /**
-     * Reads an indexer: `:`, or `?:` where it is optional, the indexer's name, or none for the receiver's default indexer, and its one key in brackets, an expression.
-     * The parser knows no indexer: the vocabulary says which a name is and which is a receiver's default, and a bracket after the indexer's own is a bracket property access of what it answers.
+     * Reads an indexer: `[`, or `?[` where it is optional, and its one key, an expression, before `]`. The parser knows no indexer: the vocabulary says whether the access before the brackets names a named indexer
+     * or a property whose answer the brackets index.
      */
     #parseIndexer() {
-        const children = [this.#take()];
+        const open = this.#take();
 
-        // After a colon only an indexer's name or a default indexer's bracket stands, so any word names an indexer there, a reserved word among them, written as it is.
-        const isNamed = this.#isWord(this.#token);
-
-        if (this.#token.type === 'lexical-reference') {
-            throw this.#fail(`An indexer is named as it is written after its colon, with no '@': write ':${this.#token.value}[…]'`, this.#token.start);
+        if (this.#token.type === ']') {
+            throw this.#fail('An indexer takes one key in its brackets', this.#token.start);
         }
 
-        if (!isNamed && this.#token.type !== '[') {
-            throw this.#unexpected('the name of an indexer, or its key in brackets for the default one, as in :attribute["id"] or :["id"]');
+        const key = this.#parseExpression();
+
+        if (this.#token.type === ',') {
+            throw this.#fail('An indexer takes one key', this.#token.start);
         }
 
-        const name = isNamed ? this.#wordOf(this.#token) : null;
-        const written = name === null ? 'The default indexer' : `The indexer '${name}'`;
+        return Parser.#node('indexer', [open, key, this.#expect(']')]);
+    }
 
-        if (name !== null) {
-            children.push(this.#take());
+    /**
+     * Refuses a colon in a chain, where no member follows one: a named indexer is written after a dot, as `.name[…]`, and a property read by a computed name after one too, as `.[…]`, each after `?.` where it is optional.
+     * The message gives the chain from its start with the dot in the colon's place.
+     */
+    #refuseColon(start) {
+        const colon = this.#token;
+        const dot = colon.type === '?:' ? '?.' : '.';
+        const next = this.#tokens[this.#index + 1];
+        const name = this.#isWord(next) ? this.#wordOf(next) : '';
+
+        throw this.#fail(`A member follows its receiver after a dot, never a colon: write '${this.#text.slice(start, colon.start)}${dot}${name}[…]'`, colon.start);
+    }
+
+    /** Reads what follows a dot, or the `?.` of an optional access: a property read by a computed name in brackets, a dot property access, or a member call. */
+    #parseAfterDot(dot) {
+        if (this.#token.type === '?[') {
+            throw this.#fail("An optional computed property access writes its '?' before the dot, as '?.[…]', its brackets directly after the dot", this.#token.start);
         }
 
         if (this.#token.type !== '[') {
-            throw this.#fail(`${written} takes its key in brackets, as in :${name}[…]`, this.#token.start);
+            return this.#parseDotPropertyAccessOrMemberCall(dot);
         }
 
-        children.push(this.#take());
-
-        if (this.#token.type === ']') {
-            throw this.#fail(`${written} takes one key in its brackets`, this.#token.start);
-        }
-
-        children.push(this.#parseExpression());
-
-        if (this.#token.type === ',') {
-            throw this.#fail(`${written} takes one key`, this.#token.start);
-        }
-
-        children.push(this.#expect(']'));
-
-        return Parser.#node('indexer', children);
-    }
-
-    /** Refuses brackets after the dot just read: a bracket property access follows its receiver with no dot, as `[…]`, or `?[…]` where it is optional. */
-    #refuseDotBeforeBrackets(optional) {
-        if (this.#token.type === '[' || this.#token.type === '?[') {
-            const message = optional ? "An optional bracket property access is written '?[…]', with no dot before it" : "A bracket property access is written '[…]' after its receiver, with no dot before it";
-
-            throw this.#fail(message, this.#tokens[this.#index - 1].start);
-        }
-    }
-
-    /** Reads a bracket property access: its expression in brackets, which `?[` makes optional. */
-    #parseBracketPropertyAccess() {
         const open = this.#take();
         const expression = this.#parseExpression();
 
-        return Parser.#node('bracket-property-access', [open, expression, this.#expect(']')]);
+        return Parser.#node('computed-property-access', [dot, open, expression, this.#expect(']')]);
     }
 
     /** Reads a member after its dot, or the `?.` of an optional access: a dot property access, or a member call where parentheses follow the name. */
@@ -1193,7 +1184,7 @@ export class Parser {
 
     /**
      * Whether what stands here is written as a named argument would be, which no call takes: a name and `=`, as a field gives its value, or a name and a colon, as `relativeTo: other` writes one,
-     * rather than an indexer of a binding the name reads, whose colon a key in brackets follows, or an indexer's name and then one, as `panel:["id"]` and `panel:attribute["id"]` do.
+     * rather than a chain the colon is refused in, whose colon brackets follow, or a name and then brackets, as `device:["mode"]` and `device:setting["mode"]` do.
      */
     #startsNamedArgument() {
         return this.#startsEntry() || this.#startsColonEntry();
@@ -1204,7 +1195,10 @@ export class Parser {
         return this.#isWord(this.#token) && this.#tokens[this.#index + 1]?.type === '=';
     }
 
-    /** Whether a word and a colon begin what stands here, as no field, local or binding writes its value, rather than an indexer of what the word reads, whose colon a key in brackets follows, or an indexer's name and then one. */
+    /**
+     * Whether a word and a colon begin what stands here, as no field, local or binding writes its value, rather than a chain from the word whose colon brackets follow directly, or a name and then brackets,
+     * which the chain refuses; a space after the colon makes it an entry's, as `k: panel["id"]` is.
+     */
     #startsColonEntry() {
         if (!this.#isWord(this.#token) || this.#tokens[this.#index + 1]?.type !== ':') {
             return false;
@@ -1212,7 +1206,7 @@ export class Parser {
 
         const afterColon = this.#tokens[this.#index + 2];
 
-        return !(afterColon.type === '[' || (this.#isWord(afterColon) && this.#tokens[this.#index + 3]?.type === '['));
+        return afterColon.spaced || !(afterColon.type === '[' || (this.#isWord(afterColon) && this.#tokens[this.#index + 3]?.type === '['));
     }
 
     /** Whether the token writes a word: a name, a keyword, `it`, or the word of a literal, which a declaration, a member's name and a type's take as they are, whatever the word means where an expression stands. */
