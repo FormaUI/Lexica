@@ -1,6 +1,6 @@
 # Proposal: named extension types
 
-**State: accepted.** Specified, and not implemented. It answers where extensions live and how they are called. It keeps the extension containers of the decision of October 22, 2026, whose removal of generics [contract generics](contract-generics.md) supersedes, and it changes the extension blocks the [specification](../../spec/modules.md#extensions) sets out and the plan of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations).
+**State: accepted.** Specified, and not implemented. It answers where extensions live and how they are called. It keeps the extension containers of the decision of October 22, 2026, whose removal of generics [contract generics](contract-generics.md) supersedes, and it changes the extension blocks the [specification](../../spec/modules.md#extensions) sets out and the [implementation plan](../features-status.md#implementation-plan) delivers it, declared in unit 1 and selected in units 2 and 3.
 
 Related proposals: [contract generics](contract-generics.md), which sets out the type parameters a container may declare, [explicit extension access](extension-access.md), which selects a container's member explicitly, and [`Any` and deferred selection](any-and-deferred-selection.md), which sets out how a member is selected where its receiver's type is not known before evaluation.
 

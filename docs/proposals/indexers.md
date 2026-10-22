@@ -1,6 +1,6 @@
 # Proposal: indexers and computed properties
 
-**State: accepted.** Specified, and not implemented. It changes the contract [members](../../spec/members.md), [modules](../../spec/modules.md#namespaces-indexers), the [grammar](../../spec/grammar.md) and the [definition](../../spec/definition.md) set out, and joins step 1 of [the status overview](../features-status.md#indexers-and-computed-properties), beside definition version 33.
+**State: accepted.** Specified, and implemented in definition version 33. It changes the contract [members](../../spec/members.md), [modules](../../spec/modules.md#namespaces-indexers), the [grammar](../../spec/grammar.md) and the [definition](../../spec/definition.md) set out, as [the status overview](../features-status.md#indexers-and-computed-properties) records.
 
 ## The problem
 

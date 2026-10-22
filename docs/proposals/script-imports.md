@@ -1,6 +1,6 @@
 # Proposal: script imports
 
-**State: accepted.** Specified, and not implemented. It changes the contract [scripts](../../spec/scripts.md), the [grammar](../../spec/grammar.md), [lexical structure](../../spec/lexical-structure.md#names-and-reserved-words), [modules](../../spec/modules.md#names-and-reserved-words-module-names), [types](../../spec/types.md#types-type-identity), the [definition](../../spec/definition.md) and the [runtime](../../spec/runtime.md) set out, and joins part 2 of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations), with type identity, as definition version 34.
+**State: accepted.** Specified, and not implemented. It changes the contract [scripts](../../spec/scripts.md), the [grammar](../../spec/grammar.md), [lexical structure](../../spec/lexical-structure.md#names-and-reserved-words), [modules](../../spec/modules.md#names-and-reserved-words-module-names), [types](../../spec/types.md#types-type-identity), the [definition](../../spec/definition.md) and the [runtime](../../spec/runtime.md) set out, and [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34) of the implementation plan delivers it, as definition version 34.
 
 ## The problem
 
@@ -43,7 +43,7 @@ An import makes the module's public vocabulary available to the script:
 
 - **Its namespace:** its module members, its qualified forms and its function references, read through `Home.`; a qualified form needs its module imported, as any use does, so `Energy.usage(device)` needs `import Energy`.
 - **Its types by name:** a cast or a conversion names one of its public types, unqualified or qualified.
-- **Its declarations:** its members on any receiver, its stored properties and its extensions among them, and its type selectors' keys, conversions and, in step 3, operators.
+- **Its declarations:** its members on any receiver, its stored properties and its extensions among them, and its type selectors' keys, its conversions and its operators.
 
 A script accesses a declared member only where the module that **declares** it is imported: a stored or a computed property, a function, an indexer and an operator alike. The owner of the receiver's type need not be:
 

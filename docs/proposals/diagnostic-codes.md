@@ -1,6 +1,6 @@
 # Proposal: diagnostic codes
 
-**State: proposed.** Pending, and not implemented. Accepting it changes the contract [diagnostics and errors](../../spec/diagnostics-and-errors.md) sets out; [the status overview](../features-status.md) tracks it.
+**State: accepted.** Not yet specified or implemented; [Unit 0](../features-status.md#unit-0--decisions-and-the-specification) specifies the catalog and codes every existing condition. It changes the contract [diagnostics and errors](../../spec/diagnostics-and-errors.md) sets out, as [settled rules](#settled-rules) record.
 
 ## The problem
 
@@ -24,8 +24,8 @@ Each condition a diagnostic reports gets a stable **code**, `LEXICA` and four di
 - **One catalog.** Every code is assigned in one table of the specification's diagnostics document, each with its condition and its kind, and each error table there names the code of each row.
 - **Tolerant reading collects them.** A tolerant reading, which tooling uses, answers every diagnostic with its code; a strict operation throws the first, as it throws its error today.
 
-## Questions to settle before acceptance
+## Settled rules
 
-- Whether a public API collects diagnostics without throwing, a tolerant `parse` or `resolve`, or tooling alone reads them.
-- Whether a host's own conditions take codes of a prefix of their own, or share Lexica's ranges.
-- Whether the codes are assigned in one pass for every existing condition, or as each condition's message is next touched.
+1. **Strict operations keep throwing their first error.** The public tooling API collects diagnostics without throwing; accepting codes requires no other tolerant runtime API.
+2. **Lexica owns `LEXICA` codes.** A host gives its own conditions codes of a prefix of its own, and preserves a Lexica error's code when it propagates it.
+3. **One catalog, assigned in one pass.** The specification assigns a code to every condition it sets out at once, and each new condition takes a new code when it is introduced. A diagnostic keeps its `kind`, `message` and `location`; its code identifies its condition independently of its wording or where it is thrown, and a retired code is never reused.

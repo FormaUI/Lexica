@@ -1,6 +1,6 @@
 # Proposal: `Any` and deferred selection
 
-**State: accepted.** Specified, and not implemented. It answers what happens when a receiver's concrete type is not known yet. It adds deferred selection beside the [receivers of unknown type](../../spec/types.md#receivers-of-unknown-type) the specification sets out, which keep their own rules, changes the [resolution](../../spec/runtime.md#runtime-bindings-and-resolution) it sets out, and the plan of step 1 in [the status overview](../features-status.md#next-type-and-member-declarations).
+**State: accepted.** Specified, and not implemented. It answers what happens when a receiver's concrete type is not known yet. It adds deferred selection beside the [receivers of unknown type](../../spec/types.md#receivers-of-unknown-type) the specification sets out, which keep their own rules, changes the [resolution](../../spec/runtime.md#runtime-bindings-and-resolution) it sets out, and [unit 2](../features-status.md#unit-2--member-selection-and-deferred-evaluation) of the implementation plan delivers it.
 
 Related proposals: [contract generics](contract-generics.md), which keeps the types that resolution can know before evaluation, and [explicit extension access](extension-access.md), which selects an extension's member explicitly.
 
