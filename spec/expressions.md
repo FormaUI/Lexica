@@ -206,13 +206,13 @@ Null equals only null, and a value of any type is compared with null, one that c
 
 ### Types an equality compares
 
-Two values whose types fit neither way, as `"1" == 1` or a `Room` with a `Device`, reference types of two hierarchies, are a validation error naming both; a `Light` and a `Device` fit, as do a `Number` and a `Number?`. A structured value, a list and an object are compared with null alone, and a host call is no operand of `==` or `!=`.
+Two values whose types fit neither way, as `"1" == 1` or a `Room` with a `Device`, reference types of two hierarchies, are a validation error naming both; a `Light` and a `Device` fit, as do a `Number` and a `Number?`. A structured value, a list and an object are compared with null alone, and a host call is not an operand of `==` or `!=`.
 
 <a id="equalities-results"></a>
 
 ### What an equality answers
 
-An equality answers a `Boolean`, never null, evaluating both operands once, from left to right, and reading what both read. Where it decides a path, a comparison with null [narrows](#truthiness) a stable reference, so `a != null and a.battery` reads a local `a` that is not null; it narrows no member, which is read anew wherever it is written.
+An equality answers a `Boolean`, never null, evaluating both operands once, from left to right, and reading what both read. Where it decides a path, a comparison with null [narrows](#truthiness) a stable reference, so `a != null and a.battery` reads a local `a` that is not null; it does not narrow a member, which is read anew wherever it is written.
 
 <a id="equalities-"></a>
 
@@ -275,7 +275,7 @@ Arithmetic binds tighter than an equality and a comparison and looser than a con
 
 ### Beside `??`
 
-`??` and binary arithmetic stand apart, one of them grouped, as it stands apart from `and`, `or`, an equality and a comparison: `a ?? b + 1` is a syntax error, written `(a ?? b) + 1` or `a ?? (b + 1)`. An arithmetic negation is no binary arithmetic, so `value ?? -1` stands.
+`??` and binary arithmetic stand apart, one of them grouped, as it stands apart from `and`, `or`, an equality and a comparison: `a ?? b + 1` is a syntax error, written `(a ?? b) + 1` or `a ?? (b + 1)`. An arithmetic negation is not binary arithmetic, so `value ?? -1` stands.
 
 <a id="arithmetic-literals"></a>
 
@@ -295,7 +295,7 @@ A division or a remainder by zero, and a result no finite number holds, are eval
 
 ### What arithmetic reads
 
-Arithmetic reads what its operands read, and names no observation of its own. A computed number has no tolerance of its own, whatever tolerance a member it reads declares, since a product or a quotient changes the scale a tolerance was set for.
+Arithmetic reads what its operands read, and does not name an observation of its own. A computed number has no tolerance of its own, whatever tolerance a member it reads declares, since a product or a quotient changes the scale a tolerance was set for.
 
 <a id="comparisons"></a>
 
@@ -390,7 +390,7 @@ An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighte
 
 So `room.device(name) and 5` is a `Number?`, `name or "untitled"` a `String` where `name` is a string, and Booleans give a `Boolean`. Where fixed operands, literals and bound parameters, decide it, it is of the one that does, so `true and "value"` is a `String`.
 
-Values no one type holds are a validation error, as `it.active() and it` in an object expression following a device, which gives false or a device: unlike Lua, Lexica types every expression, and offers no type for false or true beside another, so a conditional chooses between values of one type, `if it.active() then it else null end`, where null is an acceptable alternative.
+Values no one type holds are a validation error, as `it.active() and it` in an object expression following a device, which gives false or a device: unlike Lua, Lexica types every expression, and does not offer a type for false or true beside another, so a conditional chooses between values of one type, `if it.active() then it else null end`, where null is an acceptable alternative.
 
 <a id="logical-expressions-negations-and-groups-not-a-conditional"></a>
 
@@ -575,7 +575,7 @@ device { level = try it["level"] to Number ?? 0 }
 (try room.device(name) as Light)?.brightness
 ```
 
-A missing setting is null, which converts to null, and malformed text is rejected, so both give zero, and text that converts gives its number; a device that is no light is rejected, so the brightness is null for it, as it is for a missing device.
+A missing setting is null, which converts to null, and malformed text is rejected, so both give zero, and text that converts gives its number; a device that is not a light is rejected, so the brightness is null for it, as it is for a missing device.
 
 A [conditional binding](#conditionals) gives the converted value a name where a script uses it more than once, `if let level = try it["level"] to Number then … else … end`.
 
@@ -583,7 +583,7 @@ A [conditional binding](#conditionals) gives the converted value a name where a 
 
 ### One operation
 
-`try` attempts the one conversion or cast written after it, and nothing else, so it is no general catch of errors: a failure while its value is evaluated, a rejection by a conversion or a strict cast that value holds among them, fails the evaluation as it would anywhere, so `try (device as Light).room.device(name) as Light` attempts the outer cast alone.
+`try` attempts the one conversion or cast written after it, and nothing else, so it is not a general catch of errors: a failure while its value is evaluated, a rejection by a conversion or a strict cast that value holds among them, fails the evaluation as it would anywhere, so `try (device as Light).room.device(name) as Light` attempts the outer cast alone.
 
 A conversion of a conversion or of a cast is grouped to say which one is attempted, `try (a to String) to Number`, so `try a to String to Number` and `try device as Light to String` are syntax errors, as is `try` before anything that is neither, another `try` among them.
 
@@ -591,7 +591,7 @@ A conversion of a conversion or of a cast is grouped to say which one is attempt
 
 ### One set of rules
 
-An attempt resolves as its operation does strictly, so a cast to a name that is no reference type or of a target that can never be of it, a conversion to a target no type has, a pair no conversion is declared for, and a nullable value whose type has no conversion are validation errors for both.
+An attempt resolves as its operation does strictly, so a cast to a name that is not a reference type or of a target that can never be of it, a conversion to a target no type has, a pair no conversion is declared for, and a nullable value whose type has no conversion are validation errors for both.
 
 It answers a value already of the type as it is, and null for null.
 
@@ -599,7 +599,7 @@ It answers a value already of the type as it is, and null for null.
 
 ### A rejection alone is null
 
-A cast rejects a value of another type, and a conversion the value it calls `reject` for. A conversion that throws, rejects with a reason that is no string, rejects and then answers, or answers a value not of its type has a fault, which fails the evaluation whether or not the conversion is attempted.
+A cast rejects a value of another type, and a conversion the value it calls `reject` for. A conversion that throws, rejects with a reason that is not a string, rejects and then answers, or answers a value not of its type has a fault, which fails the evaluation whether or not the conversion is attempted.
 
 <a id="attempts-null-means-a-rejection"></a>
 
@@ -680,7 +680,7 @@ An interpolation that begins with an object expression groups it in parentheses:
 
 Negative zero inserts `0`, and `1e21` inserts `1e+21`. A nullable name can use `{name ?? "Unknown"}`. A Boolean can use `to String` or a conditional, such as `{if done then "Done" else "Pending" end}`.
 
-Interpolation calls no module-registered conversion. The result is plain text, escaped for no other language.
+Interpolation does not call a module-registered conversion. The result is plain text, escaped for no other language.
 
 <a id="interpolated-strings-result-and-evaluation"></a>
 

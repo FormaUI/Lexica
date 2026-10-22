@@ -48,7 +48,7 @@ The two readings never both apply, since a named indexer and a property of one n
 
 Resolution reads the pair together. Where an indexer's target is a member access, it first asks whether that access names a named indexer of its receiver's type; where it does, the member access supplies the receiver and the indexer's name, and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index.
 
-A group adds no node to the definition, so `(device.setting)["mode"]` is `device.setting["mode"]`.
+A group does not add a node to the definition, so `(device.setting)["mode"]` is `device.setting["mode"]`.
 
 This follows the precedent of [implicit bodies](../../spec/functions.md#functions-implicit-bodies): the definition records what was written, and the resolution records what it means, so the text alone still decides every construct's boundaries, and the vocabulary only what a name stands for.
 

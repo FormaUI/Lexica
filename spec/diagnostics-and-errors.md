@@ -6,7 +6,7 @@
 
 A **diagnostic** describes one problem with a script, a definition, a binding or a module: what is wrong, and where. An **error** is how a strict operation reports one: it throws a `LexicaError`, whose `kind` is the category of the failure and whose `location` says where it stands, and stops there. Every public operation of the runtime is strict: reading text, validating a definition, binding, registering a module, resolving and evaluating each throw their first diagnostic as an error. Tooling reads text tolerantly instead, and keeps every diagnostic without throwing, as [tolerant reading](#diagnostics-tolerant-reading) sets out.
 
-An absent or unavailable value is no failure: it is null. Invalid syntax, an invalid definition or binding, an invalid script, an invalid module and an evaluation failure are errors, of the kinds `syntax`, `structure`, `validation`, `module` and `evaluation`, each raised at its stage:
+An absent or unavailable value is not a failure: it is null. Invalid syntax, an invalid definition or binding, an invalid script, an invalid module and an evaluation failure are errors, of the kinds `syntax`, `structure`, `validation`, `module` and `evaluation`, each raised at its stage:
 
 | Kind | Raised by | For |
 | --- | --- | --- |
@@ -62,9 +62,9 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A conditional without its `end`, a conditional whose branches give their results in two styles, anything after a body's result, or a `return` with no value | A syntax error |
 | Locals whose body's result has no `return` | A syntax error: `Introduce the body's result with return.` |
 | An expression no local holds before a body's `return` | A syntax error: `Only locals may precede a body's result.` |
-| A function that is no local's initializer, or an arrow function that is neither that nor an argument | A syntax error in text, and a structure error in a definition |
+| A function that is not a local's initializer, or an arrow function that is neither that nor an argument | A syntax error in text, and a structure error in a definition |
 | A regular function written directly as an argument | A syntax error in text, and a structure error in a definition: `A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.` |
-| An arrow function whose body is no simple expression | A syntax error in text, and a structure error in a definition, saying its body is a simple expression |
+| An arrow function whose body is not a simple expression | A syntax error in text, and a structure error in a definition, saying its body is a simple expression |
 | A conditional or a `do` block that is the receiver of a chain | A syntax error, or a structure error in a definition, saying to bind its value first |
 | An interpolated string with a space after its `$`, an interpolation with no expression, or a lone `}` in its text | A syntax error at what is written so |
 | A line break written in an inline string, raw or not and interpolated or not | A syntax error at the line break, suggesting `\n` or a block |
@@ -79,7 +79,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | --- | --- |
 | A definition that does not follow its structure | A structure error, with its node's location |
 | A definition of a version other than the one the implementation reads, as a version 32 definition is for version 33 | A structure error naming both versions |
-| A definition holding a namespace given to `lexica.format` or `lexica.quote`, a definition read without a registry's module names that names one of them, or a namespace naming no module the registry holds | A structure error saying to read or write the text with the registry, located at the namespace, or at the name where the text first writes it alone |
+| A definition holding a namespace given to `lexica.format` or `lexica.quote`, a definition read without a registry's module names that names one of them, or a namespace that does not name a module the registry holds | A structure error saying to read or write the text with the registry, located at the namespace, or at the name where the text first writes it alone |
 | A do block, a local, a conditional binding, a `return`, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a computed property access or an interpolation | A structure error naming the part, which a local holds first |
 | A lexical reference, or a definition's local, that no local, field, conditional binding or function parameter in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
 | A function calling itself or one declared after it, or two parameters of one name | A structure error |
@@ -87,17 +87,17 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | A cast in a definition whose target is none text could write | A structure error at the target |
 | A `root` written outside every object expression | A structure error: `'root' refers to the outermost object being built, and no object expression encloses it here` |
 | A numeric literal no finite number holds, as `1e999`, in text or in a definition | A structure error: `A literal is a string, a finite number, a Boolean or null` |
-| Bindings that are no plain object, a binding not named by a letter followed by letters and digits, one that is no data and that no module recognizes, one modules recognize as unrelated types, a declared type the value does not belong to or no public type is, one several types share unqualified, or bindings made by another registry | A structure error naming the binding, as `A binding is named by a letter followed by letters and digits` |
+| Bindings that are not a plain object, a binding not named by a letter followed by letters and digits, one that is not data and that no module recognizes, one modules recognize as unrelated types, a declared type the value does not belong to or no public type is, one several types share unqualified, or bindings made by another registry | A structure error naming the binding, as `A binding is named by a letter followed by letters and digits` |
 
-A module whose declarations break the declaration contract, a type or a member named by what is no identifier among them, or whose names registration finds taken or colliding within the module, fails with an error of its own kind, `module`, when it is created or registered, naming the module, the type a nested declaration stands in, and the declaration. Among them:
+A module whose declarations break the declaration contract, a type or a member named by what is not an identifier among them, or whose names registration finds taken or colliding within the module, fails with an error of its own kind, `module`, when it is created or registered, naming the module, the type a nested declaration stands in, and the declaration. Among them:
 
 | Situation | Result |
 | --- | --- |
 | A member other than an indexer declared without a `name`, a field a declaration's kind does not take, a type-level `fields` collection, `target`, `syntax` or `default` on a member, or an `internal` that is no Boolean | A module error naming the field |
 | A type whose name begins with no capital letter, a name its module already declares, or a name of Lexica's own types or `Null` | A module error naming the type |
-| An `import` naming no registered module, a type reference resolving to no type or to several, or a foreign type named unqualified outside its import | A module error naming the declaration and, where several match, the qualified candidates |
-| A supertype that is no reference type, or a hierarchy that is a cycle | A module error naming the types |
-| A reference type without `isInstance`, or a `typeOf` or an `isInstance` that is no function | A module error naming the declaration |
+| An `import` that does not name a registered module, a type reference resolving to no type or to several, or a foreign type named unqualified outside its import | A module error naming the declaration and, where several match, the qualified candidates |
+| A supertype that is not a reference type, or a hierarchy that is a cycle | A module error naming the types |
+| A reference type without `isInstance`, or a `typeOf` or an `isInstance` that is not a function | A module error naming the declaration |
 | A declaration naming another module's internal type or member, or a public one exposing an internal type through its signature | A module error naming the declaration and the internal type or member |
 | A declared cast to its own type, its supertype or a type beneath it; a conversion operator neither of whose types is its module's | A module error naming the operator |
 | Two members of one name, two unnamed indexers, or two operators of one name and destination, on overlapping receivers of one module; a field and another member of its name | A module error naming both |
@@ -117,19 +117,19 @@ A module whose declarations break the declaration contract, a type or a member n
 | An unnamed indexer on a type that declares none, or a number where a computed property's name stands, as `rooms.[0]` | A validation error, giving `room.["name"]` where the key is a string the receiver has a property of, and `rooms[0]` for the number |
 | A member written in a form its declaration does not take, an argument that does not supply its input, or more arguments than it takes | A validation error giving the form, the input or the number of arguments it takes |
 | A cast or a conversion naming a type no public type of the registry has, or one several share unqualified | A validation error, giving the qualified names where several share it |
-| A cast to a name that is no reference type, or of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |
+| A cast to a name that is not a reference type, or of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |
 | A script reaching an internal declaration of any module, through any form | A validation error naming the declaration, as if no declaration of its name were accessible |
 | Several applicable extensions, or several applicable operators of one destination, none of them the owner's | A validation error naming the modules and the qualified forms to write |
-| An equality of two values whose types fit neither way, or of a value that is no string, number, Boolean or reference value with one that is not null | A validation error naming the types, and the test to write where a value is compared with the name of one of its Boolean members |
-| An operand of `and`, `or` or `not`, a condition or a conditional binding of what is no value | A validation error naming what it is |
-| An arithmetic operand that can be null, or that is no number | A validation error naming the operand, and the fallback to give it |
+| An equality of two values whose types fit neither way, or of a value that is not a string, number, Boolean or reference value with one that is not null | A validation error naming the types, and the test to write where a value is compared with the name of one of its Boolean members |
+| An operand of `and`, `or` or `not`, a condition or a conditional binding of what is not a value | A validation error naming what it is |
+| An arithmetic operand that can be null, or that is not a number | A validation error naming the operand, and the fallback to give it |
 | A call no local function answers, a call of a local holding a value or a function that may be null, a call given the wrong number of arguments, or one whose functions give no one type | A validation error naming the function |
 | A call that reaches a function within its own call, through a function passed to it | A validation error |
 | A field or a result that would hold a function, or a function given to a member's value parameter | A validation error |
-| A function given to a function parameter of another number of parameters, of parameters that do not take the callback contract's arguments, of a result of another type, or that may be null; or a value that is no function given to one, as a Boolean local; and an expression or a predicate argument that reads `it` and gives a function | A validation error naming the parameter |
+| A function given to a function parameter of another number of parameters, of parameters that do not take the callback contract's arguments, of a result of another type, or that may be null; or a value that is not a function given to one, as a Boolean local; and an expression or a predicate argument that reads `it` and gives a function | A validation error naming the parameter |
 | A function reference that no declaration of its name takes, or that several take; one naming a property, a host call or no function of its module | A validation error naming the module's declarations of its name, or giving the form to write |
 | An interpolation of a value that can be null, or of no string or number | A validation error naming the interpolation, and the fallback or the conversion to give it |
-| A comparison operand that can be null, or that is no number | A validation error naming the operand, and the fallback to give it |
+| A comparison operand that can be null, or that is not a number | A validation error naming the operand, and the fallback to give it |
 | An `and` or an `or` whose operands give values no one type holds | A validation error naming them, and the conditional to write where null is an acceptable alternative |
 | Branches of different types | A validation error naming the types |
 | A receiver, an argument, an expression or a binding of the wrong type, an argument of the wrong kind, or a missing required one | A validation error naming where, the expected type and the type found |
@@ -139,7 +139,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | A field or a result that would hold `root` | A validation error: `The field 'copy' would hold root, the object being built, which no result holds; read its fields, as root.name` |
 | A host call anywhere but the script's terminal operation: in a field, an argument, a condition, an operand, a function's body or another call's result projection | A validation error |
 | A result projection following a host call that declares no result | A validation error |
-| A type selector's key the selector maps no type to | A validation error naming the selector and the key |
+| A type selector's key the selector does not map to a type | A validation error naming the selector and the key |
 | Preparing a script that ends in no host call, or evaluating one that ends in a host call | An evaluation error |
 | A value a host supplies, or a part of it, that its host call's declared result does not admit, as [capturing a supplied value](runtime.md#runtime-host-calls-capturing) sets out | An evaluation error naming the call and the part |
 
@@ -150,7 +150,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | Situation | Result |
 | --- | --- |
 | A value a strict cast rejects, by its destination's membership or by its operator's `reject`, or a value a conversion rejects | An evaluation error naming what was rejected; null under `try` |
-| A `typeOf` naming no reference type of its module, an abstract one, or one the value does not belong to; an `isInstance` answering no Boolean or throwing | A fault naming the module or the type and what asked; no attempt catches it |
+| A `typeOf` that does not name a reference type of its module, an abstract one, or one the value does not belong to; an `isInstance` answering no Boolean or throwing | A fault naming the module or the type and what asked; no attempt catches it |
 | A division or a remainder by zero, or an arithmetic result no finite number holds | An evaluation error at the operation |
 | A module returning a value of a type other than the one it declared | An evaluation error |
 | A member failing unexpectedly while it evaluates | An evaluation error |
@@ -161,6 +161,6 @@ A script is validated before any evaluation, as [what resolution checks](runtime
 
 ## Tolerant reading
 
-Tooling reads text that is still being written, so it reads tolerantly: text that is no token becomes an invalid token holding its diagnostic, `{ message, offset }`, and reading goes on after it, so the tokens cover the whole text whatever it holds. A strict reading meets the same diagnostic and throws it as a syntax error. One reader serves both, so a diagnostic says the same thing whichever way it is reached; the [design](../docs/lexica-design.md#the-syntax-tree) sets out how the syntax tree builds on it.
+Tooling reads text that is still being written, so it reads tolerantly: text that is not a token becomes an invalid token holding its diagnostic, `{ message, offset }`, and reading goes on after it, so the tokens cover the whole text whatever it holds. A strict reading meets the same diagnostic and throws it as a syntax error. One reader serves both, so a diagnostic says the same thing whichever way it is reached; the [design](../docs/lexica-design.md#the-syntax-tree) sets out how the syntax tree builds on it.
 
 Every diagnostic today has its kind, its message and its location. Stable codes identifying each condition, apart from its message, are [proposed](../docs/proposals/diagnostic-codes.md), and not part of this contract.

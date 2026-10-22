@@ -44,13 +44,13 @@ let byPower = (left, right) => left.power - right.power
 return answer()
 ```
 
-Parentheses are optional for exactly one parameter and required for none or several. An arrow function declares no locals and holds no body, so `x => let y = …` and `x => do … end` are refused, and so is `x => y => x + y`, whose body is no simple expression; a function that holds more is a regular function bound to a local and passed by its name. Laying the expression out across lines changes nothing.
+Parentheses are optional for exactly one parameter and required for none or several. An arrow function declares no locals and does not hold a body, so `x => let y = …` and `x => do … end` are refused, and so is `x => y => x + y`, whose body is not a simple expression; a function that holds more is a regular function bound to a local and passed by its name. Laying the expression out across lines changes nothing.
 
 Either form is a local's initializer, of a body or of an object expression, and an arrow function is also an argument, as `apply(device => device.active(), lamp)` is. Neither stands anywhere else: a field, an operand, a conditional's branch and a result hold neither, and a regular function written directly as an argument is a syntax error:
 
 > A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.
 
-A definition holding either where text could not write it is a structure error. An object expression's function local is in scope within it, as any local is, and is no field.
+A definition holding either where text could not write it is a structure error. An object expression's function local is in scope within it, as any local is, and is not a field.
 
 Its function parameters are names of the function, two of one function never the same, visible in its body alone, where each hides an outer local, field or script parameter of its name; [`~`](scripts.md#scripts-parameter-references) still selects the script parameter.
 
@@ -60,7 +60,7 @@ Its function parameters are names of the function, two of one function never the
 
 `name(argument, …)` calls the function a local or a function parameter of that name holds, with as many arguments as it declares function parameters, `seven()` with none, each a [simple expression](expressions.md#simple-expressions) or an arrow function; each argument is evaluated once, from left to right, in the caller's scope, and the body then evaluates with each function parameter holding its argument; a call of a [function reference](#functions-module-functions) evaluates its arguments as the reference's qualified form does, so after `let keep = pantry.keep`, `keep(word, it.size > 2)` passes the implicit body `pantry.keep(word, it.size > 2)` passes, and a reference held in a local is called by the rules of the member it names. A call is a value a chain continues from, as `first(room).devices.count` does.
 
-A function of a vocabulary keeps its own form, `it.device("lamp")`, with the arguments its signature takes. A name no local function has is a validation error, which gives the form with `it` where the implicit parameter has a member of that name, and so is a call of a local that holds a value, and a call given the wrong number of arguments.
+A function of a vocabulary keeps its own form, `it.device("lamp")`, with the arguments its signature takes. A name that no local function has is a validation error, which gives the form with `it` where the implicit parameter has a member of that name, and so is a call of a local that holds a value, and a call given the wrong number of arguments.
 
 <a id="functions-as-values"></a>
 
@@ -118,7 +118,7 @@ No function calls itself, directly, through another or through a function passed
 
 ## Resolved for each call
 
-The declaration is checked for what no argument decides, its names, its scope and its function parameters; each call resolves the body of each function it may call against that call's argument types, so one function serves arguments of different types, and a function nothing calls is never resolved further. A call settles no fixed argument.
+The declaration is checked for what no argument decides, its names, its scope and its function parameters; each call resolves the body of each function it may call against that call's argument types, so one function serves arguments of different types, and a function nothing calls is never resolved further. A call never settles a fixed argument.
 
 <a id="functions-watching"></a>
 
@@ -145,6 +145,6 @@ A function parameter whose callback contract takes one argument also takes an **
 - **What it sees.** Its `it` is the argument the member calls it with, and every other name it reads, a local, a field, a function parameter, a script parameter or `root`, is read where it is written, as a function captures what it sees where it is declared. It is one simple expression, as every argument is, so it declares no locals.
 - **When it is evaluated.** Each call evaluates it anew against that call's argument, while the member's invocation lasts, and a member that never calls it never evaluates it, so it reads only what the calls the member makes read.
 - **Its type.** It resolves as an arrow function's body does, its `it` of the type the callback contract gives its argument, and its result is checked against the contract's result type.
-- **In the definition.** It is recorded as written, one of its call's argument nodes, with no node of its own, and its canonical text is its expression: whether an argument is an implicit body is the vocabulary's to say, and a definition knows no vocabulary. The resolution records which arguments are implicit bodies, so an evaluator and a tool read the interpretation from it.
+- **In the definition.** It is recorded as written, one of its call's argument nodes, with no node of its own, and its canonical text is its expression: whether an argument is an implicit body is the vocabulary's to say, and a definition does not know any vocabulary. The resolution records which arguments are implicit bodies, so an evaluator and a tool read the interpretation from it.
 
 An arrow function given to the same parameter follows the rules of every arrow function: its `it` is the implicit parameter where it is written, so `device.is(d => it.active())` at the top level, which has none, is an error.

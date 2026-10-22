@@ -22,12 +22,12 @@ Each node is an object whose `kind` says what it is:
 | Kind | Properties | Records |
 | --- | --- | --- |
 | `literal` | `value`, a JSON string, a finite number, a Boolean or null | A literal |
-| `parameter` | `name` | A script parameter; text writes it alone where its name is no reserved word, nor a module's name of the registry writing it, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and with `~` before its name otherwise |
+| `parameter` | `name` | A script parameter; text writes it alone where its name is not a reserved word, nor a module's name of the registry writing it, no local, field or function parameter of its name is in scope and no local of its name is declared later in its scope, and with `~` before its name otherwise |
 | `it` | None | The implicit parameter |
 | `root` | None | The object root |
 | `namespace` | `name`, the module's name | A module's namespace, the target of a `member` or a `call` node that reads one of the module's members or calls a qualified form through it |
 | `local` | `name` | A use of a local, a function parameter or a field, one in scope where it stands |
-| `member` | `name`, the member's name, or for a computed property access whose expression is no string literal that is a name, that expression's node; `target`, the receiver; and `optional`, true, where it is written with `?.` | A property access, or a computed property access |
+| `member` | `name`, the member's name, or for a computed property access whose expression is not a string literal that is a name, that expression's node; `target`, the receiver; and `optional`, true, where it is written with `?.` | A property access, or a computed property access |
 | `call` | `name`; `arguments`, its arguments in order, empty where it is given none; `target`, the receiver; and `optional`, true, where it is written with `?.` | A function call |
 | `indexer` | `argument`, its key; `target`, the receiver, or for a named indexer the `member` node of its name, which [resolution reads](members.md#property-access-calls-and-indexers-named-indexers) as one where the receiver's type declares it; and `optional`, true, where it is written with `?[` | An indexer: the receiver's unnamed indexer, a named indexer, or the unnamed indexer of a property's answer |
 | `object` | `fields`; `locals`, where it has any; and `target`, the node the object expression follows | An object expression; without a target, one keeping the implicit parameter around it, which at the top level is absent |
@@ -49,7 +49,7 @@ Each node is an object whose `kind` says what it is:
 | `arithmetic` | `operator`, one of `+`, `-`, `*`, `/` and `%`, and `left` and `right`, its operands | An arithmetic operation |
 | `negate` | `operand`, the number it negates | An arithmetic negation of a number; a numeric literal negated is the negative literal |
 
-A parenthesized expression adds no node, the expression it holds standing in its place, and neither does an optional enclosed access, whose accesses are recorded as optional and its optional chain where it ends, so `device.active() and (device.batteryPowered())` is an `and` of two function calls:
+A parenthesized expression does not add a node, the expression it holds standing in its place, and neither does an optional enclosed access, whose accesses are recorded as optional and its optional chain where it ends, so `device.active() and (device.batteryPowered())` is an `and` of two function calls:
 
 ```json
 {
@@ -130,7 +130,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Chain receivers | A conditional or body cannot be a chain receiver. |
 | Functions | Each is a local initializer, or an arrow function that is also an argument, with unique parameter names; an arrow function's body is a simple expression; a function cannot be called before its local is declared. |
 | Optional access | Each optional access is within an optional chain, following the targets of property accesses, calls, indexers and object expressions; each optional chain contains an optional access. |
-| `it` | `it` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. Within an argument of a member call or of a local function call, the function called says whether the argument has one, so resolution decides there, and refuses an `it` the function gives no value. |
+| `it` | `it` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. Within an argument of a member call or of a local function call, the function called says whether the argument has one, so resolution decides there, and refuses an `it` the function does not give a value. |
 | Logical expressions | `and` and `or` have at least two operands; `not` has its operand. |
 | Arithmetic | An arithmetic node has a supported operator and both operands; a `negate` node has its operand. |
 | Coalescing | Both value and fallback are present. |

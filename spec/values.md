@@ -31,7 +31,7 @@ In this document:
 
 An **object expression** names the fields of the object it builds, `{ name = value, … }`, and following a value or a list, `room { … }` or `rooms { … }`, it builds one for the value or for each item, which is its implicit parameter.
 
-- A field is written with its name before its `=`, `warmth = it.climate?.temperature`, whatever its value is, and the language infers no name: a field without one is a syntax error, as is an object expression without a field.
+- A field is written with its name before its `=`, `warmth = it.climate?.temperature`, whatever its value is, and the language does not infer a name: a field without one is a syntax error, as is an object expression without a field.
 - Two fields of one object expression with the same name are an error when the definition is checked.
 - A result keeps its fields in the order the object expression names them.
 - An object expression following null is null.
@@ -150,9 +150,9 @@ room.devices.count to String
 
 The type is a type's name, written bare, as `to Number` writes it, its local name or qualified by its module, `to measurements.Temperature`, and found as [type identity](types.md#types-type-identity) sets out; a string in its place, `to "Number"`, is a syntax error giving the bare name. It is `Number`, `String`, `Boolean`, or a structured type that holds data alone, whatever its fields hold, lists of data among them, as `Climate` holds its readings.
 
-A conversion converts data, so a reference value and a structured type that holds one are no type it converts between, and what reads a host's state stays a member's, which declares how it changes; a reference value is cast to a type of its hierarchy with `as`.
+A conversion converts data, so a reference value and a structured type that holds one are not types it converts between, and what reads a host's state stays a member's, which declares how it changes; a reference value is cast to a type of its hierarchy with `as`.
 
-A list itself is no type a conversion converts between, and neither is a type that can be null. A name no type has is a validation error, as is any other target.
+A list itself is not a type a conversion converts between, and neither is a type that can be null. A name no type has is a validation error, as is any other target.
 
 <a id="conversions-one-declared-conversion"></a>
 

@@ -203,7 +203,7 @@ Completed definition and resolution work includes:
 
 - `invokedBy: 'host'` declarations accept value parameters only, with no updates or implementation.
 - Calls are allowed only in terminal position, including a body returning the call after locals or a terminal `do` block. Other positions are refused at resolution with a validation error.
-- A fixed argument can select the result type through a type selector. Selector keys are declared once across modules.
+- A fixed argument can select the result type through a type selector. Modules may add keys to an existing type selector, but registration rejects a key already declared in that selector.
 - `resolution.hostCall` describes the call, with a null result type when the host supplies no result.
 - `prepareCall` evaluates preceding locals once and retains their frame in the prepared call. It reports a skipped call when there is nothing to invoke.
 - Each prepared call's `project` captures a supplied value as the declared result and evaluates its projection independently of other preparations from the same evaluator. Calls that supply no result have no projection.

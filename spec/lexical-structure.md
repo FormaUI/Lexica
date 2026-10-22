@@ -83,7 +83,7 @@ The language reserves some words, which keep its own meaning where a value stand
 | The implicit parameter and operators | `it`, `not`, `try`, `as`, `to`, `and`, `or` |
 | Control flow and declarations | `if`, `then`, `elseif`, `else`, `let`, `do`, `end`, `return`, `function` |
 
-Reserved words match whole identifiers, exactly, so `isVisible` and `nullable` are reserved by no word they hold. Identifiers are case-sensitive, so `TRUE` and `It` are no reserved words either.
+Reserved words match whole identifiers, exactly, so `isVisible` and `nullable` are reserved by no word they hold. Identifiers are case-sensitive, so `TRUE` and `It` are not reserved words either.
 
 The **keywords** are the reserved words other than the literals' words and `root`: `it` and the words of operators, control flow and declarations.
 
@@ -97,9 +97,9 @@ An identifier's spelling decides no meaning; where it stands does:
 - **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
 - **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ home = 1 }` declares the field `home`.
-- **In text read through a registry,** a [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is no reserved word, but an identifier the registry gives that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. Text read without a registry knows no module's name.
+- **In text read through a registry,** a [module's name](modules.md#names-and-reserved-words-module-names) written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the registry gives that meaning in that position alone, so `@home` and `~home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. Text read without a registry does not know any module's name.
 
-Declarations keep their own restrictions besides: no module is named by a word the language reserves, a type is named once within its module, and no module's type is named as one of Lexica's own, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production makes no identifier valid in every position.
+Declarations keep their own restrictions besides: no module is named by a word the language reserves, a type is named once within its module, and no module's type is named as one of Lexica's own, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.
 
 <a id="names-and-reserved-words-declaring-and-accessing-a-reserved-name"></a>
 
@@ -134,7 +134,7 @@ A lexical reference that no local, field, conditional binding or function parame
 
 > No local or field named 'it' is in scope. Use '~it' to read the script parameter.
 
-An identifier must follow `@` directly, and a keyword alone reads no local or field. These are syntax errors:
+An identifier must follow `@` directly, and a keyword alone does not read a local or field. These are syntax errors:
 
 | Form | Diagnostic guidance |
 | --- | --- |
@@ -212,7 +212,7 @@ A raw string's backslashes are text, a trailing one included, so `'C:\Users\Eyal
 
 ### One line
 
-An inline string, `"…"`, `'…'`, `$"…"` or `$'…'`, holds no line break between its delimiters; one written there is a syntax error suggesting `\n` or a block. An escape or an inserted value may still give its value a line break, as `"First\nSecond"` and `$"Content: {text}"` do.
+An inline string, `"…"`, `'…'`, `$"…"` or `$'…'`, does not hold a line break between its delimiters; one written there is a syntax error suggesting `\n` or a block. An escape or an inserted value may still give its value a line break, as `"First\nSecond"` and `$"Content: {text}"` do.
 
 <a id="strings-and-escapes-blocks"></a>
 
@@ -230,7 +230,7 @@ A block is opened by three or more matching quotes, `$` directly before them whe
 ```
 
 - **The margin.** The closing delimiter's indentation is the margin removed from each line of the block's text. Each line that is not blank begins with exactly that whitespace, tabs and spaces alike, and one that does not is a syntax error. A blank line shorter than the margin is empty, and whitespace beyond the margin is kept.
-- **The boundaries.** The line break after the opening delimiter and the one before the closing delimiter are no part of the text; blank lines within it are kept. LF, CRLF and a lone CR each break a line, and the text holds each as LF; an escape writes any other line ending.
+- **The boundaries.** The line break after the opening delimiter and the one before the closing delimiter are not part of the text; blank lines within it are kept. LF, CRLF and a lone CR each break a line, and the text holds each as LF; an escape writes any other line ending.
 - **Before anything else.** The margin is removed from the source text before escapes are read and before interpolation, so no inserted value is trimmed or reindented.
 - **Quotes within.** A run of the delimiter's quote at least as long as the delimiter in a block's text is a syntax error unless it is the closing delimiter, and the diagnostic suggests a longer one, as four quotes hold `'''`. A closing run has exactly the delimiter's length. A string block's escaped quote is in no run, a raw block has no escape and doubles no quote, and the strings within an interpolation follow their own rules, so their quotes are in no run either.
 - **Malformed delimiters.** An opening delimiter with anything after it on its line, a block never closed and a closing run longer than its delimiter each have a diagnostic of their own.

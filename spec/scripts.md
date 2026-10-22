@@ -53,10 +53,10 @@ A script names its parameters and never holds their values, so one script serves
 
 A binding takes its type from its value, unless the host declares it.
 
-- A reference value is of the type its registry's modules [recognize](types.md#reference-types) it as, so a light is a `Light`, or of the type its host declares for it, as [a declared type](types.md#reference-types) sets out; a value no module recognizes, and that is no data, is no binding, and one several modules recognize as unrelated types is refused as ambiguous. A reference nested in data is recognized as one bound alone is.
+- A reference value is of the type its registry's modules [recognize](types.md#reference-types) it as, so a light is a `Light`, or of the type its host declares for it, as [a declared type](types.md#reference-types) sets out; a value no module recognizes, and that is not data, is not a binding, and one several modules recognize as unrelated types is refused as ambiguous. A reference nested in data is recognized as one bound alone is.
 - A number, a string and a Boolean are `Number`, `String` and `Boolean`.
 - Null is of the type `null`.
-- A list is a `List<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `List<Device>` and `[light, null]` a `List<Light?>`. A declared cast between two types gives them no type to share. A list of nulls alone, `[null]` or `[null, null]`, is a `List<null>`, whose items can only be null, and the empty list is a `List<Never>`, which holds no item.
+- A list is a `List<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `List<Device>` and `[light, null]` a `List<Light?>`. A declared cast between two types gives them no type to share. A list of nulls alone, `[null]` or `[null, null]`, is a `List<null>`, whose items can only be null, and the empty list is a `List<Never>`, which does not hold an item.
 - An object is of the object type of its fields' types, each typed as a binding is.
 - A list whose items share no type has no type, because Lexica has no union types and a list holds items of one type, so binding `[1, "two"]`, or a room and a light together, is a structure error.
 
@@ -82,7 +82,7 @@ The name must follow `~` directly, and `~` alone reads nothing, so it is a synta
 
 ## Names and scope
 
-A name at the start of a chain, an **identifier**, reads the nearest visible local, field, conditional binding or function parameter of that name. If none is visible, it reads the script parameter of that name, and resolution fails if the host bound none. A name read before a local of that name declared later in the same scope is a structure error, since it reads no parameter there; a field of that name written later leaves it reading the parameter.
+A name at the start of a chain, an **identifier**, reads the nearest visible local, field, conditional binding or function parameter of that name. If none is visible, it reads the script parameter of that name, and resolution fails if the host bound none. A name read before a local of that name declared later in the same scope is a structure error, since it does not read a parameter there; a field of that name written later leaves it reading the parameter.
 
 `it` reads the [implicit parameter](#names-and-resolution-implicit-parameter-by-position), and in text read through a registry, the name of a module registered with it begins that module's [namespace](modules.md#namespaces). Members always have an explicit receiver, and equality always has both operands, so a reader needs no vocabulary knowledge to decide what a name applies to.
 
@@ -124,12 +124,12 @@ At the top level, `{ level = light.brightness, active = light.active() }` has no
 
 - **A body gives its own `it`.** A projection, an expression or a predicate argument, and an implicit body each give `it` the value it receives.
 - **A nested body shadows it.** In `rooms { count = it.devices.where(it.active()).count }`, the `it` of `where`'s argument is each device, the room's out of its reach.
-- **A plain object keeps it.** An object expression following no value receives no input, so its fields read the `it` around it.
+- **A plain object keeps it.** An object expression that follows no value does not receive an input, so its fields read the `it` around it.
 - **A function captures it.** An arrow function or a function declared with `function` gives names to its own parameters alone, and captures the `it` where it is written as it captures every name, so `rooms { larger = home.rooms.where(r => r.floorArea > it.floorArea).count }` compares each room with the projected one.
 - **A value argument reads it.** A value argument is evaluated where the call is written, against the `it` already there.
-- **None is no value.** `it` where no body gives one is an error.
+- **None is not a value.** `it` where no body gives one is an error.
 
-Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a verb's test requires a `Boolean`. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is no function value.
+Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a verb's test requires a `Boolean`. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is not a function value.
 
 <a id="names-and-resolution-projection-example"></a>
 
@@ -249,7 +249,7 @@ An object expression writes its locals before its first field. Each local is `le
 
 A local name can start a chain, take a projection, or supply an argument. A reserved local name uses `@name` when referenced. A local holding a value cannot be called: `items(…)` is a validation error.
 
-Locals occur only in bodies and object expressions. A [simple expression](expressions.md#simple-expressions) holds no body, and an object expression inside one, a member's options object among them, declares no locals.
+Locals occur only in bodies and object expressions. A [simple expression](expressions.md#simple-expressions) does not hold a body, and an object expression inside one, a member's options object among them, declares no locals.
 
 <a id="locals-sequential-scope"></a>
 
