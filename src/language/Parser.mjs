@@ -827,7 +827,7 @@ export class Parser {
     /** Reads `as` and the type's name after a cast's target, which nothing continues but a group. */
     #readCast(target) {
         const asKeyword = this.#take();
-        const type = this.#readTypeName('as', 'casts to', 'Element');
+        const type = this.#readTypeName('as', 'casts to', 'Light');
         const node = Parser.#node('cast', [target, asKeyword, type]);
         const name = this.#text.slice(SyntaxTree.startOf(type), SyntaxTree.endOf(type));
 
@@ -868,7 +868,7 @@ export class Parser {
         const { children, accesses } = this.#parseMemberChain(this.#parseReceiver());
 
         if (accesses === 0) {
-            throw this.#fail('LEXICA1016', 'An optional enclosed access holds a receiver and at least one access after it, as (?panel.first(".row").rect)', this.#token.start);
+            throw this.#fail('LEXICA1016', 'An optional enclosed access holds a receiver and at least one access after it, as (?room.device(name).brightness)', this.#token.start);
         }
 
         if (this.#token.type !== ')') {
@@ -881,7 +881,7 @@ export class Parser {
     /** Reads a receiver within an optional enclosed access: an input, or a grouped cast, its own target's accesses optional as the enclosed access's are, where its target is no group that keeps its own rules. */
     #parseReceiver() {
         if (this.#token.type === '(?') {
-            throw this.#fail('LEXICA1502', 'The receiver of an optional enclosed access is an input or a grouped cast, and no other optional enclosed access, as in (?panel.first(".row").rect)', this.#token.start);
+            throw this.#fail('LEXICA1502', 'The receiver of an optional enclosed access is an input or a grouped cast, and no other optional enclosed access, as in (?room.device(name).brightness)', this.#token.start);
         }
 
         if (this.#token.type !== '(') {
@@ -892,7 +892,7 @@ export class Parser {
         const target = this.#parseCastTarget(this.#token.start);
 
         if (!this.#isKeyword('as')) {
-            throw this.#fail('LEXICA1502', 'A group as the receiver of an optional enclosed access holds a cast, as in (?(node.parent as Element).rect)', this.#token.start);
+            throw this.#fail('LEXICA1502', 'A group as the receiver of an optional enclosed access holds a cast, as in (?(room.device(name) as Light).brightness)', this.#token.start);
         }
 
         const cast = this.#readCast(target);
@@ -914,7 +914,7 @@ export class Parser {
             }
 
             if (this.#continuesChain() && this.#token.type !== '{') {
-                throw this.#fail('LEXICA1025', 'A grouped target is cast as it is, with nothing after it but its cast, as in ((a ?? b) as Element)', this.#token.start);
+                throw this.#fail('LEXICA1025', 'A grouped target is cast as it is, with nothing after it but its cast, as in ((preferred ?? fallback) as Light)', this.#token.start);
             }
 
             return target;
@@ -1282,7 +1282,7 @@ export class Parser {
         }
 
         if (this.#token.type === '}') {
-            const example = locals > 0 ? '{ let r = it.rect, width = r.width }' : '{ size = it.size }';
+            const example = locals > 0 ? '{ let climate = it.climate, warmth = climate?.temperature }' : '{ size = it.size }';
 
             throw this.#fail('LEXICA1018', `An object expression holds at least one field${locals > 0 ? ' after its locals' : ''}, as ${example}`, this.#token.start);
         }

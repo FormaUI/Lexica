@@ -16,7 +16,7 @@ describe('LexicaModule', () => {
         const implementation = () => 2;
         const module = new LexicaModule('charts', { members: [declaration({ name: 'charts', implementation })] });
 
-        expect(module.members[0]).toMatchObject({ name: 'charts', target: 'Element', parameters: [], updates: { changes: 'constant', reads: 'fresh', observations: [] } });
+        expect(module.members[0]).toMatchObject({ name: 'charts', target: 'String', parameters: [], updates: { changes: 'constant', reads: 'fresh', observations: [] } });
         expect(module.members[0].implementation).toBe(implementation);
         expect(Object.isFrozen(module.members[0])).toBe(true);
         expect(Object.isFrozen(module.members[0].updates)).toBe(true);
@@ -56,8 +56,8 @@ describe('LexicaModule', () => {
 
         expect(predicates).toMatchObject({ module: 'charts', field: 'predicates' });
         expect(predicates.message).toContain('a test of a receiver is one of its members, a function whose result is a boolean');
-        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
-        expect(messageOf(() => new LexicaModule('charts', null))).toContain("A module's contents are an object declaring types, members, typeSelectors");
+        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares typeOf, types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
+        expect(messageOf(() => new LexicaModule('charts', null))).toContain("A module's contents are an object declaring typeOf, types, members, typeSelectors");
         expect(messageOf(() => new LexicaModule('charts', { members: {} }))).toContain("A module's members are a list");
         expect(messageOf(() => new LexicaModule('charts', { members: [null] }))).toContain('A member is an object declaring');
     });
@@ -280,7 +280,7 @@ describe('LexicaModule', () => {
                 refusal(updating({ changes: 'unobserved', reads: 'fresh', tolerance }), 'zoom', 'updates.tolerance', 'tolerance');
             }
 
-            for (const result of ['String', 'Boolean?', 'List<Number>', 'Element']) {
+            for (const result of ['String', 'Boolean?', 'List<Number>']) {
                 refusal({ members: [declaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] }, 'zoom', 'updates.tolerance', 'A tolerance applies to a numeric result');
             }
         });
@@ -383,7 +383,7 @@ describe('LexicaModule', () => {
             const implementation = () => true;
             const [kept] = new LexicaModule('lit', { members: [test({ implementation })] }).members;
 
-            expect(kept).toMatchObject({ name: 'lit', kind: 'function', target: 'Element', result: 'Boolean', parameters: [] });
+            expect(kept).toMatchObject({ name: 'lit', kind: 'function', target: 'String', result: 'Boolean', parameters: [] });
             expect(kept.implementation).toBe(implementation);
         });
 

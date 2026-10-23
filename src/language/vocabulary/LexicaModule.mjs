@@ -34,10 +34,16 @@ const OBSERVATION_CONTRACTS = ['invalidation', 'maintained'];
 const OBSERVED_CHANGE_CATEGORIES = ['observable', 'partly-observable'];
 
 /** The names of the types Lexica defines, which a declaration names without any module declaring them. */
-const BUILT_IN_TYPE_NAMES = ['Number', 'String', 'Boolean', 'Node', 'Element', 'Document', 'DocumentFragment', 'ShadowRoot', 'Shadow', 'Aria', 'Window'];
+const BUILT_IN_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 
 /** The names of the types Lexica defines whose values hold no number, so a tolerance means nothing for them. */
 const UNTOLERATED_TYPE_NAMES = new Set(BUILT_IN_TYPE_NAMES.filter(name => name !== 'Number'));
+
+/** The kinds of type a module declares: a reference type, whose values have identity; a type declared without a kind is structured, of data. */
+const TYPE_KINDS = ['reference'];
+
+/** The kinds of type the declaration model brings, which a type declared in the flat member shape does not take yet. */
+const DECLARATION_MODEL_TYPE_KINDS = ['structured', 'extension'];
 
 /** The names no module declares a type by: those of Lexica's own types that stay its own, and the words of the type notation. */
 const RESERVED_TYPE_NAMES = new Set(['Number', 'String', 'Boolean', 'List', 'Null', 'Never']);
@@ -47,7 +53,7 @@ const RESERVED_TYPE_NAMES = new Set(['Number', 'String', 'Boolean', 'List', 'Nul
 const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 
 /** What a module can declare. */
-const CONTENTS = ['types', 'members', 'typeSelectors', 'selectableTypes', 'observationTypes', 'observationTargets', 'conversions'];
+const CONTENTS = ['typeOf', 'types', 'members', 'typeSelectors', 'selectableTypes', 'observationTypes', 'observationTargets', 'conversions'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
 const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'implementation'];
@@ -58,6 +64,7 @@ const MEMBER_KEYS_BY_KIND = {
 const UPDATES_KEYS = ['changes', 'reads', 'misses', 'tolerance', 'observations'];
 const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameters'];
 const TYPE_KEYS = ['name', 'fields', 'import'];
+const REFERENCE_TYPE_KEYS = ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import'];
 const TYPE_SELECTOR_KEYS = ['name'];
 const SELECTABLE_TYPE_KEYS = ['name', 'selector', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'implementation'];
@@ -69,6 +76,7 @@ const SELECTABLE_KEY = /^[A-Za-z][A-Za-z0-9:-]*$/;
 
 export class LexicaModule {
     #name;
+    #typeOf;
     #types;
     #members;
     #typeSelectors;
@@ -107,7 +115,11 @@ export class LexicaModule {
             }
         }
 
-        const { types = [], members = [], typeSelectors = [], selectableTypes = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
+        const { typeOf, types = [], members = [], typeSelectors = [], selectableTypes = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
+
+        if (typeOf !== undefined && typeof typeOf !== 'function') {
+            fail('LEXICA4051', "A module's typeOf is a function, which names the type of a value it recognizes", undefined, 'typeOf');
+        }
 
         for (const [key, list] of Object.entries({ types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions })) {
             if (!Array.isArray(list)) {
@@ -116,6 +128,7 @@ export class LexicaModule {
         }
 
         this.#name = name;
+        this.#typeOf = typeOf;
         this.#types = LexicaModule.#freezeItems(types.map(type => LexicaModule.#validateTypeDeclaration(type, fail)));
         this.#members = LexicaModule.#freezeItems(members.map(member => LexicaModule.#validateMember(member, fail)));
         this.#typeSelectors = LexicaModule.#freezeItems(LexicaModule.#validateTypeSelectors(typeSelectors, fail));
@@ -130,7 +143,12 @@ export class LexicaModule {
         return this.#name;
     }
 
-    /** The structured types the module declares. */
+    /** The module's recognition of a host's value, naming the most specific of its reference types the value is of, or null; undefined where it recognizes none. */
+    get typeOf() {
+        return this.#typeOf;
+    }
+
+    /** The types the module declares, its reference types and its structured types. */
     get types() {
         return this.#types;
     }
@@ -269,7 +287,17 @@ export class LexicaModule {
     }
 
     static #validateTypeDeclaration(type, fail) {
-        LexicaModule.#validateKeys(type, TYPE_KEYS, 'A type', fail);
+        const isReference = type?.kind === 'reference';
+
+        if (ObjectUtils.isNonArrayObject(type) && DECLARATION_MODEL_TYPE_KINDS.includes(type.kind)) {
+            fail('LEXICA4556', `A type of the kind '${type.kind}' declares its members within it, which this implementation does not read yet: declare a structured type by its fields, without a kind`, String(type.name), 'kind');
+        }
+
+        if (ObjectUtils.isNonArrayObject(type) && type.kind !== undefined && !TYPE_KINDS.includes(type.kind)) {
+            fail('LEXICA4554', `A type is of the kind ${TYPE_KINDS.join(' or ')}, or declares its fields, and '${String(type.kind)}' is none of them`, String(type.name), 'kind');
+        }
+
+        LexicaModule.#validateKeys(type, isReference ? REFERENCE_TYPE_KEYS : TYPE_KEYS, isReference ? 'A reference type' : 'A type', fail);
 
         if (!Names.isIdentifier(type?.name)) {
             fail('LEXICA4552', 'A type is named by an identifier, a letter followed by letters and digits', String(type?.name), 'name');
@@ -300,6 +328,10 @@ export class LexicaModule {
             fail('LEXICA4508', `The type imports the module '${repeated}' twice`, type.name, 'import');
         }
 
+        if (isReference) {
+            return LexicaModule.#validateReferenceType(type, fail);
+        }
+
         const fields = Object.entries(type.fields ?? {});
 
         if (fields.length === 0) {
@@ -311,6 +343,27 @@ export class LexicaModule {
             if (!Names.isIdentifier(name) || !LexicaModule.#isTypeNotation(notation)) {
                 fail('LEXICA4510', `The field '${name}' is not a name with a type`, type.name, 'fields');
             }
+        }
+
+        return LexicaModule.#copyOf(type);
+    }
+
+    /** Validates a reference type's membership, the supertype it names and whether it is abstract, keeping its `isInstance` as it is. */
+    static #validateReferenceType(type, fail) {
+        if (type.isInstance === undefined) {
+            fail('LEXICA4017', 'A reference type declares its isInstance, which answers whether a value belongs to it', type.name, 'isInstance');
+        }
+
+        if (typeof type.isInstance !== 'function') {
+            fail('LEXICA4051', "A reference type's isInstance is a function, which answers whether a value belongs to it", type.name, 'isInstance');
+        }
+
+        if (type.supertype !== undefined && !LexicaModule.#isTypeNotation(type.supertype)) {
+            fail('LEXICA4512', 'A reference type names its supertype as a type', type.name, 'supertype');
+        }
+
+        if (type.abstract !== undefined && typeof type.abstract !== 'boolean') {
+            fail('LEXICA4555', 'Whether a reference type is abstract is a Boolean', type.name, 'abstract');
         }
 
         return LexicaModule.#copyOf(type);

@@ -177,10 +177,10 @@ export class Type {
 
         switch (this.kind) {
             case 'object':
-                text = `{ ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType}`).join(', ')} }`;
+                text = `{ ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType.toString(isQualified)}`).join(', ')} }`;
                 break;
             case 'root':
-                text = this.fieldTypes.size === 0 ? 'root { }' : `root { ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType}`).join(', ')} }`;
+                text = this.fieldTypes.size === 0 ? 'root { }' : `root { ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType.toString(isQualified)}`).join(', ')} }`;
                 break;
             case 'function':
                 text = 'function';

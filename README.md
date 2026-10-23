@@ -45,7 +45,7 @@ import { lexica } from '@formaui/lexica';
 
 const definition = lexica.parse('{ total = price * quantity }');
 const registry = lexica.createRegistry();
-const bindings = lexica.bind({ price: 4, quantity: 3 });
+const bindings = registry.bind({ price: 4, quantity: 3 });
 const resolution = registry.resolve(definition, bindings);
 
 resolution.type; // '{ total: Number }'

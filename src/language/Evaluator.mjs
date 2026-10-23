@@ -23,8 +23,13 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 /**
  * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution, with one candidate selected, produced two values;
  * the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the record of each field of an object an object expression built and of each item of a list a projection built;
- * and the value each projected item came from where it is a reference. A part with no record inherits its parent's origin and tolerance.
- * @typedef {{ origin: object, tolerance: number | null, fields?: Record<string, ResultMetadata>, items?: ResultMetadata[], sources?: unknown[] | null }} ResultMetadata
+ * and the input each item of a list a projection built came from, a list no projection built having no sources. A part with no record inherits its parent's origin and tolerance.
+ * @typedef {{ origin: object, tolerance: number | null, fields?: Record<string, ResultMetadata>, items?: ResultMetadata[], sources?: readonly ProjectionSource[] }} ResultMetadata
+ */
+
+/**
+ * The input a projected item came from, of the kind its established type gives it: a reference value as the host holds it, data as Lexica's own frozen copy, or null.
+ * @typedef {{ kind: 'reference', value: unknown } | { kind: 'data', value: unknown } | { kind: 'null' }} ProjectionSource
  */
 
 /**
@@ -129,8 +134,8 @@ export class Evaluator {
     #environment;
     #locations;
 
-    /** The element each item of a list an object expression projected came from, by the list it produced, for the evaluation in progress. @type {WeakMap<unknown[], (Element | null)[]>} */
-    #sourceElementsByList = new WeakMap();
+    /** The source of each item of a list an object expression projected, by the list it produced, for the evaluation in progress. @type {WeakMap<unknown[], readonly ProjectionSource[]>} */
+    #sourcesByList = new WeakMap();
 
     /** The selections made for each field of an object an object expression gave, as `#selections` holds them, by the object and then the field's name, for the evaluation in progress. @type {WeakMap<object, Map<string, Map<object, object | string>>>} */
     #fieldSelectionsByObject = new WeakMap();
@@ -665,18 +670,20 @@ export class Evaluator {
     }
 
     /**
-     * A cast, with its target evaluated once: its target itself where it is of the type, and null where it is null. A target of another type fails the evaluation of a cast, and an attempted one answers null instead.
+     * A cast, with its target evaluated once: its target itself where it belongs to the type, by the type's membership and its supertypes', and null where it is null. A target that doesn't fails the evaluation of a cast, naming the
+     * type its target is of, which is never asked again, and an attempted one answers null instead.
      */
     #compileCast(node, isAttempted) {
         const target = this.#getCompiledFunction(node.target);
-        const { type: name } = node;
-        // A cast casts to a node or one of its kinds, Lexica's own.
-        const type = Type.createNamedType(name);
+        const { type, targetType } = this.#resolvedDefinition.resolutionOf(node);
+        const asked = `the cast to ${type}`;
+        // A value of a type above the cast's is one that isn't of the cast's type, and a value of the cast's own type, or of one beneath it, is one its supertypes refuse.
+        const what = this.#moduleRegistry.typeChecker.isAssignable(type, targetType) && !this.#moduleRegistry.typeChecker.isAssignable(targetType, type) ? `${Evaluator.#articleOf(targetType)} that isn't ${Evaluator.#articleOf(type)}` : Evaluator.#articleOf(targetType);
 
         return (evaluator, context) => {
             const value = target(evaluator, context);
 
-            if (value === null || evaluator.#conformsNamed(value, type)) {
+            if (value === null || evaluator.#moduleRegistry.belongsTo(value, type, asked)) {
                 return value;
             }
 
@@ -684,8 +691,15 @@ export class Evaluator {
                 return null;
             }
 
-            return evaluator.#fail('LEXICA5001', `The cast to ${type} rejected its value: it is ${Evaluator.#describeKind(value)}`, evaluator.#pointerOf(node));
+            return evaluator.#fail('LEXICA5001', `The cast to ${type} rejected its value: it is ${what}`, evaluator.#pointerOf(node));
         };
+    }
+
+    /** The type's name with its indefinite article, as a message writes it: `a Light`, `an Outlet`. */
+    static #articleOf(type) {
+        const name = String(type);
+
+        return /^[AEIOU]/.test(name) ? `an ${name}` : `a ${name}`;
     }
 
     /**
@@ -731,7 +745,7 @@ export class Evaluator {
     static #compileConversionAttempt(declaration, type, moduleRegistry) {
         const name = LexicaModule.conversionNameOf(declaration);
         const convert = moduleRegistry.getImplementation(declaration);
-        const conforms = Evaluator.#compileTypeCheck(type, moduleRegistry);
+        const conforms = Evaluator.#compileTypeCheck(type, moduleRegistry, `the conversion from ${name}`);
         const copyStructure = Evaluator.#compileStructureCopy(type, moduleRegistry);
 
         return (evaluator, value, node) => {
@@ -831,7 +845,7 @@ export class Evaluator {
         const hasReceiver = this.#moduleRegistry.hasReceiver(declaration);
         const target = !hasReceiver ? null : this.#getCompiledFunction(Evaluator.#receiverNodeOf(node, resolution));
         const implementation = this.#moduleRegistry.getImplementation(declaration);
-        const conforms = Evaluator.#compileTypeCheck(type, this.#moduleRegistry);
+        const conforms = Evaluator.#compileTypeCheck(type, this.#moduleRegistry, `the answer of '${declaration.name}'`);
         const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
         const evaluateArguments = this.#compileArguments(resolution);
 
@@ -993,7 +1007,7 @@ export class Evaluator {
             const hasReceiver = this.#moduleRegistry.hasReceiver(declaration);
             const type = this.#moduleRegistry.getDeclaredType(declaration, declaration.result);
 
-            return { reference: declaration, hasReceiver, parameters: declaration.parameters, conforms: Evaluator.#compileTypeCheck(type, this.#moduleRegistry), copyStructures: Evaluator.#compileStructureCopy(type, this.#moduleRegistry), type };
+            return { reference: declaration, hasReceiver, parameters: declaration.parameters, conforms: Evaluator.#compileTypeCheck(type, this.#moduleRegistry, `the answer of '${declaration.name}'`), copyStructures: Evaluator.#compileStructureCopy(type, this.#moduleRegistry), type };
         });
     }
 
@@ -1074,14 +1088,14 @@ export class Evaluator {
                 }
 
                 values.forEach((value, index) => {
-                    if (!this.#conforms(value, parameterTypes[index])) {
+                    if (!this.#conforms(value, parameterTypes[index], `the function given as '${name}' of '${member}'`)) {
                         this.#fail('LEXICA5503', `The function given as '${name}' of '${member}' is called with ${Evaluator.#describe(value)}, and its contract declares ${parameterTypes[index]}`, pointer);
                     }
                 });
 
                 const value = target === null ? closure.implicitBody(values[0]) : this.#callClosure(closure, target, values, plan.node);
 
-                if (resultType !== null && !this.#conforms(value, resultType)) {
+                if (resultType !== null && !this.#conforms(value, resultType, `the function given as '${name}' of '${member}'`)) {
                     this.#fail('LEXICA5504', `The function given as '${name}' of '${member}' gave ${Evaluator.#describe(value)}, and its contract declares ${resultType}`, pointer);
                 }
 
@@ -1152,6 +1166,9 @@ export class Evaluator {
     #compileObject(node) {
         const hasTarget = node.target !== undefined;
         const target = hasTarget ? this.#getCompiledFunction(node.target) : null;
+        // An item's source is of the kind its established type gives it, a reference where its items are of a reference type, whatever the value itself is.
+        const projection = this.#resolvedDefinition.resolutionOf(node);
+        const isOfReferences = projection?.kind === 'projection' && this.#moduleRegistry.isReferenceType(projection.itemType.toNonNullable());
         const names = this.#resolvedDefinition.fieldNamesOf(node);
         // A field the entries after it read is in scope for them, by the name the definition gives it.
         const fields = node.fields.map((field, index) => ({
@@ -1169,20 +1186,37 @@ export class Evaluator {
             }
 
             const items = [];
-            let isOfElements = value.length > 0;
+            const sources = [];
 
             for (const item of value) {
                 items.push(item === null ? null : evaluator.#applyFields(node, fields, item));
-                isOfElements &&= item === null || item?.nodeType === 1;
+                sources.push(Object.freeze(item === null ? { kind: 'null' } : isOfReferences ? { kind: 'reference', value: item } : { kind: 'data', value: Evaluator.#frozenDataOf(item) }));
             }
 
-            // A list of elements is projected item by item, so each item keeps the element it came from; two elements can project to the same data.
-            if (isOfElements) {
-                evaluator.#sourceElementsByList.set(items, [...value]);
-            }
+            // A list is projected item by item, so each item keeps the input it came from; two inputs can project to the same data, and one input can stand more than once.
+            evaluator.#sourcesByList.set(items, Object.freeze(sources));
 
             return items;
         };
+    }
+
+    /** The data as Lexica holds it, frozen throughout: the value itself where it is frozen already or is no object, and a frozen copy of its lists and objects otherwise. */
+    static #frozenDataOf(value) {
+        if (value === null || typeof value !== 'object' || Object.isFrozen(value)) {
+            return value;
+        }
+
+        if (Array.isArray(value)) {
+            return Object.freeze(value.map(item => Evaluator.#frozenDataOf(item)));
+        }
+
+        const copy = {};
+
+        for (const [name, field] of Object.entries(value)) {
+            ObjectUtils.defineDataProperty(copy, name, Evaluator.#frozenDataOf(field));
+        }
+
+        return Object.freeze(copy);
     }
 
     /** Whether the node reads a local or a field of the name anywhere within it, or calls the function it holds. */
@@ -1328,16 +1362,16 @@ export class Evaluator {
     }
 
     /** Whether a value is one the type admits, as `#conforms` answers, with the type's structure found once and each declared structure's fields at its first check. */
-    static #compileTypeCheck(type, moduleRegistry) {
-        const admits = Evaluator.#compileNonNullTypeCheck(type, moduleRegistry);
+    static #compileTypeCheck(type, moduleRegistry, asked) {
+        const admits = Evaluator.#compileNonNullTypeCheck(type, moduleRegistry, asked);
 
         return value => (value === undefined ? false : value === null ? type.isNullable : admits(value));
     }
 
     /** A compiled function holds the registry alone, never an evaluator, so it holds nothing an evaluation bound; a structure that holds itself is checked as deep as its value goes. */
-    static #compileNonNullTypeCheck(type, moduleRegistry) {
+    static #compileNonNullTypeCheck(type, moduleRegistry, asked) {
         if (type.isList) {
-            const checkItem = Evaluator.#compileTypeCheck(type.itemType, moduleRegistry);
+            const checkItem = Evaluator.#compileTypeCheck(type.itemType, moduleRegistry, asked);
 
             return value => Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(checkItem);
         }
@@ -1346,13 +1380,17 @@ export class Evaluator {
             case 'typeParameter':
                 return () => true;
             case 'object': {
-                const fields = [...type.fieldTypes].map(([name, fieldType]) => [name, Evaluator.#compileTypeCheck(fieldType, moduleRegistry)]);
+                const fields = [...type.fieldTypes].map(([name, fieldType]) => [name, Evaluator.#compileTypeCheck(fieldType, moduleRegistry, asked)]);
 
                 return value => ObjectUtils.isNonArrayObject(value) && fields.every(([name, conforms]) => conforms(value[name]));
             }
             default: {
                 const { name } = type;
                 const structure = moduleRegistry.getStructure(type);
+
+                if (moduleRegistry.isReferenceType(type)) {
+                    return value => moduleRegistry.belongsTo(value, type, asked);
+                }
 
                 if (structure === undefined) {
                     return value => (type.module === null && Evaluator.#isOfBuiltIn(value, name)) ?? false;
@@ -1365,7 +1403,7 @@ export class Evaluator {
                         return false;
                     }
 
-                    fields ??= Evaluator.#fieldTypesOf(structure, moduleRegistry).map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, moduleRegistry)]);
+                    fields ??= Evaluator.#fieldTypesOf(structure, moduleRegistry).map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, moduleRegistry, asked)]);
 
                     return fields.every(([field, conforms]) => conforms(value[field]));
                 };
@@ -1532,7 +1570,7 @@ export class Evaluator {
 
     /** Carries out a declaration's implementation, checking that its result is of the declared type. */
     #invokeMember(declaration, receiver, args, type, node) {
-        return this.#invokeImplementation(declaration, this.#moduleRegistry.getImplementation(declaration), value => this.#conforms(value, type), Evaluator.#compileStructureCopy(type, this.#moduleRegistry), receiver, args, type, node);
+        return this.#invokeImplementation(declaration, this.#moduleRegistry.getImplementation(declaration), value => this.#conforms(value, type, `the answer of '${declaration.name}'`), Evaluator.#compileStructureCopy(type, this.#moduleRegistry), receiver, args, type, node);
     }
 
     /** Carries out the implementation of a declaration whose implementation, check of its result and copy of the structures it holds are found already, giving it one object it reads by name. */
@@ -1679,17 +1717,29 @@ export class Evaluator {
         }
     }
 
-    /** A value captured as a named type: a built-in type's value as it is, a reference of another type null where a nullable reference type is declared, and a structure as its declared fields, each captured in turn. */
+    /**
+     * A value captured as a named type: a built-in type's value and a reference of the type as they are, a reference of another type null where a nullable reference type is declared, and a structure as its declared fields, each captured
+     * in turn. A supplied value has no type until it is captured, so where it doesn't belong to a reference type, the registry's recognition tells a reference of another type from mistyped data, which fails whatever its nullability.
+     */
     #captureNamed(value, type, path, fail) {
         const isOfBuiltIn = type.module === null ? Evaluator.#isOfBuiltIn(value, type.name) : undefined;
 
         if (isOfBuiltIn !== undefined) {
-            if (isOfBuiltIn) {
+            if (!isOfBuiltIn) {
+                fail(path, value, type);
+            }
+
+            return value;
+        }
+
+        if (this.#moduleRegistry.isReferenceType(type)) {
+            const asked = 'capturing a supplied value';
+
+            if (this.#moduleRegistry.belongsTo(value, type, asked)) {
                 return value;
             }
 
-            // A reference of another type keeps nothing of itself where a nullable reference type is declared; mistyped data fails, whatever its type's nullability.
-            if (type.isNullable && !LexicaModule.dataTypeNames.includes(type.name) && Evaluator.#isReference(value)) {
+            if (type.isNullable && this.#moduleRegistry.recognize(value, asked).length > 0) {
                 return null;
             }
 
@@ -1710,13 +1760,8 @@ export class Evaluator {
         return path === '' ? name : `${path}.${name}`;
     }
 
-    /** Whether the value is a reference, a value of a reference type the language defines: a node or a window. */
-    static #isReference(value) {
-        return Evaluator.#isOfBuiltIn(value, 'Node') || Evaluator.#isOfBuiltIn(value, 'Window');
-    }
-
     /** Whether the value is one the type admits. */
-    #conforms(value, type) {
+    #conforms(value, type, asked) {
         if (value === undefined) {
             return false;
         }
@@ -1726,29 +1771,33 @@ export class Evaluator {
         }
 
         if (type.isList) {
-            return Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#conforms(item, type.itemType));
+            return Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#conforms(item, type.itemType, asked));
         }
 
         switch (type.kind) {
             case 'typeParameter':
                 return true;
             case 'object':
-                return ObjectUtils.isNonArrayObject(value) && [...type.fieldTypes].every(([name, fieldType]) => this.#conforms(value[name], fieldType));
+                return ObjectUtils.isNonArrayObject(value) && [...type.fieldTypes].every(([name, fieldType]) => this.#conforms(value[name], fieldType, asked));
             default:
-                return this.#conformsNamed(value, type);
+                return this.#conformsNamed(value, type, asked);
         }
     }
 
-    #conformsNamed(value, type) {
+    #conformsNamed(value, type, asked) {
         const isOfBuiltIn = type.module === null ? Evaluator.#isOfBuiltIn(value, type.name) : undefined;
 
         if (isOfBuiltIn !== undefined) {
             return isOfBuiltIn;
         }
 
+        if (this.#moduleRegistry.isReferenceType(type)) {
+            return this.#moduleRegistry.belongsTo(value, type, asked);
+        }
+
         const structure = this.#moduleRegistry.getStructure(type);
 
-        return structure !== undefined && ObjectUtils.isNonArrayObject(value) && Evaluator.#fieldTypesOf(structure, this.#moduleRegistry).every(([field, type]) => this.#conforms(value[field], type));
+        return structure !== undefined && ObjectUtils.isNonArrayObject(value) && Evaluator.#fieldTypesOf(structure, this.#moduleRegistry).every(([field, fieldType]) => this.#conforms(value[field], fieldType, asked));
     }
 
     /** Whether the value is of the built-in type the name names, or undefined where the name names a structure a module declares. */
@@ -1760,22 +1809,6 @@ export class Evaluator {
                 return typeof value === 'string';
             case 'Boolean':
                 return typeof value === 'boolean';
-            case 'Element':
-                return value?.nodeType === 1;
-            case 'Document':
-                return value?.nodeType === 9;
-            case 'DocumentFragment':
-                return value?.nodeType === 11 && value.host === undefined;
-            case 'ShadowRoot':
-                return value?.nodeType === 11 && value.host !== undefined;
-            case 'Node':
-                return value?.nodeType === 1 || value?.nodeType === 9 || value?.nodeType === 11;
-            // An element's shadow view and its ARIA view are the element itself, which their types, never their values, tell from the element.
-            case 'Shadow':
-            case 'Aria':
-                return value?.nodeType === 1;
-            case 'Window':
-                return value?.window === value;
             default:
                 return undefined;
         }
@@ -1813,28 +1846,10 @@ export class Evaluator {
         return value !== null && value !== false;
     }
 
-    /** What kind of node the value is, for a message, or what it is where it is no node. */
-    static #describeKind(value) {
-        switch (value?.nodeType) {
-            case 1:
-                return 'an element';
-            case 9:
-                return 'a document';
-            case 11:
-                return value.host === undefined ? 'a document fragment' : 'a shadow root';
-            default:
-                return Evaluator.#describe(value);
-        }
-    }
-
-    /** What the value is, for a message: nothing, a node, or its data where it has any. */
+    /** What the value is, for a message, its type never asked: nothing, or its data where it has any. */
     static #describe(value) {
         if (value === undefined) {
             return 'nothing';
-        }
-
-        if (typeof value?.nodeType === 'number') {
-            return value.nodeType === 1 ? 'an element' : 'a node';
         }
 
         const hole = Array.isArray(value) ? ArrayUtils.findMissingIndex(value) : -1;
@@ -1861,10 +1876,10 @@ export class Evaluator {
 
     /**
      * The node evaluated and detached, the script's expression or a host call's result projection, with the metadata that describes it, built from the identities the copy left, which the evaluator lets go of once it hands them over,
-     * so it holds no element between evaluations.
+     * so it holds no source between evaluations.
      */
     #evaluateResult(node) {
-        this.#sourceElementsByList = new WeakMap();
+        this.#sourcesByList = new WeakMap();
         this.#fieldSelectionsByObject = new WeakMap();
         this.#selections = null;
 
@@ -1894,9 +1909,9 @@ export class Evaluator {
                 hasIdentities ||= this.#copiedIdentities !== null;
             }
 
-            const elements = this.#sourceElementsByList.get(value) ?? null;
+            const sources = this.#sourcesByList.get(value) ?? null;
 
-            this.#copiedIdentities = elements === null && !hasIdentities ? null : { elements, items: itemIdentities };
+            this.#copiedIdentities = sources === null && !hasIdentities ? null : { sources, items: itemIdentities };
 
             return Object.freeze(copy);
         }
@@ -1937,7 +1952,7 @@ export class Evaluator {
     /**
      * The metadata of the value an expression gave at its place in the result, read from the identities its copy left there: the record of the expression that produced it, followed through locals, bodies, `do` blocks, function calls,
      * object-root fields, the branch or operand a selecting expression selected and the property a computed property access selected; a field read keeps the record its whole has for that field, or its whole's own.
-     * An object expression's value records each field, and a projection's each item and the reference it came from. The value is undefined where the expression is described for a part read from it, and nothing beyond its record is described then.
+     * An object expression's value records each field, and a projection's each item and the input it came from. The value is undefined where the expression is described for a part read from it, and nothing beyond its record is described then.
      * The context record is the record of the value `it` stands for where the expression stands, the value an object expression follows or the item it projects, or null where there is none.
      */
     #metadataOf(node, value, identities, contextRecord) {
@@ -2031,9 +2046,10 @@ export class Evaluator {
         if (Array.isArray(value)) {
             const itemContextRecord = followed === null ? contextRecord : Evaluator.#inherited(followed);
             const items = value.map((item, index) => this.#metadataOfFields(node, item, identities?.items?.[index] ?? null, itemContextRecord));
-            const sources = identities?.elements ?? null;
+            const sources = identities?.sources ?? null;
 
-            return Object.freeze({ origin: this.#recordOf(node, null, null).origin, tolerance: null, items: Object.freeze(items), sources: sources === null ? null : Object.freeze([...sources]) });
+            // A list no projection built records no sources at all, so a null source and absent sources stay apart.
+            return Object.freeze({ origin: this.#recordOf(node, null, null).origin, tolerance: null, items: Object.freeze(items), ...(sources === null ? {} : { sources }) });
         }
 
         return value === null ? this.#recordOf(node, null, null) : this.#metadataOfFields(node, value, identities, followed ?? contextRecord);

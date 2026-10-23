@@ -9,7 +9,7 @@
 | Language | `1.0.0-alpha.33` | `1.0.0-alpha.34` |
 | Definition format | 33 | 34 |
 
-The implementation reads definition version 33, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module. It still uses flat member declarations, module-level conversions, implicit type parameters, which read every single capital letter as one and refuse a type named by one letter, and built-in DOM types; an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. The specification describes their replacement, which the plan's units deliver.
+The implementation reads definition version 33, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module. It declares reference types, with their hierarchy, membership and recognition, beside structured types of fields, and still uses flat member declarations, module-level conversions, and implicit type parameters, which read every single capital letter as one and refuse a type named by one letter; an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. The specification describes their replacement, which the plan's units deliver.
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Six specification examples resolve and evaluate; 28 remain.
 
@@ -28,7 +28,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | Unit | Work | State |
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
-| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | In progress: steps 1 and 2 done |
+| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | In progress: steps 1 to 3 done |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
@@ -56,7 +56,7 @@ Every declaration takes its final shape, and the types those declarations make r
 
 1. ✅ **Registry queries.** The resolver, the evaluator, result paths and the entry point read declarations only through registry queries, never a declaration's `target`, `syntax` or `fields` directly, so the declarations' storage can change behind them. Nothing a script sees changes.
 2. ✅ **One type relation.** A registry-aware checker replaces the static assignability, merging, comparability and node checks of `Type`, and the resolver's receiver matching, at every call site. It brings `Any`, distinct from a result left out, into the type model and the checker, registration refusing it in a declaration until [unit 2](#unit-2--member-selection-and-deferred-evaluation) selects and checks its values end to end; the rules of `null` and `Never`; [assignability, equal types and merging](../spec/types.md#types-assignability-and-merging), object types by their fields; and takes a generic value type by its declaration, never `List` by name, so [collections](proposals/collections.md)' `Dictionary` and `Pair` join it in unit 4 without replacing it; neither is public before then.
-3. **Reference types and binding,** in the current flat member shape:
+3. ✅ **Reference types and binding,** in the current flat member shape:
    - `typeOf`, `isInstance`, `abstract` and `supertype`, a hierarchy refused where it cycles; the hierarchy in assignability, list covariance, merging to the nearest shared supertype, and identity equality of references.
    - `registry.bind`, recognizing values by every module's `typeOf`, with declared binding types resolved against the registry, a binding set captured once and belonging to its registry, and a cycle refused with its own error. Binding and repeated evaluation are measured at scale before any membership answer is cached, and any cache has defined validity rules.
    - Hierarchy casts; results, captures, declared bindings and casts checked by one membership rule, the destination's `isInstance` and every supertype's; a failed cast naming its value's established type, never recognized again.
@@ -184,6 +184,7 @@ Conditions the implementation reports that only language `1.0.0-alpha.33` has, c
 | `LEXICA4550` | module | A second default indexer of a receiver, across the registry | [Unit 1](#unit-1--declarations-and-the-type-model) |
 | `LEXICA4551` | module | Members of one name on overlapping receivers in two modules, refused at registration | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 | `LEXICA4553` | module | A module member and a member of its name on a type its module does not declare | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4556` | module | A type of the kind `structured` or `extension`, which the declaration model brings | [Unit 1](#unit-1--declarations-and-the-type-model) |
 | `LEXICA5502` | evaluation | A definition node no evaluation exists for | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 | `LEXICA5504` | evaluation | A function's result its callback contract does not declare, when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 
@@ -205,7 +206,8 @@ These capabilities work in the current implementation. The planned replacements 
 | Type selection | Type selectors and selectable types | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
 | Namespaces | Module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
 | Text and definitions | Parse, validate, format, quote, and locate; canonical text for definition version 33 | [Definition](../spec/definition.md) |
-| Runtime | Bindings, resolution, reuse by resolution key, evaluation with host hooks, and frozen results | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
+| Types | Reference types with their hierarchy, membership and recognition, structured types, one type relation, and casts within a hierarchy | [Types](../spec/types.md) |
+| Runtime | Bindings a registry makes, recognizing references, resolution, reuse by resolution key, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
 | Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/diagnostics-and-errors.md) |
 | Build | Bundle and type declarations | [Build](../README.md#build) |
 
@@ -213,7 +215,7 @@ These capabilities work in the current implementation. The planned replacements 
 
 **Implemented.**
 
-- Type names in PascalCase, Lexica's own and the built-in DOM types' among them, `Number`, `List<T>` and `Element`, and a module's type checked for its initial capital when the module is created. Lexica's own names are reserved, and the built-in DOM types' are not, since a module's `Element` is its own.
+- Type names in PascalCase, Lexica's own among them, `Number` and `List<T>`, and a module's type checked for its initial capital when the module is created. Lexica's own names are reserved.
 - A type identified by its module and local name, so different modules declare the same local name; a structured type's `import` and qualified type references, every reference resolved to its identity at registration; and an argument's diagnostic writing the type it expects and the one it finds by their qualified names where they share a local name. Until unit 3 brings imports, a script's type names resolve across the registry, unqualified where one type has the name.
 
 ### Indexers and computed properties

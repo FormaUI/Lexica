@@ -28,19 +28,20 @@ const createShop = () => lexica.createModule('shop', {
 describe('a host of plain data', () => {
     it('binds data as a frozen copy that later changes to the original never reach, keeping the resolution key', () => {
         const codes = ['TEN'];
-        const bindings = lexica.bind({ order: 'a', codes });
+        const registry = lexica.createRegistry([createShop()]);
+        const bindings = registry.bind({ order: 'a', codes });
 
         codes.push('TWENTY');
 
         expect(bindings.get('codes')).toEqual(['TEN']);
         expect(Object.isFrozen(bindings.get('codes'))).toBe(true);
-        expect(bindings.resolutionKey).toBe(lexica.bind({ order: 'a', codes: ['X'] }).resolutionKey);
-        expect(bindings.resolutionKey).not.toBe(lexica.bind({ order: 'b', codes }).resolutionKey);
+        expect(bindings.resolutionKey).toBe(registry.bind({ order: 'a', codes: ['X'] }).resolutionKey);
+        expect(bindings.resolutionKey).not.toBe(registry.bind({ order: 'b', codes }).resolutionKey);
     });
 
     it('resolves against its registry, telling the type, the declarations used and where each stands', () => {
         const registry = lexica.createRegistry([createShop()]);
-        const resolution = registry.resolve('{ total = order.total, cut = order.discount(code) }', lexica.bind({ order: 'a', code: 'TEN' }));
+        const resolution = registry.resolve('{ total = order.total, cut = order.discount(code) }', registry.bind({ order: 'a', code: 'TEN' }));
 
         expect(resolution.hostCall).toBeNull();
         expect(resolution.type).toBe('{ total: Price, cut: Number }');
@@ -52,7 +53,8 @@ describe('a host of plain data', () => {
     });
 
     it('names a used member of a list by its type, Lexica\'s List, as any member is named by the type it matched', () => {
-        const resolution = lexica.createRegistry([createShop()]).resolve('items.count', lexica.bind({ items: [1, 2] }));
+        const registry = lexica.createRegistry([createShop()]);
+        const resolution = registry.resolve('items.count', registry.bind({ items: [1, 2] }));
 
         expect(resolution.usedDeclarations.map(({ name }) => name)).toEqual(['List.count']);
     });

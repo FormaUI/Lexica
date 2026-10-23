@@ -38,7 +38,7 @@ const createPrices = invoked => new LexicaModule('prices', {
 const createEvaluator = (text, values, { env = {}, invoked = [] } = {}) => {
     const registry = new LexicaRegistry([Vocabulary.module, createPrices(invoked)]);
     const definition = ParsedTexts.parse(text);
-    const bindings = new ParameterBindings(values);
+    const bindings = new ParameterBindings(registry, values);
     const locations = ParsedTexts.locationsOf(definition);
     const resolved = new LanguageResolver(registry, bindings, locations).resolveDefinition(definition);
 

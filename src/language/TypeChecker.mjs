@@ -4,9 +4,6 @@
 
 import { Type } from './Type.mjs';
 
-/** The kinds of node, each of which fits where a node is declared. */
-const NODE_KINDS = Object.freeze(['Element', 'Document', 'DocumentFragment', 'ShadowRoot']);
-
 /** The scalar types, whose values an equality compares with each other. */
 const SCALAR_TYPE_NAMES = Object.freeze(['String', 'Number', 'Boolean']);
 
@@ -16,13 +13,13 @@ const SCALAR_TYPE_NAMES = Object.freeze(['String', 'Number', 'Boolean']);
  */
 
 export class TypeChecker {
-    /** The kinds of node, each of which fits where a node is declared. */
-    static nodeKinds = NODE_KINDS;
-
-    /** What declares the types the checker relates: a registry, or Lexica's own vocabulary for bindings made without one. @type {{ getGenericType(type: Type): { parameters: readonly { variance: 'covariant' | 'invariant' }[] } | undefined, getTargetTypes?(declaration: object): (Type | 'any')[] }} */
+    /**
+     * What declares the types the checker relates, a registry: a generic type's parameters and their variance, a reference type's supertype, whether a type is a reference type, and a member's receiver types.
+     * @type {{ getGenericType(type: Type): { parameters: readonly { variance: 'covariant' | 'invariant' }[] } | undefined, getSupertype(type: Type): Type | null, isReferenceType(type: Type): boolean, getTargetTypes(declaration: object): (Type | 'any')[] }}
+     */
     #declarations;
 
-    /** @param {{ getGenericType(type: Type): object | undefined }} declarations What declares the types the checker relates. */
+    /** @param {object} declarations What declares the types the checker relates, a registry. */
     constructor(declarations) {
         this.#declarations = declarations;
     }
@@ -124,9 +121,11 @@ export class TypeChecker {
             return firstType.kind === secondType.kind ? Type.createFunctionType([...firstType.functions, ...secondType.functions], isNullable) : null;
         }
 
-        // Two kinds of node are both nodes, the least type holding either.
-        if (this.isNode(firstType) && this.isNode(secondType) && firstType.name !== secondType.name) {
-            return Type.createNamedType('Node', isNullable);
+        // Two reference types of one hierarchy merge to the nearest supertype they share, and of two hierarchies to none.
+        if (firstType.kind === 'named' && secondType.kind === 'named' && firstType.identity !== secondType.identity && this.#declarations.isReferenceType(firstType) && this.#declarations.isReferenceType(secondType)) {
+            const shared = this.#lineageOf(firstType).find(ancestor => this.#lineageOf(secondType).some(other => other.identity === ancestor.identity));
+
+            return shared === undefined ? null : isNullable ? shared.toNullable() : shared.toNonNullable();
         }
 
         if (firstType.kind !== secondType.kind || firstType.name !== secondType.name || firstType.module !== secondType.module) {
@@ -167,14 +166,9 @@ export class TypeChecker {
         return this.isAssignable(firstType, secondType) || this.isAssignable(secondType, firstType);
     }
 
-    /** Whether values of the type are compared with each other by an equality, rather than with null alone: strings, numbers, Booleans and nodes. */
+    /** Whether values of the type are compared with each other by an equality, rather than with null alone: strings, numbers and Booleans by their values, and references by their identity. */
     isComparable(type) {
-        return type.kind === 'named' && type.module === null && (SCALAR_TYPE_NAMES.includes(type.name) || this.isNode(type));
-    }
-
-    /** Whether the type is a node or one of its kinds, Lexica's own. */
-    isNode(type) {
-        return type.kind === 'named' && type.module === null && (type.name === 'Node' || NODE_KINDS.includes(type.name));
+        return type.kind === 'named' && ((type.module === null && SCALAR_TYPE_NAMES.includes(type.name)) || this.#declarations.isReferenceType(type));
     }
 
     /** Whether the member applies to the receiver, by one of its receiver types, recording the arguments of the type parameters its types write. */
@@ -223,9 +217,24 @@ export class TypeChecker {
         return declaredType.typeArguments.length === actualType.typeArguments.length && declaredType.typeArguments.every((typeArgument, index) => this.matchType(typeArgument, actualType.typeArguments[index], typeArguments));
     }
 
-    /** Whether a value of the actual type is a value of the declared type by its name: the same named type, by its identity, or a kind of node where a node is declared. */
+    /** Whether a value of the actual type is a value of the declared type by its name: the same named type, by its identity, or a reference type beneath the declared one. */
     #fitsByName(declaredType, actualType) {
-        return (declaredType.name === actualType.name && declaredType.module === actualType.module) || (declaredType.kind === 'named' && declaredType.name === 'Node' && declaredType.module === null && this.isNode(actualType));
+        if (declaredType.name === actualType.name && declaredType.module === actualType.module) {
+            return true;
+        }
+
+        return declaredType.kind === 'named' && actualType.kind === 'named' && this.#lineageOf(actualType).some(ancestor => ancestor.identity === declaredType.identity);
+    }
+
+    /** The reference type and each supertype above it, nearest first, each without null; the type alone for any other type. */
+    #lineageOf(type) {
+        const lineage = [];
+
+        for (let current = type.toNonNullable(); current !== null; current = this.#declarations.getSupertype(current)) {
+            lineage.push(current.toNonNullable());
+        }
+
+        return lineage;
     }
 
     /** Whether two types of one generic declaration, or of none, relate argument by argument: a covariant one by assignability, an invariant one by equality. */

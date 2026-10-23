@@ -18,7 +18,7 @@ import { LexicaModule } from './language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from './language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from './language/vocabulary/Vocabulary.mjs';
 
-/** The parameter bindings each bindings object `bind` made stands for. @type {WeakMap<object, ParameterBindings>} */
+/** The parameter bindings each bindings object a registry's `bind` made stands for. @type {WeakMap<object, ParameterBindings>} */
 const PARAMETER_BINDINGS = new WeakMap();
 
 /** The definition a source gives: a text read with the module names given and checked, or a definition checked, each the same frozen definition the text's canonical form would give. */
@@ -75,9 +75,12 @@ const readWith = (definition, namespaceNames) => {
     return definition;
 };
 
-/** Bindings: the values bound by name, data a frozen copy of the data given and each reference itself, the type each value gives its binding, in type notation, and the resolution key that says which resolutions they may reuse. */
-const bind = (values = {}) => {
-    const parameterBindings = new ParameterBindings(values);
+/**
+ * Bindings, the registry's: the values bound by name, data a frozen copy of the data given and each reference itself, the type each value gives its binding or its host declares for it, in type notation, and the resolution key
+ * that says which resolutions they may reuse.
+ */
+const bind = (registry, values = {}, options = {}) => {
+    const parameterBindings = new ParameterBindings(registry, values, options);
     const bindings = Object.freeze({
         resolutionKey: parameterBindings.resolutionKey,
         has: name => parameterBindings.has(name),
@@ -90,8 +93,20 @@ const bind = (values = {}) => {
     return bindings;
 };
 
-/** The parameter bindings of bindings `bind` made, or of plain values, bound now. */
-const parameterBindingsOf = bindings => PARAMETER_BINDINGS.get(bindings) ?? new ParameterBindings(bindings ?? {});
+/** The parameter bindings of bindings the registry's `bind` made, or of plain values, which the registry binds now; bindings another registry made are refused. */
+const parameterBindingsOf = (registry, bindings) => {
+    const parameterBindings = PARAMETER_BINDINGS.get(bindings);
+
+    if (parameterBindings === undefined) {
+        return new ParameterBindings(registry, bindings ?? {});
+    }
+
+    if (parameterBindings.registry !== registry) {
+        throw LexicaErrors.structure('LEXICA2024', 'These bindings belong to another registry, which recognized their references; bind them with this registry', {});
+    }
+
+    return parameterBindings;
+};
 
 /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
 const locate = (definition, pointer) => {
@@ -130,7 +145,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
     };
 
     const createEvaluator = (bindings, env = {}) => {
-        const evaluatorBindings = parameterBindingsOf(bindings);
+        const evaluatorBindings = parameterBindingsOf(registry, bindings);
 
         if (evaluatorBindings.resolutionKey !== resolutionKey) {
             throw LexicaErrors.structure('LEXICA2025', 'These bindings resolve the expression otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
@@ -241,7 +256,8 @@ const registryOf = modules => {
         },
         format: source => DefinitionWriter.format(definitionWith(source).expression, namespaceNames()),
         quote: source => DefinitionWriter.write(definitionWith(source).expression, namespaceNames()),
-        resolve: (source, bindings = {}) => resolutionOf(registry, definitionWith(source), parameterBindingsOf(bindings)),
+        bind: (values = {}, options = {}) => bind(registry, values, options),
+        resolve: (source, bindings = {}) => resolutionOf(registry, definitionWith(source), parameterBindingsOf(registry, bindings)),
     });
 };
 
@@ -277,7 +293,6 @@ export const lexica = Object.freeze({
     createModule: (name, contents) => new LexicaModule(name, contents),
     declarations,
     createRegistry: (modules = []) => registryOf(modules),
-    bind,
     paths,
     info: Object.freeze({ versions: Object.freeze({ runtime: Versions.runtime, language: Versions.language, definition: Versions.definition }) }),
 });

@@ -8,7 +8,6 @@ import { LexicaError, LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { ResolvedDefinition } from './ResolvedDefinition.mjs';
 import { Type } from './Type.mjs';
-import { TypeChecker } from './TypeChecker.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
 const DATA_TYPE_NAMES = new Set(['Number', 'String', 'Boolean']);
@@ -238,7 +237,7 @@ export class LanguageResolver {
 
     /**
      * Resolves an equality: two values, compared, and answers a Boolean that is never null, whatever their types.
-     * A string, a number, a Boolean or a node is compared with a value of a type one of theirs fits, and a value of any other type with null alone; a value of the type null, and a never, compare with any.
+     * A string, a number, a Boolean or a reference is compared with a value of a type one of theirs fits, and a value of any other type with null alone; a value of the type null, and a never, compare with any.
      * Where `==`, or `!=` as it is negated, compares a value with a string that names one of its Boolean members, the refusal gives the member to write.
      */
     #resolveEquality(node, pointer, scope, isNegated) {
@@ -259,7 +258,7 @@ export class LanguageResolver {
 
             for (const [side, type] of [['left', leftType], ['right', rightType]]) {
                 if (!this.#typeChecker.isComparable(type)) {
-                    this.#fail('LEXICA3066', `'${operator}' compares a value of ${type} with null alone, since only strings, numbers, Booleans and nodes are compared with each other`, `${pointer}/${side}`);
+                    this.#fail('LEXICA3066', `'${operator}' compares a value of ${type} with null alone, since only strings, numbers, Booleans and references are compared with each other`, `${pointer}/${side}`);
                 }
             }
 
@@ -532,8 +531,8 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a cast: its target, a value, and the type it casts to, a node or one of its kinds, its result of that type, nullable where the target is, since null passes through it.
-     * A target that can never be of the type is refused, while one that always is, and null, are not, since a binding typed from its value may be either.
+     * Resolves a cast: its target, a value, and the type it casts to, a reference type, its result of that type, nullable where the target is, since null passes through it. A target of the type's hierarchy, beneath it, above it
+     * or of it, is cast, and null too, since a binding typed from its value may be either; a target that can never be of the type is refused. The cast keeps both types, for its evaluation and its message.
      */
     #resolveCast(node, pointer, scope) {
         const target = this.#resolveNode(node.target, `${pointer}/target`, scope);
@@ -543,16 +542,19 @@ export class LanguageResolver {
             this.#fail('LEXICA3048', `A cast's target is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/target`);
         }
 
-        if (!this.#typeChecker.isNode(type)) {
-            this.#fail(this.#declaresTypeNamed(node.type) ? 'LEXICA3020' : 'LEXICA3019', `'as' casts to Node or one of its kinds, ${TypeChecker.nodeKinds.join(', ')}, and '${node.type}' is none of them`, pointer);
+        if (!this.#moduleRegistry.isReferenceType(type)) {
+            this.#fail(this.#declaresTypeNamed(node.type) ? 'LEXICA3020' : 'LEXICA3019', `'as' casts to a reference type, and '${node.type}' is none`, pointer);
         }
 
         const from = target.type;
-        const canBe = from.kind === 'null' || from.kind === 'never' || (this.#typeChecker.isNode(from) && (from.name === 'Node' || type.name === 'Node' || from.name === type.name));
+        const base = from.toNonNullable();
+        const canBe = from.kind === 'null' || from.kind === 'never' || (this.#moduleRegistry.isReferenceType(base) && (this.#typeChecker.isAssignable(type, base) || this.#typeChecker.isAssignable(base, type)));
 
         if (!canBe) {
-            this.#fail('LEXICA3060', `A value of ${from.toNonNullable()} can never be cast to ${node.type}: the cast would always reject it`, pointer);
+            this.#fail('LEXICA3060', `A value of ${base} can never be cast to ${node.type}, a type of another hierarchy: the cast would always reject it`, pointer);
         }
+
+        this.#resolutions.set(pointer, { kind: 'cast', type, targetType: base });
 
         return { type: from.kind === 'null' || from.isNullable ? type.toNullable() : type, kind: 'value', isFixed: false };
     }
@@ -619,7 +621,7 @@ export class LanguageResolver {
         const to = this.#typeNamed(node.type, pointer);
 
         if (!this.#moduleRegistry.isConvertible(to)) {
-            const cast = to?.kind === 'named' && this.#typeChecker.isNode(to) ? `; a node is cast to one of its kinds with 'as', as in … as ${node.type}` : '';
+            const cast = to?.kind === 'named' && this.#moduleRegistry.isReferenceType(to) ? `; a reference is cast to a type of its hierarchy with 'as', as in … as ${node.type}` : '';
 
             this.#fail(this.#declaresTypeNamed(node.type) ? 'LEXICA3021' : 'LEXICA3019', `'to' converts to a type of data named as it is declared, Number, String, Boolean or a structured type the vocabulary declares, and '${node.type}' is none of them${cast}`, pointer);
         }
@@ -2090,8 +2092,10 @@ export class LanguageResolver {
         const objectType = Type.createObjectType(fieldTypes);
         const isNullable = target?.type.isNullable === true;
 
-        // A list's null item projects to null at its position, so the objects of a list whose items can be null can be null too.
+        // A list's null item projects to null at its position, so the objects of a list whose items can be null can be null too; the projection keeps its items' type, which each item's source follows.
         if (target?.type.isList === true) {
+            this.#resolutions.set(pointer, { kind: 'projection', itemType: target.type.itemType });
+
             return { type: Type.createListType(target.type.itemType.isNullable ? objectType.toNullable() : objectType, isNullable), kind, isFixed: false };
         }
 

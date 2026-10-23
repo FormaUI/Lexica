@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
+import { Light, Room, withHome } from '../support/home.mjs';
 
 /** The error a call throws. */
 const getError = call => {
@@ -25,7 +26,7 @@ const hostCall = (name, target, result, options = {}) => lexica.declarations.fun
  * A shop's module on words, with a member of each shape the conditions need: properties, a named indexer, functions of positional and options arguments, a fixed argument, a function parameter, expression
  * parameters on a list, on a word and on no receiver, members of one name for two kinds of list, module members, host calls and a structured type converted from a word.
  */
-const createShop = () => lexica.createModule('shop', {
+const createShop = () => lexica.createModule('shop', withHome({
     types: [{ name: 'Cup', fields: { size: 'Number' } }],
     typeSelectors: [{ name: 'flavor' }],
     selectableTypes: [{ name: 'size', selector: 'flavor', type: 'Number' }],
@@ -33,7 +34,7 @@ const createShop = () => lexica.createModule('shop', {
     members: [
         property('size', 'String', 'Number', { updates: constant }),
         property('partner', 'String', 'String?', { updates: constant }),
-        property('el', 'String', 'Element', { updates: constant }),
+        property('device', 'String', 'Device', { updates: constant }),
         property('open', null, 'Boolean', { updates: constant }),
         call('letter', 'String', 'String?', { syntax: 'indexer', parameters: [valueParameter('index', 'Number')] }),
         call('pad', 'String', 'String', { parameters: [valueParameter('width', 'Number')] }),
@@ -53,7 +54,7 @@ const createShop = () => lexica.createModule('shop', {
         hostCall('order', 'String', 'Number', { parameters: [valueParameter('count', 'Number')] }),
         hostCall('hold', 'String', undefined),
     ],
-});
+}));
 
 const values = { s: 'oat', xs: [1, 2], ys: [3], e: [], nothing: null, no: false, flag: true, p: 'size' };
 
@@ -210,14 +211,20 @@ describe('the codes of resolution', () => {
             expectCode('s to Cup', 'LEXICA3059', 'validation', values, [mugs]);
         });
         it('LEXICA3020, a cast to a name that is not a reference type', () => expectCode('s as Number', 'LEXICA3020'));
-        it('LEXICA3060, a cast of a target that can never be of its type', () => expectCode('s as Element', 'LEXICA3060'));
-        it('LEXICA3021, a conversion to a type that is not data', () => expectCode('s to Element', 'LEXICA3021'));
+        it('LEXICA3060, a cast of a target that can never be of its type', () => {
+            expectCode('s as Light', 'LEXICA3060');
+            expectCode('room as Light', 'LEXICA3060', 'validation', { ...values, room: new Room('kitchen') });
+        });
+        it('LEXICA3021, a conversion to a type that is not data', () => expectCode('s to Device', 'LEXICA3021'));
         it('LEXICA3022, a conversion no conversion operator joins', () => expectCode('s.size to Cup', 'LEXICA3022'));
     });
 
     describe('objects, root and results', () => {
-        it('LEXICA3043, a result that would contain a reference value', () => expectCode('s.el', 'LEXICA3043'));
-        it('LEXICA3043, a field that would contain a reference value', () => expectCode('{ a = s.el }', 'LEXICA3043'));
+        it('LEXICA3043, a result that would contain a reference value', () => {
+            expectCode('s.device', 'LEXICA3043');
+            expectCode('lamp', 'LEXICA3043', 'validation', { ...values, lamp: new Light('lamp') });
+        });
+        it('LEXICA3043, a field that would contain a reference value', () => expectCode('{ a = s.device }', 'LEXICA3043'));
         it('LEXICA3044, a field read through root that is not completed there', () => expectCode('{ a = root.b, b = 1 }', 'LEXICA3044'));
         it('LEXICA3047, a field that would hold root', () => expectCode('{ a = 1, b = root }', 'LEXICA3047'));
     });

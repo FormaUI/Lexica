@@ -57,17 +57,43 @@ export interface LexicaBindingValues {
     [name: string]: unknown;
 }
 
-/** Bindings as `lexica.bind` makes them: data a frozen copy of the data given, each reference itself, and the resolution key that says which resolutions they may reuse. */
+/** Bindings as a registry's `bind` makes them, the registry's own: data a frozen copy of the data given, each reference itself, and the resolution key that says which resolutions they may reuse. */
 export interface LexicaBindings {
-    /** Each binding's type, with each primitive binding's value, which a resolution is reused with. */
+    /** Each binding's type by its qualified identity, with each primitive binding's value, which a resolution is reused with. */
     readonly resolutionKey: string;
     /** Whether a value is bound to the name. */
     has(name: string): boolean;
     /** The value bound to the name: data as a frozen copy, a reference as itself. */
     get(name: string): unknown;
-    /** The type the value bound to the name gives it, in type notation, as `List<Number?>`. */
+    /** The type the value bound to the name gives it, or its host declared for it, in type notation, as `List<Number?>`. */
     typeOf(name: string): string | undefined;
 }
+
+/** How a registry binds values: the reference type declared for a top-level binding, by its name, unqualified or qualified by its module, in place of recognizing its value. */
+export interface LexicaBindOptions {
+    types?: Record<string, string>;
+}
+
+/** A reference type a module declares: its name, the supertype it names, whether it is abstract, the modules whose types it names unqualified, and the membership a value of it passes. */
+export interface LexicaReferenceTypeDeclaration {
+    name: string;
+    kind: 'reference';
+    /** Whether the value belongs to the type, answered synchronously, changing nothing. */
+    isInstance(value: unknown): boolean;
+    supertype?: string;
+    abstract?: boolean;
+    import?: string[];
+}
+
+/** A structured type a module declares: its name, its fields' types and the modules whose types its fields name unqualified. */
+export interface LexicaStructuredTypeDeclaration {
+    name: string;
+    fields: Record<string, string>;
+    import?: string[];
+}
+
+/** The input a projected item came from, of the kind its established type gives it: a reference as the host holds it, data as Lexica's own frozen copy, or null. */
+export type LexicaProjectionSource = { readonly kind: 'reference'; readonly value: unknown } | { readonly kind: 'data'; readonly value: unknown } | { readonly kind: 'null' };
 
 /** Where a failure is. */
 export interface LexicaErrorLocation {
@@ -272,8 +298,10 @@ export interface LexicaMemberDeclaration {
 
 /** What a module declares. */
 export interface LexicaModuleContents {
-    /** The structured types it declares, each with its fields' types and the modules whose types its fields name unqualified. */
-    types?: { name: string; fields: Record<string, string>; import?: string[] }[];
+    /** Its recognition of a host's value: the name of the most specific of its own reference types the value is of, or null. */
+    typeOf?(value: unknown): string | null;
+    /** The reference types and the structured types it declares. */
+    types?: (LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration)[];
     /** Its members, each named as a name is; a test of a receiver is a function whose result is a boolean. */
     members?: LexicaMemberDeclaration[];
     /** The type selectors it declares, each by its name alone, named once across every module. */
@@ -291,7 +319,8 @@ export interface LexicaModuleContents {
 /** A vocabulary's declarations as data, each that runs code carrying its implementation. */
 export interface LexicaModule {
     readonly name: string;
-    readonly types: readonly { readonly name: string; readonly fields: Readonly<Record<string, string>>; readonly import?: readonly string[] }[];
+    readonly typeOf: ((value: unknown) => string | null) | undefined;
+    readonly types: readonly Readonly<LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration>[];
     readonly members: readonly LexicaMemberDeclaration[];
     readonly typeSelectors: readonly LexicaTypeSelectorDeclaration[];
     readonly selectableTypes: readonly LexicaSelectableTypeDeclaration[];
@@ -303,14 +332,15 @@ export interface LexicaModule {
 /**
  * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution,
  * with one candidate selected, produced two values; the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the records of the fields
- * an object expression built and of the items a projection built, with the reference each item came from. A part with no record inherits its parent's origin and tolerance, and a record's null tolerance overrides it.
+ * an object expression built and of the items a projection built, with the input each item came from, a list no projection built having no sources. A part with no record inherits its parent's origin and tolerance,
+ * and a record's null tolerance overrides it.
  */
 export interface LexicaResultMetadata {
     readonly origin: object;
     readonly tolerance: number | null;
     readonly fields?: Readonly<Record<string, LexicaResultMetadata>>;
     readonly items?: readonly LexicaResultMetadata[];
-    readonly sources?: readonly unknown[] | null;
+    readonly sources?: readonly LexicaProjectionSource[];
 }
 
 /** A member's invocation, as the hooks receive it: its declaration as its module declared it, its receiver, which a module member has none of, its arguments by parameter name, and where it stands. */
@@ -420,7 +450,9 @@ export interface LexicaRegistry {
     format(source: string | LexicaDefinition): string;
     /** The canonical text of a text or a definition on one line, written with the registry's module names, as a diagnostic quotes it. */
     quote(source: string | LexicaDefinition): string;
-    /** Resolves a source against the registered vocabulary and the bindings, a text read as `parse` reads it, or throws where it does not resolve. */
+    /** Binds values by name against the registry, its modules recognizing which are references: data as a frozen copy, each reference as itself, a top-level binding of a declared type typed by it. */
+    bind(values?: LexicaBindingValues, options?: LexicaBindOptions): LexicaBindings;
+    /** Resolves a source against the registered vocabulary and the bindings, the registry's own or plain values it binds, a text read as `parse` reads it, or throws where it does not resolve. */
     resolve(source: string | LexicaDefinition, bindings?: LexicaBindings | LexicaBindingValues): LexicaResolution;
 }
 
@@ -473,8 +505,6 @@ export interface Lexica {
     readonly declarations: LexicaDeclarations;
     /** Creates a registry of Lexica's own module and the modules given, which the host registers more modules with. */
     createRegistry(modules?: readonly LexicaModule[]): LexicaRegistry;
-    /** Binds values by name: data as a frozen copy, each reference as itself. */
-    bind(values?: LexicaBindingValues): LexicaBindings;
     readonly paths: LexicaPaths;
     readonly info: LexicaInfo;
 }

@@ -39,7 +39,7 @@ const values = { word: 'oat', other: 'milk', missing: null };
 const evaluate = (text, bound = values) => {
     const invoked = [];
     const registry = lexica.createRegistry([createShop(invoked)]);
-    const bindings = lexica.bind(bound);
+    const bindings = registry.bind(bound);
     const value = registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
 
     return { value, invoked };

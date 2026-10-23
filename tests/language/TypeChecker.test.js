@@ -4,9 +4,10 @@ import { TypeChecker } from '#lexica/language/TypeChecker.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { withHome } from '../support/home.mjs';
 
-/** The checker of Lexica's own types. */
-const checker = new TypeChecker(Vocabulary);
+/** The checker of a registry of the home's types: a light and a thermostat beneath a device, and a room of a hierarchy of its own. */
+const checker = new LexicaRegistry([Vocabulary.module, new LexicaModule('home', withHome())]).typeChecker;
 
 /** The type the notation writes, `Any` and `Any?` among them, which no notation a module writes reads yet, and an object type of the fields given. */
 const typeOf = text => {
@@ -38,20 +39,19 @@ describe('TypeChecker', () => {
             ['List<Number?>', 'List<Number>', 'refused'],
             ['List<Number>', 'List<String>', 'refused'],
             ['Number', 'List<Number>', 'refused'],
-            ['Element', 'Window', 'refused'],
+            ['home.Light', 'home.Room', 'refused'],
             ['Never', 'Number', 'assignable'],
-            ['Never', 'Element?', 'assignable'],
+            ['Never', 'home.Light?', 'assignable'],
             ['List<Never>', 'List<String>', 'assignable'],
             ['List<null>', 'List<Number?>', 'assignable'],
             ['List<null>', 'List<Number>', 'refused'],
-            ['Element', 'Node', 'assignable'],
-            ['ShadowRoot?', 'Node?', 'assignable'],
-            ['List<Document>', 'List<Node>', 'assignable'],
-            ['Node', 'Element', 'refused'],
-            ['Document', 'Element', 'refused'],
-            ['Window', 'Node', 'refused'],
+            ['home.Light', 'home.Device', 'assignable'],
+            ['home.Light?', 'home.Device?', 'assignable'],
+            ['List<home.Thermostat>', 'List<home.Device>', 'assignable'],
+            ['home.Device', 'home.Light', 'refused'],
+            ['home.Thermostat', 'home.Light', 'refused'],
+            ['home.Room', 'home.Device', 'refused'],
             ['home.Sensor', 'garden.Sensor', 'refused'],
-            ['home.Element', 'Node', 'refused'],
         ])('answers %s to %s as %s', (type, declaredType, answer) => {
             expect(checker.assignabilityOf(typeOf(type), typeOf(declaredType))).toBe(answer);
         });
@@ -96,7 +96,7 @@ describe('TypeChecker', () => {
         });
 
         it('relates a generic type\'s type arguments by the variance its declaration gives each', () => {
-            const invariant = new TypeChecker({ getGenericType: () => ({ parameters: [{ variance: 'invariant' }] }) });
+            const invariant = new TypeChecker({ getGenericType: () => ({ parameters: [{ variance: 'invariant' }] }), getSupertype: () => null, isReferenceType: () => false });
 
             expect(invariant.assignabilityOf(typeOf('List<Number>'), typeOf('List<Number?>'))).toBe('refused');
             expect(invariant.assignabilityOf(typeOf('List<Number>'), typeOf('List<Number>'))).toBe('assignable');
@@ -112,12 +112,12 @@ describe('TypeChecker', () => {
             expect(merge('Number', 'Number')).toBe('Number');
             expect(merge('Number', 'Number?')).toBe('Number?');
             expect(merge('null', 'String')).toBe('String?');
-            expect(merge('List<Element>', 'List<Element?>')).toBe('List<Element?>');
+            expect(merge('List<home.Light>', 'List<home.Light?>')).toBe('List<Light?>');
         });
 
         it('answers the other type for never, which adds no value', () => {
             expect(merge('Never', 'Number')).toBe('Number');
-            expect(merge('Element?', 'Never')).toBe('Element?');
+            expect(merge('home.Light?', 'Never')).toBe('Light?');
             expect(merge('Never', 'null')).toBe('null');
             expect(merge('List<Never>', 'List<Number>')).toBe('List<Number>');
         });
@@ -139,11 +139,12 @@ describe('TypeChecker', () => {
             expect(merge({ a: 'Number' }, { a: 'String' })).toBeNull();
         });
 
-        it('answers a node for two different kinds of node, nullable where either is', () => {
-            expect(merge('Element', 'Document')).toBe('Node');
-            expect(merge('ShadowRoot?', 'Node')).toBe('Node?');
-            expect(merge('DocumentFragment', 'DocumentFragment')).toBe('DocumentFragment');
-            expect(merge('Element', 'Window')).toBeNull();
+        it('answers the nearest supertype two reference types of one hierarchy share, nullable where either is, and none for two hierarchies', () => {
+            expect(merge('home.Light', 'home.Thermostat')).toBe('Device');
+            expect(merge('home.Light?', 'home.Device')).toBe('Device?');
+            expect(merge('home.Light', 'home.Light')).toBe('Light');
+            expect(merge('List<home.Light>', 'List<home.Thermostat?>')).toBe('List<Device?>');
+            expect(merge('home.Light', 'home.Room')).toBeNull();
         });
 
         it('answers null for types that don\'t merge', () => {
@@ -156,18 +157,14 @@ describe('TypeChecker', () => {
     describe('the types an equality compares', () => {
         it('fit where either is assignable to the other', () => {
             expect(checker.fitsEitherWay(typeOf('Number'), typeOf('Number?'))).toBe(true);
-            expect(checker.fitsEitherWay(typeOf('Node'), typeOf('Element'))).toBe(true);
+            expect(checker.fitsEitherWay(typeOf('home.Device'), typeOf('home.Light'))).toBe(true);
+            expect(checker.fitsEitherWay(typeOf('home.Room'), typeOf('home.Light'))).toBe(false);
             expect(checker.fitsEitherWay(typeOf('String'), typeOf('Number'))).toBe(false);
         });
 
-        it('compare strings, numbers, Booleans and nodes with each other, and any other type with null alone', () => {
-            expect(['String', 'Number', 'Boolean', 'Element', 'Node'].map(text => checker.isComparable(typeOf(text)))).toEqual([true, true, true, true, true]);
-            expect(['List<Number>', 'home.Sensor', 'home.Element'].map(text => checker.isComparable(typeOf(text)))).toEqual([false, false, false]);
-        });
-
-        it('tell a node of Lexica\'s from a type of a module\'s of one name', () => {
-            expect(checker.isNode(typeOf('Element'))).toBe(true);
-            expect(checker.isNode(typeOf('home.Element'))).toBe(false);
+        it('compare strings, numbers, Booleans and references with each other, and any other type with null alone', () => {
+            expect(['String', 'Number', 'Boolean', 'home.Light', 'home.Room'].map(text => checker.isComparable(typeOf(text)))).toEqual([true, true, true, true, true]);
+            expect(['List<Number>', 'home.Sensor'].map(text => checker.isComparable(typeOf(text)))).toEqual([false, false]);
         });
     });
 
@@ -175,8 +172,8 @@ describe('TypeChecker', () => {
         it('records the argument a type parameter matches', () => {
             const typeArguments = new Map();
 
-            expect(checker.matchType(typeOf('List<T>'), typeOf('List<Element>'), typeArguments)).toBe(true);
-            expect(typeArguments.get('T').toString()).toBe('Element');
+            expect(checker.matchType(typeOf('List<T>'), typeOf('List<home.Light>'), typeArguments)).toBe(true);
+            expect(typeArguments.get('T').toString()).toBe('Light');
         });
 
         it('keeps an item type\'s nullability in the argument it records', () => {
@@ -190,13 +187,13 @@ describe('TypeChecker', () => {
         it('matches concrete types, recording nothing', () => {
             const typeArguments = new Map();
 
-            expect(checker.matchType(typeOf('List<Element>'), typeOf('List<Element>'), typeArguments)).toBe(true);
+            expect(checker.matchType(typeOf('List<home.Light>'), typeOf('List<home.Light>'), typeArguments)).toBe(true);
             expect(typeArguments.size).toBe(0);
         });
 
         it.each([
             ['List<T>', 'Number'],
-            ['Element', 'Window'],
+            ['home.Light', 'home.Room'],
             ['rectangle', 'size'],
         ])('refuses %s against %s', (declaredType, actualType) => {
             expect(checker.matchType(typeOf(declaredType), typeOf(actualType), new Map())).toBe(false);
@@ -208,7 +205,7 @@ describe('TypeChecker', () => {
             expect(checker.matchType(typeOf('List<T>'), typeOf('List<Never>'), typeArguments)).toBe(true);
             expect(typeArguments.get('T')).toBe(Type.never);
             expect(checker.matchType(typeOf('List<Number>'), typeOf('List<Never>'), new Map())).toBe(true);
-            expect(checker.matchType(typeOf('Element'), Type.never, new Map())).toBe(true);
+            expect(checker.matchType(typeOf('home.Light'), Type.never, new Map())).toBe(true);
         });
 
         it('requires a type parameter met twice to match one type', () => {

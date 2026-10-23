@@ -1,24 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
+import { withHome } from '../support/home.mjs';
 
 const constant = { changes: 'constant', reads: 'fresh' };
 const observable = observations => ({ changes: 'observable', reads: 'fresh', observations });
 
-/** A property of an element, constant and fresh, with what a test changes. */
-const property = (overrides = {}) => ({ name: 'zoom', kind: 'property', target: 'Element', result: 'Number', updates: constant, ...overrides });
+/** A property of a string, constant and fresh, with what a test changes. */
+const property = (overrides = {}) => ({ name: 'zoom', kind: 'property', target: 'String', result: 'Number', updates: constant, ...overrides });
 
-/** A function of an element taking one value parameter, positional, constant and fresh, with what a test changes. */
+/** A function of a string taking one value parameter, positional, constant and fresh, with what a test changes. */
 const func = (overrides = {}) => property({ kind: 'function', arguments: 'positional', parameters: [parameter()], ...overrides });
 
 const parameter = (overrides = {}) => ({ name: 'amount', kind: 'value', type: 'Number', required: true, nulls: 'propagate', ...overrides });
 
-/** A function parameter, its callback taking an element and answering a Boolean. */
-const callback = (overrides = {}) => ({ name: 'test', kind: 'function', type: 'Boolean', required: true, parameters: ['Element'], ...overrides });
+/** A function parameter, its callback taking a string and answering a Boolean. */
+const callback = (overrides = {}) => ({ name: 'test', kind: 'function', type: 'Boolean', required: true, parameters: ['String'], ...overrides });
 
 /** A fixed parameter selecting a type through the selector `report`. */
 const selecting = (overrides = {}) => parameter({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report', ...overrides });
 
-/** A host call of an element, which declares no updates. */
+/** A host call of a string, which declares no updates. */
 const hostCall = (overrides = {}) => func({ invokedBy: 'host', updates: undefined, ...overrides });
 
 /** The error the call throws, which is a Lexica error. */
@@ -73,7 +74,7 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4030: a field a declaration does not take', () => {
-            expectCode(creating({ members: [property({ on: 'Element' })] }), 'LEXICA4030');
+            expectCode(creating({ members: [property({ on: 'String' })] }), 'LEXICA4030');
             expectCode(creating({ members: [property({ syntax: 'function-call' })] }), 'LEXICA4030');
             expectCode(creating({ members: [property({ updates: { ...constant, tolerence: 1 } })] }), 'LEXICA4030');
             expectCode(creating({ members: [func({ parameters: [parameter({ fixd: true })] })] }), 'LEXICA4030');
@@ -93,6 +94,44 @@ describe('the module error codes', () => {
 
     describe('of a type', () => {
         const fields = { points: 'Number' };
+        const reference = (overrides = {}) => ({ name: 'Lamp', kind: 'reference', isInstance: () => true, ...overrides });
+
+        it('LEXICA4554: a type of a kind that is none of a type\'s kinds', () => {
+            expectCode(creating({ types: [{ name: 'Lamp', kind: 'object', fields }] }), 'LEXICA4554');
+        });
+
+        it('LEXICA4556: a type of a kind the declaration model brings', () => {
+            expectCode(creating({ types: [{ name: 'Climate', kind: 'structured', fields }] }), 'LEXICA4556');
+            expectCode(creating({ types: [{ name: 'Lamps', kind: 'extension', target: 'Light' }] }), 'LEXICA4556');
+        });
+
+        it('LEXICA4017: a reference type without isInstance', () => {
+            expectCode(creating({ types: [reference({ isInstance: undefined })] }), 'LEXICA4017');
+        });
+
+        it('LEXICA4051: a typeOf or an isInstance that is not a function', () => {
+            expectCode(creating({ types: [reference({ isInstance: true })] }), 'LEXICA4051');
+            expectCode(creating({ typeOf: 'Lamp' }), 'LEXICA4051');
+        });
+
+        it('LEXICA4555: an abstract that is not a Boolean', () => {
+            expectCode(creating({ types: [reference({ abstract: 'yes' })] }), 'LEXICA4555');
+        });
+
+        it('LEXICA4030: a field a reference type does not take, its fields among them', () => {
+            expectCode(creating({ types: [reference({ fields })] }), 'LEXICA4030');
+            expectCode(creating({ types: [{ name: 'Chart', fields, supertype: 'Lamp' }] }), 'LEXICA4030');
+        });
+
+        it('LEXICA4016: a supertype that is not a reference type', () => {
+            expectCode(registering(module('charts', { types: [{ name: 'Chart', fields }, reference({ supertype: 'Chart' })] })), 'LEXICA4016');
+            expectCode(registering(module('charts', { types: [reference({ supertype: 'String' })] })), 'LEXICA4016');
+        });
+
+        it('LEXICA4050: a type hierarchy that is a cycle', () => {
+            expectCode(registering(module('charts', { types: [reference({ supertype: 'Bulb' }), reference({ name: 'Bulb', supertype: 'Lamp' })] })), 'LEXICA4050');
+            expectCode(registering(module('charts', { types: [reference({ supertype: 'Lamp' })] })), 'LEXICA4050');
+        });
 
         it('LEXICA4004: a type whose name begins with no capital letter', () => {
             expectCode(creating({ types: [{ name: 'chart', fields }] }), 'LEXICA4004');
@@ -171,6 +210,7 @@ describe('the module error codes', () => {
             expectCode(creating({ members: [property({ result: 'List<' })] }), 'LEXICA4512');
             expectCode(creating({ members: [func({ parameters: [parameter({ type: 'List<' })] })] }), 'LEXICA4512');
             expectCode(creating({ members: [func({ parameters: [callback({ parameters: ['List<'] })] })] }), 'LEXICA4512');
+            expectCode(creating({ types: [{ name: 'Lamp', kind: 'reference', isInstance: () => true, supertype: 'List<' }] }), 'LEXICA4512');
         });
     });
 
@@ -362,6 +402,7 @@ describe('the module error codes', () => {
 
         it('LEXICA4026: a tolerance on a result that holds no number', () => {
             expectCode(observing({ ...constant, tolerance: 1 }, { result: 'String' }), 'LEXICA4026');
+            expectCode(registering(module('charts', withHome({ members: [property({ result: 'Light', updates: { ...constant, tolerance: 1 } })] }))), 'LEXICA4026');
         });
 
         it('LEXICA4516: observations that are not a list', () => {
@@ -451,7 +492,7 @@ describe('the module error codes', () => {
     describe('of a conversion', () => {
         it('LEXICA4065: a conversion from or to a type that is not data', () => {
             expectCode(creating({ conversions: [{ from: 'String?', to: 'Number' }] }), 'LEXICA4065');
-            expectCode(registering(module('charts', { types: [{ name: 'Holder', fields: { element: 'Element' } }], conversions: [{ from: 'String', to: 'Holder' }] })), 'LEXICA4065');
+            expectCode(registering(module('charts', withHome({ types: [{ name: 'Holder', fields: { lamp: 'Light' } }], conversions: [{ from: 'String', to: 'Holder' }] }))), 'LEXICA4065');
         });
 
         it('LEXICA4066: a conversion from a type to itself', () => {

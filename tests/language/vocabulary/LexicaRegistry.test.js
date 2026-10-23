@@ -4,11 +4,12 @@ import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { declaration, functionDeclaration, messageOf, parameter, refusalOf } from './declarations.mjs';
+import { Light, withHome } from '../../support/home.mjs';
 
 describe('LexicaRegistry', () => {
     const own = () => new LexicaModule('charts', {
         types: [{ name: 'Chart', fields: { points: 'Number' } }],
-        members: [declaration({ name: 'points', target: 'Chart' }), declaration({ name: 'charts', target: 'Element' })],
+        members: [declaration({ name: 'points', target: 'Chart' }), declaration({ name: 'charts', target: 'String' })],
     });
 
     it('registers Lexica\'s own module and a module beside it', () => {
@@ -52,15 +53,16 @@ describe('LexicaRegistry', () => {
 
     it('refuses a default its parameter does not admit, by its type, its nullability and a structure\'s fields', () => {
         const range = new LexicaModule('ranges', { types: [{ name: 'Range', fields: { start: 'Number', end: 'Number?' } }] });
-        const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, range, new LexicaModule('charts', {
+        const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, range, new LexicaModule('charts', withHome({
             members: [functionDeclaration({ name: 'charts', parameters: [parameter({ name: 'value', type, required: false, default: value })] })],
-        })]);
+        }))]);
 
         expect(messageOf(registering('Number', 'many'))).toContain("The default of 'value' is no Number");
         expect(messageOf(registering('Number', null))).toContain('is no Number');
         expect(messageOf(registering('List<String>', ['a', 1]))).toContain('is no List<String>');
         expect(messageOf(registering('ranges.Range', { start: 0 }))).toContain('is no ranges.Range');
-        expect(messageOf(registering('Element?', {}))).toContain('is no Element?');
+        expect(messageOf(registering('Light?', {}))).toContain('is no Light?');
+        expect(messageOf(registering('Light?', new Light('lamp')))).toContain('is no Light?');
         expect(registering('Number?', null)).not.toThrow();
         expect(registering('List<String>', ['a', 'b'])).not.toThrow();
         expect(registering('ranges.Range', { start: 0, end: null })).not.toThrow();
@@ -75,35 +77,36 @@ describe('LexicaRegistry', () => {
 
     it('lets a module declare a member of any name on a type another module or the language declares', () => {
         const charts = new LexicaModule('charts', { types: [{ name: 'Chart', fields: { points: 'Number' } }] });
-        const zoom = new LexicaModule('zoom', { members: [declaration({ name: 'scale', target: 'charts.Chart' }), declaration({ name: 'level', target: 'Element' })] });
+        const zoom = new LexicaModule('zoom', { members: [declaration({ name: 'scale', target: 'charts.Chart' }), declaration({ name: 'level', target: 'String' })] });
         const registry = new LexicaRegistry([Vocabulary.module, charts, zoom]);
 
         expect(registry.getMembers('scale').map(member => registry.getOwner(member))).toEqual(['zoom']);
-        expect(registry.getMembers('level').map(member => member.target)).toEqual(['Element']);
+        expect(registry.getMembers('level').map(member => member.target)).toEqual(['String']);
     });
 
     it('refuses a member the registry already answers on the same receiver, naming its target', () => {
-        const module = new LexicaModule('charts', { members: [declaration({ name: 'charts', target: 'Element' }), declaration({ name: 'charts', target: 'Element' })] });
+        const module = new LexicaModule('charts', { members: [declaration({ name: 'charts', target: 'String' }), declaration({ name: 'charts', target: 'String' })] });
 
         expect(refusalOf(() => new LexicaRegistry([module]))).toMatchObject({ declaration: 'charts', field: 'target' });
         expect(messageOf(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('count', { members: [declaration({ name: 'count', target: 'List<Number>' })] })]))).toContain('declared already');
     });
 
-    it('refuses a member on a kind of node that the same name on node already answers', () => {
-        const parents = new LexicaModule('parent', { members: [declaration({ name: 'parent', target: 'Node' })] });
+    it('refuses a member on a type beneath one that the same name on that type already answers', () => {
+        const home = new LexicaModule('home', withHome());
+        const owners = new LexicaModule('owner', { members: [declaration({ name: 'owner', target: 'home.Device' })] });
 
-        expect(messageOf(() => new LexicaRegistry([Vocabulary.module, parents, new LexicaModule('other', { members: [declaration({ name: 'other', target: 'Element' }), declaration({ name: 'parent', target: 'ShadowRoot' })] })]))).toContain('declared already');
+        expect(messageOf(() => new LexicaRegistry([Vocabulary.module, home, owners, new LexicaModule('other', { members: [declaration({ name: 'other', target: 'home.Light' }), declaration({ name: 'owner', target: 'home.Thermostat' })] })]))).toContain('declared already');
     });
 
     it('lets one name answer on different receivers', () => {
-        const owners = new LexicaRegistry([new LexicaModule('host', { members: [declaration({ name: 'size', target: 'Window' }), declaration({ name: 'size', target: 'Element' })] })]).getMembers('size').map(member => member.target);
+        const owners = new LexicaRegistry([new LexicaModule('host', withHome({ members: [declaration({ name: 'size', target: 'Room' }), declaration({ name: 'size', target: 'Device' })] }))]).getMembers('size').map(member => member.target);
 
-        expect(owners).toEqual(['Window', 'Element']);
+        expect(owners).toEqual(['Room', 'Device']);
     });
 
     describe('module members, which have no target', () => {
         it('are declared once by name within their module, and reserve their name in its namespace, so a member of a receiver of that name is refused beside them', () => {
-            const members = [declaration({ name: 'now', target: undefined }), declaration({ name: 'now', target: 'Element' })];
+            const members = [declaration({ name: 'now', target: undefined }), declaration({ name: 'now', target: 'String' })];
 
             for (const declared of [members, [...members].reverse()]) {
                 expect(refusalOf(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('home', { members: declared })]))).toMatchObject({ module: 'home', declaration: 'now', field: 'target' });
@@ -114,7 +117,7 @@ describe('LexicaRegistry', () => {
 
         it('leave a member of their name on a receiver to another module, whose namespace is its own', () => {
             const home = new LexicaModule('home', { members: [declaration({ name: 'now', target: undefined })] });
-            const office = new LexicaModule('office', { members: [declaration({ name: 'now', target: 'Element' })] });
+            const office = new LexicaModule('office', { members: [declaration({ name: 'now', target: 'String' })] });
 
             expect(() => new LexicaRegistry([Vocabulary.module, home, office])).not.toThrow();
         });
@@ -152,7 +155,7 @@ describe('LexicaRegistry', () => {
 
         it('find the members of one name a module declares, its module members among them, and none of another module\'s', () => {
             const home = declaring();
-            const office = new LexicaModule('office', { members: [declaration({ name: 'size', target: 'Element' })] });
+            const office = new LexicaModule('office', { members: [declaration({ name: 'size', target: 'Number' })] });
             const registry = new LexicaRegistry([home, office]);
 
             expect(registry.getMembersDeclaredBy('home', 'size')).toEqual([home.members[1], home.members[2]]);
@@ -313,10 +316,10 @@ describe('conversions', () => {
         expect(messageOf(registering(charts([{ from: 'Number', to: 'Boolean' }])))).toContain("converts to or from one of its module's own types");
     });
 
-    it('convert between types of data a module declares, never one that holds a node or that no module declares', () => {
-        expect(messageOf(registering(charts([{ from: 'String', to: 'Chart' }, { from: 'Element', to: 'Chart' }])))).toContain("'Element' is no type of data");
+    it('convert between types of data a module declares, never a reference type, one that holds a reference or one that no module declares', () => {
+        expect(messageOf(registering(new LexicaModule('charts', withHome({ types: [chart], conversions: [{ from: 'String', to: 'Chart' }, { from: 'Light', to: 'Chart' }] }))))).toContain("'Light' is no type of data");
         expect(messageOf(registering(charts([{ from: 'Axis', to: 'Chart' }])))).toContain("'Axis' names the type 'Axis', which neither Lexica nor a module registered with it declares");
-        expect(messageOf(registering(charts([{ from: 'String', to: 'Chart' }], [{ name: 'Chart', fields: { anchor: 'Element' } }])))).toContain("'Chart' is no type of data");
+        expect(messageOf(registering(new LexicaModule('charts', withHome({ types: [{ name: 'Chart', fields: { anchor: 'Light' } }], conversions: [{ from: 'String', to: 'Chart' }] }))))).toContain("'Chart' is no type of data");
     });
 
     it('convert a structured type that holds a list of data as any other, a list itself waiting for the collection model', () => {
@@ -329,13 +332,13 @@ describe('conversions', () => {
 });
 
 describe("a module's own collisions", () => {
-    const lit = (overrides = {}) => declaration({ name: 'lit', kind: 'function', result: 'Boolean', parameters: [], ...overrides });
+    const lit = (overrides = {}) => declaration({ name: 'lit', kind: 'function', target: 'Light', result: 'Boolean', parameters: [], ...overrides });
     const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, ...modules]);
 
     it('refuse members of one name on overlapping receivers, a type and the type beneath it among them, the test of a receiver as any other', () => {
-        expect(refusalOf(registering(new LexicaModule('lit', { members: [lit(), lit()] })))).toMatchObject({ declaration: 'lit', field: 'target' });
-        expect(messageOf(registering(new LexicaModule('lit', { members: [lit(), lit({ target: 'Node' })] })))).toContain("'lit' is declared already for Element");
-        expect(messageOf(registering(new LexicaModule('lit', { members: [lit(), declaration({ name: 'lit', target: 'Node' })] })))).toContain("'lit' is declared already for Element");
+        expect(refusalOf(registering(new LexicaModule('lit', withHome({ members: [lit(), lit()] }))))).toMatchObject({ declaration: 'lit', field: 'target' });
+        expect(messageOf(registering(new LexicaModule('lit', withHome({ members: [lit(), lit({ target: 'Device' })] }))))).toContain("'lit' is declared already for Light");
+        expect(messageOf(registering(new LexicaModule('lit', withHome({ members: [lit(), declaration({ name: 'lit', target: 'Device' })] }))))).toContain("'lit' is declared already for Light");
     });
 
     it('take one name on receivers that do not overlap, each receiver selecting its own', () => {
@@ -345,7 +348,7 @@ describe("a module's own collisions", () => {
     });
 
     it('find a module by its name, which gives its namespace, every module but Lexica\'s own', () => {
-        const views = new LexicaModule('views', { members: [lit()] });
+        const views = new LexicaModule('views', withHome({ members: [lit()] }));
         const registry = registering(views)();
 
         expect(registry.getModule('views')).toBe(views);

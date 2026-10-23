@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
+import { Light, Thermostat, withHome } from './support/home.mjs';
 
 /** The error a call throws. */
 const getError = call => {
@@ -286,27 +287,27 @@ describe('prepared calls', () => {
 });
 
 describe('values a host supplies', () => {
-    /** An element and a document, as the language tells the references it defines apart. */
-    const element = { nodeType: 1 };
-    const document = { nodeType: 9 };
+    /** A light and a thermostat, references of two types the home declares, which its typeOf recognizes. */
+    const lamp = new Light('lamp');
+    const heater = new Thermostat('heater');
 
     /** A desk's module: a report its host supplies, with references, data and spots nested in it; a spot that may be none; and a spot a member answers, which its implementation answers with no label. */
-    const createReports = () => lexica.createModule('reports', {
+    const createReports = () => lexica.createModule('reports', withHome({
         types: [
             { name: 'Spot', fields: { x: 'Number', label: 'String?' } },
-            { name: 'Report', fields: { target: 'Element?', owner: 'Element', note: 'String?', count: 'Number', spot: 'Spot?', spots: 'List<Spot>' } },
+            { name: 'Report', fields: { target: 'Light?', owner: 'Light', note: 'String?', count: 'Number', spot: 'Spot?', spots: 'List<Spot>' } },
         ],
         members: [
             lexica.declarations.function('report', 'String', 'Report', { invokedBy: 'host' }),
             lexica.declarations.function('maybe', 'String', 'Spot?', { invokedBy: 'host' }),
             property('spotted', 'String', 'Spot', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => ({ x: 1 }) }),
         ],
-    });
+    }));
 
     /** The call the text ends in, prepared against a registry holding the desk's module. */
     const prepared = text => lexica.createRegistry([createReports()]).resolve(text, { desk: 'desk' }).createEvaluator({ desk: 'desk' }).prepareCall();
     const reporting = () => prepared('desk.report() { hasTarget = it.target != null, note = it.note, count = it.count, spot = it.spot, spots = it.spots }');
-    const report = overrides => ({ target: element, owner: element, note: 'filed', count: 1, spot: { x: 1, label: 'a' }, spots: [{ x: 2, label: null }], ...overrides });
+    const report = overrides => ({ target: lamp, owner: lamp, note: 'filed', count: 1, spot: { x: 1, label: 'a' }, spots: [{ x: 2, label: null }], ...overrides });
 
     /** The evaluation error a projection fails with, where the call stands, by its message. */
     const refusalOf = (call, value) => {
@@ -335,18 +336,19 @@ describe('values a host supplies', () => {
     it('take null where the type is nullable, and fail where it is not, the value itself among them', () => {
         expect(reporting().project(report({ note: null })).value.note).toBeNull();
         expect(prepared('desk.maybe()').project(null).value).toBeNull();
-        expect(refusalOf(reporting(), report({ owner: null }))).toContain("supplied a value whose 'owner' is null, and 'owner' is declared Element");
+        expect(refusalOf(reporting(), report({ owner: null }))).toContain("supplied a value whose 'owner' is null, and 'owner' is declared Light");
         expect(refusalOf(reporting(), null)).toContain("The host call 'report' supplied null, and it declares Report");
     });
 
     it('narrow a reference of another type to null where a nullable reference type is declared, and fail where the type is not nullable', () => {
-        expect(reporting().project(report({ target: document })).value.hasTarget).toBe(false);
-        expect(refusalOf(reporting(), report({ owner: document }))).toContain("supplied a value whose 'owner' is a node, and 'owner' is declared Element");
+        expect(reporting().project(report({ target: heater })).value.hasTarget).toBe(false);
+        expect(refusalOf(reporting(), report({ owner: heater }))).toContain("supplied a value whose 'owner' is an instance of Thermostat, and 'owner' is declared Light");
+        expect(refusalOf(reporting(), report({ target: new Map() }))).toContain("supplied a value whose 'target' is an instance of Map, and 'target' is declared Light?");
     });
 
     it('fail on mistyped data whatever its type\'s nullability, naming the part of the value by its path at every level', () => {
         expect(refusalOf(reporting(), report({ note: 5 }))).toContain("supplied a value whose 'note' is 5, and 'note' is declared String?");
-        expect(refusalOf(reporting(), report({ target: 'desk' }))).toContain("supplied a value whose 'target' is \"desk\", and 'target' is declared Element?");
+        expect(refusalOf(reporting(), report({ target: 'desk' }))).toContain("supplied a value whose 'target' is \"desk\", and 'target' is declared Light?");
         expect(refusalOf(reporting(), report({ spot: { x: 'far' } }))).toContain("supplied a value whose 'spot.x' is \"far\", and 'spot.x' is declared Number");
         expect(refusalOf(reporting(), report({ spots: [{ x: 1 }, { x: 'b' }] }))).toContain("supplied a value whose 'spots[1].x' is \"b\", and 'spots[1].x' is declared Number");
         expect(refusalOf(reporting(), report({ spots: [, { x: 1 }] }))).toContain("supplied a value whose 'spots' is");

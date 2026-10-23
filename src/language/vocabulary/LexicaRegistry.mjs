@@ -264,6 +264,130 @@ export class LexicaRegistry {
 
     /** The structured type the named type is, or undefined for a type no module declares as one. */
     getStructure(type) {
+        const declared = this.#typeDeclarationOf(type);
+
+        return declared?.kind === 'reference' ? undefined : declared;
+    }
+
+    /** The reference type the named type is, or undefined for a type no module declares as one. */
+    getReferenceType(type) {
+        const declared = this.#typeDeclarationOf(type);
+
+        return declared?.kind === 'reference' ? declared : undefined;
+    }
+
+    /** Whether the type is a reference type a module declares, nullable or not. */
+    isReferenceType(type) {
+        return this.getReferenceType(type) !== undefined;
+    }
+
+    /** The supertype the reference type names, made nullable where the type is, or null where it names none or is no reference type. */
+    getSupertype(type) {
+        const declared = this.getReferenceType(type);
+
+        if (declared?.supertype === undefined) {
+            return null;
+        }
+
+        const supertype = this.getDeclaredType(declared, declared.supertype);
+
+        return type.isNullable ? supertype.toNullable() : supertype;
+    }
+
+    /**
+     * Whether the value belongs to the reference type: where the `isInstance` of the type and of every supertype above it answers true. An answer that isn't a Boolean, and an exception it throws, are faults of the module
+     * that declares the type, naming what asked.
+     * @param {unknown} value
+     * @param {Type} type
+     * @param {string} asked What asked whether the value belongs, as a message names it.
+     */
+    belongsTo(value, type, asked) {
+        for (let current = type.toNonNullable(); current !== null; current = this.getSupertype(current)) {
+            const declared = this.getReferenceType(current);
+            const location = { module: this.#owners.get(declared), declaration: declared.name };
+            let answer;
+
+            try {
+                answer = declared.isInstance(value);
+            } catch (error) {
+                throw LexicaErrors.evaluation('LEXICA5027', `The isInstance of ${current} threw as ${asked} asked whether a value belongs to it`, location, { cause: error });
+            }
+
+            if (typeof answer !== 'boolean') {
+                throw LexicaErrors.evaluation('LEXICA5017', `The isInstance of ${current} answered what isn't a Boolean as ${asked} asked whether a value belongs to it`, location);
+            }
+
+            if (!answer) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * The reference types the registry's modules recognize the value as, each module's `typeOf` naming the most specific of its own reference types the value is of, or null; none for a value that isn't an object, which is data.
+     * A name that is no reference type of its module, an abstract one, one the value doesn't belong to, and an exception `typeOf` throws are faults of the module, naming what asked.
+     * @param {unknown} value
+     * @param {string} asked What asked for the value's type, as a message names it.
+     * @returns {Type[]}
+     */
+    recognize(value, asked) {
+        if (value === null || typeof value !== 'object') {
+            return [];
+        }
+
+        const recognized = [];
+
+        for (const module of this.#modules.values()) {
+            if (module.typeOf === undefined) {
+                continue;
+            }
+
+            let name;
+
+            try {
+                name = module.typeOf(value);
+            } catch (error) {
+                throw LexicaErrors.evaluation('LEXICA5026', `The typeOf of the module '${module.name}' threw as ${asked} asked for a value's type`, { module: module.name }, { cause: error });
+            }
+
+            if (name === null || name === undefined) {
+                continue;
+            }
+
+            const type = typeof name === 'string' ? Type.createNamedType(name, false, module.name) : null;
+            const declared = type === null ? undefined : this.getReferenceType(type);
+
+            if (declared === undefined || declared.abstract === true || !this.belongsTo(value, type, asked)) {
+                const wrong = declared === undefined ? `${JSON.stringify(name) ?? String(name)}, which is no reference type of its own` : declared.abstract === true ? `the abstract type ${name}` : `${name}, which the value doesn't belong to`;
+
+                throw LexicaErrors.evaluation('LEXICA5002', `The typeOf of the module '${module.name}' named ${wrong}, as ${asked} asked for a value's type`, { module: module.name });
+            }
+
+            recognized.push(type);
+        }
+
+        return recognized;
+    }
+
+    /** The public types of the local name, Lexica's own among them, or the one type a qualified name names, as a host's declared binding type names one; none where no type is named so. */
+    getTypesNamed(name) {
+        const dot = name.indexOf('.');
+
+        if (dot !== -1) {
+            const type = Type.createNamedType(name.slice(dot + 1), false, name.slice(0, dot));
+
+            return this.#typeDeclarationOf(type) === undefined ? [] : [type];
+        }
+
+        const own = LexicaModule.builtInTypeNames.includes(name) ? [Type.createNamedType(name)] : [];
+
+        return [...own, ...this.getModulesDeclaringType(name).map(moduleName => Type.createNamedType(name, false, moduleName))];
+    }
+
+    /** The declaration of the named type a module declares, registered or being registered, or undefined. */
+    #typeDeclarationOf(type) {
         if (type.kind !== 'named' || type.module === null) {
             return undefined;
         }
@@ -285,7 +409,7 @@ export class LexicaRegistry {
 
     /** The type of each field named so, as its structured type declares it, across every structured type. */
     getFieldTypes(name) {
-        return [...this.#types.values()].flatMap(type => (Object.hasOwn(type.fields, name) ? [this.getDeclaredType(type, type.fields[name])] : []));
+        return [...this.#types.values()].flatMap(type => (type.kind !== 'reference' && Object.hasOwn(type.fields, name) ? [this.getDeclaredType(type, type.fields[name])] : []));
     }
 
     /** The names of the registered modules that declare a type of the local name, in the order they were registered. */
@@ -443,7 +567,25 @@ export class LexicaRegistry {
         const check = (declaration, notation, declarationName) => this.#declaredTypeOf(declaration, notation, (code, message) => fail(code, message, declarationName));
 
         for (const type of module.types) {
-            Object.values(type.fields).forEach(notation => check(type, notation, type.name));
+            Object.values(type.fields ?? {}).forEach(notation => check(type, notation, type.name));
+
+            // A supertype is a reference type, one the module declares or one a module registered before it declares.
+            if (type.supertype !== undefined && !this.isReferenceType(check(type, type.supertype, type.name))) {
+                fail('LEXICA4016', `The supertype of '${type.name}', ${type.supertype}, is no reference type`, type.name, 'supertype');
+            }
+        }
+
+        // A module registered before names none of this module's types, so a hierarchy that cycles does within the module.
+        for (const type of module.types.filter(declared => declared.supertype !== undefined)) {
+            const visited = [type.name];
+
+            for (let current = this.getSupertype(Type.createNamedType(type.name, false, module.name)); current !== null && current.module === module.name; current = this.getSupertype(current)) {
+                if (visited.includes(current.name)) {
+                    fail('LEXICA4050', `The hierarchy of '${type.name}' is a cycle: ${[...visited, current.name].join(' beneath ')}`, type.name, 'supertype');
+                }
+
+                visited.push(current.name);
+            }
         }
 
         module.selectableTypes.forEach(selectable => check(selectable, selectable.type, selectable.name));

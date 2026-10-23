@@ -7,34 +7,35 @@ import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { Light, withHome } from '../support/home.mjs';
 
 const { property } = Declarations;
 
-/** A reference a plain host's member answers: a value of a reference type, recognized by its kind until reference types land. */
-const createPart = id => ({ nodeType: 1, id });
-const parts = [createPart('a'), createPart('b')];
+/** The references a plain host's member answers, lights of the home. */
+const parts = [new Light('a'), new Light('b')];
 
 /** A plain host's module on names: a size measured within half a unit, a length, a list of references and each reference's label. */
 const constant = { changes: 'constant', reads: 'fresh' };
-const shapes = new LexicaModule('shapes', {
+const shapes = new LexicaModule('shapes', withHome({
     types: [{ name: 'Size', fields: { width: 'Number', height: 'Number' } }],
     members: [
         property('size', 'String', 'Size', { updates: { ...constant, tolerance: 0.5 }, implementation: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
         property('length', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => receiver.length }),
-        property('parts', 'String', 'List<Element>', { updates: constant, implementation: () => parts }),
-        property('label', 'Element', 'String', { updates: constant, implementation: ({ receiver }) => receiver.id }),
+        property('parts', 'String', 'List<Light?>', { updates: constant, implementation: () => parts }),
+        property('label', 'Light', 'String', { updates: constant, implementation: ({ receiver }) => receiver.name }),
+        property('sizes', 'String', 'List<Size?>', { updates: constant, implementation: () => [{ width: 1, height: 2 }, null] }),
     ],
-});
+}));
 
 /** The resolution of the text against a registry of Lexica's own module and the shapes, and an evaluation of it with the bindings given. */
 const resolve = (text, values = { name: 'tea' }) => {
     const registry = new LexicaRegistry([Vocabulary.module, shapes]);
     const definition = ParsedTexts.parse(text);
-    const bindings = new ParameterBindings(values);
+    const bindings = new ParameterBindings(registry, values);
     const locations = ParsedTexts.locationsOf(definition);
     const resolved = new LanguageResolver(registry, bindings, locations).resolveDefinition(definition);
 
-    return { evaluate: (evaluatedValues = values) => new Evaluator(registry, resolved, new ParameterBindings(evaluatedValues), {}, locations).evaluate() };
+    return { evaluate: (evaluatedValues = values) => new Evaluator(registry, resolved, new ParameterBindings(registry, evaluatedValues), {}, locations).evaluate() };
 };
 
 const metadataOf = (text, values) => resolve(text, values).evaluate().metadata;
@@ -94,11 +95,25 @@ describe('result metadata', () => {
         const { value, metadata } = resolve('name.parts { label = it.label }').evaluate();
 
         expect(value).toEqual([{ label: 'a' }, { label: 'b' }]);
-        expect(metadata.sources).toEqual(parts);
-        expect(metadata.sources[0]).toBe(parts[0]);
+        expect(metadata.sources).toEqual([{ kind: 'reference', value: parts[0] }, { kind: 'reference', value: parts[1] }]);
+        expect(metadata.sources[0].value).toBe(parts[0]);
+        expect(Object.isFrozen(metadata.sources)).toBe(true);
+        expect(Object.isFrozen(metadata.sources[0])).toBe(true);
         expect(Object.isFrozen(parts[0])).toBe(false);
         expect(metadata.items).toHaveLength(2);
         expect(metadata.items[0].fields.label.origin).toBe(metadata.items[1].fields.label.origin);
+    });
+
+    it('describes the data and the null each item of a projection came from, data as a frozen copy, by the input\'s established type', () => {
+        const { metadata } = resolve('name.sizes { width = it.width }').evaluate();
+
+        expect(metadata.sources).toEqual([{ kind: 'data', value: { width: 1, height: 2 } }, { kind: 'null' }]);
+        expect(Object.isFrozen(metadata.sources[0].value)).toBe(true);
+    });
+
+    it('records sources: [] for a projection of no items, and no sources at all for a list no projection built', () => {
+        expect(resolve('items { n = it }', { items: [] }).evaluate().metadata.sources).toEqual([]);
+        expect(Object.hasOwn(resolve('items', { items: [1, 2] }).evaluate().metadata, 'sources')).toBe(false);
     });
 
     it('records each field by its name in the order written', () => {

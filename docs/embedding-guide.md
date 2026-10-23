@@ -55,7 +55,7 @@ A registry holds the modules a host registers. Resolving an expression against i
 
 ```js
 const registry = lexica.createRegistry([shop]);
-const bindings = lexica.bind({ product: 'tea', code: 'TEN' });
+const bindings = registry.bind({ product: 'tea', code: 'TEN' });
 const resolution = registry.resolve('{ price = product.price, cut = product.discount(code) }', bindings);
 
 resolution.type;                       // '{ price: Price, cut: Number }'
@@ -63,7 +63,7 @@ resolution.typeAt(['price', 'amount']); // 'Number'
 resolution.usedDeclarations.map(used => used.name); // ['String.price', 'String.discount']
 ```
 
-`lexica.bind` keeps a frozen copy of the data it is given, so later changes to the original never reach an expression. A resolution is reused for bindings of the same types and the same primitive values.
+`registry.bind` asks the registry's modules which values are references, by each module's `typeOf`, keeps each reference as it is and a frozen copy of the data, so later changes to the original data never reach an expression; the bindings are that registry's alone. A resolution is reused for bindings of the same types and the same primitive values.
 
 ## Evaluate
 

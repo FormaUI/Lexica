@@ -287,7 +287,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4505` | An `impl` that is not a function | A module error naming the declaration |
 | `LEXICA4507` | A type's `import` that is not a list of modules' names | A module error naming the type |
 | `LEXICA4508` | A type importing one module twice | A module error naming the module |
-| `LEXICA4512` | A type that does not parse where a declaration names one, a result, a parameter's, a callback's or a mapping's | A module error naming the declaration |
+| `LEXICA4512` | A type that does not parse where a declaration names one, a result, a parameter's, a callback's, a mapping's or a supertype | A module error naming the declaration |
 | `LEXICA4514` | `updates` whose `changes` or `reads` is none of its values | A module error giving the values |
 | `LEXICA4515` | A `tolerance` that is not a number, or is negative | A module error naming the member |
 | `LEXICA4516` | `observations` that are not a list | A module error naming the member |
@@ -320,6 +320,8 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4548` | A parameter's default its type does not admit | A module error naming the parameter |
 | `LEXICA4549` | Two module members of one name in one module | A module error naming the member |
 | `LEXICA4552` | A type whose name is not an identifier | A module error naming the type |
+| `LEXICA4554` | A type of a kind that is none of a type's kinds | A module error giving the kinds |
+| `LEXICA4555` | An `abstract` that isn't a Boolean | A module error naming the type |
 
 <a id="preparation-and-type-errors"></a>
 

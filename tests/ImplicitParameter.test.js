@@ -52,7 +52,7 @@ const values = { words: ['oat', 'milk', 'rye'], gaps: ['oat', null], flag: true,
 /** What the text evaluates to against a registry of the pantry. */
 const evaluate = (text, bound = values) => {
     const registry = lexica.createRegistry([createPantry()]);
-    const bindings = lexica.bind(bound);
+    const bindings = registry.bind(bound);
 
     return registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
 };

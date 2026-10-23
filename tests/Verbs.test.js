@@ -42,7 +42,7 @@ const evaluate = (text, bound = values) => {
     const invoked = [];
     const asked = [];
     const registry = lexica.createRegistry([createPantry(invoked)]);
-    const bindings = lexica.bind(bound);
+    const bindings = registry.bind(bound);
     const value = registry.resolve(text, bindings).createEvaluator(bindings).evaluate({ beforeInvoke: request => void asked.push(request.declaration.name) }).value;
 
     return { value, invoked, asked };
