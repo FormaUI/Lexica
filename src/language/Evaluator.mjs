@@ -227,7 +227,7 @@ export class Evaluator {
             const projection = this.#evaluateLocalsBefore();
             const frame = this.#localsFrame;
             // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
-            const hasReceiver = declaration === null || declaration.target !== undefined;
+            const hasReceiver = declaration === null || this.#moduleRegistry.hasReceiver(declaration);
             const receiver = declaration === null ? null : hasReceiver ? this.#evaluateNode(Evaluator.#receiverNodeOf(node, resolution), null) : undefined;
             const args = receiver === null ? null : this.#evaluateArguments(resolution, null);
 
@@ -828,7 +828,7 @@ export class Evaluator {
      */
     #compileInvocation(node, resolution) {
         const { type, declaration, qualified } = resolution;
-        const hasReceiver = declaration.target !== undefined;
+        const hasReceiver = this.#moduleRegistry.hasReceiver(declaration);
         const target = !hasReceiver ? null : this.#getCompiledFunction(Evaluator.#receiverNodeOf(node, resolution));
         const implementation = this.#moduleRegistry.getImplementation(declaration);
         const conforms = Evaluator.#compileTypeCheck(type, this.#moduleRegistry);
@@ -990,7 +990,7 @@ export class Evaluator {
             }
 
             const declaration = target.reference;
-            const hasReceiver = declaration.target !== undefined;
+            const hasReceiver = this.#moduleRegistry.hasReceiver(declaration);
             const type = this.#moduleRegistry.getDeclaredType(declaration, declaration.result);
 
             return { reference: declaration, hasReceiver, parameters: declaration.parameters, conforms: Evaluator.#compileTypeCheck(type, this.#moduleRegistry), copyStructures: Evaluator.#compileStructureCopy(type, this.#moduleRegistry), type };
@@ -1271,6 +1271,7 @@ export class Evaluator {
 
                 // It holds the registry alone, never an evaluator, so it holds nothing an evaluation bound.
                 let fields = null;
+                let fieldNames = null;
                 let isFlat = false;
 
                 return value => {
@@ -1280,11 +1281,12 @@ export class Evaluator {
 
                     if (fields === null) {
                         fields = Evaluator.#fieldTypesOf(structure, moduleRegistry).map(([name, fieldType]) => [name, Evaluator.#compileStructureCopy(fieldType, moduleRegistry)]);
+                        fieldNames = new Set(fields.map(([name]) => name));
                         isFlat = fields.every(([, copyField]) => copyField === null);
                     }
 
                     // An answer that is a plain object of its declared fields alone, none of them a structure, is its declared shape already, as a built-in member's is.
-                    if (isFlat && Evaluator.#holdsExactly(value, structure.fields, fields.length)) {
+                    if (isFlat && Evaluator.#holdsExactly(value, fieldNames)) {
                         return value;
                     }
 
@@ -1305,8 +1307,8 @@ export class Evaluator {
         }
     }
 
-    /** Whether the value is a plain object whose own keys are the declared fields alone. */
-    static #holdsExactly(value, declaredFields, count) {
+    /** Whether the value is a plain object whose own keys are the names of the declared fields alone. */
+    static #holdsExactly(value, fieldNames) {
         if (Object.getPrototypeOf(value) !== Object.prototype) {
             return false;
         }
@@ -1314,14 +1316,14 @@ export class Evaluator {
         let found = 0;
 
         for (const key in value) {
-            if (!Object.hasOwn(declaredFields, key)) {
+            if (!fieldNames.has(key)) {
                 return false;
             }
 
             found++;
         }
 
-        return found === count;
+        return found === fieldNames.size;
     }
 
     /** Whether a value is one the type admits, as `#conforms` answers, with the type's structure found once and each declared structure's fields at its first check. */
@@ -1538,7 +1540,7 @@ export class Evaluator {
         }
 
         // A module member is read and called through its namespace, and has no receiver.
-        const received = declaration.target === undefined ? {} : { receiver };
+        const received = this.#moduleRegistry.hasReceiver(declaration) ? { receiver } : {};
         const request = this.#host === null ? null : { declaration, ...received, args, pointer: this.#pointerOf(node) };
         const samples = this.#beforeInvoke(request, declaration, node);
 

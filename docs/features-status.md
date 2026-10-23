@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done; the next work is [unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done, and [unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is in progress.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | Unit | Work | State |
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
-| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | Planned |
+| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | In progress: step 1 done |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
@@ -54,7 +54,7 @@ Unit 0 lands in three stages: the specification takes the seven decisions below 
 
 Every declaration takes its final shape, and the types those declarations make relate as the specification sets out. Resolution keeps selecting members as it does today, through registry queries whose answers the new declarations give; unit 2 replaces the selection itself.
 
-1. **Registry queries.** The resolver, the evaluator, result paths and the entry point read declarations only through registry queries, never a declaration's `target`, `syntax` or `fields` directly, so the declarations' storage can change behind them. Nothing a script sees changes.
+1. ✅ **Registry queries.** The resolver, the evaluator, result paths and the entry point read declarations only through registry queries, never a declaration's `target`, `syntax` or `fields` directly, so the declarations' storage can change behind them. Nothing a script sees changes.
 2. **One type relation.** A registry-aware checker replaces the static assignability, merging, comparability and node checks of `Type`, and the resolver's receiver matching, at every call site. It brings `Any`, distinct from a result left out, and the rules of `null` and `Never`, and takes a generic value type by its declaration, never `List` by name, so [collections](proposals/collections.md)' `Dictionary` and `Pair` join it in unit 4 without replacing it; neither is public before then.
 3. **Reference types and binding,** in the current flat member shape:
    - `typeOf`, `isInstance`, `abstract` and `supertype`, a hierarchy refused where it cycles; the hierarchy in assignability, list covariance, merging to the nearest shared supertype, and identity equality of references.

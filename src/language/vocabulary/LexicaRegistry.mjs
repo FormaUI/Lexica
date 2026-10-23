@@ -188,6 +188,21 @@ export class LexicaRegistry {
         return this.#members.get(name) ?? [];
     }
 
+    /** The members named so that the module declares, its module members among them, in the order it declares them. */
+    getMembersDeclaredBy(moduleName, name) {
+        return this.#modules.get(moduleName)?.members.filter(declaration => declaration.name === name) ?? [];
+    }
+
+    /** Whether the member has a receiver, which a module member does not. */
+    hasReceiver(declaration) {
+        return declaration.target !== undefined;
+    }
+
+    /** How a script writes the member: `access` for a property, `function-call` for a function called with arguments in parentheses, and `indexer` for one given its key in brackets. */
+    formOf(declaration) {
+        return declaration.kind === 'property' ? 'access' : declaration.syntax;
+    }
+
     /** The names of every member declared, across every module. */
     get memberNames() {
         return [...this.#members.keys()];
@@ -246,6 +261,13 @@ export class LexicaRegistry {
     /** The fields of the structured type, in order, each with its type. @returns {[string, Type][]} */
     getFieldTypesOf(structure) {
         return Object.entries(structure.fields).map(([name, text]) => [name, this.getDeclaredType(structure, text)]);
+    }
+
+    /** The type of the field named so that the structured type declares, or null where it declares none, or is no structured type. */
+    getFieldType(type, name) {
+        const structure = this.getStructure(type);
+
+        return structure !== undefined && Object.hasOwn(structure.fields, name) ? this.getDeclaredType(structure, structure.fields[name]) : null;
     }
 
     /** The type of each field named so, as its structured type declares it, across every structured type. */

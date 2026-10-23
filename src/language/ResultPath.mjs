@@ -80,9 +80,6 @@ export class ResultPath {
             return type.fieldTypes.get(name) ?? null;
         }
 
-        const structure = moduleRegistry.getStructure(type);
-        const text = structure?.fields[name];
-
-        return text === undefined ? null : moduleRegistry.getDeclaredType(structure, text);
+        return moduleRegistry.getFieldType(type, name);
     }
 }

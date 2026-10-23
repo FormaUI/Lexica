@@ -139,13 +139,13 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         requireCurrent();
 
         // A declaration without an implementation is resolved against and never invoked, so an expression that uses one, in a branch it may not take among them, is refused before anything is evaluated; a host call has none, its host invoking it.
-        const unimplemented = usedDeclarations.find(use => use.declaration.implementation === undefined && !LexicaModule.isHostCall(use.declaration));
+        const unimplemented = usedDeclarations.find(use => registry.getImplementation(use.declaration) === undefined && !LexicaModule.isHostCall(use.declaration));
 
         if (unimplemented !== undefined) {
             throw LexicaErrors.module('LEXICA4001', `'${unimplemented.name}' has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
         }
 
-        const unimplementedConversion = resolved.usedConversions.find(conversion => conversion.implementation === undefined);
+        const unimplementedConversion = resolved.usedConversions.find(conversion => registry.getImplementation(conversion) === undefined);
 
         if (unimplementedConversion !== undefined) {
             const name = LexicaModule.conversionNameOf(unimplementedConversion);

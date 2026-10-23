@@ -123,6 +123,49 @@ describe('LexicaRegistry', () => {
         });
     });
 
+    describe('the queries a declaration is read through', () => {
+        const indexer = functionDeclaration({ name: 'letter', syntax: 'indexer', target: 'String', result: 'String?' });
+        const declaring = () => new LexicaModule('home', {
+            types: [{ name: 'Room', fields: { area: 'Number' } }],
+            members: [declaration({ name: 'now', target: undefined }), declaration({ name: 'size', target: 'Room' }), functionDeclaration({ name: 'size', target: 'String' }), indexer],
+        });
+
+        it('tell a member with a receiver from a module member, which has none', () => {
+            const home = declaring();
+            const registry = new LexicaRegistry([home]);
+
+            expect(home.members.map(member => registry.hasReceiver(member))).toEqual([false, true, true, true]);
+        });
+
+        it('give the form a script writes each member in', () => {
+            const home = declaring();
+            const registry = new LexicaRegistry([home]);
+
+            expect(home.members.map(member => registry.formOf(member))).toEqual(['access', 'access', 'function-call', 'indexer']);
+        });
+
+        it('find the members of one name a module declares, its module members among them, and none of another module\'s', () => {
+            const home = declaring();
+            const office = new LexicaModule('office', { members: [declaration({ name: 'size', target: 'Element' })] });
+            const registry = new LexicaRegistry([home, office]);
+
+            expect(registry.getMembersDeclaredBy('home', 'size')).toEqual([home.members[1], home.members[2]]);
+            expect(registry.getMembersDeclaredBy('home', 'now')).toEqual([home.members[0]]);
+            expect(registry.getMembersDeclaredBy('home', 'width')).toEqual([]);
+            expect(registry.getMembersDeclaredBy('garden', 'size')).toEqual([]);
+        });
+
+        it('find the type of a structured type\'s field by its name, and null for a field it does not declare or a type that is not structured', () => {
+            const registry = new LexicaRegistry([declaring()]);
+            const room = Type.createNamedType('Room', false, 'home');
+
+            expect(registry.getFieldType(room, 'area').toString()).toBe('Number');
+            expect(registry.getFieldType(room, 'width')).toBeNull();
+            expect(registry.getFieldType(room, 'constructor')).toBeNull();
+            expect(registry.getFieldType(Type.createNamedType('String'), 'length')).toBeNull();
+        });
+    });
+
     it('refuses a type declared twice in its module, and takes one name in two modules, each type its own', () => {
         const pings = (name, types = [{ name: 'Ping', fields: { at: 'Number' } }]) => new LexicaModule(name, { types });
 
