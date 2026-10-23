@@ -54,7 +54,19 @@ describe('type identity', () => {
 
             expect(evaluate(modules, '"abc" to home.Sensor')).toEqual({ level: 3 });
             expect(evaluate(modules, '"abc" to garden.Sensor')).toEqual({ moisture: 3 });
-            expect(messageOf(() => lexica.createRegistry(modules).resolve('"abc" to Sensor'))).toContain("'Sensor' names a type several declare, home.Sensor and garden.Sensor");
+            expect(messageOf(() => lexica.createRegistry(modules).resolve('"abc" to Sensor'))).toContain("'Sensor' names a type several modules declare, so it is named qualified by its module: home.Sensor or garden.Sensor");
+        });
+    });
+
+    describe("of a module's type spelled as one of Lexica's own", () => {
+        it("leaves an unqualified name Lexica's own, the module's named qualified, and a declaration of the module naming its own", () => {
+            const measures = lexica.createModule('measures', {
+                types: [{ name: 'Number', fields: { amount: 'String' } }],
+                conversions: [{ from: 'String', to: 'Number', implementation: ({ value }) => ({ amount: value }) }],
+            });
+
+            expect(evaluate([measures], '"12" to Number')).toBe(12);
+            expect(evaluate([measures], '("12" to measures.Number).amount')).toBe('12');
         });
     });
 

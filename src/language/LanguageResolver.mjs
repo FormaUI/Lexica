@@ -281,7 +281,7 @@ export class LanguageResolver {
 
         const receiverType = left.type.toNonNullable();
         const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isHostCall(candidate) && (this.#moduleRegistry.formOf(candidate) === 'access' || (this.#moduleRegistry.formOf(candidate) === 'function-call' && candidate.parameters.every(parameter => !parameter.required)));
-        const declaration = this.#moduleRegistry.getMembers(right.value).find(candidate => isTest(candidate) && this.#typeChecker.matchesReceiver(candidate, receiverType, new Map()));
+        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getMembers(right.value).filter(isTest), receiverType);
 
         if (declaration === undefined) {
             return '';
@@ -582,13 +582,15 @@ export class LanguageResolver {
             return Type.createNamedType(localName, false, moduleName);
         }
 
+        // One of Lexica's own types is found before a module's of its name, which its module's name qualifies.
+        if (LexicaModule.builtInTypeNames.includes(name)) {
+            return Type.createNamedType(name);
+        }
+
         const modules = this.#moduleRegistry.getModulesDeclaringType(name);
-        const isOwn = LexicaModule.builtInTypeNames.includes(name);
 
-        if (modules.length + (isOwn ? 1 : 0) > 1) {
-            const candidates = [...(isOwn ? [name] : []), ...modules.map(moduleName => `${moduleName}.${name}`)];
-
-            this.#fail('LEXICA3059', `'${name}' names a type several declare, ${candidates.join(' and ')}, so it is named qualified by its module`, pointer);
+        if (modules.length > 1) {
+            this.#fail('LEXICA3059', `'${name}' names a type several modules declare, so it is named qualified by its module: ${modules.map(moduleName => `${moduleName}.${name}`).join(' or ')}`, pointer);
         }
 
         return Type.createNamedType(name, false, modules[0] ?? null);
@@ -1022,7 +1024,7 @@ export class LanguageResolver {
             return `${receiver}.${name}`;
         }
 
-        const declaration = this.#moduleRegistry.getMembers(name).find(candidate => this.#typeChecker.matchesReceiver(candidate, type, new Map()));
+        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getMembers(name), type);
 
         if (declaration === undefined) {
             return null;
@@ -1159,9 +1161,10 @@ export class LanguageResolver {
             return null;
         }
 
-        const declaration = declarations.find(candidate => this.#typeChecker.matchesReceiver(candidate, receiverType, new Map()));
+        // The most specific member of the name decides, a property among them, which hides an indexer of its name above it.
+        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getMembers(access.name), receiverType);
 
-        return declaration === undefined ? null : this.#moduleRegistry.formOf(declaration);
+        return declaration === undefined || declaration.kind === 'property' ? null : this.#moduleRegistry.formOf(declaration);
     }
 
     /**
@@ -1179,7 +1182,7 @@ export class LanguageResolver {
             return this.#resolveObjectRootField(node, pointer, receiverType);
         }
 
-        const matching = defaults.filter(declaration => this.#typeChecker.matchesReceiver(declaration, receiverType, new Map()));
+        const matching = this.#typeChecker.mostSpecificOf(defaults, receiverType);
 
         if (matching.length === 0) {
             // A string key may name a property of the receiver, which a computed property access reads.
@@ -1190,9 +1193,9 @@ export class LanguageResolver {
             this.#fail('LEXICA3012', `${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
         }
 
-        // The vocabulary declares one unnamed indexer for any receiver, so only a type holding never fits more than one.
+        // The most specific receiver type's unnamed indexer is selected, so several remain only where none is more specific than every other.
         if (matching.length > 1) {
-            this.#fail('LEXICA3024', `Unnamed indexers are declared for ${matching.flatMap(declaration => this.#moduleRegistry.getTargetTypes(declaration)).join(' and ')}, and ${receiverType.toNonNullable()} fits more than one, so which applies is ambiguous`, pointer);
+            this.#fail('LEXICA3024', `The unnamed indexers ${this.#competingOf(matching, receiverType)}`, pointer);
         }
 
         return this.#resolveMemberOf({ ...node, name: matching[0].name }, pointer, scope, receiverType);
@@ -1394,15 +1397,15 @@ export class LanguageResolver {
             this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is no member of the vocabulary${this.#joinedNameHintOf(node, receiverType)}`, pointer);
         }
 
-        const matching = candidates.filter(candidate => this.#typeChecker.matchesReceiver(candidate, receiverType, new Map()));
+        const matching = this.#typeChecker.mostSpecificOf(candidates, receiverType);
 
         if (matching.length === 0) {
             this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is not available on ${receiverType.toNonNullable()}; it is available on ${candidates.flatMap(candidate => this.#moduleRegistry.getTargetTypes(candidate)).join(', ')}`, pointer);
         }
 
-        // The vocabulary declares a name once for any receiver, so only a type holding never fits more than one declaration.
+        // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
         if (matching.length > 1) {
-            this.#fail('LEXICA3024', `'${node.name}' is declared for ${matching.flatMap(candidate => this.#moduleRegistry.getTargetTypes(candidate)).join(' and ')}, and ${receiverType.toNonNullable()} fits more than one, so which applies is ambiguous`, pointer);
+            this.#fail('LEXICA3024', `'${node.name}' ${this.#competingOf(matching, receiverType)}`, pointer);
         }
 
         const [declaration] = matching;
@@ -1473,12 +1476,57 @@ export class LanguageResolver {
         }
 
         const moduleMember = declarations.find(declaration => !this.#moduleRegistry.hasReceiver(declaration));
+        const receiverMembers = declarations.filter(declaration => this.#moduleRegistry.hasReceiver(declaration));
+        const readings = [
+            ...(moduleMember === undefined ? [] : [() => this.#resolveModuleMember(node, pointer, scope, moduleMember, written, contract)]),
+            ...(receiverMembers.length === 0 ? [] : [() => (node.kind === 'member' ? this.#resolveReference(node, pointer, receiverMembers, contract) : this.#resolveQualified(node, pointer, scope, receiverMembers, written))]),
+        ];
 
-        if (moduleMember !== undefined) {
-            return this.#resolveModuleMember(node, pointer, scope, moduleMember, written, contract);
+        if (readings.length === 1) {
+            return readings[0]();
         }
 
-        return node.kind === 'member' ? this.#resolveReference(node, pointer, declarations, contract) : this.#resolveQualified(node, pointer, scope, declarations, written);
+        // A module member and a member of its name on a receiver are both reached through the namespace, so the one reading resolution and type checking accept is taken, and one both accept is ambiguous.
+        const outcomes = readings.map(read => this.#attempt(read));
+        const accepted = outcomes.filter(outcome => outcome.error === undefined);
+
+        if (accepted.length > 1) {
+            this.#fail('LEXICA3024', `'${written}' is both the module member and the qualified form of the member '${node.name}' of a receiver, and this reference fits both, so which applies is ambiguous; the receiver form, receiver.${node.name}, reaches the member of the receiver`, pointer);
+        }
+
+        if (accepted.length === 0) {
+            throw outcomes[0].error;
+        }
+
+        return accepted[0].result;
+    }
+
+    /** How a message names the competing declarations an access can't choose among: their receiver types, none more specific than another, which the receiver satisfies. */
+    #competingOf(declarations, receiverType) {
+        const types = declarations.flatMap(declaration => this.#moduleRegistry.getTargetTypes(declaration));
+
+        return `is declared for ${types.join(' and ')}, which ${receiverType.toNonNullable()} satisfies, and none of them is more specific than ${types.length === 2 ? 'the other' : 'every other'}, so which applies is ambiguous`;
+    }
+
+    /** What a reading resolves to, or the failure that refuses it, leaving nothing of a refused reading behind: no resolution, no use and no function body it resolved. */
+    #attempt(read) {
+        const resolutions = new Map(this.#resolutions);
+        const usedCount = this.#usedDeclarations.length;
+        const instanceCount = this.#instances.length;
+
+        try {
+            return { result: read() };
+        } catch (error) {
+            if (!(error instanceof LexicaError)) {
+                throw error;
+            }
+
+            this.#resolutions = resolutions;
+            this.#usedDeclarations.length = usedCount;
+            this.#instances.length = instanceCount;
+
+            return { error };
+        }
     }
 
     /** Resolves a module member, which has no receiver: a property read through its namespace, a function called through it, or a function read without a call, a function reference. */
@@ -1524,15 +1572,15 @@ export class LanguageResolver {
             return this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
         }
 
-        const matching = declarations.filter(declaration => this.#typeChecker.matchesReceiver(declaration, receiverType, new Map()));
+        const matching = this.#typeChecker.mostSpecificOf(declarations, receiverType);
 
         if (matching.length === 0) {
             this.#fail('LEXICA3042', `'${written}' takes a receiver of ${declarations.flatMap(declaration => this.#moduleRegistry.getTargetTypes(declaration)).join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
         }
 
-        // A module declares a name once for overlapping receivers, so only a type holding never fits more than one declaration.
+        // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
         if (matching.length > 1) {
-            this.#fail('LEXICA3024', `'${written}' is declared for ${matching.flatMap(declaration => this.#moduleRegistry.getTargetTypes(declaration)).join(' and ')}, and ${receiverType} fits more than one, so which applies is ambiguous`, pointer);
+            this.#fail('LEXICA3024', `'${written}' ${this.#competingOf(matching, receiverType)}`, pointer);
         }
 
         const [declaration] = matching;

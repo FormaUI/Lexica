@@ -406,12 +406,8 @@ describe('LexicaModule', () => {
             refusal({ types: [{ name: 'Chart', fields: { size: 'Number' }, implementation: () => 1 }] }, 'Chart', 'implementation', "'implementation' is none of them");
         });
 
-        it.each(['Number', 'List', 'Null', 'Never'])('refuse a structured type named %s, the name of one of Lexica\'s own types', name => {
-            refusal({ types: [{ name, fields: { level: 'Number' } }] }, name, 'name', "is the name of one of Lexica's own types");
-        });
-
-        it.each(['chart', 'null', 'number'])('refuse a structured type named %s, which no capital letter begins', name => {
-            refusal({ types: [{ name, fields: { level: 'Number' } }] }, name, 'name', 'A type is named in PascalCase');
+        it.each(['Number', 'List', 'Null', 'Never', 'chart', 'null', 'number'])('take a structured type named %s, a casing that is a convention and a name another declaration may share', name => {
+            expect(new LexicaModule('charts', { types: [{ name, fields: { level: 'Number' } }] }).types[0].name).toBe(name);
         });
 
         it('refuse a structured type named by one capital letter, which is read as a type parameter', () => {

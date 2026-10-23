@@ -225,14 +225,18 @@ describe('the declaration shape', () => {
         expect(getError(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);
     });
 
-    it('refuses a module member and a member on a receiver of one name in one module, the namespace reading one and calling the other', () => {
+    it('registers a module member and a member on a receiver of one name in one module, the namespace reading each where resolution takes one alone', () => {
         const members = [
             property('now', null, 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: () => 0 }),
             property('now', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver.length }),
         ];
 
         for (const declared of [members, [...members].reverse()]) {
-            expect(getError(() => lexica.createRegistry([lexica.createModule('clock', { members: declared })]))).toMatchObject({ kind: 'module', location: { module: 'clock', declaration: 'now', field: 'target' } });
+            const registry = lexica.createRegistry([lexica.createModule('clock', { members: declared })]);
+            const evaluate = text => registry.resolve(text, { word: 'oat' }).createEvaluator({ word: 'oat' }).evaluate().value;
+
+            expect(evaluate('clock.now')).toBe(0);
+            expect(evaluate('clock.now(word)')).toBe(3);
         }
     });
 });

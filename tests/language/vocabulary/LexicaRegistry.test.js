@@ -17,7 +17,8 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a module registered twice', () => {
-        expect(messageOf(() => new LexicaRegistry([own(), own()]))).toContain('name is taken');
+        expect(messageOf(() => new LexicaRegistry([own(), own()]))).toContain("'charts' is registered already");
+        expect(messageOf(() => new LexicaRegistry([own(), new LexicaModule('CHARTS', {})]))).toContain("'charts' is registered already");
     });
 
     it('refuses what no createModule made, naming it', () => {
@@ -105,11 +106,11 @@ describe('LexicaRegistry', () => {
     });
 
     describe('module members, which have no target', () => {
-        it('are declared once by name within their module, and reserve their name in its namespace, so a member of a receiver of that name is refused beside them', () => {
+        it('are declared once by name within their module, and register beside a member of their name on a receiver, which is no duplicate', () => {
             const members = [declaration({ name: 'now', target: undefined }), declaration({ name: 'now', target: 'String' })];
 
             for (const declared of [members, [...members].reverse()]) {
-                expect(refusalOf(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('home', { members: declared })]))).toMatchObject({ module: 'home', declaration: 'now', field: 'target' });
+                expect(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('home', { members: declared })])).not.toThrow();
             }
 
             expect(refusalOf(() => new LexicaRegistry([new LexicaModule('home', { members: [declaration({ name: 'now', target: undefined }), declaration({ name: 'now', target: undefined })] })]))).toMatchObject({ declaration: 'now', field: 'name' });
@@ -335,10 +336,11 @@ describe("a module's own collisions", () => {
     const lit = (overrides = {}) => declaration({ name: 'lit', kind: 'function', target: 'Light', result: 'Boolean', parameters: [], ...overrides });
     const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, ...modules]);
 
-    it('refuse members of one name on overlapping receivers, a type and the type beneath it among them, the test of a receiver as any other', () => {
+    it('refuse members of one name on one receiver type, an exact duplicate, and register them on overlapping receivers, a type and the type beneath it among them', () => {
         expect(refusalOf(registering(new LexicaModule('lit', withHome({ members: [lit(), lit()] }))))).toMatchObject({ declaration: 'lit', field: 'target' });
-        expect(messageOf(registering(new LexicaModule('lit', withHome({ members: [lit(), lit({ target: 'Device' })] }))))).toContain("'lit' is declared already for Light");
-        expect(messageOf(registering(new LexicaModule('lit', withHome({ members: [lit(), declaration({ name: 'lit', target: 'Device' })] }))))).toContain("'lit' is declared already for Light");
+        expect(messageOf(registering(new LexicaModule('lit', withHome({ members: [lit(), lit({ target: ['Room', 'Light'] })] }))))).toContain("'lit' is declared already for Light");
+        expect(registering(new LexicaModule('lit', withHome({ members: [lit(), lit({ target: 'Device' })] })))().getMembers('lit')).toHaveLength(2);
+        expect(registering(new LexicaModule('lit', withHome({ members: [lit(), declaration({ name: 'lit', target: 'Device' })] })))().getMembers('lit')).toHaveLength(2);
     });
 
     it('take one name on receivers that do not overlap, each receiver selecting its own', () => {

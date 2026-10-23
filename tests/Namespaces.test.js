@@ -104,9 +104,9 @@ describe("a registry's text", () => {
         expect(registry.parse('lexica.count').expression).toEqual({ kind: 'member', target: { kind: 'parameter', name: 'lexica' }, name: 'count' });
     });
 
-    it('refuses a module named by a word the language reserves, which its text already gives a meaning', () => {
+    it('refuses a module named by a word the language reserves, which its text reaches only through an import binding read with @', () => {
         for (const name of ['it', 'root', 'true', 'null', 'if', 'to']) {
-            expect(getError(() => lexica.createRegistry([lexica.createModule(name, {})]))).toMatchObject({ kind: 'module', message: expect.stringContaining(`'${name}' is a word the language reserves, and names no module`) });
+            expect(getError(() => lexica.createRegistry([lexica.createModule(name, {})]))).toMatchObject({ kind: 'module', code: 'LEXICA4557', message: expect.stringContaining(`'${name}' is a word the language reserves`) });
         }
     });
 

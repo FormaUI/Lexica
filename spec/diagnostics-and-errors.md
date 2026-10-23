@@ -136,8 +136,6 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA1044` | An import, a script's body after its imports, or a local or `return` of a body that uses `return`, sharing its line with earlier code | A syntax error saying it starts on a line of its own |
 | `LEXICA1045` | `import` anywhere but a script's start, as after its first local or expression | A syntax error saying imports stand at the start of the script |
 | `LEXICA1046` | An import of `Lexica` or of one of its types, as `import Lexica` or `import Items = Lexica.List` | A syntax error saying Lexica's own vocabulary is always available, so no script imports it |
-| `LEXICA1047` | An import whose local name begins with no capital letter | A syntax error naming the local name |
-| `LEXICA1065` | An import whose local name is a reserved word, `Lexica` or the name of one of Lexica's own types or extensions | A syntax error naming the local name |
 | `LEXICA1048` | Two imports giving one local name to different declarations, as `import Measures = Measurements` and `import Measures = Home.Sensor` | A syntax error naming both imports |
 | `LEXICA1501` | A chain continuing a conversion without a group, as `a to Number[0]` | A syntax error saying a conversion ends its chain, giving the grouped form |
 | `LEXICA1502` | An optional enclosed access whose receiver is neither an input nor a grouped cast, as `(?(?a.b).c)` | A syntax error naming what its receiver is |
@@ -216,12 +214,8 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4031` | An `internal` that is no Boolean | A module error naming the declaration |
 | `LEXICA4003` | A member without a field its kind requires, `result`, `updates`, or `arguments` where it has parameters | A module error naming the field |
 | `LEXICA4032` | A property declared without `updates` anywhere but directly in a structured type | A module error naming the property |
-| `LEXICA4004` | A type whose name begins with no capital letter | A module error naming the type |
 | `LEXICA4033` | A type of a name its module already declares | A module error naming the type |
-| `LEXICA4034` | A type named as one of Lexica's own types or `Null` | A module error naming the type |
-| `LEXICA4005` | A module whose name begins with no capital letter | A module error naming the module, `Module name 'energy' must begin with a capital letter.` |
-| `LEXICA4035` | A module whose name is already registered | A module error naming the module |
-| `LEXICA4036` | A module named by a reserved word, `Lexica`, or one of Lexica's own types or extensions | A module error naming the module |
+| `LEXICA4035` | A module whose name, compared case-insensitively, is already registered | A module error naming the module and the one registered |
 | `LEXICA4006` | A type selector, an observation type or an observation target named by what is not an identifier | A module error naming the declaration |
 | `LEXICA4037` | An observation target named `receiver` | A module error naming the target |
 | `LEXICA4007` | A type selector or an observation type named as one any module already declares | A module error naming it and the module that declared it |
@@ -238,9 +232,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4044` | A member whose callback's input needs another callback's result | A module error naming the member and the callbacks |
 | `LEXICA4012` | An extension that names no `target` | A module error naming the extension |
 | `LEXICA4045` | An extension whose target its own module owns | A module error naming the extension |
-| `LEXICA4013` | A module member named as one of the module's extensions | A module error naming both |
 | `LEXICA4046` | A type named as one of Lexica's own extensions | A module error naming both |
-| `LEXICA4014` | A module member and a member of its name on one of the module's own types | A module error naming both |
 | `LEXICA4015` | A type's `import` that does not name a registered module | A module error naming the declaration |
 | `LEXICA4047` | A type reference resolving to no type | A module error naming the declaration |
 | `LEXICA4048` | A type reference resolving to several types | A module error naming the declaration and the qualified candidates |
@@ -276,9 +268,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4065` | A conversion operator on a type that is not data, or to a destination that is not data | A module error naming the operator |
 | `LEXICA4066` | A conversion operator from a type to itself | A module error naming the operator |
 | `LEXICA4067` | A conversion operator on a foreign source outside an extension | A module error naming the operator |
-| `LEXICA4029` | Two members of one name on overlapping receivers of one module | A module error naming both |
-| `LEXICA4068` | Two unnamed indexers on overlapping receivers of one module | A module error naming both |
-| `LEXICA4069` | Two operators of one name and destination on overlapping receivers of one module | A module error naming both |
+| `LEXICA4029` | Two members of one name on one receiver type of one module | A module error naming both |
+| `LEXICA4068` | Two unnamed indexers for one receiver type of one module | A module error naming both |
+| `LEXICA4069` | Two operators of one name and destination on one receiver type of one module | A module error naming both |
 | `LEXICA4500` | A module whose name is not an identifier | A module error naming the module |
 | `LEXICA4501` | A module's contents that are not an object | A module error naming what a module declares |
 | `LEXICA4502` | A module's contents declaring what a module does not declare | A module error naming what a module declares |
@@ -356,16 +348,16 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3058` | More arguments than a member takes | A validation error giving the number of arguments it takes |
 | `LEXICA3018` | An options field the member has no parameter for | A validation error naming the parameters it has |
 | `LEXICA3019` | A cast or a conversion naming a type that neither Lexica, nor the script's imports by name, nor a module the script imports declares publicly | A validation error, giving the import where a module the script does not import declares it |
-| `LEXICA3059` | A cast or a conversion naming a type several imported modules share unqualified | A validation error giving the qualified names |
+| `LEXICA3059` | A cast or a conversion naming a type several imported modules share unqualified | A validation error giving the qualified names where each selects one alone |
 | `LEXICA3020` | A cast to a name that is not a reference type | A validation error naming the types |
 | `LEXICA3060` | A cast of a target that can never be of its type, its hierarchy and its declared casts reaching none | A validation error naming the types |
 | `LEXICA3021` | A conversion to a type that is not data: a reference type, a list, a nullable type, or a structured type holding a reference | A validation error naming the type |
 | `LEXICA3022` | A conversion between types no conversion operator joins, as `enabled to Number` | A validation error naming the types its source converts to |
 | `LEXICA3023` | A script reaching an internal declaration of any module, through any form | A validation error naming the declaration, as if no declaration of its name were accessible |
-| `LEXICA3024` | Several applicable extensions, or several applicable operators of one destination, none of them the owner's, a member several declarations take on a `List<Never>` among them | A validation error naming the modules, and the extension accesses to write where they are members |
+| `LEXICA3024` | Several applicable declarations a reference can't choose among: several applicable extensions, or several applicable operators of one destination, none of them the owner's; one module's members, unnamed indexers or operators applicable to a receiver, none of whose receiver types is more specific than every other's, as unrelated ones a `List<Never>` satisfies; and a qualified call a module member and a receiver's member of its name both take | A validation error naming the modules, and the extension accesses to write where they are members and each has a spelling that selects it alone |
 | `LEXICA3025` | A receiver of unknown type whose candidate declarations disagree on who invokes them | A validation error saying a cast names which is meant |
 | `LEXICA3026` | An extension access naming no extension | A validation error giving the written name, saying so where only an ordinary type has it; `device:setting["mode"]` gives `device.setting["mode"]` where the receiver has that member |
-| `LEXICA3061` | An extension access naming one several extensions share unqualified | A validation error giving the qualified names |
+| `LEXICA3061` | An extension access naming one several extensions share unqualified | A validation error giving the qualified names where each selects one alone |
 | `LEXICA3062` | An extension access naming a member the extension does not declare | A validation error giving the extension and the member |
 | `LEXICA3027` | An extension access whose receiver does not satisfy the extension's target | A validation error naming the target and the receiver's type |
 | `LEXICA3063` | An extension access written with `:` whose receiver can be null | A validation error giving `?:` |
@@ -468,3 +460,12 @@ A code leaves its table only by being retired here, with the condition it identi
 | Code | Condition | Retired in |
 | --- | --- | --- |
 | `LEXICA3031` | An operand of `and`, `or` or `not`, a condition or a conditional binding of what is not a value, which a host call alone is and `LEXICA3048` identifies | `1.0.0-alpha.34` |
+| `LEXICA1047` | An import whose local name begins with no capital letter, a casing that is a convention and never enforced | `1.0.0-alpha.34` |
+| `LEXICA1065` | An import whose local name is a reserved word, `Lexica` or the name of one of Lexica's own types or extensions, each a name `@` or the import's own declaration distinguishes | `1.0.0-alpha.34` |
+| `LEXICA4004` | A type whose name begins with no capital letter, a casing that is a convention and never enforced | `1.0.0-alpha.34` |
+| `LEXICA4005` | A module whose name begins with no capital letter, a casing that is a convention and never enforced | `1.0.0-alpha.34` |
+| `LEXICA4034` | A type named as one of Lexica's own types or `Null`, a name a type of another module may share | `1.0.0-alpha.34` |
+| `LEXICA4013` | A module member named as one of the module's extensions, the two never reached in one position | `1.0.0-alpha.34` |
+| `LEXICA4014` | A module member and a member of its name on one of the module's own types, a qualified call both take refused as ambiguous where it is resolved | `1.0.0-alpha.34` |
+| `LEXICA4553` | A module member and a member of its name on a type its module does not declare, which alpha.33 refused; a qualified call both take is refused as ambiguous where it is resolved | `1.0.0-alpha.34` |
+| `LEXICA4036` | A module named by a reserved word, `Lexica`, or one of Lexica's own types or extensions, `Lexica` refused as any registered name is and the rest names a module may share | `1.0.0-alpha.34` |

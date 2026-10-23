@@ -45,8 +45,6 @@ const TYPE_KINDS = ['reference'];
 /** The kinds of type the declaration model brings, which a type declared in the flat member shape does not take yet. */
 const DECLARATION_MODEL_TYPE_KINDS = ['structured', 'extension'];
 
-/** The names no module declares a type by: those of Lexica's own types that stay its own, and the words of the type notation. */
-const RESERVED_TYPE_NAMES = new Set(['Number', 'String', 'Boolean', 'List', 'Null', 'Never']);
 
 
 /** The types of data Lexica defines, which a conversion converts between, as it does between them and the structured types modules declare. */
@@ -301,14 +299,6 @@ export class LexicaModule {
 
         if (!Names.isIdentifier(type?.name)) {
             fail('LEXICA4552', 'A type is named by an identifier, a letter followed by letters and digits', String(type?.name), 'name');
-        }
-
-        if (!/^[A-Z]/.test(type.name)) {
-            fail('LEXICA4004', 'A type is named in PascalCase, an identifier beginning with a capital letter', type.name, 'name');
-        }
-
-        if (RESERVED_TYPE_NAMES.has(type.name)) {
-            fail('LEXICA4034', `'${type.name}' is the name of one of Lexica's own types, which no module declares`, type.name, 'name');
         }
 
         // Every single capital letter is a type parameter, so a type of one letter would be read as one wherever it is named.
@@ -628,7 +618,7 @@ export class LexicaModule {
         for (const key of ['from', 'to']) {
             const type = Type.parse(conversion[key]);
 
-            if (type?.kind !== 'named' || type.isNullable || !/^[A-Z]/.test(type.name) || (type.module === null && RESERVED_TYPE_NAMES.has(type.name) && !DATA_TYPE_NAMES.includes(type.name))) {
+            if (type?.kind !== 'named' || type.isNullable || type.typeArguments.length > 0) {
                 fail('LEXICA4065', `A conversion is from a type of data to another, each named as it is declared: ${DATA_TYPE_NAMES.join(', ')} or a structured type, and its '${key}' is none of them`, name, key);
             }
         }

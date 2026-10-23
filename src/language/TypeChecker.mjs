@@ -187,6 +187,43 @@ export class TypeChecker {
     }
 
     /**
+     * The applicable declaration of those given whose receiver type is more specific than every other applicable declaration's, alone, as `Light` is than `Device` and `List<Light>` than `List<Device>`, a receiver of any type
+     * the least specific: a type's member hides one of its name its supertype declares. Where no declaration is, it answers the competing ones, each applicable and none less specific than another, which make the access ambiguous;
+     * none where none applies.
+     */
+    mostSpecificOf(declarations, receiverType) {
+        const applying = declarations.map(declaration => ({ declaration, type: this.#applyingTypeOf(declaration, receiverType) })).filter(({ type }) => type !== undefined);
+        const selected = applying.find(candidate => applying.every(other => other === candidate || this.#isMoreSpecific(candidate.type, other.type)));
+
+        if (selected !== undefined) {
+            return [selected.declaration];
+        }
+
+        return applying.filter(({ type }) => !applying.some(other => this.#isMoreSpecific(other.type, type))).map(({ declaration }) => declaration);
+    }
+
+    /** The receiver type of the declaration the receiver applies to it by, `any` for a receiver of any type, or undefined where it applies by none. */
+    #applyingTypeOf(declaration, receiverType) {
+        const base = receiverType.toNonNullable();
+        const isValue = base.kind === 'named' || base.kind === 'object';
+
+        return this.#declarations.getTargetTypes(declaration).find(type => (type === 'any' ? isValue : (type.kind !== 'typeParameter' || isValue) && this.matchType(type, base, new Map())));
+    }
+
+    /** Whether the one receiver type is more specific than the other: assignable to it by the type relationships, the other matching it and not it the other; a receiver of any type, written `any`, is the least specific. */
+    #isMoreSpecific(one, other) {
+        if (one === 'any') {
+            return false;
+        }
+
+        if (other === 'any') {
+            return true;
+        }
+
+        return this.matchType(other, one, new Map()) && !this.matchType(one, other, new Map());
+    }
+
+    /**
      * Whether the actual type matches the declared one, structure for structure: a type parameter the declared type writes matches any type, the first time it is met, and records that type as its argument; a parameter met again matches the type it recorded, nullability aside.
      * @param {Type} declaredType
      * @param {Type} actualType

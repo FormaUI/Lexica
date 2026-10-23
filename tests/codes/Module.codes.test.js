@@ -133,8 +133,10 @@ describe('the module error codes', () => {
             expectCode(registering(module('charts', { types: [reference({ supertype: 'Lamp' })] })), 'LEXICA4050');
         });
 
-        it('LEXICA4004: a type whose name begins with no capital letter', () => {
-            expectCode(creating({ types: [{ name: 'chart', fields }] }), 'LEXICA4004');
+        it('takes a type of any name, a lowercase one and one Lexica\'s own types spell among them', () => {
+            for (const name of ['chart', 'Number', 'Null', 'List']) {
+                expect(() => lexica.createRegistry([module('charts', { types: [{ name, fields }] })])).not.toThrow();
+            }
         });
 
         it('LEXICA4552: a type whose name is not an identifier', () => {
@@ -142,10 +144,6 @@ describe('the module error codes', () => {
             expectCode(creating({ types: [{ fields }] }), 'LEXICA4552');
         });
 
-        it('LEXICA4034: a type named as one of Lexica\'s own types', () => {
-            expectCode(creating({ types: [{ name: 'Number', fields }] }), 'LEXICA4034');
-            expectCode(creating({ types: [{ name: 'Null', fields }] }), 'LEXICA4034');
-        });
 
         it('LEXICA4506: a type named by a single capital letter', () => {
             expectCode(creating({ types: [{ name: 'C', fields }] }), 'LEXICA4506');
@@ -517,12 +515,15 @@ describe('the module error codes', () => {
             expectCode(registering({ name: 'fake', members: [] }), 'LEXICA4546');
         });
 
-        it('LEXICA4035: a module whose name is already registered', () => {
+        it('LEXICA4035: a module whose name, compared case-insensitively, is already registered', () => {
             expectCode(registering(module('charts', {}), module('charts', {})), 'LEXICA4035');
+            expectCode(registering(module('Charts', {}), module('CHARTS', {})), 'LEXICA4035');
+            expectCode(registering(module('LEXICA', {})), 'LEXICA4035');
+            expect(lexica.createRegistry([module('Charts', {})]).moduleNames).toContain('Charts');
         });
 
-        it('LEXICA4036: a module named by a reserved word', () => {
-            expectCode(registering(module('if', {})), 'LEXICA4036');
+        it('LEXICA4557: a module named by a reserved word, which text reaches only through an import binding', () => {
+            expectCode(registering(module('if', {})), 'LEXICA4557');
         });
 
         it('LEXICA4033: a type of a name its module already declares', () => {
@@ -557,28 +558,25 @@ describe('the module error codes', () => {
             expectCode(registering(module('charts', { members: [rooms, rooms] })), 'LEXICA4549');
         });
 
-        it('LEXICA4014: a module member and a member of its name on one of its module\'s types', () => {
-            expectCode(registering(module('charts', { types: [chart], members: [property({ name: 'rooms', target: 'Chart' }), property({ name: 'rooms', target: undefined })] })), 'LEXICA4014');
-            expectCode(registering(module('charts', { types: [chart], members: [property({ name: 'rooms', target: undefined }), property({ name: 'rooms', target: 'Chart' })] })), 'LEXICA4014');
-        });
-
-        it('LEXICA4553: a module member and a member of its name on a type its module does not declare', () => {
-            expectCode(registering(module('charts', { members: [property({ name: 'rooms' }), property({ name: 'rooms', target: undefined })] })), 'LEXICA4553');
-            expectCode(registering(module('charts', { members: [property({ name: 'rooms', target: undefined }), property({ name: 'rooms' })] })), 'LEXICA4553');
-        });
-
-        it('LEXICA4029: two members of one name on overlapping receivers of one module', () => {
+        it('LEXICA4029: two members of one name on one receiver type of one module', () => {
             expectCode(registering(module('charts', { members: [property(), property()] })), 'LEXICA4029');
+            expectCode(registering(module('charts', withHome({ members: [property({ target: 'Light' }), property({ target: ['Room', 'Light'] })] }))), 'LEXICA4029');
+            expect(registering(module('charts', withHome({ members: [property({ target: 'Light' }), property({ target: 'Device' })] })))).not.toThrow();
         });
 
         it('LEXICA4551: a member of a name another module declares on an overlapping receiver', () => {
             expectCode(registering(module('charts', { members: [property()] }), module('graphs', { members: [property()] })), 'LEXICA4551');
         });
 
-        it('LEXICA4550: a second default indexer of a receiver', () => {
-            const indexer = name => func({ name, syntax: 'indexer', default: true, parameters: [parameter({ name: 'key', type: 'String' })] });
+        const indexer = (name, target = 'String') => func({ name, target, syntax: 'indexer', default: true, parameters: [parameter({ name: 'key', type: 'String' })] });
 
-            expectCode(registering(module('charts', { members: [indexer('setting'), indexer('option')] })), 'LEXICA4550');
+        it('LEXICA4068: two unnamed indexers for one receiver type of one module', () => {
+            expectCode(registering(module('charts', { members: [indexer('setting'), indexer('option')] })), 'LEXICA4068');
+            expect(registering(module('charts', withHome({ members: [indexer('setting', 'Light'), indexer('option', 'Device')] })))).not.toThrow();
+        });
+
+        it('LEXICA4550: another module\'s default indexer of an overlapping receiver', () => {
+            expectCode(registering(module('charts', { members: [indexer('setting')] }), module('graphs', { members: [indexer('option')] })), 'LEXICA4550');
         });
     });
 });

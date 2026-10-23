@@ -64,9 +64,9 @@ Every declaration takes its final shape, and the types those declarations make r
    - The resolution key written by qualified identity, so two modules' `Device` no longer share one.
    - Removed: the built-in DOM types and every `nodeType` path, in binding, evaluation, captures, casts and messages, and `lexica.bind`.
 4. **The declaration model:**
-   - A module's name in PascalCase, Lexica's own module named `Lexica`, and a module refused under `Lexica`, a reserved word, or one of Lexica's own types' or extensions' names.
+   - Module names unique case-insensitively at registration, their spelling kept, and Lexica's own module named `Lexica`; casing a convention for modules, namespaces and types, never enforced.
    - Type kinds, members within their types, stored properties in place of `fields`, the `indexer` kind, named or unnamed, in place of the indexer bridge, and `impl` in place of `implementation`.
-   - Named extension types, each with one target, in place of the `'any'` target and lists of targets; a module member refused under one of its module's extensions' names, and reserving its name against members of its module's own types alone.
+   - Named extension types, each with one target, in place of the `'any'` target and lists of targets; a module member and an extension of its name declared side by side.
    - Declared type parameters, their scopes and their registration checks, in place of the implicit single capitals, which lifts the refusal of a type named by one letter.
    - `internal`, and the registration checks that no declaration names another module's internal one and no public one exposes an internal type.
    - A type's `import` covering its whole declaration; an error located at the type a nested declaration stands in; observation types named in camelCase; the mappings unit 0 specifies.
@@ -100,7 +100,7 @@ Scripts write imports and extension access, and the definition records both; a s
 
 1. **Line endings:** one definition of a line break, LF, CRLF or a lone CR, for comments, block strings, diagnostics and locations; line comments ending at CR and CRLF; and U+2028 and U+2029 refused outside literal string text. It repairs today's comment handling on its own, before any layout rule.
 2. **The definition's contract:** `import` a keyword; one shared list of Lexica's own names; version 34, structured imports and the `extension` field, validated, with a namespace or an extension's module checked against the imports.
-3. **Imports:** imports, aliases and type imports parsed; namespaces recognized by the script's imports, in place of the registry's module names, so parsing never consults a registry; imports a host supplies to parsing, formatting, quoting and resolution; and parsed texts kept by their text and their imports.
+3. **Imports:** imports, aliases and type imports parsed, a local name of any identifier, and an import binding read with `@`; namespaces recognized by the script's imports, in place of the registry's module names, so parsing never consults a registry; imports a host supplies to parsing, formatting, quoting and resolution; and parsed texts kept by their text and their imports.
 4. **Resolution by imports:** one lookup context giving the namespaces, the type names, an explicitly imported name first and extensions taking no part, the members the imports make available, and what qualified access reaches; the diagnostics of a missing import; and the imports in the resolution key.
 5. **Extension access:** `:` and `?:` through the chain parser, the lowering and the writer, with the colon diagnostics and named arguments told apart; resolution through the selector, evaluation, bound function references, and host calls reached through an extension.
 6. **Line structure:** one-line constructs, break points, enclosed operator expressions, keyword blocks and boundaries, refused where broken in the parser and the syntax tree, never changing a reading.
@@ -181,10 +181,10 @@ Conditions the implementation reports that only language `1.0.0-alpha.33` has, c
 | `LEXICA4531` | module | A `syntax` that is neither `function-call` nor `indexer` | [Unit 1](#unit-1--declarations-and-the-type-model) |
 | `LEXICA4532` | module | An indexer whose `arguments` are not positional | [Unit 1](#unit-1--declarations-and-the-type-model) |
 | `LEXICA4533` | module | A `default` that is not a Boolean | [Unit 1](#unit-1--declarations-and-the-type-model) |
-| `LEXICA4550` | module | A second default indexer of a receiver, across the registry | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4550` | module | Another module's default indexer of an overlapping receiver, which alpha.33 has no owner to select | [Unit 1](#unit-1--declarations-and-the-type-model) |
 | `LEXICA4551` | module | Members of one name on overlapping receivers in two modules, refused at registration | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
-| `LEXICA4553` | module | A module member and a member of its name on a type its module does not declare | [Unit 1](#unit-1--declarations-and-the-type-model) |
 | `LEXICA4556` | module | A type of the kind `structured` or `extension`, which the declaration model brings | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4557` | module | A module named by a reserved word, which text reaches only through an import binding read with `@` | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
 | `LEXICA5502` | evaluation | A definition node no evaluation exists for | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 | `LEXICA5504` | evaluation | A function's result its callback contract does not declare, when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 
@@ -260,7 +260,7 @@ Contracts: [Host-call declarations](../spec/members.md#members-host-calls), [hos
 
 ## Open decisions
 
-No open decision is recorded for the implementation plan: Unit 0's decisions are taken, and unit 4 settles the collections proposal's open contracts, the lineage representation first. Deferred items below require their stated trigger before design or implementation resumes.
+One open decision is recorded: a module that declares a type spelled as one of Lexica's own, as `Home.Number`, can't name Lexica's own type of that name in its own declarations, since [type name lookup](../spec/types.md#types-type-name-lookup) finds the module's own first and Lexica's own types have no qualified spelling. Giving Lexica a permanent namespace for that was declined; the limitation stands until another spelling is chosen. Unit 0's decisions are taken, and unit 4 settles the collections proposal's open contracts, the lineage representation first. Deferred items below require their stated trigger before design or implementation resumes.
 
 ## Deferred
 

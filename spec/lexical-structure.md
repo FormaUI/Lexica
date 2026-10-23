@@ -96,12 +96,12 @@ The **keywords** are the reserved words other than the literals' words and `root
 An identifier's spelling decides no meaning; where it stands does:
 
 - **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, field, conditional binding or function parameter of its name, and otherwise the script parameter.
-- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`.
+- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`; and otherwise the import binding of its name, the local name an import gives a module or a type: after `import Lexica = Home`, `@Lexica.rooms` reads `Home.rooms`. An import binding read with `@` begins its namespace or names its type, as its bare name does, and is never a value.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
 - **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, after an [extension access](members.md#property-access-calls-and-indexers-extension-access)'s `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ Home = 1 }` declares the field `Home`.
-- **Where the script imports a module,** the [local name](modules.md#names-and-reserved-words-module-names) its import gives the module, its own or an alias, written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@Home` and `~Home` read the local and the script parameter of its name, and a member, a field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
+- **Where the script imports a module,** the [local name](modules.md#names-and-reserved-words-module-names) its import gives the module, its own or an alias, written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@Home` reads the nearest local of its name, and the import binding only where none is in scope, `~Home` the script parameter of its name, and a member, a field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
 
-Declarations keep their own restrictions besides: no module is named by a word the language reserves, a type is named once within its module, and no module's type is named as one of Lexica's own, as [registering a module](modules.md#modules-registries) sets out. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.
+Declarations keep their own restrictions besides: module names are unique, compared case-insensitively, and a type is named once within its module, as [registering a module](modules.md#modules-registries) sets out. Ambiguity is checked when resolving a reference, against the declarations applicable at that location. Declarations are not refused merely because their names could become ambiguous in another context. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.
 
 <a id="names-and-reserved-words-declaring-and-accessing-a-reserved-name"></a>
 
@@ -413,13 +413,13 @@ An enclosing one-line construct overrides every break point within it: `(a, b) =
 
 ## Case-sensitive names
 
-Every name in Lexica is case-sensitive, and nothing normalizes one: `name` and `Name` are different names, and so are `room` and `Room`. A name is resolved exactly as it is written, and each kind of name is spelled by its own convention:
+Every name in Lexica is case-sensitive, and nothing normalizes one: `name` and `Name` are different names, and so are `room` and `Room`. Module names are compared case-insensitively for uniqueness at registration, with their original spelling preserved. All name resolution in scripts remains case-sensitive. A name is resolved exactly as it is written, and each kind of name is spelled by its own convention:
 
 <a id="case-sensitive-names-members"></a>
 
 ### Member names
 
-Members are named in camelCase, properties and functions alike: `name`, `floorArea`, `brightness`, `device`. A member has one name, the same in a text and a definition. `it.["floorArea"]` reads that property by the same name.
+Members are conventionally named in camelCase, properties and functions alike: `name`, `floorArea`, `brightness`, `device`. A member has one name, the same in a text and a definition. `it.["floorArea"]` reads that property by the same name.
 
 <a id="case-sensitive-names-field-names-and-bindings"></a>
 

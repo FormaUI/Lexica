@@ -95,6 +95,72 @@ describe('reference types', () => {
         expect(lexica.createRegistry([office]).bind({ hall: { lamp: new Device('lamp') } }).resolutionKey).toBe('hall:{ lamp: office.Device }');
     });
 
+    it('register one module\'s members of one name on related receivers, an access resolving through its receiver\'s type, the most specific declaration hiding one above it', () => {
+        const active = lexica.createModule('home', withHome({
+            members: [
+                property('active', 'Device', 'Boolean', { updates: constant, implementation: () => false }),
+                property('active', 'Light', 'Boolean', { updates: constant, implementation: () => true }),
+                fn('setting', 'Device', 'String?', { syntax: 'indexer', isDefault: true, updates: constant, parameters: [valueParameter('key', 'String')], implementation: () => 'device' }),
+                fn('lightSetting', 'Light', 'String?', { syntax: 'indexer', isDefault: true, updates: constant, parameters: [valueParameter('key', 'String')], implementation: () => 'light' }),
+            ],
+        }));
+        const registry = lexica.createRegistry([active]);
+        const evaluateHere = (text, values) => registry.resolve(text, values).createEvaluator(values).evaluate().value;
+
+        expect(evaluateHere('heater.active', { heater })).toBe(false);
+        expect(evaluateHere('device.active', registry.bind({ device: lamp }, { types: { device: 'Device' } }))).toBe(false);
+        expect(evaluateHere('lamp.active', { lamp })).toBe(true);
+        // A member is selected by its receiver's static type, so a light held as a device reads the device's member: hiding, never a dynamic override.
+        expect(evaluateHere('devices { active = it.active }', { devices: [lamp, heater] })).toEqual([{ active: false }, { active: false }]);
+        expect(evaluateHere('heater["mode"]', { heater })).toBe('device');
+        expect(evaluateHere('lamp["mode"]', { lamp })).toBe('light');
+    });
+
+    it('read brackets after a name by the most specific member of it, a property hiding a named indexer above it and an indexer one', () => {
+        const settings = (propertyTarget, indexerTarget) => lexica.createRegistry([lexica.createModule('home', withHome({
+            members: [
+                property('setting', propertyTarget, 'String', { updates: constant, implementation: () => 'property' }),
+                fn('setting', indexerTarget, 'String?', { syntax: 'indexer', updates: constant, parameters: [valueParameter('key', 'String')], implementation: () => 'indexer' }),
+            ],
+        }))]);
+        const evaluateWith = (registry, text, values) => registry.resolve(text, values).createEvaluator(values).evaluate().value;
+
+        expect(getError(() => settings('Light', 'Device').resolve('lamp.setting["mode"]', { lamp }))).toMatchObject({ code: 'LEXICA3012' });
+        expect(evaluateWith(settings('Light', 'Device'), 'heater.setting["mode"]', { heater })).toBe('indexer');
+        expect(evaluateWith(settings('Device', 'Light'), 'lamp.setting["mode"]', { lamp })).toBe('indexer');
+        expect(evaluateWith(settings('Device', 'Light'), 'heater.setting', { heater })).toBe('property');
+    });
+
+    it('resolve an empty list by the most specific applicable declaration, and refuse it, naming the competing ones, where none is', () => {
+        const totals = (...targets) => lexica.createRegistry([lexica.createModule('shop', {
+            members: targets.map(target => property('total', target, 'String', { updates: constant, implementation: () => target })),
+        })]);
+        const evaluateWith = (registry, values) => registry.resolve('items.total', values).createEvaluator(values).evaluate().value;
+        const refused = getError(() => totals('List<Number>', 'List<String>').resolve('items.total', { items: [] }));
+
+        expect(refused).toMatchObject({ code: 'LEXICA3024' });
+        expect(refused.message).toContain("'total' is declared for List<Number> and List<String>, which List<Never> satisfies, and none of them is more specific than the other");
+        expect(evaluateWith(totals('List<Number>', 'List<String>'), { items: [1] })).toBe('List<Number>');
+        expect(evaluateWith(totals('List<Number>'), { items: [] })).toBe('List<Number>');
+        expect(evaluateWith(totals('List<T>', 'List<Number>'), { items: [] })).toBe('List<Number>');
+        expect(evaluateWith(totals('List<T>', 'List<Number>'), { items: ['a'] })).toBe('List<T>');
+    });
+
+    it('register a module member beside a receiver\'s member of its name, a qualified call taking the one reading resolution accepts and refused where both are accepted', () => {
+        const members = moduleMemberParameter => lexica.createModule('home', withHome({
+            members: [
+                property('label', 'Room', 'String', { updates: constant, implementation: ({ receiver }) => `room ${receiver.name}` }),
+                fn('label', null, 'String', { updates: constant, parameters: [valueParameter('of', moduleMemberParameter)], implementation: ({ args }) => `module ${args.of.name ?? args.of}` }),
+            ],
+        }));
+        const evaluateWith = (module, text, values) => lexica.createRegistry([module]).resolve(text, values).createEvaluator(values).evaluate().value;
+
+        expect(evaluateWith(members('String'), 'home.label(room)', { room: kitchen })).toBe('room kitchen');
+        expect(evaluateWith(members('String'), 'home.label(word)', { word: 'hall' })).toBe('module hall');
+        expect(getError(() => lexica.createRegistry([members('Room')]).resolve('home.label(room)', { room: kitchen }))).toMatchObject({ code: 'LEXICA3024' });
+        expect(evaluateWith(members('Room'), 'room.label', { room: kitchen })).toBe('room kitchen');
+    });
+
     it('check a member\'s answer by its declared type\'s membership, a reference of another type refused', () => {
         const wrong = lexica.createModule('wrong', withHome({ members: [property('lamp', 'String', 'Light', { updates: constant, implementation: () => heater })] }));
         const registry = lexica.createRegistry([wrong]);
