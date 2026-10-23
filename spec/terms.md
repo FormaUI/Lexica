@@ -69,7 +69,7 @@ In this document:
 | Chain input | What a chain starts from: the implicit parameter, the object root, a literal, a name, a namespace's member or qualified form, a lexical reference, a script parameter selected with `~`, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](grammar.md#syntax) |
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](expressions.md#expression-structure-and-precedence) |
 | Receiver | The value before a member access, function call or indexer | [Access and calls](members.md#access-and-calls) |
-| Member | A property, function or other declared facility of a type | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
+| Member | A property, a function, an indexer or an operator a module declares on a type, or a property or a function it declares on none | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
 | Property access | A property read by its name after a dot, or by a computed name, `.[name]` | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
 | Computed property access | `.[name]`, a property read by the name an expression gives, settled when the script is resolved | [Computed property access](members.md#computed-property-access) |
 | Function call | `name(…)`, written after a receiver to call a function, which the evaluator or the host invokes, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](members.md#property-access-calls-and-indexers-calls) |
@@ -126,7 +126,7 @@ In this document:
 | Namespace | The local name a script's import gives a module, its own or an alias, through which its module members and its qualified forms are reached, and which qualifies its types' and extensions' names | [Namespaces](modules.md#namespaces) |
 | Module member | A member a module declares on no type, read through its namespace, as `Home.rooms` | [Module members](modules.md#namespaces-module-members) |
 | Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
-| Extension | A named group a module declares among its `types`, `kind: 'extension'`, of the members, indexers and operators it adds to its `target`, a type another module owns | [Extensions](modules.md#extensions) |
+| Extension | A named group a module declares among its `types`, `kind: 'extension'`, of the members, indexers and operators it adds to its `target`, a type another module owns or a type parameter it declares | [Extensions](modules.md#extensions) |
 | Extension access | An extension's member selected explicitly, `device:Device.usage` | [Extension access](members.md#property-access-calls-and-indexers-extension-access) |
 | Qualified form | A member of a module's own type called through its namespace, the receiver first, as `Home.device(room, "lamp")` | [Qualified access](modules.md#namespaces-qualified-access) |
 | Boolean function | A function whose result is a `Boolean`, the form a module gives a test of its receiver, as `device.active()` | [Boolean functions](vocabulary.md#vocabulary-boolean-functions) |

@@ -66,12 +66,12 @@ Every declaration takes its final shape, and the types those declarations make r
 4. **The declaration model:**
    - Module names unique case-insensitively at registration, their spelling kept, and Lexica's own module named `Lexica`; casing a convention for modules, namespaces and types, never enforced.
    - Type kinds, members within their types, stored properties in place of `fields`, the `indexer` kind, named or unnamed, in place of the indexer bridge, and `impl` in place of `implementation`.
-   - Named extension types, each with one target, in place of the `'any'` target and lists of targets; a module member and an extension of its name declared side by side.
-   - Declared type parameters, their scopes and their registration checks, in place of the implicit single capitals, which lifts the refusal of a type named by one letter.
-   - `internal`, and the registration checks that no declaration names another module's internal one and no public one exposes an internal type.
+   - Named extension types, each with one target, never `Any` or nullable, in place of the `'any'` target and lists of targets; a module member and an extension of its name declared side by side.
+   - Declared type parameters, their scopes and their registration checks, each parameter bound from a supported source, in place of the implicit single capitals, which lifts the refusal of a type named by one letter; reference and structured types and operators declaring none, an operator using its extension's.
+   - `internal`, and the registration checks that no declaration names another module's internal one and no public one exposes an internal type, a public type's supertype and a mapping's type among them; a `typeOf` naming an internal type a fault.
    - A type's `import` covering its whole declaration; an error located at the type a nested declaration stands in; observation types named in camelCase; the mappings unit 0 specifies.
    - The declaration helpers without receivers, with stored property and indexer helpers.
-   - Lexica's own `List<T>`, with its unnamed indexer in place of `item`, and `VerbExtensions<T>`.
+   - Lexica's own `List<T>`, declared through a form internal to Lexica and owning the members of lists, which the receiver gives its `T`, with its unnamed indexer in place of `item`; and `VerbExtensions<T>`.
    - Removed: flat members, `target`, `syntax`, `default`, `fields`, `selectableTypes`, the migration hints for `predicates`, and the duplicate tolerance and identifier checks.
 5. **Inference of type parameters:** a receiver binding its extension's parameters by its non-null branch, with exact extraction; value arguments binding before callbacks; nullable candidates combining and different candidates refused; the evidence of `null` and `Never`; and a callback's result binding a parameter, without chaining.
 

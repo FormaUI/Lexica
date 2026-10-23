@@ -2,7 +2,7 @@
 
 <a id="members"></a>
 
-A **member** is what a module declares on a type, or on no type for a [module member](modules.md#namespaces-module-members): a property or a function. A script reaches a member through its receiver, and the member's declaration says how the member is written, what it takes, what it answers, who invokes it, how it reads and how its value changes. Lexica checks every use of a member against its declaration before anything runs.
+A **member** is what a module declares on a type: a property, a function, an indexer or an [operator](modules.md#modules-operators); or on no type, a [module member](modules.md#namespaces-module-members), which is a property or a function. A script reaches a member through its receiver, and the member's declaration says how the member is written, what it takes, what it answers, who invokes it, how it reads and how its value changes. Lexica checks every use of a member against its declaration before anything runs.
 
 ```lexica
 room.devices.count                    // A property, then another: the room's devices, counted.
@@ -195,7 +195,7 @@ A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` 
 | Property | `device:Device.usage` | `device?:Device.usage` |
 | Function | `device:Device.reset(3)` | `device?:Device.reset(3)` |
 | Named indexer | `device:Device.setting["mode"]` | `device?:Device.setting["mode"]` |
-| Unnamed indexer | `values:ListExtensions[0]` | `values?:ListExtensions[0]` |
+| Unnamed indexer | `device:Device["mode"]` | `device?:Device["mode"]` |
 
 - **The extension's name.** After `:` stands an extension's name, its local name or one its module qualifies, `device:Energy.Device.usage`, where a name the script's [imports](scripts.md#scripts-imports) give a module, its own or an alias, followed by a dot, is the qualifier, so the text alone decides where the name ends, and an extension named as a module the script imports is written qualified, `device:Solar.Energy.usage`. Resolution reads it as a script's [type name](types.md#types-type-identity) is read, an extension the script imports by name first, `values:Numeric.total` after `import Numeric = Measurements.NumericList`, and otherwise the public extensions of Lexica's own and of the modules the script imports, one only, several refused with their qualified names given: ordinary types take no part, so beside `Home`'s type `Device`, `device:Device.usage` selects `Energy`'s extension, and a name only an ordinary type has is refused.
 - **Its members alone.** Lookup is limited to the extension's members, so a member it does not declare is an error at that selection, never falling through to another extension or to the receiver's own members, and an extension that ordinary lookup outranks is still reached. The receiver satisfies the extension's target, binding its parameters as [binding a call's parameters](types.md#types-type-parameters-binding) sets out, and visibility and the host's policy apply as to any access.
@@ -210,7 +210,7 @@ A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` 
 
 ### Member form and parsing
 
-A property must be read as a property, a function called, and an indexer given its key in brackets; only a function the evaluator invokes can be declared an indexer.
+A property must be read as a property, a function called, and an indexer given its key in brackets; the evaluator alone invokes an indexer, never the host.
 
 Using another form is a validation error that gives the required form:
 
@@ -387,7 +387,7 @@ A module declares each member as data, in the `members` of the type it belongs t
 
 | Field | Holds |
 | --- | --- |
-| `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words), followed by the [type parameters](types.md#types-type-parameters) it declares, `identity<T>`; an operator's names its operation, `cast` or `convert`; left out for a type's unnamed indexer |
+| `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words), followed by the [type parameters](types.md#types-type-parameters) it declares, `identity<T>`; an operator's names its operation, `cast` or `convert`, and declares none; left out for a type's unnamed indexer |
 | `kind` | `property`, `function`, `indexer` or `operator` |
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
 | `arguments` | The argument form of a function with parameters: `positional` or `options` |
@@ -404,7 +404,7 @@ Each member takes the fields it needs alone; every one takes `kind` and `interna
 | A stored property, declared directly in a structured type without `updates` | Refused | Refused | Refused | Required | Refused |
 | A computed property | Refused | Refused | Required | Required | Optional |
 | A function the evaluator invokes | Required where it has parameters, refused where it has none | Any kind; a function parameter only here | Required | Required | Optional |
-| An indexer, named or unnamed | Refused, since its arguments are positional | One required value parameter, its key, and optional ones after it | Required | Required | Optional |
+| An indexer, named or unnamed | Refused, since its arguments are positional | One required value parameter, its key, alone | Required | Required | Optional |
 | A function the host invokes | As a function's | Value parameters, of which a fixed one may select a type | Refused | Optional | Refused |
 | An operator | Refused | Refused | Refused | Required | Optional |
 

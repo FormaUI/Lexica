@@ -226,13 +226,12 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4040` | A `result` writing `@selected` without a parameter that selects a type | A module error naming the function |
 | `LEXICA4010` | Empty angle brackets after a declaration's name, or a type parameter without a name | A module error naming the declaration |
 | `LEXICA4041` | A type parameter declared twice | A module error naming the declaration and the parameter |
-| `LEXICA4042` | A type parameter named as a type its declaration reaches unqualified, an imported one included | A module error naming the declaration and the parameter |
+| `LEXICA4042` | A type parameter named as a type its declaration reaches unqualified, one of Lexica's own, `Any` and `Never` among them, or an imported one | A module error naming the declaration and the parameter |
 | `LEXICA4043` | A member declaring a parameter its extension declares | A module error naming the member and the parameter |
-| `LEXICA4011` | A member whose result writes a type parameter that neither its extension's target, nor its value parameters, nor its callbacks' results could establish | A module error naming the member and the parameter |
-| `LEXICA4044` | A member whose callback's input needs another callback's result | A module error naming the member and the callbacks |
+| `LEXICA4011` | A member whose result writes a type parameter with no supported source to bind it from: its extension's target, its value parameters' types or its callbacks' results | A module error naming the member and the parameter |
+| `LEXICA4044` | A member whose callback's input writes a type parameter whose only source is another callback's result | A module error naming the member and the callbacks |
 | `LEXICA4012` | An extension that names no `target` | A module error naming the extension |
 | `LEXICA4045` | An extension whose target its own module owns | A module error naming the extension |
-| `LEXICA4046` | A type named as one of Lexica's own extensions | A module error naming both |
 | `LEXICA4015` | A type's `import` that does not name a registered module | A module error naming the declaration |
 | `LEXICA4047` | A type reference resolving to no type | A module error naming the declaration |
 | `LEXICA4048` | A type reference resolving to several types | A module error naming the declaration and the qualified candidates |
@@ -242,15 +241,15 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4017` | A reference type without `isInstance` | A module error naming the declaration |
 | `LEXICA4051` | A `typeOf` or an `isInstance` that is not a function | A module error naming the declaration |
 | `LEXICA4018` | A declaration naming another module's internal type or member | A module error naming the declaration and the internal type or member |
-| `LEXICA4052` | A public declaration exposing an internal type through its signature | A module error naming the declaration and the internal type |
+| `LEXICA4052` | A public declaration exposing an internal type: through its signature, as a public type's supertype, or as a mapping's type | A module error naming the declaration and the internal type |
 | `LEXICA4019` | Positional parameters with a required one after an optional one | A module error naming the parameter |
-| `LEXICA4020` | An indexer without exactly one required value parameter as its key | A module error naming the indexer |
+| `LEXICA4020` | An indexer whose parameters are other than one required value parameter, its key | A module error naming the indexer |
 | `LEXICA4053` | An indexer the host invokes | A module error naming the indexer |
 | `LEXICA4021` | A function parameter on anything but a function the evaluator invokes | A module error naming the parameter |
 | `LEXICA4054` | A function parameter that is optional or has a null policy | A module error naming the parameter |
 | `LEXICA4055` | A function parameter an observation is given | A module error naming the parameter |
 | `LEXICA4056` | A host call taking a parameter other than a value parameter | A module error naming the parameter |
-| `LEXICA4022` | A module member that is an indexer | A module error naming the member |
+| `LEXICA4022` | A module member that is an indexer or an operator | A module error naming the member |
 | `LEXICA4057` | A module member that observes its receiver or a target found from one | A module error naming the member |
 | `LEXICA4023` | `updates` without `changes` or `reads` | A module error naming the member and the field |
 | `LEXICA4058` | `misses` missing where the member is partly observable, or present otherwise | A module error naming the member and the field |
@@ -314,6 +313,10 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4552` | A type whose name is not an identifier | A module error naming the type |
 | `LEXICA4554` | A type of a kind that is none of a type's kinds | A module error giving the kinds |
 | `LEXICA4555` | An `abstract` that isn't a Boolean | A module error naming the type |
+| `LEXICA4558` | A reference or structured type declaring type parameters | A module error naming the type |
+| `LEXICA4559` | An extension whose target is `Any` or nullable | A module error naming the extension |
+| `LEXICA4560` | An operator named other than `cast` or `convert` | A module error naming the operator |
+| `LEXICA4561` | An operator declaring type parameters | A module error naming the operator |
 
 <a id="preparation-and-type-errors"></a>
 
@@ -413,7 +416,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | --- | --- | --- |
 | `LEXICA5001` | A value a strict cast rejects, by its destination's membership or by its operator's `reject` | An evaluation error naming the cast, the reason it gave and where it stands, as `The cast to Light rejected its value: it is a Thermostat`; null under `try` |
 | `LEXICA5016` | A value a conversion rejects | An evaluation error naming the conversion, the reason it gave and where it stands; null under `try` |
-| `LEXICA5002` | A `typeOf` that does not name a reference type of its module, an abstract one, or one the value does not belong to | A fault naming the module and what asked |
+| `LEXICA5002` | A `typeOf` that does not name a reference type of its module, an abstract one, an internal one, or one the value does not belong to | A fault naming the module and what asked |
 | `LEXICA5026` | A `typeOf` that throws | A fault naming the module and what asked, its `cause` exactly what `typeOf` threw |
 | `LEXICA5017` | An `isInstance` answering what isn't a Boolean | A fault naming the type and what asked |
 | `LEXICA5027` | An `isInstance` that throws | A fault naming the type and what asked, its `cause` exactly what `isInstance` threw |
@@ -469,3 +472,4 @@ A code leaves its table only by being retired here, with the condition it identi
 | `LEXICA4014` | A module member and a member of its name on one of the module's own types, a qualified call both take refused as ambiguous where it is resolved | `1.0.0-alpha.34` |
 | `LEXICA4553` | A module member and a member of its name on a type its module does not declare, which alpha.33 refused; a qualified call both take is refused as ambiguous where it is resolved | `1.0.0-alpha.34` |
 | `LEXICA4036` | A module named by a reserved word, `Lexica`, or one of Lexica's own types or extensions, `Lexica` refused as any registered name is and the rest names a module may share | `1.0.0-alpha.34` |
+| `LEXICA4046` | A type named as one of Lexica's own extensions, a name another module's declaration may share, ambiguity checked where a reference resolves | `1.0.0-alpha.34` |
