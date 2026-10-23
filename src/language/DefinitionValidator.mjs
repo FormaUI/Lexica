@@ -79,6 +79,9 @@ export class DefinitionValidator {
     /** Every canonical definition validation gave, which validating again answers as it is. @type {WeakSet<object>} */
     static #canonical = new WeakSet();
 
+    /** The parameter nodes of canonical definitions that a text wrote alone, a bare name no local in scope has, rather than with `~`. @type {WeakSet<object>} */
+    static #namesWrittenAlone = new WeakSet();
+
     #locations;
 
     /** The index each part of an interpolated string had in the definition being validated, by the canonical node, for each node whose parts validation moved. @type {WeakMap<object, number[]>} */
@@ -93,8 +96,8 @@ export class DefinitionValidator {
     /** The names of the locals and the fields in scope where the node being validated stands. @type {Set<string>} */
     #localNames = new Set();
 
-    /** The names of the locals declared later in a scope the node being validated stands in, the local whose value it is among them, which no parameter there may name. @type {Set<string>} */
-    #laterNames = new Set();
+    /** The names of the locals declared later in a scope the node being validated stands in, the local whose value it is among them, which no parameter there may name, each with whether a local or a conditional binding declares it. @type {Map<string, 'local' | 'binding'>} */
+    #laterNames = new Map();
 
     /** The optional chain the node being validated continues, with whether an access of it is optional so far; null where it continues none. @type {{ hasOptional: boolean } | null} */
     #chain = null;
@@ -118,18 +121,42 @@ export class DefinitionValidator {
         this.#parameterReferences = parameterReferences;
     }
 
+    /** Whether a canonical definition's parameter node is a name a text wrote alone, which reads a local or field of its name where one is in scope, rather than a script parameter written with `~` or a definition's. */
+    static isWrittenAlone(node) {
+        return DefinitionValidator.#namesWrittenAlone.has(node);
+    }
+
+    /** A deep copy of a canonical definition's node, each parameter node a text wrote alone marked as one in the copy too. */
+    static copyOf(node) {
+        if (Array.isArray(node)) {
+            return node.map(item => DefinitionValidator.copyOf(item));
+        }
+
+        if (node === null || typeof node !== 'object') {
+            return node;
+        }
+
+        const copy = Object.fromEntries(Object.entries(node).map(([key, value]) => [key, DefinitionValidator.copyOf(value)]));
+
+        if (DefinitionValidator.#namesWrittenAlone.has(node)) {
+            DefinitionValidator.#namesWrittenAlone.add(copy);
+        }
+
+        return copy;
+    }
+
     /** Checks the definition's structure, returning its canonical, frozen copy; a canonical definition validation already gave is answered as it is, keeping the locations it has. */
     validate(definition) {
         if (DefinitionValidator.#canonical.has(definition)) {
             return definition;
         }
 
-        this.#requireProperties(definition, '', { properties: ['version', 'expression'], required: ['version', 'expression'] });
-
-        // One version is read, and none is converted into another, so a definition of another version names both.
-        if (definition.version !== Versions.definition) {
-            this.#fail('/version', `A definition is of version ${Versions.definition}, the one this implementation reads, and this one is of version ${JSON.stringify(definition.version)}`);
+        // One version is read, and none is converted into another, so a definition of another version names both, before anything else its version's contract may hold.
+        if (definition !== null && typeof definition === 'object' && Object.hasOwn(definition, 'version') && definition.version !== Versions.definition) {
+            this.#fail('LEXICA2007', '/version', `A definition is of version ${Versions.definition}, the one this implementation reads, and this one is of version ${JSON.stringify(definition.version)}`);
         }
+
+        this.#requireProperties(definition, '', { properties: ['version', 'expression'], required: ['version', 'expression'] });
 
         const validated = Object.freeze({ version: Versions.definition, expression: this.#validateBodyOrExpression(definition.expression, '/expression', ContextAvailability.absent) });
 
@@ -151,11 +178,11 @@ export class DefinitionValidator {
     #validateNode(node, pointer, contextAvailability) {
         // A member that takes an argument is written as a call or an indexer, so an infix call is no node, and the message says which nodes take its place.
         if (ObjectUtils.isNonArrayObject(node) && node.kind === 'infixCall') {
-            this.#fail(pointer, 'An infixCall is not a node: a function is a call node, or an indexer node for a named or unnamed indexer');
+            this.#fail('LEXICA2000', pointer, 'An infixCall is not a node: a function is a call node, or an indexer node for a named or unnamed indexer');
         }
 
         if (!ObjectUtils.isNonArrayObject(node) || !Object.hasOwn(NODE_PROPERTIES, node.kind)) {
-            this.#fail(pointer, 'A node is an object whose kind is literal, parameter, it, root, namespace, local, member, call, indexer, object, optionalChain, equality, comparison, interpolatedString, body, do, function, functionCall, arithmetic, negate, conditional, coalescing, not, cast, conversion, try, and or or');
+            this.#fail('LEXICA2000', pointer, 'A node is an object whose kind is literal, parameter, it, root, namespace, local, member, call, indexer, object, optionalChain, equality, comparison, interpolatedString, body, do, function, functionCall, arithmetic, negate, conditional, coalescing, not, cast, conversion, try, and or or');
         }
 
         this.#requireProperties(node, pointer, NODE_PROPERTIES[node.kind]);
@@ -180,37 +207,43 @@ export class DefinitionValidator {
                 return this.#validateLiteral(node, pointer);
             case 'parameter':
                 if (!Names.isIdentifier(node.name)) {
-                    this.#fail(`${pointer}/name`, 'A parameter is named by a letter followed by letters and digits');
+                    this.#fail('LEXICA2000', `${pointer}/name`, 'A parameter is named by a letter followed by letters and digits');
                 }
 
                 // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; a script parameter written with `~` and a definition's parameter read the script parameter wherever they stand.
                 if (this.#locations !== null && !this.#parameterReferences?.has(node)) {
                     this.#requireBindingName(node.name, pointer);
+
+                    const parameter = Object.freeze({ kind: 'parameter', name: node.name });
+
+                    DefinitionValidator.#namesWrittenAlone.add(parameter);
+
+                    return parameter;
                 }
 
                 return Object.freeze({ kind: 'parameter', name: node.name });
             case 'root':
                 // The object root is a reference to the outermost object, which an object expression around the reference builds, lexically.
                 if (!this.#isInObjectExpression) {
-                    this.#fail(pointer, "'root' refers to the outermost object being built, and no object expression encloses it here");
+                    this.#fail('LEXICA2018', pointer, "'root' refers to the outermost object being built, and no object expression encloses it here");
                 }
 
                 return Object.freeze({ kind: 'root' });
             case 'it':
                 if (contextAvailability === ContextAvailability.absent) {
-                    this.#fail(pointer, "'it' is the implicit parameter, and the top level has none; a chain there starts from a script parameter, root, a namespace's member, a local, a literal or another input");
+                    this.#fail('LEXICA2026', pointer, "'it' is the implicit parameter, and the top level has none; a chain there starts from a script parameter, root, a namespace's member, a local, a literal or another input");
                 }
 
                 return Object.freeze({ kind: 'it' });
             case 'namespace':
-                this.#fail(pointer, "A namespace is the target of a member read or a call through it, as home.rooms is, and stands nowhere else");
+                this.#fail('LEXICA2520', pointer, "A namespace is the target of a member read or a call through it, as home.rooms is, and stands nowhere else");
                 break;
             case 'local':
                 this.#requireName(node.name, `${pointer}/name`);
 
                 // A local is read where one of its name, or a field, is in scope, which `@` and a reserved word name as a name written alone does any other.
                 if (!this.#localNames.has(node.name)) {
-                    this.#fail(pointer, `No local or field named '${node.name}' is in scope. Use '~${node.name}' to read the script parameter.`);
+                    this.#fail('LEXICA2012', pointer, `No local or field named '${node.name}' is in scope. Use '~${node.name}' to read the script parameter.`);
                 }
 
                 return Object.freeze({ kind: 'local', name: node.name });
@@ -230,7 +263,7 @@ export class DefinitionValidator {
                 return this.#validateInterpolatedString(node, pointer, contextAvailability);
             case 'arithmetic':
                 if (!ARITHMETIC_OPERATORS.includes(node.operator)) {
-                    this.#fail(`${pointer}/operator`, `An arithmetic operator is ${ARITHMETIC_OPERATORS.join(', ')}`);
+                    this.#fail('LEXICA2000', `${pointer}/operator`, `An arithmetic operator is ${ARITHMETIC_OPERATORS.join(', ')}`);
                 }
 
                 return Object.freeze({
@@ -244,16 +277,16 @@ export class DefinitionValidator {
             case 'conditional':
                 return this.#validateConditional(node, pointer, contextAvailability);
             case 'body':
-                this.#fail(pointer, "A body is the root expression's, a do block's, a function's or a conditional branch's, and stands nowhere else");
+                this.#fail('LEXICA2017', pointer, "A body is the root expression's, a do block's, a function's or a conditional branch's, and stands nowhere else");
                 break;
             case 'do':
                 if (this.#simpleExpression !== null) {
-                    this.#fail(pointer, `${this.#simpleExpression.holder} is a simple expression, which holds no do block: ${this.#simpleExpression.advice ?? "bind the block's value to a local first, and use the local"}`);
+                    this.#fail('LEXICA2011', pointer, `${this.#simpleExpression.holder} is a simple expression, which holds no do block: ${this.#simpleExpression.advice ?? "bind the block's value to a local first, and use the local"}`);
                 }
 
                 return Object.freeze({ kind: 'do', body: this.#validateBodyOrExpression(node.body, `${pointer}/body`, contextAvailability) });
             case 'function':
-                this.#fail(pointer, node.arrow === true ? 'An arrow function is the value of a local or an argument, and stands nowhere else' : 'A function is the value of a local, as let name = function(…) … end, and stands nowhere else');
+                this.#fail(node.arrow === true ? 'LEXICA2027' : 'LEXICA2004', pointer, node.arrow === true ? 'An arrow function is the value of a local or an argument, and stands nowhere else' : 'A function is the value of a local, as let name = function(…) … end, and stands nowhere else');
                 break;
             case 'functionCall':
                 return this.#validateFunctionCall(node, pointer, contextAvailability);
@@ -268,13 +301,13 @@ export class DefinitionValidator {
                 return this.#validateCast(node, pointer, contextAvailability);
             case 'conversion':
                 if (!DefinitionValidator.#isTypeName(node.type)) {
-                    this.#fail(`${pointer}/type`, "A conversion names the type it converts to by its name, a letter followed by letters and digits, or by its module's name, a dot and its name");
+                    this.#fail('LEXICA2000', `${pointer}/type`, "A conversion names the type it converts to by its name, a letter followed by letters and digits, or by its module's name, a dot and its name");
                 }
 
                 return Object.freeze({ kind: 'conversion', type: node.type, target: this.#validateNode(node.target, `${pointer}/target`, contextAvailability) });
             case 'try':
                 if (!ATTEMPTED_KINDS.has(node.target?.kind)) {
-                    this.#fail(`${pointer}/target`, "What 'try' attempts is a conversion or a cast");
+                    this.#fail('LEXICA2523', `${pointer}/target`, "What 'try' attempts is a conversion or a cast");
                 }
 
                 return Object.freeze({ kind: 'try', target: this.#validateNode(node.target, `${pointer}/target`, contextAvailability) });
@@ -295,7 +328,7 @@ export class DefinitionValidator {
      */
     #validateConditional(node, pointer, contextAvailability) {
         if ((node.condition === undefined) === (node.binding === undefined)) {
-            this.#fail(pointer, 'A conditional holds a condition or a conditional binding, one of them');
+            this.#fail('LEXICA2000', pointer, 'A conditional holds a condition or a conditional binding, one of them');
         }
 
         if (this.#simpleExpression !== null) {
@@ -308,7 +341,7 @@ export class DefinitionValidator {
         const isConsistent = alternative?.kind === 'conditional' ? !isExplicit || alternative.consequent?.kind === 'body' : (alternative?.kind === 'body') === isExplicit;
 
         if (!isConsistent) {
-            this.#fail(pointer, 'All branches of this conditional must give their results with return, or none of them');
+            this.#fail('LEXICA2524', pointer, 'All branches of this conditional must give their results with return, or none of them');
         }
 
         if (node.condition !== undefined) {
@@ -328,7 +361,7 @@ export class DefinitionValidator {
         const { name } = node.binding;
 
 
-        const value = this.#validateWithLater([name], () => this.#validateNode(node.binding.value, `${bindingPointer}/value`, contextAvailability));
+        const value = this.#validateWithLater([name], () => this.#validateNode(node.binding.value, `${bindingPointer}/value`, contextAvailability), 'binding');
 
         const enclosingLocalNames = this.#localNames;
 
@@ -360,16 +393,16 @@ export class DefinitionValidator {
         const advice = simpleExpression.advice ?? "bind the conditional's value to a local first, and use the local";
 
         if (simpleExpression.isInConditional) {
-            this.#fail(pointer, `${holder} is a simple expression, whose conditional holds no other conditional, elseif included: ${advice}`);
+            this.#fail('LEXICA2011', pointer, `${holder} is a simple expression, whose conditional holds no other conditional, elseif included: ${advice}`);
         }
 
         if (node.binding !== undefined) {
-            this.#fail(`${pointer}/binding`, `${holder} is a simple expression, whose conditional tests a value and binds none: ${advice}`);
+            this.#fail('LEXICA2011', `${pointer}/binding`, `${holder} is a simple expression, whose conditional tests a value and binds none: ${advice}`);
         }
 
         for (const branch of ['consequent', 'alternative']) {
             if (node[branch]?.kind === 'body') {
-                this.#fail(`${pointer}/${branch}`, `${holder} is a simple expression, whose conditional gives each branch's value without return or locals, as if … then … else … end does: ${advice}`);
+                this.#fail('LEXICA2011', `${pointer}/${branch}`, `${holder} is a simple expression, whose conditional gives each branch's value without return or locals, as if … then … else … end does: ${advice}`);
             }
         }
 
@@ -411,13 +444,13 @@ export class DefinitionValidator {
     /** Validates a cast: the name of the type it casts to, and its target, which is a receiver and its accesses, a coalescing operator, another cast, or an optional chain, as text can write one. */
     #validateCast(node, pointer, contextAvailability) {
         if (!DefinitionValidator.#isTypeName(node.type)) {
-            this.#fail(`${pointer}/type`, "A cast names the type it casts to by its name, a letter followed by letters and digits, or by its module's name, a dot and its name");
+            this.#fail('LEXICA2000', `${pointer}/type`, "A cast names the type it casts to by its name, a letter followed by letters and digits, or by its module's name, a dot and its name");
         }
 
         const target = this.#validateNode(node.target, `${pointer}/target`, contextAvailability);
 
         if (!DefinitionValidator.#isCastTarget(target)) {
-            this.#fail(`${pointer}/target`, "A cast's target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access");
+            this.#fail('LEXICA2002', `${pointer}/target`, "A cast's target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access");
         }
 
         return Object.freeze({ kind: 'cast', type: node.type, target });
@@ -450,7 +483,7 @@ export class DefinitionValidator {
         const target = this.#validateNode(node.target, `${pointer}/target`, contextAvailability);
 
         if (!chain.hasOptional) {
-            this.#fail(pointer, 'An optional chain holds a chain with an optional access, written ?.');
+            this.#fail('LEXICA2030', pointer, 'An optional chain holds a chain with an optional access, written ?.');
         }
 
         return Object.freeze({ kind: 'optionalChain', target });
@@ -461,7 +494,7 @@ export class DefinitionValidator {
         this.#requireArray(node.operands, `${pointer}/operands`);
 
         if (node.operands.length < 2) {
-            this.#fail(`${pointer}/operands`, `An ${node.kind} combines two or more expressions`);
+            this.#fail('LEXICA2525', `${pointer}/operands`, `An ${node.kind} combines two or more expressions`);
         }
 
         return Object.freeze({ kind: node.kind, operands: Object.freeze(node.operands.map((operand, index) => this.#validateNode(operand, `${pointer}/operands/${index}`, contextAvailability))) });
@@ -472,22 +505,22 @@ export class DefinitionValidator {
         this.#requireArray(node.operands, `${pointer}/operands`);
 
         if (node.operands.length < 2) {
-            this.#fail(`${pointer}/operands`, 'A comparison compares two or more expressions');
+            this.#fail('LEXICA2029', `${pointer}/operands`, 'A comparison compares two or more expressions');
         }
 
         this.#requireArray(node.operators, `${pointer}/operators`);
 
         if (node.operators.length !== node.operands.length - 1) {
-            this.#fail(`${pointer}/operators`, 'A comparison has an operator between each two of its operands, one fewer than they are');
+            this.#fail('LEXICA2526', `${pointer}/operators`, 'A comparison has an operator between each two of its operands, one fewer than they are');
         }
 
         node.operators.forEach((operator, index) => {
             if (!Object.hasOwn(COMPARISON_DIRECTIONS, operator)) {
-                this.#fail(`${pointer}/operators/${index}`, 'A comparison operator is <, <=, > or >=');
+                this.#fail('LEXICA2000', `${pointer}/operators/${index}`, 'A comparison operator is <, <=, > or >=');
             }
 
             if (COMPARISON_DIRECTIONS[operator] !== COMPARISON_DIRECTIONS[node.operators[0]]) {
-                this.#fail(`${pointer}/operators/${index}`, 'A comparison chain keeps one direction: its operators are all < and <=, or all > and >=');
+                this.#fail('LEXICA2001', `${pointer}/operators/${index}`, 'A comparison chain keeps one direction: its operators are all < and <=, or all > and >=');
             }
         });
 
@@ -512,7 +545,7 @@ export class DefinitionValidator {
             const partPointer = `${pointer}/parts/${index}`;
 
             if (!ObjectUtils.isNonArrayObject(part) || !Object.hasOwn(INTERPOLATION_PARTS, part.kind)) {
-                this.#fail(partPointer, 'A part of an interpolated string is an object whose kind is text or expression');
+                this.#fail('LEXICA2000', partPointer, 'A part of an interpolated string is an object whose kind is text or expression');
             }
 
             this.#requireProperties(part, partPointer, INTERPOLATION_PARTS[part.kind]);
@@ -525,7 +558,7 @@ export class DefinitionValidator {
             }
 
             if (typeof part.value !== 'string') {
-                this.#fail(`${partPointer}/value`, 'The text of an interpolated string is a string');
+                this.#fail('LEXICA2000', `${partPointer}/value`, 'The text of an interpolated string is a string');
             }
 
             if (part.value === '') {
@@ -582,7 +615,7 @@ export class DefinitionValidator {
                 this.#requireName(local.name, `${localPointer}/name`);
 
                 if (declared.has(local.name)) {
-                    this.#fail(localPointer, `Two locals of one body are named '${local.name}'`);
+                    this.#fail('LEXICA2015', localPointer, `Two locals of one body are named '${local.name}'`);
                 }
 
                 declared.add(local.name);
@@ -615,7 +648,7 @@ export class DefinitionValidator {
         this.#requireArray(node.parameters, `${pointer}/parameters`);
 
         if (node.arrow !== undefined && node.arrow !== true) {
-            this.#fail(`${pointer}/arrow`, 'An arrow function is marked by arrow: true, and a regular function leaves it out');
+            this.#fail('LEXICA2000', `${pointer}/arrow`, 'An arrow function is marked by arrow: true, and a regular function leaves it out');
         }
 
         const seen = new Set();
@@ -626,7 +659,7 @@ export class DefinitionValidator {
             this.#requireName(parameter, parameterPointer);
 
             if (seen.has(parameter)) {
-                this.#fail(parameterPointer, `Two parameters of one function are named '${parameter}'`);
+                this.#fail('LEXICA2032', parameterPointer, `Two parameters of one function are named '${parameter}'`);
             }
 
             seen.add(parameter);
@@ -638,7 +671,7 @@ export class DefinitionValidator {
 
         // Its parameters are declared in its own scope, so in its body each hides a local of its name declared later around it.
         this.#localNames = new Set([...this.#localNames, ...node.parameters]);
-        this.#laterNames = new Set([...this.#laterNames].filter(name => !node.parameters.includes(name)));
+        this.#laterNames = new Map([...this.#laterNames].filter(([name]) => !node.parameters.includes(name)));
         this.#chain = null;
 
         try {
@@ -647,7 +680,7 @@ export class DefinitionValidator {
             }
 
             if (node.body?.kind === 'body' || node.body?.kind === 'function') {
-                this.#fail(`${pointer}/body`, "An arrow function's body is a simple expression, which gives its result: a function that holds more is a regular function bound to a local, passed by its name");
+                this.#fail('LEXICA2006', `${pointer}/body`, "An arrow function's body is a simple expression, which gives its result: a function that holds more is a regular function bound to a local, passed by its name");
             }
 
             return Object.freeze({ kind: 'function', parameters: Object.freeze([...node.parameters]), body: this.#validateSimpleExpression(node.body, `${pointer}/body`, contextAvailability, "An arrow function's body", 'a function that holds more is a regular function bound to a local, passed by its name'), arrow: true });
@@ -663,7 +696,7 @@ export class DefinitionValidator {
         this.#requireName(node.name, `${pointer}/name`);
 
         if (this.#laterNames.has(node.name)) {
-            this.#fail(pointer, `'${node.name}' is called before the local of that name is declared in its scope, so no function calls itself or one declared after it`);
+            this.#fail('LEXICA2016', pointer, `'${node.name}' is called before the local of that name is declared in its scope, so no function calls itself or one declared after it`);
         }
 
         const enclosingChain = this.#chain;
@@ -690,7 +723,7 @@ export class DefinitionValidator {
             }
 
             if (argument.arrow !== true) {
-                this.#fail(argumentPointer, "A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.");
+                this.#fail('LEXICA2005', argumentPointer, "A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.");
             }
 
             return this.#validateFunction(argument, argumentPointer, contextAvailability);
@@ -700,7 +733,7 @@ export class DefinitionValidator {
     /** Refuses a conditional or a body as the receiver of a chain, whose value a local holds first. */
     #refuseBlockReceiver(target, pointer) {
         if (target?.kind === 'conditional' || target?.kind === 'do') {
-            this.#fail(`${pointer}/target`, `${target.kind === 'do' ? 'A do block' : 'A conditional'} is never the receiver of a chain: bind its value to a local first, and continue from the local`);
+            this.#fail('LEXICA2003', `${pointer}/target`, `${target.kind === 'do' ? 'A do block' : 'A conditional'} is never the receiver of a chain: bind its value to a local first, and continue from the local`);
         }
     }
 
@@ -708,7 +741,7 @@ export class DefinitionValidator {
         const { value } = node;
 
         if (value !== null && typeof value !== 'string' && typeof value !== 'boolean' && !Number.isFinite(value)) {
-            this.#fail(`${pointer}/value`, 'A literal is a string, a finite number, a Boolean or null');
+            this.#fail(typeof value === 'number' ? 'LEXICA2019' : 'LEXICA2000', `${pointer}/value`, 'A literal is a string, a finite number, a Boolean or null');
         }
 
         return Object.freeze({ kind: 'literal', value });
@@ -722,16 +755,16 @@ export class DefinitionValidator {
 
         // A name a computed property access's expression gave is checked as that expression, and an indexer has none; any other is a member's name, which any word can be, a reserved word among them.
         if (name === node.name && node.kind !== 'indexer' && !Names.isIdentifier(name)) {
-            this.#fail(`${pointer}/name`, 'A member is named by a letter followed by letters and digits');
+            this.#fail('LEXICA2000', `${pointer}/name`, 'A member is named by a letter followed by letters and digits');
         }
 
         if (node.optional !== undefined) {
             if (node.optional !== true) {
-                this.#fail(`${pointer}/optional`, 'An optional access holds optional: true, and a required one leaves it out');
+                this.#fail('LEXICA2000', `${pointer}/optional`, 'An optional access holds optional: true, and a required one leaves it out');
             }
 
             if (this.#chain === null) {
-                this.#fail(pointer, 'An optional access stands within an optional chain, which ends where a null receiver ends it');
+                this.#fail('LEXICA2010', pointer, 'An optional access stands within an optional chain, which ends where a null receiver ends it');
             }
 
             this.#chain.hasOptional = true;
@@ -765,15 +798,15 @@ export class DefinitionValidator {
         this.#requireName(namespace.name, `${namespacePointer}/name`);
 
         if (node.kind === 'indexer') {
-            this.#fail(pointer, 'No indexer is written through a namespace, which has none');
+            this.#fail('LEXICA2520', pointer, 'No indexer is written through a namespace, which has none');
         }
 
         if (typeof node.name !== 'string') {
-            this.#fail(`${pointer}/name`, "A namespace's member is named after its dot, as home.rooms is, and never through brackets");
+            this.#fail('LEXICA2521', `${pointer}/name`, "A namespace's member is named after its dot, as home.rooms is, and never through brackets");
         }
 
         if (node.optional === true) {
-            this.#fail(`${pointer}/optional`, "A namespace is never null, so a member is read through it after '.', and never optionally");
+            this.#fail('LEXICA2522', `${pointer}/optional`, "A namespace is never null, so a member is read through it after '.', and never optionally");
         }
 
         return Object.freeze({ kind: 'namespace', name: namespace.name });
@@ -802,7 +835,7 @@ export class DefinitionValidator {
         this.#requireArray(node.fields, `${pointer}/fields`);
 
         if (node.fields.length === 0) {
-            this.#fail(pointer, 'An object expression names at least one field');
+            this.#fail('LEXICA2009', pointer, 'An object expression names at least one field');
         }
 
         const fieldContextAvailability = target === undefined ? contextAvailability : ContextAvailability.present;
@@ -815,7 +848,7 @@ export class DefinitionValidator {
 
         try {
             if (node.locals !== undefined && this.#simpleExpression !== null) {
-                this.#fail(`${pointer}/locals/0`, `${this.#simpleExpression.holder} is a simple expression, whose object expressions hold no locals: ${this.#simpleExpression.advice ?? 'bind each value to a local before the expression, and use the local'}`);
+                this.#fail('LEXICA2527', `${pointer}/locals/0`, `${this.#simpleExpression.holder} is a simple expression, whose object expressions hold no locals: ${this.#simpleExpression.advice ?? 'bind each value to a local before the expression, and use the local'}`);
             }
 
             const locals = node.locals === undefined ? [] : this.#validateLocals(node.locals, `${pointer}/locals`, fieldContextAvailability);
@@ -832,7 +865,7 @@ export class DefinitionValidator {
                 const { name } = field;
 
                 if (names.has(name)) {
-                    this.#fail(fieldPointer, `Two fields of one object expression are named '${name}'`);
+                    this.#fail('LEXICA2031', fieldPointer, `Two fields of one object expression are named '${name}'`);
                 }
 
                 // A field is in scope after its value, through the fields after it, hiding a local or a field of its name outside it.
@@ -871,7 +904,7 @@ export class DefinitionValidator {
             const { name } = local;
 
             if (declared.has(name)) {
-                this.#fail(localPointer, `Two locals of one object expression are named '${name}'`);
+                this.#fail('LEXICA2015', localPointer, `Two locals of one object expression are named '${name}'`);
             }
 
             declared.add(name);
@@ -881,11 +914,11 @@ export class DefinitionValidator {
         });
     }
 
-    /** What validating answers, with the names given declared later in its scope besides those already. */
-    #validateWithLater(names, validate) {
+    /** What validating answers, with the names given declared later in its scope besides those already, by a local or, for a conditional binding's name, by the binding. */
+    #validateWithLater(names, validate, declaredBy = 'local') {
         const enclosingLaterNames = this.#laterNames;
 
-        this.#laterNames = new Set([...this.#laterNames, ...names]);
+        this.#laterNames = new Map([...this.#laterNames, ...names.map(name => [name, declaredBy])]);
 
         try {
             return validate();
@@ -900,45 +933,45 @@ export class DefinitionValidator {
      */
     #requireBindingName(name, pointer) {
         if (this.#localNames.has(name)) {
-            this.#fail(pointer, `'${name}' names the local or field in scope here, so no binding of that name is read where it is`);
+            this.#fail('LEXICA2528', pointer, `'${name}' names the local or field in scope here, so no binding of that name is read where it is`);
         }
 
         if (this.#laterNames.has(name)) {
-            this.#fail(pointer, `'${name}' is used before the local of that name is declared in its scope: a local is read after its declaration, and the name reads no binding before it`);
+            this.#fail(this.#laterNames.get(name) === 'binding' ? 'LEXICA2014' : 'LEXICA2013', pointer, `'${name}' is used before the local of that name is declared in its scope: a local is read after its declaration, and the name reads no binding before it`);
         }
     }
 
     #requireProperties(part, pointer, { properties, required }) {
         if (!ObjectUtils.isNonArrayObject(part)) {
-            this.#fail(pointer, 'This part of a definition is an object');
+            this.#fail('LEXICA2000', pointer, 'This part of a definition is an object');
         }
 
         for (const key of Object.keys(part)) {
             if (!properties.includes(key)) {
-                this.#fail(pointer, `'${key}' is no property of this part of a definition`);
+                this.#fail('LEXICA2000', pointer, `'${key}' is no property of this part of a definition`);
             }
         }
 
         for (const key of required) {
             if (!Object.hasOwn(part, key)) {
-                this.#fail(pointer, `This part of a definition requires '${key}'`);
+                this.#fail('LEXICA2000', pointer, `This part of a definition requires '${key}'`);
             }
         }
     }
 
     #requireArray(value, pointer) {
         if (!Array.isArray(value)) {
-            this.#fail(pointer, 'This part of a definition is an array');
+            this.#fail('LEXICA2000', pointer, 'This part of a definition is an array');
         }
     }
 
     #requireName(value, pointer) {
         if (!Names.isIdentifier(value)) {
-            this.#fail(pointer, 'A name is a letter followed by letters and digits');
+            this.#fail('LEXICA2000', pointer, 'A name is a letter followed by letters and digits');
         }
     }
 
-    #fail(pointer, message) {
-        throw LexicaError.structure(message, this.#locations?.locate(pointer) ?? { pointer });
+    #fail(code, pointer, message) {
+        throw LexicaError.structure(code, message, this.#locations?.locate(pointer) ?? { pointer });
     }
 }

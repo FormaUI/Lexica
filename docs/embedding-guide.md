@@ -98,16 +98,19 @@ Only the reads an evaluation reaches are reported: a branch not taken reports no
 
 ## Handle errors
 
-Every failure is a `LexicaError` with a `kind` and the location it concerns:
+Every failure is a `LexicaError` with the code of its condition, a `kind` and the location it concerns:
 
 ```js
 try {
     registry.resolve('product.weight', bindings);
 } catch (error) {
+    error.code;          // 'LEXICA3001'
     error.kind;          // 'validation'
     error.location.line; // 1
     error.message;       // "'weight' is no member of the vocabulary (line 1, column 1, at /expression)"
 }
 ```
+
+The code identifies the condition and keeps it whatever the message says, so a host reacts to a condition by its code, never by its message; [the catalog](../spec/diagnostics-and-errors.md#diagnostics-codes) lists every code. A value a hook or a member's implementation throws reaches the host as the `cause` of Lexica's own error, unchanged.
 
 The kinds, `syntax`, `structure`, `validation`, `module` and `evaluation`, and what each reports, are in [diagnostics and errors](../spec/diagnostics-and-errors.md).

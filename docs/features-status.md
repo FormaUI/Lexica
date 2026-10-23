@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls and definition version 33 are implemented. The next work is [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan), which brings the specification into agreement with seven decisions before any code relies on them.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done; the next work is [unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 
 | Unit | Work | State |
 | --- | --- | --- |
-| 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | In progress: stages 1 and 2 ✅, stage 3 next |
+| 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | Planned |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
@@ -38,14 +38,14 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 
 ### Unit 0 — Decisions and the specification
 
-Unit 0 lands in three stages: the specification takes the seven decisions below ✅, then the diagnostics catalog ✅, and then, still open, the implementation codes every existing condition and wraps a hook's or an implementation's failure as decision 6 sets out.
+Unit 0 lands in three stages: the specification takes the seven decisions below ✅, then the diagnostics catalog ✅, and then the implementation codes every existing condition ✅ and wraps a hook's or an implementation's failure as decision 6 sets out.
 
 1. ✅ **Competing conversions register.** *Specified; [unit 2](#unit-2--member-selection-and-deferred-evaluation) implements it.* The rule of one conversion per source and destination across the registry, in [Lexica's conversions](../spec/vocabulary.md#vocabulary-conversions), is removed. Conversions compete as [operators](../spec/modules.md#modules-operators) do, among the operators a script's imports make available: an applicable owner's operator wins, otherwise one extension's resolves, and several are ambiguous where a script uses them. A module's own operators still collide under its collision rules, and a module still owns a conversion's source or its destination. A qualified destination identifies a type, never an operator, and an extension access reaches none.
 2. ✅ **Mappings.** *Specified; [unit 1](#unit-1--declarations-and-the-type-model) implements it.* A module's `selectableTypes` become its `mappings`, each `{ selector, key, type }`, its `name` renamed `key`, and a key maps to a named structured type whose properties are stored, as `Home`'s `motion` maps to `Motion`. A key is unique within its selector across the registered modules, its selector and key together its identity, and different selectors may share a key. "Mapping" replaces "selectable type" throughout the specification, the declarations, the helpers, the diagnostics and the tests, and the examples' vocabulary names its payload types. A declaration contract gains no object-type notation.
-3. **Diagnostic codes are accepted,** *catalog specified ✅; stage 3 implements them,* as [their proposal](proposals/diagnostic-codes.md) settles them. The second stage gives the specification's diagnostics document the catalog and the contract: a code for each condition it sets out, and each error table naming the code of each row. The third stage gives `LexicaError` its `code` and every condition the implementation reports today its code, in one pass, before unit 1, and the tests assert each condition's code. A condition only language `1.0.0-alpha.33` has takes an unused code of its kind's range, listed under [temporary implementation coverage](#temporary-implementation-coverage) with its condition and its kind and kept out of the specification, and the unit that removes the condition retires its code to the specification's ledger; no code is reused.
+3. ✅ **Diagnostic codes are accepted,** *catalog specified, and implemented in stage 3,* as [their proposal](proposals/diagnostic-codes.md) settles them. The second stage gives the specification's diagnostics document the catalog and the contract: a code for each condition it sets out, and each error table naming the code of each row. The third stage gives `LexicaError` its `code` and every condition the implementation reports today its code, in one pass, before unit 1, and the tests assert each condition's code. A condition only language `1.0.0-alpha.33` has takes an unused code of its kind's range, listed under [temporary implementation coverage](#temporary-implementation-coverage) with its condition and its kind and kept out of the specification, and the unit that removes the condition retires its code to the specification's ledger; no code is reused.
 4. ✅ **A projection source says what it is.** *Specified; [unit 1](#unit-1--declarations-and-the-type-model) implements it.* Each source records whether it is a reference or data, by its established type, a value carried through `Any` included; null is a recorded source that is neither, distinct from absent source metadata. Sources stay aligned with the projected items, the metadata's containers are frozen, and a referenced host object is kept as it is, never frozen through. Lexica reports each source's classification and identity, and a host decides how to match by them. The metadata's representation is specified here, so unit 1 implements one defined contract.
 5. ✅ **Line structure,** *specified, which [unit 3](#unit-3--script-text-imports-and-definition-version-34) implements,* as [its proposal](proposals/line-structure.md) sets out: line structure constrains which layouts are valid and never changes a reading. A line break is LF, CRLF or a lone CR, U+2028 and U+2029 are refused outside literal string text, and every position between two tokens is inside a one-line construct, at a break point or at a boundary. A line breaks before a binary operator only where parentheses, brackets or a condition enclose its expression, and never after one; a chain breaks before each step; a conditional, a `do` block and a function expression stand on one line or in block form; and each import, and each local and `return` of a body that uses `return`, starts a line of its own.
-6. **A hook's or an implementation's failure is Lexica's error, what it threw its cause.** *Specified ✅; stage 3 implements it with the codes.* A throwing hook, and an implementation failing unexpectedly, fail the evaluation with an evaluation error of Lexica's own, its code, kind, message and the failing invocation's location, whose `cause` is exactly what the hook threw, unchanged, any code on it kept and never copied into Lexica's; an error Lexica has raised is never wrapped again as it propagates, as [a hook that throws](../spec/runtime.md#runtime-evaluation) sets out; a rejection a contract defines keeps its specified handling.
+6. ✅ **A hook's or an implementation's failure is Lexica's error, what it threw its cause.** *Specified, and implemented in stage 3.* A throwing hook, and an implementation failing unexpectedly, fail the evaluation with an evaluation error of Lexica's own, its code, kind, message and the failing invocation's location, whose `cause` is exactly what the hook threw, unchanged, any code on it kept and never copied into Lexica's; an error Lexica has raised is never wrapped again as it propagates, as [a hook that throws](../spec/runtime.md#runtime-evaluation) sets out; a rejection a contract defines keeps its specified handling.
 7. ✅ **Two gaps in the text's specification close.** *Specified; [unit 3](#unit-3--script-text-imports-and-definition-version-34) implements them.* `import` joins [the grammar](../spec/grammar.md)'s keywords, as [lexical structure](../spec/lexical-structure.md) already reserves it, and [the definition](../spec/definition.md#definition) sets how `quote` writes a definition's imports on one line.
 
 **Completion:** the specification, its proposals and this file state each decision, the catalog codes every condition the specification sets out, every diagnostic the implementation reports carries its code, and the gate passes.
@@ -163,10 +163,32 @@ Beta means no breaking redesign is planned and remaining limitations are documen
 
 ## Temporary implementation coverage
 
-Conditions the implementation reports that only language `1.0.0-alpha.33` has, coded so every diagnostic it throws carries a code while units 1 to 3 remove them. They stay out of the specification's catalog; each code retires to its [ledger](../spec/diagnostics-and-errors.md#diagnostics-retired-codes) when its condition's unit lands, and is never reused. Unit 0's third stage fills this table.
+Conditions the implementation reports that only language `1.0.0-alpha.33` has, coded so every diagnostic it throws carries a code while units 1 to 3 remove them. They stay out of the specification's catalog; each code retires to its [ledger](../spec/diagnostics-and-errors.md#diagnostics-retired-codes) when its condition's unit lands, and is never reused.
 
 | Code | Kind | Condition | Removed by |
 | --- | --- | --- | --- |
+| `LEXICA1500` | syntax | A colon or `?:` in a chain followed by a name, which alpha.34 reads as an extension access | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
+| `LEXICA2640` | structure | `lexica.format` or `lexica.quote` given a definition reading through a namespace that text read without module names cannot write | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
+| `LEXICA2641` | structure | A definition read without a registry's module names that writes one of them alone | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
+| `LEXICA2642` | structure | A namespace naming no module the registry holds, which imports replace | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
+| `LEXICA4506` | module | A type named by one capital letter, which implicit type parameters reserve | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4509` | module | A structured type whose `fields` are empty | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4510` | module | A `fields` entry that is not a name with a type | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4511` | module | A selectable type's key not written as a letter followed by letters, digits, colons and hyphens | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4513` | module | A member's `target` that is not a type, a list of them or `'any'` | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4528` | module | An indexer declared without a `name` | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4530` | module | `default` on a member that is not an indexer | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4531` | module | A `syntax` that is neither `function-call` nor `indexer` | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4532` | module | An indexer whose `arguments` are not positional | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4533` | module | A `default` that is not a Boolean | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4550` | module | A second default indexer of a receiver, across the registry | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA4551` | module | Members of one name on overlapping receivers in two modules, refused at registration | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
+| `LEXICA4553` | module | A module member and a member of its name on a type its module does not declare | [Unit 1](#unit-1--declarations-and-the-type-model) |
+| `LEXICA5500` | evaluation | An interpolation given what is neither a string nor a number when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
+| `LEXICA5501` | evaluation | A comparison given what is not a number when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
+| `LEXICA5502` | evaluation | A definition node no evaluation exists for | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
+| `LEXICA5504` | evaluation | A function's result its callback contract does not declare, when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
+| `LEXICA5505` | evaluation | An arithmetic operand or a negated value that is not a number when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 
 ## Implemented capabilities
 
@@ -187,7 +209,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Namespaces | Module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
 | Text and definitions | Parse, validate, format, quote, and locate; canonical text for definition version 33 | [Definition](../spec/definition.md) |
 | Runtime | Bindings, resolution, reuse by resolution key, evaluation with host hooks, and frozen results | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
-| Diagnostics | Error kinds, messages, and locations | [Diagnostics](../spec/diagnostics-and-errors.md) |
+| Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/diagnostics-and-errors.md) |
 | Build | Bundle and type declarations | [Build](../README.md#build) |
 
 ### Type identity and names

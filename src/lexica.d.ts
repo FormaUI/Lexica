@@ -87,14 +87,16 @@ export interface LexicaErrorLocation {
 export declare class LexicaError extends Error {
     private constructor();
     readonly name: 'LexicaError';
+    /** The code of the condition that failed: `LEXICA` and four digits for Lexica's own, in its kind's range, and a host's own prefix for a host's. */
+    readonly code: string;
     readonly kind: 'syntax' | 'structure' | 'validation' | 'module' | 'evaluation';
     readonly location: LexicaErrorLocation;
     /** A failure of what a caller gave: bindings, a definition's structure or a host's use of the API. */
-    static structure(message: string, location: LexicaErrorLocation): LexicaError;
+    static structure(code: string, message: string, location: LexicaErrorLocation): LexicaError;
     /** A request that does not follow the vocabulary, failing before anything is evaluated. */
-    static validation(message: string, location: LexicaErrorLocation): LexicaError;
+    static validation(code: string, message: string, location: LexicaErrorLocation): LexicaError;
     /** A failure while evaluating, with what caused it. */
-    static evaluation(message: string, location: LexicaErrorLocation, options?: { cause?: unknown }): LexicaError;
+    static evaluation(code: string, message: string, location: LexicaErrorLocation, options?: { cause?: unknown }): LexicaError;
 }
 
 /** How a member changes. */

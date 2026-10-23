@@ -1,0 +1,444 @@
+import { describe, it, expect } from 'vitest';
+import { lexica, LexicaError } from '#lexica/lexica.js';
+import { Evaluator } from '#lexica/language/Evaluator.mjs';
+import { LanguageResolver } from '#lexica/language/LanguageResolver.mjs';
+import { ParameterBindings } from '#lexica/language/ParameterBindings.mjs';
+import { ParsedTexts } from '#lexica/language/ParsedTexts.mjs';
+import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
+import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+
+/** The error a call throws. */
+const getError = call => {
+    try {
+        call();
+    } catch (error) {
+        return error;
+    }
+
+    throw new Error('The call threw nothing');
+};
+
+const { property, valueParameter, functionParameter } = lexica.declarations;
+const constant = { changes: 'constant', reads: 'fresh' };
+const derived = { changes: 'derived', reads: 'derived' };
+
+/** What the test gives a member's implementation to do, by the member's name, so each test decides how its member fails. */
+let behaviors = {};
+
+/** The function a member of the pantry was given last, which a later member calls after the first's invocation has ended. */
+let kept = null;
+
+/**
+ * A pantry's module on words: a word's size, a node it names, a value it answers as the test says, a maintained quote, a check that calls the test it is given, a member that keeps it and one that calls it later, and a cup a word converts to,
+ * through the conversion the test gives.
+ */
+const createPantry = () => lexica.createModule('pantry', {
+    types: [{ name: 'Cup', fields: { size: 'Number' } }],
+    observationTypes: [{ name: 'quote', contract: 'maintained', implementation: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
+    conversions: [{ from: 'String', to: 'Cup', implementation: input => behaviors.convert(input) }],
+    members: [
+        property('size', 'String', 'Number', { updates: constant, implementation: input => (behaviors.size ?? (({ receiver }) => receiver.length))(input) }),
+        property('node', 'String', 'Node', { updates: constant, implementation: () => ({ nodeType: 9 }) }),
+        property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, implementation: ({ samples: [quote] }) => quote }),
+        lexica.declarations.function('check', 'String', 'Boolean', { updates: derived, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: input => (behaviors.check ?? (({ receiver, args }) => args.test(receiver)))(input) }),
+        lexica.declarations.function('keep', 'String', 'Boolean', { updates: derived, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ args }) => ((kept = args.test), true) }),
+        lexica.declarations.function('callKept', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => kept(receiver) }),
+        lexica.declarations.function('order', 'String', 'Number', { invokedBy: 'host', parameters: [valueParameter('count', 'Number')] }),
+        lexica.declarations.function('drop', 'String', undefined, { invokedBy: 'host' }),
+    ],
+});
+
+/** A module whose member and conversion have no implementation. */
+const createBare = () => lexica.createModule('bare', {
+    types: [{ name: 'Mug', fields: { size: 'Number' } }],
+    conversions: [{ from: 'String', to: 'Mug' }],
+    members: [property('weight', 'String', 'Number', { updates: constant })],
+});
+
+/** The evaluator of the text against a registry of the pantry, bound to the values given. */
+const evaluatorOf = (text, values = { word: 'oat' }, env = {}) => lexica.createRegistry([createPantry()]).resolve(text, values).createEvaluator(values, env);
+
+/** The error evaluating the text throws, for the host given. */
+const failureOf = (text, values = { word: 'oat' }, host = null) => getError(() => evaluatorOf(text, values).evaluate(host));
+
+/**
+ * An evaluator made directly, the text resolved with one set of values and evaluated with another, so it reaches what the public entry point refuses before evaluating: the checks an evaluation keeps where resolution has already made sure.
+ */
+const directEvaluatorOf = (modules, text, resolvedWith, evaluatedWith = resolvedWith) => {
+    const registry = new LexicaRegistry([Vocabulary.module, ...modules]);
+    const definition = ParsedTexts.parse(text);
+    const locations = ParsedTexts.locationsOf(definition);
+    const resolved = new LanguageResolver(registry, new ParameterBindings(resolvedWith), locations).resolveDefinition(definition);
+
+    return new Evaluator(registry, resolved, new ParameterBindings(evaluatedWith), {}, locations);
+};
+
+/** Expects the error to be Lexica's, of the code and the kind given. */
+const expectCode = (error, code, kind) => {
+    expect(error).toBeInstanceOf(LexicaError);
+    expect({ code: error.code, kind: error.kind }).toEqual({ code, kind });
+};
+
+describe('the runtime codes', () => {
+    describe('of bindings', () => {
+        it('LEXICA2020: bindings that are not a plain object', () => {
+            expectCode(getError(() => lexica.bind([1])), 'LEXICA2020', 'structure');
+        });
+
+        it('LEXICA2033: a binding not named by a letter followed by letters and digits', () => {
+            expectCode(getError(() => lexica.bind({ 'floor-area': 1 })), 'LEXICA2033', 'structure');
+        });
+
+        it('LEXICA2034: a binding that is not data and that nothing recognizes', () => {
+            expectCode(getError(() => lexica.bind({ shelf: new Map() })), 'LEXICA2034', 'structure');
+            expectCode(getError(() => lexica.bind({ weight: Number.NaN })), 'LEXICA2034', 'structure');
+        });
+
+        it('LEXICA2022: a bound value holding a cycle', () => {
+            const shelf = { name: 'top' };
+
+            shelf.self = shelf;
+
+            expectCode(getError(() => lexica.bind({ shelf })), 'LEXICA2022', 'structure');
+            expectCode(getError(() => lexica.bind({ shelves: [shelf] })), 'LEXICA2022', 'structure');
+        });
+
+        it('LEXICA2021: a bound list whose items share no type', () => {
+            expectCode(getError(() => lexica.bind({ items: [1, 'two'] })), 'LEXICA2021', 'structure');
+        });
+    });
+
+    describe('of the entry point', () => {
+        const registry = lexica.createRegistry([createPantry()]);
+
+        it('LEXICA2640: a definition reading through a namespace, formatted without a registry', () => {
+            expectCode(getError(() => lexica.format(registry.parse('pantry.size'))), 'LEXICA2640', 'structure');
+            expectCode(getError(() => lexica.quote(registry.parse('pantry.size'))), 'LEXICA2640', 'structure');
+        });
+
+        it('LEXICA2641: a definition read without the registry\'s module names that writes one of them alone', () => {
+            expectCode(getError(() => registry.resolve(lexica.parse('pantry.size'))), 'LEXICA2641', 'structure');
+        });
+
+        it('LEXICA2642: a namespace no module the registry holds gives', () => {
+            expectCode(getError(() => registry.resolve({ version: 33, expression: { kind: 'member', target: { kind: 'namespace', name: 'bakery' }, name: 'open' } })), 'LEXICA2642', 'structure');
+        });
+
+        it('LEXICA2643: a pointer that is not a JSON Pointer', () => {
+            expectCode(getError(() => lexica.locate(lexica.parse('1 + 2'), 'expression')), 'LEXICA2643', 'structure');
+            expectCode(getError(() => registry.resolve('1 + 2').locate(5)), 'LEXICA2643', 'structure');
+        });
+
+        it('LEXICA2644: a pointer at nothing the definition holds', () => {
+            expectCode(getError(() => lexica.locate(lexica.parse('1 + 2'), '/expression/middle')), 'LEXICA2644', 'structure');
+        });
+
+        it('LEXICA2645: parsing what is not a text', () => {
+            expectCode(getError(() => lexica.parse(5)), 'LEXICA2645', 'structure');
+            expectCode(getError(() => registry.parse({ version: 33 })), 'LEXICA2645', 'structure');
+        });
+
+        it('LEXICA2040: creating or entering an evaluator after its registry\'s revision has moved', () => {
+            const growing = lexica.createRegistry([createPantry()]);
+            const resolution = growing.resolve('word.size', { word: 'oat' });
+            const evaluator = resolution.createEvaluator({ word: 'oat' });
+
+            growing.registerModule(lexica.createModule('bakery', {}));
+
+            expectCode(getError(() => resolution.createEvaluator({ word: 'oat' })), 'LEXICA2040', 'structure');
+            expectCode(getError(() => evaluator.evaluate()), 'LEXICA2040', 'structure');
+        });
+
+        it('LEXICA2025: creating an evaluator with bindings of another resolution key', () => {
+            const resolution = registry.resolve('word.size', { word: 'oat' });
+
+            expectCode(getError(() => resolution.createEvaluator({ word: 5 })), 'LEXICA2025', 'structure');
+        });
+
+        it('LEXICA4001: creating an evaluator for a resolution whose used member or conversion has no implementation', () => {
+            const bare = lexica.createRegistry([createBare()]);
+
+            expectCode(getError(() => bare.resolve('word.weight', { word: 'oat' }).createEvaluator({ word: 'oat' })), 'LEXICA4001', 'module');
+            expectCode(getError(() => bare.resolve('(word to Mug).size', { word: 'oat' }).createEvaluator({ word: 'oat' })), 'LEXICA4001', 'module');
+        });
+
+        it('LEXICA5010: evaluating an evaluator from within its own evaluation', () => {
+            const holder = {};
+
+            behaviors = { size: () => holder.evaluator.evaluate() };
+            holder.evaluator = evaluatorOf('word.size');
+
+            expectCode(getError(() => holder.evaluator.evaluate()), 'LEXICA5010', 'evaluation');
+        });
+    });
+
+    describe('of result paths', () => {
+        const registry = lexica.createRegistry([createPantry()]);
+
+        it('LEXICA2646: a path item that is neither a name nor a list index', () => {
+            expectCode(getError(() => lexica.paths.check(['total', -1])), 'LEXICA2646', 'structure');
+            expectCode(getError(() => lexica.paths.check(['total', 'floor-area'])), 'LEXICA2646', 'structure');
+        });
+
+        it('LEXICA3600: a path into the result of a host call that supplies nothing', () => {
+            expectCode(getError(() => registry.resolve('word.drop()', { word: 'oat' }).typeAt([])), 'LEXICA3600', 'validation');
+        });
+
+        it('LEXICA3601: a path indexing what is not a list', () => {
+            expectCode(getError(() => registry.resolve('{ total = 1 }').typeAt(['total', 0])), 'LEXICA3601', 'validation');
+        });
+
+        it('LEXICA3602: a path naming a field the result does not hold', () => {
+            expectCode(getError(() => registry.resolve('{ total = 1 }').typeAt(['count'])), 'LEXICA3602', 'validation');
+        });
+    });
+
+    describe('of evaluation', () => {
+        it('LEXICA5014: preparing a script that ends in no host call', () => {
+            expectCode(getError(() => evaluatorOf('word.size').prepareCall()), 'LEXICA5014', 'evaluation');
+        });
+
+        it('LEXICA5023: evaluating a script that ends in a host call', () => {
+            expectCode(failureOf('word.order(2)'), 'LEXICA5023', 'evaluation');
+        });
+
+        it('LEXICA5015: a value a host supplies that its host call\'s declared result does not admit', () => {
+            const call = evaluatorOf('word.order(2)').prepareCall();
+
+            expectCode(getError(() => call.project('many')), 'LEXICA5015', 'evaluation');
+        });
+
+        it('LEXICA5001: a value a strict cast rejects', () => {
+            expectCode(failureOf('(word.node as Element) == null'), 'LEXICA5001', 'evaluation');
+        });
+
+        it('LEXICA5016: a value a conversion rejects', () => {
+            expectCode(failureOf('word to Number', { word: '12px' }), 'LEXICA5016', 'evaluation');
+        });
+
+        it('LEXICA5003: a conversion that throws', () => {
+            behaviors = { convert: () => { throw new Error('no cups'); } };
+
+            expectCode(failureOf('(word to Cup).size'), 'LEXICA5003', 'evaluation');
+        });
+
+        it('LEXICA5018: a conversion that rejects with a reason that is not a string, or rejects and then answers', () => {
+            behaviors = { convert: ({ reject }) => reject(5) };
+
+            expectCode(failureOf('(word to Cup).size'), 'LEXICA5018', 'evaluation');
+
+            behaviors = {
+                convert: ({ reject }) => {
+                    try {
+                        reject('too small');
+                    } catch {
+                        // The conversion answers past its own rejection.
+                    }
+
+                    return { size: 1 };
+                },
+            };
+
+            expectCode(failureOf('(word to Cup).size'), 'LEXICA5018', 'evaluation');
+        });
+
+        it('LEXICA5019: a conversion that answers a value not of its type', () => {
+            behaviors = { convert: () => ({ size: 'large' }) };
+
+            expectCode(failureOf('(word to Cup).size'), 'LEXICA5019', 'evaluation');
+
+            behaviors = { convert: () => null };
+
+            expectCode(failureOf('(word to Cup).size'), 'LEXICA5019', 'evaluation');
+        });
+
+        it('LEXICA5005: a division or a remainder by zero', () => {
+            expectCode(failureOf('1 / none', { none: 0 }), 'LEXICA5005', 'evaluation');
+            expectCode(failureOf('1 % none', { none: 0 }), 'LEXICA5005', 'evaluation');
+        });
+
+        it('LEXICA5020: an arithmetic result no finite number holds', () => {
+            expectCode(failureOf('big * big', { big: 1e308 }), 'LEXICA5020', 'evaluation');
+        });
+
+        it('LEXICA5006: a module returning a value of a type other than the one it declared', () => {
+            behaviors = { size: () => 'three' };
+
+            expectCode(failureOf('word.size'), 'LEXICA5006', 'evaluation');
+        });
+
+        it('LEXICA5007: a member whose implementation throws', () => {
+            behaviors = { size: () => { throw new Error('no scale'); } };
+
+            expectCode(failureOf('word.size'), 'LEXICA5007', 'evaluation');
+        });
+
+        it('LEXICA5008: a function given to a member called after that member\'s invocation has ended', () => {
+            expectCode(failureOf('{ kept = word.keep(w => w.size > 2), called = word.callKept() }'), 'LEXICA5008', 'evaluation');
+        });
+
+        it('LEXICA5503: a member calling a function it was given with arguments its callback contract does not declare', () => {
+            behaviors = { check: ({ args }) => args.test() };
+
+            expectCode(failureOf('word.check(w => w.size > 2)'), 'LEXICA5503', 'evaluation');
+
+            behaviors = { check: ({ args }) => args.test(5) };
+
+            expectCode(failureOf('word.check(w => w.size > 2)'), 'LEXICA5503', 'evaluation');
+        });
+
+        it('LEXICA5009: a hook that throws, before or after an invocation or after a completed evaluation', () => {
+            expectCode(failureOf('word.size', undefined, { beforeInvoke: () => { throw new Error('refused'); } }), 'LEXICA5009', 'evaluation');
+            expectCode(failureOf('word.size', undefined, { afterInvoke: () => { throw new Error('no record'); } }), 'LEXICA5009', 'evaluation');
+            expectCode(failureOf('word.size', undefined, { afterEvaluation: () => { throw new Error('no cleanup'); } }), 'LEXICA5009', 'evaluation');
+        });
+
+        it('LEXICA5011: evaluating without beforeInvoke a script that reads a maintained member', () => {
+            expectCode(failureOf('word.quoted'), 'LEXICA5011', 'evaluation');
+            expectCode(failureOf('word.quoted', undefined, { afterInvoke: () => {} }), 'LEXICA5011', 'evaluation');
+        });
+    });
+
+    describe('of the checks an evaluation keeps where resolution has made sure already', () => {
+        it('LEXICA5500: an interpolation of what is no string or number', () => {
+            expectCode(getError(() => directEvaluatorOf([], '$"{label}"', { label: 'a' }, { label: true }).evaluate()), 'LEXICA5500', 'evaluation');
+        });
+
+        it('LEXICA5501: a comparison of what is no number', () => {
+            expectCode(getError(() => directEvaluatorOf([], 'count < 2', { count: 1 }, { count: 'one' }).evaluate()), 'LEXICA5501', 'evaluation');
+        });
+
+        it('LEXICA5505: arithmetic on what is no number', () => {
+            expectCode(getError(() => directEvaluatorOf([], 'count + 1', { count: 1 }, { count: 'one' }).evaluate()), 'LEXICA5505', 'evaluation');
+            expectCode(getError(() => directEvaluatorOf([], '-count', { count: 1 }, { count: 'one' }).evaluate()), 'LEXICA5505', 'evaluation');
+        });
+
+        it('LEXICA5504: a function given to a member that gives a value its callback contract does not declare', () => {
+            behaviors = {};
+
+            expectCode(getError(() => directEvaluatorOf([createPantry()], 'word.check(w => flag)', { word: 'oat', flag: true }, { word: 'oat', flag: 'yes' }).evaluate()), 'LEXICA5504', 'evaluation');
+        });
+
+        it('LEXICA4001: a used member or conversion without an implementation, reached by an evaluator made without the entry point\'s check', () => {
+            expectCode(getError(() => directEvaluatorOf([createBare()], 'word.weight', { word: 'oat' }).evaluate()), 'LEXICA4001', 'module');
+            expectCode(getError(() => directEvaluatorOf([createBare()], '(word to Mug).size', { word: 'oat' }).evaluate()), 'LEXICA4001', 'module');
+        });
+    });
+
+    describe('the failure contract', () => {
+        it('makes an implementation\'s thrown error the cause of Lexica\'s own, exactly as thrown', () => {
+            const thrown = new Error('no scale');
+
+            behaviors = { size: () => { throw thrown; } };
+
+            const failure = failureOf('word.size');
+
+            expectCode(failure, 'LEXICA5007', 'evaluation');
+            expect(failure.cause).toBe(thrown);
+            expect(failure.location).toMatchObject({ pointer: '/expression' });
+        });
+
+        it('makes a thrown value that is no error the cause, unchanged', () => {
+            for (const thrown of ['no scale', 42, null, undefined, Object.create(null)]) {
+                behaviors = { size: () => { throw thrown; } };
+
+                const failure = failureOf('word.size');
+
+                expectCode(failure, 'LEXICA5007', 'evaluation');
+                expect(Object.hasOwn(failure, 'cause')).toBe(true);
+                expect(failure.cause).toBe(thrown);
+            }
+        });
+
+        it('keeps a code the thrown value carries on it, never copied into Lexica\'s', () => {
+            const thrown = Object.assign(new Error('no scale'), { code: 'PANTRY0001' });
+
+            behaviors = { size: () => { throw thrown; } };
+
+            const failure = failureOf('word.size');
+
+            expect(failure.code).toBe('LEXICA5007');
+            expect(failure.cause).toBe(thrown);
+            expect(thrown.code).toBe('PANTRY0001');
+        });
+
+        it('never wraps again a Lexica error an implementation lets through, as a nested evaluation\'s failure', () => {
+            const inner = evaluatorOf('1 / none', { none: 0 });
+            const innerFailure = getError(() => inner.evaluate());
+
+            behaviors = { size: () => inner.evaluate() };
+
+            const failure = failureOf('word.size');
+
+            expectCode(failure, 'LEXICA5005', 'evaluation');
+            expect(failure.message).toBe(innerFailure.message);
+            expect(failure.cause).toBeUndefined();
+        });
+
+        it('never wraps again a Lexica error a host\'s own code raises, thrown from an implementation or a hook', () => {
+            const raised = LexicaError.evaluation('PANTRY0002', 'The pantry is closed', {});
+
+            behaviors = { size: () => { throw raised; } };
+
+            expect(failureOf('word.size')).toBe(raised);
+
+            behaviors = {};
+
+            expect(failureOf('word.size', undefined, { beforeInvoke: () => { throw raised; } })).toBe(raised);
+            expect(failureOf('word.size', undefined, { afterEvaluation: () => { throw raised; } })).toBe(raised);
+        });
+
+        it('never wraps again a failure within a function given to a member, which the member lets through', () => {
+            behaviors = {};
+
+            const failure = failureOf('word.check(w => 1 / none > 0)', { word: 'oat', none: 0 });
+
+            expectCode(failure, 'LEXICA5005', 'evaluation');
+        });
+
+        it('never wraps again a Lexica error a conversion lets through, and makes anything else it throws the cause', () => {
+            const inner = evaluatorOf('1 / none', { none: 0 });
+
+            behaviors = { convert: () => inner.evaluate() };
+
+            expectCode(failureOf('(word to Cup).size'), 'LEXICA5005', 'evaluation');
+
+            behaviors = { convert: () => { throw 'no cups'; } };
+
+            const failure = failureOf('(word to Cup).size');
+
+            expectCode(failure, 'LEXICA5003', 'evaluation');
+            expect(failure.cause).toBe('no cups');
+        });
+
+        it('makes what a hook throws the cause of Lexica\'s own, exactly as thrown, an error, a value that is none, and one carrying a code', () => {
+            behaviors = {};
+
+            const refusal = Object.assign(new Error('refused'), { code: 'PANTRY0003' });
+            const before = failureOf('word.size', undefined, { beforeInvoke: () => { throw refusal; } });
+            const after = failureOf('word.size', undefined, { afterInvoke: () => { throw 'no record'; } });
+
+            expectCode(before, 'LEXICA5009', 'evaluation');
+            expect(before.cause).toBe(refusal);
+            expect(refusal.code).toBe('PANTRY0003');
+            expect(before.location).toMatchObject({ pointer: '/expression' });
+            expectCode(after, 'LEXICA5009', 'evaluation');
+            expect(after.cause).toBe('no record');
+        });
+
+        it('fails a completed evaluation whose afterEvaluation throws with Lexica\'s own, and keeps a failed evaluation\'s failure, the cleanup failure recorded on it', () => {
+            behaviors = {};
+
+            const cleanup = new Error('no cleanup');
+            const completed = failureOf('word.size', undefined, { afterEvaluation: () => { throw cleanup; } });
+
+            expectCode(completed, 'LEXICA5009', 'evaluation');
+            expect(completed.cause).toBe(cleanup);
+
+            const failed = failureOf('1 / none', { none: 0 }, { afterEvaluation: () => { throw cleanup; } });
+
+            expectCode(failed, 'LEXICA5005', 'evaluation');
+            expect(failed.suppressed).toBe(cleanup);
+        });
+    });
+});

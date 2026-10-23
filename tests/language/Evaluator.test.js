@@ -126,7 +126,10 @@ describe('Evaluator', () => {
     it('fails a completed evaluation whose afterEvaluation throws, and keeps a failure thrown, the cleanup failure recorded on it', () => {
         const cleanup = new Error('cleanup');
 
-        expect(getError(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }))).toBe(cleanup);
+        const completed = getError(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
+
+        expect(completed).toMatchObject({ code: 'LEXICA5009', kind: 'evaluation' });
+        expect(completed.cause).toBe(cleanup);
 
         const failure = getError(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
 

@@ -18,26 +18,30 @@ export class ParameterBindings {
     /** @param {Record<string, unknown>} parameters Each parameter's name and the value it is bound to. */
     constructor(parameters = {}) {
         if (!ObjectUtils.isPlainObject(parameters)) {
-            throw LexicaError.structure('Bindings are a plain object of names and the values bound to them', {});
+            throw LexicaError.structure('LEXICA2020', 'Bindings are a plain object of names and the values bound to them', {});
         }
 
         for (const [name, value] of Object.entries(parameters)) {
             // A binding a reserved word names is read as `~` and its name, which written alone keeps its own meaning.
             if (!Names.isIdentifier(name)) {
-                throw LexicaError.structure('A binding is named by a letter followed by letters and digits', { binding: name });
+                throw LexicaError.structure('LEXICA2033', 'A binding is named by a letter followed by letters and digits', { binding: name });
             }
 
             // A node is bound as its kind, asked once; anything else is data, checked and typed through its items and fields.
             const nodeKind = ParameterBindings.#nodeKindOf(value);
 
             if (nodeKind === null && !ParameterBindings.#isBindable(value, new Set())) {
-                throw LexicaError.structure('A binding is a node, an element, a document, a fragment or a shadow root, or data: a number, a string, a Boolean, null, a list holding a value at every index, or an object', { binding: name });
+                if (ParameterBindings.#holdsCycle(value, new Set())) {
+                    throw LexicaError.structure('LEXICA2022', 'A binding holds a cycle, a list or an object that reaches itself, which data never does', { binding: name });
+                }
+
+                throw LexicaError.structure('LEXICA2034', 'A binding is a node, an element, a document, a fragment or a shadow root, or data: a number, a string, a Boolean, null, a list holding a value at every index, or an object', { binding: name });
             }
 
             const type = nodeKind === null ? ParameterBindings.#typeOf(value) : Type.createNamedType(nodeKind);
 
             if (type === null) {
-                throw LexicaError.structure('A list whose items have different types has no type, since Lexica has no union types and a list holds items of one type', { binding: name });
+                throw LexicaError.structure('LEXICA2021', 'A list whose items have different types has no type, since Lexica has no union types and a list holds items of one type', { binding: name });
             }
 
             this.#types.set(name, type);
@@ -158,6 +162,23 @@ export class ParameterBindings {
             default:
                 return null;
         }
+    }
+
+    /** Whether the value's lists and plain objects reach one of their own ancestors. */
+    static #holdsCycle(value, ancestors) {
+        if (value === null || typeof value !== 'object' || (!Array.isArray(value) && !ObjectUtils.isPlainObject(value))) {
+            return false;
+        }
+
+        if (ancestors.has(value)) {
+            return true;
+        }
+
+        ancestors.add(value);
+        const holdsCycle = Object.values(value).some(item => ParameterBindings.#holdsCycle(item, ancestors));
+        ancestors.delete(value);
+
+        return holdsCycle;
     }
 
     static #isBindable(value, ancestors) {

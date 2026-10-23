@@ -1,6 +1,9 @@
 /**
- * LexicaError — a Lexica failure and its location
+ * LexicaError — a Lexica failure, the code of its condition and its location
  */
+
+/** The first code of each kind's range of Lexica's own codes, which runs a thousand codes. */
+const RANGES = { syntax: 1000, structure: 2000, validation: 3000, module: 4000, evaluation: 5000 };
 
 /**
  * @typedef {object} Location
@@ -14,6 +17,9 @@
  */
 
 export class LexicaError extends Error {
+    /** The code of the condition that failed: `LEXICA` and four digits for Lexica's own, a host's own prefix for a host's. */
+    code;
+
     /** @type {'syntax' | 'structure' | 'validation' | 'module' | 'evaluation'} */
     kind;
 
@@ -22,41 +28,56 @@ export class LexicaError extends Error {
 
     /**
      * @param {'syntax' | 'structure' | 'validation' | 'module' | 'evaluation'} kind The stage the request failed in.
+     * @param {string} code The code of the condition that failed.
      * @param {string} message What is wrong.
      * @param {Location} location Where it is wrong.
      * @param {{ cause?: unknown }} [options] What caused it.
      */
-    constructor(kind, message, location, options = undefined) {
+    constructor(kind, code, message, location, options = undefined) {
+        LexicaError.#requireCode(kind, code);
         const place = LexicaError.#describe(location);
         super(place === '' ? message : `${message} (${place})`, options);
         this.name = 'LexicaError';
+        this.code = code;
         this.kind = kind;
         this.location = location;
     }
 
     /** A text that does not follow the syntax, failing at the offset. */
-    static syntax(message, text, offset) {
-        return new LexicaError('syntax', message, LexicaError.locate(text, offset));
+    static syntax(code, message, text, offset) {
+        return new LexicaError('syntax', code, message, LexicaError.locate(text, offset));
     }
 
     /** A definition, or a binding, that does not follow the structure, failing at the location. */
-    static structure(message, location) {
-        return new LexicaError('structure', message, location);
+    static structure(code, message, location) {
+        return new LexicaError('structure', code, message, location);
     }
 
     /** A request that does not follow the vocabulary, failing at the location. */
-    static validation(message, location) {
-        return new LexicaError('validation', message, location);
+    static validation(code, message, location) {
+        return new LexicaError('validation', code, message, location);
     }
 
     /** A request that fails as it is carried out, at the location of the part that failed. */
-    static evaluation(message, location, options) {
-        return new LexicaError('evaluation', message, location, options);
+    static evaluation(code, message, location, options) {
+        return new LexicaError('evaluation', code, message, location, options);
     }
 
     /** A module whose declarations do not follow the declaration contract, failing at the location. */
-    static module(message, location) {
-        return new LexicaError('module', message, location);
+    static module(code, message, location) {
+        return new LexicaError('module', code, message, location);
+    }
+
+    /** Refuses a code that is not one, or one of Lexica's own outside its kind's range, which is a mistake in the code raising it. */
+    static #requireCode(kind, code) {
+        if (typeof code !== 'string' || code === '') {
+            throw new TypeError(`A ${kind} error is raised with the code of its condition, and is given ${String(code)}`);
+        }
+
+        const own = /^LEXICA(\d{4})$/.exec(code);
+        if (code.startsWith('LEXICA') && (own === null || Math.floor(Number(own[1]) / 1000) * 1000 !== RANGES[kind])) {
+            throw new TypeError(`The code ${code} is outside the range of Lexica's ${kind} codes, ${RANGES[kind]} to ${RANGES[kind] + 999}`);
+        }
     }
 
     /** The offset's line and column in the text. */

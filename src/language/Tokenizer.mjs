@@ -23,7 +23,7 @@ export const TOKEN_TYPES = Object.freeze(['identifier', 'literal', 'keyword', 'i
  * @property {number} end
  * @property {number} leading Where the trivia before it begins, at its start where there is none, so every character of the text belongs to one token or to the trivia before one.
  * @property {boolean} spaced Whether trivia, whitespace or a comment, comes before it, which tells an argument written after a name from one of the name's own.
- * @property {{ message: string, offset: number }} [diagnostic] Why an invalid token is no token, and where the text first fails.
+ * @property {{ code: string, message: string, offset: number }} [diagnostic] Why an invalid token is no token, the code of its condition and where the text first fails.
  */
 
 /** The names of each family's forms, inline and as a block, by its quote: a string, whose backslashes escape, and a raw string, whose backslashes are text. */
@@ -72,7 +72,7 @@ export class Tokenizer {
 
         for (const token of tokens) {
             if (token.type === 'invalid') {
-                throw LexicaError.syntax(token.diagnostic.message, this.#text, token.diagnostic.offset);
+                throw LexicaError.syntax(token.diagnostic.code, token.diagnostic.message, this.#text, token.diagnostic.offset);
             }
         }
 
@@ -123,7 +123,7 @@ export class Tokenizer {
 
         // An interpolation whose expression begins with an object expression groups it, so its `{` is never read beside the interpolation's own.
         if (isFirstOfInterpolation && this.#text[start] === '{') {
-            return this.#invalid(start, start + 1, 'An interpolation that begins with an object expression groups it in parentheses, as {({ x = 1 }.x)}', start);
+            return this.#invalid(start, start + 1, 'LEXICA1063', 'An interpolation that begins with an object expression groups it in parentheses, as {({ x = 1 }.x)}', start);
         }
 
         if (start >= this.#text.length) {
@@ -219,12 +219,24 @@ export class Tokenizer {
             return { type: '=', start, end: this.#offset };
         }
 
-        // A single `!` is no operator; an inequality is written `!=`, and a negation `not`.
-        if (character === '!') {
-            return this.#invalid(start, start + 1, "Unexpected '!': an inequality is written '!=', and a negation 'not'", start);
+        // A `?` or a `!` that whitespace parts from the rest of its operator is that operator written apart.
+        const following = /^\s+(\S)/.exec(this.#text.slice(start + 1))?.[1];
+        const preceding = /(\S)\s+$/.exec(this.#text.slice(0, start))?.[1];
+        const operator = character === '?' && ['.', '[', ':', '?'].includes(following) ? `?${following}`
+            : character === '?' && preceding === '(' ? '(?'
+            : character === '!' && following === '=' ? '!='
+            : undefined;
+
+        if (operator !== undefined) {
+            return this.#invalid(start, start + 1, 'LEXICA1001', `'${operator}' is one operator, written with nothing between its signs`, start);
         }
 
-        return this.#invalid(start, start + 1, `Unexpected '${character}'`, start);
+        // A single `!` is no operator; an inequality is written `!=`, and a negation `not`.
+        if (character === '!') {
+            return this.#invalid(start, start + 1, 'LEXICA1509', "Unexpected '!': an inequality is written '!=', and a negation 'not'", start);
+        }
+
+        return this.#invalid(start, start + 1, 'LEXICA1000', `Unexpected '${character}'`, start);
     }
 
     /**
@@ -239,7 +251,7 @@ export class Tokenizer {
             const character = this.#text[this.#offset];
 
             if (isInInterpolation && (Tokenizer.#isLineBreak(character) || this.#text.startsWith('//', this.#offset))) {
-                return this.#invalid(this.#offset, this.#offset + 1, oneLine, this.#offset);
+                return this.#invalid(this.#offset, this.#offset + 1, 'LEXICA1040', oneLine, this.#offset);
             }
 
             if (SPACE.test(character)) {
@@ -252,11 +264,11 @@ export class Tokenizer {
                 const commentEnd = this.#text.indexOf('*/', this.#offset + 2);
 
                 if (commentEnd === -1) {
-                    return this.#invalid(this.#offset, this.#text.length, 'A block comment is never closed', this.#offset);
+                    return this.#invalid(this.#offset, this.#text.length, 'LEXICA1007', 'A block comment is never closed', this.#offset);
                 }
 
                 if (isInInterpolation && /[\n\r]/.test(this.#text.slice(this.#offset, commentEnd))) {
-                    return this.#invalid(this.#offset, commentEnd + 2, oneLine, this.#offset);
+                    return this.#invalid(this.#offset, commentEnd + 2, 'LEXICA1040', oneLine, this.#offset);
                 }
 
                 this.#offset = commentEnd + 2;
@@ -281,7 +293,7 @@ export class Tokenizer {
                 ? "An identifier follows '@' directly, as @to"
                 : "'@' and what follows it are no lexical reference, which writes an identifier directly after '@', as @to";
 
-            return this.#invalid(start, start + 1, message, start);
+            return this.#invalid(start, start + 1, 'LEXICA1050', message, start);
         }
 
         const name = this.#text.slice(start + 1, NAME.lastIndex);
@@ -304,7 +316,7 @@ export class Tokenizer {
                 ? "A script parameter is named directly after '~', as ~room"
                 : "'~' and what follows it are no script parameter, which is named directly after '~', as ~room";
 
-            return this.#invalid(start, start + 1, message, start);
+            return this.#invalid(start, start + 1, 'LEXICA1009', message, start);
         }
 
         const name = this.#text.slice(start + 1, NAME.lastIndex);
@@ -336,15 +348,15 @@ export class Tokenizer {
 
             return scanned.diagnostic === null
                 ? { type: 'literal', value: scanned.value, start, end, quote, delimiter: form.length }
-                : this.#invalid(start, end, scanned.diagnostic.message, scanned.diagnostic.offset);
+                : this.#invalid(start, end, scanned.diagnostic.code, scanned.diagnostic.message, scanned.diagnostic.offset);
         }
 
         // In an interpolation, a quote begins a string of the interpolation's own expression, so one never closed is most often the interpolated string's own quote written before the interpolation's `}`.
         const name = DELIMITED_NAMES[quote][0];
         const message = this.#modes.at(-1)?.kind === 'interpolation' ? `A ${name} is never closed: an interpolation is closed with '}' before its string's closing quote` : `A ${name} is never closed`;
-        const unclosed = scanned.diagnostic ?? { message, offset: start };
+        const unclosed = scanned.diagnostic ?? { code: 'LEXICA1510', message, offset: start };
 
-        return this.#invalid(start, scanned.end, unclosed.message, unclosed.offset);
+        return this.#invalid(start, scanned.end, unclosed.code, unclosed.message, unclosed.offset);
     }
 
     /**
@@ -366,18 +378,18 @@ export class Tokenizer {
         if (length >= 3) {
             if (Tokenizer.#isLineBreak(this.#text[run])) {
                 if (this.#modes.at(-1)?.kind === 'interpolation') {
-                    return { token: this.#invalid(start, run, 'An interpolation stands on one line, so it holds no block: bind the block to a local, and interpolate its name', start) };
+                    return { token: this.#invalid(start, run, 'LEXICA1040', 'An interpolation stands on one line, so it holds no block: bind the block to a local, and interpolate its name', start) };
                 }
 
                 const contentStart = run + Tokenizer.#lineBreakLengthAt(this.#text, run);
                 const closing = this.#closingOf(contentStart, quote, length);
 
                 if (closing === null) {
-                    return { token: this.#invalid(start, this.#text.length, `A ${prefix}${names[1]} is never closed: its closing delimiter, ${length} quotes, stands first on a line of its own`, start) };
+                    return { token: this.#invalid(start, this.#text.length, 'LEXICA1058', `A ${prefix}${names[1]} is never closed: its closing delimiter, ${length} quotes, stands first on a line of its own`, start) };
                 }
 
                 if (closing.diagnostic !== undefined) {
-                    return { token: this.#invalid(start, closing.diagnostic.end, closing.diagnostic.message, closing.diagnostic.offset) };
+                    return { token: this.#invalid(start, closing.diagnostic.end, closing.diagnostic.code, closing.diagnostic.message, closing.diagnostic.offset) };
                 }
 
                 return { form: { quote, length, isRaw, isBlock: true, contentStart, ...closing } };
@@ -386,12 +398,12 @@ export class Tokenizer {
             const lineEnd = this.#lineEndFrom(run);
 
             if (/^[ \t]+$/.test(this.#text.slice(run, lineEnd))) {
-                return { token: this.#invalid(start, lineEnd, `A ${prefix}${names[1]}'s opening delimiter is followed directly by its line break, with nothing after it on its line`, run) };
+                return { token: this.#invalid(start, lineEnd, 'LEXICA1038', `A ${prefix}${names[1]}'s opening delimiter is followed directly by its line break, with nothing after it on its line`, run) };
             }
 
             // Three double quotes never begin an inline string, whose empty `""` no value follows directly; three single quotes may, the doubled one standing for a quote.
             if (!isRaw) {
-                return { token: this.#invalid(start, run, `A ${prefix}${names[1]}'s text stands on the lines between its delimiters: its opening delimiter is followed directly by a line break, and an inline ${prefix}${names[0]} opens with one quote`, run) };
+                return { token: this.#invalid(start, run, 'LEXICA1038', `A ${prefix}${names[1]}'s text stands on the lines between its delimiters: its opening delimiter is followed directly by a line break, and an inline ${prefix}${names[0]} opens with one quote`, run) };
             }
         }
 
@@ -424,7 +436,7 @@ export class Tokenizer {
                 }
 
                 if (run - offset > length) {
-                    return { diagnostic: { message: `A block closes with exactly the ${length} quotes that open it, and this run has ${run - offset}: open it with a longer delimiter to hold the run`, offset, end: run } };
+                    return { diagnostic: { code: 'LEXICA1059', message: `A block closes with exactly the ${length} quotes that open it, and this run has ${run - offset}: open it with a longer delimiter to hold the run`, offset, end: run } };
                 }
             }
 
@@ -442,7 +454,7 @@ export class Tokenizer {
      * Scans a string's text from the offset in its form: an inline string's up to its closing quote, a block's up to the line break before its closing delimiter, each line's margin removed first,
      * and an interpolated string's up to the `{` that opens an interpolation as well. The value is the text it stands for: escapes decoded in the string family, a raw string's doubled quote one quote,
      * each source line break of a block one line feed, and an interpolated string's doubled brace one brace. The first diagnostic it meets is kept, and `stop` says what ended the scan.
-     * @returns {{ value: string, end: number, diagnostic: { message: string, offset: number } | null, stop: 'close' | 'brace' | 'end' }}
+     * @returns {{ value: string, end: number, diagnostic: { code: string, message: string, offset: number } | null, stop: 'close' | 'brace' | 'end' }}
      */
     #scanText(start, form, isInterpolated) {
         const { quote, isRaw, isBlock } = form;
@@ -478,7 +490,7 @@ export class Tokenizer {
                     const escape = isRaw ? '' : 'write \\n for a line break, or ';
                     const delimiter = `${isInterpolated ? '$' : ''}${quote.repeat(3)}`;
 
-                    diagnostic ??= { message: `A${isInterpolated ? 'n' : ''} ${prefix}${names[0]} stands on one line: ${escape}write a${isInterpolated ? 'n' : ''} ${prefix}${names[1]}, its text on the lines between ${delimiter} and ${quote.repeat(3)}`, offset };
+                    diagnostic ??= { code: 'LEXICA1037', message: `A${isInterpolated ? 'n' : ''} ${prefix}${names[0]} stands on one line: ${escape}write a${isInterpolated ? 'n' : ''} ${prefix}${names[1]}, its text on the lines between ${delimiter} and ${quote.repeat(3)}`, offset };
 
                     return { value, end: offset, diagnostic, stop: 'end' };
                 }
@@ -507,7 +519,7 @@ export class Tokenizer {
                 }
 
                 if (run - offset >= form.length) {
-                    diagnostic ??= { message: `A run of ${run - offset} quotes in a block's text is as long as its delimiter: open the block with a longer delimiter to hold it`, offset };
+                    diagnostic ??= { code: 'LEXICA1060', message: `A run of ${run - offset} quotes in a block's text is as long as its delimiter: open the block with a longer delimiter to hold it`, offset };
                 }
 
                 value += this.#text.slice(offset, run);
@@ -519,7 +531,7 @@ export class Tokenizer {
                 const escape = this.#readEscape(offset);
 
                 if (escape.message !== undefined) {
-                    diagnostic ??= { message: escape.message, offset };
+                    diagnostic ??= { code: escape.code, message: escape.message, offset };
                     offset++;
                 } else {
                     value += escape.character;
@@ -540,7 +552,7 @@ export class Tokenizer {
                     return { value, end: offset, diagnostic, stop: 'brace' };
                 }
 
-                diagnostic ??= { message: "A literal '}' in an interpolated string is written '}}'", offset };
+                diagnostic ??= { code: 'LEXICA1062', message: "A literal '}' in an interpolated string is written '}}'", offset };
                 offset++;
                 continue;
             }
@@ -567,7 +579,7 @@ export class Tokenizer {
             return { offset: lineEnd, diagnostic: null };
         }
 
-        return { offset: lineStart, diagnostic: { message: "Each line of a block that is not blank begins with its closing delimiter's indentation, the margin removed from its lines, and this one does not", offset: lineStart } };
+        return { offset: lineStart, diagnostic: { code: 'LEXICA1061', message: "Each line of a block that is not blank begins with its closing delimiter's indentation, the margin removed from its lines, and this one does not", offset: lineStart } };
     }
 
     /** Where the line the offset stands on ends: at its line break, a line feed, a carriage return or both, or at the end of the text. */
@@ -618,7 +630,7 @@ export class Tokenizer {
 
         const message = offset > start + 1 && (this.#text[offset] === '"' || this.#text[offset] === "'") ? `An interpolated string starts with '$${this.#text[offset]}', with no space between them` : "Unexpected '$'";
 
-        return this.#invalid(start, start + 1, message, start);
+        return this.#invalid(start, start + 1, 'LEXICA1005', message, start);
     }
 
     /**
@@ -652,11 +664,11 @@ export class Tokenizer {
 
             const names = DELIMITED_NAMES[form.quote];
 
-            return this.#invalid(start, scanned.end, scanned.diagnostic?.message ?? `An interpolated ${names[0]} is never closed`, scanned.diagnostic?.offset ?? mode.start);
+            return this.#invalid(start, scanned.end, scanned.diagnostic?.code ?? 'LEXICA1510', scanned.diagnostic?.message ?? `An interpolated ${names[0]} is never closed`, scanned.diagnostic?.offset ?? mode.start);
         }
 
         if (scanned.diagnostic !== null) {
-            return this.#invalid(start, scanned.end, scanned.diagnostic.message, scanned.diagnostic.offset);
+            return this.#invalid(start, scanned.end, scanned.diagnostic.code, scanned.diagnostic.message, scanned.diagnostic.offset);
         }
 
         this.#offset = scanned.end;
@@ -664,14 +676,14 @@ export class Tokenizer {
         return { type: 'interpolated-text', value: scanned.value, start, end: scanned.end };
     }
 
-    /** Reads the escape whose backslash is at the offset: the character it stands for and where it ends, or the message that says why it is none the language has. */
+    /** Reads the escape whose backslash is at the offset: the character it stands for and where it ends, or the code and the message that say why it is none the language has. */
     #readEscape(offset) {
         const escaped = this.#text[offset + 1];
 
         if (escaped !== 'u') {
             return Object.hasOwn(ESCAPES, escaped ?? '')
                 ? { character: ESCAPES[escaped], end: offset + 2 }
-                : { message: 'A string escapes only \\", \\\\, \\n, \\r, \\t, \\e and \\u{…}' };
+                : { code: 'LEXICA1006', message: 'A string escapes only \\", \\\\, \\n, \\r, \\t, \\e and \\u{…}' };
         }
 
         UNICODE_ESCAPE.lastIndex = offset + 1;
@@ -679,17 +691,17 @@ export class Tokenizer {
         const match = UNICODE_ESCAPE.exec(this.#text);
 
         if (match === null) {
-            return { message: 'A Unicode escape is written \\u{…} with one to six hexadecimal digits, as \\u{1F600}' };
+            return { code: 'LEXICA1006', message: 'A Unicode escape is written \\u{…} with one to six hexadecimal digits, as \\u{1F600}' };
         }
 
         const codePoint = Number.parseInt(match[1], 16);
 
         if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
-            return { message: 'A Unicode escape names a scalar value, and D800 to DFFF are surrogates' };
+            return { code: 'LEXICA1049', message: 'A Unicode escape names a scalar value, and D800 to DFFF are surrogates' };
         }
 
         if (codePoint > 0x10FFFF) {
-            return { message: 'A Unicode escape names a value no greater than 10FFFF' };
+            return { code: 'LEXICA1049', message: 'A Unicode escape names a value no greater than 10FFFF' };
         }
 
         return { character: String.fromCodePoint(codePoint), end: UNICODE_ESCAPE.lastIndex };
@@ -699,7 +711,7 @@ export class Tokenizer {
         NUMBER.lastIndex = start;
 
         if (!NUMBER.test(this.#text)) {
-            return this.#invalid(start, start + 1, 'A number is written as in JSON', start);
+            return this.#invalid(start, start + 1, 'LEXICA1000', 'A number is written as in JSON', start);
         }
 
         this.#offset = NUMBER.lastIndex;
@@ -707,10 +719,10 @@ export class Tokenizer {
         return { type: 'literal', value: Number(this.#text.slice(start, this.#offset)), start, end: this.#offset };
     }
 
-    /** An invalid token over the text from the start to the end, which reading goes on after, with the message and the offset its diagnostic gives. */
-    #invalid(start, end, message, offset) {
+    /** An invalid token over the text from the start to the end, which reading goes on after, with the code, the message and the offset its diagnostic gives. */
+    #invalid(start, end, code, message, offset) {
         this.#offset = end;
 
-        return { type: 'invalid', start, end, diagnostic: { message, offset } };
+        return { type: 'invalid', start, end, diagnostic: { code, message, offset } };
     }
 }
