@@ -31,7 +31,7 @@ In this document:
 | Type identity | A module's type's module and local name together, as `Home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
 | Import | A type's `import`, the modules whose public types its declaration names unqualified, reaching that declaration alone | [Type identity](types.md#types-type-identity) |
 | Type parameter | A type a declaration leaves open, declared after its name in angle brackets, as `ListExtensions<T>`'s `T`, standing within the declaration that declares it, and inferred, never written in a script | [Type parameters](types.md#types-type-parameters) |
-| `Any` | The type a declaration names where it accepts or answers a value of any type, whose members are selected when it is evaluated | [Values of `Any`](types.md#types-any) |
+| `Any` | The type a declaration names where it accepts or answers a value of any type that isn't null, `Any?` where it may be null too, whose members are selected when it is evaluated | [Values of `Any`](types.md#types-any) |
 | Deferred member access | An access whose member is selected when its receiver is evaluated, since its receiver's type is unknown before | [Deferred member selection](types.md#types-any-deferred-selection) |
 | Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](types.md#reference-types) |
 | Object expression | An expression that names the fields of its output object | [Objects](values.md#objects) |

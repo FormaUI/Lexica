@@ -87,7 +87,7 @@ One selector chooses every member, indexer and operator, at resolution and durin
 
 1. **The selector** replaces the three selection paths and the path for receivers of unknown type: owner precedence through inheritance; competing extensions registering, in place of the registration's refusal; ambiguity refused at resolution, giving the extension accesses to write; internal declarations excluded at resolution; and an empty list or a null receiver selecting as [the types](../spec/types.md) set out.
 2. **Operators:** casts and conversions declared on types and in extensions, in place of module-level conversions; Lexica's own conversions moved onto its types; declared casts, an `impl` optional, `reject` making an attempt null; and operators chosen by the selector.
-3. **`Any` and deferred selection:** a member selected when its receiver is evaluated, through the same selector; the selection cached by node and actual type within one registry, plain objects read by their own fields; identity kept through `Any`; a selection that would be a host call refused before anything is invoked; `beforeInvoke` told the selection was deferred; an `Any` argument checked against its parameter; and a deferred access failing with the access and the actual type named.
+3. **`Any` and deferred selection:** a member selected when its receiver is evaluated, through the same selector; the selection cached by node and actual type within one registry, plain objects read by their own fields; identity kept through `Any`; a selection that would be a host call refused before anything is invoked; `beforeInvoke` told the selection was deferred; an `Any` argument checked against its parameter, and an operand of `Any` by its operation's rules; and a deferred access failing with the access and the actual type named.
 4. **Reporting:** used declarations including operators, in place of the separate used conversions; deferred accesses; and candidate declarations, reported as an overestimate.
 
 **Completion:** the gate passes, and a host can move its declarations and its runtime use in one migration.
@@ -184,11 +184,8 @@ Conditions the implementation reports that only language `1.0.0-alpha.33` has, c
 | `LEXICA4550` | module | A second default indexer of a receiver, across the registry | [Unit 1](#unit-1--declarations-and-the-type-model) |
 | `LEXICA4551` | module | Members of one name on overlapping receivers in two modules, refused at registration | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 | `LEXICA4553` | module | A module member and a member of its name on a type its module does not declare | [Unit 1](#unit-1--declarations-and-the-type-model) |
-| `LEXICA5500` | evaluation | An interpolation given what is neither a string nor a number when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
-| `LEXICA5501` | evaluation | A comparison given what is not a number when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 | `LEXICA5502` | evaluation | A definition node no evaluation exists for | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 | `LEXICA5504` | evaluation | A function's result its callback contract does not declare, when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
-| `LEXICA5505` | evaluation | An arithmetic operand or a negated value that is not a number when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 
 ## Implemented capabilities
 

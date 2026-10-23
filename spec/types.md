@@ -23,9 +23,10 @@ In this document:
 5. [Reference types](#reference-types)
 6. [No implicit conversion](#no-implicit-conversion)
 7. [Nullability](#nullability)
-8. [Receivers of unknown type](#receivers-of-unknown-type)
-9. [Values of `Any`](#types-any)
-10. [Casts](#casts)
+8. [Assignability and merging](#types-assignability-and-merging)
+9. [Receivers of unknown type](#receivers-of-unknown-type)
+10. [Values of `Any`](#types-any)
+11. [Casts](#casts)
 
 <a id="types-type-families"></a>
 
@@ -38,7 +39,7 @@ In this document:
 | Lists | `List<T>`, a list whose items have type `T` |
 | Structured values | Data a module declares, its stored shape its stored properties, as `Climate` |
 | Object types | The field types inferred from an object expression, as `{ name: String, count: Number }` |
-| `Any` | A value of any type, its concrete type known when it is evaluated, as [values of `Any`](#types-any) set out |
+| `Any` | A value of any type that isn't null, its concrete type known when it is evaluated, as [values of `Any`](#types-any) set out |
 
 The scalar types, lists and object types are the language's own, which Lexica's own module owns; every reference type and structured type comes from a module, which [declares it](modules.md#modules-declaring-a-type) with its members.
 
@@ -56,7 +57,8 @@ A type is named in PascalCase, beginning with a capital letter, Lexica's own and
 | `null` | The type whose only value is null, the type of the literal `null` and of a null binding; fits every nullable type |
 | `Never` | A type with no values; fits every type |
 | `List<Never>` | The type of an empty list; fits every list type |
-| `Any` | A value of any type, whose members are selected when it is evaluated; distinct from a result left out |
+| `Any` | A value of any type that isn't null, whose members are selected when it is evaluated; distinct from a result left out |
+| `Any?` | A value of any type, or null |
 
 `null` is the language's intrinsic type, written as the literal is, in a declaration, an inferred type and a diagnostic alike; no type is named `Null`, and a module declares none of that name. `Boolean?` admits `true`, `false` and `null`. `Never` is the name of a type, and no word of the expression language.
 
@@ -191,6 +193,55 @@ A `Number` is not a `Boolean`, a `String` is not a `Number`, and a `Device` is n
 
 Nullability is part of a type, and null follows the signature: `T?` is a value of type `T` or null. A nullable receiver is read with optional access, as [required and optional access](members.md#property-access-calls-and-indexers-required-access-and-optional-chains) set out; a null argument follows its parameter's null policy, as [null arguments](members.md#nullability-a-null-argument-follows-the-parameter) set out; and a written or an unavailable null is a value like any other, as [null](values.md#null) sets out.
 
+<a id="types-assignability-and-merging"></a>
+
+## Assignability and merging
+
+A value stands where a type is declared, a parameter's, a callback's or a result contract's, where its type is assignable to the declared one. Where two types meet, a conditional's branches, a coalescing operator's sides or a list's items, the value is of the type they merge to. Lexica applies the same rules wherever it relates two types.
+
+<a id="types-assignability"></a>
+
+### Assignability
+
+| A value of | Is assignable to |
+| --- | --- |
+| `Never` | Every type |
+| `null` | Every nullable type |
+| A nullable type, `T?` | A nullable type `U?` that `T` is assignable to |
+| A named type | The same type, by its [identity](#types-type-identity), and each supertype above it, as [reference types](#reference-types) set out |
+| `List<T>` | `List<U>`, where `T` is assignable to `U`, by [list covariance](#types-type-parameters-list-covariance) |
+| An object type | An object type of the same field names, each field's type assignable to the type of the field of its name; a field more or a field fewer is refused |
+| A type that isn't nullable | `Any` |
+| Any type | `Any?` |
+
+So `{ name: String }` is assignable to `{ name: String? }`, and neither `{ name: String? }` nor `{ name: String, age: Number }` is assignable to `{ name: String }`.
+
+A value of `Any` is assignable to another type once its value is known: given where a concrete type is declared, it is accepted when it is resolved and checked against that type when it is evaluated, and one of `Any?` the same, the check refusing null where the declared type isn't nullable. Only what is unknown waits: a violation resolution can prove is refused then, as [values of `Any`](#types-any) set out.
+
+<a id="types-type-equality"></a>
+
+### Equal types
+
+Two types are equal where they are one type: one named type, by its identity, or two lists whose items' types are equal, or two object types of the same field names whose fields' types are equal, each of one nullability. Equal types are assignable to each other; assignable types need not be equal, as `String` and `String?` are not.
+
+<a id="types-merging"></a>
+
+### Merging
+
+Two types merge to the least type that holds a value of either, made nullable where either can be null:
+
+| Types | Merge to |
+| --- | --- |
+| `Never` and a type | The type |
+| `null` and a type | The type, made nullable |
+| A type and itself, either nullable | The type, nullable where either is |
+| Two reference types of one hierarchy | The nearest supertype they share |
+| `List<T>` and `List<U>` | A list of the type `T` and `U` merge to |
+| Two object types of the same field names | The object type of those names, each field of the type the two fields of its name merge to |
+| `Any` and a type | `Any`, made nullable where either can be null, so `Any` and `Number` merge to `Any`, and `Any` and `Number?`, or `Any` and `null`, to `Any?` |
+
+Any other two types don't merge, two object types of different field names, two lists whose items don't merge and two reference types of different hierarchies among them, and where a conditional's branches, a coalescing operator's sides or a list's items are of such types, the expression is a validation error naming both.
+
 <a id="receivers-of-unknown-type"></a>
 
 ## Receivers of unknown type
@@ -258,6 +309,14 @@ A member read on a `List<Never>` runs, as on any list, so it resolves to one dec
 | Deferred member access | Member selection waits for the receiver's value |
 
 That a type is unknown before evaluation is a fact of resolution, never another type. `null` and `Never` keep their own rules, as [receivers of unknown type](#receivers-of-unknown-type) set them out: a null receiver is known to be null, and `Never` describes the absence of a value, never one whose type remains to be discovered.
+
+A value of `Any?` is read as any nullable value is: `?.` answers null for a null receiver, and a value that isn't null has its member selected by its actual type, as for a value of `Any`.
+
+<a id="types-any-operands"></a>
+
+### Operands of `Any`
+
+An operand of `Any` is accepted when it is resolved, and checked by its operation's own rules when it is evaluated: arithmetic and ordering take numbers, an interpolation a string or a number, and an equality two values of types that fit one way or the other, a structured value, a list and an object compared with null alone, as [equalities](expressions.md#equalities) set out. Truthiness takes any value, so a condition and the operands of `and`, `or` and `not` check nothing. Only what is unknown waits: an operand of `Any?` can be null, which arithmetic, ordering and an interpolation refuse when it is resolved, as they refuse any operand that can be null, and an equality with a value of a type that is known applies its rules to what is known.
 
 <a id="types-any-deferred-selection"></a>
 

@@ -463,7 +463,7 @@ The name follows local naming rules, and may hide an outer local, field or scrip
 
 ### Branch types
 
-All branches are required. Their types must merge, with object types compared structurally and reference types of one hierarchy merging to the nearest supertype they share, as a list's items do. Nullability may differ.
+All branches are required. Their types must [merge](types.md#types-merging), with object types merged field by field and reference types of one hierarchy merging to the nearest supertype they share, as a list's items do. Nullability may differ.
 
 | Branch types | Conditional type |
 | --- | --- |

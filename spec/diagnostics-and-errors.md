@@ -434,6 +434,11 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5010` | Evaluating an evaluator from within its own evaluation | An evaluation error |
 | `LEXICA5011` | Evaluating without `beforeInvoke` a script that reads a maintained member | An evaluation error |
 | `LEXICA5012` | A deferred access whose receiver's actual type lacks the member, or doesn't satisfy it | An evaluation error naming the access and the actual type |
+| `LEXICA5500` | An interpolation given what is neither a string nor a number when it is evaluated, as an operand of `Any` can be | An evaluation error naming the interpolation and the value |
+| `LEXICA5501` | An ordering given what is not a number when it is evaluated, as an operand of `Any` can be | An evaluation error naming the operator and the value |
+| `LEXICA5505` | An arithmetic operand or a negated value that is not a number when it is evaluated, as an operand of `Any` can be | An evaluation error naming the operator and the value |
+| `LEXICA5024` | An equality whose operands are found, when they are evaluated, of types that fit neither way, as an operand of `Any` can be | An evaluation error naming both types |
+| `LEXICA5025` | An equality of a structured value, a list or an object, found when it is evaluated, with a value that isn't null, as an operand of `Any` can be | An evaluation error naming the type |
 | `LEXICA5021` | An `Any` argument that does not satisfy its parameter | An evaluation error naming the argument and the actual type |
 | `LEXICA5022` | A direct access on null at a deferred access, through `.` or `:` | An evaluation error naming the access, and giving `?.` or `?:` |
 | `LEXICA5013` | A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |
