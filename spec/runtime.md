@@ -163,7 +163,7 @@ if (call.kind === 'prepared') {
 | A reference of another type, where a nullable reference type is declared | Null, so the value keeps only the reference its type names, as a `Light?` field holding a thermostat is null |
 | Any other value, data its type does not admit among them | The projection fails with an evaluation error naming the call and the part of the value |
 
-A list never holds a missing item. Narrowing a reference is the one thing capturing turns into null, so mistyped data fails whatever its type's nullability. A member's answer is never captured: its implementation answers what its member declares.
+A list never holds a missing item. Narrowing a reference is the one thing capturing turns into null, so mistyped data fails whatever its type's nullability. A supplied value has no type of its own until it is captured, so where it fails its declared type's membership, the registry's `typeOf` tells a reference of another type from mistyped data, as it recognizes a binding. A member's answer is never captured: its implementation answers what its member declares.
 
 A projection reads what the call was prepared with, and evaluates the rest anew:
 

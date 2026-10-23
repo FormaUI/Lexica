@@ -59,7 +59,7 @@ Every declaration takes its final shape, and the types those declarations make r
 3. **Reference types and binding,** in the current flat member shape:
    - `typeOf`, `isInstance`, `abstract` and `supertype`, a hierarchy refused where it cycles; the hierarchy in assignability, list covariance, merging to the nearest shared supertype, and identity equality of references.
    - `registry.bind`, recognizing values by every module's `typeOf`, with declared binding types resolved against the registry, a binding set captured once and belonging to its registry, and a cycle refused with its own error. Binding and repeated evaluation are measured at scale before any membership answer is cached, and any cache has defined validity rules.
-   - Hierarchy casts, checked by the destination's `isInstance`; results and captures checked by `isInstance` and supertypes; a failed cast naming the recognized type.
+   - Hierarchy casts; results, captures, declared bindings and casts checked by one membership rule, the destination's `isInstance` and every supertype's; a failed cast naming its value's established type, never recognized again.
    - Projection sources for every projected item, in the representation unit 0 specifies, replacing the sources recorded for elements alone.
    - The resolution key written by qualified identity, so two modules' `Device` no longer share one.
    - Removed: the built-in DOM types and every `nodeType` path, in binding, evaluation, captures, casts and messages, and `lexica.bind`.

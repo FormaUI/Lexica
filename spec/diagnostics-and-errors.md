@@ -420,7 +420,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5001` | A value a strict cast rejects, by its destination's membership or by its operator's `reject` | An evaluation error naming the cast, the reason it gave and where it stands, as `The cast to Light rejected its value: it is a Thermostat`; null under `try` |
 | `LEXICA5016` | A value a conversion rejects | An evaluation error naming the conversion, the reason it gave and where it stands; null under `try` |
 | `LEXICA5002` | A `typeOf` that does not name a reference type of its module, an abstract one, or one the value does not belong to | A fault naming the module and what asked |
-| `LEXICA5017` | An `isInstance` answering no Boolean or throwing | A fault naming the type and what asked |
+| `LEXICA5026` | A `typeOf` that throws | A fault naming the module and what asked, its `cause` exactly what `typeOf` threw |
+| `LEXICA5017` | An `isInstance` answering what isn't a Boolean | A fault naming the type and what asked |
+| `LEXICA5027` | An `isInstance` that throws | A fault naming the type and what asked, its `cause` exactly what `isInstance` threw |
 | `LEXICA5003` | A conversion that throws | A fault naming the conversion |
 | `LEXICA5018` | A conversion that rejects with a reason that is not a string, or rejects and then answers | A fault naming the conversion |
 | `LEXICA5019` | A conversion that answers null or a value not of its type | A fault naming the conversion |
