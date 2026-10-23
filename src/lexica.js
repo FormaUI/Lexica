@@ -7,7 +7,7 @@ import { DefinitionValidator } from './language/DefinitionValidator.mjs';
 import { DefinitionWriter } from './language/DefinitionWriter.mjs';
 import { Evaluator } from './language/Evaluator.mjs';
 import { LanguageResolver } from './language/LanguageResolver.mjs';
-import { LexicaError } from './language/LexicaError.mjs';
+import { LexicaError, LexicaErrors } from './language/LexicaError.mjs';
 import { Names } from './language/Names.mjs';
 import { ParameterBindings } from './language/ParameterBindings.mjs';
 import { ParsedTexts } from './language/ParsedTexts.mjs';
@@ -48,7 +48,7 @@ const withoutNamespaces = definition => {
     const [namespace] = namespacesOf(definition.expression, '/expression');
 
     if (namespace !== undefined) {
-        throw LexicaError.structure('LEXICA2640', `The definition reads through the namespace '${namespace.name}', which text read without a registry's module names cannot write; write it with the registry, as registry.format does`, locate(definition, namespace.pointer));
+        throw LexicaErrors.structure('LEXICA2640', `The definition reads through the namespace '${namespace.name}', which text read without a registry's module names cannot write; write it with the registry, as registry.format does`, locate(definition, namespace.pointer));
     }
 
     return definition;
@@ -63,13 +63,13 @@ const readWith = (definition, namespaceNames) => {
     const misread = reading === null ? undefined : [...reading.namesWrittenAlone.keys()].find(name => namespaceNames.has(name) && !reading.moduleNames.has(name));
 
     if (misread !== undefined) {
-        throw LexicaError.structure('LEXICA2641', `The definition was read without this registry's module names, and writes '${misread}' alone, which this registry reads as the namespace of its module '${misread}'; read the text with the registry`, ParsedTexts.locationsOf(definition).locateSpan(reading.namesWrittenAlone.get(misread)));
+        throw LexicaErrors.structure('LEXICA2641', `The definition was read without this registry's module names, and writes '${misread}' alone, which this registry reads as the namespace of its module '${misread}'; read the text with the registry`, ParsedTexts.locationsOf(definition).locateSpan(reading.namesWrittenAlone.get(misread)));
     }
 
     const lacking = namespacesOf(definition.expression, '/expression').find(namespace => !namespaceNames.has(namespace.name));
 
     if (lacking !== undefined) {
-        throw LexicaError.structure('LEXICA2642', `The definition reads through the namespace '${lacking.name}', and this registry holds no module of that name`, locate(definition, lacking.pointer));
+        throw LexicaErrors.structure('LEXICA2642', `The definition reads through the namespace '${lacking.name}', and this registry holds no module of that name`, locate(definition, lacking.pointer));
     }
 
     return definition;
@@ -96,14 +96,14 @@ const parameterBindingsOf = bindings => PARAMETER_BINDINGS.get(bindings) ?? new 
 /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
 const locate = (definition, pointer) => {
     if (typeof pointer !== 'string' || !(pointer === '' || pointer.startsWith('/'))) {
-        throw LexicaError.structure('LEXICA2643', 'A pointer is a JSON Pointer into the definition, as /expression/fields/0', {});
+        throw LexicaErrors.structure('LEXICA2643', 'A pointer is a JSON Pointer into the definition, as /expression/fields/0', {});
     }
 
     let node = definition;
 
     for (const segment of pointer.split('/').slice(1).map(part => part.replaceAll('~1', '/').replaceAll('~0', '~'))) {
         if (node === null || typeof node !== 'object' || !Object.hasOwn(node, segment)) {
-            throw LexicaError.structure('LEXICA2644', `The definition holds nothing at ${pointer}`, { pointer });
+            throw LexicaErrors.structure('LEXICA2644', `The definition holds nothing at ${pointer}`, { pointer });
         }
 
         node = node[segment];
@@ -125,7 +125,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
     const requireCurrent = () => {
         if (registry.revision !== revision) {
-            throw LexicaError.structure('LEXICA2040', 'A module was registered since this expression was resolved, so its resolution is stale; resolve the expression again', {});
+            throw LexicaErrors.structure('LEXICA2040', 'A module was registered since this expression was resolved, so its resolution is stale; resolve the expression again', {});
         }
     };
 
@@ -133,7 +133,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         const evaluatorBindings = parameterBindingsOf(bindings);
 
         if (evaluatorBindings.resolutionKey !== resolutionKey) {
-            throw LexicaError.structure('LEXICA2025', 'These bindings resolve the expression otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
+            throw LexicaErrors.structure('LEXICA2025', 'These bindings resolve the expression otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
         }
 
         requireCurrent();
@@ -142,7 +142,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         const unimplemented = usedDeclarations.find(use => use.declaration.implementation === undefined && !LexicaModule.isHostCall(use.declaration));
 
         if (unimplemented !== undefined) {
-            throw LexicaError.module('LEXICA4001', `'${unimplemented.name}' has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
+            throw LexicaErrors.module('LEXICA4001', `'${unimplemented.name}' has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
         }
 
         const unimplementedConversion = resolved.usedConversions.find(conversion => conversion.implementation === undefined);
@@ -150,7 +150,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         if (unimplementedConversion !== undefined) {
             const name = LexicaModule.conversionNameOf(unimplementedConversion);
 
-            throw LexicaError.module('LEXICA4001', `The conversion from ${name} has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplementedConversion), declaration: name, field: 'implementation' });
+            throw LexicaErrors.module('LEXICA4001', `The conversion from ${name} has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplementedConversion), declaration: name, field: 'implementation' });
         }
 
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);
@@ -161,7 +161,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
             requireCurrent();
 
             if (isEvaluating) {
-                throw LexicaError.evaluation('LEXICA5010', 'An evaluator evaluates one evaluation at a time, and this one is evaluating; evaluate with an evaluator of its own', {});
+                throw LexicaErrors.evaluation('LEXICA5010', 'An evaluator evaluates one evaluation at a time, and this one is evaluating; evaluate with an evaluator of its own', {});
             }
 
             isEvaluating = true;
@@ -191,7 +191,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
     // A host call that supplies nothing gives no result, so no path reaches into one.
     const typeAt = path => {
         if (resolved.type === null) {
-            throw LexicaError.validation('LEXICA3600', `The script ends in the host call '${hostCall.name}', whose host supplies no values, so it has no result for a path to reach`, locate(definition, '/expression'));
+            throw LexicaErrors.validation('LEXICA3600', `The script ends in the host call '${hostCall.name}', whose host supplies no values, so it has no result for a path to reach`, locate(definition, '/expression'));
         }
 
         return String(ResultPath.typeAt(resolved.type, path, registry, () => locate(definition, '/expression')));
@@ -234,7 +234,7 @@ const registryOf = modules => {
         getImplementation: declaration => registry.getImplementation(declaration),
         parse: text => {
             if (typeof text !== 'string') {
-                throw LexicaError.structure('LEXICA2645', 'What parse reads is a text', {});
+                throw LexicaErrors.structure('LEXICA2645', 'What parse reads is a text', {});
             }
 
             return definitionWith(text);
@@ -265,7 +265,7 @@ const paths = Object.freeze({
 export const lexica = Object.freeze({
     parse: text => {
         if (typeof text !== 'string') {
-            throw LexicaError.structure('LEXICA2645', 'What parse reads is a text', {});
+            throw LexicaErrors.structure('LEXICA2645', 'What parse reads is a text', {});
         }
 
         return ParsedTexts.parse(text);

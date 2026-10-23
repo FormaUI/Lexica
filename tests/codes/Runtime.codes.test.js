@@ -375,25 +375,65 @@ describe('the runtime codes', () => {
             expect(failure.cause).toBeUndefined();
         });
 
-        it('never wraps again a Lexica error a host\'s own code raises, thrown from an implementation or a hook', () => {
-            const raised = LexicaError.evaluation('PANTRY0002', 'The pantry is closed', {});
+        it('wraps a LexicaError a host builds, thrown from an implementation, a hook or a conversion, keeping it as the cause', () => {
+            const built = LexicaError.evaluation('PANTRY0002', 'The pantry is closed', {});
+            const expectWrapped = (failure, code) => {
+                expectCode(failure, code, 'evaluation');
+                expect(failure.cause).toBe(built);
+                expect(built.code).toBe('PANTRY0002');
+            };
 
-            behaviors = { size: () => { throw raised; } };
-
-            expect(failureOf('word.size')).toBe(raised);
+            behaviors = { size: () => { throw built; } };
+            expectWrapped(failureOf('word.size'), 'LEXICA5007');
 
             behaviors = {};
+            expectWrapped(failureOf('word.size', undefined, { beforeInvoke: () => { throw built; } }), 'LEXICA5009');
+            expectWrapped(failureOf('word.size', undefined, { afterInvoke: () => { throw built; } }), 'LEXICA5009');
+            expectWrapped(failureOf('word.size', undefined, { afterEvaluation: () => { throw built; } }), 'LEXICA5009');
 
-            expect(failureOf('word.size', undefined, { beforeInvoke: () => { throw raised; } })).toBe(raised);
-            expect(failureOf('word.size', undefined, { afterEvaluation: () => { throw raised; } })).toBe(raised);
+            behaviors = { convert: () => { throw built; } };
+            expectWrapped(failureOf('(word to Cup).size'), 'LEXICA5003');
         });
 
-        it('never wraps again a failure within a function given to a member, which the member lets through', () => {
-            behaviors = {};
+        it('never wraps again a failure Lexica raised within a function given to a member, which the member lets through', () => {
+            let raised;
+
+            behaviors = {
+                check: ({ receiver, args }) => {
+                    try {
+                        return args.test(receiver);
+                    } catch (error) {
+                        raised = error;
+
+                        throw error;
+                    }
+                },
+            };
 
             const failure = failureOf('word.check(w => 1 / none > 0)', { word: 'oat', none: 0 });
 
+            expect(failure).toBe(raised);
             expectCode(failure, 'LEXICA5005', 'evaluation');
+            expect(failure.cause).toBeUndefined();
+        });
+
+        it('wraps another error a member throws after catching a failure within a function it was given', () => {
+            const thrown = new Error('no check');
+
+            behaviors = {
+                check: ({ receiver, args }) => {
+                    try {
+                        return args.test(receiver);
+                    } catch {
+                        throw thrown;
+                    }
+                },
+            };
+
+            const failure = failureOf('word.check(w => 1 / none > 0)', { word: 'oat', none: 0 });
+
+            expectCode(failure, 'LEXICA5007', 'evaluation');
+            expect(failure.cause).toBe(thrown);
         });
 
         it('never wraps again a Lexica error a conversion lets through, and makes anything else it throws the cause', () => {

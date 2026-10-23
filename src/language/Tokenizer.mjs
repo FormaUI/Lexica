@@ -2,7 +2,7 @@
  * Tokenizer — the tokens of a Lexica text: strictly, as parsing reads them, refusing the first text that is no token, or tolerantly, as tooling reads any text, an invalid token standing for each such text with its diagnostic
  */
 
-import { LexicaError } from './LexicaError.mjs';
+import { LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 
 /**
@@ -72,7 +72,7 @@ export class Tokenizer {
 
         for (const token of tokens) {
             if (token.type === 'invalid') {
-                throw LexicaError.syntax(token.diagnostic.code, token.diagnostic.message, this.#text, token.diagnostic.offset);
+                throw LexicaErrors.syntax(token.diagnostic.code, token.diagnostic.message, this.#text, token.diagnostic.offset);
             }
         }
 

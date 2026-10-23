@@ -4,7 +4,7 @@
 
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { DefinitionLocations } from './DefinitionLocations.mjs';
-import { LexicaError } from './LexicaError.mjs';
+import { LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { Versions } from './Versions.mjs';
 
@@ -972,6 +972,6 @@ export class DefinitionValidator {
     }
 
     #fail(code, pointer, message) {
-        throw LexicaError.structure(code, message, this.#locations?.locate(pointer) ?? { pointer });
+        throw LexicaErrors.structure(code, message, this.#locations?.locate(pointer) ?? { pointer });
     }
 }

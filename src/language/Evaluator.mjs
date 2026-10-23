@@ -4,7 +4,7 @@
 
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
-import { LexicaError } from './LexicaError.mjs';
+import { LexicaErrors } from './LexicaError.mjs';
 import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
@@ -341,12 +341,13 @@ export class Evaluator {
                     host.afterEvaluation(Object.freeze(outcome));
                 } catch (cleanupError) {
                     if (outcome.kind !== 'failed') {
-                        // A failure as the evaluation ends fails it, as a hook's failure does; the finally block's throw replaces the completed result.
-                        if (cleanupError instanceof LexicaError) {
+                        // A failure as the evaluation ends fails it, as a hook's failure does: one Lexica raised as it is, and anything else the hook threw, a LexicaError it built among them, as the cause of Lexica's own.
+                        // The finally block's throw replaces the completed result.
+                        if (LexicaErrors.has(cleanupError)) {
                             throw cleanupError;
                         }
 
-                        throw LexicaError.evaluation('LEXICA5009', `The host failed after the evaluation: ${Evaluator.#messageOf(cleanupError)}`, this.#locate('/expression'), { cause: cleanupError });
+                        throw LexicaErrors.evaluation('LEXICA5009', `The host failed after the evaluation: ${Evaluator.#messageOf(cleanupError)}`, this.#locate('/expression'), { cause: cleanupError });
                     }
 
                     try {
@@ -594,7 +595,7 @@ export class Evaluator {
                         const value = part.evaluate(evaluator, context);
 
                         if (typeof value !== 'string' && typeof value !== 'number') {
-                            throw LexicaError.evaluation('LEXICA5500', `An interpolation inserts a string or a number, and is given ${Evaluator.#describe(value)}`, evaluator.#locate(evaluator.#pointerOf(part.expression)));
+                            throw LexicaErrors.evaluation('LEXICA5500', `An interpolation inserts a string or a number, and is given ${Evaluator.#describe(value)}`, evaluator.#locate(evaluator.#pointerOf(part.expression)));
                         }
 
                         text += String(value);
@@ -615,7 +616,7 @@ export class Evaluator {
                         const right = operands[index + 1](evaluator, context);
 
                         if (typeof left !== 'number' || typeof right !== 'number') {
-                            throw LexicaError.evaluation('LEXICA5501', `'${node.operators[index]}' compares numbers, and is given ${Evaluator.#describe(typeof left !== 'number' ? left : right)}`, evaluator.#locate(evaluator.#pointerOf(node)));
+                            throw LexicaErrors.evaluation('LEXICA5501', `'${node.operators[index]}' compares numbers, and is given ${Evaluator.#describe(typeof left !== 'number' ? left : right)}`, evaluator.#locate(evaluator.#pointerOf(node)));
                         }
 
                         if (!compares[index](left, right)) {
@@ -735,7 +736,7 @@ export class Evaluator {
 
         return (evaluator, value, node) => {
             if (convert === undefined) {
-                throw LexicaError.module('LEXICA4001', `The module '${moduleRegistry.getOwner(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#locate(evaluator.#pointerOf(node)));
+                throw LexicaErrors.module('LEXICA4001', `The module '${moduleRegistry.getOwner(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#locate(evaluator.#pointerOf(node)));
             }
 
             const rejection = { isRejected: false, reason: null };
@@ -750,13 +751,13 @@ export class Evaluator {
             try {
                 converted = convert({ value, reject });
             } catch (error) {
-                // A failure Lexica raised keeps its own code and place; anything else the conversion threw is the cause of Lexica's own, exactly as thrown.
-                if (error instanceof LexicaError) {
+                // A failure Lexica raised keeps its own code and place; anything else the conversion threw but its rejection, a LexicaError it built among them, is the cause of Lexica's own, exactly as thrown.
+                if (LexicaErrors.has(error)) {
                     throw error;
                 }
 
                 if (error !== rejection) {
-                    throw LexicaError.evaluation('LEXICA5003', `The conversion from ${name} failed: ${Evaluator.#messageOf(error)}`, evaluator.#locate(evaluator.#pointerOf(node)), { cause: error });
+                    throw LexicaErrors.evaluation('LEXICA5003', `The conversion from ${name} failed: ${Evaluator.#messageOf(error)}`, evaluator.#locate(evaluator.#pointerOf(node)), { cause: error });
                 }
 
                 if (typeof rejection.reason !== 'string') {
@@ -1499,15 +1500,15 @@ export class Evaluator {
         const operator = node.kind === 'negate' ? '-' : node.operator;
 
         if (typeof left !== 'number' || typeof right !== 'number') {
-            throw LexicaError.evaluation('LEXICA5505', `'${operator}' takes numbers, and is given ${typeof left !== 'number' ? Evaluator.#describe(left) : Evaluator.#describe(right)}`, this.#locate(this.#pointerOf(node)));
+            throw LexicaErrors.evaluation('LEXICA5505', `'${operator}' takes numbers, and is given ${typeof left !== 'number' ? Evaluator.#describe(left) : Evaluator.#describe(right)}`, this.#locate(this.#pointerOf(node)));
         }
 
         if ((operator === '/' || operator === '%') && right === 0 && node.kind === 'arithmetic') {
-            throw LexicaError.evaluation('LEXICA5005', `'${operator}' divides by zero`, this.#locate(this.#pointerOf(node)));
+            throw LexicaErrors.evaluation('LEXICA5005', `'${operator}' divides by zero`, this.#locate(this.#pointerOf(node)));
         }
 
         if (!Number.isFinite(result)) {
-            throw LexicaError.evaluation('LEXICA5020', `The result of '${operator}' is no finite number`, this.#locate(this.#pointerOf(node)));
+            throw LexicaErrors.evaluation('LEXICA5020', `The result of '${operator}' is no finite number`, this.#locate(this.#pointerOf(node)));
         }
 
         return result;
@@ -1533,7 +1534,7 @@ export class Evaluator {
     /** Carries out the implementation of a declaration whose implementation, check of its result and copy of the structures it holds are found already, giving it one object it reads by name. */
     #invokeImplementation(declaration, implementation, conforms, copyStructures, receiver, args, type, node) {
         if (implementation === undefined) {
-            throw LexicaError.module('LEXICA4001', `The module '${this.#moduleRegistry.getOwner(declaration)}' gives '${declaration.name}' no implementation`, this.#locate(this.#pointerOf(node)));
+            throw LexicaErrors.module('LEXICA4001', `The module '${this.#moduleRegistry.getOwner(declaration)}' gives '${declaration.name}' no implementation`, this.#locate(this.#pointerOf(node)));
         }
 
         // A module member is read and called through its namespace, and has no receiver.
@@ -1550,12 +1551,13 @@ export class Evaluator {
         try {
             value = implementation({ ...received, args, env: this.#environment, ...(declaration.updates?.reads === 'maintained' ? { samples } : {}) });
         } catch (error) {
-            // A failure Lexica raised, within a function the member was given among them, keeps its own code and place; anything else the implementation threw is the cause of Lexica's own, exactly as thrown.
-            if (error instanceof LexicaError || this.#callbackErrors.has(error)) {
+            // A failure Lexica raised, within a function the member was given or a nested evaluation among them, keeps its own code and place; anything else the implementation threw, a LexicaError it built among them,
+            // is the cause of Lexica's own, exactly as thrown.
+            if (LexicaErrors.has(error) || this.#callbackErrors.has(error)) {
                 throw error;
             }
 
-            throw LexicaError.evaluation('LEXICA5007', `${this.#subjectOf(declaration, node)} failed: ${Evaluator.#messageOf(error)}`, this.#locate(this.#pointerOf(node)), { cause: error });
+            throw LexicaErrors.evaluation('LEXICA5007', `${this.#subjectOf(declaration, node)} failed: ${Evaluator.#messageOf(error)}`, this.#locate(this.#pointerOf(node)), { cause: error });
         } finally {
             // A function the member was given is called only while its invocation lasts.
             for (const name in args) {
@@ -1617,13 +1619,16 @@ export class Evaluator {
         return answer ?? NO_SAMPLES;
     }
 
-    /** Fails the evaluation at the member for what a hook around its invocation threw, a Lexica error keeping its own place; the hooks are called directly, since they run on every invocation. */
+    /**
+     * Fails the evaluation at the member for what a hook around its invocation threw, a LexicaError the hook built among them, a failure Lexica raised keeping its own place;
+     * the hooks are called directly, since they run on every invocation.
+     */
     #failHook(error, declaration, node, moment) {
-        if (error instanceof LexicaError || this.#callbackErrors.has(error)) {
+        if (LexicaErrors.has(error) || this.#callbackErrors.has(error)) {
             throw error;
         }
 
-        throw LexicaError.evaluation('LEXICA5009', `The host failed ${moment} of ${this.#subjectOf(declaration, node).replace(/^The /, 'the ').replace(/,$/, '')}: ${Evaluator.#messageOf(error)}`, this.#locate(this.#pointerOf(node)), { cause: error });
+        throw LexicaErrors.evaluation('LEXICA5009', `The host failed ${moment} of ${this.#subjectOf(declaration, node).replace(/^The /, 'the ').replace(/,$/, '')}: ${Evaluator.#messageOf(error)}`, this.#locate(this.#pointerOf(node)), { cause: error });
     }
 
     /** What a thrown value says, for the message of the failure it causes: an error's message, or the value written as text, whatever it is. */
@@ -1769,7 +1774,7 @@ export class Evaluator {
     }
 
     #fail(code, message, pointer) {
-        throw LexicaError.evaluation(code, message, this.#locate(pointer));
+        throw LexicaErrors.evaluation(code, message, this.#locate(pointer));
     }
 
     /** Where the node stands in the definition, as a JSON Pointer. */

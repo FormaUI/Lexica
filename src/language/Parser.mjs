@@ -2,7 +2,7 @@
  * Parser — a Lexica text read into its lossless syntax tree, which the lowering turns into its definition
  */
 
-import { LexicaError } from './LexicaError.mjs';
+import { LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { SyntaxTree } from './SyntaxTree.mjs';
 import { Tokenizer } from './Tokenizer.mjs';
@@ -1401,7 +1401,7 @@ export class Parser {
      * a foundation for it alone: recovering also needs points to resume from, missing and unexpected tokens handled, and progress through the text guaranteed.
      */
     #fail(code, message, offset) {
-        return LexicaError.syntax(code, message, this.#text, offset);
+        return LexicaErrors.syntax(code, message, this.#text, offset);
     }
 
     /** The syntax error of a token other than the one expected, of the code given, or of the one of an `=` written where no name takes its value. */

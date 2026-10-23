@@ -3,7 +3,7 @@
  */
 
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
-import { LexicaError } from '../LexicaError.mjs';
+import { LexicaErrors } from '../LexicaError.mjs';
 import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
@@ -66,11 +66,11 @@ export class LexicaRegistry {
     /** Registers a module's declarations, refusing a module whose names are taken or whose declarations break the registry's rules, before registering any of them. */
     registerModule(module) {
         if (!LexicaModule.isModule(module)) {
-            throw LexicaError.module('LEXICA4546', 'A module is registered as createModule makes it', { module: String(module?.name) });
+            throw LexicaErrors.module('LEXICA4546', 'A module is registered as createModule makes it', { module: String(module?.name) });
         }
 
         const fail = (code, message, declaration, field) => {
-            throw LexicaError.module(code, message, { module: module.name, ...(declaration === undefined ? {} : { declaration }), ...(field === undefined ? {} : { field }) });
+            throw LexicaErrors.module(code, message, { module: module.name, ...(declaration === undefined ? {} : { declaration }), ...(field === undefined ? {} : { field }) });
         };
 
         if (this.#modules.has(module.name)) {
@@ -209,7 +209,7 @@ export class LexicaRegistry {
      */
     getDeclaredType(declaration, text) {
         return this.#declaredTypeOf(declaration, text, (code, message) => {
-            throw LexicaError.module(code, message, { module: this.#contexts.get(declaration).module });
+            throw LexicaErrors.module(code, message, { module: this.#contexts.get(declaration).module });
         });
     }
 

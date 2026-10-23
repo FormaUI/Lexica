@@ -4,7 +4,7 @@
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
 import { DefinitionWriter } from './DefinitionWriter.mjs';
-import { LexicaError } from './LexicaError.mjs';
+import { LexicaError, LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { ResolvedDefinition } from './ResolvedDefinition.mjs';
 import { Type } from './Type.mjs';
@@ -2345,7 +2345,7 @@ export class LanguageResolver {
         const source = ResolvedDefinition.sourcePointerOf(pointer, this.#instances);
         const location = this.#locations?.locate(source) ?? { pointer: source };
 
-        throw code.startsWith('LEXICA2') ? LexicaError.structure(code, message, location) : LexicaError.validation(code, message, location);
+        throw code.startsWith('LEXICA2') ? LexicaErrors.structure(code, message, location) : LexicaErrors.validation(code, message, location);
     }
 
     /** The copy of a function's body each call resolves, with the pointer it is resolved under and the pointer of the body it copies. @type {{ node: object, pointer: string, source: string }[]} */

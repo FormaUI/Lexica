@@ -3,7 +3,7 @@
  */
 
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
-import { LexicaError } from '../LexicaError.mjs';
+import { LexicaErrors } from '../LexicaError.mjs';
 import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 
@@ -90,11 +90,11 @@ export class LexicaModule {
      */
     constructor(name, contents = {}) {
         if (!Names.isIdentifier(name)) {
-            throw LexicaError.module('LEXICA4500', 'A module is named as a name is', { module: String(name) });
+            throw LexicaErrors.module('LEXICA4500', 'A module is named as a name is', { module: String(name) });
         }
 
         const fail = (code, message, declaration, field) => {
-            throw LexicaError.module(code, message, { module: name, ...(declaration === undefined ? {} : { declaration }), ...(field === undefined ? {} : { field }) });
+            throw LexicaErrors.module(code, message, { module: name, ...(declaration === undefined ? {} : { declaration }), ...(field === undefined ? {} : { field }) });
         };
 
         if (!ObjectUtils.isNonArrayObject(contents)) {

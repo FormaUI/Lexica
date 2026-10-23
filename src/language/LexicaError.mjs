@@ -123,3 +123,26 @@ export class LexicaError extends Error {
         return parts.join(', ');
     }
 }
+
+/** The errors Lexica's own code raised, each made by LexicaErrors; one a host builds with the class's factories is not among them. @type {WeakSet<LexicaError>} */
+const raisedErrors = new WeakSet();
+
+/** The error, marked as one Lexica raised. */
+const raise = error => {
+    raisedErrors.add(error);
+
+    return error;
+};
+
+/**
+ * The factories Lexica's own code raises its errors with, each marking the error as one Lexica raised, and whether Lexica raised an error, which a failure passing through a host's code keeps as it is.
+ * The package exports the class alone, whose factories a host builds its own errors with, so a host's error is never taken for Lexica's.
+ */
+export const LexicaErrors = Object.freeze({
+    syntax: (code, message, text, offset) => raise(LexicaError.syntax(code, message, text, offset)),
+    structure: (code, message, location) => raise(LexicaError.structure(code, message, location)),
+    validation: (code, message, location) => raise(LexicaError.validation(code, message, location)),
+    evaluation: (code, message, location, options) => raise(LexicaError.evaluation(code, message, location, options)),
+    module: (code, message, location) => raise(LexicaError.module(code, message, location)),
+    has: error => raisedErrors.has(error),
+});
