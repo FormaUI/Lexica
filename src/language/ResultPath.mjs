@@ -38,7 +38,7 @@ export class ResultPath {
             isNullable ||= type.isNullable;
 
             if (typeof item === 'number') {
-                if (type.kind !== 'list') {
+                if (!type.isList) {
                     throw LexicaErrors.validation('LEXICA3601', `The path indexes ${type.toNonNullable()}, which is no list`, locationOf());
                 }
 

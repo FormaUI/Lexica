@@ -51,6 +51,12 @@ describe('a host of plain data', () => {
         expect(registry.getOwner(resolution.usedDeclarations[0].declaration)).toBe('shop');
     });
 
+    it('names a used member of a list by its type, Lexica\'s List, as any member is named by the type it matched', () => {
+        const resolution = lexica.createRegistry([createShop()]).resolve('items.count', lexica.bind({ items: [1, 2] }));
+
+        expect(resolution.usedDeclarations.map(({ name }) => name)).toEqual(['List.count']);
+    });
+
     it('evaluates for a host, giving the environment to each implementation and describing the result', () => {
         const resolution = lexica.createRegistry([createShop()]).resolve('{ total = order.total, cut = order.discount(code) }', { order: 'a', code: 'TEN' });
         const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' }, { prices: { a: 12.5 } });

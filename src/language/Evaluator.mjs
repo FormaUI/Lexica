@@ -1256,12 +1256,13 @@ export class Evaluator {
      * and a list item by item; null for a type that holds no declared structure, whose values stand as they are. A structure's fields are found at its first copy, so a structure that holds itself is copied as deep as its value goes.
      */
     static #compileStructureCopy(type, moduleRegistry) {
-        switch (type.kind) {
-            case 'list': {
-                const copyItem = Evaluator.#compileStructureCopy(type.itemType, moduleRegistry);
+        if (type.isList) {
+            const copyItem = Evaluator.#compileStructureCopy(type.itemType, moduleRegistry);
 
-                return copyItem === null ? null : value => (value === null ? null : value.map(item => (item === null ? null : copyItem(item))));
-            }
+            return copyItem === null ? null : value => (value === null ? null : value.map(item => (item === null ? null : copyItem(item))));
+        }
+
+        switch (type.kind) {
             case 'named': {
                 const structure = moduleRegistry.getStructure(type);
 
@@ -1335,14 +1336,15 @@ export class Evaluator {
 
     /** A compiled function holds the registry alone, never an evaluator, so it holds nothing an evaluation bound; a structure that holds itself is checked as deep as its value goes. */
     static #compileNonNullTypeCheck(type, moduleRegistry) {
+        if (type.isList) {
+            const checkItem = Evaluator.#compileTypeCheck(type.itemType, moduleRegistry);
+
+            return value => Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(checkItem);
+        }
+
         switch (type.kind) {
             case 'typeParameter':
                 return () => true;
-            case 'list': {
-                const checkItem = Evaluator.#compileTypeCheck(type.itemType, moduleRegistry);
-
-                return value => Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(checkItem);
-            }
             case 'object': {
                 const fields = [...type.fieldTypes].map(([name, fieldType]) => [name, Evaluator.#compileTypeCheck(fieldType, moduleRegistry)]);
 
@@ -1655,15 +1657,17 @@ export class Evaluator {
             return null;
         }
 
+        if (type.isList) {
+            if (!Array.isArray(value) || ArrayUtils.findMissingIndex(value) !== -1) {
+                fail(path, value, type);
+            }
+
+            return value.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail));
+        }
+
         switch (type.kind) {
             case 'typeParameter':
                 return value;
-            case 'list':
-                if (!Array.isArray(value) || ArrayUtils.findMissingIndex(value) !== -1) {
-                    fail(path, value, type);
-                }
-
-                return value.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail));
             case 'object':
                 if (!ObjectUtils.isNonArrayObject(value)) {
                     fail(path, value, type);
@@ -1721,11 +1725,13 @@ export class Evaluator {
             return type.isNullable;
         }
 
+        if (type.isList) {
+            return Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#conforms(item, type.itemType));
+        }
+
         switch (type.kind) {
             case 'typeParameter':
                 return true;
-            case 'list':
-                return Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#conforms(item, type.itemType));
             case 'object':
                 return ObjectUtils.isNonArrayObject(value) && [...type.fieldTypes].every(([name, fieldType]) => this.#conforms(value[name], fieldType));
             default:

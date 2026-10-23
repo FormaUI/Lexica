@@ -6,9 +6,10 @@ In this document:
 
 1. [Architecture](#architecture)
 2. [Modules and registries](#modules-and-registries)
-3. [Evaluation](#evaluation)
-4. [Host calls](#host-calls)
-5. [Tooling](#tooling)
+3. [Types and their relations](#types-and-their-relations)
+4. [Evaluation](#evaluation)
+5. [Host calls](#host-calls)
+6. [Tooling](#tooling)
 
 ## Architecture
 
@@ -35,6 +36,16 @@ A registry indexes what its modules declare: members by name, each name holding 
 A test of a receiver is a member, a Boolean function, and a verb takes its test as a function argument, so a module's function passed by reference, a script's arrow function and an implicit body are one mechanism, and what every member has, its qualified form, its observations and its failures, serves a test as it is.
 
 `ParsedTexts` keeps the definitions of the 256 texts parsed most recently, with the imports supplied to each, so reading the same text again, as a host does at every evaluation of the same script, costs a lookup.
+
+## Types and their relations
+
+A `Type` is a value and nothing more: what kind of type it is, its name and its module, its type arguments, its fields and its nullability, its equality to another and how a message writes it. It knows no relation to another type, since every relation the specification sets out, [assignability, equal types and merging](../spec/types.md#types-assignability-and-merging), depends on declarations only a registry holds: a type's supertypes, and a generic type's parameters and their variance.
+
+`TypeChecker` holds every relation, made with what declares types, a registry or, for bindings made without one, Lexica's own vocabulary. It answers whether a value of one type is assignable to another, the type two types merge to, whether two types fit one way or the other where an equality compares them, which types an equality compares with more than null, and whether a receiver matches a member's receiver types, the type arguments it binds recorded as it matches. Each of the resolver's checks asks it, and none asks a `Type`, so a rule is written once and every expression is held to it alike.
+
+- **Three answers to assignability.** A value of a type is assignable, refused, or assignable once its value is checked when it is evaluated, which only `Any` asks for: `Number` is assignable to `Any`, and `Any` to `Number` only once its value is checked, a check against `Number` refusing null as `Number` does. An answer that waits for evaluation carries the obligation to check, so a caller either records the check or refuses the value, and never treats it as proven.
+- **Generic types by their declaration.** A generic value type is a named type with its type arguments, and its declaration gives each of its parameters a variance. Two types of one generic declaration relate argument by argument: a covariant one by assignability, an invariant one by equality, and their merge merges each argument. `List<T>` is the one generic value type, covariant in `T`, declared by Lexica's own vocabulary, so a collection type of its own variances joins it without the checker changing.
+- **Object types by their fields.** Two object types relate where they hold the same field names, field by field, so a field more or a field fewer refuses both assignability and merging.
 
 ## Evaluation
 

@@ -249,8 +249,8 @@ export class LexicaModule {
             switch (type.kind) {
                 case 'typeParameter':
                     return type.name === '@selected';
-                case 'list':
-                    return writes(type.itemType);
+                case 'named':
+                    return type.typeArguments.some(writes);
                 case 'object':
                     return [...type.fieldTypes.values()].some(writes);
                 default:
@@ -424,11 +424,11 @@ export class LexicaModule {
         }
     }
 
-    /** Whether a tolerance means something for the result: a number, a nullable one, or a named type that may be a structure holding numbers, which the registry checks once every type is known. */
+    /** Whether a tolerance means something for the result: a number, a nullable one, or a named type that may be a structure holding numbers, which the registry checks once every type is known; never a generic value type, as a list is. */
     static #takesTolerance(notation) {
         const type = Type.parse(notation);
 
-        return type?.kind === 'named' && !UNTOLERATED_TYPE_NAMES.has(type.name);
+        return type?.kind === 'named' && type.typeArguments.length === 0 && !UNTOLERATED_TYPE_NAMES.has(type.name);
     }
 
     /** Validates one observation a declaration names: its type, what it observes, which a module member's never a receiver is, and the arguments its type takes. */

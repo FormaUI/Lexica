@@ -7,8 +7,13 @@ import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { Type } from './Type.mjs';
+import { TypeChecker } from './TypeChecker.mjs';
+import { Vocabulary } from './vocabulary/Vocabulary.mjs';
 
 export class ParameterBindings {
+    /** The checker of the language's own types, which a binding's values are of. */
+    static #typeChecker = new TypeChecker(Vocabulary);
+
     /** @type {Map<string, unknown>} */
     #values = new Map();
 
@@ -102,7 +107,7 @@ export class ParameterBindings {
             for (const item of value) {
                 const type = ParameterBindings.#typeOf(item);
 
-                itemType = type === null ? null : Type.merge(itemType, type);
+                itemType = type === null ? null : ParameterBindings.#typeChecker.merge(itemType, type);
 
                 if (itemType === null) {
                     return null;

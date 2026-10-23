@@ -33,6 +33,12 @@ describe('LexicaRegistry', () => {
         expect(failing({ members: [functionDeclaration({ name: 'charts', parameters: [parameter({ name: 'range', type: 'Range' })] })] })).toContain("names the type 'Range'");
     });
 
+    it('refuses Any in a declaration, which deferred selection and its checks admit', () => {
+        for (const notation of ['Any', 'Any?', 'List<Any>']) {
+            expect(refusalOf(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [declaration({ name: 'charts', result: notation })] })]))).toMatchObject({ declaration: 'charts' });
+        }
+    });
+
     it('takes a type the module declares wherever it declares it, and one an earlier module declares, qualified, whatever the order of the declarations', () => {
         const axes = new LexicaModule('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
         const charts = new LexicaModule('charts', {

@@ -12,9 +12,17 @@ const VALID_FLOATING_POINT_NUMBER = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][
 /** The ASCII whitespace a text converted to a number is trimmed of at either end: tab, line feed, form feed, carriage return and space. */
 const SURROUNDING_ASCII_WHITESPACE = /^[\t\n\f\r ]+|[\t\n\f\r ]+$/g;
 
+/** The generic value types Lexica declares, by name, each with its parameters in order and the variance of each: `List<T>`, covariant in its items, since a list is immutable. */
+const GENERIC_TYPES = new Map([['List', Object.freeze({ name: 'List', parameters: Object.freeze([Object.freeze({ name: 'T', variance: 'covariant' })]) })]]);
+
 export class Vocabulary {
     /** The name of Lexica's own module. */
     static moduleName = 'lexica';
+
+    /** The declaration of the generic value type the type is one of, or undefined for a type of none; Lexica alone declares one. */
+    static getGenericType(type) {
+        return type.kind === 'named' && type.module === null ? GENERIC_TYPES.get(type.name) : undefined;
+    }
 
     /** @type {LexicaModule | undefined} */
     static #module;

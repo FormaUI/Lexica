@@ -6,6 +6,7 @@ import { ObjectUtils } from '../../common/ObjectUtils.mjs';
 import { LexicaErrors } from '../LexicaError.mjs';
 import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
+import { TypeChecker } from '../TypeChecker.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
 import { Vocabulary } from './Vocabulary.mjs';
 
@@ -46,6 +47,18 @@ export class LexicaRegistry {
     /** @param {import('./LexicaModule.mjs').LexicaModule[]} modules The modules registered at the start. */
     constructor(modules = []) {
         modules.forEach(module => this.registerModule(module));
+    }
+
+    /** The checker of the relations between the types the registry's modules declare and Lexica's own. */
+    get typeChecker() {
+        return this.#typeChecker;
+    }
+
+    #typeChecker = new TypeChecker(this);
+
+    /** The declaration of the generic value type the type is one of, or undefined for a type of none; Lexica alone declares one. */
+    getGenericType(type) {
+        return Vocabulary.getGenericType(type);
     }
 
     /** The number of modules registered, which changes whenever the vocabulary does. */
@@ -307,7 +320,7 @@ export class LexicaRegistry {
 
     /** Whether the type is one a conversion converts between: a type of data Lexica defines, or a structured type that holds data alone, never null. */
     isConvertible(type) {
-        return type.kind === 'named' && !type.isNullable && this.#isData(type, new Set());
+        return type.kind === 'named' && type.typeArguments.length === 0 && !type.isNullable && this.#isData(type, new Set());
     }
 
     /** The name of the module that declared the member. */
@@ -332,12 +345,13 @@ export class LexicaRegistry {
     #resolveNotation(text, context, fail) {
         const resolve = type => {
             switch (type.kind) {
-                case 'list':
-                    return Type.createListType(resolve(type.itemType), type.isNullable);
                 case 'object':
                     return Type.createObjectType(new Map([...type.fieldTypes].map(([name, fieldType]) => [name, resolve(fieldType)])), type.isNullable);
+                // A generic value type is Lexica's own, and its type arguments are resolved in turn.
                 case 'named':
-                    return Type.createNamedType(type.name, type.isNullable, this.#moduleOfType(type, text, context, fail));
+                    return type.typeArguments.length > 0
+                        ? new Type('named', { name: type.name, typeArguments: type.typeArguments.map(resolve), isNullable: type.isNullable })
+                        : Type.createNamedType(type.name, type.isNullable, this.#moduleOfType(type, text, context, fail));
                 default:
                     return type;
             }
@@ -533,9 +547,12 @@ export class LexicaRegistry {
     /** Whether values of the type are data, a structured type's fields included; a structure already being checked counts as data where it holds itself, since its other fields are checked where it is first met. */
     #isData(type, checking) {
         switch (type.kind) {
-            case 'list':
-                return this.#isData(type.itemType, checking);
             case 'named': {
+                // A generic value type holds data where each of its type arguments does, as a list of data does.
+                if (type.typeArguments.length > 0) {
+                    return type.typeArguments.every(typeArgument => this.#isData(typeArgument, checking));
+                }
+
                 if ((type.module === null && LexicaModule.dataTypeNames.includes(type.name)) || checking.has(type.identity)) {
                     return true;
                 }
@@ -564,9 +581,11 @@ export class LexicaRegistry {
         switch (type.kind) {
             case 'typeParameter':
                 return value !== undefined;
-            case 'list':
-                return Array.isArray(value) && value.every(item => this.#admits(item, type.itemType));
             case 'named': {
+                if (type.isList) {
+                    return Array.isArray(value) && value.every(item => this.#admits(item, type.itemType));
+                }
+
                 if (type.module === null && ['Number', 'String', 'Boolean'].includes(type.name)) {
                     return typeof value === type.name.toLowerCase();
                 }
@@ -649,15 +668,15 @@ export class LexicaRegistry {
         return notations.find((notation, index) => {
             const mine = this.getTargetTypes(one)[index];
 
-            return theirs.some(type => LexicaRegistry.#overlap(mine, type));
+            return theirs.some(type => this.#overlap(mine, type));
         });
     }
 
-    static #overlap(first, second) {
+    #overlap(first, second) {
         if (first === 'any' || second === 'any') {
             return true;
         }
 
-        return Type.tryMatchType(first, second, new Map()) || Type.tryMatchType(second, first, new Map());
+        return this.#typeChecker.matchType(first, second, new Map()) || this.#typeChecker.matchType(second, first, new Map());
     }
 }

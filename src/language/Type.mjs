@@ -1,5 +1,6 @@
 /**
- * Type — a Lexica type: a named type, a list, an object type, the object root, a function value or a type parameter, each nullable or not, the type of null, and the type no value has
+ * Type — a Lexica type: a named type, a generic one with its type arguments among them, an object type, the object root, a function value, a type parameter or `Any`, each nullable or not, the type of null, and the type no value has;
+ * a value alone, whose relations to another type `TypeChecker` answers
  */
 
 const NAME = /^@?[A-Za-z][A-Za-z0-9]*$/;
@@ -12,7 +13,7 @@ export class Type {
     /** @type {Map<string, Type | null>} */
     static #parsed = new Map();
 
-    /** The type's kind: named, list, object, root, function, typeParameter, null or never. */
+    /** The type's kind: named, object, root, function, typeParameter, any, null or never. */
     kind;
 
     /** The type's name, for a named type or a type parameter: a named type's local name, unique within its module. */
@@ -21,8 +22,8 @@ export class Type {
     /** The name of the module that declares a named type, null for one of Lexica's own types and for a name no module qualifies yet. */
     module;
 
-    /** The type of a list's items. */
-    itemType;
+    /** A generic named type's type arguments, in the order its declaration declares its parameters; empty for any other type. @type {readonly Type[]} */
+    typeArguments;
 
     /** An object type's field types by name, or the fields of the outermost object the object root reads. */
     fieldTypes;
@@ -36,11 +37,11 @@ export class Type {
     /** Whether the type admits null. */
     isNullable;
 
-    constructor(kind, { name = null, module = null, itemType = null, fieldTypes = null, objectExpression = null, functions = null, isNullable = false } = {}) {
+    constructor(kind, { name = null, module = null, typeArguments = [], fieldTypes = null, objectExpression = null, functions = null, isNullable = false } = {}) {
         this.kind = kind;
         this.name = name;
         this.module = module;
-        this.itemType = itemType;
+        this.typeArguments = Object.freeze([...typeArguments]);
         this.fieldTypes = fieldTypes;
         this.objectExpression = objectExpression;
         this.functions = functions;
@@ -76,9 +77,19 @@ export class Type {
         return Type.createNamedType(PRIMITIVE_TYPE_NAMES[typeof value]);
     }
 
-    /** A list of the item type. */
+    /** A list of the item type: Lexica's own generic `List`, its one type argument the item type. */
     static createListType(itemType, isNullable = false) {
-        return new Type('list', { itemType, isNullable });
+        return new Type('named', { name: 'List', typeArguments: [itemType], isNullable });
+    }
+
+    /** Whether the type is a list, Lexica's own `List`. */
+    get isList() {
+        return this.kind === 'named' && this.module === null && this.name === 'List';
+    }
+
+    /** The type of a list's items, its one type argument; null for any other type. */
+    get itemType() {
+        return this.isList ? this.typeArguments[0] : null;
     }
 
     /** The object type of the field types, by name. */
@@ -118,18 +129,25 @@ export class Type {
 
     static #never = new Type('never');
 
+    /** The type of a value of any type that isn't null, `Any`, whose concrete type is known when it is evaluated. */
+    static get any() {
+        return Type.#any;
+    }
+
+    static #any = new Type('any');
+
     /** The same type, admitting null; never admitting null is null's type. */
     toNullable() {
         if (this.kind === 'never') {
             return Type.null;
         }
 
-        return this.isNullable ? this : new Type(this.kind, { name: this.name, module: this.module, itemType: this.itemType, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: true });
+        return this.isNullable ? this : new Type(this.kind, { name: this.name, module: this.module, typeArguments: this.typeArguments, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: true });
     }
 
     /** The same type, admitting no null. */
     toNonNullable() {
-        return !this.isNullable || this.kind === 'null' ? this : new Type(this.kind, { name: this.name, module: this.module, itemType: this.itemType, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: false });
+        return !this.isNullable || this.kind === 'null' ? this : new Type(this.kind, { name: this.name, module: this.module, typeArguments: this.typeArguments, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: false });
     }
 
     /** Whether the two types are the same, nullability included. */
@@ -138,8 +156,8 @@ export class Type {
             return false;
         }
 
-        if (this.itemType !== null) {
-            return this.itemType.equals(otherType.itemType);
+        if (this.typeArguments.length !== otherType.typeArguments.length || this.typeArguments.some((typeArgument, index) => !typeArgument.equals(otherType.typeArguments[index]))) {
+            return false;
         }
 
         if (this.fieldTypes !== null) {
@@ -158,9 +176,6 @@ export class Type {
         let text;
 
         switch (this.kind) {
-            case 'list':
-                text = `List<${this.itemType.toString(isQualified)}>`;
-                break;
             case 'object':
                 text = `{ ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType}`).join(', ')} }`;
                 break;
@@ -174,8 +189,16 @@ export class Type {
                 return 'null';
             case 'never':
                 return 'Never';
+            case 'any':
+                text = 'Any';
+                break;
             case 'named':
                 text = isQualified ? this.identity : this.name;
+
+                if (this.typeArguments.length > 0) {
+                    text = `${text}<${this.typeArguments.map(typeArgument => typeArgument.toString(isQualified)).join(', ')}>`;
+                }
+
                 break;
             default:
                 text = this.name;
@@ -189,50 +212,6 @@ export class Type {
         const isAlike = String(firstType) === String(secondType) && !firstType.equals(secondType);
 
         return [firstType.toString(isAlike), secondType.toString(isAlike)];
-    }
-
-    /** The kinds of node, each of which fits where a node is declared. */
-    static nodeKinds = Object.freeze(['Element', 'Document', 'DocumentFragment', 'ShadowRoot']);
-
-    /** Whether the type is a node or one of its kinds, Lexica's own. */
-    get isNode() {
-        return this.kind === 'named' && this.module === null && (this.name === 'Node' || Type.nodeKinds.includes(this.name));
-    }
-
-    /** Whether a value of the actual type is a value of the declared type by kind: the same named type, by its identity, or a kind of node where a node is declared. */
-    static #fitsByName(declaredType, actualType) {
-        return (declaredType.name === actualType.name && declaredType.module === actualType.module) || (declaredType.name === 'Node' && declaredType.module === null && actualType.isNode);
-    }
-
-    /**
-     * Whether the actual type matches the declared one, structure for structure: a type parameter the declared type writes matches any type, the first time it is met, and records that type as its argument; a parameter met again matches the type it recorded, nullability aside.
-     * @param {Type} declaredType
-     * @param {Type} actualType
-     * @param {Map<string, Type>} typeArguments The arguments inferred so far, by parameter name, which matching adds to.
-     */
-    static tryMatchType(declaredType, actualType, typeArguments) {
-        if (declaredType.kind === 'typeParameter') {
-            const typeArgument = typeArguments.get(declaredType.name);
-
-            if (typeArgument === undefined) {
-                typeArguments.set(declaredType.name, actualType);
-
-                return true;
-            }
-
-            return typeArgument.toNonNullable().equals(actualType.toNonNullable());
-        }
-
-        // No value is a never, so a never matches whatever is declared.
-        if (actualType.kind === 'never') {
-            return true;
-        }
-
-        if (declaredType.kind !== actualType.kind || !Type.#fitsByName(declaredType, actualType)) {
-            return false;
-        }
-
-        return declaredType.itemType === null || Type.tryMatchType(declaredType.itemType, actualType.itemType, typeArguments);
     }
 
     /**
@@ -250,114 +229,11 @@ export class Type {
             return this.isNullable ? typeArgument.toNullable() : typeArgument;
         }
 
-        if (this.itemType !== null) {
-            return new Type(this.kind, { itemType: this.itemType.resolveTypeParameters(typeArguments), isNullable: this.isNullable });
+        if (this.typeArguments.length > 0) {
+            return new Type(this.kind, { name: this.name, module: this.module, typeArguments: this.typeArguments.map(typeArgument => typeArgument.resolveTypeParameters(typeArguments)), isNullable: this.isNullable });
         }
 
         return this;
-    }
-
-    /**
-     * The least type holding a value of either type: their one structure, nullable wherever either is, null being of every nullable type; null where their structures differ.
-     * @param {Type} firstType
-     * @param {Type} secondType
-     */
-    static merge(firstType, secondType) {
-        if (firstType.kind === 'never') {
-            return secondType;
-        }
-
-        if (secondType.kind === 'never') {
-            return firstType;
-        }
-
-        if (firstType.kind === 'null') {
-            return secondType.toNullable();
-        }
-
-        if (secondType.kind === 'null') {
-            return firstType.toNullable();
-        }
-
-        const isNullable = firstType.isNullable || secondType.isNullable;
-
-        // Object roots merge where they identify one object expression and read the same fields, and with nothing else.
-        if (firstType.kind === 'root' || secondType.kind === 'root') {
-            return firstType.toNonNullable().equals(secondType.toNonNullable()) ? (isNullable ? firstType.toNullable() : firstType.toNonNullable()) : null;
-        }
-
-        // Function values merge into one that may be any of their functions, and with nothing else.
-        if (firstType.kind === 'function' || secondType.kind === 'function') {
-            return firstType.kind === secondType.kind ? Type.createFunctionType([...firstType.functions, ...secondType.functions], isNullable) : null;
-        }
-
-        // Two kinds of node are both nodes, the least type holding either.
-        if (firstType.isNode && secondType.isNode && firstType.name !== secondType.name) {
-            return Type.createNamedType('Node', isNullable);
-        }
-
-        if (firstType.kind !== secondType.kind || firstType.name !== secondType.name || firstType.module !== secondType.module) {
-            return null;
-        }
-
-        if (firstType.itemType !== null) {
-            const itemType = Type.merge(firstType.itemType, secondType.itemType);
-
-            return itemType === null ? null : new Type(firstType.kind, { itemType, isNullable });
-        }
-
-        if (firstType.fieldTypes !== null) {
-            if (firstType.fieldTypes.size !== secondType.fieldTypes.size) {
-                return null;
-            }
-
-            const fieldTypes = new Map();
-
-            for (const [name, fieldType] of firstType.fieldTypes) {
-                const otherFieldType = secondType.fieldTypes.get(name);
-                const merged = otherFieldType === undefined ? null : Type.merge(fieldType, otherFieldType);
-
-                if (merged === null) {
-                    return null;
-                }
-
-                fieldTypes.set(name, merged);
-            }
-
-            return Type.createObjectType(fieldTypes, isNullable);
-        }
-
-        return isNullable ? firstType.toNullable() : firstType;
-    }
-
-    /** Whether a value of this type may stand where the other type is declared, a list by its items. */
-    isAssignableTo(otherType) {
-        if (this.kind === 'never') {
-            return true;
-        }
-
-        if (this.kind === 'null') {
-            return otherType.isNullable;
-        }
-
-        if (this.isNullable && !otherType.isNullable) {
-            return false;
-        }
-
-        if (this.kind !== otherType.kind || !Type.#fitsByName(otherType, this)) {
-            return false;
-        }
-
-        // An object root stands where one of its object expression reads the fields it does, and a function value where one that may be any of its functions does.
-        if (this.kind === 'root') {
-            return this.toNonNullable().equals(otherType.toNonNullable());
-        }
-
-        if (this.kind === 'function') {
-            return this.functions.every(candidate => otherType.functions.includes(candidate));
-        }
-
-        return this.itemType === null || this.itemType.isAssignableTo(otherType.itemType);
     }
 }
 
