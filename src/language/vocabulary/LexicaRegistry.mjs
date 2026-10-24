@@ -841,6 +841,6 @@ export class LexicaRegistry {
             return true;
         }
 
-        return this.#typeChecker.matchType(first, second, new Map()) || this.#typeChecker.matchType(second, first, new Map());
+        return this.#typeChecker.matchesType(first, second) || this.#typeChecker.matchesType(second, first);
     }
 }

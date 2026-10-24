@@ -168,66 +168,61 @@ describe('TypeChecker', () => {
         });
     });
 
-    describe('matchType', () => {
-        it('records the argument a type parameter matches', () => {
-            const typeArguments = new Map();
+    describe('inferTypeArguments and matchesType', () => {
+        it('infers the argument a type parameter matches, and matches by the same relation', () => {
+            const typeArguments = checker.inferTypeArguments(typeOf('List<T>'), typeOf('List<home.Light>'));
 
-            expect(checker.matchType(typeOf('List<T>'), typeOf('List<home.Light>'), typeArguments)).toBe(true);
             expect(typeArguments.get('T').toString()).toBe('Light');
+            expect(checker.matchesType(typeOf('List<T>'), typeOf('List<home.Light>'))).toBe(true);
         });
 
-        it('keeps an item type\'s nullability in the argument it records', () => {
-            const typeArguments = new Map();
-
-            checker.matchType(typeOf('List<T>'), typeOf('List<Number?>'), typeArguments);
-
-            expect(typeArguments.get('T').toString()).toBe('Number?');
+        it('keeps an item type\'s nullability in the argument it infers', () => {
+            expect(checker.inferTypeArguments(typeOf('List<T>'), typeOf('List<Number?>')).get('T').toString()).toBe('Number?');
         });
 
-        it('matches concrete types, recording nothing', () => {
-            const typeArguments = new Map();
-
-            expect(checker.matchType(typeOf('List<home.Light>'), typeOf('List<home.Light>'), typeArguments)).toBe(true);
-            expect(typeArguments.size).toBe(0);
+        it('answers an empty map for concrete types that match, apart from no match at all', () => {
+            expect(checker.inferTypeArguments(typeOf('List<home.Light>'), typeOf('List<home.Light>')).size).toBe(0);
+            expect(checker.inferTypeArguments(typeOf('List<home.Light>'), typeOf('List<home.Room>'))).toBeNull();
         });
 
         it.each([
             ['List<T>', 'Number'],
             ['home.Light', 'home.Room'],
             ['rectangle', 'size'],
-        ])('refuses %s against %s', (declaredType, actualType) => {
-            expect(checker.matchType(typeOf(declaredType), typeOf(actualType), new Map())).toBe(false);
+        ])('refuses %s against %s, inferring nothing', (declaredType, actualType) => {
+            expect(checker.matchesType(typeOf(declaredType), typeOf(actualType))).toBe(false);
+            expect(checker.inferTypeArguments(typeOf(declaredType), typeOf(actualType))).toBeNull();
         });
 
-        it('matches never, which no value is, against whatever is declared, recording it for a type parameter', () => {
-            const typeArguments = new Map();
-
-            expect(checker.matchType(typeOf('List<T>'), typeOf('List<Never>'), typeArguments)).toBe(true);
-            expect(typeArguments.get('T')).toBe(Type.never);
-            expect(checker.matchType(typeOf('List<Number>'), typeOf('List<Never>'), new Map())).toBe(true);
-            expect(checker.matchType(typeOf('home.Light'), Type.never, new Map())).toBe(true);
+        it('matches never, which no value is, against whatever is declared, inferring it for a type parameter', () => {
+            expect(checker.inferTypeArguments(typeOf('List<T>'), typeOf('List<Never>')).get('T')).toBe(Type.never);
+            expect(checker.matchesType(typeOf('List<Number>'), typeOf('List<Never>'))).toBe(true);
+            expect(checker.matchesType(typeOf('home.Light'), Type.never)).toBe(true);
         });
 
-        it('requires a type parameter met twice to match one type', () => {
-            const typeArguments = new Map([['T', typeOf('Number')]]);
+        it('requires a type parameter bound already to match the type it binds to, and leaves the bindings it is given unchanged', () => {
+            const bound = new Map([['T', typeOf('Number')]]);
 
-            expect(checker.matchType(typeOf('T'), typeOf('Number?'), typeArguments)).toBe(true);
-            expect(checker.matchType(typeOf('T'), typeOf('String'), typeArguments)).toBe(false);
+            expect(checker.inferTypeArguments(typeOf('T'), typeOf('Number?'), bound)).not.toBeNull();
+            expect(checker.inferTypeArguments(typeOf('T'), typeOf('String'), bound)).toBeNull();
+            expect([...bound.keys()]).toEqual(['T']);
+            expect(bound.get('T').toString()).toBe('Number');
         });
     });
 
-    describe('matchesReceiver', () => {
-        it('applies a member to a receiver its receiver types match, recording the type arguments it binds, and a receiver of any type to any value', () => {
+    describe('matchesReceiver and inferReceiverTypeArguments', () => {
+        it('applies a member to a receiver its receiver types match, inferring the type arguments it binds, and a receiver of any type to any value', () => {
             const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {})]);
             const [count] = registry.getMembers('count');
             const [is] = registry.getMembers('is');
-            const typeArguments = new Map();
 
-            expect(registry.typeChecker.matchesReceiver(count, typeOf('List<Number>?'), typeArguments)).toBe(true);
-            expect(typeArguments.get('T').toString()).toBe('Number');
-            expect(registry.typeChecker.matchesReceiver(count, typeOf('Number'), new Map())).toBe(false);
-            expect(registry.typeChecker.matchesReceiver(is, typeOf('Number'), new Map())).toBe(true);
-            expect(registry.typeChecker.matchesReceiver(is, Type.never, new Map())).toBe(false);
+            expect(registry.typeChecker.inferReceiverTypeArguments(count, typeOf('List<Number>?')).get('T').toString()).toBe('Number');
+            expect(registry.typeChecker.matchesReceiver(count, typeOf('List<Number>?'))).toBe(true);
+            expect(registry.typeChecker.matchesReceiver(count, typeOf('Number'))).toBe(false);
+            expect(registry.typeChecker.inferReceiverTypeArguments(count, typeOf('Number'))).toBeNull();
+            expect(registry.typeChecker.matchesReceiver(is, typeOf('Number'))).toBe(true);
+            expect(registry.typeChecker.inferReceiverTypeArguments(is, typeOf('Number')).get('T').toString()).toBe('Number');
+            expect(registry.typeChecker.matchesReceiver(is, Type.never)).toBe(false);
         });
     });
 });

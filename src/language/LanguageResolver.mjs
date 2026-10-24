@@ -886,12 +886,15 @@ export class LanguageResolver {
         }
 
         let isNullable = false;
-        const typeArguments = new Map();
+        let typeArguments = new Map();
 
         if (hasReceiver) {
             const receiverType = results[0].type;
+            const inferred = LanguageResolver.#isOfUnknownType(receiverType.toNonNullable()) ? typeArguments : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType.toNonNullable());
 
-            if (!LanguageResolver.#isOfUnknownType(receiverType.toNonNullable()) && !this.#typeChecker.matchesReceiver(declaration, receiverType.toNonNullable(), typeArguments)) {
+            typeArguments = inferred ?? typeArguments;
+
+            if (inferred === null) {
                 this.#fail('LEXICA3042', `'${node.name}' may hold a reference to '${written}', which takes a receiver of ${this.#moduleRegistry.getTargetTypes(declaration).join(', ')}, and is given ${receiverType.toNonNullable()}`, `${pointer}/arguments/0`);
             }
 
@@ -1415,11 +1418,8 @@ export class LanguageResolver {
      * and answers its result, nullable where its receiver or an argument whose parameter propagates null can be null, with the resolution that records it, which a call through a function reference keeps beside its own.
      */
     #resolveInvocation(declaration, node, pointer, scope, receiverType, isReceiverNullable, { offset = 0, qualified = false, name }) {
-        const typeArguments = new Map();
-
-        if (receiverType !== null) {
-            this.#typeChecker.matchesReceiver(declaration, receiverType, typeArguments);
-        }
+        // The declaration was selected for its receiver, so its receiver type always applies and binds what it writes.
+        const typeArguments = receiverType === null ? new Map() : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType) ?? new Map();
 
         const resolved = this.#resolveArguments(declaration, node, pointer, scope, receiverType, typeArguments, offset);
         const resultTypeArguments = new Map(typeArguments);
@@ -1682,14 +1682,17 @@ export class LanguageResolver {
         const { parameterTypes, resultType } = contract;
         const hasReceiver = this.#moduleRegistry.hasReceiver(declaration);
         const fitsAny = type => type.kind === 'never' || type.kind === 'typeParameter';
-        const typeArguments = new Map();
+        let typeArguments = new Map();
 
         if (hasReceiver) {
             const [receiverType] = parameterTypes;
+            const inferred = receiverType === undefined || receiverType.isNullable ? null : fitsAny(receiverType) ? typeArguments : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType);
 
-            if (receiverType === undefined || receiverType.isNullable || (!fitsAny(receiverType) && !this.#typeChecker.matchesReceiver(declaration, receiverType, typeArguments))) {
+            if (inferred === null) {
                 return false;
             }
+
+            typeArguments = inferred;
         }
 
         const own = hasReceiver ? parameterTypes.slice(1) : parameterTypes;
@@ -2440,7 +2443,7 @@ export class LanguageResolver {
      */
     #qualifiedNameOf(declaration, receiverType) {
         const base = receiverType.toNonNullable();
-        const type = this.#moduleRegistry.getTargetTypes(declaration).find(target => target !== 'any' && target.kind !== 'typeParameter' && this.#typeChecker.matchType(target, base, new Map()));
+        const type = this.#moduleRegistry.getTargetTypes(declaration).find(target => target !== 'any' && target.kind !== 'typeParameter' && this.#typeChecker.matchesType(target, base));
 
         if (type === undefined) {
             return declaration.name;

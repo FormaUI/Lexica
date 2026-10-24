@@ -171,19 +171,40 @@ export class TypeChecker {
         return type.kind === 'named' && ((type.module === null && SCALAR_TYPE_NAMES.includes(type.name)) || this.#declarations.isReferenceType(type));
     }
 
-    /** Whether the member applies to the receiver, by one of its receiver types, recording the arguments of the type parameters its types write. */
-    matchesReceiver(declaration, receiverType, typeArguments) {
+    /** Whether the member applies to the receiver, by one of its receiver types, as inferring its receiver's type arguments succeeds; it records nothing. */
+    matchesReceiver(declaration, receiverType) {
+        return this.inferReceiverTypeArguments(declaration, receiverType) !== null;
+    }
+
+    /**
+     * The arguments of the type parameters the member's receiver type binds for the receiver, by the first of its receiver types the receiver applies to: an empty map where that one binds none, or null where the member applies
+     * to the receiver by none. Each receiver type is matched apart, so one that does not apply binds nothing for the next.
+     * @returns {Map<string, Type> | null}
+     */
+    inferReceiverTypeArguments(declaration, receiverType) {
         const base = receiverType.toNonNullable();
         const isValue = base.kind === 'named' || base.kind === 'object';
 
-        return this.#declarations.getTargetTypes(declaration).some(type => {
+        for (const type of this.#declarations.getTargetTypes(declaration)) {
             if (type === 'any') {
-                return isValue;
+                if (isValue) {
+                    return new Map();
+                }
+
+                continue;
             }
 
             // A target that is a type parameter alone takes a receiver of any type a value has, and binds the parameter to it.
-            return (type.kind !== 'typeParameter' || isValue) && this.matchType(type, base, typeArguments);
-        });
+            if (type.kind !== 'typeParameter' || isValue) {
+                const typeArguments = this.inferTypeArguments(type, base);
+
+                if (typeArguments !== null) {
+                    return typeArguments;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -207,7 +228,7 @@ export class TypeChecker {
         const base = receiverType.toNonNullable();
         const isValue = base.kind === 'named' || base.kind === 'object';
 
-        return this.#declarations.getTargetTypes(declaration).find(type => (type === 'any' ? isValue : (type.kind !== 'typeParameter' || isValue) && this.matchType(type, base, new Map())));
+        return this.#declarations.getTargetTypes(declaration).find(type => (type === 'any' ? isValue : (type.kind !== 'typeParameter' || isValue) && this.matchesType(type, base)));
     }
 
     /** Whether the one receiver type is more specific than the other: assignable to it by the type relationships, the other matching it and not it the other; a receiver of any type, written `any`, is the least specific. */
@@ -220,16 +241,30 @@ export class TypeChecker {
             return true;
         }
 
-        return this.matchType(other, one, new Map()) && !this.matchType(one, other, new Map());
+        return this.matchesType(other, one) && !this.matchesType(one, other);
+    }
+
+    /** Whether the actual type matches the declared one, structure for structure, as inferring the declared type's parameters from it succeeds; it records nothing. */
+    matchesType(declaredType, actualType) {
+        return this.inferTypeArguments(declaredType, actualType) !== null;
     }
 
     /**
-     * Whether the actual type matches the declared one, structure for structure: a type parameter the declared type writes matches any type, the first time it is met, and records that type as its argument; a parameter met again matches the type it recorded, nullability aside.
+     * The arguments of the type parameters the declared type writes, inferred from the actual type, structure for structure, beside those bound already: an empty map where it writes none, or null where the actual type does not
+     * match. A type parameter matches any type the first time it is met, and binds to it; met again, or bound already, it matches the type it binds to, nullability aside.
      * @param {Type} declaredType
      * @param {Type} actualType
-     * @param {Map<string, Type>} typeArguments The arguments inferred so far, by parameter name, which matching adds to.
+     * @param {ReadonlyMap<string, Type>} [bound] The arguments bound already, by parameter name, which it never changes.
+     * @returns {Map<string, Type> | null}
      */
-    matchType(declaredType, actualType, typeArguments) {
+    inferTypeArguments(declaredType, actualType, bound = new Map()) {
+        const typeArguments = new Map(bound);
+
+        return this.#inferInto(declaredType, actualType, typeArguments) ? typeArguments : null;
+    }
+
+    /** Matches the actual type against the declared one, adding each argument it binds to the map: the one relation matching and inferring share. */
+    #inferInto(declaredType, actualType, typeArguments) {
         if (declaredType.kind === 'typeParameter') {
             const typeArgument = typeArguments.get(declaredType.name);
 
@@ -251,7 +286,7 @@ export class TypeChecker {
             return false;
         }
 
-        return declaredType.typeArguments.length === actualType.typeArguments.length && declaredType.typeArguments.every((typeArgument, index) => this.matchType(typeArgument, actualType.typeArguments[index], typeArguments));
+        return declaredType.typeArguments.length === actualType.typeArguments.length && declaredType.typeArguments.every((typeArgument, index) => this.#inferInto(typeArgument, actualType.typeArguments[index], typeArguments));
     }
 
     /** Whether a value of the actual type is a value of the declared type by its name: the same named type, by its identity, or a reference type beneath the declared one. */
