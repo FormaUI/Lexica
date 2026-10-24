@@ -1015,7 +1015,7 @@ export class Evaluator {
 
     /**
      * The functions a call may evaluate, each compiled once: a function the script declares, its parameters and its body's compiled function; or a function reference, its declaration, its parameters, whose values its arguments
-     * supply after its receiver, the rest left to their defaults, and its invocation, of the result type its declaration declares.
+     * supply after its receiver, the rest left to their defaults, and its invocation, of the result type the call resolved for it.
      */
     #compileTargets(targets) {
         return targets.map(target => {
@@ -1025,7 +1025,7 @@ export class Evaluator {
 
             const declaration = target.reference;
 
-            return { reference: declaration, parameters: declaration.parameters, invocation: this.#getCompiledInvocation(declaration, this.#moduleRegistry.getDeclaredType(declaration, declaration.result)) };
+            return { reference: declaration, parameters: declaration.parameters, invocation: this.#getCompiledInvocation(declaration, target.resultType) };
         });
     }
 
