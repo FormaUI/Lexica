@@ -231,7 +231,7 @@ export class Evaluator {
             const frame = this.#localsFrame;
             // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
             const hasReceiver = declaration === null || this.#moduleRegistry.hasReceiver(declaration);
-            const receiver = declaration === null ? null : hasReceiver ? this.#evaluateNode(Evaluator.#receiverNodeOf(node, resolution), null) : undefined;
+            const receiver = declaration === null ? null : hasReceiver ? this.#evaluateNode(resolution.receiverNode, null) : undefined;
             const args = receiver === null ? null : this.#evaluateArguments(resolution, null);
 
             if (args === null) {
@@ -506,18 +506,16 @@ export class Evaluator {
                 // A function's value is its closure: the locals, the implicit parameter and the object root where it is declared, which each call evaluates its body in.
                 return (evaluator, context) => ({ function: node, frame: evaluator.#localsFrame, context, objectRoot: evaluator.#objectRoot });
             case 'functionCall': {
-                const { targets: resolvedTargets } = this.#resolvedDefinition.resolutionOf(node);
-                const local = { name: node.name };
-                const closureOf = evaluator => evaluator.#evaluateLocal(local);
+                const resolution = this.#resolvedDefinition.resolutionOf(node);
 
                 // A call of one function reference alone is its qualified form's call, and the reference it is reads nothing; a receiver of unknown type selects no declaration, as the qualified form's selects none.
-                if (resolvedTargets.length === 1 && resolvedTargets[0].invocation?.kind === 'member') {
-                    const [{ invocation }] = resolvedTargets;
-
-                    return invocation.declaration === null ? (evaluator, context) => evaluator.#evaluateMember(node, context, invocation) : this.#compileInvocation(node, invocation);
+                if (resolution.functions === undefined) {
+                    return resolution.candidates !== undefined ? (evaluator, context) => evaluator.#evaluateMember(node, context) : this.#compileInvocation(node, resolution);
                 }
 
-                const targets = this.#compileTargets(resolvedTargets);
+                const { functions, callee } = resolution;
+                const closureOf = evaluator => evaluator.#evaluateLocal(callee);
+                const targets = this.#compileTargets(functions);
                 const evaluateArguments = node.arguments.map(argument => this.#getCompiledFunction(argument));
 
                 // The arguments are evaluated once each, left to right, in the caller's scope, and the body of the function the name holds in its closure's, so no local of the caller's is visible in it;
@@ -796,11 +794,11 @@ export class Evaluator {
             return () => closure;
         }
 
-        if (resolution === undefined || resolution.kind === 'computedPropertyAccess' || (resolution.kind !== 'field' && resolution.kind !== 'objectRootField' && resolution.declaration === null)) {
+        if (resolution === undefined || resolution.kind === 'computedPropertyAccess' || (resolution.kind === 'invocation' && resolution.candidates !== undefined)) {
             return (evaluator, context) => evaluator.#evaluateMember(node, context);
         }
 
-        if (resolution.kind === 'member') {
+        if (resolution.kind === 'invocation') {
             return this.#compileInvocation(node, resolution);
         }
 
@@ -825,14 +823,12 @@ export class Evaluator {
     }
 
     /**
-     * An invocation of a member's declaration, with its function, its arguments and the check of its result made once: its receiver evaluated first, the node's target, a named indexer's the access its name is written in has,
-     * or a qualified form's first argument, a null one answering null before its own
-     * arguments are evaluated, and a module member's none; then its arguments, null where one makes the call answer null.
+     * An invocation of a member's declaration, with its function, its arguments and the check of its result made once: its receiver evaluated first, the node its resolution records, the node's target, the receiver of the access a named
+     * indexer's name is written in, or a qualified call's first argument, a null one answering null before its own arguments are evaluated, and a module member's none; then its arguments, null where one makes the call answer null.
      */
     #compileInvocation(node, resolution) {
-        const { type, declaration, qualified } = resolution;
-        const hasReceiver = this.#moduleRegistry.hasReceiver(declaration);
-        const target = !hasReceiver ? null : this.#getCompiledFunction(Evaluator.#receiverNodeOf(node, resolution));
+        const { type, declaration, receiverNode } = resolution;
+        const target = receiverNode === undefined ? null : this.#getCompiledFunction(receiverNode);
         const implementation = this.#moduleRegistry.getImplementation(declaration);
         const conforms = Evaluator.#compileTypeCheck(type, this.#moduleRegistry, `the answer of '${declaration.name}'`);
         const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
@@ -1441,23 +1437,15 @@ export class Evaluator {
         return cachedLocal.value;
     }
 
-    /** The node a member's receiver is: a qualified form's first argument, a named indexer's the receiver of the access its name is written in, and any other member's its target. */
-    static #receiverNodeOf(node, resolution) {
-        if (resolution?.qualified === true) {
-            return node.arguments[0];
-        }
-
-        return resolution?.isNamedIndexer === true ? node.target.target : node.target;
-    }
-
-    /** Evaluates a member whose resolution is selected as it is evaluated, its node's own unless a call of a function reference gives the qualified call it makes. */
-    #evaluateMember(node, context, resolution = this.#resolvedDefinition.resolutionOf(node)) {
+    /** Evaluates a member whose resolution is selected as it is evaluated, its receiver the node an invocation records and any other member's the node it targets. */
+    #evaluateMember(node, context) {
         // A projection stands the value its host supplied where the host call is, so the call is never evaluated.
         if (node === this.#projectionContext?.node) {
             return this.#projectionContext.value;
         }
 
-        const receiver = this.#evaluateNode(Evaluator.#receiverNodeOf(node, resolution), context);
+        const resolution = this.#resolvedDefinition.resolutionOf(node);
+        const receiver = this.#evaluateNode(resolution?.kind === 'invocation' ? resolution.receiverNode : node.target, context);
 
         if (receiver === null) {
             return null;
@@ -1962,8 +1950,15 @@ export class Evaluator {
                     node = node.body;
                     continue;
                 case 'functionCall': {
-                    const { targets } = this.#resolvedDefinition.resolutionOf(node);
-                    const called = targets.length === 1 ? targets[0] : targets.find(target => (target.reference ?? target.function) === branches?.get(node));
+                    const resolution = this.#resolvedDefinition.resolutionOf(node);
+
+                    // A call of one function reference alone produces its value itself, as the member it invokes does, the reference's declaration its one candidate where its receiver's type is unknown.
+                    if (resolution.functions === undefined) {
+                        return this.#recordOf(node, null, (resolution.declaration ?? resolution.candidates[0]).updates?.tolerance ?? null);
+                    }
+
+                    const { functions } = resolution;
+                    const called = functions.length === 1 ? functions[0] : functions.find(target => (target.reference ?? target.function) === branches?.get(node));
 
                     if (called === undefined) {
                         return this.#recordOf(node, null, null);

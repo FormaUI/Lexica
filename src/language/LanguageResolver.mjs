@@ -92,7 +92,7 @@ export class LanguageResolver {
             case 'optionalChain':
                 return this.#hostCallOf(node.target, `${pointer}/target`);
             default:
-                return { node, pointer, name: node.name, declaration: this.#resolutions.get(pointer).declaration };
+                return { node, pointer, name: node.name, declaration: this.#resolutions.get(pointer).declaration ?? null };
         }
     }
 
@@ -831,7 +831,12 @@ export class LanguageResolver {
             this.#fail('LEXICA3070', `'${node.name}' may be any of ${targets.length} functions, whose results are of no one type: ${targets.map(target => target.type).join(', ')}`, pointer);
         }
 
-        this.#resolutions.set(pointer, { kind: 'functionCall', targets: targets.map(({ function: declared, body, parameters, reference, invocation }) => (reference === undefined ? { function: declared, body, parameters } : { reference, invocation })) });
+        // The callee is the local the call reads its function value from, which evaluation selects among the functions it may be.
+        this.#resolutions.set(pointer, {
+            kind: 'invocation',
+            functions: targets.map(({ function: declared, body, parameters, reference, invocation }) => (reference === undefined ? { function: declared, body, parameters } : { reference, invocation })),
+            callee: Object.freeze({ kind: 'local', name: node.name }),
+        });
 
         return { type, kind: 'value', isFixed: false };
     }
@@ -842,22 +847,17 @@ export class LanguageResolver {
      */
     #resolveReferenceCall(node, pointer, scope, local, declaration) {
         const written = this.#referenceNameOf(declaration);
-        let invocation;
 
         if (!this.#moduleRegistry.hasReceiver(declaration)) {
-            invocation = this.#resolveInvocation(declaration, node, pointer, scope, null, false, { name: written });
-        } else {
-            invocation = this.#resolveQualifiedCall(node, pointer, scope, [declaration], {
-                subject: `'${node.name}'`,
-                missingReceiver: `'${node.name}' holds a reference to '${written}', which takes its receiver as its first argument`,
-                receiverOf: `'${node.name}' holds a reference to '${written}', which takes a receiver of`,
-                nameOf: () => written,
-            });
+            return this.#storeInvocation(pointer, this.#resolveInvocation(declaration, node, pointer, scope, null, written));
         }
 
-        this.#resolutions.set(pointer, { kind: 'functionCall', targets: [{ reference: declaration, invocation: invocation.resolution }] });
-
-        return invocation.result;
+        return this.#storeInvocation(pointer, this.#resolveQualifiedCall(node, pointer, scope, [declaration], {
+            subject: `'${node.name}'`,
+            missingReceiver: `'${node.name}' holds a reference to '${written}', which takes its receiver as its first argument`,
+            receiverOf: `'${node.name}' holds a reference to '${written}', which takes a receiver of`,
+            nameOf: () => written,
+        }));
     }
 
     /**
@@ -1127,11 +1127,7 @@ export class LanguageResolver {
 
         // The named indexer's own node, its receiver the access's, optional where the access is.
         const named = { kind: 'indexer', target: target.target, name: target.name, argument: node.argument, ...(target.optional === true ? { optional: true } : {}) };
-        const result = this.#resolveMember(named, pointer, scope, { receiver, optionalForm: { ...node, target: { ...target, optional: true } } });
-
-        this.#resolutions.set(pointer, { ...this.#resolutions.get(pointer), isNamedIndexer: true });
-
-        return result;
+        return this.#resolveMember(named, pointer, scope, { receiver, optionalForm: { ...node, target: { ...target, optional: true } } });
     }
 
     /**
@@ -1406,18 +1402,20 @@ export class LanguageResolver {
 
         this.#checkForm(declaration, node, pointer, isComputed);
 
-        const { result, resolution } = this.#resolveInvocation(declaration, node, pointer, scope, receiverType, receiverType.isNullable, { name: this.#qualifiedNameOf(declaration, receiverType) });
+        const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
 
-        this.#resolutions.set(pointer, resolution);
-
-        return result;
+        return this.#storeInvocation(pointer, this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType)));
     }
 
     /**
-     * Resolves an invocation of the declaration: the arguments its node gives it, those after its receiver where the node's first argument is that, its type parameters bound by its receiver's type and the type a fixed argument selects,
-     * and answers its result, nullable where its receiver or an argument whose parameter propagates null can be null, with the resolution that records it, which a call through a function reference keeps beside its own.
+     * Resolves an invocation of the declaration on its receiver, a node with its type and whether it can be null, or on none for a module member: the arguments its node gives it, those after its receiver where the node's first argument is that,
+     * its type parameters bound by its receiver's type and the type a fixed argument selects. It answers its result, nullable where its receiver or an argument whose parameter propagates null can be null, its resolution and the use of its
+     * declaration, under the name its messages give it, and stores neither: whoever stores the resolution records the use.
      */
-    #resolveInvocation(declaration, node, pointer, scope, receiverType, isReceiverNullable, { offset = 0, qualified = false, name }) {
+    #resolveInvocation(declaration, node, pointer, scope, receiver, name) {
+        const receiverType = receiver?.type ?? null;
+        // A qualified call's receiver is its first argument, and its own arguments follow it.
+        const offset = receiver !== null && receiver.node === node.arguments?.[0] ? 1 : 0;
         // The declaration was selected for its receiver, so its receiver type always applies and binds what it writes.
         const typeArguments = receiverType === null ? new Map() : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType) ?? new Map();
 
@@ -1437,13 +1435,29 @@ export class LanguageResolver {
             this.#fail('LEXICA3028', `'${name ?? declaration.name}' produces ${declared}, and nothing it is given binds its type parameter ${unbound}`, pointer);
         }
 
-        const resolution = { kind: 'member', declaration, receiverType, type: declared, arguments: resolved.arguments, selected: resolved.selected, buildsObjectRoot: resolved.buildsObjectRoot, qualified };
+        const resolution = {
+            kind: 'invocation',
+            declaration,
+            ...(receiver === null ? {} : { receiverNode: receiver.node, receiverType }),
+            type: declared,
+            arguments: resolved.arguments,
+            selected: resolved.selected,
+            buildsObjectRoot: resolved.buildsObjectRoot,
+        };
+        const type = receiver?.isNullable === true || resolved.isNullable ? declared.toNullable() : declared;
 
-        this.#usedDeclarations.push({ declaration, name, pointer });
+        return { result: { type, kind: LanguageResolver.#requestKindOf(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution, use: { declaration, name, pointer } };
+    }
 
-        const type = isReceiverNullable || resolved.isNullable ? declared.toNullable() : declared;
+    /** Stores an invocation's resolution at its pointer and records the use of its declaration, where it chose one, answering its result. */
+    #storeInvocation(pointer, { result, resolution, use }) {
+        this.#resolutions.set(pointer, resolution);
 
-        return { result: { type, kind: LanguageResolver.#requestKindOf(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution };
+        if (use !== null) {
+            this.#usedDeclarations.push(use);
+        }
+
+        return result;
     }
 
     /**
@@ -1530,7 +1544,7 @@ export class LanguageResolver {
             const type = this.#moduleRegistry.getDeclaredType(declaration, declaration.result);
 
             this.#usedDeclarations.push({ declaration, name: written, pointer });
-            this.#resolutions.set(pointer, { kind: 'member', declaration, receiverType: null, type, arguments: [], qualified: false });
+            this.#resolutions.set(pointer, { kind: 'invocation', declaration, type, arguments: [] });
 
             return { type, kind: 'value', isFixed: false };
         }
@@ -1539,31 +1553,23 @@ export class LanguageResolver {
             return this.#resolveReference(node, pointer, [declaration], contract);
         }
 
-        const { result, resolution } = this.#resolveInvocation(declaration, node, pointer, scope, null, false, { name: written });
-
-        this.#resolutions.set(pointer, resolution);
-
-        return result;
+        return this.#storeInvocation(pointer, this.#resolveInvocation(declaration, node, pointer, scope, null, written));
     }
 
     /** Resolves a qualified form: the module's member on a type, called with its receiver as its first argument, as a qualified call. */
     #resolveQualified(node, pointer, scope, declarations, written) {
-        const { result, resolution } = this.#resolveQualifiedCall(node, pointer, scope, declarations, {
+        return this.#storeInvocation(pointer, this.#resolveQualifiedCall(node, pointer, scope, declarations, {
             subject: `'${written}'`,
             missingReceiver: `'${written}' is the qualified form of a member of a receiver, which takes the receiver as its first argument, as ${written}(receiver)`,
             receiverOf: `'${written}' takes a receiver of`,
             nameOf: (declaration, receiverType) => this.#qualifiedNameOf(declaration, receiverType),
-        });
-
-        this.#resolutions.set(pointer, resolution);
-
-        return result;
+        }));
     }
 
     /**
      * Resolves a qualified call: a member on a type called with its receiver as its first argument, which is evaluated first and whose null answers null without the member's own arguments being evaluated, and its own arguments after it,
      * as a qualified form calls one of a module's members and a call of a function reference calls the one it holds. The receiver's type selects among the declarations; a receiver of unknown type selects none, and is checked as any
-     * such receiver is. Each message names the call as its wording says; it answers the call's result and its resolution, which the caller records.
+     * such receiver is. Each message names the call as its wording says; it answers the call's result, its resolution and the use of the declaration it selects, none for a receiver of unknown type, which the caller stores and records.
      */
     #resolveQualifiedCall(node, pointer, scope, declarations, wording) {
         if (node.arguments.length === 0) {
@@ -1577,7 +1583,7 @@ export class LanguageResolver {
         if (LanguageResolver.#isOfUnknownType(receiverType)) {
             const result = this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
 
-            return { result, resolution: this.#resolutions.get(pointer) };
+            return { result, resolution: this.#resolutions.get(pointer), use: null };
         }
 
         const matching = this.#typeChecker.mostSpecificOf(declarations, receiverType);
@@ -1593,7 +1599,9 @@ export class LanguageResolver {
 
         const [declaration] = matching;
 
-        return this.#resolveInvocation(declaration, node, pointer, scope, receiverType, isReceiverNullable, { offset: 1, qualified: true, name: wording.nameOf(declaration, receiverType) });
+        const receiverArgument = { node: node.arguments[0], type: receiverType, isNullable: isReceiverNullable };
+
+        return this.#resolveInvocation(declaration, node, pointer, scope, receiverArgument, wording.nameOf(declaration, receiverType));
     }
 
     /** Resolves the receiver a qualified call or a call of a function reference gives as its first argument, a value of any type, which the call evaluates before its own arguments. */
@@ -1766,7 +1774,8 @@ export class LanguageResolver {
         const unknown = isNever ? Type.never : Type.null;
         const type = shared === null || shared.kind === 'never' || LanguageResolver.#holdsTypeParameter(shared) ? unknown : isNever || isShortCircuited ? shared : shared.toNullable();
 
-        this.#resolutions.set(pointer, { kind: 'member', declaration: null, receiverType, type, arguments: [], qualified: offset > 0 });
+        // A qualified call's receiver is its first argument, and any other member's the node it targets.
+        this.#resolutions.set(pointer, { kind: 'invocation', candidates: fitting.map(({ declaration }) => declaration), receiverNode: offset > 0 ? node.arguments[0] : node.target, receiverType, type, arguments: [] });
 
         // Host calls that agree on their host supplying nothing take no result projection, whichever of them a receiver's type will choose.
         const suppliesNothing = fitting.length > 0 && fitting.every(({ declaration }) => declaration.result === undefined);

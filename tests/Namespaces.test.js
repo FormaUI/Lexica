@@ -164,6 +164,18 @@ describe('qualified forms', () => {
         expect(prepared).toMatchObject({ kind: 'prepared', receiver: 'oat', args: { count: 2 } });
         expect(registry.resolve('shop.order(missing, 2)', values).createEvaluator(values).prepareCall()).toMatchObject({ kind: 'skipped' });
     });
+
+    it('are used declarations once each, where the call invoking them stands, as a module member, a member of a receiver and a held reference\'s call are, a receiver of unknown type choosing none', () => {
+        const usesOf = text => resolve(text).usedDeclarations.map(({ name, pointer }) => [name, pointer]);
+
+        expect(usesOf('{ a = shop.greet("x"), b = shop.pad(word, 4), c = word.size, d = shop.size(missing) }')).toEqual([
+            ['shop.greet', '/expression/fields/0/value'],
+            ['String.pad', '/expression/fields/1/value'],
+            ['String.size', '/expression/fields/2/value'],
+        ]);
+        expect(usesOf('let pad = shop.pad return pad(word, 4)')).toEqual([['shop.pad', '/expression/locals/0/value'], ['shop.pad', '/expression/result']]);
+        expect(usesOf('let pad = shop.pad return pad(missing, 4)')).toEqual([['shop.pad', '/expression/locals/0/value']]);
+    });
 });
 
 describe('function references', () => {

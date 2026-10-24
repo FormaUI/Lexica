@@ -127,6 +127,20 @@ describe('indexers and computed properties', () => {
             expect(keys).toEqual(['x']);
         });
 
+        it('evaluates the receiver before its name once, before its key, a member\'s answer among them', () => {
+            const invoked = [];
+            const registry = lexica.createRegistry([createText(), lexica.createModule('steps', {
+                members: [
+                    property('trimmed', 'String', 'String', { updates: constant, implementation: ({ receiver }) => (invoked.push('trimmed'), receiver.trim()) }),
+                    property('key', 'String', 'Number', { updates: constant, implementation: () => (invoked.push('key'), 1) }),
+                ],
+            })]);
+            const bound = { item: ' latte ', other: 'x' };
+
+            expect(registry.resolve('item.trimmed.letter[other.key]', bound).createEvaluator(bound).evaluate().value).toBe('a');
+            expect(invoked).toEqual(['trimmed', 'key']);
+        });
+
         it('is never selected by a computed name, which reads properties alone', () => {
             expect(refusalOf('item.[name][0]', { item: 'latte', name: 'letter' }).message).toContain("'letter' is an indexer");
             expect(evaluate('item.[name][0]', { item: 'oat latte', name: 'words' })).toBe('oat');
