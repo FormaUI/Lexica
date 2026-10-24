@@ -278,6 +278,7 @@ describe('the module error codes', () => {
 
         it('LEXICA4530: a default on a member that is not an indexer', () => {
             expectCode(creating({ members: [func({ default: true })] }), 'LEXICA4530');
+            expect(errorOf(creating({ members: [func({ default: true })] })).message).toContain('which `[…]` invokes');
         });
 
         it('LEXICA4531: a function written as neither a function call nor an indexer', () => {

@@ -765,7 +765,7 @@ export class LexicaModule {
      */
     static #validateSyntax(member, parameters, hasReceiver, name, fail) {
         if (member.default !== undefined && member.syntax !== 'indexer') {
-            fail('LEXICA4530', 'Only an indexer is the default of its receivers, which `:[…]` invokes', name, 'default');
+            fail('LEXICA4530', 'Only an indexer is the default of its receivers, which `[…]` invokes', name, 'default');
         }
 
         if (member.kind === 'property') {

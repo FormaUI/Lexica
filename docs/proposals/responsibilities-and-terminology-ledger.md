@@ -68,7 +68,7 @@ Fixed as defects, each in its own commit with its test, apart from the renames.
 | ID | Where | Defect, reproduced | Fix |
 | --- | --- | --- | --- |
 | D1 | `Parser.#typeOf`, Parser.mjs:1448 | A qualified type's node has no span, so `try a to Home.Light to Number` quotes the whole source in LEXICA1022: "as in 'try (… to try a to Home.Light to Number) to Number'" | S4's type-name helper, shared with the lowering, implemented once as this fix |
-| D2 | LEXICA4530, LexicaModule.mjs:768 | Names `:[…]`, the form LEXICA1014 refuses, for the default indexer `[…]` | "… which `[…]` invokes" |
+| D2 | LEXICA4530, LexicaModule.mjs:768 | Names `:[…]`, the form LEXICA1014 refuses, for the default indexer `[…]` | ✅ "… which `[…]` invokes" |
 | D3 | `registry.registerModule`, lexica.js:240 | Declared `void`, it hands a host the internal `LexicaRegistry` through `return this` (LexicaRegistry.mjs:199), so every internal query is reachable | ✅ The wrapper returns nothing; fixed first (requirement 3) |
 | D4 | `Declarations.member`, Declarations.mjs:37 | Its default `updates`, `{ changes: 'observable', reads: 'fresh' }`, names no observations, so `createModule` refuses every declaration that relies on it (LEXICA4059) | The helper fills no `updates`; the caller gives them, required, as the specification has it: U8's default handling, implemented once as this fix |
 | D5 | Observation types, LexicaModule.mjs:134, LexicaRegistry.mjs:120–177 | Two of one name in one module are accepted, and the registry keeps the last, though each is named once | Checked as a registry-scoped name (entry R11) |
