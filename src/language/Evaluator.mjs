@@ -156,9 +156,6 @@ export class Evaluator {
     /** The selections each completed field of the outermost object made, by the root and then the field's name, which a read of the field through a reference to the root reuses. @type {WeakMap<object, Map<string, Map<object, object | string> | null>>} */
     #objectRootSelections = new WeakMap();
 
-    /** The value each conditional with a binding bound, while its consequent is evaluated, which the uses of its name read. @type {Map<object, unknown>} */
-    #boundValues = new Map();
-
     /** The host the evaluation in progress is carried out for, or null where none is. @type {Host | null} */
     #host = null;
 
@@ -406,17 +403,8 @@ export class Evaluator {
                 return evaluator => evaluator.#objectRoot;
             case 'it':
                 return (evaluator, context) => context;
-            case 'local': {
-                const resolution = this.#resolvedDefinition.resolutionOf(node);
-
-                if (resolution?.kind === 'binding') {
-                    const { conditional } = resolution;
-
-                    return evaluator => evaluator.#boundValues.get(conditional);
-                }
-
+            case 'local':
                 return evaluator => evaluator.#evaluateLocal(node);
-            }
             case 'member':
             case 'call':
             case 'indexer':
@@ -438,7 +426,8 @@ export class Evaluator {
                 if (node.binding !== undefined) {
                     const bind = this.#getCompiledFunction(node.binding.value);
 
-                    // The value is evaluated once; where it is truthy, the consequent reads it through the name it is bound to, and the branch taken is recorded for the value's place in the result.
+                    // The value is evaluated once; where it is truthy, the consequent runs in a frame holding it by the name it is bound to, which a function made within it keeps as it keeps every frame around it, and the branch
+                    // taken is recorded for the value's place in the result.
                     return (evaluator, context) => {
                         const value = bind(evaluator, context);
                         const isTruthy = Evaluator.#isTruthy(value);
@@ -449,18 +438,15 @@ export class Evaluator {
                             return alternative(evaluator, context);
                         }
 
-                        const enclosing = evaluator.#boundValues.get(node);
+                        const enclosingFrame = evaluator.#localsFrame;
+                        const { name } = node.binding;
 
-                        evaluator.#boundValues.set(node, value);
+                        evaluator.#localsFrame = { node: { locals: [{ name }] }, item: context, values: new Map([[name, { value, selections: null }]]), enclosing: enclosingFrame };
 
                         try {
                             return consequent(evaluator, context);
                         } finally {
-                            if (enclosing === undefined) {
-                                evaluator.#boundValues.delete(node);
-                            } else {
-                                evaluator.#boundValues.set(node, enclosing);
-                            }
+                            evaluator.#localsFrame = enclosingFrame;
                         }
                     };
                 }
@@ -519,9 +505,9 @@ export class Evaluator {
                 // A function's value is its closure: the locals, the implicit parameter and the object root where it is declared, which each call evaluates its body in.
                 return (evaluator, context) => ({ function: node, frame: evaluator.#localsFrame, context, objectRoot: evaluator.#objectRoot });
             case 'functionCall': {
-                const { targets: resolvedTargets, binding } = this.#resolvedDefinition.resolutionOf(node);
+                const { targets: resolvedTargets } = this.#resolvedDefinition.resolutionOf(node);
                 const local = { name: node.name };
-                const closureOf = evaluator => (binding === undefined ? evaluator.#evaluateLocal(local) : evaluator.#boundValues.get(binding));
+                const closureOf = evaluator => evaluator.#evaluateLocal(local);
 
                 // A call of one function reference alone is its qualified form's call, and the reference it is reads nothing; a receiver of unknown type selects no declaration, as the qualified form's selects none.
                 if (resolvedTargets.length === 1 && resolvedTargets[0].invocation?.kind === 'member') {

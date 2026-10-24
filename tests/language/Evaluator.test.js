@@ -143,4 +143,32 @@ describe('Evaluator', () => {
         expect(evaluator.evaluate({ beforeInvoke: () => ({ pending: true }) }).isPending).toBe(true);
         expect(evaluator.evaluate({ beforeInvoke: () => [5] })).toMatchObject({ value: 5, isPending: false });
     });
+
+    it('keeps a conditional binding in the scope of a function made within its consequent, called after the consequent ends, the nearest binding of a name read', () => {
+        const held = `let f = if let x = a then do
+    let g = y => x + y
+    return g
+end else do
+    let h = y => 0
+    return h
+end end
+return f(1)`;
+        const nested = `let f = if let x = a then if let x = b then do
+    let g = y => x + y
+    return g
+end else do
+    let h = y => x
+    return h
+end end else do
+    let h = y => 0
+    return h
+end end
+return f(1)`;
+
+        expect(createEvaluator(held, { a: 5 }).evaluate().value).toBe(6);
+        expect(createEvaluator(held, { a: null }).evaluate().value).toBe(0);
+        expect(createEvaluator(nested, { a: 5, b: 10 }).evaluate().value).toBe(11);
+        expect(createEvaluator(nested, { a: 5, b: null }).evaluate().value).toBe(5);
+        expect(createEvaluator('if let x = a then x + 1 else 0 end', { a: 2 }).evaluate().value).toBe(3);
+    });
 });

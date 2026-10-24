@@ -831,10 +831,7 @@ export class LanguageResolver {
             this.#fail('LEXICA3070', `'${node.name}' may be any of ${targets.length} functions, whose results are of no one type: ${targets.map(target => target.type).join(', ')}`, pointer);
         }
 
-        // A conditional binding holding the function is read as its conditional bound it, and any other name as its scope holds it.
-        const binding = local.binding === undefined ? {} : { binding: local.binding };
-
-        this.#resolutions.set(pointer, { kind: 'functionCall', targets: targets.map(({ function: declared, body, parameters, reference, invocation }) => (reference === undefined ? { function: declared, body, parameters } : { reference, invocation })), ...binding });
+        this.#resolutions.set(pointer, { kind: 'functionCall', targets: targets.map(({ function: declared, body, parameters, reference, invocation }) => (reference === undefined ? { function: declared, body, parameters } : { reference, invocation })) });
 
         return { type, kind: 'value', isFixed: false };
     }
@@ -858,9 +855,7 @@ export class LanguageResolver {
             });
         }
 
-        const binding = local.binding === undefined ? {} : { binding: local.binding };
-
-        this.#resolutions.set(pointer, { kind: 'functionCall', targets: [{ reference: declaration, invocation: invocation.resolution }], ...binding });
+        this.#resolutions.set(pointer, { kind: 'functionCall', targets: [{ reference: declaration, invocation: invocation.resolution }] });
 
         return invocation.result;
     }
@@ -980,8 +975,8 @@ export class LanguageResolver {
             this.#fail('LEXICA2012', `No local named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
         }
 
-        // A binding's value is evaluated once, by its conditional, which a use of its name reads; either records the expression its value came from.
-        this.#resolutions.set(pointer, local.binding === undefined ? { kind: 'local', name: node.name, value: local.value } : { kind: 'binding', conditional: local.binding, value: local.value });
+        // A binding's value is evaluated once, by its conditional, which holds it in a frame its consequent reads as any local's; each records the expression its value came from.
+        this.#resolutions.set(pointer, { kind: 'local', name: node.name, value: local.value });
 
         const narrowed = scope.facts.get(local);
 
