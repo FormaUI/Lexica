@@ -116,6 +116,20 @@ describe('a host of plain data', () => {
         expect(registry.moduleNames).toContain('extra');
     });
 
+    it('types a call nullable where an argument that may be null meets a parameter propagating null, its own type nullable or not, as the call answers null', () => {
+        const constant = { changes: 'constant', reads: 'fresh' };
+        const add = type => lexica.declarations.function('add', 'Number', 'Number', { updates: constant, parameters: [valueParameter('amount', type)], implementation: ({ receiver, args }) => receiver + args.amount });
+        const sums = type => lexica.createRegistry([lexica.createModule('sums', { members: [add(type), property('none', 'Number', 'Number?', { updates: constant, implementation: () => null })] })]);
+        const resolve = (type, text) => sums(type).resolve(text, { n: 1 });
+
+        for (const type of ['Number', 'Number?']) {
+            expect(resolve(type, 'n.add(null)').type, type).toBe('Number?');
+            expect(resolve(type, 'n.add(n.none)').type, type).toBe('Number?');
+            expect(resolve(type, 'n.add(2)').type, type).toBe('Number');
+            expect(resolve(type, 'n.add(null)').createEvaluator({ n: 1 }).evaluate().value, type).toBeNull();
+        }
+    });
+
     it('refuses an evaluator evaluating within its own evaluation, and evaluates again once it is done', () => {
         const resolution = lexica.createRegistry([createShop()]).resolve('order.discount(code)', { order: 'a', code: 'TEN' });
         const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' });

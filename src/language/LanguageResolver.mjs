@@ -913,7 +913,9 @@ export class LanguageResolver {
             const parameter = parameters[index];
             const expected = this.#moduleRegistry.getDeclaredType(declaration, parameter.type).resolveTypeParameters(typeArguments);
 
-            if (!this.#checkValue(result, expected, parameter, declaration, `${pointer}/arguments/${index + (hasReceiver ? 1 : 0)}`)) {
+            this.#requireArgumentType(result, expected, parameter, declaration, `${pointer}/arguments/${index + (hasReceiver ? 1 : 0)}`);
+
+            if (LanguageResolver.#propagatesNull(result, parameter)) {
                 isNullable = true;
             }
         });
@@ -1955,7 +1957,9 @@ export class LanguageResolver {
                 result = this.#resolveNode(given.node, valuePointer, argumentScope);
                 this.#requireValueArgument(result, parameter, declaration, valuePointer);
 
-                if (!this.#checkValue(result, expected, parameter, declaration, valuePointer)) {
+                this.#requireArgumentType(result, expected, parameter, declaration, valuePointer);
+
+                if (LanguageResolver.#propagatesNull(result, parameter)) {
                     isNullable = true;
                 }
             }
@@ -1985,44 +1989,26 @@ export class LanguageResolver {
         return { arguments: resolved, isNullable, selected, buildsObjectRoot: objectExpression !== null };
     }
 
-    /** Checks a value argument against its parameter, answering false where a null makes the call answer null. */
-    #checkValue(result, expected, parameter, declaration, pointer) {
+    /** Refuses a value argument its parameter can't take: a function, or a value of a type it doesn't admit, the null of a parameter that propagates null aside, which answers for the call. */
+    #requireArgumentType(result, expected, parameter, declaration, pointer) {
         const actual = result.type;
-        const wrong = () => {
-            const [expectedName, actualName] = Type.namesOf(expected, actual);
-
-            this.#fail('LEXICA3042', `The argument '${parameter.name}' of '${declaration.name}' expects ${expectedName} and finds ${actualName}`, pointer);
-        };
 
         if (LanguageResolver.#heldReferenceOf(actual) === 'function') {
             this.#fail('LEXICA3071', `The argument '${parameter.name}' of '${declaration.name}' takes a value, and a function is none: a function is passed to a local function, or to a parameter its member declares to take one`, pointer);
         }
 
-        if (actual.kind === 'null') {
-            if (expected.isNullable) {
-                return true;
-            }
+        const isAdmitted = parameter.nulls === 'propagate' ? actual.kind === 'null' || this.#typeChecker.isAssignable(actual.toNonNullable(), expected.toNonNullable()) : this.#typeChecker.isAssignable(actual, expected);
 
-            if (parameter.nulls === 'propagate') {
-                return false;
-            }
+        if (!isAdmitted) {
+            const [expectedName, actualName] = Type.namesOf(expected, actual);
 
-            wrong();
+            this.#fail('LEXICA3042', `The argument '${parameter.name}' of '${declaration.name}' expects ${expectedName} and finds ${actualName}`, pointer);
         }
+    }
 
-        if (parameter.nulls === 'propagate') {
-            if (!this.#typeChecker.isAssignable(actual.toNonNullable(), expected.toNonNullable())) {
-                wrong();
-            }
-
-            return !actual.isNullable;
-        }
-
-        if (!this.#typeChecker.isAssignable(actual, expected)) {
-            wrong();
-        }
-
-        return true;
+    /** Whether the argument's null makes the call answer null: its parameter propagates null, and the argument may be null, whatever the parameter's own type admits, as evaluation answers null without invoking. */
+    static #propagatesNull(result, parameter) {
+        return parameter.nulls === 'propagate' && result.type.isNullable;
     }
 
     #requireValueArgument(result, parameter, declaration, pointer) {
