@@ -149,6 +149,7 @@ describe('the codes of syntax errors', () => {
 
         it('gives LEXICA1022 to try before anything but one cast or one conversion', () => {
             expectCode('LEXICA1022', ['try try a to Number', 'try a', 'try a to String to Number', 'try a as B to String']);
+            expect(getError(() => lexica.parse('try a to Home.Light to Number')).message).toContain("as in 'try (… to Home.Light) to Number'");
         });
 
         it('gives LEXICA1024 to casts chained without a group', () => {
@@ -221,6 +222,7 @@ describe('the codes of syntax errors', () => {
 
         it('gives LEXICA1053 to a chain continuing a cast without a group', () => {
             expectCode('LEXICA1053', ['a as Light[0]', 'a as Light?.b']);
+            expect(getError(() => lexica.parse('a as Home . Light[0]')).message).toContain("write '(… as Home.Light)…'");
         });
 
         it('gives LEXICA1054 to a conditional whose branches give their results in two styles', () => {
@@ -254,6 +256,7 @@ describe('the codes of syntax errors', () => {
 
         it('gives LEXICA1501 to a chain continuing a conversion without a group', () => {
             expectCode('LEXICA1501', ['a to Number[0]', 'a to Number?.b']);
+            expect(getError(() => lexica.parse('a to Home /* its */ . Reading[0]')).message).toContain("as in '(… to Home.Reading).value'");
         });
 
         it('gives LEXICA1502 to an optional enclosed access whose receiver is neither an input nor a grouped cast', () => {

@@ -537,9 +537,9 @@ export class Parser {
 
         if (this.#chainedConversions.has(operation)) {
             const [target] = operation.children;
-            const inner = target.kind === 'cast' ? `as ${this.#typeOf(target)}` : `to ${this.#typeOf(target)}`;
+            const inner = `${target.kind === 'cast' ? 'as' : 'to'} ${SyntaxTree.typeNameOf(target.children[2], this.#text)}`;
 
-            throw this.#fail('LEXICA1022', `'try' attempts one operation: group the value it converts, as in 'try (… ${inner}) to ${this.#typeOf(operation)}'`, start);
+            throw this.#fail('LEXICA1022', `'try' attempts one operation: group the value it converts, as in 'try (… ${inner}) to ${SyntaxTree.typeNameOf(operation.children[2], this.#text)}'`, start);
         }
 
         return Parser.#node('attempt', [tryKeyword, operation]);
@@ -725,7 +725,7 @@ export class Parser {
         const toKeyword = this.#take();
         const type = this.#readTypeName('to', 'converts to', 'Number');
         const node = Parser.#node('conversion', [target, toKeyword, type]);
-        const name = this.#text.slice(SyntaxTree.startOf(type), SyntaxTree.endOf(type));
+        const name = SyntaxTree.typeNameOf(type, this.#text);
 
         if (this.#continuesChain()) {
             throw this.#fail('LEXICA1501', `A conversion ends its chain; group it to continue from its result, as in '(… to ${name}).value'`, this.#token.start);
@@ -829,7 +829,7 @@ export class Parser {
         const asKeyword = this.#take();
         const type = this.#readTypeName('as', 'casts to', 'Light');
         const node = Parser.#node('cast', [target, asKeyword, type]);
-        const name = this.#text.slice(SyntaxTree.startOf(type), SyntaxTree.endOf(type));
+        const name = SyntaxTree.typeNameOf(type, this.#text);
 
         if (this.#continuesChain()) {
             throw this.#fail('LEXICA1053', `A cast continues a chain only from a group: write '(… as ${name})…'`, this.#token.start);
@@ -1442,11 +1442,6 @@ export class Parser {
 
     static #node(kind, children) {
         return { kind, children };
-    }
-
-    /** The name of the type a conversion's or a cast's node names. */
-    #typeOf(node) {
-        return this.#wordOf(node.children[2]);
     }
 
     /**

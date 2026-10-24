@@ -79,6 +79,17 @@ export class SyntaxTree {
     }
 
     /**
+     * The name of the type a cast's or a conversion's type part writes: its local name, or its module's name, a dot and its local name, whatever trivia the text puts between them.
+     * @param {SyntaxNode | Token} part A name token or a `type-name` node.
+     * @param {string} text The text the part was read from.
+     */
+    static typeNameOf(part, text) {
+        const wordOf = token => text.slice(token.start, token.end);
+
+        return SyntaxTree.isToken(part) ? wordOf(part) : `${wordOf(part.children[0])}.${wordOf(part.children[2])}`;
+    }
+
+    /**
      * The tokens of the node, in the order of the text.
      * @param {SyntaxNode | Token} child
      * @returns {Generator<Token>}

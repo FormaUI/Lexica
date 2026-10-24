@@ -67,7 +67,7 @@ Fixed as defects, each in its own commit with its test, apart from the renames.
 
 | ID | Where | Defect, reproduced | Fix |
 | --- | --- | --- | --- |
-| D1 | `Parser.#typeOf`, Parser.mjs:1448 | A qualified type's node has no span, so `try a to Home.Light to Number` quotes the whole source in LEXICA1022: "as in 'try (… to try a to Home.Light to Number) to Number'" | S4's type-name helper, shared with the lowering, implemented once as this fix |
+| D1 | `Parser.#typeOf`, Parser.mjs:1448 | A qualified type's node has no span, so `try a to Home.Light to Number` quotes the whole source in LEXICA1022: "as in 'try (… to try a to Home.Light to Number) to Number'" | ✅ S4's type-name helper, shared with the lowering, implemented once as this fix |
 | D2 | LEXICA4530, LexicaModule.mjs:768 | Names `:[…]`, the form LEXICA1014 refuses, for the default indexer `[…]` | ✅ "… which `[…]` invokes" |
 | D3 | `registry.registerModule`, lexica.js:240 | Declared `void`, it hands a host the internal `LexicaRegistry` through `return this` (LexicaRegistry.mjs:199), so every internal query is reachable | ✅ The wrapper returns nothing; fixed first (requirement 3) |
 | D4 | `Declarations.member`, Declarations.mjs:37 | Its default `updates`, `{ changes: 'observable', reads: 'fresh' }`, names no observations, so `createModule` refuses every declaration that relies on it (LEXICA4059) | The helper fills no `updates`; the caller gives them, required, as the specification has it: U8's default handling, implemented once as this fix |
@@ -212,7 +212,7 @@ Renames the unifications and dispositions above don't already cover. Each is int
 | S1 | `NODE_KINDS`; `MEMBER_EXPRESSIONS` | `SYNTAX_NODE_KINDS`; `MEMBER_EXPRESSION_KINDS` | SyntaxTree, Parser | Which tree's kinds; holds kinds | internal |
 | S2 | `#parseTry`, `#parseUnary`, `#parseBinding` | `#parseAttempt`, `#parseArithmeticNegation`, `#parseConditionalBinding` | Parser | Named for their productions, as their siblings are | internal |
 | S3 | `#readTypeName` | `#parseTypeName` | Parser: builds a token or a `type-name` node | Every method building a node is `#parse…` | internal |
-| S4 | `#typeOf(node)`, `#typeNameOf`, the span slices | `SyntaxTree.typeNameOf(part, text)` | Parser, Lowering: a type name a cast or conversion writes | Three implementations, one wrong (D1) | internal |
+| S4 | `#typeOf(node)`, `#typeNameOf`, the span slices | `SyntaxTree.typeNameOf(part, text)` | Parser, Lowering: a type name a cast or conversion writes | Three implementations, one wrong (D1) | internal; ✅ reviewed, done with D1 |
 | S5 | `#parseMemberChain` → `{ children, accesses }`; `#isLocal`; `#bodyLocalsBeingRead` stays | `#parseMemberExpressions` → `{ children, accessCount }`; `#startsLocal` | Parser | Returns parts, `accesses` a count; beside `#startsEntry` | internal |
 | S6 | `#lowerAccess`; `#optionalChainOf` | `#lowerMemberExpression`; `#lowerMemberChain` | Lowering | Covers member calls; lowers a `member-chain` | internal |
 | S7 | Grammar `module-name`, every occurrence a namespace an import establishes (grammar.md:28, 116, 138, 141, 155, 249) | `namespace-name`; the registered module, a plain `identifier` in `import-source`, may take `module-name` of its own | grammar.md | Decided 7 | spec; unit 3 |

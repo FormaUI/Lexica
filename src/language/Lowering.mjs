@@ -141,12 +141,12 @@ export class Lowering {
             case 'attempt':
                 return this.#span({ kind: 'try', target: this.#lower(children[1]) }, child);
             case 'conversion':
-                return this.#span({ kind: 'conversion', type: this.#typeNameOf(children[2]), target: this.#lower(children[0]) }, child);
+                return this.#span({ kind: 'conversion', type: SyntaxTree.typeNameOf(children[2], this.#text), target: this.#lower(children[0]) }, child);
             case 'cast': {
                 // A cast's target written as a member chain within an optional enclosed access is the optional chain of its accesses.
                 const [target] = children;
 
-                return this.#span({ kind: 'cast', type: this.#typeNameOf(children[2]), target: target.kind === 'member-chain' ? this.#optionalChainOf(target, target) : this.#lower(target) }, child);
+                return this.#span({ kind: 'cast', type: SyntaxTree.typeNameOf(children[2], this.#text), target: target.kind === 'member-chain' ? this.#optionalChainOf(target, target) : this.#lower(target) }, child);
             }
             case 'namespace-access':
                 return this.#lowerNamespaceAccess(child);
@@ -382,11 +382,6 @@ export class Lowering {
     /** The word a token writes, as the text spells it. */
     #wordOf(token) {
         return this.#text.slice(token.start, token.end);
-    }
-
-    /** The name of the type a cast or a conversion names, as written: its local name, or its module's name, a dot and its local name. */
-    #typeNameOf(part) {
-        return SyntaxTree.isToken(part) ? this.#wordOf(part) : `${this.#wordOf(part.children[0])}.${this.#wordOf(part.children[2])}`;
     }
 
     /** Records the part as spanning the syntax node or token. */
