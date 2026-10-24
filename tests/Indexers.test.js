@@ -184,6 +184,27 @@ describe('indexers and computed properties', () => {
         });
     });
 
+    describe('a property read by a computed name', () => {
+        /** A module whose `size` answers what the test gives it and `cup`, a structure, a copy of the one it answers. */
+        const createCups = size => lexica.createModule('cups', {
+            types: [{ name: 'Cup', fields: { volume: 'Number' } }],
+            members: [
+                property('size', 'String', 'Number', { updates: constant, implementation: () => size }),
+                property('cup', 'String', 'Cup', { updates: constant, implementation: () => ({ volume: 2, lid: true }) }),
+            ],
+        });
+        const valueOf = (text, size, bound) => lexica.createRegistry([createCups(size)]).resolve(text, bound).createEvaluator(bound).evaluate().value;
+
+        it('is invoked, checked and copied as the property read by its name is', () => {
+            const bound = { item: 'latte', name: 'size', other: 'cup' };
+
+            expect(valueOf('{ direct = item.size, computed = item.[name] }', 3, bound)).toEqual({ direct: 3, computed: 3 });
+            expect(valueOf('{ direct = item.cup, computed = item.[other] }', 3, bound)).toEqual({ direct: { volume: 2 }, computed: { volume: 2 } });
+            expect(getError(() => valueOf('item.[name]', 'large', bound))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining("The member 'size' answered") });
+            expect(getError(() => valueOf('item.size', 'large', bound))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining("The member 'size' answered") });
+        });
+    });
+
     describe('a type name qualified by its module', () => {
         const createCups = () => lexica.createModule('cups', {
             types: [{ name: 'Cup', fields: { size: 'Number' } }],

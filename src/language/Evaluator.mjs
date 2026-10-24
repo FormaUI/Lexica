@@ -128,6 +128,9 @@ export class Evaluator {
     /** The functions the arguments of this evaluator's members compile to, by each member's resolution. @type {Map<object, (evaluator: Evaluator, context: unknown) => object | null>} */
     #compiledArguments;
 
+    /** The compiled invocations of this evaluator's declarations, by each declaration, one for each result type it answers. @type {Map<object, object[]>} */
+    #compiledInvocations;
+
     #moduleRegistry;
     #resolvedDefinition;
     #parameterBindings;
@@ -190,12 +193,13 @@ export class Evaluator {
         let compilation = Evaluator.#compilationCache.get(resolvedDefinition);
 
         if (compilation === undefined || compilation.registry !== moduleRegistry) {
-            compilation = { registry: moduleRegistry, functions: new Map(), arguments: new Map() };
+            compilation = { registry: moduleRegistry, functions: new Map(), arguments: new Map(), invocations: new Map() };
             Evaluator.#compilationCache.set(resolvedDefinition, compilation);
         }
 
         this.#compiledFunctions = compilation.functions;
         this.#compiledArguments = compilation.arguments;
+        this.#compiledInvocations = compilation.invocations;
     }
 
     /**
@@ -528,7 +532,7 @@ export class Evaluator {
                         (evaluator.#selections ??= new Map()).set(node, target.reference ?? target.function);
                     }
 
-                    if (target.reference !== undefined && target.hasReceiver) {
+                    if (target.reference !== undefined && target.invocation.takesReceiver) {
                         const receiver = evaluateArguments[0](evaluator, context);
 
                         if (receiver === null) {
@@ -829,9 +833,7 @@ export class Evaluator {
     #compileInvocation(node, resolution) {
         const { type, declaration, receiverNode } = resolution;
         const target = receiverNode === undefined ? null : this.#getCompiledFunction(receiverNode);
-        const implementation = this.#moduleRegistry.getImplementation(declaration);
-        const conforms = Evaluator.#compileTypeCheck(type, this.#moduleRegistry, `the answer of '${declaration.name}'`);
-        const copyStructures = Evaluator.#compileStructureCopy(type, this.#moduleRegistry);
+        const invocation = this.#getCompiledInvocation(declaration, type);
         const evaluateArguments = this.#compileArguments(resolution);
 
         return (evaluator, context) => {
@@ -848,8 +850,38 @@ export class Evaluator {
 
             const args = evaluateArguments(evaluator, context);
 
-            return args === null ? null : evaluator.#invokeImplementation(declaration, implementation, conforms, copyStructures, receiver, args, type, node);
+            return args === null ? null : evaluator.#invokeImplementation(invocation, receiver, args, node);
         };
+    }
+
+    /**
+     * The invocation of the declaration whose implementation answers a value of the result type, as the call it serves resolved it: its implementation, whether it takes a receiver, and the check and the copy of its answer, made once for
+     * each declaration and result type and shared by every evaluator of the resolution, so one generic declaration answering two types has two. The result type is the declaration's own, its type parameters bound for the call,
+     * which a null the call propagates or the types of other functions it may call never make wider.
+     */
+    #getCompiledInvocation(declaration, resultType) {
+        let invocations = this.#compiledInvocations.get(declaration);
+
+        if (invocations === undefined) {
+            invocations = [];
+            this.#compiledInvocations.set(declaration, invocations);
+        }
+
+        let invocation = invocations.find(candidate => candidate.resultType.equals(resultType));
+
+        if (invocation === undefined) {
+            invocation = Object.freeze({
+                declaration,
+                implementation: this.#moduleRegistry.getImplementation(declaration),
+                takesReceiver: this.#moduleRegistry.hasReceiver(declaration),
+                resultType,
+                isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#moduleRegistry, `the answer of '${declaration.name}'`),
+                copyStructure: Evaluator.#compileStructureCopy(resultType, this.#moduleRegistry),
+            });
+            invocations.push(invocation);
+        }
+
+        return invocation;
     }
 
     /** The function value each function reference is, by its declaration: the same for every evaluation, since it holds nothing an evaluation bound. @type {WeakMap<object, { reference: object }>} */
@@ -895,7 +927,10 @@ export class Evaluator {
             }
 
             const { targets, parameterTypes, resultType, implicit } = argument.callback;
-            const callback = { ...plan, propagatesNull: false, member: resolution.declaration.name, parameterTypes, resultType, pointer: argument.pointer, node: argument.node };
+            const asked = `the function given as '${parameter.name}' of '${resolution.declaration.name}'`;
+            const isOfParameterType = parameterTypes.map(parameterType => Evaluator.#compileTypeCheck(parameterType, this.#moduleRegistry, asked));
+            const isOfResultType = resultType === null ? null : Evaluator.#compileTypeCheck(resultType, this.#moduleRegistry, asked);
+            const callback = { ...plan, propagatesNull: false, member: resolution.declaration.name, parameterTypes, resultType, isOfParameterType, isOfResultType, pointer: argument.pointer, node: argument.node };
 
             // A function given to an expression or a predicate parameter is called with each item, as its body would be evaluated against it.
             if (parameter.kind !== 'function') {
@@ -979,8 +1014,8 @@ export class Evaluator {
     }
 
     /**
-     * The functions a call may evaluate, each compiled once: a function the script declares, its parameters and its body's compiled function; or a function reference, its declaration, whether it takes a receiver,
-     * and the names of the parameters its values supply after it, the rest left to their defaults.
+     * The functions a call may evaluate, each compiled once: a function the script declares, its parameters and its body's compiled function; or a function reference, its declaration, its parameters, whose values its arguments
+     * supply after its receiver, the rest left to their defaults, and its invocation, of the result type its declaration declares.
      */
     #compileTargets(targets) {
         return targets.map(target => {
@@ -989,10 +1024,8 @@ export class Evaluator {
             }
 
             const declaration = target.reference;
-            const hasReceiver = this.#moduleRegistry.hasReceiver(declaration);
-            const type = this.#moduleRegistry.getDeclaredType(declaration, declaration.result);
 
-            return { reference: declaration, hasReceiver, parameters: declaration.parameters, conforms: Evaluator.#compileTypeCheck(type, this.#moduleRegistry, `the answer of '${declaration.name}'`), copyStructures: Evaluator.#compileStructureCopy(type, this.#moduleRegistry), type };
+            return { reference: declaration, parameters: declaration.parameters, invocation: this.#getCompiledInvocation(declaration, this.#moduleRegistry.getDeclaredType(declaration, declaration.result)) };
         });
     }
 
@@ -1022,7 +1055,8 @@ export class Evaluator {
 
     /** A call of a function reference with the values given: its receiver the first where its declaration has one, null answering null, and its own arguments by its parameters' names, those left out taking their defaults. */
     #callReference(target, values, node) {
-        const { reference: declaration, hasReceiver, parameters } = target;
+        const { parameters, invocation } = target;
+        const hasReceiver = invocation.takesReceiver;
         const receiver = hasReceiver ? values[0] : undefined;
 
         if (receiver === null) {
@@ -1041,7 +1075,7 @@ export class Evaluator {
             return null;
         }
 
-        return this.#invokeImplementation(declaration, this.#moduleRegistry.getImplementation(declaration), target.conforms, target.copyStructures, receiver, args, target.type, node);
+        return this.#invokeImplementation(invocation, receiver, args, node);
     }
 
     /**
@@ -1059,7 +1093,7 @@ export class Evaluator {
      * It is called while the member's invocation lasts, which closes it, and fails once that is over.
      */
     #callbackOf(closure, plan) {
-        const { name, member, targets, parameterTypes, resultType, pointer } = plan;
+        const { name, member, targets, parameterTypes, resultType, isOfParameterType, isOfResultType, pointer } = plan;
         const target = closure.implicitBody !== undefined ? null : targets.length === 1 ? targets[0] : targets.find(candidate => (candidate.reference ?? candidate.function) === (closure.reference ?? closure.function));
         const lifetime = { isOpen: true };
         const callback = (...values) => {
@@ -1073,14 +1107,14 @@ export class Evaluator {
                 }
 
                 values.forEach((value, index) => {
-                    if (!this.#conforms(value, parameterTypes[index], `the function given as '${name}' of '${member}'`)) {
+                    if (!isOfParameterType[index](value)) {
                         this.#fail('LEXICA5503', `The function given as '${name}' of '${member}' is called with ${Evaluator.#describe(value)}, and its contract declares ${parameterTypes[index]}`, pointer);
                     }
                 });
 
                 const value = target === null ? closure.implicitBody(values[0]) : this.#callClosure(closure, target, values, plan.node);
 
-                if (resultType !== null && !this.#conforms(value, resultType, `the function given as '${name}' of '${member}'`)) {
+                if (isOfResultType !== null && !isOfResultType(value)) {
                     this.#fail('LEXICA5504', `The function given as '${name}' of '${member}' gave ${Evaluator.#describe(value)}, and its contract declares ${resultType}`, pointer);
                 }
 
@@ -1347,7 +1381,7 @@ export class Evaluator {
         return found === fieldNames.size;
     }
 
-    /** Whether a value is one the type admits, as `#conforms` answers, with the type's structure found once and each declared structure's fields at its first check. */
+    /** Whether a value is one the type admits, with the type's structure found once and each declared structure's fields at its first check. */
     static #compileTypeCheck(type, moduleRegistry, asked) {
         const admits = Evaluator.#compileNonNullTypeCheck(type, moduleRegistry, asked);
 
@@ -1475,7 +1509,7 @@ export class Evaluator {
 
         const args = this.#evaluateArguments(resolution, context);
 
-        return args === null ? null : this.#invokeMember(resolution.declaration, receiver, args, resolution.type, node);
+        return args === null ? null : this.#invokeImplementation(this.#getCompiledInvocation(resolution.declaration, resolution.type), receiver, args, node);
     }
 
     /** A field of a value, the selections that its value's evaluation made, where an object expression of this evaluation built the value, recorded where it is read; null for no receiver. */
@@ -1546,19 +1580,20 @@ export class Evaluator {
         return evaluateArguments(this, context);
     }
 
-    /** Carries out a declaration's implementation, checking that its result is of the declared type. */
-    #invokeMember(declaration, receiver, args, type, node) {
-        return this.#invokeImplementation(declaration, this.#moduleRegistry.getImplementation(declaration), value => this.#conforms(value, type, `the answer of '${declaration.name}'`), Evaluator.#compileStructureCopy(type, this.#moduleRegistry), receiver, args, type, node);
-    }
+    /**
+     * Carries out a compiled invocation with its receiver and its arguments by parameter name, the one protocol every invocation of an implementation follows: it fails a declaration without an implementation, asks the host's
+     * `beforeInvoke` for the samples a maintained member reads, answering null where one is pending, gives the implementation one object it reads by name, closes the functions it was given once it returns, checks its answer
+     * against the invocation's result type, tells the host's `afterInvoke`, and answers a copy of the structures the answer holds. Its failures are located at the node that invoked it.
+     */
+    #invokeImplementation(invocation, receiver, args, node) {
+        const { declaration, implementation, takesReceiver, resultType, isOfResultType, copyStructure } = invocation;
 
-    /** Carries out the implementation of a declaration whose implementation, check of its result and copy of the structures it holds are found already, giving it one object it reads by name. */
-    #invokeImplementation(declaration, implementation, conforms, copyStructures, receiver, args, type, node) {
         if (implementation === undefined) {
             throw LexicaErrors.module('LEXICA4001', `The module '${this.#moduleRegistry.getOwner(declaration)}' gives '${declaration.name}' no implementation`, this.#locate(this.#pointerOf(node)));
         }
 
         // A module member is read and called through its namespace, and has no receiver.
-        const received = this.#moduleRegistry.hasReceiver(declaration) ? { receiver } : {};
+        const received = takesReceiver ? { receiver } : {};
         const request = this.#host === null ? null : { declaration, ...received, args, pointer: this.#pointerOf(node) };
         const samples = this.#beforeInvoke(request, declaration, node);
 
@@ -1589,8 +1624,8 @@ export class Evaluator {
             }
         }
 
-        if (!conforms(value)) {
-            this.#fail('LEXICA5006', `${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${type}`, this.#pointerOf(node));
+        if (!isOfResultType(value)) {
+            this.#fail('LEXICA5006', `${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${resultType}`, this.#pointerOf(node));
         }
 
         if (request !== null && this.#host.afterInvoke !== undefined) {
@@ -1601,7 +1636,7 @@ export class Evaluator {
             }
         }
 
-        return copyStructures === null ? value : copyStructures(value);
+        return copyStructure === null ? value : copyStructure(value);
     }
 
     /** What a message names as carrying a member out. */
@@ -1736,46 +1771,6 @@ export class Evaluator {
     /** The path of a field within the path of the value that holds it. */
     static #pathOf(path, name) {
         return path === '' ? name : `${path}.${name}`;
-    }
-
-    /** Whether the value is one the type admits. */
-    #conforms(value, type, asked) {
-        if (value === undefined) {
-            return false;
-        }
-
-        if (value === null) {
-            return type.isNullable;
-        }
-
-        if (type.isList) {
-            return Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#conforms(item, type.itemType, asked));
-        }
-
-        switch (type.kind) {
-            case 'typeParameter':
-                return true;
-            case 'object':
-                return ObjectUtils.isNonArrayObject(value) && [...type.fieldTypes].every(([name, fieldType]) => this.#conforms(value[name], fieldType, asked));
-            default:
-                return this.#conformsNamed(value, type, asked);
-        }
-    }
-
-    #conformsNamed(value, type, asked) {
-        const isOfBuiltIn = type.module === null ? Evaluator.#isOfBuiltIn(value, type.name) : undefined;
-
-        if (isOfBuiltIn !== undefined) {
-            return isOfBuiltIn;
-        }
-
-        if (this.#moduleRegistry.isReferenceType(type)) {
-            return this.#moduleRegistry.belongsTo(value, type, asked);
-        }
-
-        const structure = this.#moduleRegistry.getStructure(type);
-
-        return structure !== undefined && ObjectUtils.isNonArrayObject(value) && Evaluator.#fieldTypesOf(structure, this.#moduleRegistry).every(([field, fieldType]) => this.#conforms(value[field], fieldType, asked));
     }
 
     /** Whether the value is of the built-in type the name names, or undefined where the name names a structure a module declares. */
