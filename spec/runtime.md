@@ -161,7 +161,7 @@ if (call.kind === 'prepared') {
 | --- | --- |
 | Nothing, a field missing or `undefined` among them | Null where its type is nullable; the projection fails where it is not |
 | Null | Null where its type is nullable; the projection fails where it is not |
-| A value its type admits | The value, a structure as its stored properties alone, and a list item by item |
+| A value its type admits | The value, a structure as its data shape alone, and a list item by item |
 | A reference of another type, where a nullable reference type is declared | Null, so the value keeps only the reference its type names, as a `Light?` field holding a thermostat is null |
 | Any other value, data its type does not admit among them | The projection fails with an evaluation error naming the call and the part of the value |
 

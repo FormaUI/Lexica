@@ -43,9 +43,9 @@ An import makes the module's public vocabulary available to the script:
 
 - **Its namespace:** its module members, its qualified forms and its function references, read through `Home.`; a qualified form needs its module imported, as any use does, so `Energy.usage(device)` needs `import Energy`.
 - **Its types by name:** a cast or a conversion names one of its public types, unqualified or qualified.
-- **Its declarations:** its members on any receiver, its stored properties and its extensions among them, and its type selectors' keys, its conversions and its operators.
+- **Its declarations:** its members on any receiver, its structured types' properties and its extensions among them, and its type selectors' keys, its conversions and its operators.
 
-A script accesses a declared member only where the module that **declares** it is imported: a stored or a computed property, a function, an indexer and an operator alike. The owner of the receiver's type need not be:
+A script accesses a declared member only where the module that **declares** it is imported: a property, a function, an indexer and an operator alike. The owner of the receiver's type need not be:
 
 ```lexica
 import Energy
@@ -55,11 +55,11 @@ device.usage
 
 With a host binding a `Home.Device`, this script reads `Energy`'s extension on it. The registry knows the device's type; the import makes the extension available. `device.name`, a member `Home` declares, needs `import Home`.
 
-A stored property is a member too, so `reading.temperature` needs its declaring module's import whether that module declares `temperature` as a stored or as a computed property; which one it is never shows in the access, so it never decides whether the access is allowed. A computed property access follows the rule a written name does, so `reading.["temperature"]` needs the import too. An ordinary object's fields, which no module declares, are read without any import.
+A property of a structured type's data is a member too, so `reading.temperature` needs its declaring module's import whether that module declares `temperature` in its data shape or with `updates`; which one it is never shows in the access, so it never decides whether the access is allowed. A computed property access follows the rule a written name does, so `reading.["temperature"]` needs the import too. An ordinary object's fields, which no module declares, are read without any import.
 
 ### Declaration dependencies are not imports
 
-Importing a module exposes its declarations without importing every module whose types they use. A member `Energy` declares may answer a `Garden.Reading`, and a script importing `Energy` alone can read that member, hold its answer, return it whole and pass it on, and use the extensions `Energy` declares on it; naming `Reading` in a cast or a conversion, or reading a member `Garden` declares on it, a stored property among them, needs `import Garden`. Holding or returning a value never permits naming its members.
+Importing a module exposes its declarations without importing every module whose types they use. A member `Energy` declares may answer a `Garden.Reading`, and a script importing `Energy` alone can read that member, hold its answer, return it whole and pass it on, and use the extensions `Energy` declares on it; naming `Reading` in a cast or a conversion, or reading a member `Garden` declares on it, a property of its data among them, needs `import Garden`. Holding or returning a value never permits naming its members.
 
 The registry still understands every registered module's types: it recognizes a host's values and resolves every declaration's dependencies across all of them. Recognizing a value's type never imports the type's module, and never exposes its members.
 
@@ -106,6 +106,6 @@ A bound script parameter named `Home` is read as that parameter, as today, so a 
 
 ## Settled
 
-1. **Stored properties of a type from a module the script does not import** need their declaring module's import, as every declared member does: a script can access a declared member only where its declaring module is imported. Exempting stored properties would make whether `reading.temperature` works depend on how its module declares `temperature`, which the access never shows.
+1. **Properties of a structured type's data, from a module the script does not import,** need their declaring module's import, as every declared member does: a script can access a declared member only where its declaring module is imported. Exempting the properties of a type's data would make whether `reading.temperature` works depend on how its module declares `temperature`, which the access never shows.
 2. **A declared binding's type** is resolved against the registry, qualified or, where exactly one public type has the name, unqualified; the script's imports take no part in it.
 3. **An import of a module the registry does not hold** fails when the script is resolved; parsing reads the import and its namespace without a registry.

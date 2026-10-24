@@ -37,7 +37,7 @@ In this document:
 | Scalar data | `Number`, `String`, `Boolean` |
 | Reference types | Types a module declares whose values have identity, as `Room`, `Device` and `Light` |
 | Lists | `List<T>`, a list whose items have type `T` |
-| Structured values | Data a module declares, its stored shape its stored properties, as `Climate` |
+| Structured values | Data a module declares, its data shape the properties its type declares directly without `updates`, as `Climate` |
 | Object types | The field types inferred from an object expression, as `{ name: String, count: Number }` |
 | `Any` | A value of any type that isn't null, its concrete type known when it is evaluated, as [values of `Any`](#types-any) set out |
 
@@ -118,7 +118,7 @@ A type parameter stands for a type a declaration leaves open, so that a member's
 }
 ```
 
-- **Where they are declared.** A declaration's name declares its parameters, bare, in angle brackets after its local name: a member's own, `identity<T>`, whoever declares the member, a type, an extension or the module itself; and an [extension](modules.md#extensions)'s, `ListExtensions<T>`, which its target and its members share. An operator declares none, since its destination selects it and no rule binds a parameter from a destination, so `convert<T>` and `cast<T>` are refused; it uses its extension's, which the receiver binds. Lexica's own `List<T>` is the one generic value type, declared through the declaration form [Lexica's own module](modules.md#modules-declarations) alone uses. Reference and structured types can't declare type parameters, so stored data is never generic, and a type that declares any is refused at registration.
+- **Where they are declared.** A declaration's name declares its parameters, bare, in angle brackets after its local name: a member's own, `identity<T>`, whoever declares the member, a type, an extension or the module itself; and an [extension](modules.md#extensions)'s, `ListExtensions<T>`, which its target and its members share. An operator declares none, since its destination selects it and no rule binds a parameter from a destination, so `convert<T>` and `cast<T>` are refused; it uses its extension's, which the receiver binds. Lexica's own `List<T>` is the one generic value type, declared through the declaration form [Lexica's own module](modules.md#modules-declarations) alone uses. Reference and structured types can't declare type parameters, so a type's data is never generic, and a type that declares any is refused at registration.
 - **Declaring and referring positions.** A declaration's name declares, and every other position refers: an extension's `target`, a member's `result`, a parameter's type and a callback's types. A name in a referring position that a declaration around it declares is that parameter, and any other names a type, an unknown type where none exists, whatever its length, so a module may name a type `T`, and `T` there is that type. Whether a name is a parameter is never decided by whether a type of its name happens to exist.
 - **Scope.** An extension's parameters stand within it and every one of its members, and `List<T>`'s within its members, the receiver binding them at each access, so no member infers them again; a member's own stand within that member alone.
 - **Its local name.** Registration separates a declaration's local name from the parameters it declares: `ListExtensions<T>` is named `ListExtensions`, identified by its module and that name as every declaration is, its parameters never taking part, so a module declares that name once.

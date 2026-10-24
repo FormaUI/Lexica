@@ -72,7 +72,8 @@ Nothing in `src/` imports from outside it or reads a browser global; a test enfo
 
 - Let a name or a contract reveal every side effect: a predicate writes nothing, and an operation that creates and registers says so in its name or its contract, or the two are separated.
 - Read the verbs as a guide, not a whitelist: an ordinary verb that is unambiguous stays, as reading source text does. An operation whose new name would only list its current contents keeps its name, with its contract documented.
-- Use the glossary's terms, in code and prose alike: an object field, a declaration key, a module key, a stored property.
+- Name a concept, not each way it varies: a property is a property whether a structured value's data or its implementation gives its value. Where contracts differ, state the rule directly rather than coin a term for each case.
+- Use the glossary's terms, in code and prose alike: an object field, a declaration key, a module key, a structured type's data shape.
 
 ## Tests and verification
 

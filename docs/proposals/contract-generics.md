@@ -37,7 +37,7 @@ Parsing nested type references, matching arguments and substituting result types
 
 Parameters belong to declaration contracts generally. A member declares its own, whoever declares it: a type's own member, a module member, or a member of an extension container, as `identity<T>`. An extension container declares parameters shared by its target and its members, as [named extension types](named-extension-types.md#targets) sets out.
 
-Lexica's own `List<T>` is the one generic value type. A module's own reference and structured types don't declare parameters, so stored data is never generic. Other generic value types, a map among them, are outside this scope.
+Lexica's own `List<T>` is the one generic value type. A module's own reference and structured types don't declare parameters, so a type's data is never generic. Other generic value types, a map among them, are outside this scope.
 
 ### Declaring and referring positions
 

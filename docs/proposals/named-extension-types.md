@@ -116,4 +116,4 @@ Verify that:
 - Extensions are registered through named containers under `types`, one target each, a concrete one among them.
 - Duplicate names in one module are refused, extension containers' included, and identical names in different modules keep distinct identities.
 - Extensions targeting `List<Number>` and `List<String>` may each declare `total`, in one module or two; a `List<Number>` and a `List<String>` each select their own, an empty list is ambiguous between them, and explicit extension access selects either.
-- An extension member doesn't declare a stored property or attach state to its receiver.
+- An extension member adds nothing to a type's data shape, and attaches no state to its receiver.

@@ -25,8 +25,7 @@ In this document:
 | Result | The data produced by an expression | [Values and types](values.md#values-and-types) |
 | Type | The category of a value and the members it supports | [Types](types.md#types) |
 | Reference type | A type a module declares whose values have identity, naming at most one supertype, declaring its `isInstance`, and abstract or not | [Reference types](types.md#reference-types) |
-| Structured type | A type of immutable data a module declares, its stored shape its stored properties | [Declaring a type](modules.md#modules-declaring-a-type) |
-| Stored property | A property a structured type declares directly without `updates`, part of its stored shape, which Lexica reads from the data rather than computes | [Declaring a type](modules.md#modules-declaring-a-type) |
+| Structured type | A type of immutable data a module declares, its data shape the properties it declares directly without `updates` | [Declaring a type](modules.md#modules-declaring-a-type) |
 | Membership | Whether a value belongs to a reference type, which the `isInstance` of the type and of every supertype above it answers | [Reference types](types.md#reference-types) |
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
 | Type identity | A module's type's module and local name together, as `Home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
@@ -71,7 +70,7 @@ In this document:
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](expressions.md#expression-structure-and-precedence) |
 | Receiver | The value before a member access, function call or indexer | [Access and calls](members.md#access-and-calls) |
 | Member | A property, a function, an indexer or an operator a module declares on a type, or a property or a function it declares on none | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
-| Property | A member a script reads without arguments, a stored property or one its implementation computes; a definition node's, a record's and a JavaScript object's keys are properties too, in JavaScript's sense, and none is a member | [Members](members.md#members) |
+| Property | A member a script reads without arguments, whether a structured value's data or its implementation gives its value; a definition node's, a record's and a JavaScript object's keys are properties too, in JavaScript's sense, and none is a member | [Members](members.md#members) |
 | Property access | A property read by its name after a dot, or by a computed name, `.[name]` | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
 | Computed property access | `.[name]`, a property read by the name an expression gives, settled when the script is resolved | [Computed property access](members.md#computed-property-access) |
 | Function call | `name(…)`, written after a receiver to call a function, which the evaluator or the host invokes, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](members.md#property-access-calls-and-indexers-calls) |

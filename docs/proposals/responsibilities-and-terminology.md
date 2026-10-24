@@ -98,10 +98,10 @@ A script uses the language to declare locals and functions, construct values, ac
 
 A module declaration does not become a script declaration because a script can use it.
 
-For example, this JavaScript declaration helper describes a property belonging to a structured type:
+For example, this JavaScript declaration helper describes a property of a structured type's data:
 
 ```javascript
-lexica.declarations.createStoredPropertyDeclaration('temperature', 'Number')
+lexica.declarations.createPropertyDeclaration('temperature', 'Number')
 ```
 
 This Lexica expression constructs an object:
@@ -264,42 +264,40 @@ Likewise, the origin of a function does not determine a new kind of call. A func
 
 ## 11. Properties illustrate a meaningful contract distinction
 
-Stored properties and properties backed by implementations are both properties.
+A property is a property, whether a structured value's data or its implementation gives its value. Lexica needs no term for each way a property obtains its value: where the contracts differ, it states the rule directly.
 
-They share the member kind `property`, and scripts access them through the same property-access forms.
+Every property shares the member kind `property`, and scripts access it through the same property-access forms.
 
 Their declaration contracts differ meaningfully:
 
-| Rule | Stored property | Property backed by an implementation |
+| Rule | Declared directly in a structured type without `updates` | Declared with `updates` |
 | --- | --- | --- |
 | Value source | Data held by the structured value | Its implementation |
 | `impl` | Refused | Optional; omission supports resolution-only use |
 | `updates` | Refused | Required |
 | Declaration location | Directly in a structured type | On a type or in an extension, where permitted |
-| Contributes to stored shape | Yes | No |
+| Contributes to the type's data shape | Yes | No |
 
 This distinction matters when declaring, validating, copying, and freezing structured values. It need not create different property-access concepts for script authors.
 
 Under the supplied declaration contract:
 
-- A property directly in a structured type is stored when `updates` is absent.
-- Presence of `updates` identifies the implementation-backed form.
-- The stored form refuses `impl`.
+- A property declared directly in a structured type without `updates` contributes to its data shape and refuses `impl`.
+- A property with `updates` does not contribute to that shape; its implementation may be omitted for resolution-only use.
 - A property declared elsewhere requires `updates`.
-- Missing `impl` alone does not identify a stored property.
+- Missing `impl` alone does not place a property in a data shape.
 
-The declaration helpers are:
+One helper declares either:
 
 ```javascript
-lexica.declarations.createStoredPropertyDeclaration(name, type)
 lexica.declarations.createPropertyDeclaration(name, result, options)
 ```
 
-Both produce property declarations. Neither immediately obtains or assigns a property's runtime value.
+It produces a property declaration, which follows the contract of where it stands. It neither obtains nor assigns a property's runtime value.
 
 Structured-value immutability remains unchanged. An illustrative `writeProperty` operation does not introduce mutation where none is supported.
 
-Extensions may add implementation-backed properties, but not stored properties that alter the required data shape of another type.
+Extensions may add properties with `updates`, but never one that alters another type's data shape.
 
 ## 12. Declared members and access expressions
 
@@ -353,13 +351,13 @@ Use explicit `objectField` terminology in code.
 | Object expression entry or corresponding object data | object field |
 | Configuration key in a declaration | declaration key |
 | Configuration key in module contents | module key |
-| Stored member of a structured type | stored property |
+| A property of a structured type's data | property, its data shape the properties declared directly without `updates` |
 | Property of a definition or metadata record | property |
 | JavaScript object's property | property |
 
 Classify each occurrence by meaning.
 
-A JavaScript representation of a structured value does not make its stored properties Lexica object fields.
+A JavaScript representation of a structured value does not make its properties Lexica object fields.
 
 Preserve established naming conventions for different representations:
 
@@ -438,7 +436,7 @@ The survey also identified corrections that follow actual responsibilities:
 
 Object-field names must not be assigned to operations that still handle structured properties.
 
-Where one lookup serves different type contracts, separate it by them: ResultPath's name-based type lookup becomes an object field's type lookup and a stored property's, though their runtime reads share an implementation.
+Where one lookup serves different type contracts, separate it by them: ResultPath's name-based type lookup becomes an object field's type lookup and a structured type's data shape lookup, though their runtime reads share an implementation.
 
 Keep already explicit names such as:
 
