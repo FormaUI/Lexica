@@ -1181,7 +1181,7 @@ export class LanguageResolver {
         if (matching.length === 0) {
             // A string key may name a property of the receiver, which a computed property access reads.
             const key = node.argument.kind === 'literal' ? node.argument.value : null;
-            const isNamed = typeof key === 'string' && (this.#fieldTypeOf(receiverType, key) !== null || this.#moduleRegistry.getMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType, new Map())));
+            const isNamed = typeof key === 'string' && (this.#fieldTypeOf(receiverType, key) !== null || this.#moduleRegistry.getMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
             const computed = isNamed ? DefinitionWriter.write({ kind: 'member', target: node.target, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
 
             this.#fail('LEXICA3012', `${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
