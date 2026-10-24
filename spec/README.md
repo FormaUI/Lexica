@@ -2,11 +2,11 @@
 
 Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host. Lexica has no application domain of its own: modules declare the types and members available to a script, and adding them never changes the grammar.
 
-This specification is the authoritative contract for the language and for the runtime a host builds on. It states what Lexica is, not how far an implementation has come: [the status overview](../docs/features-status.md) says what this repository implements, and [the design](../docs/lexica-design.md) how it is built.
+This specification is the authoritative contract for the language and for the host contract its implementations offer. It states what Lexica is, not how far an implementation has come: [the status overview](../docs/features-status.md) says what this repository implements, and [the design](../docs/lexica-design.md) how it is built.
 
 <a id="version"></a>
 
-**Version.** This specification describes language version `1.0.0-alpha.34`, and describes definition version 34. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](definition.md#definition) sets out; one change can advance both. A runtime says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
+**Version.** This specification describes language version `1.0.0-alpha.34`, and describes definition version 34. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](definition.md#definition) sets out; one change can advance both. An implementation says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
 
 ## What it covers
 
@@ -14,9 +14,9 @@ Three layers meet whenever a script runs, and this specification covers the firs
 
 | Layer | What it owns | Documents |
 | --- | --- | --- |
-| The language | What a script means: its text, its names and scope, its values and types, its expressions and functions, its members, and the contracts its vocabulary keeps | Every document but the runtime |
-| The runtime | Carrying a script out for a host: bindings, resolution, evaluation, results and what it reports | [Runtime](runtime.md) |
-| The host | The application around the runtime: which modules it registers, when it evaluates, what it does with each result, and what it does with each host call | The host's own specification |
+| The language | What a script means: its text, its names and scope, its values and types, its expressions and functions, its members, and the contracts its vocabulary keeps | Every document but the host contract |
+| The implementation | Carrying the language's rules out for a host: reading, resolution and evaluation, bindings, results and what it reports | [Host contract](runtime.md) |
+| The host | The application around the implementation: which modules it registers, when it evaluates, what it does with each result, and what it does with each host call | The host's own specification |
 
 <a id="reading-this-specification"></a>
 
@@ -35,7 +35,7 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 7. [Members](members.md): member kinds, writing a member, computed property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
 8. [Modules](modules.md): creating a module, its declarations, registries, namespaces and extensions.
 9. [Vocabulary](vocabulary.md): Lexica's own vocabulary, Boolean functions, observations, type selectors and conversions.
-10. [Runtime](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
+10. [Host contract](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
 11. [Definition](definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
 12. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
 13. [Grammar](grammar.md): the formal grammar, grouped by subject.

@@ -26,6 +26,7 @@ In this document:
 | Type | The category of a value and the members it supports | [Types](types.md#types) |
 | Reference type | A type a module declares whose values have identity, naming at most one supertype, declaring its `isInstance`, and abstract or not | [Reference types](types.md#reference-types) |
 | Structured type | A type of immutable data a module declares, its stored shape its stored properties | [Declaring a type](modules.md#modules-declaring-a-type) |
+| Stored property | A property a structured type declares directly without `updates`, part of its stored shape, which Lexica reads from the data rather than computes | [Declaring a type](modules.md#modules-declaring-a-type) |
 | Membership | Whether a value belongs to a reference type, which the `isInstance` of the type and of every supertype above it answers | [Reference types](types.md#reference-types) |
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
 | Type identity | A module's type's module and local name together, as `Home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
@@ -36,7 +37,7 @@ In this document:
 | Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](types.md#reference-types) |
 | Object expression | An expression that names the fields of its output object | [Objects](values.md#objects) |
 | Object type | A description of an object's fields and their types | [Types](types.md#types) |
-| Field | A named value included in an object | [Objects](values.md#objects), [declaring a type](modules.md#modules-declaring-a-type) |
+| Object field | A named value included in an object, an object expression writing it as its name, `=` and its value | [Objects](values.md#objects) |
 | Body | What a script, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](scripts.md#bodies) |
 | Do block | `do … end`, a body evaluated where it stands, giving its result | [Bodies](scripts.md#bodies) |
 | Local | A name declared with `let` in a body or an object expression, visible after its declaration through its scope, holding a value or a function | [Locals](scripts.md#locals) |
@@ -70,6 +71,7 @@ In this document:
 | Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](expressions.md#expression-structure-and-precedence) |
 | Receiver | The value before a member access, function call or indexer | [Access and calls](members.md#access-and-calls) |
 | Member | A property, a function, an indexer or an operator a module declares on a type, or a property or a function it declares on none | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
+| Property | A member a script reads without arguments, a stored property or one its implementation computes; a definition node's, a record's and a JavaScript object's keys are properties too, in JavaScript's sense, and none is a member | [Members](members.md#members) |
 | Property access | A property read by its name after a dot, or by a computed name, `.[name]` | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
 | Computed property access | `.[name]`, a property read by the name an expression gives, settled when the script is resolved | [Computed property access](members.md#computed-property-access) |
 | Function call | `name(…)`, written after a receiver to call a function, which the evaluator or the host invokes, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](members.md#property-access-calls-and-indexers-calls) |
@@ -119,6 +121,8 @@ In this document:
 | --- | --- | --- |
 | Vocabulary | A set of types and their declared members | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
 | Module | A unit of registration declaring types and their members, made by `createModule`, registered with `registerModule`, and reached in text through its namespace | [Namespaces](modules.md#namespaces) |
+| Declaration key | A key of a declaration's own configuration, as `result`, `impl` or `updates.misses`, which a module error names where one is wrong | [Valid declarations](modules.md#modules-valid-combinations) |
+| Module key | A key of a module's contents, as `types`, `members` or `typeOf` | [Creating a module](modules.md#modules-declarations) |
 | Internal declaration | A type or a member declared `internal: true`, available within its declaring module alone | [Internal declarations](modules.md#modules-internal-declarations) |
 | Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
 | Import | A script's declaration that it uses a module's vocabulary, `import Home`, or one type's, `import Home.Sensor`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
@@ -140,8 +144,9 @@ In this document:
 | Prepared call, skipped call | What preparing a host call answers: a prepared call, its declaration, receiver and arguments, which projects each value its host supplies where the call declares a result; or a skipped call, where there is nothing to invoke | [Host calls](runtime.md#runtime-host-calls) |
 | Result projection | The object expression following a host call, evaluated against each value its host supplies | [The values a host supplies](members.md#members-host-calls-the-values-a-host-supplies) |
 | Definition | The JSON document recording a script's meaning | [Definition](definition.md#definition) |
-| Runtime | What carries a script out for a host: reading, resolving and evaluating it | [Runtime](runtime.md#runtime) |
-| Host | The application around the runtime, which registers modules, binds values, evaluates, invokes its host calls and decides what to do with each result | [Runtime](runtime.md#runtime) |
+| Implementation of Lexica | A program that carries the language's rules out for a host: its parser reads a script's source into its definition and validates its structure, its resolver resolves the script against a registry, and its runtime evaluates it; the rules are the language's, and an implementation follows them without defining any | [Host contract](runtime.md#runtime) |
+| Runtime | The part of an implementation of Lexica that evaluates a resolved script for its host: it holds the script's bindings and its host's environment, evaluates its expressions, invokes its members' implementations, calls its host's hooks and describes each result | [Evaluation](runtime.md#runtime-evaluation) |
+| Host | The application around an implementation of Lexica, which registers modules, binds values, evaluates, invokes its host calls and decides what to do with each result | [Host contract](runtime.md#runtime) |
 | Registry | What holds the modules a host resolves and evaluates against | [Registries](modules.md#modules-registries) |
 | Resolution | A script resolved against a registry with bindings of one resolution key: its type and the declarations it uses | [Resolution](runtime.md#runtime-bindings-and-resolution) |
 | Diagnostic | A description of one problem, its kind, message and location, which a strict operation throws as an error | [Diagnostics and errors](diagnostics-and-errors.md#diagnostics-and-errors) |

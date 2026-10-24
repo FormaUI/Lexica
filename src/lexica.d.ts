@@ -1,9 +1,9 @@
 /**
- * Lexica's API: reading a text into its definition, checking a definition, writing its canonical text, creating the modules that declare a vocabulary
- * and the registries a host resolves expressions against.
+ * Lexica's API: reading a text into its definition, validating a definition's structure, writing its canonical text, creating the modules that declare a vocabulary
+ * and the registries a host resolves scripts against.
  */
 
-/** A Lexica definition: the JSON document that records an expression's meaning, its expression tree with the version of its format, without the values its parameters are bound to. */
+/** A Lexica definition: the JSON document that records a script's meaning, its expression tree with the version of its format, without the values its script parameters are bound to. */
 export interface LexicaDefinition {
     readonly version: number;
     readonly expression: LexicaDefinitionNode;
@@ -115,11 +115,12 @@ export declare class LexicaError extends Error {
     readonly name: 'LexicaError';
     /** The code of the condition that failed: `LEXICA` and four digits for Lexica's own, in its kind's range, and a host's own prefix for a host's. */
     readonly code: string;
+    /** The kind of the failure: `syntax`, text that breaks the grammar; `structure`, what a caller gave breaking a structural rule, a definition `lexica.validate` refuses among it; `validation`, a script resolution finds does not fit its vocabulary or its types; `module`, a declaration breaking its contract; `evaluation`, a failure while evaluating. */
     readonly kind: 'syntax' | 'structure' | 'validation' | 'module' | 'evaluation';
     readonly location: LexicaErrorLocation;
     /** A failure of what a caller gave: bindings, a definition's structure or a host's use of the API. */
     static structure(code: string, message: string, location: LexicaErrorLocation): LexicaError;
-    /** A request that does not follow the vocabulary, failing before anything is evaluated. */
+    /** A script resolution finds does not fit its vocabulary or its types, before anything is evaluated. */
     static validation(code: string, message: string, location: LexicaErrorLocation): LexicaError;
     /** A failure while evaluating, with what caused it. */
     static evaluation(code: string, message: string, location: LexicaErrorLocation, options?: { cause?: unknown }): LexicaError;
@@ -408,7 +409,7 @@ export interface LexicaUsedDeclaration {
     readonly pointer: string;
 }
 
-/** An expression resolved against a registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at. */
+/** A script resolved against a registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at. */
 export interface LexicaResolution {
     readonly definition: LexicaDefinition;
     /** The host call the script ends in, null for a script that gives a value. */
@@ -430,9 +431,9 @@ export interface LexicaHostCall {
     readonly declaration: LexicaMemberDeclaration | null;
 }
 
-/** A registry a host resolves expressions against: Lexica's own module and the modules the host registers, whose names begin their namespaces in the text it reads and writes. No registry is shared. */
+/** A registry a host resolves scripts against: Lexica's own module and the modules the host registers, whose names begin their namespaces in the text it reads and writes. No registry is shared. */
 export interface LexicaRegistry {
-    /** Registers a module's vocabulary, which every expression resolved afterwards may use. */
+    /** Registers a module's vocabulary, which every script resolved afterwards may use. */
     registerModule(module: LexicaModule): void;
     /** The names of the modules registered, Lexica's own first. */
     readonly moduleNames: readonly string[];
@@ -459,7 +460,7 @@ export interface LexicaRegistry {
 /** The declaration helpers, each giving a declaration as a module declares it. */
 export interface LexicaDeclarations {
     property(name: string, target: string | readonly string[] | null, result: string, options?: object): LexicaMemberDeclaration;
-    /** A member the expression calls with arguments, or, with `invokedBy: 'host'`, that its host invokes, its result left out where its host supplies nothing. */
+    /** A member a script calls with arguments, or, with `invokedBy: 'host'`, that its host invokes, its result left out where its host supplies nothing. */
     function(name: string, target: string | readonly string[] | null, result: string | undefined, options?: object): LexicaMemberDeclaration;
     valueParameter(name: string, type: string, options?: object): LexicaParameterDeclaration;
     expressionParameter(type: string, options?: object): LexicaParameterDeclaration;
@@ -474,9 +475,9 @@ export interface LexicaPaths {
     valueAt(value: unknown, path: readonly (string | number)[]): unknown;
 }
 
-/** The versions a Lexica runtime reports, which change apart. */
+/** The versions an implementation of Lexica reports, which change apart. */
 export interface LexicaVersions {
-    /** The runtime release version, which the packages and the bundle carry. */
+    /** The implementation's release version, which the packages and the bundle carry. */
     readonly runtime: string;
     /** The language specification version the implementation follows. */
     readonly language: string;
@@ -492,7 +493,7 @@ export interface LexicaInfo {
 export interface Lexica {
     /** Reads a text into its definition without a registry, knowing no module's name, refusing a syntax error or a structure the definition cannot have. */
     parse(text: string): LexicaDefinition;
-    /** Checks a definition given directly, answering it frozen, as a text giving it would. */
+    /** Validates a definition given directly against the definition format's structural rules, answering it frozen, as a text giving it would; it checks no vocabulary or types, which resolution validates. */
     validate(definition: unknown): LexicaDefinition;
     /** The canonical text of a text or a definition, written without module names, so a definition reading through a namespace is refused; a registry's `format` writes one. */
     format(source: string | LexicaDefinition): string;

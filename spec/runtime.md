@@ -1,18 +1,18 @@
-# Runtime
+# Host contract
 
 <a id="runtime"></a>
 
-The **runtime** is what carries a script out for a host: it reads the script's source into its definition, checks it, resolves it against a registry and evaluates it, reporting each read to the host. It is the contract a host builds on, and any implementation of Lexica offers it.
+An **implementation** of Lexica carries the language's rules out for a host: its parser reads a script's source into its definition and validates its structure, its resolver resolves it against a registry, and its **runtime** evaluates it, reporting each read to the host. This document specifies the contract a host builds on, which every implementation of Lexica offers.
 
 Three layers meet in every evaluation, and each owns its part:
 
 | Layer | Owns | Specified in |
 | --- | --- | --- |
-| The language | What a script means: its syntax, its names and scope, its types, its expressions, and the contracts its vocabulary keeps | Every document of this specification but this one |
-| The runtime | Carrying a script out: reading, resolving and evaluating it, its bindings and results, and what it reports to its host | This document |
-| The host | The application around the runtime: which modules it registers, when it evaluates, what it does with each result, what it does with each host call, and anything that spans evaluations, as keeping a result current | The host's own specification |
+| The language | The rules of what a script means: its syntax, its names and scope, its types, its expressions, and the contracts its vocabulary keeps | Every document of this specification but this one |
+| The implementation | Carrying those rules out for a host: its parser reads a script, its resolver resolves it against a registry, and its runtime evaluates it, holding its bindings, describing its results and reporting to its host | This document |
+| The host | The application around the implementation: which modules it registers, when it evaluates, what it does with each result, what it does with each host call, and anything that spans evaluations, as keeping a result current | The host's own specification |
 
-A host uses the runtime in four steps: it binds its values, resolves the script against its registry, creates an evaluator, and evaluates it as often as it needs.
+A host uses an implementation in four steps: it binds its values, resolves the script against its registry, creates an evaluator, and evaluates it as often as it needs.
 
 ```js
 const bindings = registry.bind({ room: livingRoom });
@@ -54,6 +54,8 @@ All branches and operands are validated even when evaluation will not reach them
 <a id="validation-vocabulary-and-types"></a>
 
 ### What resolution checks
+
+Resolution's checks are its semantic validation, each failure a `validation` error; a definition's structure is validated before them, as [structural validation](definition.md#validation) sets out, its failures `structure` errors.
 
 | Area | Required contract |
 | --- | --- |
@@ -185,12 +187,12 @@ A host projects each value as it arrives, once for a value its call answers once
 
 ## Versions
 
-A runtime says which it is, and what it follows, in `lexica.info.versions`, three versions that change apart:
+An implementation says which it is, and what it follows, in `lexica.info.versions`, three versions that change apart:
 
 | Field | What it is |
 | --- | --- |
-| `runtime` | The runtime release version, which its packages carry, as `1.0.0-alpha.37`; its sources and every build of them report the same |
-| `language` | The language specification version the runtime follows |
-| `definition` | The definition format version the runtime supports |
+| `runtime` | The implementation's release version, which its packages carry, as `1.0.0-alpha.37`; its sources and every build of them report the same |
+| `language` | The language specification version the implementation follows |
+| `definition` | The definition format version the implementation supports |
 
-Each is declared, never computed, and advances for its own reason: the runtime's version with each release of the runtime, the specification version as the language's contract changes, and the definition version as the serialized definition's does. Their numbers may coincide, and neither determines another, so one specification version is followed by many runtime releases, and a specification can describe a version ahead of the one a runtime follows.
+Each is declared, never computed, and advances for its own reason: the implementation's version with each of its releases, the specification version as the language's contract changes, and the definition version as the serialized definition's does. Their numbers may coincide, and neither determines another, so one specification version is followed by many releases of an implementation, and a specification can describe a version ahead of the one an implementation follows.

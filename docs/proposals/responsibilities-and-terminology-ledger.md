@@ -86,12 +86,12 @@ Fixed as defects, each in its own commit with its test, apart from the renames.
 
 | ID | Concept | Where it is recorded | Action | Compatibility |
 | --- | --- | --- | --- | --- |
-| T1 | The roles: module declaration, module implementation, script syntax, script definition, preparation, compilation, runtime execution, diagnostic metadata | The contributor instructions, `CLAUDE.md` | Record the governing principle, the roles, the owner-operation-subject pattern and the verb table, `compile` among its verbs | docs |
-| T2 | Implementation of Lexica: the program that carries the language's rules out, its parser reading and validating a script's structure, its resolver resolving it against a registry, its runtime evaluating it | `terms.md`, `runtime.md`'s opening and its layers table | A new glossary term; the layers say the language, the implementation and the host | docs |
-| T3 | Runtime: the part of an implementation that evaluates a resolved script, holding its bindings and environment, invoking implementations, calling the hooks and describing each result | `terms.md:143`, `runtime.md`, `diagnostics-and-errors.md:7` ("every public operation of an implementation is strict") | Narrowed to execution | docs |
-| T4 | Object field; declaration key; module key; stored property; property (of a record or of a JavaScript object) | `terms.md`; the term table of the proposal's §13 | Glossary entries; "Field" becomes "Object field", linked to objects alone | docs |
-| T5 | Structural and semantic validation | `diagnostics-and-errors.md`'s kinds table and a sentence after it; `definition.md:111`; `runtime.md`'s "What resolution checks"; `lexica.d.ts` for `validate`, `kind` and `validation` | Structural validation, `lexica.validate` among its users, reports `structure` errors and needs no registry; semantic validation, which only resolution performs, reports `validation` errors | docs |
-| T6 | Script: what a definition records and a resolution resolves | lexica.js, lexica.d.ts, the guide, LEXICA2025, 2040, 4001 | "Script" wherever the whole script is meant, in place of "expression" and the retired "request"; the `…requests` anchors stay for links | wording |
+| T1 | The roles: module declaration, module implementation, script syntax, script definition, preparation, compilation, runtime execution, diagnostic metadata | The contributor instructions, `CLAUDE.md` | ✅ Reviewed, done. Record the governing principle, the roles, the owner-operation-subject pattern and the verb table, `compile` among its verbs | docs |
+| T2 | Implementation of Lexica: the program that carries the language's rules out, its parser reading and validating a script's structure, its resolver resolving it against a registry, its runtime evaluating it | `terms.md`, `runtime.md`'s opening and its layers table | ✅ Reviewed, done. A new glossary term; the layers say the language, the implementation and the host | docs |
+| T3 | Runtime: the part of an implementation that evaluates a resolved script, holding its bindings and environment, invoking implementations, calling the hooks and describing each result | `terms.md:143`, `runtime.md`, `diagnostics-and-errors.md:7` ("every public operation of an implementation is strict") | ✅ Reviewed, done. Narrowed to execution | docs |
+| T4 | Object field; declaration key; module key; stored property; property (of a record or of a JavaScript object) | `terms.md`; the term table of the proposal's §13 | ✅ Reviewed, done. Glossary entries; "Field" becomes "Object field", linked to objects alone | docs |
+| T5 | Structural and semantic validation | `diagnostics-and-errors.md`'s kinds table and a sentence after it; `definition.md:111`; `runtime.md`'s "What resolution checks"; `lexica.d.ts` for `validate`, `kind` and `validation` | ✅ Reviewed, done. Structural validation, `lexica.validate` among its users, reports `structure` errors and needs no registry; semantic validation, which only resolution performs, reports `validation` errors | docs |
+| T6 | Script: what a definition records and a resolution resolves | lexica.js, lexica.d.ts, the guide, LEXICA2025, 2040, 4001 | ✅ Reviewed, done. "Script" wherever the whole script is meant, in place of "expression" and the retired "request"; the `…requests` anchors stay for links | wording |
 
 ## 5. Unifications
 
@@ -260,8 +260,8 @@ Renames the unifications and dispositions above don't already cover. Each is int
 | C11 | `request.deferred` (specified, unbuilt) | `isDeferred` | The invocation request | A Boolean, beside `isPending` | public, unshipped; unit 2 |
 | C12 | d.ts prose calling a declaration a host call; "the functions that carry its members out" | "a function the host invokes"; "the implementations that carry its declarations out" | lexica.d.ts, `members.md` | A host call is a script's call | comments |
 | C13 | `LexicaObservationValue` | `LexicaObservationArgument` | lexica.d.ts | Part of a declaration, not a runtime value | types |
-| C14 | "Runtime" across `terms.md` and `runtime.md` | T2, T3; `runtime.md`'s heading "Host contract", its file name and anchors kept |  | Decided | docs |
-| C15 | The two validations | T5 | | Decided 13 | docs |
+| C14 | "Runtime" across `terms.md` and `runtime.md` | T2, T3; `runtime.md`'s heading "Host contract", its file name and anchors kept |  | Decided | docs; ✅ done with T2 and T3 |
+| C15 | The two validations | T5 | | Decided 13 | docs; ✅ done with T5 |
 
 ## 8. Definition version 34
 

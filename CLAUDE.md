@@ -41,6 +41,39 @@ Nothing in `src/` imports from outside it or reads a browser global; a test enfo
 - Report failures at their origin as an error with a location. Never swallow a rejection.
 - State each cache's validity and release conditions. Measure the work it saves.
 
+## Names and responsibilities
+
+[Clarify responsibilities and unify terminology](docs/proposals/responsibilities-and-terminology.md) gives the reasoning, and [its ledger](docs/proposals/responsibilities-and-terminology-ledger.md) each concept's review.
+
+- Distinguish what matters, and unify what is equivalent. Give one concept one term and one contract; give two things separate terms only where a difference in meaning, behaviour or responsibility requires treating them differently, and state the difference. Different syntax, origins, stages or code paths make no new concept by themselves, and representations that look alike make no shared one.
+- Keep the roles apart where the difference matters: a module's declarations and its implementations, a script's syntax and its definition, preparation, compilation, runtime execution and diagnostic metadata. One operation may coordinate several, its contract saying so; a role needs no class, namespace or layer of its own.
+- Let an operation's owner and its name together say who owns it, what it does and what it concerns. The owner is the class whose responsibility it is: never move an operation, or add a namespace or a layer, only to fit a name.
+- Name an operation by the verb its behaviour has:
+
+  | Verb | Meaning |
+  | --- | --- |
+  | `define` | Establish or describe a contract |
+  | `create` | Construct a representation or an instance |
+  | `get` | Retrieve an existing declaration, descriptor or named piece of information |
+  | `read` | Obtain a value from its source |
+  | `write` | Assign a value where mutation is supported |
+  | `parse` | Interpret source syntax into its representation |
+  | `scan` | Scan source into tokens, or identify its lexical structure |
+  | `resolve` | Determine which name, type or declaration applies |
+  | `validate` | Check compliance with a contract |
+  | `prepare` | Establish what execution needs |
+  | `compile` | Transform a representation into an executable form |
+  | `evaluate` | Execute an expression to obtain its result |
+  | `invoke` | Call a selected implementation |
+  | `register` | Add an item to a registry |
+  | `observe` | Establish tracking of changes |
+  | `dispose` | Release resources or end a lifecycle |
+  | `quote`, `format` | Produce a textual representation |
+
+- Let a name or a contract reveal every side effect: a predicate writes nothing, and an operation that creates and registers says so in its name or its contract, or the two are separated.
+- Read the verbs as a guide, not a whitelist: an ordinary verb that is unambiguous stays, as reading source text does. An operation whose new name would only list its current contents keeps its name, with its contract documented.
+- Use the glossary's terms, in code and prose alike: an object field, a declaration key, a module key, a stored property.
+
 ## Tests and verification
 
 Add or update a test for every source module changed, asserting exact definitions, error kinds and locations. Run `./build.ps1`, the gate: the tests, the bundle, the package project's build with no warnings, and the format check.

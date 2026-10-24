@@ -47,12 +47,12 @@ describe('Alignment', () => {
         expect(await bundle()).toContain(JSON.stringify(Versions.runtime));
     });
 
-    it('has a README that heads the language\'s features with the version the specification describes, and the runtime\'s with the version it reports', () => {
+    it('has a README that heads the language\'s features with the version the specification describes, and the implementation\'s with the version it reports', () => {
         const readme = read('README.md');
         const [, described] = specification.match(/^# Lexica Specification v(\S+)$/m);
 
         expect(readme).toContain(`### Language (\`${described}\`)`);
-        expect(readme).toContain(`### Runtime (\`${lexica.info.versions.runtime}\`)`);
+        expect(readme).toContain(`### Implementation (\`${lexica.info.versions.runtime}\`)`);
         expect(readme).toContain(`implements language version \`${lexica.info.versions.language}\``);
     });
 });

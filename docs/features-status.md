@@ -257,7 +257,7 @@ Completed definition and resolution work includes:
 
 Event sources, actions, behaviors, event types, and their request kinds have been removed. Hosts must migrate from the replaced request kinds and evaluator entry points. These changes affected declarations and evaluator APIs, not the definition format.
 
-Contracts: [Host-call declarations](../spec/members.md#members-host-calls), [host-call runtime](../spec/runtime.md#runtime-host-calls).
+Contracts: [Host-call declarations](../spec/members.md#members-host-calls), [host calls in the host contract](../spec/runtime.md#runtime-host-calls).
 
 ## Open decisions
 

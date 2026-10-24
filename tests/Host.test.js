@@ -93,7 +93,7 @@ describe('a host of plain data', () => {
         const resolution = lexica.createRegistry([createShop()]).resolve('{ cut = order.discount(code), note = extra.note }', { order: 'a', code: 'TEN', extra: { note: 'x' } });
 
         expect(resolution.createEvaluator({ order: 'a', code: 'TEN', extra: { note: 'y' } }).evaluate().value).toEqual({ cut: 10, note: 'y' });
-        expect(getError(() => resolution.createEvaluator({ order: 'a', code: 'NONE', extra: { note: 'x' } }))).toMatchObject({ kind: 'structure', message: expect.stringContaining('resolve it with these bindings') });
+        expect(getError(() => resolution.createEvaluator({ order: 'a', code: 'NONE', extra: { note: 'x' } }))).toMatchObject({ kind: 'structure', message: expect.stringContaining('These bindings resolve the script otherwise than the bindings it was resolved with') });
     });
 
     it('refuses to evaluate a resolution a module registered since has made stale, wherever the evaluator was created', () => {
@@ -105,7 +105,7 @@ describe('a host of plain data', () => {
 
         registry.registerModule(lexica.createModule('extra', {}));
 
-        expect(getError(() => evaluator.evaluate())).toMatchObject({ kind: 'structure', message: expect.stringContaining('stale') });
+        expect(getError(() => evaluator.evaluate())).toMatchObject({ kind: 'structure', message: expect.stringContaining('its resolution is stale; resolve the script again') });
         expect(getError(() => resolution.createEvaluator({ order: 'a' }))).toMatchObject({ kind: 'structure' });
     });
 
@@ -191,14 +191,14 @@ describe('the declaration shape', () => {
         expect(received).toEqual(Array(6).fill({}));
     });
 
-    it('resolves an expression that uses a declaration without an implementation, and refuses to evaluate it, naming the declaration, its module and the field', () => {
+    it('resolves a script that uses a declaration without an implementation, and refuses to evaluate it, naming the declaration, its module and the field', () => {
         const resolution = lexica.createRegistry([createMenu()]).resolve('item.special', { item: 'latte' });
 
         expect(resolution.type).toBe('String');
-        expect(getError(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', location: { module: 'menu', declaration: 'special', field: 'implementation' } });
+        expect(getError(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', message: expect.stringContaining('so a script that uses it is resolved and never evaluated'), location: { module: 'menu', declaration: 'special', field: 'implementation' } });
     });
 
-    it('decides before anything is evaluated, so a branch evaluation would not take refuses its expression too', () => {
+    it('decides before anything is evaluated, so a branch evaluation would not take refuses its script too', () => {
         const resolution = lexica.createRegistry([createMenu()]).resolve('if item.vegan() then item.price else item.special.price end', { item: 'oat latte' });
 
         expect(getError(() => resolution.createEvaluator({ item: 'oat latte' }))).toMatchObject({ kind: 'module', location: { declaration: 'special' } });

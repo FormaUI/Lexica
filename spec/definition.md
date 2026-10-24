@@ -108,7 +108,7 @@ Within one conditional, branches are all `body` nodes or none are; a branch that
 
 ## Structural validation
 
-Validation happens before evaluation. Structure is checked when a script is read or its definition created, by these rules; vocabulary and types are checked when it is resolved, as [what resolution checks](runtime.md#validation-vocabulary-and-types) sets out.
+Structural validation checks a definition against these rules when a script is read, when a definition given directly is validated, as `lexica.validate` does, and when one is resolved, and reports a `structure` error. Semantic validation, of vocabulary and types, follows it, which resolution alone performs and reports as `validation` errors, as [what resolution checks](runtime.md#validation-vocabulary-and-types) sets out.
 
 <a id="validation-syntax-and-structure"></a>
 

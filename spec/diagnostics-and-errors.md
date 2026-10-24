@@ -4,17 +4,19 @@
 
 <a id="errors-and-diagnostics"></a>
 
-A **diagnostic** describes one problem with a script, a definition, a binding or a module: what is wrong, and where. An **error** is how a strict operation reports one: it throws a `LexicaError`, whose `code` identifies the condition, as [codes](#diagnostics-codes) set out, whose `kind` is the category of the failure and whose `location` says where it stands, and stops there. Every public operation of the runtime is strict: reading text, validating a definition, binding, registering a module, resolving and evaluating each throw their first diagnostic as an error. Tooling reads text tolerantly instead, and keeps every diagnostic without throwing, as [tolerant reading](#diagnostics-tolerant-reading) sets out.
+A **diagnostic** describes one problem with a script, a definition, a binding or a module: what is wrong, and where. An **error** is how a strict operation reports one: it throws a `LexicaError`, whose `code` identifies the condition, as [codes](#diagnostics-codes) set out, whose `kind` is the category of the failure and whose `location` says where it stands, and stops there. Every public operation of an implementation is strict: reading text, validating a definition, binding, registering a module, resolving and evaluating each throw their first diagnostic as an error. Tooling reads text tolerantly instead, and keeps every diagnostic without throwing, as [tolerant reading](#diagnostics-tolerant-reading) sets out.
 
 An absent or unavailable value is not a failure: it is null. Invalid syntax, an invalid definition or binding, an invalid script, an invalid module and an evaluation failure are errors, of the kinds `syntax`, `structure`, `validation`, `module` and `evaluation`, each raised at its stage:
 
 | Kind | Raised by | For |
 | --- | --- | --- |
 | `syntax` | Reading text | Text that does not follow the grammar |
-| `structure` | Reading text, validating a definition, binding, and resolving, creating an evaluator or entering one with bindings or a registry that no longer fit | A definition or a binding that breaks the language's structural rules |
-| `validation` | Resolution | A script that does not fit its vocabulary or its types |
+| `structure` | Reading text, validating a definition, binding, and resolving, creating an evaluator or entering one with bindings or a registry that no longer fit | A definition or a binding that breaks the language's structural rules; validating a definition, `lexica.validate`, checks these alone, with no registry |
+| `validation` | Resolution | A script that does not fit its vocabulary or its types: the semantic validation resolution performs against a registry |
 | `module` | Creating and registering a module, creating an evaluator | A declaration that breaks a declaration contract, or a used declaration without an implementation |
 | `evaluation` | Evaluation, its hooks and its prepared calls | A failure while the script is evaluated |
+
+Structural validation checks a definition against the definition format wherever one is read or given, `lexica.validate` among them, and reports a `structure` error. Semantic validation checks a script against its vocabulary and its types, which resolution alone can, and reports a `validation` error, so `lexica.validate` never raises one.
 
 `try` handles only a cast or conversion rejecting its value; every other error fails the operation. A **fault** is an evaluation error no attempt catches, as a declaration's `impl` failing otherwise than by its `reject`.
 

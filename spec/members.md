@@ -37,7 +37,7 @@ A member's kind is `property`, `function`, `indexer` or `operator`. A property i
 | A property, a function or an indexer the evaluator invokes, or no member | A value: it reads, and answers data |
 | A function the host invokes | A host call: Lexica prepares its receiver and arguments, the host invokes it, and the object expression following it shapes each value the host supplies |
 
-Evaluating a script only reads, and the evaluator never invokes a host call, so no evaluation changes the host's state. What a host call does, and when, is the host's own; Lexica's part is set out in [host calls](#members-host-calls) and the [runtime](runtime.md#runtime-host-calls).
+Evaluating a script only reads, and the evaluator never invokes a host call, so no evaluation changes the host's state. What a host call does, and when, is the host's own; Lexica's part is set out in [host calls](#members-host-calls) and the [host contract](runtime.md#runtime-host-calls).
 
 <a id="property-access-calls-and-indexers"></a>
 <a id="access-and-calls"></a>

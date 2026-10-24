@@ -1,6 +1,6 @@
 # Lexica Design v1.0.0-alpha.34
 
-The [Lexica specification](../spec/README.md) is the contract: the language, and the [runtime](../spec/runtime.md) a host builds on. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes version 34, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
+The [Lexica specification](../spec/README.md) is the contract: the language, and the [host contract](../spec/runtime.md) its implementations offer. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes version 34, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
 
 In this document:
 
@@ -25,7 +25,7 @@ A script passes through five stages. Each stage's output is the next one's input
 
 The domain enters as late as it can. Reading knows the language and the script's imports alone, which the parser reads, since an import decides whether a module's name written where a value stands begins a namespace; the tokenizer reads an identifier by its spelling alone, and reading asks no registry and knows nothing else of any module. Lowering and validation know the language alone, so a text is checked, stored and formatted without a vocabulary. Resolution reads a module's declarations as data and runs none of its code; evaluation is the one stage that invokes implementations. That split is what lets a tool check a script before running it, and a host know what an evaluation will depend on before it starts.
 
-`src/lexica.js`, the entry point, composes these stages into the public API and re-exports nothing internal. Nothing in `src/` imports from outside it or reads a browser global, so the runtime runs in any JavaScript host.
+`src/lexica.js`, the entry point, composes these stages into the public API and re-exports nothing internal. Nothing in `src/` imports from outside it or reads a browser global, so the implementation runs in any JavaScript host.
 
 ## Modules and registries
 
@@ -78,13 +78,13 @@ A tool can check a source text known when the code is written against the metada
 
 ### The syntax tree
 
-One parser serves the runtime and tooling alike. It reads a text into a lossless syntax tree, and the definition is lowered from that tree, so there is one grammar and one parser, and the definition stays the only contract the runtime resolves and evaluates.
+One parser serves resolution and tooling alike. It reads a text into a lossless syntax tree, and the definition is lowered from that tree, so there is one grammar and one parser, and the definition stays the only contract resolution and the runtime act on.
 
 - **Nodes for constructs.** A node stands for a construct written, named after the grammar rule that produces it, as `equality`, `conjunction` and `dot-property-access` are. A rule that only passes an operand on, a level of precedence or a repetition, does not produce a node of its own. Tokens and their trivia, comments among them, carry the complete text, so the tree gives the text back character for character.
 - **Errors in one place.** Every syntax error the parser reports passes through one place, which a strict parse throws from. That is the foundation for recovery: a parser that records a missing token and skips an unexpected one, so a text being written gives a tree and useful diagnostics without cascades. Recovery serves the editor alone; reading a script from text still refuses any syntax error, and a missing token is never permission to guess what the text meant.
-- **Tooling apart from the runtime.** Token types and node kinds are listed for tooling, and the tokenizer reads any text tolerantly, an invalid token holding its diagnostic, so a highlighter reads tokens, trivia, ranges and structure without resolving anything. An editor's parser is this one, never a copy of the grammar.
+- **Tooling apart from resolution.** Token types and node kinds are listed for tooling, and the tokenizer reads any text tolerantly, an invalid token holding its diagnostic, so a highlighter reads tokens, trivia, ranges and structure without resolving anything. An editor's parser is this one, never a copy of the grammar.
 - **From syntax to meaning.** Lowering records the syntax node each definition node comes from, and a resolution maps each definition node to its declarations and types, so a tool joins a position in the text to what resolution knows of it: completion after `room.` reads the receiver's type, and renaming a local follows the scope resolution records for it.
-- **What the runtime keeps.** A kept script holds its text, never its tree, so the runtime's memory is what it was before the tree existed; a tool that needs the tree reads the text again. A script created from a definition has no text, and its tree is the one read from its canonical text, marked generated.
+- **What the implementation keeps.** A kept script holds its text, never its tree, so its memory is what it was before the tree existed; a tool that needs the tree reads the text again. A script created from a definition has no text, and its tree is the one read from its canonical text, marked generated.
 - **Formatting that keeps the source.** `lexica.format` writes canonical text, which keeps no comment and no layout. Formatting that keeps comments and each string's written form is a tooling operation over the syntax tree, whose tokens keep each string's quote and delimiter length for it.
 - **What it cost.** The tree was measured against the parser before it, before it was kept: the documents' scripts parse 7% slower and malformed texts 8% faster, a 60-field script within 3% with two-thirds more transient allocation, what a kept script retains is unchanged, and the bundle is 3% larger.
 

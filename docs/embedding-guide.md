@@ -1,6 +1,6 @@
 # Embedding Guide
 
-This guide shows how a host uses Lexica: read text, declare its domain as a module, resolve an expression against it, evaluate it, and follow what the evaluation reads. The [specification](../spec/README.md) gives the exact rules, and the [design](lexica-design.md) how each stage works.
+This guide shows how a host uses Lexica: read text, declare its domain as a module, resolve a script against it, evaluate it, and follow what the evaluation reads. The [specification](../spec/README.md) gives the exact rules, and the [design](lexica-design.md) how each stage works.
 
 ## Load it
 
@@ -13,7 +13,7 @@ Lexica is one ES module with its type declarations. Neither package is published
 
 ## Read and write text
 
-`lexica.parse` reads text into a definition, the expression's frozen JSON form. `lexica.format` writes any definition, or text, back as canonical text, and `lexica.locate` finds where a definition node came from:
+`lexica.parse` reads text into a definition, the script's frozen JSON form. `lexica.format` writes any definition, or text, back as canonical text, and `lexica.locate` finds where a definition node came from:
 
 ```js
 const definition = lexica.parse('{ total = price  *  quantity }');
@@ -26,7 +26,7 @@ None of these needs a domain: reading, checking and formatting know the language
 
 ## Declare a domain
 
-A module declares what expressions can read: its types, and the members it adds to them, each with its signature, how its value changes, and the implementation that answers it. The declaration helpers fill in the defaults:
+A module declares what scripts can read: its types, and the members it adds to them, each with its signature, how its value changes, and the implementation that answers it. The declaration helpers fill in the defaults:
 
 ```js
 const { property, function: fn, valueParameter } = lexica.declarations;
@@ -49,9 +49,9 @@ const shop = lexica.createModule('Shop', {
 
 An implementation receives one object and reads what it needs by name: its `receiver`, its `args` by parameter name, and the `env` the host supplies. Each kind of declaration, and the fields it takes, is set out in [declarations](../spec/modules.md#modules-declarations); what `updates` means is in [updates](../spec/members.md#members-updates).
 
-## Resolve an expression
+## Resolve a script
 
-A registry holds the modules a host registers. Resolving an expression against it checks every member, argument and type before anything runs:
+A registry holds the modules a host registers. Resolving a script against it checks every member, argument and type before anything runs:
 
 ```js
 const registry = lexica.createRegistry([shop]);
@@ -63,7 +63,7 @@ resolution.typeAt(['price', 'amount']); // 'Number'
 resolution.usedDeclarations.map(used => used.name); // ['String.price', 'String.discount']
 ```
 
-`registry.bind` asks the registry's modules which values are references, by each module's `typeOf`, keeps each reference as it is and a frozen copy of the data, so later changes to the original data never reach an expression; the bindings are that registry's alone. A resolution is reused for bindings of the same types and the same primitive values.
+`registry.bind` asks the registry's modules which values are references, by each module's `typeOf`, keeps each reference as it is and a frozen copy of the data, so later changes to the original data never reach a script; the bindings are that registry's alone. A resolution is reused for bindings of the same types and the same primitive values.
 
 ## Evaluate
 

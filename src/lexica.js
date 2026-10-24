@@ -1,6 +1,6 @@
 /**
- * Lexica — a general-purpose, embeddable language whose domain each application defines: reads, checks and writes source and definitions, creates the modules that declare a vocabulary and the registries a host resolves expressions against,
- * binds values, and evaluates a resolved expression for its host, describing its result; and says which build it is and which specification it follows
+ * Lexica — a general-purpose, embeddable language whose domain each application defines: reads, validates and writes source and definitions, creates the modules that declare a vocabulary and the registries a host resolves scripsions against,
+ * binds values, and evaluates a resolved script for its host, describing its result; and says which build it is and which specification it follows
  */
 
 import { DefinitionValidator } from './language/DefinitionValidator.mjs';
@@ -128,7 +128,7 @@ const locate = (definition, pointer) => {
 };
 
 /**
- * A resolution: the expression resolved against the registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at.
+ * A resolution: the script resolved against the registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at.
  * An evaluator it creates holds one binding set and the environment the host owns, and evaluates one evaluation at a time.
  */
 const resolutionOf = (registry, definition, parameterBindings) => {
@@ -140,7 +140,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
     const requireCurrent = () => {
         if (registry.revision !== revision) {
-            throw LexicaErrors.structure('LEXICA2040', 'A module was registered since this expression was resolved, so its resolution is stale; resolve the expression again', {});
+            throw LexicaErrors.structure('LEXICA2040', 'A module was registered since this script was resolved, so its resolution is stale; resolve the script again', {});
         }
     };
 
@@ -148,16 +148,16 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         const evaluatorBindings = parameterBindingsOf(registry, bindings);
 
         if (evaluatorBindings.resolutionKey !== resolutionKey) {
-            throw LexicaErrors.structure('LEXICA2025', 'These bindings resolve the expression otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
+            throw LexicaErrors.structure('LEXICA2025', 'These bindings resolve the script otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
         }
 
         requireCurrent();
 
-        // A declaration without an implementation is resolved against and never invoked, so an expression that uses one, in a branch it may not take among them, is refused before anything is evaluated; a host call has none, its host invoking it.
+        // A declaration without an implementation is resolved against and never invoked, so a script that uses one, in a branch it may not take among them, is refused before anything is evaluated; a host call has none, its host invoking it.
         const unimplemented = usedDeclarations.find(use => registry.getImplementation(use.declaration) === undefined && !LexicaModule.isHostCall(use.declaration));
 
         if (unimplemented !== undefined) {
-            throw LexicaErrors.module('LEXICA4001', `'${unimplemented.name}' has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
+            throw LexicaErrors.module('LEXICA4001', `'${unimplemented.name}' has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
         }
 
         const unimplementedConversion = resolved.usedConversions.find(conversion => registry.getImplementation(conversion) === undefined);
@@ -165,7 +165,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         if (unimplementedConversion !== undefined) {
             const name = LexicaModule.conversionNameOf(unimplementedConversion);
 
-            throw LexicaErrors.module('LEXICA4001', `The conversion from ${name} has no implementation, so an expression that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplementedConversion), declaration: name, field: 'implementation' });
+            throw LexicaErrors.module('LEXICA4001', `The conversion from ${name} has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplementedConversion), declaration: name, field: 'implementation' });
         }
 
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);
@@ -224,7 +224,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 };
 
 /**
- * A registry a host resolves expressions against: Lexica's own module and the modules the host registers, each module's vocabulary in effect for every expression resolved after it.
+ * A registry a host resolves scripts against: Lexica's own module and the modules the host registers, each module's vocabulary in effect for every script resolved after it.
  * It reads and writes text with the names of its modules, which begin their namespaces there. No registry is shared, so two hosts never see each other's modules.
  */
 const registryOf = modules => {
@@ -263,7 +263,7 @@ const registryOf = modules => {
     });
 };
 
-/** The declaration helpers, each giving a declaration as a module declares it; `function` declares a member the expression calls. */
+/** The declaration helpers, each giving a declaration as a module declares it; `function` declares a member a script calls. */
 const declarations = Object.freeze({
     property: Declarations.property,
     function: Declarations.function,
