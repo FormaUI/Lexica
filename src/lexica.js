@@ -237,7 +237,9 @@ const registryOf = modules => {
     };
 
     return Object.freeze({
-        registerModule: module => registry.registerModule(module),
+        registerModule: module => {
+            registry.registerModule(module);
+        },
         get moduleNames() {
             return registry.moduleNames;
         },

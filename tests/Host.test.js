@@ -109,6 +109,13 @@ describe('a host of plain data', () => {
         expect(getError(() => resolution.createEvaluator({ order: 'a' }))).toMatchObject({ kind: 'structure' });
     });
 
+    it('registers a module and answers nothing, so no registration hands out the registry behind it', () => {
+        const registry = lexica.createRegistry([createShop()]);
+
+        expect(registry.registerModule(lexica.createModule('extra', {}))).toBeUndefined();
+        expect(registry.moduleNames).toContain('extra');
+    });
+
     it('refuses an evaluator evaluating within its own evaluation, and evaluates again once it is done', () => {
         const resolution = lexica.createRegistry([createShop()]).resolve('order.discount(code)', { order: 'a', code: 'TEN' });
         const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' });
