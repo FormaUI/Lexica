@@ -167,6 +167,16 @@ describe('qualified forms', () => {
 });
 
 describe('function references', () => {
+    it('resolve a held reference\'s call through a receiver of unknown type as its qualified form does, answering null without invoking it', () => {
+        const pick = lexica.declarations.function('pick', 'List<Number>', 'List<Number>', { updates: constant, parameters: [lexica.declarations.expressionParameter('Number')], implementation: ({ receiver }) => receiver });
+        const registry = lexica.createRegistry([lexica.createModule('lists', { members: [pick] })]);
+        const held = registry.resolve('let f = lists.pick\nreturn f(nothing, it + 1)', { nothing: null });
+
+        expect(held.type).toBe('List<Number>?');
+        expect(held.type).toBe(registry.resolve('lists.pick(nothing, it + 1)', { nothing: null }).type);
+        expect(held.createEvaluator({ nothing: null }).evaluate().value).toBeNull();
+    });
+
     it('are function values of a module\'s functions, a call of one its qualified form\'s call, held, passed and called as any function is', () => {
         expect(evaluate('let pad = shop.pad return pad(word, 4)').value).toBe('oat.');
         expect(evaluate('let greet = shop.greet return greet("bo")').value).toBe('hi bo');

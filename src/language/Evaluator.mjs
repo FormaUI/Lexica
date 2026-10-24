@@ -523,9 +523,11 @@ export class Evaluator {
                 const local = { name: node.name };
                 const closureOf = evaluator => (binding === undefined ? evaluator.#evaluateLocal(local) : evaluator.#boundValues.get(binding));
 
-                // A call of one function reference alone is its qualified form's call, and the reference it is reads nothing.
+                // A call of one function reference alone is its qualified form's call, and the reference it is reads nothing; a receiver of unknown type selects no declaration, as the qualified form's selects none.
                 if (resolvedTargets.length === 1 && resolvedTargets[0].invocation?.kind === 'member') {
-                    return this.#compileInvocation(node, resolvedTargets[0].invocation);
+                    const [{ invocation }] = resolvedTargets;
+
+                    return invocation.declaration === null ? (evaluator, context) => evaluator.#evaluateMember(node, context, invocation) : this.#compileInvocation(node, invocation);
                 }
 
                 const targets = this.#compileTargets(resolvedTargets);
@@ -1460,13 +1462,13 @@ export class Evaluator {
         return resolution?.isNamedIndexer === true ? node.target.target : node.target;
     }
 
-    #evaluateMember(node, context) {
+    /** Evaluates a member whose resolution is selected as it is evaluated, its node's own unless a call of a function reference gives the qualified call it makes. */
+    #evaluateMember(node, context, resolution = this.#resolvedDefinition.resolutionOf(node)) {
         // A projection stands the value its host supplied where the host call is, so the call is never evaluated.
         if (node === this.#projectionContext?.node) {
             return this.#projectionContext.value;
         }
 
-        const resolution = this.#resolvedDefinition.resolutionOf(node);
         const receiver = this.#evaluateNode(Evaluator.#receiverNodeOf(node, resolution), context);
 
         if (receiver === null) {

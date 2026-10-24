@@ -850,18 +850,12 @@ export class LanguageResolver {
         if (!this.#moduleRegistry.hasReceiver(declaration)) {
             invocation = this.#resolveInvocation(declaration, node, pointer, scope, null, false, { name: written });
         } else {
-            if (node.arguments.length === 0) {
-                this.#fail('LEXICA3080', `'${node.name}' holds a reference to '${written}', which takes its receiver as its first argument`, pointer);
-            }
-
-            const receiver = this.#resolveReceiverArgument(node, pointer, scope, `'${node.name}'`);
-            const receiverType = receiver.type.toNonNullable();
-
-            if (!LanguageResolver.#isOfUnknownType(receiverType) && !this.#typeChecker.matchesReceiver(declaration, receiverType, new Map())) {
-                this.#fail('LEXICA3042', `'${node.name}' holds a reference to '${written}', which takes a receiver of ${this.#moduleRegistry.getTargetTypes(declaration).join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
-            }
-
-            invocation = this.#resolveInvocation(declaration, node, pointer, scope, LanguageResolver.#isOfUnknownType(receiverType) ? null : receiverType, receiver.type.isNullable || receiver.type.kind === 'null', { offset: 1, qualified: true, name: written });
+            invocation = this.#resolveQualifiedCall(node, pointer, scope, [declaration], {
+                subject: `'${node.name}'`,
+                missingReceiver: `'${node.name}' holds a reference to '${written}', which takes its receiver as its first argument`,
+                receiverOf: `'${node.name}' holds a reference to '${written}', which takes a receiver of`,
+                nameOf: () => written,
+            });
         }
 
         const binding = local.binding === undefined ? {} : { binding: local.binding };
@@ -1557,40 +1551,54 @@ export class LanguageResolver {
         return result;
     }
 
-    /**
-     * Resolves a qualified form: the module's member on a type, called with its receiver as its first argument, which is evaluated first and whose null answers null without the member's own arguments being evaluated, and its own arguments after it.
-     * The receiver's type selects the module's declaration of the name; a receiver of unknown type selects none, and is checked as any such receiver is.
-     */
+    /** Resolves a qualified form: the module's member on a type, called with its receiver as its first argument, as a qualified call. */
     #resolveQualified(node, pointer, scope, declarations, written) {
+        const { result, resolution } = this.#resolveQualifiedCall(node, pointer, scope, declarations, {
+            subject: `'${written}'`,
+            missingReceiver: `'${written}' is the qualified form of a member of a receiver, which takes the receiver as its first argument, as ${written}(receiver)`,
+            receiverOf: `'${written}' takes a receiver of`,
+            nameOf: (declaration, receiverType) => this.#qualifiedNameOf(declaration, receiverType),
+        });
+
+        this.#resolutions.set(pointer, resolution);
+
+        return result;
+    }
+
+    /**
+     * Resolves a qualified call: a member on a type called with its receiver as its first argument, which is evaluated first and whose null answers null without the member's own arguments being evaluated, and its own arguments after it,
+     * as a qualified form calls one of a module's members and a call of a function reference calls the one it holds. The receiver's type selects among the declarations; a receiver of unknown type selects none, and is checked as any
+     * such receiver is. Each message names the call as its wording says; it answers the call's result and its resolution, which the caller records.
+     */
+    #resolveQualifiedCall(node, pointer, scope, declarations, wording) {
         if (node.arguments.length === 0) {
-            this.#fail('LEXICA3080', `'${written}' is the qualified form of a member of a receiver, which takes the receiver as its first argument, as ${written}(receiver)`, pointer);
+            this.#fail('LEXICA3080', wording.missingReceiver, pointer);
         }
 
-        const receiver = this.#resolveReceiverArgument(node, pointer, scope, `'${written}'`);
+        const receiver = this.#resolveReceiverArgument(node, pointer, scope, wording.subject);
         const receiverType = receiver.type.toNonNullable();
         const isReceiverNullable = receiver.type.isNullable || receiver.type.kind === 'null';
 
         if (LanguageResolver.#isOfUnknownType(receiverType)) {
-            return this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
+            const result = this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
+
+            return { result, resolution: this.#resolutions.get(pointer) };
         }
 
         const matching = this.#typeChecker.mostSpecificOf(declarations, receiverType);
 
         if (matching.length === 0) {
-            this.#fail('LEXICA3042', `'${written}' takes a receiver of ${declarations.flatMap(declaration => this.#moduleRegistry.getTargetTypes(declaration)).join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
+            this.#fail('LEXICA3042', `${wording.receiverOf} ${declarations.flatMap(declaration => this.#moduleRegistry.getTargetTypes(declaration)).join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
         }
 
         // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
         if (matching.length > 1) {
-            this.#fail('LEXICA3024', `'${written}' ${this.#competingOf(matching, receiverType)}`, pointer);
+            this.#fail('LEXICA3024', `${wording.subject} ${this.#competingOf(matching, receiverType)}`, pointer);
         }
 
         const [declaration] = matching;
-        const { result, resolution } = this.#resolveInvocation(declaration, node, pointer, scope, receiverType, isReceiverNullable, { offset: 1, qualified: true, name: this.#qualifiedNameOf(declaration, receiverType) });
 
-        this.#resolutions.set(pointer, resolution);
-
-        return result;
+        return this.#resolveInvocation(declaration, node, pointer, scope, receiverType, isReceiverNullable, { offset: 1, qualified: true, name: wording.nameOf(declaration, receiverType) });
     }
 
     /** Resolves the receiver a qualified call or a call of a function reference gives as its first argument, a value of any type, which the call evaluates before its own arguments. */
@@ -1713,9 +1721,8 @@ export class LanguageResolver {
     #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#moduleRegistry.getMembers(node.name), offset = 0) {
         const isAccess = node.kind === 'member';
         const fields = isAccess ? this.#moduleRegistry.getFieldTypes(node.name) : [];
-        // A qualified form calls a property and a function alike, its receiver its first argument.
-        const formOf = candidate => (offset > 0 ? 'function-call' : this.#moduleRegistry.formOf(candidate));
-        const written = candidates.filter(candidate => FORM_NODE_KINDS[formOf(candidate)] === node.kind);
+        // A qualified call, a qualified form's or a function reference's, calls a property and a function alike, its receiver its first argument.
+        const written = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#moduleRegistry.formOf(candidate)] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
             this.#fail(this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#accessOf(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
