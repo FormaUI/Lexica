@@ -178,6 +178,24 @@ describe('prepared calls', () => {
         expect(Object.isFrozen(call)).toBe(true);
     });
 
+    it('describe a field of an object a local built before the call as an evaluation does, by the branch its value took, in every projection', () => {
+        const tolerant = tolerance => ({ updates: { changes: 'constant', reads: 'fresh', tolerance } });
+        const module = lexica.createModule('home', {
+            members: [
+                property('fine', 'String', 'Number', { ...tolerant(0.1), implementation: () => 1 }),
+                property('coarse', 'String', 'Number', { ...tolerant(5), implementation: () => 2 }),
+                hostCall('dim', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
+            ],
+        });
+        const local = 'let o = { v = if lit then light.fine else light.coarse end }\nreturn ';
+        const evaluated = resolve(`${local}{ via = o.v }`, bindings, [module]).createEvaluator(bindings).evaluate();
+        const prepared = resolve(`${local}light.dim({ to = 40 }) { via = o.v }`, bindings, [module]).createEvaluator(bindings).prepareCall();
+
+        expect(evaluated.metadata.fields.via.tolerance).toBe(0.1);
+        expect(prepared.project(40).metadata.fields.via.tolerance).toBe(0.1);
+        expect(prepared.project(30).metadata.fields.via.tolerance).toBe(0.1);
+    });
+
     it('project each value their host supplies, checked against the type the call declares, answering as an evaluation does', () => {
         const dimmed = evaluatorOf('light.dim({ to = 40 })').evaluator.prepareCall();
         const watched = evaluatorOf('sensor.watch() { at = it.at, strong = it.strength > 0.8 }').evaluator.prepareCall();

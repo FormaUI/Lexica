@@ -137,8 +137,12 @@ export class Evaluator {
     /** The source of each item of a list an object expression projected, by the list it produced, for the evaluation in progress. @type {WeakMap<unknown[], readonly ProjectionSource[]>} */
     #sourcesByList = new WeakMap();
 
-    /** The selections made for each field of an object an object expression gave, as `#selections` holds them, by the object and then the field's name, for the evaluation in progress. @type {WeakMap<object, Map<string, Map<object, object | string>>>} */
-    #fieldSelectionsByObject = new WeakMap();
+    /**
+     * The selections each field of an object made, as `#selections` holds them, by the object and then the field's name: every completed field of an outermost object, which a read through a reference to it reuses as it is built, and
+     * each field that made any of another object an object expression built. Each object is built anew by the evaluation that reads it, so the store is kept as long as the evaluator, a local built before a host call read by its projection.
+     * @type {WeakMap<object, Map<string, Map<object, object | string> | null>>}
+     */
+    #objectFieldSelections = new WeakMap();
 
     /**
      * The selections made for the value being evaluated at its place in the result, by the node that made each: the branch a conditional or a coalescing selected, as its node, and the name a bracket property access selected; null where none has been made.
@@ -152,9 +156,6 @@ export class Evaluator {
 
     /** The outermost object being built, which `root`, the object root, refers to, filled field by field; null outside every object expression. @type {object | null} */
     #objectRoot = null;
-
-    /** The selections each completed field of the outermost object made, by the root and then the field's name, which a read of the field through a reference to the root reuses. @type {WeakMap<object, Map<string, Map<object, object | string> | null>>} */
-    #objectRootSelections = new WeakMap();
 
     /** The host the evaluation in progress is carried out for, or null where none is. @type {Host | null} */
     #host = null;
@@ -918,7 +919,7 @@ export class Evaluator {
 
             if (object !== null) {
                 evaluator.#objectRoot = object;
-                evaluator.#objectRootSelections.set(object, rootSelections);
+                evaluator.#objectFieldSelections.set(object, rootSelections);
             }
 
             try {
@@ -1239,7 +1240,7 @@ export class Evaluator {
 
         if (rootSelections !== null) {
             this.#objectRoot = object;
-            this.#objectRootSelections.set(object, rootSelections);
+            this.#objectFieldSelections.set(object, rootSelections);
         }
 
         try {
@@ -1250,11 +1251,12 @@ export class Evaluator {
 
                 object[field.name] = value;
 
-                if (this.#selections !== null) {
+                // The outermost object's every field is recorded as it completes, for `root` to read; another object's, where it made any selection.
+                if (rootSelections !== null) {
+                    rootSelections.set(field.name, this.#selections);
+                } else if (this.#selections !== null) {
                     (fieldSelections ??= new Map()).set(field.name, this.#selections);
                 }
-
-                rootSelections?.set(field.name, this.#selections);
 
                 if (field.isRead) {
                     this.#localsFrame = { node: { locals: [{ name: field.local }] }, item, values: new Map([[field.local, { value, selections: this.#selections }]]), enclosing: this.#localsFrame };
@@ -1267,7 +1269,7 @@ export class Evaluator {
         }
 
         if (fieldSelections !== null) {
-            this.#fieldSelectionsByObject.set(object, fieldSelections);
+            this.#objectFieldSelections.set(object, fieldSelections);
         }
 
         return object;
@@ -1494,7 +1496,7 @@ export class Evaluator {
             return null;
         }
 
-        const selections = this.#fieldSelectionsByObject.get(receiver)?.get(name) ?? null;
+        const selections = this.#objectFieldSelections.get(receiver)?.get(name) ?? null;
 
         if (selections !== null) {
             const recorded = (this.#selections ??= new Map());
@@ -1511,7 +1513,7 @@ export class Evaluator {
             return null;
         }
 
-        const selections = this.#objectRootSelections.get(root)?.get(name) ?? null;
+        const selections = this.#objectFieldSelections.get(root)?.get(name) ?? null;
 
         if (selections !== null) {
             const recorded = (this.#selections ??= new Map());
@@ -1868,7 +1870,6 @@ export class Evaluator {
      */
     #evaluateResult(node) {
         this.#sourcesByList = new WeakMap();
-        this.#fieldSelectionsByObject = new WeakMap();
         this.#selections = null;
 
         try {
@@ -1906,7 +1907,7 @@ export class Evaluator {
 
         if (ObjectUtils.isNonArrayObject(value)) {
             const copy = {};
-            const fieldSelections = this.#fieldSelectionsByObject.get(value);
+            const fieldSelections = this.#objectFieldSelections.get(value);
             let fieldIdentities = null;
 
             for (const name of Object.keys(value)) {
