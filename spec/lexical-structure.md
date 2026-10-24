@@ -40,7 +40,7 @@ Whitespace, including [line breaks](#line-structure-line-breaks), and comments a
 
 ### Assignment and member punctuation
 
-Fields, locals and conditional bindings put `=` between a name and its value. A colon in a member chain begins an [extension access](members.md#property-access-calls-and-indexers-extension-access), `device:Device.usage`, and anywhere else belongs only inside strings and comments.
+Object fields, locals and conditional bindings put `=` between a name and its value. A colon in a member chain begins an [extension access](members.md#property-access-calls-and-indexers-extension-access), `device:Device.usage`, and anywhere else belongs only inside strings and comments.
 
 - `count: it.devices.count` is a syntax error that suggests `count = …`.
 - `=` in another position is a syntax error that explains that `==` compares values.
@@ -74,7 +74,7 @@ A name containing a hyphen is written as a string: `device["night-mode"]`.
 
 ## Names and reserved words
 
-An **identifier** starts with an ASCII letter and continues with ASCII letters or digits. For example, `floorArea` is an identifier. Identifiers contain no hyphens and are also valid JavaScript identifiers. Every name a script writes is an identifier, a local's, a field's, a member's, a type's, a module's or a function parameter's, and so is every reference to a binding.
+An **identifier** starts with an ASCII letter and continues with ASCII letters or digits. For example, `floorArea` is an identifier. Identifiers contain no hyphens and are also valid JavaScript identifiers. Every name a script writes is an identifier, a local's, an object field's, a member's, a type's, a module's or a function parameter's, and so is every reference to a binding.
 
 The language reserves some words, which keep its own meaning where a value stands. Reserved words are:
 
@@ -95,11 +95,11 @@ The **keywords** are the reserved words other than the literals' words and `root
 
 An identifier's spelling decides no meaning; where it stands does:
 
-- **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, field, conditional binding or function parameter of its name, and otherwise the script parameter.
-- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`; and otherwise the import binding of its name, the local name an import gives a module or a type: after `import Lexica = Home`, `@Lexica.rooms` reads `Home.rooms`. An import binding read with `@` begins its namespace or names its type, as its bare name does, and is never a value.
+- **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, object field, conditional binding or function parameter of its name, and otherwise the script parameter.
+- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, object field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`; and otherwise the import binding of its name, the local name an import gives a module or a type: after `import Lexica = Home`, `@Lexica.rooms` reads `Home.rooms`. An import binding read with `@` begins its namespace or names its type, as its bare name does, and is never a value.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
-- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, after an [extension access](members.md#property-access-calls-and-indexers-extension-access)'s `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ Home = 1 }` declares the field `Home`.
-- **Where the script imports a module,** the [local name](modules.md#names-and-reserved-words-module-names) its import gives the module, its own or an alias, written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@Home` reads the nearest local of its name, and the import binding only where none is in scope, `~Home` the script parameter of its name, and a member, a field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
+- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, after an [extension access](members.md#property-access-calls-and-indexers-extension-access)'s `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ Home = 1 }` declares the object field `Home`.
+- **Where the script imports a module,** the [local name](modules.md#names-and-reserved-words-module-names) its import gives the module, its own or an alias, written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@Home` reads the nearest local of its name, and the import binding only where none is in scope, `~Home` the script parameter of its name, and a member, an object field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
 
 Declarations keep their own restrictions besides: module names are unique, compared case-insensitively, and a type is named once within its module, as [registering a module](modules.md#modules-registries) sets out. Ambiguity is checked when resolving a reference, against the declarations applicable at that location. Declarations are not refused merely because their names could become ambiguous in another context. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.
 
@@ -107,7 +107,7 @@ Declarations keep their own restrictions besides: module names are unique, compa
 
 ### Declaring a reserved name
 
-A declaration accepts any identifier, a reserved word among them. This applies to fields, locals, functions, function parameters and conditional bindings. Write the name without `@`:
+A declaration accepts any identifier, a reserved word among them. This applies to object fields, locals, functions, function parameters and conditional bindings. Write the name without `@`:
 
 ```lexica
 light { true = true, it = it.active() }
@@ -118,13 +118,13 @@ The same rule applies to member and indexer names after `.` and `?.`. For exampl
 `let @to = 1`, `{ @true = 1 }` and `value.@null` are syntax errors.
 
 <a id="names-and-reserved-words-lexical-references"></a>
-<a id="names-and-reserved-words-referring-to-a-reserved-local-or-field"></a>
+<a id="names-and-reserved-words-referring-to-a-reserved-local-or-object-field"></a>
 
 ### Lexical references
 
 In a script, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and in a script importing `Home`, after `let Home = 1`, an unprefixed `Home` still begins the module's namespace.
 
-A **lexical reference**, `@` directly before an identifier, reads the nearest local, field, conditional binding or function parameter of that name:
+A **lexical reference**, `@` directly before an identifier, reads the nearest local, object field, conditional binding or function parameter of that name:
 
 ```lexica
 { let to = "3", value = @to to Number }
@@ -132,11 +132,11 @@ A **lexical reference**, `@` directly before an identifier, reads the nearest lo
 
 It is needed where the identifier alone means something else, a reserved word or, in a script importing it, a module's name, and allowed before any identifier: after `let total = 2`, `@total` reads the local as `total` does. Canonical text writes `@` only where it is needed.
 
-A lexical reference that no local, field, conditional binding or function parameter in scope answers is a structure error:
+A lexical reference that no local, object field, conditional binding or function parameter in scope answers is a structure error:
 
 > No local or field named 'it' is in scope. Use '~it' to read the script parameter.
 
-An identifier must follow `@` directly, and a keyword alone does not read a local or field. These are syntax errors:
+An identifier must follow `@` directly, and a keyword alone does not read a local or object field. These are syntax errors:
 
 | Form | Diagnostic guidance |
 | --- | --- |
@@ -281,7 +281,7 @@ Every position between two tokens is one of three kinds: inside a one-line const
 | An import declaration | `import Sensor = Home.MotionSensor` |
 | A body local's head, `let`, its name and `=` | `let reading =` |
 | A conditional binding's head | `if let lamp =` |
-| An object local's or a field's head | `let devices =`, `temperature =` |
+| An object local's or an object field's head | `let devices =`, `temperature =` |
 | A member step, `.`, `?.`, `:` or `?:` with the name after it | `.where`, `?.temperature` |
 | A computed property access's opening | `x.[`, `x?.[` |
 | A call's `(`, on the line of the name it calls | `device(`, `double(` |
@@ -306,7 +306,7 @@ A namespace's member read where a value stands, `Home.rooms`, is a chain, and fo
 | An object expression | After `{`, after a comma, before `}` |
 | A chain | Before `.`, `?.`, `:` or `?:`, and before an extension access's `.member` |
 | A binary operator | Before the operator, where its expression is [enclosed](#line-structure-operator-expressions), and never after it |
-| A local's, a field's or a conditional binding's value | After its `=` |
+| A local's, an object field's or a conditional binding's value | After its `=` |
 | An arrow function | After `=>` |
 | A conditional, a `do` block or a function expression | As [keyword blocks](#line-structure-keyword-blocks) set out |
 | A block string or block raw string | Within it, by its own rules |
@@ -421,16 +421,16 @@ Every name in Lexica is case-sensitive, and nothing normalizes one: `name` and `
 
 Members are conventionally named in camelCase, properties and functions alike: `name`, `floorArea`, `brightness`, `device`. A member has one name, the same in a text and a definition. `it.["floorArea"]` reads that property by the same name.
 
-<a id="case-sensitive-names-field-names-and-bindings"></a>
+<a id="case-sensitive-names-object-field-names-and-bindings"></a>
 
-### Field names and script parameters
+### Object field names and script parameters
 
-Field names and script parameters keep the exact spelling their author gave them, so `isOn` and `ison` are two fields, and a script parameter `room` is not a parameter `Room`.
+Object field names and script parameters keep the exact spelling their author gave them, so `isOn` and `ison` are two object fields, and a script parameter `room` is not a parameter `Room`.
 
 <a id="case-sensitive-names-strings"></a>
 
 ### Strings are preserved
 
-Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or field only in a computed property access, which reads the one its string names, exactly, a data field whose key is no Lexica name among them, as `o.["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or a type selector's key, follows that module's own case rules.
+Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or object field only in a computed property access, which reads the one its string names, exactly, an object field whose key is no Lexica name among them, as `o.["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or a type selector's key, follows that module's own case rules.
 
-A field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `isOn` from `ison` reports the ambiguity, and the language is unaffected. How a module names a member, and which JavaScript function carries it out, is the module's declaration.
+An object field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `isOn` from `ison` reports the ambiguity, and the language is unaffected. How a module names a member, and which JavaScript function carries it out, is the module's declaration.

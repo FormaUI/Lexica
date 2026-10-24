@@ -26,6 +26,7 @@ In this document:
 | Type | The category of a value and the members it supports | [Types](types.md#types) |
 | Reference type | A type a module declares whose values have identity, naming at most one supertype, declaring its `isInstance`, and abstract or not | [Reference types](types.md#reference-types) |
 | Structured type | A type of immutable data a module declares, its data shape the properties it declares directly without `updates` | [Declaring a type](modules.md#modules-declaring-a-type) |
+| Data shape | The properties a structured type declares directly without `updates`, each with its type: what a value of the type holds, which Lexica validates, copies and freezes it by, and which no extension changes | [Declaring a type](modules.md#modules-declaring-a-type) |
 | Membership | Whether a value belongs to a reference type, which the `isInstance` of the type and of every supertype above it answers | [Reference types](types.md#reference-types) |
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
 | Type identity | A module's type's module and local name together, as `Home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
@@ -34,7 +35,7 @@ In this document:
 | `Any` | The type a declaration names where it accepts or answers a value of any type that isn't null, `Any?` where it may be null too, whose members are selected when it is evaluated | [Values of `Any`](types.md#types-any) |
 | Deferred member access | An access whose member is selected when its receiver is evaluated, since its receiver's type is unknown before | [Deferred member selection](types.md#types-any-deferred-selection) |
 | Reference value | A value of a reference type, compared by identity and never part of a result | [Reference types](types.md#reference-types) |
-| Object expression | An expression that names the fields of its output object | [Objects](values.md#objects) |
+| Object expression | An expression that names its output object's fields | [Objects](values.md#objects) |
 | Object type | A description of an object's fields and their types | [Types](types.md#types) |
 | Object field | A named value included in an object, an object expression writing it as its name, `=` and its value | [Objects](values.md#objects) |
 | Body | What a script, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](scripts.md#bodies) |
@@ -48,16 +49,16 @@ In this document:
 | Implicit body | An expression reading `it`, given to a function parameter whose callback takes one argument, which is its `it` | [Implicit bodies](functions.md#functions-implicit-bodies) |
 | Callback contract | The argument types and the result type a member declares for a function parameter, which a function given to it is checked against | [Arguments](members.md#arguments) |
 | Function parameter | A name a function declares, holding the argument each call gives it | [Functions](functions.md#functions) |
-| Script parameter | A name a script reads and does not declare, which its host binds; `~` and its name, as `~room`, selects it whatever local, field, conditional binding or function parameter hides it | [Script parameters](scripts.md#scripts-script-parameters) |
+| Script parameter | A name a script reads and does not declare, which its host binds; `~` and its name, as `~room`, selects it whatever local, object field, conditional binding or function parameter hides it | [Script parameters](scripts.md#scripts-script-parameters) |
 | Binding | The value a host supplies for a script parameter | [Script parameters](scripts.md#scripts-script-parameters) |
 | Identifier | A letter followed by letters and digits, the spelling of every name and every reference to a binding, whose position decides what it means | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
-| Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading the fields whose initializers have completed; the language's one root | [The object root](values.md#locals-the-object-root) |
+| Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading its object fields whose initializers have completed; the language's one root | [The object root](values.md#locals-the-object-root) |
 | Line break | LF, CRLF or a lone CR, the one definition every rule about lines follows | [Line breaks](lexical-structure.md#line-structure-line-breaks) |
 | Line structure | Where a line may break, must break and cannot, which constrains a layout and never changes a reading | [Line structure](lexical-structure.md#line-structure) |
 | Block form | A conditional, a `do` block or a function expression spanning lines, each keyword ending its line and `end` on its own | [Keyword blocks](lexical-structure.md#line-structure-keyword-blocks) |
 | Reserved word | A word that keeps its language meaning where a value stands: a literal's word, `root` or a keyword; a module's name is none, though it begins its namespace there in a script importing the module | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Keyword | A reserved word other than the literals' words and `root`, as `let`, `if` and `it` | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
-| Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, field, conditional binding or function parameter of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |
+| Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, object field, conditional binding or function parameter of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |
 | Implicit parameter | The value against which the current expression runs, read as `it` | [Names and resolution](scripts.md#names-and-resolution) |
 
 <a id="chains-and-members"></a>
@@ -71,14 +72,14 @@ In this document:
 | Receiver | The value before a member access, function call or indexer | [Access and calls](members.md#access-and-calls) |
 | Member | A property, a function, an indexer or an operator a module declares on a type, or a property or a function it declares on none | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
 | Property | A member a script reads without arguments, whether a structured value's data or its implementation gives its value; a definition node's, a record's and a JavaScript object's keys are properties too, in JavaScript's sense, and none is a member | [Members](members.md#members) |
-| Property access | A property read by its name after a dot, or by a computed name, `.[name]` | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
-| Computed property access | `.[name]`, a property read by the name an expression gives, settled when the script is resolved | [Computed property access](members.md#computed-property-access) |
+| Property access | The property its receiver's type declares, or an object's field, read by its name after a dot, or by a computed name, `.[name]` | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |
+| Computed property access | `.[name]`, the property or the object's field an expression's name gives, settled when the script is resolved | [Computed property access](members.md#computed-property-access) |
 | Function call | `name(…)`, written after a receiver to call a function, which the evaluator or the host invokes, after a module's namespace to call a qualified form, or after a local function's name to call it | [Function calls](members.md#property-access-calls-and-indexers-calls) |
 | Named indexer | `.name[key]`, an indexer its type declares with a name, invoked with one key | [Named indexers](members.md#property-access-calls-and-indexers-named-indexers) |
 | Unnamed indexer | `[key]`, the indexer the receiver's type declares without a name, as its owner's precedence selects | [Unnamed indexers](members.md#property-access-calls-and-indexers-unnamed-indexers) |
 | Argument | An expression supplied to a function call, or an indexer's key | [Arguments](members.md#arguments) |
-| Argument form | What a member's arguments supply, positional, its parameters in order, or options, one options object whose fields name them | [Parameters and arguments](members.md#arguments) |
-| Options object | The one object expression given to a member that takes options, whose fields supply its parameters | [Arguments](members.md#arguments-options) |
+| Argument form | What a member's arguments supply, positional, its parameters in order, or options, one options object whose object fields name them | [Parameters and arguments](members.md#arguments) |
+| Options object | The one object expression given to a member that takes options, whose object fields supply its parameters | [Arguments](members.md#arguments-options) |
 | Value, expression and predicate arguments | An argument evaluated once where the call is written; one the member evaluates against each implicit parameter its signature declares; and one of those whose truthiness the member receives | [Arguments](members.md#arguments) |
 | Fixed argument | A value argument the expression's resolution settles to a string that selects a declaration, as `on`'s does | [Arguments](members.md#arguments) |
 | Optional chain | A chain whose optional access stops it with null for a null receiver | [Property access, function calls and indexers](members.md#property-access-calls-and-indexers) |

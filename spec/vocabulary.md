@@ -60,7 +60,7 @@ No verb is tied to a test, and no test to a verb: a module declares its tests as
 The test takes any form a function argument takes, as [functions passed to members](functions.md#functions-passed-to-members) set out:
 
 - **An arrow function**, `device.is(d => d.power > 0)`, which keeps the implicit parameter of the place it is written, as every arrow function does.
-- **A function value a name holds**, `light.is(lit)` after `let lit = (l) => l.brightness > 0`, read as every name is: `device.is(active)` reads a local, a field, a function parameter or a script parameter named `active`, and no bare name reaches a module's function.
+- **A function value a name holds**, `light.is(lit)` after `let lit = (l) => l.brightness > 0`, read as every name is: `device.is(active)` reads a local, an object field, a function parameter or a script parameter named `active`, and no bare name reaches a module's function.
 - **A module's function by [reference](functions.md#functions-module-functions)**, `device.is(Home.active)`, which tests the receiver with that declaration, as `device.active()` does.
 - **An [implicit body](functions.md#functions-implicit-bodies)**, `device.has(it.battery != null)`, an expression whose `it` is the receiver.
 

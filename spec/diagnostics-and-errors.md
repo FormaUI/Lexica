@@ -78,13 +78,13 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA1000` | Text that does not follow the syntax | A syntax error, with its position |
 | `LEXICA1001` | A token of several characters written with whitespace inside it, as `? .`, `= =` or `< =` | A syntax error at the token |
 | `LEXICA1002` | U+2028 or U+2029 outside a string's literal text | A syntax error naming the character |
-| `LEXICA1003` | A colon after a field's, a local's or a conditional binding's name, as `count: …` | A syntax error giving `count = …` |
-| `LEXICA1004` | `=` anywhere but between a field's, a local's or a conditional binding's name and its value | A syntax error saying `==` compares values |
+| `LEXICA1003` | A colon after an object field's, a local's or a conditional binding's name, as `count: …` | A syntax error giving `count = …` |
+| `LEXICA1004` | `=` anywhere but between an object field's, a local's or a conditional binding's name and its value | A syntax error saying `==` compares values |
 | `LEXICA1005` | `$` anywhere but directly before a quote | A syntax error; with a space before the quote, `$ "…"`, saying no space may separate them |
 | `LEXICA1006` | An escape no string takes, as `\{` | A syntax error at the escape |
 | `LEXICA1049` | A `\u{…}` naming a surrogate or a value above `10FFFF` | A syntax error at the escape |
 | `LEXICA1007` | An unclosed block comment | A syntax error |
-| `LEXICA1008` | `@` in a declaration or before a field's or a member's name | A syntax error giving the form to write |
+| `LEXICA1008` | `@` in a declaration or before an object field's or a member's name | A syntax error giving the form to write |
 | `LEXICA1050` | `@` with no identifier directly after it | A syntax error saying an identifier must follow `@` directly |
 | `LEXICA1009` | `~` with no identifier directly after it | A syntax error saying a script parameter is named directly after `~` |
 | `LEXICA1010` | A keyword where a value stands | A syntax error giving the lexical reference; `then`, `elseif`, `else` and `end` give the value expected instead: `Expected a value, found 'then'` |
@@ -95,8 +95,8 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA1015` | An optional enclosed access written directly as a call's argument | A syntax error giving the argument grouped, `.device((?…))` |
 | `LEXICA1016` | An optional enclosed access holding no member access after its receiver, or anything beyond its member chain | A syntax error |
 | `LEXICA1017` | A named indexer written with empty brackets or several keys, as `device.setting[]` or `device.setting["a", "b"]` | A syntax error |
-| `LEXICA1018` | An object expression with no field | A syntax error |
-| `LEXICA1051` | A field, a local or a conditional binding written without its name | A syntax error |
+| `LEXICA1018` | An object expression with no object field | A syntax error |
+| `LEXICA1051` | An object field, a local or a conditional binding written without its name | A syntax error |
 | `LEXICA1019` as syntax, `LEXICA2001` as structure | A comparison chain whose operators point two ways | A syntax error at the operator that turns it in text, and a structure error in a definition |
 | `LEXICA1020` | An equality chained, as `a == b == c` | A syntax error giving the grouped form, `(a == b) == c` |
 | `LEXICA1052` | A comparison beside an equality without a group, as `a < b == c` | A syntax error giving the grouped form, `(a < b) == c` |
@@ -142,9 +142,9 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA1501` | A chain continuing a conversion without a group, as `a to Number[0]` | A syntax error saying a conversion ends its chain, giving the grouped form |
 | `LEXICA1502` | An optional enclosed access whose receiver is neither an input nor a grouped cast, as `(?(?a.b).c)` | A syntax error naming what its receiver is |
 | `LEXICA1503` | A member written without its receiver, a name followed by an argument after a space, as `count "x"` | A syntax error giving `it.count(…)` |
-| `LEXICA1504` | A local written after a field of its object expression | A syntax error saying an object's locals come before its fields |
+| `LEXICA1504` | A local written after a field of its object expression | A syntax error saying an object's locals come before its object fields |
 | `LEXICA1505` | A conditional without its `else` | A syntax error |
-| `LEXICA1506` | A module's name standing alone, or followed by `?.` | A syntax error giving `@` for the local or field and `~` for the script parameter of that name |
+| `LEXICA1506` | A module's name standing alone, or followed by `?.` | A syntax error giving `@` for the local or object field and `~` for the script parameter of that name |
 | `LEXICA1507` | A `?` written after the dot of a computed property access, as `a.?[p]` | A syntax error giving `?.[…]` |
 | `LEXICA1508` | A member's argument written after its name without parentheses, as `.name "x"` | A syntax error giving `.name(…)` |
 | `LEXICA1509` | A `!` not followed by `=` | A syntax error giving `!=` for an inequality and `not` for a negation |
@@ -161,16 +161,16 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA2007` | A definition of a version other than the one the implementation reads, as a version 33 definition is for version 34 | A structure error naming both versions |
 | `LEXICA2008` | A definition's imports that break the rules [the definition](definition.md#definition) sets for them | A structure error located at the import |
 | `LEXICA2028` | A `namespace` node or an extension selection's `module` naming a module its imports give no local name | A structure error located at the namespace |
-| `LEXICA2009` | In a definition, an object node with no field | A structure error at the node |
+| `LEXICA2009` | In a definition, an object node with no object field | A structure error at the node |
 | `LEXICA2029` | In a definition, a comparison node of fewer than two operands | A structure error at the node |
 | `LEXICA2010` | In a definition, an optional access outside an optional chain | A structure error at the node |
 | `LEXICA2030` | In a definition, an `optionalChain` node holding no optional access | A structure error at the node |
 | `LEXICA2011` | A `do` block, a conditional binding, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a computed property access or an interpolation | A structure error naming the part, which a local holds first |
-| `LEXICA2012` | A lexical reference, or a definition's local, that no local, field, conditional binding or function parameter in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
+| `LEXICA2012` | A lexical reference, or a definition's local, that no local, object field, conditional binding or function parameter in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
 | `LEXICA2013` | A name read before a local of its name declared later in its scope, or a local's initializer reading the local itself, as `{ let n = n }` | A structure error, never a read of the script parameter of that name |
 | `LEXICA2014` | A conditional binding's initializer reading the binding's own name, as `if let k = k`, where nothing else of that name is in scope | A structure error suggesting `~k` |
 | `LEXICA2015` | Two locals of one name in a body or an object expression | A structure error |
-| `LEXICA2031` | Two fields of one name | A structure error |
+| `LEXICA2031` | Two object fields of one name | A structure error |
 | `LEXICA2016` | A function calling itself or one declared after it | A structure error |
 | `LEXICA2032` | Two parameters of one name | A structure error |
 | `LEXICA2017` | A body anywhere but the script's, a do block's, a function's or a conditional branch's | A structure error: `A body is the script's, a do block's, a function's or a conditional branch's, and stands nowhere else` |
@@ -196,11 +196,11 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA2525` | An `and` or an `or` of fewer than two operands | A structure error at the node |
 | `LEXICA2526` | A comparison whose operators are not one fewer than its operands | A structure error at the node |
 | `LEXICA2527` | An object expression holding locals within a simple expression | A structure error naming the part, which a local holds first |
-| `LEXICA2528` | A script parameter a text writes alone where a local or a field of its name is in scope | A structure error naming the parameter |
+| `LEXICA2528` | A script parameter a text writes alone where a local or an object field of its name is in scope | A structure error naming the parameter |
 | `LEXICA2643` | A location asked for by a pointer that is not a JSON Pointer | A structure error |
 | `LEXICA2644` | A location asked for at a pointer the definition holds nothing at | A structure error naming the pointer |
 | `LEXICA2645` | Reading what is not a text | A structure error |
-| `LEXICA2646` | A result path holding an item that is neither a field's name nor a whole number that is not negative | A structure error naming the item |
+| `LEXICA2646` | A result path holding an item that is neither a name nor a whole number that is not negative | A structure error naming the item |
 
 <a id="module-errors"></a>
 
@@ -212,16 +212,16 @@ A module whose declarations break the declaration contract, a type or a member n
 | --- | --- | --- |
 | `LEXICA4001` | Creating an evaluator for a resolution whose used declarations or used conversion operators the evaluator invokes have no `impl` | A module error naming the declaration and its module |
 | `LEXICA4002` | A member other than an indexer declared without a `name` | A module error naming the member |
-| `LEXICA4030` | A field a declaration's kind does not take, a type-level `fields` collection, and `target`, `syntax` or `default` on a member among them | A module error naming the field |
+| `LEXICA4030` | A declaration key a declaration's kind does not take, a type-level `fields` collection, and `target`, `syntax` or `default` on a member among them | A module error naming the declaration key |
 | `LEXICA4031` | An `internal` that is no Boolean | A module error naming the declaration |
-| `LEXICA4003` | A member without a field its kind requires, `result`, `updates`, or `arguments` where it has parameters | A module error naming the field |
+| `LEXICA4003` | A member without a declaration key its kind requires, `result`, `updates`, or `arguments` where it has parameters | A module error naming the declaration key |
 | `LEXICA4032` | A property declared without `updates` anywhere but directly in a structured type | A module error naming the property |
 | `LEXICA4033` | A type of a name its module already declares | A module error naming the type |
 | `LEXICA4035` | A module whose name, compared case-insensitively, is already registered | A module error naming the module and the one registered |
 | `LEXICA4006` | A type selector, an observation type or an observation target named by what is not an identifier | A module error naming the declaration |
 | `LEXICA4037` | An observation target named `receiver` | A module error naming the target |
 | `LEXICA4007` | A type selector or an observation type named as one any module already declares | A module error naming it and the module that declared it |
-| `LEXICA4008` | A mapping without its `selector`, `key` or `type` | A module error naming the field |
+| `LEXICA4008` | A mapping without its `selector`, `key` or `type` | A module error naming the declaration key |
 | `LEXICA4038` | A mapping whose key already stands in its selector | A module error naming the selector, the key and the module that declared it first |
 | `LEXICA4039` | A mapping of a selector no registered module declares | A module error naming the selector |
 | `LEXICA4009` | A function with more than one parameter that selects a type | A module error naming the function |
@@ -253,9 +253,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4056` | A host call taking a parameter other than a value parameter | A module error naming the parameter |
 | `LEXICA4022` | A module member that is an indexer or an operator | A module error naming the member |
 | `LEXICA4057` | A module member that observes its receiver or a target found from one | A module error naming the member |
-| `LEXICA4023` | `updates` without `changes` or `reads` | A module error naming the member and the field |
-| `LEXICA4058` | `misses` missing where the member is partly observable, or present otherwise | A module error naming the member and the field |
-| `LEXICA4059` | `observations` missing where the member is observable or partly observable, or present otherwise | A module error naming the member and the field |
+| `LEXICA4023` | `updates` without `changes` or `reads` | A module error naming the member and the declaration key |
+| `LEXICA4058` | `misses` missing where the member is partly observable, or present otherwise | A module error naming the member and the declaration key |
+| `LEXICA4059` | `observations` missing where the member is observable or partly observable, or present otherwise | A module error naming the member and the declaration key |
 | `LEXICA4060` | An observation of the wrong type, target or arguments | A module error naming the member and the observation |
 | `LEXICA4024` | An observation naming a target its observation type's module does not declare | A module error naming the observation |
 | `LEXICA4061` | A prefix on an argument that is not a `String` value parameter | A module error naming the argument |
@@ -276,7 +276,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4501` | A module's contents that are not an object | A module error naming what a module declares |
 | `LEXICA4502` | A module's contents declaring what a module does not declare | A module error naming what a module declares |
 | `LEXICA4503` | A module's declarations of one kind that are not a list | A module error naming the kind |
-| `LEXICA4504` | A declaration, its `updates`, a parameter or an observation that is not an object | A module error naming the fields it declares |
+| `LEXICA4504` | A declaration, its `updates`, a parameter or an observation that is not an object | A module error naming the declaration keys it takes |
 | `LEXICA4505` | An `impl` that is not a function | A module error naming the declaration |
 | `LEXICA4507` | A type's `import` that is not a list of modules' names | A module error naming the type |
 | `LEXICA4508` | A type importing one module twice | A module error naming the module |
@@ -337,7 +337,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3006` | A fixed argument resolution cannot settle | A validation error: `The argument 'type' of 'on' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, …` |
 | `LEXICA3007` | A fixed argument whose settled value can be null, as `sensor.on(name)` with `name` bound to null | A validation error naming the argument |
 | `LEXICA3008` | An access or a call written with `.` whose receiver can be null | A validation error giving the form with `?.` |
-| `LEXICA3009` | A name no local or field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
+| `LEXICA3009` | A name no local or object field in scope has | A validation error, giving the form with `it` where the implicit parameter has a member of that name |
 | `LEXICA2026` as structure, `LEXICA3010` as validation | `it` where nothing gives it a value | A structure error where the text alone shows it, as outside every argument at the top level; a validation error within an argument of a member call or of a local function call, whose function decides |
 | `LEXICA3011` | A named indexer written without its key or as a call | A validation error giving its form, `x.setting[…]` |
 | `LEXICA3054` | A function written with its argument in brackets | A validation error giving the call |
@@ -351,7 +351,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3017` | A member written in a form its declaration does not take | A validation error giving the form |
 | `LEXICA3057` | An argument that does not supply its input | A validation error giving the input |
 | `LEXICA3058` | More arguments than a member takes | A validation error giving the number of arguments it takes |
-| `LEXICA3018` | An options field the member has no parameter for | A validation error naming the parameters it has |
+| `LEXICA3018` | An options object's field the member has no parameter for | A validation error naming the parameters it has |
 | `LEXICA3019` | A cast or a conversion naming a type that neither Lexica, nor the script's imports by name, nor a module the script imports declares publicly | A validation error, giving the import where a module the script does not import declares it |
 | `LEXICA3059` | A cast or a conversion naming a type several imported modules share unqualified | A validation error giving the qualified names where each selects one alone |
 | `LEXICA3020` | A cast to a name that is not a reference type | A validation error naming the types |
@@ -379,7 +379,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3069` | A call of a local function given the wrong number of arguments | A validation error naming the function |
 | `LEXICA3070` | A call whose functions give no one type | A validation error naming the function |
 | `LEXICA3034` | A call that reaches a function within its own call, through a function passed to it | A validation error |
-| `LEXICA3035` | A field or a result that would hold a function | A validation error |
+| `LEXICA3035` | An object field or a result that would hold a function | A validation error |
 | `LEXICA3071` | A function given to a member's value parameter | A validation error |
 | `LEXICA3036` | A function given to a function parameter of another number of parameters, of parameters that do not take the callback contract's arguments, or of a result of another type | A validation error naming the parameter |
 | `LEXICA3072` | A function that may be null given to a function parameter | A validation error naming the parameter |
@@ -398,17 +398,17 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3079` | An argument of the wrong kind | A validation error naming the argument and the kind it takes |
 | `LEXICA3080` | A missing required argument | A validation error naming the argument |
 | `LEXICA3043` | A result that would contain a reference value | A validation error |
-| `LEXICA3044` | A field read through `root` whose initializer has not completed where `root` is written | A validation error naming the fields completed there |
-| `LEXICA3045` | A conditional or a coalescing operator choosing between `root` references of different object roots or field sets | A validation error naming them |
+| `LEXICA3044` | An object field read through `root` whose initializer has not completed where `root` is written | A validation error naming the object fields completed there |
+| `LEXICA3045` | A conditional or a coalescing operator choosing between `root` references of different object roots or object field sets | A validation error naming them |
 | `LEXICA3046` | A read, by its name or through `root`, of an option its member declares as an expression or a predicate, or of one given an implicit body | A validation error: `Option 'by' is an expression evaluated by the member against the implicit parameter it supplies; it has no single value to read here` |
-| `LEXICA3047` | A field or a result that would hold `root` | A validation error: `The field 'copy' would hold root, the object being built, which no result holds; read its fields, as root.name` |
-| `LEXICA3048` | A host call anywhere but the script's terminal operation: in a field, an argument, a condition, a conditional binding, an operand, a function's body or another call's result projection | A validation error |
+| `LEXICA3047` | An object field or a result that would hold `root` | A validation error: `The field 'copy' would hold root, the object being built, which no result holds; read its fields, as root.name` |
+| `LEXICA3048` | A host call anywhere but the script's terminal operation: in an object field, an argument, a condition, a conditional binding, an operand, a function's body or another call's result projection | A validation error |
 | `LEXICA3049` | A result projection following a host call that declares no result | A validation error |
 | `LEXICA3050` | A type selector's key the selector does not map to a type | A validation error naming the selector and the key |
 | `LEXICA3500` | An expression or a predicate argument given to a member that follows no list, a module member or a member of a receiver that is not a list | A validation error naming the member |
 | `LEXICA3600` | A result path into a script that ends in a host call supplying no value | A validation error naming the host call |
 | `LEXICA3601` | A result path indexing what is not a list | A validation error naming the type |
-| `LEXICA3602` | A result path naming a field its type does not hold | A validation error naming the field and the type |
+| `LEXICA3602` | A result path naming an object field or a property its type does not hold | A validation error naming it and the type |
 
 <a id="evaluation-errors"></a>
 

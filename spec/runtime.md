@@ -60,7 +60,7 @@ Resolution's checks are its semantic validation, each failure a `validation` err
 | Area | Required contract |
 | --- | --- |
 | Member resolution | Every member exists and uses its declared form, every extension an access selects is one and declares the member, and an access on a value of `Any` is checked when that value is evaluated. |
-| Arguments | Positional arguments match the signature's order and count; options use one object whose fields name the member's parameters; every required parameter is supplied. |
+| Arguments | Positional arguments match the signature's order and count; options use one object whose object fields name the member's parameters; every required parameter is supplied. |
 | Types and kinds | Receivers, arguments, expressions and bindings fit their declared types; each argument uses its declared argument kind. |
 | Required access | Access written with `.` has a receiver that cannot be null. Other required access forms follow the same nullability rule. |
 | Fixed arguments | Resolution settles each to a non-null string without evaluating a member, as [fixed arguments](members.md#arguments-fixed) set out. |
@@ -119,10 +119,10 @@ An evaluation answers its **value**, whether a member it read was **pending**, a
 
 The metadata describes the value, never part of it: frozen records of `{ origin, tolerance, fields?, items?, sources? }`.
 
-- **Origins.** An origin is an opaque token for the expression that produced a value, the same token exactly where one expression of one resolution, with one candidate selected, produced both values. It lives as long as the resolution, and is comparable across every evaluation of the evaluators made from it, never across resolutions. The runtime follows locals, bodies, `do` blocks, function calls, object-root fields, the branch or operand a conditional, a coalescing, an `and` or an `or` selected, and the property a computed property access selected.
+- **Origins.** An origin is an opaque token for the expression that produced a value, the same token exactly where one expression of one resolution, with one candidate selected, produced both values. It lives as long as the resolution, and is comparable across every evaluation of the evaluators made from it, never across resolutions. The runtime follows locals, bodies, `do` blocks, function calls, the object root's fields, the branch or operand a conditional, a coalescing, an `and` or an `or` selected, and the property a computed property access selected.
 - **Tolerance.** A value's tolerance is the one its producing member declares. An expression that selects part of an existing value takes that part's metadata, inherited where it is, so `{ let climate = room.climate, warmth = climate?.temperature }` keeps the tolerance `temperature` declares; an expression that computes a new value, as arithmetic does, has an origin of its own and no tolerance unless a member declares one. A part with no record of its own inherits its parent's, and a record's `tolerance: null` overrides an inherited one.
-- **Fields and items.** `fields` holds the record of each field of an object an object expression built, by its name in the order written, and `items` the record of each item of a list a projection built.
-- **Sources.** The record of a list a projection built holds `sources`, one entry for each item: `sources[i]` describes the input that made item `i`, before its fields are evaluated, a null input included.
+- **Object fields and items.** `fields` holds the record of each field of an object an object expression built, by its name in the order written, and `items` the record of each item of a list a projection built.
+- **Sources.** The record of a list a projection built holds `sources`, one entry for each item: `sources[i]` describes the input that made item `i`, before its object fields are evaluated, a null input included.
 
   | Entry | Its input | Its `value` |
   | --- | --- | --- |
@@ -155,14 +155,14 @@ if (call.kind === 'prepared') {
 
 <a id="runtime-host-calls-capturing"></a>
 
-**Capturing a supplied value.** A host supplies its values from outside the script, and `project` captures each as the type its call declares before the result projection reads it, at every level of it: the value itself, each field of a structure, a structure nested in a field among them, and each item of a list.
+**Capturing a supplied value.** A host supplies its values from outside the script, and `project` captures each as the type its call declares before the result projection reads it, at every level of it: the value itself, each property of a structure's data shape, a structure nested in one of them, and each item of a list.
 
 | What is supplied | What is captured |
 | --- | --- |
-| Nothing, a field missing or `undefined` among them | Null where its type is nullable; the projection fails where it is not |
+| Nothing, a property missing or `undefined` among them | Null where its type is nullable; the projection fails where it is not |
 | Null | Null where its type is nullable; the projection fails where it is not |
 | A value its type admits | The value, a structure as its data shape alone, and a list item by item |
-| A reference of another type, where a nullable reference type is declared | Null, so the value keeps only the reference its type names, as a `Light?` field holding a thermostat is null |
+| A reference of another type, where a nullable reference type is declared | Null, so the value keeps only the reference its type names, as a `Light?` property holding a thermostat is null |
 | Any other value, data its type does not admit among them | The projection fails with an evaluation error naming the call and the part of the value |
 
 A list never holds a missing item. Narrowing a reference is the one thing capturing turns into null, so mistyped data fails whatever its type's nullability. A supplied value has no type of its own until it is captured, so where it fails its declared type's membership, the registry's `typeOf` tells a reference of another type from mistyped data, as it recognizes a binding. A member's answer is never captured: its implementation answers what its member declares.
@@ -189,7 +189,7 @@ A host projects each value as it arrives, once for a value its call answers once
 
 An implementation says which it is, and what it follows, in `lexica.info.versions`, three versions that change apart:
 
-| Field | What it is |
+| Property | What it is |
 | --- | --- |
 | `runtime` | The implementation's release version, which its packages carry, as `1.0.0-alpha.37`; its sources and every build of them report the same |
 | `language` | The language specification version the implementation follows |

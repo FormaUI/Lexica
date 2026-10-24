@@ -67,9 +67,9 @@ room.device("lamp")?.active() ?? false
 
 ### Property access
 
-A dot property access reads a property and takes no arguments. Whitespace cannot replace the dot: `it climate temperature` is an error suggesting `it.climate`.
+A dot property access reads the property its receiver's type declares, or an object's field, and takes no arguments. Whitespace cannot replace the dot: `it climate temperature` is an error suggesting `it.climate`.
 
-Computed property access chooses a property by a name an expression gives. It follows the same member contract as dot access; see [Computed property access](#computed-property-access).
+Computed property access chooses that property or object field by a name an expression gives. It follows the same member contract as dot access; see [Computed property access](#computed-property-access).
 
 <a id="names-and-resolution-explicit-receivers"></a>
 
@@ -233,7 +233,7 @@ The text alone determines construct boundaries. Parsing does not consult the voc
 
 ## Computed property access
 
-Computed property access chooses a property by a name an expression gives. `it.["climate"]` and `it.climate` resolve the same member, with the same implementation, type, null behavior and observations.
+Computed property access chooses that property or object field by a name an expression gives. `it.["climate"]` and `it.climate` resolve the same member, with the same implementation, type, null behavior and observations.
 
 ```lexica
 device {
@@ -314,7 +314,7 @@ An evaluation reads both what computing the name reads and the selected property
 
 A name selects one property. `it.["climate.temperature"]` does not follow a path. Functions require function calls; numeric list indexing uses the list's unnamed indexer, `list[2]`, and a number where a computed property's name stands is a validation error that gives that form.
 
-A field is always named, as in `reading = it.["power"]`.
+An object field is always named, as in `reading = it.["power"]`.
 
 When the name is a string literal that is a Lexica name, its definition is the same as dot access: `it.["power"]` has the definition of `it.power`.
 
@@ -336,13 +336,13 @@ Its required parameters come before its optional ones, so the parameters left ou
 
 ### Options
 
-The one argument is an object expression written in place, whose fields supply the member's parameters by name, as `{ target = 21, until = Home.now + 3600 }` does for `hold`.
+The one argument is an object expression written in place, whose object fields supply the member's parameters by name, as `{ target = 21, until = Home.now + 3600 }` does for `hold`.
 
-Each field follows its parameter's rules; a field the member has no parameter for is a validation error naming those it has, a required parameter must be given, and a missing optional one takes its default. Where every parameter is optional, the argument can be left out, as in `light.dim()`, and a second argument is a validation error.
+Each object field follows its parameter's rules; an object field the member has no parameter for is a validation error naming those it has, a required parameter must be given, and a missing optional one takes its default. Where every parameter is optional, the argument can be left out, as in `light.dim()`, and a second argument is a validation error.
 
 An object means options only by its member's argument form: the object a positional member is given is its parameter's value.
 
-An options object follows the ordinary rules of an object expression. Its options are evaluated once each, in the order they are written, whatever order the member declares its parameters in. Each written option is in scope by its name after its initializer, as [a field is](values.md#locals-fields-as-names), so in `thermostat.hold({ target = 21, until = if target > 20 then Home.now + 3600 else null end })` the `until` option reads the `target` written before it. Where no object expression encloses it, an options object builds the [object root](values.md#locals-the-object-root), each option a field of it after its initializer, of the value and type it was given, a reference value included; inside one, `root` keeps the enclosing object root, whose fields the options never join. A default the member supplies does not introduce a name or a field. An option the member declares as an expression or a predicate is evaluated by the member, against the implicit parameter it supplies, with the names and the object root of the place it is written; it has no single value, so reading it by its name or through `root` after its initializer is a validation error, which no enclosing name of its spelling escapes.
+An options object follows the ordinary rules of an object expression. Its options are evaluated once each, in the order they are written, whatever order the member declares its parameters in. Each written option is in scope by its name after its initializer, as [an object field is](values.md#locals-object-fields-as-names), so in `thermostat.hold({ target = 21, until = if target > 20 then Home.now + 3600 else null end })` the `until` option reads the `target` written before it. Where no object expression encloses it, an options object builds the [object root](values.md#locals-the-object-root), each option an object field of it after its initializer, of the value and type it was given, a reference value included; inside one, `root` keeps the enclosing object root, whose object fields the options never join. A default the member supplies does not introduce a name or an object field. An option the member declares as an expression or a predicate is evaluated by the member, against the implicit parameter it supplies, with the names and the object root of the place it is written; it has no single value, so reading it by its name or through `root` after its initializer is a validation error, which no enclosing name of its spelling escapes.
 
 <a id="arguments-kinds"></a>
 
@@ -383,21 +383,21 @@ A member's value is known only once it is evaluated, so an expression that needs
 
 ## Declaring a member
 
-A module declares each member as data, in the `members` of the type it belongs to, of an [extension](modules.md#extensions) of a type another module owns, or of the module itself for a [module member](modules.md#namespaces-module-members). A member in a type or an extension takes that type as its receiver and names none, and a module member has none. Its fields are its signature, which lets resolution check every use of it before evaluation, and its evaluation contract, which tells a host how the member reads and changes:
+A module declares each member as data, in the `members` of the type it belongs to, of an [extension](modules.md#extensions) of a type another module owns, or of the module itself for a [module member](modules.md#namespaces-module-members). A member in a type or an extension takes that type as its receiver and names none, and a module member has none. Its declaration keys are its signature, which lets resolution check every use of it before evaluation, and its evaluation contract, which tells a host how the member reads and changes:
 
-| Field | Holds |
+| Declaration key | Holds |
 | --- | --- |
 | `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words), followed by the [type parameters](types.md#types-type-parameters) it declares, `identity<T>`; an operator's names its operation, `cast` or `convert`, and declares none; left out for a type's unnamed indexer |
 | `kind` | `property`, `function`, `indexer` or `operator` |
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
 | `arguments` | The argument form of a function with parameters: `positional` or `options` |
-| `parameters` | Each parameter's name, kind, type, whether it is required and its default where it is not, its null policy, whether it is fixed and what it selects, and its implicit parameter or callback contract by its kind, as [parameter fields](#members-parameter-fields) set out |
-| `result` | The type the member answers, [`Any`](types.md#types-any) for a value of any type: a field's the type of its value, an operator's its destination, and a host call's the type of each value its host supplies, left out where it supplies none, which `Any` never is |
+| `parameters` | Each parameter's name, kind, type, whether it is required and its default where it is not, its null policy, whether it is fixed and what it selects, and its implicit parameter or callback contract by its kind, as [parameter declaration keys](#members-parameter-declaration-keys) set out |
+| `result` | The type the member answers, [`Any`](types.md#types-any) for a value of any type: a property's the type of its value, an operator's its destination, and a host call's the type of each value its host supplies, left out where it supplies none, which `Any` never is |
 | `updates` | How it reads and changes, as [updates](#members-updates) set out |
 | `impl` | The function that carries it out, optional, as [declarations without an implementation](modules.md#modules-declarations-without-an-implementation) set out |
 | `internal` | Whether it is available within its declaring module alone, `false` where left out, as [internal declarations](modules.md#modules-internal-declarations) set out |
 
-Each member takes the fields it needs alone; every one takes `kind` and `internal`, and every one but an unnamed indexer takes `name`:
+Each member takes the declaration keys it needs alone; every one takes `kind` and `internal`, and every one but an unnamed indexer takes `name`:
 
 | Member | `arguments` | `parameters` | `updates` | `result` | `impl` |
 | --- | --- | --- | --- | --- | --- |
@@ -429,13 +429,13 @@ members: [
 
 A named indexer's name is a member name, so it collides with a property or a function of that name on the same type, and a type declares as many named indexers as it needs. A module declares at most one unnamed indexer for a receiver type; which one an access selects follows the receiver type's owner, as [indexer selection](modules.md#namespaces-indexers) sets out.
 
-Positional arguments list parameters in order, with required parameters before optional ones; creating the module checks this order. Options take one object whose fields supply the declared parameters.
+Positional arguments list parameters in order, with required parameters before optional ones; creating the module checks this order. Options take one object whose object fields supply the declared parameters.
 
 Changing a member's argument form is a breaking change, like renaming it. A function expected to grow uses options from the start.
 
-<a id="members-parameter-fields"></a>
+<a id="members-parameter-declaration-keys"></a>
 
-### Parameter fields
+### Parameter declaration keys
 
 A parameter is a value, an expression, a predicate or a function. An expression and a predicate are evaluated against each item of the list the member follows, `context: 'item'`, and an expression declares the type it produces. A parameter declares whether it is required, its default where it is not, and whether a null argument propagates, making the call answer null, or is accepted. A fixed parameter names something the vocabulary resolves before any evaluation, and declares what it selects, a type, `selects: 'type'`, through the type selector its `selector` names.
 
@@ -460,7 +460,7 @@ A member may declare a tolerance for its numeric result and every number within 
 
 ### What an implementation receives
 
-An `impl` is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a field added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica does not call an implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and an operator's `value` and `reject`. A property of a structured type's data shape has none, since Lexica reads it from the data, and the hooks `typeOf` and `isInstance` are given the value alone. The contract is JavaScript's alone, and no script is written differently for it.
+An `impl` is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a property added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. Lexica does not call an implementation of a host call, and what its host calls one with is the host's own. An observation type's holds `request`, `notify` and `env`, and an operator's `value` and `reject`. A property of a structured type's data shape has none, since Lexica reads it from the data, and the hooks `typeOf` and `isInstance` are given the value alone. The contract is JavaScript's alone, and no script is written differently for it.
 
 <a id="how-a-member-reads"></a>
 
@@ -518,7 +518,7 @@ sensor.on("motion") { at = it.at, strong = it.strength > 0.8, room = sensor.room
 
 ### Where a host call stands
 
-A host call is a script's terminal operation: the script ends in it, or in it followed by its result projection, and it does not give a value to any expression around it. One in a field, an argument, a condition, an operand, a function's body or another call's result projection is therefore a validation error, which resolution reports from the declaration the call resolves to. Locals may come before it, so a body whose `return` is a host call is one: `let target = 21`, then `return thermostat.hold({ target = target })`.
+A host call is a script's terminal operation: the script ends in it, or in it followed by its result projection, and it does not give a value to any expression around it. One in an object field, an argument, a condition, an operand, a function's body or another call's result projection is therefore a validation error, which resolution reports from the declaration the call resolves to. Locals may come before it, so a body whose `return` is a host call is one: `let target = 21`, then `return thermostat.hold({ target = target })`.
 
 The declarations that take a name as it is written agree on who invokes it, as [the call keeps who invokes it](types.md#receivers-of-unknown-type-the-call-keeps-who-invokes-it) sets out, so a call on a receiver of unknown type is a host call where they do, and has no declaration until a binding gives its receiver a type.
 

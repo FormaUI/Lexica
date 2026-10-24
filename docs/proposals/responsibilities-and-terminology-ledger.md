@@ -283,12 +283,12 @@ Every serialized change lands together, with its readers, writers, types, fixtur
 
 | Where | Change |
 | --- | --- |
-| `terms.md:39`, `:51`, `:60`; `grammar.md:246`; every "local, field, conditional binding" | "object field" |
-| `runtime.md:156`, `:160`, `:163`; `modules.md:137–152` | a structured type's property, or its data shape |
-| `runtime.md:190` header; `definition.md:7`; `features-status.md:102` | "property" |
-| `members.md:388`, `:400`; `modules.md:56`, `:158–170`; the "naming the field" rows; guide:50 | "declaration key" |
-| `members.md:68` and the glossary, defining property access | "the property its receiver's type declares, or an object's field" |
-| The guide's headings and lines 3, 16, 29 | "script" |
+| `terms.md:39`, `:51`, `:60`; `grammar.md:246`; every "local, field, conditional binding" | ✅ "object field", throughout the specification's prose |
+| `runtime.md:156`, `:160`, `:163`; `modules.md:137–152` | ✅ a structured type's property, or its data shape |
+| `runtime.md:190` header; `definition.md:7`; `features-status.md:102` | ✅ "property" |
+| `members.md:388`, `:400`; `modules.md:56`, `:158–170`; the "naming the field" rows; guide:50 | ✅ "declaration key" |
+| `members.md:68` and the glossary, defining property access | ✅ "the property its receiver's type declares, or an object's field" |
+| The guide's headings and lines 3, 16, 29 | ✅ "script", with T6 |
 | `modules.md:256`, "Module names in text" | Its namespace paragraphs titled for namespaces, at unit 3 |
 
 ## 10. Withdrawn and superseded

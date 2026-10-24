@@ -23,10 +23,10 @@ In this document:
 | Functions | `function-expression`, `function-parameter-list`, `function-parameter`, `arrow-function`, `arrow-parameters`, `function-call` | [Functions](functions.md) |
 | Operators | `coalescing`, `disjunction`, `conjunction`, `negation`, `equality`, `comparison`, `additive`, `multiplicative`, `arithmetic-negation` and their operands | [Expressions](expressions.md) |
 | Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation`, `type-name` | [Casts](types.md#casts), [conversions](values.md#conversions), [attempts](expressions.md#attempts) |
-| Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `computed-property-access`, `member-call`, `indexer`, `extension-access`, `extension-name`, `extension-member`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
+| Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `computed-property-access`, `member-call`, `indexer-access`, `extension-access`, `extension-name`, `extension-member`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
 | Simple expressions | `simple-expression`, `simple-value-expression` | [Simple expressions](expressions.md#simple-expressions) |
-| Names and references | `value`, `identifier`, `local-name`, `field-name`, `member-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
-| Objects | `object`, `object-content`, `field` | [Objects](values.md#objects) |
+| Names and references | `value`, `identifier`, `local-name`, `object-field-name`, `member-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
+| Objects | `object`, `object-content`, `object-field` | [Objects](values.md#objects) |
 | Literals and strings | `literal`, `Number`, `String` and its forms, `interpolated-string` and its parts | [Lexical structure](lexical-structure.md), [interpolated strings](expressions.md#interpolated-strings) |
 | Trivia | `trivia`, `whitespace`, `line-comment`, `block-comment` | [Comments](lexical-structure.md#comments) |
 
@@ -137,7 +137,7 @@ value                         = "it" | "root" | literal
 
 namespace-access              = module-name "." member-name
                                 [ "(" [ argument-list ] ")" ]
-                              (* no indexer is written through a namespace *)
+                              (* no indexer access is written through a namespace *)
 module-name                   = identifier
                               (* a namespace where the script's imports
                                  give a module that name *)
@@ -145,12 +145,12 @@ module-name                   = identifier
 enclosed-expression           = parenthesized-expression | optional-enclosed-access
 
 member-expression             = dot-property-access | computed-property-access
-                              | member-call | indexer | extension-access
+                              | member-call | indexer-access | extension-access
 dot-property-access           = ( "." | "?." ) member-name
 computed-property-access      = ( "." | "?." ) "[" simple-expression "]"
 member-call                   = ( "." | "?." ) member-name
                                 "(" [ argument-list ] ")"
-indexer                       = ( "[" | "?[" ) simple-expression "]"
+indexer-access                = ( "[" | "?[" ) simple-expression "]"
 extension-access              = ( ":" | "?:" ) extension-name extension-member
 extension-name                = [ module-name "." ] identifier
                               (* a module-name where the script's imports
@@ -159,14 +159,14 @@ extension-member              = "." member-name [ "(" [ argument-list ] ")" ]
                               | "[" simple-expression "]"
 
 object                        = "{" object-content "}"
-object-content                = { local "," } field { "," field } [ "," ]
-field                         = field-name "=" expression
+object-content                = { local "," } object-field { "," object-field } [ "," ]
+object-field                  = object-field-name "=" expression
 
 literal                       = string | number | "true" | "false" | "null"
 
 identifier                    = letter { letter | digit }
 local-name                    = identifier
-field-name                    = identifier
+object-field-name             = identifier
 member-name                   = identifier
 reserved-word                 = "true" | "false" | "null" | "root" | keyword
 keyword                       = "it" | "not" | "try" | "as" | "to" | "and" | "or"
@@ -243,16 +243,16 @@ The grammar uses several terms more narrowly than the prose:
 | --- | --- |
 | `value` | The forms listed by that production: the implicit parameter, the object root or a literal |
 | `identifier` | An identifier's spelling, every name and every unprefixed reference written with it; which identifiers a position takes, and what one means there, are the [interpretation rules](lexical-structure.md#names-and-reserved-words-what-an-identifier-means), which the grammar's one production leaves to them |
-| `lexical-reference` | `@` and an identifier, reading the nearest local, field, conditional binding or function parameter of that name, whatever its spelling |
+| `lexical-reference` | `@` and an identifier, reading the nearest local, object field, conditional binding or function parameter of that name, whatever its spelling |
 | `script-parameter` | `~` and an identifier, selecting the script parameter of that name explicitly |
 | `import-declaration` | An import: its alias and `=` where it gives one, then its source, a registered module's name, and a dot and a type's local name where it imports one type |
 | `module-name` | An identifier naming a module where a value stands, or qualifying a type's or an extension's name: the local name the script's imports give a module, its own or an alias |
 | `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; a script importing no module has none |
-| `extension-access` | An extension selected explicitly, `:` or `?:` and the extension's name, its local name or one its module qualifies, then the one member operation it supplies; a named indexer's key follows as an `indexer`, as after a `dot-property-access` |
+| `extension-access` | An extension selected explicitly, `:` or `?:` and the extension's name, its local name or one its module qualifies, then the one member operation it supplies; a named indexer's key follows as an `indexer-access`, as after a `dot-property-access` |
 | `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by the local name the script's imports give its module and a dot where written so; a qualified name parses alike whatever the script imports, and resolution decides whether the script imports the module |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
-| `indexer` | Brackets and a key after a value: its type's unnamed indexer, or, after a `dot-property-access`, the named indexer that access names where its receiver's type declares one, which resolution decides, as [named indexers](members.md#property-access-calls-and-indexers-named-indexers) set out |
+| `indexer-access` | An indexer access: brackets and a key after a value, reaching its type's unnamed indexer, or, after a `dot-property-access`, the named indexer that access names where its receiver's type declares one, which resolution decides, as [named indexers](members.md#property-access-calls-and-indexers-named-indexers) set out |
 | `equality-operand` | A chain, cast, conversion or attempt, used within the arithmetic productions |
 | `coalescing-operand` | An arithmetic negation or an equality operand, never binary arithmetic, which stands apart from `??` unless one of them is grouped |
 

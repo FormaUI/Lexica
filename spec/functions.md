@@ -46,13 +46,13 @@ return answer()
 
 Parentheses are optional for exactly one parameter and required for none or several. An arrow function declares no locals and does not hold a body, so `x => let y = …` and `x => do … end` are refused, and so is `x => y => x + y`, whose body is not a simple expression; a function that holds more is a regular function bound to a local and passed by its name. Laying the expression out across lines changes nothing.
 
-Either form is a local's initializer, of a body or of an object expression, and an arrow function is also an argument, as `apply(device => device.active(), lamp)` is. Neither stands anywhere else: a field, an operand, a conditional's branch and a result hold neither, and a regular function written directly as an argument is a syntax error:
+Either form is a local's initializer, of a body or of an object expression, and an arrow function is also an argument, as `apply(device => device.active(), lamp)` is. Neither stands anywhere else: an object field, an operand, a conditional's branch and a result hold neither, and a regular function written directly as an argument is a syntax error:
 
 > A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.
 
-A definition holding either where text could not write it is a structure error. An object expression's function local is in scope within it, as any local is, and is not a field.
+A definition holding either where text could not write it is a structure error. An object expression's function local is in scope within it, as any local is, and is not an object field.
 
-Its function parameters are names of the function, two of one function never the same, visible in its body alone, where each hides an outer local, field or script parameter of its name; [`~`](scripts.md#scripts-parameter-references) still selects the script parameter.
+Its function parameters are names of the function, two of one function never the same, visible in its body alone, where each hides an outer local, object field or script parameter of its name; [`~`](scripts.md#scripts-parameter-references) still selects the script parameter.
 
 <a id="functions-calling-one"></a>
 
@@ -79,7 +79,7 @@ return apply(test, lamp)
 
 A conditional or a coalescing operator may choose between functions, as `let pick = if metered then shortfall else surplus end` does: a call of `pick` is checked against each function it may be, and their results merge by the rules [branches](expressions.md#conditionals) follow, a call whose functions give no one type a validation error. A value that may be null is never called; bind a function to call in its place first, as `let call = pick ?? surplus` does.
 
-A function value is used within the expression, and the expression's result holds data alone: a field or a result that would hold a function is a validation error, and a function is never compared, interpolated, converted or given to a member's value parameter.
+A function value is used within the expression, and the expression's result holds data alone: an object field or a result that would hold a function is a validation error, and a function is never compared, interpolated, converted or given to a member's value parameter.
 
 <a id="functions-module-functions"></a>
 
@@ -100,7 +100,7 @@ return {
 - **Its calls.** A call of a reference is its qualified form's call, wherever the reference was held, passed or chosen, so `find(room, "lamp")` after `let find = Home.device` is `Home.device(room, "lamp")`: its receiver argument is evaluated first, and a null one answers null without evaluating the function's own arguments or invoking it, so `find(nothing, readName())` never calls the local function `readName` where `nothing` is null. A call of a value that may be a reference or another function evaluates its receiver argument first either way and skips the rest only where the value is the reference. Its type is nullable where its receiver argument's is.
 - **A function the evaluator invokes.** A property has no reference, since it is read where it is written, so `Home.name` written without a call is a validation error giving its qualified form, `Home.name(device)`; a module member that is a property is read, as `Home.rooms` is. A host call has none, since the evaluator never invokes one, and neither does a function of Lexica's own module, which has no namespace.
 - **Read where it is written.** A reference is resolved where it is written, and creating one reads nothing and invokes nothing; each call of it reads what its declaration says, as [what a call reads](#functions-watching) sets out.
-- **Never a bare name.** A name alone reads the local, field, function parameter or script parameter of its name, as every name does, so `lamp.is(active)` reads a local named `active`, and a module's function is reached through its namespace alone.
+- **Never a bare name.** A name alone reads the local, object field, function parameter or script parameter of its name, as every name does, so `lamp.is(active)` reads a local named `active`, and a module's function is reached through its namespace alone.
 - **An extension's function.** A function an extension declares is never reached through a namespace. Accessed through its extension without a call, `device:Device.active` is a reference bound to its receiver, which is evaluated and captured once when the reference is created, and takes the function's own arguments alone, as [extension access](members.md#property-access-calls-and-indexers-extension-access) sets out; where the receiver is supplied later, an arrow function writes it, `d => d:Device.active()`.
 
 <a id="functions-what-it-sees"></a>
@@ -143,7 +143,7 @@ A function parameter whose callback contract takes one argument also takes an **
   - An arrow function is passed as it is, and keeps the implicit parameter of the place it is written, as every arrow function does.
   - Any other argument is an implicit body where `it` occurs in the argument's own scope: outside every scope within it that gives `it` a value of its own, an object expression following a value or a list, an expression or a predicate argument, and another implicit body. An `it` within an arrow function the argument holds is in the argument's scope, since the arrow function keeps the `it` of the place it is written.
   - An argument with no `it` in its own scope is passed as it is, so it is a function value, and a name holding anything else is a validation error, as `device.is(metered)` is for a Boolean `metered`.
-- **What it sees.** Its `it` is the argument the member calls it with, and every other name it reads, a local, a field, a function parameter, a script parameter or `root`, is read where it is written, as a function captures what it sees where it is declared. It is one simple expression, as every argument is, so it declares no locals.
+- **What it sees.** Its `it` is the argument the member calls it with, and every other name it reads, a local, an object field, a function parameter, a script parameter or `root`, is read where it is written, as a function captures what it sees where it is declared. It is one simple expression, as every argument is, so it declares no locals.
 - **When it is evaluated.** Each call evaluates it anew against that call's argument, while the member's invocation lasts, and a member that never calls it never evaluates it, so it reads only what the calls the member makes read.
 - **Its type.** It resolves as an arrow function's body does, its `it` of the type the callback contract gives its argument, and its result is checked against the contract's result type.
 - **In the definition.** It is recorded as written, one of its call's argument nodes, with no node of its own, and its canonical text is its expression: whether an argument is an implicit body is the vocabulary's to say, and a definition does not know any vocabulary. The resolution records which arguments are implicit bodies, so an evaluator and a tool read the interpretation from it.

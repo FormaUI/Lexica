@@ -37,7 +37,7 @@ In this document:
 
 A script is its [imports](#scripts-imports) and a [body](#bodies): one expression, or locals and the `return` that gives its result. Its text is its source, which [the lexical structure](lexical-structure.md) and [the grammar](grammar.md) read, and its JSON form is its [definition](definition.md). The last member of its chain decides [what it gives](members.md#members-member-kinds-and-host-calls): most scripts give a value, which a host evaluates, and a script whose chain ends in a function the host invokes ends in a host call, which the host carries out.
 
-A script reads three kinds of names: its script parameters, which its host binds; the names it declares itself, its locals, fields, conditional bindings and function parameters; and its vocabulary's, the members, types and module namespaces of the modules it imports. How a host resolves and evaluates a script, the [host contract](runtime.md) sets out.
+A script reads three kinds of names: its script parameters, which its host binds; the names it declares itself, its locals, object fields, conditional bindings and function parameters; and its vocabulary's, the members, types and module namespaces of the modules it imports. How a host resolves and evaluates a script, the [host contract](runtime.md) sets out.
 
 <a id="scripts-imports"></a>
 
@@ -80,7 +80,7 @@ A binding takes its type from its value, unless the host declares it.
 - A number, a string and a Boolean are `Number`, `String` and `Boolean`.
 - Null is of the type `null`.
 - A list is a `List<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `List<Device>` and `[light, null]` a `List<Light?>`. A declared cast between two types gives them no type to share. A list of nulls alone, `[null]` or `[null, null]`, is a `List<null>`, whose items can only be null, and the empty list is a `List<Never>`, which does not hold an item.
-- An object is of the object type of its fields' types, each typed as a binding is.
+- An object is of the object type of its object fields' types, each typed as a binding is.
 - A list whose items share no type has no type, because Lexica has no union types and a list holds items of one type, so binding `[1, "two"]`, or a room and a light together, is a structure error.
 
 Binding keeps a frozen copy of the data it is given, through its lists and objects, and each reference value as itself, never copied or frozen, a reference within data among them. A host that changes its data afterwards changes nothing bound, and binds anew to supply new data.
@@ -92,7 +92,7 @@ A tool that checks a script without running it takes the same values, or values 
 
 ### Selecting a script parameter
 
-`~` directly before an identifier, a `script-parameter` in the [grammar](grammar.md#grammar-the-grammar), selects the script parameter of that name explicitly, whatever local, field, conditional binding or function parameter of that name hides it. In `{ room = room.name, devices = ~room.devices.count }`, the field `room` hides the parameter after it, and `~room` still reads the room the host bound.
+`~` directly before an identifier, a `script-parameter` in the [grammar](grammar.md#grammar-the-grammar), selects the script parameter of that name explicitly, whatever local, object field, conditional binding or function parameter of that name hides it. In `{ room = room.name, devices = ~room.devices.count }`, the object field `room` hides the parameter after it, and `~room` still reads the room the host bound.
 
 `~` also selects a parameter named by a reserved word: `~as` and `~Home` read the parameters `as` and `Home`, which written alone would read the keyword and, in a script importing `Home`, the module's namespace. A parameter the host did not bind is a validation error.
 
@@ -105,7 +105,7 @@ The name must follow `~` directly, and `~` alone reads nothing, so it is a synta
 
 ## Names and scope
 
-A name at the start of a chain, an **identifier**, reads the nearest visible local, field, conditional binding or function parameter of that name. If none is visible, it reads the script parameter of that name, and resolution fails if the host bound none. A name read before a local of that name declared later in the same scope is a structure error, since it does not read a parameter there; a field of that name written later leaves it reading the parameter.
+A name at the start of a chain, an **identifier**, reads the nearest visible local, object field, conditional binding or function parameter of that name. If none is visible, it reads the script parameter of that name, and resolution fails if the host bound none. A name read before a local of that name declared later in the same scope is a structure error, since it does not read a parameter there; an object field of that name written later leaves it reading the parameter.
 
 `it` reads the [implicit parameter](#names-and-resolution-implicit-parameter-by-position), and the name of a module the script [imports](#scripts-imports) begins that module's [namespace](modules.md#namespaces). Members always have an explicit receiver, and equality always has both operands, so a reader needs no vocabulary knowledge to decide what a name applies to.
 
@@ -133,9 +133,9 @@ The **implicit parameter**, read as `it`, is the value the current expression is
 
 In `room { warmth = it.climate?.temperature }`, `it` is the room.
 
-In `room { climate = { warmth = it.climate?.temperature, humidity = it.climate?.humidity } }`, both nested fields still read the room. The nested object groups fields without changing the implicit parameter.
+In `room { climate = { warmth = it.climate?.temperature, humidity = it.climate?.humidity } }`, both nested object fields still read the room. The nested object groups object fields without changing the implicit parameter.
 
-At the top level, `{ level = light.brightness, active = light.active() }` has no implicit parameter. Each field reads a script parameter, a literal or another expression that does not require one.
+At the top level, `{ level = light.brightness, active = light.active() }` has no implicit parameter. Each object field reads a script parameter, a literal or another expression that does not require one.
 
 `it.name`, `{ name = it.name }` and `light.dim({ to = it })` at the top level are errors because there is no implicit parameter.
 
@@ -147,7 +147,7 @@ At the top level, `{ level = light.brightness, active = light.active() }` has no
 
 - **A body gives its own `it`.** A projection, an expression or a predicate argument, and an implicit body each give `it` the value it receives.
 - **A nested body shadows it.** In `rooms { count = it.devices.where(it.active()).count }`, the `it` of `where`'s argument is each device, the room's out of its reach.
-- **A plain object keeps it.** An object expression that follows no value does not receive an input, so its fields read the `it` around it.
+- **A plain object keeps it.** An object expression that follows no value does not receive an input, so its object fields read the `it` around it.
 - **A function captures it.** An arrow function or a function declared with `function` gives names to its own parameters alone, and captures the `it` where it is written as it captures every name, so `rooms { larger = Home.rooms.where(r => r.floorArea > it.floorArea).count }` compares each room with the projected one.
 - **A value argument reads it.** A value argument is evaluated where the call is written, against the `it` already there.
 - **None is not a value.** `it` where no body gives one is an error.
@@ -268,7 +268,7 @@ room {
 
 ### Declaration and use
 
-An object expression writes its locals before its first field. Each local is `let name = initializer`, followed by a comma. The object must still have at least one field: `{ let x = 1 }` is a syntax error.
+An object expression writes its locals before its first object field. Each local is `let name = initializer`, followed by a comma. The object must still have at least one object field: `{ let x = 1 }` is a syntax error.
 
 A local name can start a chain, take a projection, or supply an argument. A reserved local name uses `@name` when referenced. A local holding a value cannot be called: `items(…)` is a validation error.
 
@@ -278,7 +278,7 @@ Locals occur only in bodies and object expressions. A [simple expression](expres
 
 ### Sequential scope
 
-A local is visible after its initializer, through later locals, fields and everything nested in them, including arguments. It is not visible in its own initializer or before its declaration.
+A local is visible after its initializer, through later locals, object fields and everything nested in them, including arguments. It is not visible in its own initializer or before its declaration.
 
 If a name is declared as a local later in the same scope, an earlier bare reference is a structure error. It never falls back to the script parameter. Both of these are refused whatever the host binds:
 
@@ -287,21 +287,21 @@ If a name is declared as a local later in the same scope, an earlier bare refere
 
 `~` reads the script parameter explicitly, even before or beneath a same-named local: `{ let n = ~n + 1, value = n }` reads the bound `n`.
 
-A local in a sibling or unrelated scope does not hide a script parameter. In `{ a = room { let n = 1, v = n }, b = n }`, field `b` reads the script parameter `n`.
+A local in a sibling or unrelated scope does not hide a script parameter. In `{ a = room { let n = 1, v = n }, b = n }`, object field `b` reads the script parameter `n`.
 
 <a id="locals-duplicate-names-and-shadowing"></a>
 
 ### Duplicate names and shadowing
 
-Two locals in one object expression cannot share a name. Neither can two fields. Both are structure errors.
+Two locals in one object expression cannot share a name. Neither can two object fields. Both are structure errors.
 
-A local or field can hide a name from an outer scope: a local, field, conditional binding or script parameter. The nearest visible declaration wins; `~` still selects the script parameter. Reserved names are allowed.
+A local or object field can hide a name from an outer scope: a local, object field, conditional binding or script parameter. The nearest visible declaration wins; `~` still selects the script parameter. Reserved names are allowed.
 
-A field may reuse a local's name. Its initializer reads the local, then the field hides it:
+An object field may reuse a local's name. Its initializer reads the local, then the object field hides it:
 
 `room { let devices = it.devices, devices = devices.count, more = devices + 1 }`.
 
-Here `devices` in `more` is the count field.
+Here `devices` in `more` is the count object field.
 
 <a id="locals-captured-implicit-parameter"></a>
 
@@ -323,4 +323,4 @@ A [body's](#bodies) locals differ: they run in order, even when unused. All loca
 
 ### Output
 
-A local is not a field and is never included in the result. It may hold values that a result cannot contain, such as a device or a list of devices.
+A local is not an object field and is never included in the result. It may hold values that a result cannot contain, such as a device or a list of devices.

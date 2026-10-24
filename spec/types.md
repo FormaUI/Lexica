@@ -38,7 +38,7 @@ In this document:
 | Reference types | Types a module declares whose values have identity, as `Room`, `Device` and `Light` |
 | Lists | `List<T>`, a list whose items have type `T` |
 | Structured values | Data a module declares, its data shape the properties its type declares directly without `updates`, as `Climate` |
-| Object types | The field types inferred from an object expression, as `{ name: String, count: Number }` |
+| Object types | The object field types inferred from an object expression, as `{ name: String, count: Number }` |
 | `Any` | A value of any type that isn't null, its concrete type known when it is evaluated, as [values of `Any`](#types-any) set out |
 
 The scalar types, lists and object types are the language's own, which Lexica's own module owns; every reference type and structured type comes from a module, which [declares it](modules.md#modules-declaring-a-type) with its members.
@@ -76,7 +76,7 @@ Module, namespace, and type names conventionally use PascalCase. This convention
 
 A type a module declares is identified by its module and its local name, so `Home.Sensor` and `Garden.Sensor` are two types. A local name is unique within its module, and two modules may each declare a type of one name. A module may declare a type whose name one of Lexica's own types or extensions spells, as `Home.Number`, `Home.Null` or `Home.VerbExtensions`: a name is not invalid because something elsewhere has the same name. An unqualified reference resolves by the lookup its position sets out below. Ambiguity is checked when resolving a reference, against the declarations applicable at that location. Declarations are not refused merely because their names could become ambiguous in another context.
 
-- **In a type's declaration.** A type reference resolves, without a qualifier, to the nearest of these that has a type of its name: a type parameter the declaration declares; a type of the declaring module, a declaration of its own; one of Lexica's own types; and a type of a module the type's `import` names, `import: ['Home']`. An import covers that type's declaration whole: its supertype, its fields, its members' parameters, callbacks and results, and its operators' destinations. It reaches no other type, no module member, no extension and no script, a type beneath it inherits none, and naming the type passes none on. So a type of the declaring module wins over Lexica's own of its name and over an imported one, and no import replaces one of Lexica's own types. Two imported modules declaring a type of one name make an unqualified reference to it ambiguous, unless a nearer one has it, and import order never decides.
+- **In a type's declaration.** A type reference resolves, without a qualifier, to the nearest of these that has a type of its name: a type parameter the declaration declares; a type of the declaring module, a declaration of its own; one of Lexica's own types; and a type of a module the type's `import` names, `import: ['Home']`. An import covers that type's declaration whole: its supertype, its data shape, its members' parameters, callbacks and results, and its operators' destinations. It reaches no other type, no module member, no extension and no script, a type beneath it inherits none, and naming the type passes none on. So a type of the declaring module wins over Lexica's own of its name and over an imported one, and no import replaces one of Lexica's own types. Two imported modules declaring a type of one name make an unqualified reference to it ambiguous, unless a nearer one has it, and import order never decides.
 - **Qualified, anywhere in a declaration.** A reference may name a foreign type qualified by its module, `Home.Device`, `Home.Light?` or `List<Garden.Sensor>`, whether or not its module is imported, and an unqualified reference does not search a module outside the scopes above.
 - **In an extension, a module member and a mapping.** None imports: the declaring module's types and Lexica's own resolve unqualified, and a foreign type is written qualified. An extension does not inherit an import of the type it extends.
 - **Never an extension.** A type reference, in a declaration, a script or a declared binding, counts types alone, since no value is of an extension: within `Energy`, whose extension `Device` targets `Home.Device`, `Device` names no type of its own module, and in a script importing both, `device as Device` names `Home`'s.
@@ -226,7 +226,7 @@ A value stands where a type is declared, a parameter's, a callback's or a result
 | A nullable type, `T?` | A nullable type `U?` that `T` is assignable to |
 | A named type | The same type, by its [identity](#types-type-identity), and each supertype above it, as [reference types](#reference-types) set out |
 | `List<T>` | `List<U>`, where `T` is assignable to `U`, by [list covariance](#types-type-parameters-list-covariance) |
-| An object type | An object type of the same field names, each field's type assignable to the type of the field of its name; a field more or a field fewer is refused |
+| An object type | An object type of the same object field names, each object field's type assignable to the type of the object field of its name; an object field more or an object field fewer is refused |
 | A type that isn't nullable | `Any` |
 | Any type | `Any?` |
 
@@ -238,7 +238,7 @@ A value of `Any` is assignable to another type once its value is known: given wh
 
 ### Equal types
 
-Two types are equal where they are one type: one named type, by its identity, or two lists whose items' types are equal, or two object types of the same field names whose fields' types are equal, each of one nullability. Equal types are assignable to each other; assignable types need not be equal, as `String` and `String?` are not.
+Two types are equal where they are one type: one named type, by its identity, or two lists whose items' types are equal, or two object types of the same object field names whose object fields' types are equal, each of one nullability. Equal types are assignable to each other; assignable types need not be equal, as `String` and `String?` are not.
 
 <a id="types-merging"></a>
 
@@ -253,10 +253,10 @@ Two types merge to the least type that holds a value of either, made nullable wh
 | A type and itself, either nullable | The type, nullable where either is |
 | Two reference types of one hierarchy | The nearest supertype they share |
 | `List<T>` and `List<U>` | A list of the type `T` and `U` merge to |
-| Two object types of the same field names | The object type of those names, each field of the type the two fields of its name merge to |
+| Two object types of the same object field names | The object type of those names, each object field of the type the two object fields of its name merge to |
 | `Any` and a type | `Any`, made nullable where either can be null, so `Any` and `Number` merge to `Any`, and `Any` and `Number?`, or `Any` and `null`, to `Any?` |
 
-Any other two types don't merge, two object types of different field names, two lists whose items don't merge and two reference types of different hierarchies among them, and where a conditional's branches, a coalescing operator's sides or a list's items are of such types, the expression is a validation error naming both.
+Any other two types don't merge, two object types of different object field names, two lists whose items don't merge and two reference types of different hierarchies among them, and where a conditional's branches, a coalescing operator's sides or a list's items are of such types, the expression is a validation error naming both.
 
 <a id="receivers-of-unknown-type"></a>
 
@@ -270,7 +270,7 @@ A receiver of the type `null` can be null, so it takes `?.`, and a `Never`, whic
 
 ### Any property
 
-A name written as a property is accepted whatever it is, since the fields of a bound object are named by its data, as `row?.id` for a null `row` and `rows { id = it.id }` for empty `rows` are; it is checked once its receiver's type is known.
+A name written as a property is accepted whatever it is, since a bound object's fields are named by its data, as `row?.id` for a null `row` and `rows { id = it.id }` for empty `rows` are; it is checked once its receiver's type is known.
 
 <a id="receivers-of-unknown-type-known-calls-alone"></a>
 
@@ -307,7 +307,7 @@ Whether the name applies to its receiver is checked once the receiver's type is 
 
 ### An object expression
 
-An object expression following such a receiver, or applied to the items of a `List<Never>`, resolves its fields against a `Never`, so a call in it is still checked; its type is the object type of its fields, made nullable after a null, and a list of it after an empty list, which answers the empty list.
+An object expression following such a receiver, or applied to the items of a `List<Never>`, resolves its object fields against a `Never`, so a call in it is still checked; its type is the object type of its object fields, made nullable after a null, and a list of it after an empty list, which answers the empty list.
 
 A member read on a `List<Never>` runs, as on any list, so it resolves to one declaration as any receiver does, the applicable declaration whose receiver type is more specific than every other's, as [a module's own collisions](modules.md#namespaces-a-modules-own-collisions) set out. A `List<Never>` satisfies every list type, so it can expose an ambiguity: where several unrelated declarations apply and none is more specific than the others, the access is refused, naming them.
 
@@ -349,7 +349,7 @@ Both apply the same visibility, inheritance, ownership and ambiguity rules, and 
 - **Host calls are selected during resolution.** A deferred access whose selection would be a host call is refused before anything is invoked, saying to make its receiver known or to select its extension explicitly.
 - **An `Any` argument of a selected call** is checked against that call's contract when its value is known.
 - **The host is asked first.** Before a member selected during evaluation is invoked, a property's getter included, the host's `beforeInvoke` decides whether it is permitted, as [the evaluator's hooks](runtime.md#runtime-evaluation) set out, and ownership, visibility, ambiguity and execution-position rules are applied without running a restricted member to learn whether it was allowed.
-- **A selection is kept for one type.** A selection is kept by its node and the receiver's actual type within one registry context, a change to the registry's contents discarding it, so an evaluation never reuses a selection made for a receiver of another type. A plain structured object's fields are looked up on each object, since objects of one general type need not hold the same fields.
+- **A selection is kept for one type.** A selection is kept by its node and the receiver's actual type within one registry context, a change to the registry's contents discarding it, so an evaluation never reuses a selection made for a receiver of another type. A plain structured object's fields are looked up on each object, since objects of one general type need not hold the same object fields.
 
 <a id="types-any-identity"></a>
 
@@ -377,7 +377,7 @@ The first and the third answer a light, which no result holds, so each stands wi
 
 ### The type a cast names
 
-The type is the name of a reference type the registry knows, written bare, its local name or qualified by its module, `device as Light` or `device as Home.Light`, and found as [type identity](#types-type-identity) sets out; a string in its place, `device as "Light"`, is a syntax error giving `device as Light`. The name identifies the type directly: it does not read a local, field or script parameter of its spelling, and does not declare or infer a type. The cast is of that type, nullable where its target can be null, so `room.device(name) as Light` is a `Light?` and `device as Light`, with `device` bound to a device, a `Light`; an attempted cast is nullable always.
+The type is the name of a reference type the registry knows, written bare, its local name or qualified by its module, `device as Light` or `device as Home.Light`, and found as [type identity](#types-type-identity) sets out; a string in its place, `device as "Light"`, is a syntax error giving `device as Light`. The name identifies the type directly: it does not read a local, object field or script parameter of its spelling, and does not declare or infer a type. The cast is of that type, nullable where its target can be null, so `room.device(name) as Light` is a `Light?` and `device as Light`, with `device` bound to a device, a `Light`; an attempted cast is nullable always.
 
 A name that is not a public type, or that several types share, is a validation error, the second giving the qualified names; a type that is not a reference type is a validation error naming the types its target can be cast to.
 

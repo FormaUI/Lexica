@@ -62,7 +62,7 @@ Numeric comparisons may form a chain only when every operator points the same wa
 
 | Use | Example |
 | --- | --- |
-| Field | `{ from = 1, to = 2 }` |
+| Object field | `{ from = 1, to = 2 }` |
 | Local | `{ let to = "3", value = @to to Number }` |
 | Script parameter | `~to` |
 | Property | `range.to` |
@@ -455,15 +455,15 @@ The name has the value's type without null. A Boolean remains a Boolean. A value
 
 The name is visible throughout its consequent, including nested expressions. It is absent from its own initializer, the alternative and later `elseif` clauses.
 
-Where no local, field or function parameter of that name is in scope, using the name in its own initializer is a structure error rather than a read of the script parameter: `if let k = k then …` is refused, and `if let k = ~k then …` reads the script parameter. Where one is in scope, the initializer reads it. In the alternative and later clauses, the name again reads what it reads outside the conditional.
+Where no local, object field or function parameter of that name is in scope, using the name in its own initializer is a structure error rather than a read of the script parameter: `if let k = k then …` is refused, and `if let k = ~k then …` reads the script parameter. Where one is in scope, the initializer reads it. In the alternative and later clauses, the name again reads what it reads outside the conditional.
 
-The name follows local naming rules, and may hide an outer local, field or script parameter. A host call cannot be bound as a conditional value. `elseif let` follows the same rules.
+The name follows local naming rules, and may hide an outer local, object field or script parameter. A host call cannot be bound as a conditional value. `elseif let` follows the same rules.
 
 <a id="conditionals-branch-types"></a>
 
 ### Branch types
 
-All branches are required. Their types must [merge](types.md#types-merging), with object types merged field by field and reference types of one hierarchy merging to the nearest supertype they share, as a list's items do. Nullability may differ.
+All branches are required. Their types must [merge](types.md#types-merging), with object types merged by their object fields and reference types of one hierarchy merging to the nearest supertype they share, as a list's items do. Nullability may differ.
 
 | Branch types | Conditional type |
 | --- | --- |
