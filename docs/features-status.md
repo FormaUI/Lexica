@@ -63,7 +63,8 @@ Every declaration takes its final shape, and the types those declarations make r
    - Projection sources for every projected item, in the representation unit 0 specifies, replacing the sources recorded for elements alone.
    - The resolution key written by qualified identity, so two modules' `Device` no longer share one.
    - Removed: the built-in DOM types and every `nodeType` path, in binding, evaluation, captures, casts and messages, and `lexica.bind`.
-4. **The declaration model:**
+4. **Responsibilities and terminology,** the prerequisite stage, as [its proposal](proposals/responsibilities-and-terminology.md) sets out: the model and its terms recorded, the boundaries reviewed, the mixed responsibilities resolved, and the separations, consolidations and renames its [ledger](proposals/responsibilities-and-terminology-ledger.md) reviews applied, with the part of a later step a change depends on brought forward. Serialized changes wait for definition version 34.
+5. **The declaration model:**
    - Module names unique case-insensitively at registration, their spelling kept, and Lexica's own module named `Lexica`; casing a convention for modules, namespaces and types, never enforced.
    - Type kinds, members within their types, stored properties in place of `fields`, the `indexer` kind, named or unnamed, in place of the indexer bridge, and `impl` in place of `implementation`.
    - Named extension types, each with one target, never `Any` or nullable, in place of the `'any'` target and lists of targets; a module member and an extension of its name declared side by side.
@@ -73,7 +74,7 @@ Every declaration takes its final shape, and the types those declarations make r
    - The declaration helpers without receivers, with stored property and indexer helpers.
    - Lexica's own `List<T>`, declared through a form internal to Lexica and owning the members of lists, which the receiver gives its `T`, with its unnamed indexer in place of `item`; and `VerbExtensions<T>`.
    - Removed: flat members, `target`, `syntax`, `default`, `fields`, `selectableTypes`, the migration hints for `predicates`, and the duplicate tolerance and identifier checks.
-5. **Inference of type parameters:** a receiver binding its extension's parameters by its non-null branch, with exact extraction; value arguments binding before callbacks; nullable candidates combining and different candidates refused; the evidence of `null` and `Never`; and a callback's result binding a parameter, without chaining.
+6. **Inference of type parameters:** a receiver binding its extension's parameters by its non-null branch, with exact extraction; value arguments binding before callbacks; nullable candidates combining and different candidates refused; the evidence of `null` and `Never`; and a callback's result binding a parameter, without chaining.
 
 Module-level conversions, and the registration's refusal of members of one name on overlapping receivers across modules, stay as they are until unit 2 replaces them.
 
