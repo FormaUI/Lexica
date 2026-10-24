@@ -177,6 +177,8 @@ describe('the module error codes', () => {
 
         it('LEXICA4007: a type selector or an observation type named as one declared already', () => {
             expectCode(creating({ typeSelectors: [{ name: 'report' }, { name: 'report' }] }), 'LEXICA4007');
+            expectCode(creating({ observationTypes: [{ name: 'state', contract: 'invalidation' }, { name: 'state', contract: 'maintained' }] }), 'LEXICA4007');
+            expect(errorOf(creating({ observationTypes: [{ name: 'state', contract: 'invalidation' }, { name: 'state', contract: 'maintained' }] })).location).toEqual({ module: 'charts', declaration: 'state', field: 'name' });
             expectCode(registering(module('charts', { typeSelectors: [{ name: 'report' }] }), module('graphs', { typeSelectors: [{ name: 'report' }] })), 'LEXICA4007');
             expectCode(registering(module('charts', { observationTypes: [{ name: 'state', contract: 'invalidation' }] }), module('graphs', { observationTypes: [{ name: 'state', contract: 'invalidation' }] })), 'LEXICA4007');
         });

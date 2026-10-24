@@ -131,7 +131,7 @@ export class LexicaModule {
         this.#members = LexicaModule.#freezeItems(members.map(member => LexicaModule.#validateMember(member, fail)));
         this.#typeSelectors = LexicaModule.#freezeItems(LexicaModule.#validateTypeSelectors(typeSelectors, fail));
         this.#selectableTypes = LexicaModule.#freezeItems(selectableTypes.map(selectable => LexicaModule.#validateSelectableType(selectable, fail)));
-        this.#observationTypes = LexicaModule.#freezeItems(observationTypes.map(type => LexicaModule.#validateObservationType(type, fail)));
+        this.#observationTypes = LexicaModule.#freezeItems(LexicaModule.#validateObservationTypes(observationTypes, fail));
         this.#observationTargets = LexicaModule.#freezeItems(LexicaModule.#validateObservationTargets(observationTargets, fail));
         this.#conversions = LexicaModule.#freezeItems(conversions.map(conversion => LexicaModule.#validateConversion(conversion, fail)));
     }
@@ -577,6 +577,23 @@ export class LexicaModule {
             }
 
             return LexicaModule.#copyOf(target);
+        });
+    }
+
+    /** Validates the observation types a module declares, each once in the module. */
+    static #validateObservationTypes(types, fail) {
+        const names = new Set();
+
+        return types.map(declared => {
+            const type = LexicaModule.#validateObservationType(declared, fail);
+
+            if (names.has(type.name)) {
+                fail('LEXICA4007', `The observation type '${type.name}' is declared twice`, type.name, 'name');
+            }
+
+            names.add(type.name);
+
+            return type;
         });
     }
 
