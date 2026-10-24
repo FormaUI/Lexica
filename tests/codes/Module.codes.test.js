@@ -573,6 +573,7 @@ describe('the module error codes', () => {
 
         it('LEXICA4068: two unnamed indexers for one receiver type of one module', () => {
             expectCode(registering(module('charts', { members: [indexer('setting'), indexer('option')] })), 'LEXICA4068');
+            expect(errorOf(registering(module('charts', { members: [indexer('setting'), indexer('option')] }))).message).toContain("'setting' is the default indexer of String already");
             expect(registering(module('charts', withHome({ members: [indexer('setting', 'Light'), indexer('option', 'Device')] })))).not.toThrow();
         });
 

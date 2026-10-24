@@ -652,7 +652,7 @@ export class LexicaRegistry {
                     const shared = this.#sharedReceiverOf(declaration, other);
 
                     if (shared !== undefined) {
-                        fail('LEXICA4068', `'${other.name}' is the unnamed indexer of ${shared} already`, declaration.name, 'default');
+                        fail('LEXICA4068', `'${other.name}' is the default indexer of ${shared} already`, declaration.name, 'default');
                     }
                 }
             }
