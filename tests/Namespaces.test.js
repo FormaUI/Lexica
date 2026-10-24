@@ -231,6 +231,44 @@ describe('function references', () => {
     });
 });
 
+describe('a call of a function value', () => {
+    /** A module of words: `cut` and `trim`, each taking a width it defaults to 2, `cut`'s propagating null and `trim`'s accepting it; and `long`, a test taking a minimum it defaults to 3. Each records what it is given. */
+    const createWords = (invoked = []) => lexica.createModule('words', {
+        members: [
+            lexica.declarations.function('cut', 'String', 'String', { updates: constant, parameters: [valueParameter('width', 'Number', { default: 2 })], implementation: ({ receiver, args }) => (invoked.push(['cut', args]), receiver.slice(0, args.width)) }),
+            lexica.declarations.function('trim', 'String', 'String', { updates: constant, parameters: [valueParameter('width', 'Number?', { default: 2, nulls: 'accept' })], implementation: ({ receiver, args }) => (invoked.push(['trim', args]), receiver.slice(0, args.width ?? 1)) }),
+            lexica.declarations.function('long', 'String', 'Boolean', { updates: constant, parameters: [valueParameter('minimum', 'Number', { default: 3 })], implementation: ({ receiver, args }) => (invoked.push(['long', args]), receiver.length >= args.minimum) }),
+        ],
+    });
+    const bound = { word: 'oatmeal', short: 'oa', flag: true, none: null, numbers: [1, 2] };
+
+    /** What the text evaluates to against the words and the shop, with what the words' implementations were given. */
+    const evaluateWords = text => {
+        const invoked = [];
+        const registry = lexica.createRegistry([createWords(invoked), createShop()]);
+
+        return { value: registry.resolve(text, bound).createEvaluator(bound).evaluate().value, invoked };
+    };
+
+    it('binds a reference\'s omitted argument to its default, and an explicit null by its parameter\'s null policy, held, chosen or given to a member', () => {
+        const chosen = name => `let keep = (w) => w\nlet call = if flag then words.${name} else keep end\nreturn call(word)`;
+
+        expect(evaluateWords(chosen('cut'))).toEqual({ value: 'oa', invoked: [['cut', { width: 2 }]] });
+        expect(evaluateWords('let keep = (w, n) => w\nlet cut = if flag then words.cut else keep end\nreturn cut(word, none)')).toEqual({ value: null, invoked: [] });
+        expect(evaluateWords('let keep = (w, n) => w\nlet trim = if flag then words.trim else keep end\nreturn trim(word, none)')).toEqual({ value: 'o', invoked: [['trim', { width: null }]] });
+        expect(evaluateWords('{ word = word.is(words.long), short = short.is(words.long) }')).toEqual({ value: { word: true, short: false }, invoked: [['long', { minimum: 3 }], ['long', { minimum: 3 }]] });
+    });
+
+    it('evaluates a function\'s body in the closure each function value captured, two of one function keeping their own', () => {
+        // One call of addTen evaluates for each item, each making its own function value of add, which captures that item.
+        expect(evaluateWords('let addTen = function(n)\n    let add = (x) => x + n\n    return add(10)\nend\nreturn numbers.sum(n => addTen(n))').value).toBe(23);
+    });
+
+    it('evaluates, at each place a function is called, the body resolved for that call', () => {
+        expect(evaluateWords('let check = (x) => shop.fits(x)\nreturn { word = check(short), number = check(7) }').value).toEqual({ word: true, number: false });
+    });
+});
+
 describe('the answer of a held reference', () => {
     /** A module of lists: `head`, generic, answering what the test gives it for its receiver, and `apply`, calling the function it is given with its receiver. */
     const createLists = (answer, invoked = []) => lexica.createModule('lists', {

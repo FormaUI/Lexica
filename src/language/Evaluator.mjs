@@ -517,32 +517,30 @@ export class Evaluator {
                     return resolution.candidates !== undefined ? (evaluator, context) => evaluator.#evaluateMember(node, context) : this.#compileInvocation(node, resolution);
                 }
 
-                const { functions, callee } = resolution;
-                const closureOf = evaluator => evaluator.#evaluateLocal(callee);
-                const targets = this.#compileTargets(functions);
+                const functions = this.#compileFunctions(resolution.functions);
                 const evaluateArguments = node.arguments.map(argument => this.#getCompiledFunction(argument));
 
-                // The arguments are evaluated once each, left to right, in the caller's scope, and the body of the function the name holds in its closure's, so no local of the caller's is visible in it;
-                // where the name may hold one of several, the one it holds is recorded for the value's place in the result. A function reference's receiver argument is evaluated first, and a null one answers null before the others are.
+                // The callee is evaluated once, and then the arguments, once each, left to right, in the caller's scope, and the body of the function it is in its closure's, so no local of the caller's is visible in it;
+                // where it may be one of several, the one it is is recorded for the value's place in the result. A function reference's receiver argument is evaluated first, and a null one answers null before the others are.
                 return (evaluator, context) => {
-                    const closure = closureOf(evaluator);
-                    const target = targets.length === 1 ? targets[0] : targets.find(candidate => (candidate.reference ?? candidate.function) === (closure.reference ?? closure.function));
+                    const callee = evaluator.#evaluateLocal(resolution.callee);
+                    const functionKey = Evaluator.#getFunctionKey(callee);
 
-                    if (targets.length > 1) {
-                        (evaluator.#selections ??= new Map()).set(node, target.reference ?? target.function);
+                    if (functions.size > 1) {
+                        (evaluator.#selections ??= new Map()).set(node, functionKey);
                     }
 
-                    if (target.reference !== undefined && target.invocation.takesReceiver) {
+                    if (functions.get(functionKey).invocation?.takesReceiver === true) {
                         const receiver = evaluateArguments[0](evaluator, context);
 
                         if (receiver === null) {
                             return null;
                         }
 
-                        return evaluator.#callClosure(closure, target, [receiver, ...evaluateArguments.slice(1).map(evaluateArgument => evaluateArgument(evaluator, context))], node);
+                        return evaluator.#callFunction(callee, [receiver, ...evaluateArguments.slice(1).map(evaluateArgument => evaluateArgument(evaluator, context))], functions, node);
                     }
 
-                    return evaluator.#callClosure(closure, target, evaluateArguments.map(evaluateArgument => evaluateArgument(evaluator, context)), node);
+                    return evaluator.#callFunction(callee, evaluateArguments.map(evaluateArgument => evaluateArgument(evaluator, context)), functions, node);
                 };
             }
             case 'do':
@@ -793,9 +791,9 @@ export class Evaluator {
 
         // A function reference is a function value, the same for every read of it, which reads nothing.
         if (resolution?.kind === 'reference') {
-            const closure = Evaluator.#referenceClosureOf(resolution.declaration);
+            const functionValue = Evaluator.#referenceClosureOf(resolution.declaration);
 
-            return () => closure;
+            return () => functionValue;
         }
 
         if (resolution === undefined || resolution.kind === 'computedPropertyAccess' || (resolution.kind === 'invocation' && resolution.candidates !== undefined)) {
@@ -888,14 +886,14 @@ export class Evaluator {
     static #referenceClosures = new WeakMap();
 
     static #referenceClosureOf(declaration) {
-        let closure = Evaluator.#referenceClosures.get(declaration);
+        let functionValue = Evaluator.#referenceClosures.get(declaration);
 
-        if (closure === undefined) {
-            closure = Object.freeze({ reference: declaration });
-            Evaluator.#referenceClosures.set(declaration, closure);
+        if (functionValue === undefined) {
+            functionValue = Object.freeze({ reference: declaration });
+            Evaluator.#referenceClosures.set(declaration, functionValue);
         }
 
-        return closure;
+        return functionValue;
     }
 
     /**
@@ -934,11 +932,11 @@ export class Evaluator {
 
             // A function given to an expression or a predicate parameter is called with each item, as its body would be evaluated against it.
             if (parameter.kind !== 'function') {
-                return { ...callback, kind: 'itemFunction', policy: parameter.kind, targets: this.#compileTargets(targets) };
+                return { ...callback, kind: 'itemFunction', policy: parameter.kind, functions: this.#compileFunctions(targets) };
             }
 
             // An implicit body is the argument's expression, evaluated against each argument the member calls it with, which is its implicit parameter.
-            return implicit === true ? { ...callback, kind: 'implicitBody' } : { ...callback, targets: this.#compileTargets(targets) };
+            return implicit === true ? { ...callback, kind: 'implicitBody' } : { ...callback, functions: this.#compileFunctions(targets) };
         });
 
         return (evaluator, context) => {
@@ -1014,65 +1012,70 @@ export class Evaluator {
     }
 
     /**
-     * The functions a call may evaluate, each compiled once: a function the script declares, its parameters and its body's compiled function; or a function reference, its declaration, its parameters, whose values its arguments
-     * supply after its receiver, the rest left to their defaults, and its invocation, of the result type the call resolved for it.
+     * The functions a call or a callback contract may call, each compiled once for it and found by its function key: a function the script declares, its parameters and the compiled copy of its body resolved for this call;
+     * or a function reference, its argument map and its invocation, of the result type resolved for this call. Each call compiles its own, so one function called at two places evaluates each place's body or specialization.
+     * @returns {Map<object, { parameters: string[], evaluateBody: Function } | { argumentMap: object, invocation: object }>}
      */
-    #compileTargets(targets) {
-        return targets.map(target => {
-            if (target.reference === undefined) {
-                return { function: target.function, parameters: target.parameters, evaluateBody: this.#getCompiledFunction(target.body) };
-            }
-
-            const declaration = target.reference;
-
-            return { reference: declaration, parameters: declaration.parameters, invocation: this.#getCompiledInvocation(declaration, target.resultType) };
-        });
+    #compileFunctions(functions) {
+        return new Map(functions.map(entry => [
+            Evaluator.#getFunctionKey(entry),
+            entry.reference === undefined ? { parameters: entry.parameters, evaluateBody: this.#getCompiledFunction(entry.body) } : { argumentMap: entry.argumentMap, invocation: this.#getCompiledInvocation(entry.reference, entry.resultType) },
+        ]));
     }
 
     /**
-     * The value of a call of the closure: the target's body, evaluated in the closure's scope, implicit parameter and object root, its parameters bound to the values in order; or, for a function reference, its declaration invoked as its qualified form is,
-     * its receiver the first value, a null one answering null, and its parameters the values after it, each one left out taking its default, its failures named at the node that called it.
+     * The key a call finds a function's compiled form by: a function reference's declaration, or the node of a function the script declares. Two function values of one function share it, whatever each captured, which the callee
+     * itself still holds.
      */
-    #callClosure(closure, target, values, node = null) {
-        if (target.reference !== undefined) {
-            return this.#callReference(target, values, node);
-        }
-
-        const { parameters } = target;
-        const enclosingFrame = this.#localsFrame;
-        const enclosingObjectRoot = this.#objectRoot;
-
-        this.#localsFrame = { node: { locals: parameters.map(parameter => ({ name: parameter })) }, item: closure.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: values[index], selections: null }])), enclosing: closure.frame };
-        this.#objectRoot = closure.objectRoot;
-
-        try {
-            return target.evaluateBody(this, closure.context);
-        } finally {
-            this.#localsFrame = enclosingFrame;
-            this.#objectRoot = enclosingObjectRoot;
-        }
+    static #getFunctionKey(callee) {
+        return callee.reference ?? callee.function;
     }
 
-    /** A call of a function reference with the values given: its receiver the first where its declaration has one, null answering null, and its own arguments by its parameters' names, those left out taking their defaults. */
-    #callReference(target, values, node) {
-        const { parameters, invocation } = target;
-        const hasReceiver = invocation.takesReceiver;
-        const receiver = hasReceiver ? values[0] : undefined;
+    /**
+     * Calls the callee with its arguments' values, which the caller evaluated, as the call's compiled functions say: a function the script declares, its body evaluated in the callee's closure, its locals, implicit parameter and object root,
+     * its parameters bound to the values in order; or a function reference, its declaration invoked as its qualified form is, its receiver the first value, a null one answering null without invoking the implementation, and its own
+     * arguments bound by its argument map, a null one whose parameter propagates null answering null without invoking it, each parameter the map leaves out taking its default. Its failures are named at the node that called it.
+     */
+    #callFunction(callee, argumentValues, functions, node) {
+        const compiled = functions.get(Evaluator.#getFunctionKey(callee));
+
+        if (compiled.invocation === undefined) {
+            const { parameters } = compiled;
+            const enclosingFrame = this.#localsFrame;
+            const enclosingObjectRoot = this.#objectRoot;
+
+            this.#localsFrame = { node: { locals: parameters.map(parameter => ({ name: parameter })) }, item: callee.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: argumentValues[index], selections: null }])), enclosing: callee.frame };
+            this.#objectRoot = callee.objectRoot;
+
+            try {
+                return compiled.evaluateBody(this, callee.context);
+            } finally {
+                this.#localsFrame = enclosingFrame;
+                this.#objectRoot = enclosingObjectRoot;
+            }
+        }
+
+        const { argumentMap, invocation } = compiled;
+        const receiver = invocation.takesReceiver ? argumentValues[0] : undefined;
 
         if (receiver === null) {
             return null;
         }
 
-        const own = hasReceiver ? values.slice(1) : values;
+        const own = invocation.takesReceiver ? argumentValues.slice(1) : argumentValues;
         const args = {};
 
-        parameters.forEach((parameter, index) => {
-            args[parameter.name] = index < own.length ? own[index] : parameter.default;
-        });
+        for (const [index, { name, propagatesNull }] of argumentMap.supplied.entries()) {
+            // A null argument whose parameter propagates null makes the call answer null without invoking the implementation.
+            if (own[index] === null && propagatesNull) {
+                return null;
+            }
 
-        // A null argument whose parameter propagates null makes the call answer null without invoking it.
-        if (parameters.some((parameter, index) => index < own.length && own[index] === null && parameter.nulls === 'propagate')) {
-            return null;
+            args[name] = own[index];
+        }
+
+        for (const { name, value } of argumentMap.defaults) {
+            args[name] = value;
         }
 
         return this.#invokeImplementation(invocation, receiver, args, node);
@@ -1089,12 +1092,11 @@ export class Evaluator {
     }
 
     /**
-     * The function a member is given for a parameter its contract declares to take one: a call of the closure with the member's arguments, each checked against the contract's parameter types, and its result against the contract's result type.
+     * The function a member is given for a parameter its contract declares to take one: a call of the callee with the member's arguments, each checked against the contract's parameter types, and its result against the contract's result type.
      * It is called while the member's invocation lasts, which closes it, and fails once that is over.
      */
-    #callbackOf(closure, plan) {
-        const { name, member, targets, parameterTypes, resultType, isOfParameterType, isOfResultType, pointer } = plan;
-        const target = closure.implicitBody !== undefined ? null : targets.length === 1 ? targets[0] : targets.find(candidate => (candidate.reference ?? candidate.function) === (closure.reference ?? closure.function));
+    #callbackOf(callee, plan) {
+        const { name, member, functions, parameterTypes, resultType, isOfParameterType, isOfResultType, pointer } = plan;
         const lifetime = { isOpen: true };
         const callback = (...values) => {
             try {
@@ -1112,7 +1114,7 @@ export class Evaluator {
                     }
                 });
 
-                const value = target === null ? closure.implicitBody(values[0]) : this.#callClosure(closure, target, values, plan.node);
+                const value = callee.implicitBody !== undefined ? callee.implicitBody(values[0]) : this.#callFunction(callee, values, functions, plan.node);
 
                 if (isOfResultType !== null && !isOfResultType(value)) {
                     this.#fail('LEXICA5504', `The function given as '${name}' of '${member}' gave ${Evaluator.#describe(value)}, and its contract declares ${resultType}`, pointer);
@@ -1953,7 +1955,7 @@ export class Evaluator {
                     }
 
                     const { functions } = resolution;
-                    const called = functions.length === 1 ? functions[0] : functions.find(target => (target.reference ?? target.function) === branches?.get(node));
+                    const called = functions.length === 1 ? functions[0] : functions.find(entry => Evaluator.#getFunctionKey(entry) === branches?.get(node));
 
                     if (called === undefined) {
                         return this.#recordOf(node, null, null);

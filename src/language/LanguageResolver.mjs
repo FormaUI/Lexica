@@ -834,7 +834,7 @@ export class LanguageResolver {
         // The callee is the local the call reads its function value from, which evaluation selects among the functions it may be.
         this.#resolutions.set(pointer, {
             kind: 'invocation',
-            functions: targets.map(({ function: declared, body, parameters, reference, invocation, resultType }) => (reference === undefined ? { function: declared, body, parameters } : { reference, invocation, resultType })),
+            functions: targets.map(({ function: declared, body, parameters, reference, argumentMap, resultType }) => (reference === undefined ? { function: declared, body, parameters } : { reference, argumentMap, resultType })),
             callee: Object.freeze({ kind: 'local', name: node.name }),
         });
 
@@ -862,7 +862,7 @@ export class LanguageResolver {
 
     /**
      * Checks a call of a function reference among the functions a value may be, whose arguments are evaluated as values, as a call of any of them takes them: its receiver argument first where its declaration has a receiver, then a value for each
-     * of its own parameters, each a value parameter its argument fits. It answers the reference, its declaration's parameter names, the result type its implementation answers for this call, its type parameters bound by the receiver,
+     * of its own parameters, each a value parameter its argument fits. It answers the reference, its argument map, the result type its implementation answers for this call, its type parameters bound by the receiver,
      * and the call's type, that result type made nullable where its receiver argument, or an argument whose parameter propagates null, can be null.
      */
     #checkReferenceCall(declaration, node, results, pointer) {
@@ -915,7 +915,20 @@ export class LanguageResolver {
 
         const declared = this.#moduleRegistry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(typeArguments);
 
-        return { reference: declaration, type: isNullable ? declared.toNullable() : declared, resultType: declared, invocation: { hasReceiver, names: parameters.slice(0, own.length).map(parameter => parameter.name), defaults: parameters.slice(own.length).map(parameter => [parameter.name, parameter.default]) } };
+        return { reference: declaration, type: isNullable ? declared.toNullable() : declared, resultType: declared, argumentMap: LanguageResolver.#createArgumentMap(declaration, own.length) };
+    }
+
+    /**
+     * The argument map of a call of a function reference given the number of its own arguments, those after its receiver where it has one: the parameter each of them binds, in order, with whether a null it is given makes the call
+     * answer null without invoking the implementation, and the default each parameter left out takes, so evaluation binds the arguments without reading the parameters again.
+     */
+    static #createArgumentMap(declaration, count) {
+        const { parameters } = declaration;
+
+        return {
+            supplied: parameters.slice(0, count).map(parameter => ({ name: parameter.name, propagatesNull: parameter.nulls === 'propagate' })),
+            defaults: parameters.slice(count).map(parameter => ({ name: parameter.name, value: parameter.default })),
+        };
     }
 
     /**
@@ -2322,7 +2335,8 @@ export class LanguageResolver {
 
     /**
      * Resolves a function value given to a function parameter against its callback contract: each function it may be, a function the script declares, its body resolved for the contract's argument types and its result checked against the contract's result type,
-     * or a function reference, whose declaration takes what the contract passes, with the result type its implementation answers, its type parameters bound by the contract's receiver. It answers the targets with the contract's types,
+     * or a function reference, whose declaration takes what the contract passes, with its argument map, of as many arguments as the contract passes, and the result type its implementation answers, its type parameters bound by
+     * the contract's receiver. It answers the targets with the contract's types,
      * which evaluation checks the member's arguments and the function's result against. The member calls it while its own invocation lasts, with as many arguments as the contract declares.
      */
     #resolveCallback(result, contract, pointer, scope) {
@@ -2348,8 +2362,13 @@ export class LanguageResolver {
                 }
 
                 const typeArguments = this.#contractTypeArgumentsOf(target.reference, contract);
+                const ownCount = parameterTypes.length - (this.#moduleRegistry.hasReceiver(target.reference) ? 1 : 0);
 
-                return { reference: target.reference, resultType: this.#moduleRegistry.getDeclaredType(target.reference, target.reference.result).resolveTypeParameters(typeArguments) };
+                return {
+                    reference: target.reference,
+                    argumentMap: LanguageResolver.#createArgumentMap(target.reference, ownCount),
+                    resultType: this.#moduleRegistry.getDeclaredType(target.reference, target.reference.result).resolveTypeParameters(typeArguments),
+                };
             }
 
             const count = target.function.parameters.length;
