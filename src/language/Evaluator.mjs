@@ -209,7 +209,7 @@ export class Evaluator {
      * @param {Host | null} [host] What the evaluation is carried out for.
      */
     evaluate(host = null) {
-        return this.#evaluateForHost(host, () => this.#evaluateValue());
+        return this.#evaluateForHost(host, () => this.#evaluateScript());
     }
 
     /**
@@ -314,7 +314,7 @@ export class Evaluator {
         };
 
         const captured = this.#capture(value, resultType, '', fail);
-        const enclosingLocals = this.#localsFrame;
+        const enclosingLocalsFrame = this.#localsFrame;
 
         this.#localsFrame = frame;
         this.#projectionContext = { node, value: captured };
@@ -323,7 +323,7 @@ export class Evaluator {
             return this.#evaluateResult(terminalNode);
         } finally {
             this.#projectionContext = null;
-            this.#localsFrame = enclosingLocals;
+            this.#localsFrame = enclosingLocalsFrame;
         }
     }
 
@@ -384,7 +384,7 @@ export class Evaluator {
     }
 
     /** The detached result, and the metadata that describes it, which the result itself never holds. */
-    #evaluateValue() {
+    #evaluateScript() {
         const { hostCall } = this.#resolvedDefinition;
 
         if (hostCall !== null) {
@@ -445,12 +445,12 @@ export class Evaluator {
                 const alternative = this.#getCompiledFunction(node.alternative);
 
                 if (node.binding !== undefined) {
-                    const bind = this.#getCompiledFunction(node.binding.value);
+                    const evaluateBindingValue = this.#getCompiledFunction(node.binding.value);
 
                     // The value is evaluated once; where it is truthy, the consequent runs in a frame holding it by the name it is bound to, which a function made within it keeps as it keeps every frame around it, and the branch
                     // taken is recorded for the value's place in the result.
                     return (evaluator, context) => {
-                        const value = bind(evaluator, context);
+                        const value = evaluateBindingValue(evaluator, context);
                         const isTruthy = Evaluator.#isTruthy(value);
 
                         (evaluator.#selections ??= new Map()).set(node, isTruthy ? node.consequent : node.alternative);
@@ -459,15 +459,15 @@ export class Evaluator {
                             return alternative(evaluator, context);
                         }
 
-                        const enclosingFrame = evaluator.#localsFrame;
+                        const enclosingLocalsFrame = evaluator.#localsFrame;
                         const { name } = node.binding;
 
-                        evaluator.#localsFrame = { node: { locals: [{ name }] }, item: context, values: new Map([[name, { value, selections: null }]]), enclosing: enclosingFrame };
+                        evaluator.#localsFrame = { node: { locals: [{ name }] }, item: context, values: new Map([[name, { value, selections: null }]]), enclosing: enclosingLocalsFrame };
 
                         try {
                             return consequent(evaluator, context);
                         } finally {
-                            evaluator.#localsFrame = enclosingFrame;
+                            evaluator.#localsFrame = enclosingLocalsFrame;
                         }
                     };
                 }
@@ -968,7 +968,7 @@ export class Evaluator {
         return (evaluator, context) => {
             const args = {};
             const enclosingObjectRoot = evaluator.#objectRoot;
-            const enclosingLocals = evaluator.#localsFrame;
+            const enclosingLocalsFrame = evaluator.#localsFrame;
             const objectRoot = buildsObjectRoot === true ? {} : null;
             const rootSelections = objectRoot === null ? null : new Map();
 
@@ -1023,7 +1023,7 @@ export class Evaluator {
                 return args;
             } finally {
                 evaluator.#objectRoot = enclosingObjectRoot;
-                evaluator.#localsFrame = enclosingLocals;
+                evaluator.#localsFrame = enclosingLocalsFrame;
             }
         };
     }
@@ -1058,7 +1058,7 @@ export class Evaluator {
 
         if (compiled.invocation === undefined) {
             const { parameters } = compiled;
-            const enclosingFrame = this.#localsFrame;
+            const enclosingLocalsFrame = this.#localsFrame;
             const enclosingObjectRoot = this.#objectRoot;
 
             this.#localsFrame = { node: { locals: parameters.map(parameter => ({ name: parameter })) }, item: callee.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: argumentValues[index], selections: null }])), enclosing: callee.capturedFrame };
@@ -1067,7 +1067,7 @@ export class Evaluator {
             try {
                 return compiled.evaluateBody(this, callee.context);
             } finally {
-                this.#localsFrame = enclosingFrame;
+                this.#localsFrame = enclosingLocalsFrame;
                 this.#objectRoot = enclosingObjectRoot;
             }
         }
@@ -1153,7 +1153,7 @@ export class Evaluator {
 
     /** What the compiled function gives for the implicit parameter with the frame of names and the object root in scope, those of the place it was written, both restored after it. */
     #evaluateWithin(frame, objectRoot, evaluate, context) {
-        const enclosingLocals = this.#localsFrame;
+        const enclosingLocalsFrame = this.#localsFrame;
         const enclosingObjectRoot = this.#objectRoot;
 
         this.#localsFrame = frame;
@@ -1162,7 +1162,7 @@ export class Evaluator {
         try {
             return evaluate(this, context);
         } finally {
-            this.#localsFrame = enclosingLocals;
+            this.#localsFrame = enclosingLocalsFrame;
             this.#objectRoot = enclosingObjectRoot;
         }
     }
@@ -1190,8 +1190,8 @@ export class Evaluator {
         const hasTarget = node.target !== undefined;
         const evaluateSource = hasTarget ? this.#getCompiledFunction(node.target) : null;
         // An item's source is of the kind its established type gives it, a reference where its items are of a reference type, whatever the value itself is.
-        const projection = this.#resolvedDefinition.resolutionOf(node);
-        const isOfReferences = projection?.kind === 'projection' && this.#moduleRegistry.isReferenceType(projection.itemType.toNonNullable());
+        const resolution = this.#resolvedDefinition.resolutionOf(node);
+        const isOfReferences = resolution?.kind === 'projection' && this.#moduleRegistry.isReferenceType(resolution.itemType.toNonNullable());
         const names = this.#resolvedDefinition.fieldNamesOf(node);
         // A field the entries after it read is in scope for them, by the name the definition gives it.
         const fields = node.fields.map((field, index) => ({
@@ -1262,14 +1262,14 @@ export class Evaluator {
     #applyFields(node, fields, item) {
         const object = {};
         const enclosingSelections = this.#selections;
-        const enclosingLocals = this.#localsFrame;
+        const enclosingLocalsFrame = this.#localsFrame;
         const enclosingObjectRoot = this.#objectRoot;
         // An application no other encloses builds the outermost object, this object, which `root` refers to in its body; any other builds within that object.
         const rootSelections = enclosingObjectRoot === null ? new Map() : null;
         let fieldSelections = null;
 
         if (node.locals !== undefined) {
-            this.#localsFrame = { node, item, values: new Map(), enclosing: enclosingLocals };
+            this.#localsFrame = { node, item, values: new Map(), enclosing: enclosingLocalsFrame };
         }
 
         if (rootSelections !== null) {
@@ -1298,7 +1298,7 @@ export class Evaluator {
             }
         } finally {
             this.#selections = enclosingSelections;
-            this.#localsFrame = enclosingLocals;
+            this.#localsFrame = enclosingLocalsFrame;
             this.#objectRoot = enclosingObjectRoot;
         }
 
@@ -1454,7 +1454,7 @@ export class Evaluator {
         let cachedLocal = frame.values.get(node.name);
 
         if (cachedLocal === undefined) {
-            const enclosingLocals = this.#localsFrame;
+            const enclosingLocalsFrame = this.#localsFrame;
             const enclosingSelections = this.#selections;
 
             this.#localsFrame = frame;
@@ -1463,7 +1463,7 @@ export class Evaluator {
             try {
                 cachedLocal = { value: this.#evaluateNode(frame.node.locals.find(local => local.name === node.name).value, frame.item), selections: this.#selections };
             } finally {
-                this.#localsFrame = enclosingLocals;
+                this.#localsFrame = enclosingLocalsFrame;
                 this.#selections = enclosingSelections;
             }
 
