@@ -208,7 +208,7 @@ export class Evaluator {
      * @param {Host | null} [host] What the evaluation is carried out for.
      */
     evaluate(host = null) {
-        return this.#run(host, () => this.#evaluateValue());
+        return this.#evaluateForHost(host, () => this.#evaluateValue());
     }
 
     /**
@@ -246,7 +246,7 @@ export class Evaluator {
 
             // A call whose host supplies nothing has nothing to project.
             if (declaration.result !== undefined) {
-                call.project = (value, host = null) => this.#run(host, () => this.#project(frame, projection, value));
+                call.project = (value, host = null) => this.#evaluateForHost(host, () => this.#project(frame, projection, value));
             }
 
             return Object.freeze(call);
@@ -314,9 +314,11 @@ export class Evaluator {
     }
 
     /**
-     * Runs one evaluation for the host, calling its `afterEvaluation` once as it ends: a failure of that hook after a failure is recorded on the failure as its `suppressed`, which stays the one thrown, and after a success fails the evaluation itself.
+     * Evaluates once for the host, as `evaluate` and a prepared call's `project` each ask: holds the host for the hooks of the invocations the evaluation reaches and clears the pending mark, answers what the evaluation produced, whether
+     * a member it read was pending and the metadata, described when it is first read, and calls the host's `afterEvaluation` once as it ends: a failure of that hook after a failure is recorded on the failure as its `suppressed`,
+     * which stays the one thrown, and after a success fails the evaluation itself.
      */
-    #run(host, produce) {
+    #evaluateForHost(host, produce) {
         this.#host = host;
         this.#isPending = false;
 
@@ -1473,7 +1475,7 @@ export class Evaluator {
         }
 
         if (resolution.kind !== 'computedPropertyAccess') {
-            return this.#readResolvedMember(resolution, receiver, node, context);
+            return this.#evaluateResolvedAccess(resolution, receiver, node, context);
         }
 
         // A computed property access computes its name once and reads the property it selects, which is recorded for the value's place in the result.
@@ -1481,11 +1483,14 @@ export class Evaluator {
 
         (this.#selections ??= new Map()).set(node, name);
 
-        return this.#readResolvedMember(resolution.candidates.get(name), receiver, node, context);
+        return this.#evaluateResolvedAccess(resolution.candidates.get(name), receiver, node, context);
     }
 
-    /** Reads the member the resolution names of the receiver: a field of its data, a field of the outermost object, or the declaration's function with the arguments it is given. */
-    #readResolvedMember(resolution, receiver, node, context) {
+    /**
+     * Evaluates the access the resolution names on the receiver: reads a property of its data or an object field of the object root, or evaluates the arguments the declaration is given and invokes it with them, answering null
+     * without invoking it where a null argument propagates.
+     */
+    #evaluateResolvedAccess(resolution, receiver, node, context) {
         if (resolution.kind === 'field') {
             return this.#readField(receiver, resolution.name);
         }
@@ -1632,8 +1637,8 @@ export class Evaluator {
     }
 
     /**
-     * The samples a member's invocation reads, as the host's `beforeInvoke` answers them, or null where one is pending, which makes the member answer null and the evaluation pending.
-     * Without the hook, a member that reads maintained values fails, since nothing answers its samples.
+     * The evaluator's step before an invocation, at the point the host's hook is named for: calls the host's `beforeInvoke` where there is one and answers the samples a member's invocation reads, or null where one is pending,
+     * marking the evaluation pending, so the member answers null. A failure of the hook fails the evaluation at the member. Without the hook, it refuses a member that reads maintained values, since nothing answers its samples.
      */
     #beforeInvoke(request, declaration, node) {
         if (request === null || this.#host.beforeInvoke === undefined) {
