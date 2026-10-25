@@ -810,7 +810,7 @@ export class Evaluator {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
 
         // A function reference produces a module delegate, the same for every read of it, which reads nothing.
-        if (resolution?.kind === 'reference') {
+        if (resolution?.kind === 'functionReference') {
             const delegate = Evaluator.#getModuleDelegate(resolution.declaration);
 
             return () => delegate;

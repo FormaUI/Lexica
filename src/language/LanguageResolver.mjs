@@ -1665,7 +1665,7 @@ export class LanguageResolver {
         const [declaration] = selected;
 
         this.#usedDeclarations.push({ declaration, name: written, pointer });
-        this.#resolutions.set(pointer, { kind: 'reference', declaration });
+        this.#resolutions.set(pointer, { kind: 'functionReference', declaration });
 
         return { type: Type.createFunctionType([this.#referenceTargetOf(declaration)]), kind: 'value', isFixed: false };
     }
