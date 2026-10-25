@@ -71,7 +71,7 @@ Resolution's checks are its semantic validation, each failure a `validation` err
 | Equality | Operand types fit in at least one direction. Values other than strings, numbers, Booleans and reference values compare only with null. |
 | Arithmetic and comparisons | Every operand is a non-null number. |
 | Interpolation | Every interpolation gives a non-null string or number. |
-| Function arguments | Each is a function value, a function reference or an implicit body, whose argument types and result fit its parameter's callback contract; a function reference names one declaration. |
+| Function arguments | Each is a delegate, a function reference's among them, or an implicit body, whose argument types and result fit its parameter's callback contract; a function reference names one declaration. |
 | Function calls | The local or function parameter holds a function, never null; the argument count matches each function it may be, whose body resolves against that call's argument types, their results merging; no call reaches a function within its own call. |
 | Conditions and logical operands | Each is a value. Truthiness determines the branch; a host call cannot be used as that value. |
 | Coalescing | Value and fallback have compatible types. |
@@ -171,7 +171,7 @@ A projection reads what the call was prepared with, and evaluates the rest anew:
 
 - **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, and one holding a computed value holds the value. In the example, each projection reads `room.occupied()` of the room the call was prepared with, as that room is when the motion arrives, while `occupied` keeps whether it was occupied when the call was prepared. Both read one receiver, since reading `sensor.room` again could find another room, a sensor being movable.
 - **Its own evaluation.** Each projection is an evaluation of its own, with its own supplied value, host and state; the result projection's own locals are evaluated in each, and projecting a value for one prepared call never changes what another was prepared with.
-- **Function values.** A function a local before the call holds is called in any projection, as a function value is anywhere within the script; a function a projection gives a member lasts while that member's invocation does, as every function given to a member does. A host call's arguments are values, so no function reaches the host.
+- **Delegates.** A delegate a local before the call holds is called in any projection, as a delegate is anywhere within the script; a callback a projection gives a member lasts while that member's invocation does, as every callback given to a member does. A host call's arguments are values, so no delegate reaches the host.
 
 ```lexica
 let room = sensor.room

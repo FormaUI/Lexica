@@ -152,7 +152,7 @@ At the top level, `{ level = light.brightness, active = light.active() }` has no
 - **A value argument reads it.** A value argument is evaluated where the call is written, against the `it` already there.
 - **None is not a value.** `it` where no body gives one is an error.
 
-Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a verb's test requires a `Boolean`. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is not a function value.
+Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a verb's test requires a `Boolean`. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is not a delegate.
 
 <a id="names-and-resolution-projection-example"></a>
 

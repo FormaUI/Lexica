@@ -199,7 +199,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Lexical structure | Tokens, names, strings, and comments | [Lexical structure](../spec/lexical-structure.md) |
 | Values | Objects, the object root, lists, null, results, and existing conversions | [Values](../spec/values.md) |
 | Expressions | Operators, conditionals, coalescing, attempts, and interpolated strings | [Expressions](../spec/expressions.md) |
-| Functions | Regular and arrow functions, function values, references, and implicit bodies | [Functions](../spec/functions.md) |
+| Functions | Regular and arrow functions, delegates, references, and implicit bodies | [Functions](../spec/functions.md) |
 | Member access | Member forms, bracket property access, and arguments | [Members](../spec/members.md) |
 | Module registration | Unified declarations with implementations; whole-registration checks, revisions, and module-local collision checks | [Declarations](../spec/modules.md#modules-declarations), [registries](../spec/modules.md#modules-registries), [collisions](../spec/modules.md#namespaces-a-modules-own-collisions) |
 | Vocabulary | List members, verbs, existing conversions, and Boolean functions | [Lexica's vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own), [Boolean functions](../spec/vocabulary.md#vocabulary-boolean-functions) |

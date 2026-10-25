@@ -95,7 +95,7 @@ The smallest representation that satisfies the [provenance requirements](#accept
 
 ### Construction and operations
 
-- **Collection expressions,** beyond decision 12: a list dense and immutable, a trailing comma allowed in source, holes refused, no spread, items as simple expressions under the existing recursive restrictions, and function values kept out of collection data.
+- **Collection expressions,** beyond decision 12: a list dense and immutable, a trailing comma allowed in source, holes refused, no spread, items as simple expressions under the existing recursive restrictions, and delegates kept out of collection data.
 - **Dictionary construction:** `people.toDictionary(it.id)`, a dictionary of the people by their ids; `.select(…)` giving other values; and `groupBy`, a `Dictionary<K, List<T>>`.
 - **The member surface:** `count`, `where`, `select`, object projection, `concat`, `flatten`, `selectMany`, `take`, `drop`, `takeWhile`, `dropWhile`, `any`, `all`, `contains`, `first`, `last`, `single`, `sum`, `min`, `max`, `average`, `minBy`, `maxBy`, `distinct`, `distinctBy`, `groupBy`, `toDictionary`, `reverse`, `pick`, `keys`, `values`, `entries` and `containsKey`, with the null, empty-input and short-circuiting rules the draft gave them: `sum` of nothing `0`, `min`, `max`, `average`, `first`, `last`, `single`, `minBy` and `maxBy` of nothing null, `any` false and `all` true; `any`, `all` and `contains` stopping at the first decisive item; numeric aggregates skipping null results; and flattening refusing null inner lists rather than treating them as empty.
 - **Dictionary item context:** a dictionary's value operations giving `it` the entry's value, with operations needing the key using `entries`.

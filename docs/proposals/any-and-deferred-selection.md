@@ -39,7 +39,7 @@ Any caching of a selection accounts for the receiver's actual type, so separate 
 
 ### Arguments and host calls
 
-- **Arguments are read without the declaration.** A deferred call cannot require declaration-dependent interpretation of its argument expressions. Explicitly written function values have one meaning and are accepted; implicit-body and predicate interpretation is selected early.
+- **Arguments are read without the declaration.** A deferred call cannot require declaration-dependent interpretation of its argument expressions. Explicitly written delegates have one meaning and are accepted; implicit-body and predicate interpretation is selected early.
 - **Host calls are selected early,** since their special invocation behavior needs an unambiguous contract before anything is evaluated. [Explicit extension access](extension-access.md) provides that where necessary. A deferred access whose selection would be a host call is refused before anything is invoked, saying to make its receiver known or to select its extension explicitly.
 - **An `Any` argument of a selected call** is checked against the selected contract when its value becomes available.
 - **Null at a deferred access.** A direct access on null fails, its error naming the access; an optional access answers null without invoking anything.
@@ -79,7 +79,7 @@ Verify that:
 - A member access whose receiver is a value of `Any` defers its selection to the actual type; a missing member is an evaluation error; and evaluations of different actual types reuse no selection.
 - An `Any` argument leaves a selected call selected.
 - A typed value returned through `Any` keeps its identity, and an untyped object stays plain data.
-- A deferred call refuses an argument whose reading depends on the declaration, and accepts an explicit function value.
+- A deferred call refuses an argument whose reading depends on the declaration, and accepts an explicit delegate.
 - A host call is never selected late, and one a deferred access would select is refused before anything is invoked.
 - A direct access on null at a deferred access fails, and an optional one answers null.
 - An `Any` argument of a selected call is checked against its contract when its value is available.
