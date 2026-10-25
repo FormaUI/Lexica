@@ -4,7 +4,10 @@
 
 import { Type } from './Type.mjs';
 
-/** The scalar types, whose values an equality compares with each other. */
+/**
+ * The scalar types, whose values an equality compares by value, as the specification's equalities set out. A list apart from the built-in type names, which hold the same names today, since a type a later version builds in
+ * compares by value only once its equality semantics are decided.
+ */
 const SCALAR_TYPE_NAMES = Object.freeze(['String', 'Number', 'Boolean']);
 
 /**

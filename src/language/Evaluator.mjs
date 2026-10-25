@@ -1401,8 +1401,12 @@ export class Evaluator {
                     return value => moduleRegistry.belongsTo(value, type, asked);
                 }
 
+                if (type.module === null && LexicaModule.builtInTypeNames.includes(name)) {
+                    return value => Evaluator.#belongsToBuiltIn(value, name);
+                }
+
                 if (structure === undefined) {
-                    return value => (type.module === null && Evaluator.#isOfBuiltIn(value, name)) ?? false;
+                    return () => false;
                 }
 
                 let fields = null;
@@ -1727,10 +1731,8 @@ export class Evaluator {
      * in turn. A supplied value has no type until it is captured, so where it doesn't belong to a reference type, the registry's recognition tells a reference of another type from mistyped data, which fails whatever its nullability.
      */
     #captureNamed(value, type, path, fail) {
-        const isOfBuiltIn = type.module === null ? Evaluator.#isOfBuiltIn(value, type.name) : undefined;
-
-        if (isOfBuiltIn !== undefined) {
-            if (!isOfBuiltIn) {
+        if (type.module === null && LexicaModule.builtInTypeNames.includes(type.name)) {
+            if (!Evaluator.#belongsToBuiltIn(value, type.name)) {
                 fail(path, value, type);
             }
 
@@ -1765,9 +1767,9 @@ export class Evaluator {
         return path === '' ? name : `${path}.${name}`;
     }
 
-    /** Whether the value is of the built-in type the name names, or undefined where the name names a structure a module declares. */
-    static #isOfBuiltIn(value, name) {
-        switch (name) {
+    /** Whether the value belongs to the built-in type the name names, one of `LexicaModule.builtInTypeNames`: a finite number, a string or a Boolean. */
+    static #belongsToBuiltIn(value, typeName) {
+        switch (typeName) {
             case 'Number':
                 return Number.isFinite(value);
             case 'String':
@@ -1775,7 +1777,7 @@ export class Evaluator {
             case 'Boolean':
                 return typeof value === 'boolean';
             default:
-                return undefined;
+                return false;
         }
     }
 
