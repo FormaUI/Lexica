@@ -116,9 +116,10 @@ describe('a host of plain data', () => {
         expect(registry.moduleNames).toContain('extra');
     });
 
-    it('types a call nullable where an argument that may be null meets a parameter propagating null, its own type nullable or not, as the call answers null', () => {
+    it('types a call nullable where an argument that may be null meets a parameter propagating null, its own type nullable or not, as the call answers null without invoking the implementation', () => {
         const constant = { changes: 'constant', reads: 'fresh' };
-        const add = type => lexica.declarations.function('add', 'Number', 'Number', { updates: constant, parameters: [valueParameter('amount', type)], implementation: ({ receiver, args }) => receiver + args.amount });
+        const invoked = [];
+        const add = type => lexica.declarations.function('add', 'Number', 'Number', { updates: constant, parameters: [valueParameter('amount', type)], implementation: ({ receiver, args }) => (invoked.push(args.amount), receiver + args.amount) });
         const sums = type => lexica.createRegistry([lexica.createModule('sums', { members: [add(type), property('none', 'Number', 'Number?', { updates: constant, implementation: () => null })] })]);
         const resolve = (type, text) => sums(type).resolve(text, { n: 1 });
 
@@ -127,6 +128,8 @@ describe('a host of plain data', () => {
             expect(resolve(type, 'n.add(n.none)').type, type).toBe('Number?');
             expect(resolve(type, 'n.add(2)').type, type).toBe('Number');
             expect(resolve(type, 'n.add(null)').createEvaluator({ n: 1 }).evaluate().value, type).toBeNull();
+            expect(resolve(type, 'n.add(n.none)').createEvaluator({ n: 1 }).evaluate().value, type).toBeNull();
+            expect(invoked, type).toEqual([]);
         }
     });
 
