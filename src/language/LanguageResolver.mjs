@@ -144,7 +144,7 @@ export class LanguageResolver {
             case 'interpolatedString':
                 node.parts.forEach((part, index) => {
                     if (part.kind === 'expression') {
-                        this.#requireInterpolated(this.#resolveNode(part.expression, `${pointer}/parts/${index}/expression`, scope), `${pointer}/parts/${index}/expression`);
+                        this.#requireInterpolationValue(this.#resolveNode(part.expression, `${pointer}/parts/${index}/expression`, scope), `${pointer}/parts/${index}/expression`);
                     }
                 });
 
@@ -263,7 +263,7 @@ export class LanguageResolver {
             }
 
             if (!this.#typeChecker.fitsEitherWay(leftType, rightType)) {
-                this.#fail('LEXICA3030', `'${operator}' compares values whose types fit one way or the other, and ${leftType} and ${rightType} fit neither way${this.#testOf(node, left, right, isNegated)}`, pointer);
+                this.#fail('LEXICA3030', `'${operator}' compares values whose types fit one way or the other, and ${leftType} and ${rightType} fit neither way${this.#formatTestHint(node, left, right, isNegated)}`, pointer);
             }
         }
 
@@ -274,7 +274,7 @@ export class LanguageResolver {
      * For an equality of a value and a string that names one of the value's Boolean members, as `input == "disabled"` or `input == state` writes one, the test to write, negated for `!=`: the property read, or the Boolean function called
      * with no argument; nothing for any other. The name is read exactly, and the member is one the value's type has.
      */
-    #testOf(node, left, right, isNegated) {
+    #formatTestHint(node, left, right, isNegated) {
         if (!right.isFixed || typeof right.value !== 'string' || (node.right.kind !== 'literal' && node.right.kind !== 'parameter')) {
             return '';
         }
@@ -690,7 +690,7 @@ export class LanguageResolver {
     }
 
     /** Refuses what an interpolation inserts no text for: what is no value, a value that can be null, which a fallback or a test removes first, and a value of any type but a string or a number, a Boolean's text given by `to`. */
-    #requireInterpolated(result, pointer) {
+    #requireInterpolationValue(result, pointer) {
         const what = 'An interpolation';
 
         this.#requireValue(result, what, pointer);
@@ -1199,7 +1199,7 @@ export class LanguageResolver {
 
         // The most specific receiver type's unnamed indexer is selected, so several remain only where none is more specific than every other.
         if (matching.length > 1) {
-            this.#fail('LEXICA3024', `The unnamed indexers ${this.#competingOf(matching, receiverType)}`, pointer);
+            this.#fail('LEXICA3024', `The unnamed indexers ${this.#formatCompetingDeclarations(matching, receiverType)}`, pointer);
         }
 
         return this.#resolveMemberOnReceiverType({ ...node, name: matching[0].name }, pointer, scope, receiverType);
@@ -1387,7 +1387,7 @@ export class LanguageResolver {
 
         if (field !== null) {
             if (node.kind !== 'member') {
-                this.#fail('LEXICA3017', `'${node.name}' is a field of ${receiverType.toNonNullable()} and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#accessOf(node), this.#namespaceNames)}'`, pointer);
+                this.#fail('LEXICA3017', `'${node.name}' is a field of ${receiverType.toNonNullable()} and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
             }
 
             this.#resolutions.set(pointer, { kind: 'field', name: node.name, receiverType });
@@ -1409,7 +1409,7 @@ export class LanguageResolver {
 
         // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
         if (matching.length > 1) {
-            this.#fail('LEXICA3024', `'${node.name}' ${this.#competingOf(matching, receiverType)}`, pointer);
+            this.#fail('LEXICA3024', `'${node.name}' ${this.#formatCompetingDeclarations(matching, receiverType)}`, pointer);
         }
 
         const [declaration] = matching;
@@ -1460,7 +1460,7 @@ export class LanguageResolver {
         };
         const type = receiver?.isNullable === true || resolved.isNullable ? declared.toNullable() : declared;
 
-        return { result: { type, kind: LanguageResolver.#requestKindOf(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution, use: { declaration, name, pointer } };
+        return { result: { type, kind: LanguageResolver.#getResultKind(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution, use: { declaration, name, pointer } };
     }
 
     /** Stores an invocation's resolution at its pointer and records the use of its declaration, where it chose one, answering its result. */
@@ -1521,7 +1521,7 @@ export class LanguageResolver {
     }
 
     /** How a message names the competing declarations an access can't choose among: their receiver types, none more specific than another, which the receiver satisfies. */
-    #competingOf(declarations, receiverType) {
+    #formatCompetingDeclarations(declarations, receiverType) {
         const types = declarations.flatMap(declaration => this.#moduleRegistry.getTargetTypes(declaration));
 
         return `is declared for ${types.join(' and ')}, which ${receiverType.toNonNullable()} satisfies, and none of them is more specific than ${types.length === 2 ? 'the other' : 'every other'}, so which applies is ambiguous`;
@@ -1608,7 +1608,7 @@ export class LanguageResolver {
 
         // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
         if (matching.length > 1) {
-            this.#fail('LEXICA3024', `${wording.subject} ${this.#competingOf(matching, receiverType)}`, pointer);
+            this.#fail('LEXICA3024', `${wording.subject} ${this.#formatCompetingDeclarations(matching, receiverType)}`, pointer);
         }
 
         const [declaration] = matching;
@@ -1764,7 +1764,7 @@ export class LanguageResolver {
         const written = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#moduleRegistry.formOf(candidate)] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
-            this.#fail(this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#accessOf(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
+            this.#fail(this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
         }
 
         if (!isAccess && written.length === 0) {
@@ -1789,7 +1789,7 @@ export class LanguageResolver {
         }
 
         // An access may name a field of data, which is a value.
-        const kinds = new Set([...fitting.map(({ declaration }) => LanguageResolver.#requestKindOf(declaration)), ...(isAccess ? ['value'] : [])]);
+        const kinds = new Set([...fitting.map(({ declaration }) => LanguageResolver.#getResultKind(declaration)), ...(isAccess ? ['value'] : [])]);
 
         if (kinds.size > 1) {
             this.#fail('LEXICA3025', `'${node.name}' follows a value whose type is unknown, and its declarations disagree on who invokes it, the evaluator or the host, so whether the script ends in a host call is ambiguous`, pointer);
@@ -1864,7 +1864,7 @@ export class LanguageResolver {
 
         switch (form) {
             case 'access':
-                return LanguageResolver.#accessOf(node);
+                return LanguageResolver.#createPropertyAccess(node);
             case 'function-call':
                 return { kind: 'call', target, name, arguments: node.kind === 'indexer' ? [node.argument] : [], ...optional };
             default:
@@ -2246,7 +2246,7 @@ export class LanguageResolver {
      * The callback contract a function parameter declares, its member's type parameters bound: the types of the arguments the member calls the function with, in order, and the type of the result it takes from it.
      * A type parameter of a receiver of unknown type, which nothing binds, is a never, which fits wherever a value of any type stands.
      */
-    #contractOf(parameter, declaration, receiverType, typeArguments) {
+    #createCallbackContract(parameter, declaration, receiverType, typeArguments) {
         const isOfUnknownType = receiverType !== null && LanguageResolver.#isOfUnknownType(receiverType);
         const resolve = text => {
             const type = this.#moduleRegistry.getDeclaredType(declaration, text).resolveTypeParameters(typeArguments);
@@ -2263,7 +2263,7 @@ export class LanguageResolver {
      * An argument's own scope is told by the implicit parameter it resolves against, so an `it` of a projection or of an expression, a predicate or a function argument within it, each of which has its own, makes it no body.
      */
     #resolveFunctionArgument(node, pointer, scope, parameter, declaration, receiverType, typeArguments) {
-        const contract = this.#contractOf(parameter, declaration, receiverType, typeArguments);
+        const contract = this.#createCallbackContract(parameter, declaration, receiverType, typeArguments);
 
         if (node.kind === 'member' && node.target.kind === 'namespace') {
             const result = this.#resolveThroughNamespace(node, pointer, scope, contract);
@@ -2455,12 +2455,12 @@ export class LanguageResolver {
     }
 
     /** The property access that writes the node's name after its receiver, optional where the node is. */
-    static #accessOf(node) {
+    static #createPropertyAccess(node) {
         return { kind: 'member', target: node.target, name: node.name, ...(node.optional === true ? { optional: true } : {}) };
     }
 
     /** What a call of the declaration makes: a host call where its host invokes it, and a value otherwise. */
-    static #requestKindOf(declaration) {
+    static #getResultKind(declaration) {
         return LexicaModule.isHostCall(declaration) ? 'hostCall' : 'value';
     }
 
