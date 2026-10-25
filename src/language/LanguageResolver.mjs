@@ -654,7 +654,7 @@ export class LanguageResolver {
 
     /** The scope a conditional binding's consequent is resolved in: the scope around it, with the binding's name a local holding its value, of the result given. */
     static #consequentScopeOf(node, scope, result) {
-        return { ...scope, locals: new Map(scope.locals).set(node.binding.name, { result, value: node.binding.value, scope, binding: node }) };
+        return { ...scope, locals: new Map(scope.locals).set(node.binding.name, { result, initializer: node.binding.value, scope, binding: node }) };
     }
 
     /** Resolves a negation: what it negates, any value, and answers a Boolean, true where that value is falsey. */
@@ -750,7 +750,7 @@ export class LanguageResolver {
             }
 
             isFixed &&= result.isFixed;
-            locals = new Map(locals).set(local.name, { result, value: local.value, scope: localScope });
+            locals = new Map(locals).set(local.name, { result, initializer: local.value, scope: localScope });
         });
 
         const resultPointer = `${pointer}/result`;
@@ -977,7 +977,7 @@ export class LanguageResolver {
 
         // A function's name read without a call is a delegate, which a local holds, an argument passes and a function returns.
         if (local?.function !== undefined) {
-            this.#resolutions.set(pointer, { kind: 'local', name: node.name, value: local.value });
+            this.#resolutions.set(pointer, { kind: 'local', name: node.name, initializer: local.initializer });
 
             return { type: Type.createFunctionType([local]), kind: 'value', isFixed: false };
         }
@@ -993,7 +993,7 @@ export class LanguageResolver {
         }
 
         // A binding's value is evaluated once, by its conditional, which holds it in a frame its consequent reads as any local's; each records the expression its value came from.
-        this.#resolutions.set(pointer, { kind: 'local', name: node.name, value: local.value });
+        this.#resolutions.set(pointer, { kind: 'local', name: node.name, initializer: local.initializer });
 
         const narrowed = scope.facts.get(local);
 
@@ -1275,7 +1275,7 @@ export class LanguageResolver {
                 return LanguageResolver.#possibleOf(this.#bindings.get(node.name));
             case 'local': {
                 const local = scope.locals.get(node.name);
-                const possible = local === undefined ? null : this.#possibleNamesOf(local.value, local.scope);
+                const possible = local === undefined ? null : this.#possibleNamesOf(local.initializer, local.scope);
 
                 // A conditional binding's name is used where its value is truthy.
                 return possible !== null && local.binding !== undefined ? LanguageResolver.#partOfPossible(possible, true) : possible;
@@ -2011,11 +2011,11 @@ export class LanguageResolver {
 
                 // A value or a function option is in scope after its value, through the options after it, read as it was evaluated; one of the outermost object is completed, and read through root after it as the value it was given, of that value's type.
                 if (optionsObject !== null) {
-                    argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { result, value: given.node, scope: argumentScope }) };
+                    argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { result, initializer: given.node, scope: argumentScope }) };
                 }
 
                 if (objectExpression !== null) {
-                    this.#objectRootFields.get(objectExpression).set(parameter.name, { value: given.node });
+                    this.#objectRootFields.get(objectExpression).set(parameter.name, { initializer: given.node });
                     argumentScope = { ...argumentScope, objectRoot: { objectExpression, fieldTypes: new Map(argumentScope.objectRoot.fieldTypes).set(parameter.name, result.type) } };
                 }
             }
@@ -2126,7 +2126,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3048', `The local '${local.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and a local is a value`, valuePointer);
             }
 
-            locals = new Map(locals).set(local.name, { result, value: local.value, scope: scopeHere() });
+            locals = new Map(locals).set(local.name, { result, initializer: local.value, scope: scopeHere() });
         });
 
         const fieldTypes = new Map();
@@ -2157,11 +2157,11 @@ export class LanguageResolver {
             fieldTypes.set(name, result.type);
 
             // A field is in scope after its value, through the fields after it, its value read as it was evaluated.
-            locals = new Map(locals).set(name, { result, value: field.value, scope: scopeHere() });
+            locals = new Map(locals).set(name, { result, initializer: field.value, scope: scopeHere() });
 
             // A field of the outermost object is completed, and read through a reference to the root written after it, as the value its evaluation gave.
             if (objectExpression !== null) {
-                this.#objectRootFields.get(objectExpression).set(name, { value: field.value });
+                this.#objectRootFields.get(objectExpression).set(name, { initializer: field.value });
                 objectRoot = { objectExpression, fieldTypes: new Map(objectRoot.fieldTypes).set(name, result.type) };
             }
         });
@@ -2211,7 +2211,7 @@ export class LanguageResolver {
             this.#fail('LEXICA3044', `'${node.name}' is no field of root completed where the reference to it is written; ${completed.length === 0 ? 'none is completed there' : `those completed are ${completed.join(', ')}`}`, pointer);
         }
 
-        this.#resolutions.set(pointer, { kind: 'objectRootField', name: node.name, value: this.#objectRootFields.get(receiverType.objectExpression).get(node.name).value });
+        this.#resolutions.set(pointer, { kind: 'objectRootField', name: node.name, initializer: this.#objectRootFields.get(receiverType.objectExpression).get(node.name).initializer });
 
         return { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false };
     }
@@ -2389,7 +2389,7 @@ export class LanguageResolver {
         return { functions, parameterTypes, resultType };
     }
 
-    /** The fields of each outermost object, by the object expression that builds it and then by name, each with its value, which a field read through the object root follows. @type {WeakMap<object, Map<string, { value: object }>>} */
+    /** The fields of each outermost object, by the object expression that builds it and then by name, each with its initializer, which a field read through the object root follows. @type {WeakMap<object, Map<string, { initializer: object } | { option: string }>>} */
     #objectRootFields = new WeakMap();
 
     /** The type of the field a structured type or an object type declares under the name, or null. */

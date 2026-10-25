@@ -1945,7 +1945,7 @@ export class Evaluator {
         for (;;) {
             switch (node.kind) {
                 case 'local':
-                    node = this.#resolvedDefinition.resolutionOf(node).value;
+                    node = this.#resolvedDefinition.resolutionOf(node).initializer;
                     continue;
                 case 'optionalChain':
                     node = node.target;
@@ -1996,7 +1996,7 @@ export class Evaluator {
                     }
 
                     if (resolution?.kind === 'objectRootField') {
-                        node = resolution.value;
+                        node = resolution.initializer;
                         continue;
                     }
 
