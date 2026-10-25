@@ -823,7 +823,7 @@ export class LanguageResolver {
         });
 
         const targets = functions.map((target, index) => (target.reference !== undefined
-            ? this.#checkReferenceCall(target.reference, node, results, pointer)
+            ? this.#resolveModuleFunctionCall(target.reference, node, results, pointer)
             : this.#resolveFunctionBody(target, node.name, results, node.arguments, scope, functions.length === 1 ? `${pointer}/body` : `${pointer}/bodies/${index}`, pointer)));
         const type = targets.reduce((merged, target) => (merged === null ? null : this.#typeChecker.merge(merged, target.type)), Type.never);
 
@@ -842,8 +842,8 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a call of a delegate that is one module delegate: the call its qualified form makes, its receiver argument first where its declaration has a receiver, a null one answering null, and its own arguments after it,
-     * each of the kind its parameter declares.
+     * Resolves the syntax of a call through a known module delegate, the one a local holds: the call its qualified form makes, its arguments interpreted as that form's are, its receiver argument first where its declaration has
+     * a receiver, a null one answering null, and its own arguments after it, each of the kind its parameter declares.
      */
     #resolveReferenceCall(node, pointer, scope, local, declaration) {
         const written = this.#referenceNameOf(declaration);
@@ -861,11 +861,11 @@ export class LanguageResolver {
     }
 
     /**
-     * Checks a call of a function reference among the functions a value may be, whose arguments are evaluated as values, as a call of any of them takes them: its receiver argument first where its declaration has a receiver, then a value for each
-     * of its own parameters, each a value parameter its argument fits. It answers the reference, its argument map, the result type its implementation answers for this call, its type parameters bound by the receiver,
+     * Resolves a call of the module function the declaration is, among the functions a delegate may be, from the results of its arguments, which are evaluated as values, as a call of any of them takes them: its receiver argument
+     * first where its declaration has a receiver, then a value for each of its own parameters, each a value parameter its argument fits. It determines their compatibility and answers the reference, its argument map, the result type its implementation answers for this call, its type parameters bound by the receiver,
      * and the call's type, that result type made nullable where its receiver argument, or an argument whose parameter propagates null, can be null.
      */
-    #checkReferenceCall(declaration, node, results, pointer) {
+    #resolveModuleFunctionCall(declaration, node, results, pointer) {
         const written = this.#referenceNameOf(declaration);
         const hasReceiver = this.#moduleRegistry.hasReceiver(declaration);
         const own = hasReceiver ? results.slice(1) : results;
@@ -1414,7 +1414,7 @@ export class LanguageResolver {
 
         const [declaration] = matching;
 
-        this.#checkForm(declaration, node, pointer, isComputed);
+        this.#requireDeclaredForm(declaration, node, pointer, isComputed);
 
         const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
 
@@ -1768,7 +1768,7 @@ export class LanguageResolver {
         }
 
         if (!isAccess && written.length === 0) {
-            this.#checkForm(candidates[0], node, pointer);
+            this.#requireDeclaredForm(candidates[0], node, pointer);
         }
 
         const fitting = [];
@@ -1836,7 +1836,7 @@ export class LanguageResolver {
     }
 
     /** Refuses a member written in a form its declaration does not take, with the form it does: a property is accessed, and a function called or named as its declaration says. */
-    #checkForm(declaration, node, pointer, isComputed = false) {
+    #requireDeclaredForm(declaration, node, pointer, isComputed = false) {
         const form = this.#moduleRegistry.formOf(declaration);
 
         if (FORM_NODE_KINDS[form] === node.kind) {
@@ -2025,7 +2025,7 @@ export class LanguageResolver {
             }
 
             if (parameter.fixed === true) {
-                const selection = this.#select(parameter, result, declaration, valuePointer);
+                const selection = this.#resolveSelectedType(parameter, result, declaration, valuePointer);
 
                 selected = selection.selected ?? selected;
             }
@@ -2065,7 +2065,7 @@ export class LanguageResolver {
     }
 
     /** Resolves the type a fixed argument selects through its parameter's type selector, which must be known before anything is evaluated. */
-    #select(parameter, result, declaration, pointer) {
+    #resolveSelectedType(parameter, result, declaration, pointer) {
         if (!result.isFixed || typeof result.value !== 'string') {
             this.#fail(result.isFixed ? 'LEXICA3007' : 'LEXICA3006', `The argument '${parameter.name}' of '${declaration.name}' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, a literal, a script parameter, or a local, a conditional binding, a conditional, a '??', an 'and' or an 'or' that settles to one, never null`, pointer);
         }
