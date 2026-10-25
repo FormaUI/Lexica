@@ -109,9 +109,9 @@ export class LanguageResolver {
                     this.#fail('LEXICA3010', "'it' is the implicit parameter, and there is none here", pointer);
                 }
 
-                // An `it` of an implicit body's own scope makes its argument the body, whose `it` the member supplies.
-                if (scope.implicitBody?.key === scope.contextKey) {
-                    scope.implicitBody.isRead = true;
+                // An `it` of an argument body's own scope, its implicit parameter, which the member supplies, is recorded on the scope's `argumentBody`, so the argument is read as a body.
+                if (scope.argumentBody?.key === scope.contextKey) {
+                    scope.argumentBody.isRead = true;
                 }
 
                 return { type: scope.facts.get(scope.contextKey) ?? scope.contextType, kind: 'value', isFixed: false };
@@ -1134,9 +1134,9 @@ export class LanguageResolver {
         }
 
         if (syntax !== 'indexer') {
-            const access = this.#resolveMemberAccess(target, accessPointer, scope, { receiver });
+            const accessResult = this.#resolveMemberAccess(target, accessPointer, scope, { receiver });
 
-            return this.#resolveMemberAccess(node, pointer, scope, { receiver: access });
+            return this.#resolveMemberAccess(node, pointer, scope, { receiver: accessResult });
         }
 
         // The named indexer's own node, its receiver the access's, optional where the access is.
@@ -1487,18 +1487,18 @@ export class LanguageResolver {
             this.#fail('LEXICA2642', `No module named '${moduleName}' is registered, so '${written}' reads through no namespace`, `${pointer}/target`);
         }
 
-        const named = this.#moduleRegistry.getMembersDeclaredBy(moduleName, node.name);
-        const declarations = named.filter(declaration => this.#moduleRegistry.formOf(declaration) !== 'indexer');
+        const namedDeclarations = this.#moduleRegistry.getMembersDeclaredBy(moduleName, node.name);
+        const declarations = namedDeclarations.filter(declaration => this.#moduleRegistry.formOf(declaration) !== 'indexer');
 
         if (declarations.length === 0) {
-            this.#fail(named.length > 0 ? 'LEXICA3011' : 'LEXICA3001', named.length > 0 ? `'${node.name}' is an indexer, which no namespace qualifies: write its receiver and ':${node.name}[…]'` : `The module '${moduleName}' declares no member '${node.name}'`, pointer);
+            this.#fail(namedDeclarations.length > 0 ? 'LEXICA3011' : 'LEXICA3001', namedDeclarations.length > 0 ? `'${node.name}' is an indexer, which no namespace qualifies: write its receiver and ':${node.name}[…]'` : `The module '${moduleName}' declares no member '${node.name}'`, pointer);
         }
 
-        const moduleMember = declarations.find(declaration => !this.#moduleRegistry.hasReceiver(declaration));
-        const receiverMembers = declarations.filter(declaration => this.#moduleRegistry.hasReceiver(declaration));
+        const moduleMemberDeclaration = declarations.find(declaration => !this.#moduleRegistry.hasReceiver(declaration));
+        const receiverMemberDeclarations = declarations.filter(declaration => this.#moduleRegistry.hasReceiver(declaration));
         const readings = [
-            ...(moduleMember === undefined ? [] : [() => this.#resolveModuleMember(node, pointer, scope, moduleMember, written, contract)]),
-            ...(receiverMembers.length === 0 ? [] : [() => (node.kind === 'member' ? this.#resolveFunctionReference(node, pointer, receiverMembers, contract) : this.#resolveQualifiedForm(node, pointer, scope, receiverMembers, written))]),
+            ...(moduleMemberDeclaration === undefined ? [] : [() => this.#resolveModuleMember(node, pointer, scope, moduleMemberDeclaration, written, contract)]),
+            ...(receiverMemberDeclarations.length === 0 ? [] : [() => (node.kind === 'member' ? this.#resolveFunctionReference(node, pointer, receiverMemberDeclarations, contract) : this.#resolveQualifiedForm(node, pointer, scope, receiverMemberDeclarations, written))]),
         ];
 
         if (readings.length === 1) {
@@ -1761,20 +1761,20 @@ export class LanguageResolver {
         const isAccess = node.kind === 'member';
         const fields = isAccess ? this.#moduleRegistry.getFieldTypes(node.name) : [];
         // A qualified call, a qualified form's or a function reference's, calls a property and a function alike, its receiver its first argument.
-        const written = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#moduleRegistry.formOf(candidate)] === node.kind);
+        const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#moduleRegistry.formOf(candidate)] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
             this.#fail(this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
         }
 
-        if (!isAccess && written.length === 0) {
+        if (!isAccess && candidatesInForm.length === 0) {
             this.#requireDeclaredForm(candidates[0], node, pointer);
         }
 
         const fitting = [];
         let failure = null;
 
-        for (const declaration of written) {
+        for (const declaration of candidatesInForm) {
             const attempt = this.#tryResolveArguments(declaration, node, pointer, scope, receiverType, offset);
 
             if (attempt.error === undefined) {
@@ -2272,12 +2272,13 @@ export class LanguageResolver {
         }
 
         if (contract.parameterTypes.length === 1 && node.kind !== 'function') {
-            const implicitBody = { key: {}, isRead: false };
-            const result = this.#resolveNode(node, pointer, { ...scope, contextType: contract.parameterTypes[0], contextKey: implicitBody.key, implicitBody });
+            // Whether the argument reads its own implicit parameter, which its own context key identifies; it holds no syntax of the body.
+            const argumentBody = { key: {}, isRead: false };
+            const result = this.#resolveNode(node, pointer, { ...scope, contextType: contract.parameterTypes[0], contextKey: argumentBody.key, argumentBody });
 
             this.#requireValueArgument(result, parameter, declaration, pointer);
 
-            if (!implicitBody.isRead) {
+            if (!argumentBody.isRead) {
                 return { result, callback: this.#resolveCallback(result, contract, pointer, scope) };
             }
 
@@ -2310,11 +2311,12 @@ export class LanguageResolver {
         } else if (node.kind === 'member' && node.target.kind === 'namespace') {
             result = this.#resolveThroughNamespace(node, pointer, scope, contract);
         } else {
-            const body = { key: {}, isRead: false };
+            // Whether the argument reads its own implicit parameter, which its own context key identifies; it holds no syntax of the body.
+            const argumentBody = { key: {}, isRead: false };
 
-            result = this.#resolveNode(node, pointer, { ...scope, contextType: itemType.toNonNullable(), contextKey: body.key, implicitBody: body });
+            result = this.#resolveNode(node, pointer, { ...scope, contextType: itemType.toNonNullable(), contextKey: argumentBody.key, argumentBody });
 
-            if (result.type.kind === 'function' && body.isRead) {
+            if (result.type.kind === 'function' && argumentBody.isRead) {
                 this.#fail('LEXICA3074', `The expression of '${declaration.name}' reads each item as 'it' and gives a function; a function of the item is written as the argument itself, as ${declaration.name}(x => …)`, pointer);
             }
         }
