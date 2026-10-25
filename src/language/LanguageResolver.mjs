@@ -982,8 +982,8 @@ export class LanguageResolver {
             return { type: Type.createFunctionType([local]), kind: 'value', isFixed: false };
         }
 
-        if (local?.option !== undefined) {
-            this.#fail('LEXICA3046', LanguageResolver.#unreadableOptionMessageOf(node.name, local.option), pointer);
+        if (local?.optionKind !== undefined) {
+            this.#fail('LEXICA3046', LanguageResolver.#unreadableOptionMessageOf(node.name, local.optionKind), pointer);
         }
 
         if (local === undefined) {
@@ -1235,14 +1235,14 @@ export class LanguageResolver {
             this.#fail('LEXICA3013', `A computed property access reads a string, and '${DefinitionWriter.write(node.name, this.#namespaceNames)}' can be null`, namePointer);
         }
 
-        const candidates = new Map();
+        const resolutionsByName = new Map();
         const types = [];
 
         for (const candidate of possible.names) {
             const access = { kind: 'member', target: node.target, name: candidate, ...(node.optional === true ? { optional: true } : {}) };
 
             types.push(this.#resolveMemberOf(access, pointer, scope, receiverType, true).type);
-            candidates.set(candidate, this.#resolutions.get(pointer));
+            resolutionsByName.set(candidate, this.#resolutions.get(pointer));
         }
 
         let type = types.reduce((merged, candidateType) => (merged === null ? null : this.#typeChecker.merge(merged, candidateType)), Type.never);
@@ -1255,7 +1255,7 @@ export class LanguageResolver {
             type = Type.null;
         }
 
-        this.#resolutions.set(pointer, { kind: 'computedPropertyAccess', candidates });
+        this.#resolutions.set(pointer, { kind: 'computedPropertyAccess', resolutionsByName });
 
         return { type, kind: 'value', isFixed: false };
     }
@@ -1655,11 +1655,11 @@ export class LanguageResolver {
         const alternatives = `write an arrow function, whose receiver's type selects one, as x => x.${node.name}(), or an implicit body, as it.${node.name}()`;
 
         if (selected.length === 0) {
-            this.#fail('LEXICA3037', `The function given as '${contract.parameter}' of '${contract.member}' is called with ${contract.parameterTypes.join(', ')} and answers ${contract.resultType ?? 'any value'}, and '${written}' names no function that takes those or answers that: it names ${functions.map(declaration => this.#signatureOf(declaration)).join(', ')}`, pointer);
+            this.#fail('LEXICA3037', `The function given as '${contract.parameterName}' of '${contract.memberName}' is called with ${contract.parameterTypes.join(', ')} and answers ${contract.resultType ?? 'any value'}, and '${written}' names no function that takes those or answers that: it names ${functions.map(declaration => this.#signatureOf(declaration)).join(', ')}`, pointer);
         }
 
         if (selected.length > 1) {
-            this.#fail('LEXICA3075', `'${written}' names ${selected.length} functions${contract === null ? '' : ` that the contract of '${contract.member}' allows`}, so which it references is ambiguous; ${alternatives}`, pointer);
+            this.#fail('LEXICA3075', `'${written}' names ${selected.length} functions${contract === null ? '' : ` that the contract of '${contract.memberName}' allows`}, so which it references is ambiguous; ${alternatives}`, pointer);
         }
 
         const [declaration] = selected;
@@ -1977,11 +1977,11 @@ export class LanguageResolver {
 
                 // An expression or a predicate option is evaluated by the member, and has no single value: a name or a field of it after its initializer refuses a read, hiding any enclosing name of its spelling.
                 if (optionsObject !== null) {
-                    argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { option: parameter.kind, result: null }) };
+                    argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { optionKind: parameter.kind, result: null }) };
                 }
 
                 if (objectExpression !== null) {
-                    this.#objectRootFields.get(objectExpression).set(parameter.name, { option: parameter.kind });
+                    this.#objectRootFields.get(objectExpression).set(parameter.name, { optionKind: parameter.kind });
                 }
             } else if (parameter.kind === 'function') {
                 ({ result, callback } = this.#resolveFunctionArgument(given.node, valuePointer, argumentScope, parameter, declaration, receiverType, typeArguments));
@@ -1989,11 +1989,11 @@ export class LanguageResolver {
                 // An implicit body option is called by the member against the argument it supplies, and has no single value, as an expression option has none.
                 if (callback.isBody === true) {
                     if (optionsObject !== null) {
-                        argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { option: 'implicitBody', result: null }) };
+                        argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { optionKind: 'implicitBody', result: null }) };
                     }
 
                     if (objectExpression !== null) {
-                        this.#objectRootFields.get(objectExpression).set(parameter.name, { option: 'implicitBody' });
+                        this.#objectRootFields.get(objectExpression).set(parameter.name, { optionKind: 'implicitBody' });
                     }
                 }
             } else {
@@ -2197,10 +2197,10 @@ export class LanguageResolver {
             this.#fail(node.kind === 'call' ? 'LEXICA3017' : 'LEXICA3012', `'root' is read through its fields, as root.name or root.[name], and '${node.name ?? '[…]'}' ${node.kind === 'call' ? 'is called' : 'is an indexer'}`, pointer);
         }
 
-        const option = this.#objectRootFields.get(receiverType.objectExpression).get(node.name)?.option;
+        const optionKind = this.#objectRootFields.get(receiverType.objectExpression).get(node.name)?.optionKind;
 
-        if (option !== undefined) {
-            this.#fail('LEXICA3046', LanguageResolver.#unreadableOptionMessageOf(node.name, option), pointer);
+        if (optionKind !== undefined) {
+            this.#fail('LEXICA3046', LanguageResolver.#unreadableOptionMessageOf(node.name, optionKind), pointer);
         }
 
         const fieldType = receiverType.fieldTypes.get(node.name);
@@ -2250,7 +2250,7 @@ export class LanguageResolver {
             return isOfUnknownType && LanguageResolver.#holdsTypeParameter(type) ? Type.never : type;
         };
 
-        return { member: declaration.name, parameter: parameter.name, parameterTypes: parameter.parameters.map(resolve), resultType: resolve(parameter.type) };
+        return { memberName: declaration.name, parameterName: parameter.name, parameterTypes: parameter.parameters.map(resolve), resultType: resolve(parameter.type) };
     }
 
     /**
@@ -2298,7 +2298,7 @@ export class LanguageResolver {
      */
     #resolveItemArgument(node, pointer, scope, parameter, declaration, itemType, expected) {
         // A function of the item is called with each item as it is, null among them where the list holds nulls, while a body reads each item as a value that is not.
-        const contract = { member: declaration.name, parameter: parameter.name, parameterTypes: [itemType], resultType: parameter.kind === 'expression' ? expected : null };
+        const contract = { memberName: declaration.name, parameterName: parameter.name, parameterTypes: [itemType], resultType: parameter.kind === 'expression' ? expected : null };
         let result;
 
         if (node.kind === 'function') {
@@ -2341,16 +2341,16 @@ export class LanguageResolver {
      */
     #resolveCallback(result, contract, pointer, scope) {
         const { type } = result;
-        const { member, parameter, parameterTypes, resultType } = contract;
+        const { memberName, parameterName, parameterTypes, resultType } = contract;
 
         if (type.kind !== 'function') {
             const implicit = parameterTypes.length === 1 ? ', as an arrow function, a function a name holds, a module\'s function by reference or an implicit body gives' : '';
 
-            this.#fail('LEXICA3073', `The parameter '${parameter}' of '${member}' takes a function${implicit}, and finds ${type}`, pointer);
+            this.#fail('LEXICA3073', `The parameter '${parameterName}' of '${memberName}' takes a function${implicit}, and finds ${type}`, pointer);
         }
 
         if (type.isNullable) {
-            this.#fail('LEXICA3072', `The parameter '${parameter}' of '${member}' takes a function, and this one may be null`, pointer);
+            this.#fail('LEXICA3072', `The parameter '${parameterName}' of '${memberName}' takes a function, and this one may be null`, pointer);
         }
 
         const argumentResults = parameterTypes.map(parameterType => ({ type: parameterType, kind: 'value', isFixed: false }));
@@ -2358,7 +2358,7 @@ export class LanguageResolver {
         const functions = type.functions.map((target, index) => {
             if (target.reference !== undefined) {
                 if (!this.#takesContract(target.reference, contract)) {
-                    this.#fail('LEXICA3036', `The function given as '${parameter}' of '${member}' is called with ${parameterTypes.join(', ')} and answers ${resultType ?? 'any value'}, and '${this.#referenceNameOf(target.reference)}' is ${this.#signatureOf(target.reference)}`, pointer);
+                    this.#fail('LEXICA3036', `The function given as '${parameterName}' of '${memberName}' is called with ${parameterTypes.join(', ')} and answers ${resultType ?? 'any value'}, and '${this.#referenceNameOf(target.reference)}' is ${this.#signatureOf(target.reference)}`, pointer);
                 }
 
                 const typeArguments = this.#contractTypeArgumentsOf(target.reference, contract);
@@ -2374,13 +2374,13 @@ export class LanguageResolver {
             const count = target.function.parameters.length;
 
             if (count !== parameterTypes.length) {
-                this.#fail('LEXICA3036', `The function given as '${parameter}' of '${member}' takes ${count === 1 ? 'one argument' : `${count} arguments`}, and its contract passes ${parameterTypes.length}`, pointer);
+                this.#fail('LEXICA3036', `The function given as '${parameterName}' of '${memberName}' takes ${count === 1 ? 'one argument' : `${count} arguments`}, and its contract passes ${parameterTypes.length}`, pointer);
             }
 
-            const resolved = this.#resolveFunctionBody(target, parameter, argumentResults, null, scope, type.functions.length === 1 ? `${pointer}/callback` : `${pointer}/callbacks/${index}`, pointer);
+            const resolved = this.#resolveFunctionBody(target, parameterName, argumentResults, null, scope, type.functions.length === 1 ? `${pointer}/callback` : `${pointer}/callbacks/${index}`, pointer);
 
             if (!this.#fitsResult(resolved.type, resultType)) {
-                this.#fail('LEXICA3036', `The function given as '${parameter}' of '${member}' gives ${resolved.type}, and its contract takes ${resultType ?? 'any value'}`, pointer);
+                this.#fail('LEXICA3036', `The function given as '${parameterName}' of '${memberName}' gives ${resolved.type}, and its contract takes ${resultType ?? 'any value'}`, pointer);
             }
 
             return { function: resolved.function, body: resolved.body, parameters: resolved.parameters };
@@ -2389,7 +2389,7 @@ export class LanguageResolver {
         return { functions, parameterTypes, resultType };
     }
 
-    /** The fields of each outermost object, by the object expression that builds it and then by name, each with its initializer, which a field read through the object root follows. @type {WeakMap<object, Map<string, { initializer: object } | { option: string }>>} */
+    /** The fields of each outermost object, by the object expression that builds it and then by name, each with its initializer, which a field read through the object root follows. @type {WeakMap<object, Map<string, { initializer: object } | { optionKind: string }>>} */
     #objectRootFields = new WeakMap();
 
     /** The type of the field a structured type or an object type declares under the name, or null. */

@@ -1507,7 +1507,7 @@ export class Evaluator {
 
         (this.#selections ??= new Map()).set(node, name);
 
-        return this.#evaluateResolvedAccess(resolution.candidates.get(name), receiver, node, context);
+        return this.#evaluateResolvedAccess(resolution.resolutionsByName.get(name), receiver, node, context);
     }
 
     /**
@@ -1992,7 +1992,7 @@ export class Evaluator {
                             return this.#getExpressionRecord(node, null, null);
                         }
 
-                        resolution = resolution.candidates.get(candidate);
+                        resolution = resolution.resolutionsByName.get(candidate);
                     }
 
                     if (resolution?.kind === 'objectRootField') {
