@@ -2294,7 +2294,7 @@ export class LanguageResolver {
     /**
      * Resolves the argument an expression or a predicate parameter is given, which is a function of each item, as a function parameter's of one argument is: a function the member calls with each item, an arrow function,
      * a function a name holds or a module's function by reference, resolved against the contract of the item's type and the expression's result, a predicate's any value; or any other argument, its body, evaluated against
-     * each item, its `it`, which it reads or not, so a body reading no `it` gives each item the same value.
+     * each item, its `it`, which it reads or not, so a body reading no `it` gives each item the same value. Either is a callback of that contract, which the member calls with one item while its own invocation lasts.
      */
     #resolveItemArgument(node, pointer, scope, parameter, declaration, itemType, expected) {
         // A function of the item is called with each item as it is, null among them where the list holds nulls, while a body reads each item as a value that is not.
@@ -2325,7 +2325,7 @@ export class LanguageResolver {
             this.#fail(contract.resultType === null ? 'LEXICA3028' : 'LEXICA3042', contract.resultType === null ? `The expression of '${declaration.name}' produces ${result.type}, a type no receiver gives` : `The expression of '${declaration.name}' must produce ${expected} and produces ${result.type}`, pointer);
         }
 
-        return { result };
+        return { result, callback: { isBody: true, parameterTypes: contract.parameterTypes, resultType: contract.resultType } };
     }
 
     /** Whether a function's result of the type is one its callback contract takes: a value of the contract's result type, or, where the contract takes any value, as a predicate's does, one of a type a receiver gives. */

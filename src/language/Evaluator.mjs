@@ -897,8 +897,8 @@ export class Evaluator {
     }
 
     /**
-     * The arguments a call is given, in the order they are written, each argument's plan made once: its default or fixed value, an expression evaluated against each item, a callback the member calls, or a value, null where it
-     * makes the call answer null.
+     * The arguments a call is given, in the order they are written, each argument's plan made once: its default or fixed value, a callback the member calls, an expression evaluated against its argument or the function a value gives,
+     * or a value, null where it makes the call answer null.
      * An options object's written values are its fields: each is in scope after its evaluation for the options after it that read it, holding its value and the selections it made, and one no other object encloses
      * builds the outermost object, which `root` refers to while its options are evaluated, each written value a field of it after its evaluation; a default is none.
      */
@@ -968,21 +968,13 @@ export class Evaluator {
                     if (plan.kind === 'constant') {
                         args[plan.name] = plan.value;
                         held = plan.value;
-                    } else if (plan.kind === 'expression' || plan.kind === 'predicate') {
-                        // The member evaluates it when it chooses, after its options are evaluated, so an option keeps the names and the object root in scope where it is written; a positional argument's are the member's own.
-                        const { evaluate } = plan;
-                        const frame = evaluator.#localsFrame;
-                        const objectRoot = evaluator.#objectRoot;
-                        const evaluateItem = isOptions ? item => evaluator.#evaluateWithin(frame, objectRoot, () => evaluate(evaluator, item)) : item => evaluate(evaluator, item);
-
-                        args[plan.name] = plan.kind === 'expression' ? evaluateItem : item => Evaluator.#isTruthy(evaluateItem(item));
                     } else if (plan.kind === 'callback' && plan.isBody) {
-                        // The member calls it when it chooses, each call evaluating the expression anew against its argument, with the names and the object root of the place it is written.
+                        // The member calls it when it chooses, after its options are evaluated, each call evaluating the expression anew against its argument, with the names and the object root of the place it is written.
                         const { evaluate } = plan;
                         const frame = evaluator.#localsFrame;
                         const objectRoot = evaluator.#objectRoot;
 
-                        args[plan.name] = evaluator.#createCallback(plan, values => evaluator.#evaluateWithin(frame, objectRoot, () => evaluate(evaluator, values[0])));
+                        args[plan.name] = evaluator.#createCallback(plan, values => evaluator.#evaluateWithin(frame, objectRoot, evaluate, values[0]));
                     } else {
                         let value;
 
@@ -1107,11 +1099,11 @@ export class Evaluator {
                     this.#fail('LEXICA5503', `The function given as '${name}' of '${member}' is called with ${values.length === 1 ? 'one argument' : `${values.length} arguments`}, and its contract declares ${parameterTypes.length}`, pointer);
                 }
 
-                values.forEach((value, index) => {
-                    if (!isOfParameterType[index](value)) {
-                        this.#fail('LEXICA5503', `The function given as '${name}' of '${member}' is called with ${Evaluator.#describe(value)}, and its contract declares ${parameterTypes[index]}`, pointer);
+                for (let index = 0; index < values.length; index++) {
+                    if (!isOfParameterType[index](values[index])) {
+                        this.#fail('LEXICA5503', `The function given as '${name}' of '${member}' is called with ${Evaluator.#describe(values[index])}, and its contract declares ${parameterTypes[index]}`, pointer);
                     }
-                });
+                }
 
                 const value = body(values);
 
@@ -1142,8 +1134,8 @@ export class Evaluator {
     /** The errors a function given to a member raised, which reach the expression as they are, not as the member's failure. @type {WeakSet<object>} */
     #callbackErrors = new WeakSet();
 
-    /** What the evaluation gives with the frame of names and the object root in scope, those of the place it was written, both restored after it. */
-    #evaluateWithin(frame, objectRoot, evaluate) {
+    /** What the compiled function gives for the implicit parameter with the frame of names and the object root in scope, those of the place it was written, both restored after it. */
+    #evaluateWithin(frame, objectRoot, evaluate, context) {
         const enclosingLocals = this.#localsFrame;
         const enclosingObjectRoot = this.#objectRoot;
 
@@ -1151,7 +1143,7 @@ export class Evaluator {
         this.#objectRoot = objectRoot;
 
         try {
-            return evaluate();
+            return evaluate(this, context);
         } finally {
             this.#localsFrame = enclosingLocals;
             this.#objectRoot = enclosingObjectRoot;

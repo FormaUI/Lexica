@@ -237,7 +237,8 @@ export interface LexicaParameterDeclaration {
     name: string;
     /**
      * A value; an expression, a body of each item, written as an expression evaluated against it or as a function of it; a predicate, an expression of any value whose truthiness the implementation receives; or a function: an arrow function, a function a name holds, a module's function
-     * by reference or an implicit body, which the implementation calls while its own invocation lasts and only a member of kind `function` takes.
+     * by reference or an implicit body, which only a member of kind `function` takes. The implementation receives an expression, a predicate and a function as a function it calls only while its own invocation lasts, with the
+     * arguments its contract declares: one item for an expression and a predicate.
      */
     kind: 'value' | 'expression' | 'predicate' | 'function';
     /** The parameter's type, in Lexica's notation; a predicate's is `Boolean`, what the implementation receives, and a function parameter's the type of its function's result. */

@@ -17,10 +17,11 @@ const constant = { changes: 'constant', reads: 'fresh' };
 const derived = { changes: 'derived', reads: 'derived' };
 
 /**
- * A pantry's module on words: a word's size, its weight and whether it is vegan; a member that keeps the test it is given, so a later call finds it called after its member returned; and one that picks the words its options' predicate keeps
- * and sums what its options' expression gives of each.
+ * A pantry's module on words: a word's size, its weight and whether it is vegan; members that keep the predicate or the expression they are given, so a later call finds it called after its member returned, and one that keeps
+ * its predicate in what the host holds and fails; members that call their expression with two items, and with a number; and one that picks the words its options' predicate keeps and sums what its options' expression gives
+ * of each.
  */
-const createPantry = () => {
+const createPantry = (held = {}) => {
     let kept = null;
 
     return lexica.createModule('pantry', {
@@ -29,7 +30,18 @@ const createPantry = () => {
             lexica.declarations.function('weight', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => receiver.length * 10 }),
             lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver.startsWith('oat') }),
             lexica.declarations.function('keepWhere', 'List<String>', 'Number', { updates: derived, parameters: [predicateParameter()], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
+            lexica.declarations.function('keepBy', 'List<String>', 'Number', { updates: derived, parameters: [expressionParameter('Number')], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
             lexica.declarations.function('callKept', 'String', 'Boolean', { updates: derived, implementation: ({ receiver }) => kept(receiver) }),
+            lexica.declarations.function('keepWhereAndFail', 'List<String>', 'Number', {
+                updates: derived,
+                parameters: [predicateParameter()],
+                implementation: ({ args }) => {
+                    held.expression = args.expression;
+                    throw new Error('The pantry is closed');
+                },
+            }),
+            lexica.declarations.function('weighPair', 'List<String>', 'Number', { updates: derived, parameters: [expressionParameter('Number')], implementation: ({ args }) => args.expression('oat', 'rye') }),
+            lexica.declarations.function('weighNumber', 'List<String>', 'Number', { updates: derived, parameters: [expressionParameter('Number')], implementation: ({ args }) => args.expression(42) }),
             lexica.declarations.function('passes', 'String', 'Boolean', { updates: derived, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ receiver, args }) => args.test(receiver) }),
             lexica.declarations.function('check', 'String', 'Boolean', {
                 updates: derived,
@@ -78,6 +90,26 @@ describe('the implicit parameter', () => {
             expect(evaluate('words.sum(1)')).toBe(3);
         });
 
+        it('is a function the member calls only while its invocation lasts, with one item of the list\'s item type, whether a body or an arrow function gives it', () => {
+            for (const expression of ['it.size', 'w => w.size']) {
+                expect(getError(() => evaluate(`{ kept = words.keepBy(${expression}), late = chosen.callKept() }`)), expression).toMatchObject({
+                    code: 'LEXICA5008',
+                    message: expect.stringContaining("The function given as 'expression' of 'keepBy' is called after 'keepBy' returned"),
+                    location: { pointer: '/expression/fields/0/value/arguments/0' },
+                });
+                expect(getError(() => evaluate(`words.weighPair(${expression})`)), expression).toMatchObject({
+                    code: 'LEXICA5503',
+                    message: expect.stringContaining("The function given as 'expression' of 'weighPair' is called with 2 arguments, and its contract declares 1"),
+                    location: { pointer: '/expression/arguments/0' },
+                });
+                expect(getError(() => evaluate(`words.weighNumber(${expression})`)), expression).toMatchObject({
+                    code: 'LEXICA5503',
+                    message: expect.stringContaining("The function given as 'expression' of 'weighNumber' is called with 42, and its contract declares String"),
+                    location: { pointer: '/expression/arguments/0' },
+                });
+            }
+        });
+
         it('refuses a body that reads it and gives a function, giving the function written as the argument', () => {
             expect(getError(() => resolve('let weigh = w => w.weight()\nreturn words.max(if it == "oat" then weigh else weigh end)')).message).toContain("a function of the item is written as the argument itself, as max(x => …)");
         });
@@ -96,8 +128,17 @@ describe('the implicit parameter', () => {
             expect(evaluate('words.where(flag)', { ...values, flag: false })).toEqual([]);
         });
 
-        it('refuses a function the member calls after it returned', () => {
-            expect(getError(() => evaluate('{ kept = words.keepWhere(w => w.vegan()), late = chosen.callKept() }')).message).toContain("is called after 'keepWhere' returned");
+        it('refuses a function the member calls after it returned or failed, whether a body or an arrow function gives it', () => {
+            for (const predicate of ['it.vegan()', 'w => w.vegan()']) {
+                const held = {};
+                const registry = lexica.createRegistry([createPantry(held)]);
+                const bindings = registry.bind(values);
+                const evaluator = registry.resolve(`words.keepWhereAndFail(${predicate})`, bindings).createEvaluator(bindings);
+
+                expect(getError(() => evaluate(`{ kept = words.keepWhere(${predicate}), late = chosen.callKept() }`)), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhere' returned") });
+                expect(getError(() => evaluator.evaluate()), predicate).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
+                expect(getError(() => held.expression('oat')), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhereAndFail' returned") });
+            }
         });
     });
 
