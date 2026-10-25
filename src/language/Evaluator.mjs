@@ -80,22 +80,23 @@ const COMPARISONS = Object.freeze({
 });
 
 /** What an evaluation answers, frozen: its value and whether a member it read was pending, and the metadata that describes the value, described from the identities its evaluation left where it is first read. */
-class EvaluationResult {
-    #describe;
+class Evaluation {
+    /** The function that creates the metadata at its first read, null once it has. */
+    #createMetadata;
     #metadata;
 
-    constructor(value, isPending, describe) {
+    constructor(value, isPending, createMetadata) {
         this.value = value;
         this.isPending = isPending;
-        this.#describe = describe;
+        this.#createMetadata = createMetadata;
         Object.freeze(this);
     }
 
     /** The metadata of the value, frozen, the same each time it is read. */
     get metadata() {
-        if (this.#describe !== null) {
-            this.#metadata = this.#describe();
-            this.#describe = null;
+        if (this.#createMetadata !== null) {
+            this.#metadata = this.#createMetadata();
+            this.#createMetadata = null;
         }
 
         return this.#metadata;
@@ -213,7 +214,7 @@ export class Evaluator {
      * It answers a prepared call, with its declaration, its receiver, its arguments by parameter name and where it stands, whose `project` projects each value its host supplies where the call declares a result; or a skipped call where the
      * receiver, or an argument whose parameter propagates null, is null, or the call has no declaration yet, its receiver's type unknown, so there is nothing to invoke. Each prepared call keeps the locals it was prepared with, so the prepared
      * calls of one evaluator stay apart.
-     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, location: object, project?: (value: unknown, host?: Host | null) => EvaluationResult } | { kind: 'skipped', location: object }}
+     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, location: object, project?: (value: unknown, host?: Host | null) => Evaluation } | { kind: 'skipped', location: object }}
      */
     prepareCall() {
         const { hostCall } = this.#resolvedDefinition;
@@ -345,7 +346,7 @@ export class Evaluator {
                 outcome = { kind: isPending ? 'pending' : 'completed', value: result.value };
             }
 
-            return new EvaluationResult(result.value, isPending, () => this.#metadataOf(result.node, result.value, result.identities, null));
+            return new Evaluation(result.value, isPending, () => this.#metadataOf(result.node, result.value, result.identities, null));
         } catch (error) {
             if (isTold) {
                 outcome = { kind: 'failed', error };
