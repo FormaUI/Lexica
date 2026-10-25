@@ -1667,21 +1667,25 @@ export class LanguageResolver {
         this.#usedDeclarations.push({ declaration, name: written, pointer });
         this.#resolutions.set(pointer, { kind: 'functionReference', declaration });
 
-        return { type: Type.createFunctionType([this.#referenceTargetOf(declaration)]), kind: 'value', isFixed: false };
+        return { type: Type.createFunctionType([this.#getModuleFunctionEntry(declaration)]), kind: 'value', isFixed: false };
     }
 
-    /** The one function a module delegate's type holds for a reference to the declaration, so references to one declaration are one function, as two reads of one local function's name are. @type {WeakMap<object, { reference: object }>} */
-    #referenceTargets = new WeakMap();
+    /**
+     * The function-type entry of each module function, indexed declaration → entry, for as long as the resolver: the one entry a function type's `functions` holds for the declaration, so references to one declaration are one
+     * function, as two reads of one local function's name are. @type {WeakMap<object, { reference: object }>}
+     */
+    #moduleFunctionEntryCache = new WeakMap();
 
-    #referenceTargetOf(declaration) {
-        let target = this.#referenceTargets.get(declaration);
+    /** Gets the shared function-type entry for a module function declaration, creating it at the first request: repeated references to the same declaration receive the same entry. */
+    #getModuleFunctionEntry(declaration) {
+        let entry = this.#moduleFunctionEntryCache.get(declaration);
 
-        if (target === undefined) {
-            target = Object.freeze({ reference: declaration });
-            this.#referenceTargets.set(declaration, target);
+        if (entry === undefined) {
+            entry = Object.freeze({ reference: declaration });
+            this.#moduleFunctionEntryCache.set(declaration, entry);
         }
 
-        return target;
+        return entry;
     }
 
     /** How a message names a reference's declaration: its module's name and its own, as its reference is written. */
