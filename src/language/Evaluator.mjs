@@ -224,68 +224,81 @@ export class Evaluator {
 
         const { node, pointer, declaration } = hostCall;
         const location = this.#locate(pointer);
-        const enclosingLocals = this.#localsFrame;
         const resolution = this.#resolvedDefinition.resolutionOf(node);
+        const { terminalNode, localsFrame } = this.#evaluateLocalsBefore();
+        // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
+        const hasReceiver = declaration === null || this.#moduleRegistry.hasReceiver(declaration);
+        const enclosingSelections = this.#selections;
+        let receiver;
+        let args;
 
+        // The receiver and the arguments are evaluated within the locals' frame, and no result records the selections they make.
         try {
-            const projection = this.#evaluateLocalsBefore();
-            const frame = this.#localsFrame;
-            // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
-            const hasReceiver = declaration === null || this.#moduleRegistry.hasReceiver(declaration);
-            const receiver = declaration === null ? null : hasReceiver ? this.#evaluateNode(resolution.receiverNode, null) : undefined;
-            const args = receiver === null ? null : this.#evaluateArguments(resolution, null);
+            ({ receiver, args } = this.#evaluateWithin(localsFrame, this.#objectRoot, evaluator => {
+                const evaluatedReceiver = declaration === null ? null : hasReceiver ? evaluator.#evaluateNode(resolution.receiverNode, null) : undefined;
 
-            if (args === null) {
-                return Object.freeze({ kind: 'skipped', location });
-            }
-
-            const call = hasReceiver ? { kind: 'prepared', declaration, receiver, args, location } : { kind: 'prepared', declaration, args, location };
-
-            // A call whose host supplies nothing has nothing to project.
-            if (declaration.result !== undefined) {
-                call.project = (value, host = null) => this.#evaluateForHost(host, () => this.#project(frame, projection, value));
-            }
-
-            return Object.freeze(call);
+                return { receiver: evaluatedReceiver, args: evaluatedReceiver === null ? null : evaluator.#evaluateArguments(resolution, null) };
+            }, null));
         } finally {
-            this.#localsFrame = enclosingLocals;
-            this.#selections = null;
+            this.#selections = enclosingSelections;
         }
+
+        if (args === null) {
+            return Object.freeze({ kind: 'skipped', location });
+        }
+
+        const call = hasReceiver ? { kind: 'prepared', declaration, receiver, args, location } : { kind: 'prepared', declaration, args, location };
+
+        // A call whose host supplies nothing has nothing to project.
+        if (declaration.result !== undefined) {
+            call.project = (value, host = null) => this.#evaluateForHost(host, () => this.#project(localsFrame, terminalNode, value));
+        }
+
+        return Object.freeze(call);
     }
 
     /**
-     * Evaluates the locals of each body along the script's terminal position into a frame of its own, in order, as a run of each body does, leaving the innermost frame the one in scope, and answers the node the terminal position holds
-     * after its bodies: the result projection, the optional chain or the host call itself.
+     * Evaluates the locals of each body along the script's terminal position into a frame of its own, in order, as a run of each body does, each local's value and the selections it made kept in its entry of the frame. It answers
+     * the node the terminal position holds after its bodies, the result projection, the optional chain or the host call itself, as `terminalNode`, and the innermost frame as `localsFrame`; the frame in scope and the selections
+     * are restored as they were, whether it completes or fails.
+     * @returns {{ terminalNode: object, localsFrame: LocalsFrame | null }}
      */
     #evaluateLocalsBefore() {
+        const enclosingLocalsFrame = this.#localsFrame;
+        const enclosingSelections = this.#selections;
         let node = this.#resolvedDefinition.definition.expression;
 
-        while (node.kind === 'body' || node.kind === 'do') {
-            if (node.kind === 'body') {
-                const frame = { node, item: null, values: new Map(), enclosing: this.#localsFrame };
+        try {
+            while (node.kind === 'body' || node.kind === 'do') {
+                if (node.kind === 'body') {
+                    const frame = { node, item: null, values: new Map(), enclosing: this.#localsFrame };
 
-                this.#localsFrame = frame;
+                    this.#localsFrame = frame;
 
-                for (const local of node.locals) {
-                    this.#selections = null;
+                    for (const local of node.locals) {
+                        this.#selections = null;
 
-                    const value = this.#getCompiledFunction(local.value)(this, null);
+                        const value = this.#getCompiledFunction(local.value)(this, null);
 
-                    frame.values.set(local.name, { value, selections: this.#selections });
+                        frame.values.set(local.name, { value, selections: this.#selections });
+                    }
                 }
+
+                node = node.kind === 'body' ? node.result : node.body;
             }
 
-            node = node.kind === 'body' ? node.result : node.body;
+            return { terminalNode: node, localsFrame: this.#localsFrame };
+        } finally {
+            this.#localsFrame = enclosingLocalsFrame;
+            this.#selections = enclosingSelections;
         }
-
-        return node;
     }
 
     /**
-     * Projects one value the host supplied for a prepared call: captures it as the type the call declares, then evaluates the result projection against it as an evaluation of its own, within the frame of the locals the call was prepared
-     * with, which it reads and never evaluates again.
+     * Projects one value the host supplied for a prepared call: captures it as the type the call declares, then evaluates the terminal node against it as an evaluation of its own, the result projection or the call itself, which
+     * answers the captured value, within the frame of the locals the call was prepared with, which it reads and never evaluates again.
      */
-    #project(frame, projection, value) {
+    #project(frame, terminalNode, value) {
         const { node, pointer, declaration } = this.#resolvedDefinition.hostCall;
         const { type } = this.#resolvedDefinition.resolutionOf(node);
 
@@ -303,7 +316,7 @@ export class Evaluator {
         this.#projectionContext = { node, value: captured };
 
         try {
-            return this.#evaluateResult(projection);
+            return this.#evaluateResult(terminalNode);
         } finally {
             this.#projectionContext = null;
             this.#localsFrame = enclosingLocals;

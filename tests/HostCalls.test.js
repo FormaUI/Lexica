@@ -294,6 +294,20 @@ describe('prepared calls', () => {
         expect(invoked).toEqual(['level:hall', 'level:hall']);
     });
 
+    it('of one evaluator are prepared anew after a preparation fails in a local, the failed one leaving nothing in scope', () => {
+        const env = { levels: {}, occupied: [] };
+        const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = it, asked = level }', { env });
+
+        expect(getError(() => evaluator.prepareCall())).toMatchObject({ code: 'LEXICA5006', location: { pointer: '/expression/locals/0/value' } });
+
+        env.levels.hall = 40;
+
+        const call = evaluator.prepareCall();
+
+        expect(call.args).toEqual({ to: 40 });
+        expect(call.project(35).value).toEqual({ reached: 35, asked: 40 });
+    });
+
     it('project through the checks every evaluation goes through, refusing a registry that moved since the resolution', () => {
         const { evaluator, registry } = evaluatorOf('light.dim({ to = 40 })');
         const call = evaluator.prepareCall();
