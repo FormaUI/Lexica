@@ -171,4 +171,25 @@ return f(1)`;
         expect(createEvaluator(nested, { a: 5, b: null }).evaluate().value).toBe(5);
         expect(createEvaluator('if let x = a then x + 1 else 0 end', { a: 2 }).evaluate().value).toBe(3);
     });
+
+    it('evaluates an object expression\'s local at its first read alone, once for each application of the expression, and never where nothing reads it', () => {
+        const evaluate = (text, values) => {
+            const invoked = [];
+
+            return { value: createEvaluator(text, values, { invoked }).evaluate().value, invoked };
+        };
+
+        expect(evaluate('{ let p = name.price, n = 1 }', { name: 'tea' })).toEqual({ value: { n: 1 }, invoked: [] });
+        expect(evaluate('{ let p = name.price, a = p, b = p + 1 }', { name: 'tea' })).toEqual({ value: { a: 3, b: 4 }, invoked: ['price:tea'] });
+        expect(evaluate('names { let p = it.price, a = p, b = p }', { names: ['tea', 'milk'] })).toEqual({ value: [{ a: 3, b: 3 }, { a: 4, b: 4 }], invoked: ['price:tea', 'price:milk'] });
+    });
+
+    it('reads each name from the nearest scope declaring it, a function\'s parameter, an object expression\'s local, a field and a body\'s local each hiding an outer name', () => {
+        const valueOf = text => createEvaluator(text, {}).evaluate().value;
+
+        expect(valueOf('let a = 1\nlet f = a => a * 10\nreturn { called = f(2), outer = a }')).toEqual({ called: 20, outer: 1 });
+        expect(valueOf('let a = 1\nreturn { let a = 2, inner = a }')).toEqual({ inner: 2 });
+        expect(valueOf('let a = 1\nreturn { outer = a, a = 2, later = a }')).toEqual({ outer: 1, a: 2, later: 2 });
+        expect(valueOf('let a = 1\nreturn { let b = a + 1, c = do let a = 5 return a + b end }')).toEqual({ c: 7 });
+    });
 });

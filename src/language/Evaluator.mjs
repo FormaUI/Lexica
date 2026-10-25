@@ -44,8 +44,10 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
  * The names one scope declares, as it runs, inside the frame of the scope enclosing it: an application of an object expression, whose locals are evaluated at their first use, a run of a body, whose locals it evaluates in order,
  * a call of a local function, its parameters holding its arguments, or a field the fields after it read, holding its value.
  * @typedef {object} LocalsFrame
- * @property {{ locals: { name: string, value?: object }[] }} node What declares the names: the object expression or the body, or for a call's parameters and a field, a list of them alone.
- * @property {unknown} item The implicit parameter the scope runs against, which a local evaluated at its first use is evaluated against.
+ * @property {readonly string[]} names The names the scope declares, never evaluating anything to find them: a body's or an object expression's locals, a call's parameters, or the one name of a binding, an option or a field.
+ * @property {{ locals: { name: string, value: object }[] }} [node] An object expression's frame alone: the node whose locals are evaluated at their first use, which a read finds the initializer in. Every other frame holds each
+ * name's value from the start, so it has none.
+ * @property {unknown} context The implicit parameter the scope runs against, which a local evaluated at its first use is evaluated against.
  * @property {Map<string, { value: unknown, selections: Map<object, object | string> | null }>} values Each name's value evaluated so far, with the selections its evaluation made.
  * @property {LocalsFrame | null} enclosing The frame of the scope enclosing this one, or null for the outermost.
  */
@@ -110,7 +112,7 @@ export class Evaluator {
     /**
      * The function each node of a resolved definition compiles to, by the definition and then the node, with the registry they were compiled against: built once, it holds what the node's evaluation needs that no evaluation changes, and takes the evaluator, which holds what one does, and the implicit parameter.
      * Beside them, the function each member's arguments compile to, by the member's resolution, for the evaluations that read the member without compiling it.
-     * @type {WeakMap<object, { registry: object, functions: Map<object, (evaluator: Evaluator, current: unknown) => unknown>, arguments: Map<object, (evaluator: Evaluator, current: unknown) => object | null> }>}
+     * @type {WeakMap<object, { registry: object, functions: Map<object, (evaluator: Evaluator, context: unknown) => unknown>, arguments: Map<object, (evaluator: Evaluator, context: unknown) => object | null> }>}
      */
     static #compilationCache = new WeakMap();
 
@@ -275,7 +277,7 @@ export class Evaluator {
         try {
             while (node.kind === 'body' || node.kind === 'do') {
                 if (node.kind === 'body') {
-                    const frame = { node, item: null, values: new Map(), enclosing: this.#localsFrame };
+                    const frame = { names: node.locals.map(local => local.name), context: null, values: new Map(), enclosing: this.#localsFrame };
 
                     this.#localsFrame = frame;
 
@@ -446,6 +448,7 @@ export class Evaluator {
 
                 if (node.binding !== undefined) {
                     const evaluateBindingValue = this.#getCompiledFunction(node.binding.value);
+                    const bindingNames = [node.binding.name];
 
                     // The value is evaluated once; where it is truthy, the consequent runs in a frame holding it by the name it is bound to, which a function made within it keeps as it keeps every frame around it, and the branch
                     // taken is recorded for the value's place in the result.
@@ -462,7 +465,7 @@ export class Evaluator {
                         const enclosingLocalsFrame = evaluator.#localsFrame;
                         const { name } = node.binding;
 
-                        evaluator.#localsFrame = { node: { locals: [{ name }] }, item: context, values: new Map([[name, { value, selections: null }]]), enclosing: enclosingLocalsFrame };
+                        evaluator.#localsFrame = { names: bindingNames, context, values: new Map([[name, { value, selections: null }]]), enclosing: enclosingLocalsFrame };
 
                         try {
                             return consequent(evaluator, context);
@@ -563,11 +566,12 @@ export class Evaluator {
                 return this.#getCompiledFunction(node.body);
             case 'body': {
                 const locals = node.locals.map(local => ({ name: local.name, evaluate: this.#getCompiledFunction(local.value) }));
+                const localNames = locals.map(local => local.name);
                 const result = this.#getCompiledFunction(node.result);
 
                 // Each local is evaluated once, in order, whenever the body runs, an unused one included, each seeing those before it, and then the result, all against the body's implicit parameter.
                 return (evaluator, context) => {
-                    const frame = { node, item: context, values: new Map(), enclosing: evaluator.#localsFrame };
+                    const frame = { names: localNames, context, values: new Map(), enclosing: evaluator.#localsFrame };
                     const enclosingSelections = evaluator.#selections;
 
                     evaluator.#localsFrame = frame;
@@ -1016,7 +1020,7 @@ export class Evaluator {
                     }
 
                     if (plan.isReadLater) {
-                        evaluator.#localsFrame = { node: { locals: [{ name: plan.name }] }, item: context, values: new Map([[plan.name, { value: argumentValue, selections }]]), enclosing: evaluator.#localsFrame };
+                        evaluator.#localsFrame = { names: [plan.name], context, values: new Map([[plan.name, { value: argumentValue, selections }]]), enclosing: evaluator.#localsFrame };
                     }
                 }
 
@@ -1061,7 +1065,7 @@ export class Evaluator {
             const enclosingLocalsFrame = this.#localsFrame;
             const enclosingObjectRoot = this.#objectRoot;
 
-            this.#localsFrame = { node: { locals: parameters.map(parameter => ({ name: parameter })) }, item: callee.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: argumentValues[index], selections: null }])), enclosing: callee.capturedFrame };
+            this.#localsFrame = { names: parameters, context: callee.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: argumentValues[index], selections: null }])), enclosing: callee.capturedFrame };
             this.#objectRoot = callee.objectRoot;
 
             try {
@@ -1193,6 +1197,7 @@ export class Evaluator {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
         const isOfReferences = resolution?.kind === 'projection' && this.#moduleRegistry.isReferenceType(resolution.itemType.toNonNullable());
         const names = this.#resolvedDefinition.fieldNamesOf(node);
+        const localNames = node.locals === undefined ? null : node.locals.map(local => local.name);
         // A field the entries after it read is in scope for them, by the name the definition gives it.
         const fields = node.fields.map((field, index) => ({
             name: names[index],
@@ -1205,14 +1210,14 @@ export class Evaluator {
             const value = hasTarget ? evaluateSource(evaluator, context) : context;
 
             if (!(hasTarget && Array.isArray(value))) {
-                return value === null && hasTarget ? null : evaluator.#applyFields(node, fields, value);
+                return value === null && hasTarget ? null : evaluator.#applyFields(node, fields, localNames, value);
             }
 
             const items = [];
             const sources = [];
 
             for (const item of value) {
-                items.push(item === null ? null : evaluator.#applyFields(node, fields, item));
+                items.push(item === null ? null : evaluator.#applyFields(node, fields, localNames, item));
                 sources.push(Object.freeze(item === null ? { kind: 'null' } : isOfReferences ? { kind: 'reference', value: item } : { kind: 'data', value: Evaluator.#frozenDataOf(item) }));
             }
 
@@ -1256,10 +1261,10 @@ export class Evaluator {
     }
 
     /**
-     * The object the fields give the item, evaluated against it in order with the expression's locals in scope, with the selections made for each field; a field's name is a name, so it is assigned as it is.
+     * The object the fields give the context, the value the expression follows or an item it projects, evaluated against it in order with the expression's locals in scope, the names in `localNames`, with the selections made for each field; a field's name is a name, so it is assigned as it is.
      * A field the entries after it read is in scope for them from its evaluation on, holding its value and the selections it made, so a read of it evaluates nothing again.
      */
-    #applyFields(node, fields, item) {
+    #applyFields(node, fields, localNames, context) {
         const object = {};
         const enclosingSelections = this.#selections;
         const enclosingLocalsFrame = this.#localsFrame;
@@ -1269,7 +1274,7 @@ export class Evaluator {
         let fieldSelections = null;
 
         if (node.locals !== undefined) {
-            this.#localsFrame = { node, item, values: new Map(), enclosing: enclosingLocalsFrame };
+            this.#localsFrame = { names: localNames, node, context, values: new Map(), enclosing: enclosingLocalsFrame };
         }
 
         if (rootSelections !== null) {
@@ -1281,7 +1286,7 @@ export class Evaluator {
             for (const field of fields) {
                 this.#selections = null;
 
-                const value = field.evaluate(this, item);
+                const value = field.evaluate(this, context);
 
                 object[field.name] = value;
 
@@ -1293,7 +1298,7 @@ export class Evaluator {
                 }
 
                 if (field.isReadLater) {
-                    this.#localsFrame = { node: { locals: [{ name: field.local }] }, item, values: new Map([[field.local, { value, selections: this.#selections }]]), enclosing: this.#localsFrame };
+                    this.#localsFrame = { names: [field.local], context, values: new Map([[field.local, { value, selections: this.#selections }]]), enclosing: this.#localsFrame };
                 }
             }
         } finally {
@@ -1447,7 +1452,7 @@ export class Evaluator {
         let frame = this.#localsFrame;
 
         // A frame is an object expression's, whose locals are evaluated at their first use, or a body's, whose bindings it evaluated in order before its result.
-        while (!frame.node.locals.some(local => local.name === node.name)) {
+        while (!frame.names.includes(node.name)) {
             frame = frame.enclosing;
         }
 
@@ -1461,7 +1466,7 @@ export class Evaluator {
             this.#selections = null;
 
             try {
-                cachedLocal = { value: this.#evaluateNode(frame.node.locals.find(local => local.name === node.name).value, frame.item), selections: this.#selections };
+                cachedLocal = { value: this.#evaluateNode(frame.node.locals.find(local => local.name === node.name).value, frame.context), selections: this.#selections };
             } finally {
                 this.#localsFrame = enclosingLocalsFrame;
                 this.#selections = enclosingSelections;
