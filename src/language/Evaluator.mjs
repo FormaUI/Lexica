@@ -684,15 +684,15 @@ export class Evaluator {
      */
     #compileCast(node, isAttempted) {
         const evaluateOperand = this.#getCompiledFunction(node.target);
-        const { type, targetType } = this.#resolvedDefinition.resolutionOf(node);
-        const asked = `the cast to ${type}`;
+        const { type: targetType, sourceType } = this.#resolvedDefinition.resolutionOf(node);
+        const asked = `the cast to ${targetType}`;
         // A value of a type above the cast's is one that isn't of the cast's type, and a value of the cast's own type, or of one beneath it, is one its supertypes refuse.
-        const what = this.#moduleRegistry.typeChecker.isAssignable(type, targetType) && !this.#moduleRegistry.typeChecker.isAssignable(targetType, type) ? `${Evaluator.#getNameWithArticle(targetType)} that isn't ${Evaluator.#getNameWithArticle(type)}` : Evaluator.#getNameWithArticle(targetType);
+        const what = this.#moduleRegistry.typeChecker.isAssignable(targetType, sourceType) && !this.#moduleRegistry.typeChecker.isAssignable(sourceType, targetType) ? `${Evaluator.#getNameWithArticle(sourceType)} that isn't ${Evaluator.#getNameWithArticle(targetType)}` : Evaluator.#getNameWithArticle(sourceType);
 
         return (evaluator, context) => {
             const value = evaluateOperand(evaluator, context);
 
-            if (value === null || evaluator.#moduleRegistry.belongsTo(value, type, asked)) {
+            if (value === null || evaluator.#moduleRegistry.belongsTo(value, targetType, asked)) {
                 return value;
             }
 
@@ -700,7 +700,7 @@ export class Evaluator {
                 return null;
             }
 
-            return evaluator.#fail('LEXICA5001', `The cast to ${type} rejected its value: it is ${what}`, evaluator.#pointerOf(node));
+            return evaluator.#fail('LEXICA5001', `The cast to ${targetType} rejected its value: it is ${what}`, evaluator.#pointerOf(node));
         };
     }
 

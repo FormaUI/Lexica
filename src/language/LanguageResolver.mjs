@@ -536,27 +536,27 @@ export class LanguageResolver {
      */
     #resolveCast(node, pointer, scope) {
         const target = this.#resolveNode(node.target, `${pointer}/target`, scope);
-        const type = this.#typeNamed(node.type, pointer);
+        const targetType = this.#typeNamed(node.type, pointer);
 
         if (target.kind !== 'value') {
             this.#fail('LEXICA3048', `A cast's target is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/target`);
         }
 
-        if (!this.#moduleRegistry.isReferenceType(type)) {
+        if (!this.#moduleRegistry.isReferenceType(targetType)) {
             this.#fail(this.#declaresTypeNamed(node.type) ? 'LEXICA3020' : 'LEXICA3019', `'as' casts to a reference type, and '${node.type}' is none`, pointer);
         }
 
         const from = target.type;
         const base = from.toNonNullable();
-        const canBe = from.kind === 'null' || from.kind === 'never' || (this.#moduleRegistry.isReferenceType(base) && (this.#typeChecker.isAssignable(type, base) || this.#typeChecker.isAssignable(base, type)));
+        const canBe = from.kind === 'null' || from.kind === 'never' || (this.#moduleRegistry.isReferenceType(base) && (this.#typeChecker.isAssignable(targetType, base) || this.#typeChecker.isAssignable(base, targetType)));
 
         if (!canBe) {
             this.#fail('LEXICA3060', `A value of ${base} can never be cast to ${node.type}, a type of another hierarchy: the cast would always reject it`, pointer);
         }
 
-        this.#resolutions.set(pointer, { kind: 'cast', type, targetType: base });
+        this.#resolutions.set(pointer, { kind: 'cast', type: targetType, sourceType: base });
 
-        return { type: from.kind === 'null' || from.isNullable ? type.toNullable() : type, kind: 'value', isFixed: false };
+        return { type: from.kind === 'null' || from.isNullable ? targetType.toNullable() : targetType, kind: 'value', isFixed: false };
     }
 
     /**
