@@ -16,10 +16,10 @@ const { property, functionParameter } = lexica.declarations;
 const constant = { changes: 'constant', reads: 'fresh' };
 
 /**
- * A pantry's module on words: a word's size and whether it is vegan; a test that answers no Boolean; a member that ignores the test it is given, and one that keeps it for a member that calls it later;
- * and a test of a number. Every implementation records what it read, so a test sees which ran.
+ * A pantry's module on words: a word's size and whether it is vegan; a test that answers no Boolean; a member that ignores the test it is given, one that keeps it for a member that calls it later, and one that keeps it
+ * in what the host holds and fails; and a test of a number. Every implementation records what it read, so a test sees which ran.
  */
-const createPantry = (invoked = []) => {
+const createPantry = (invoked = [], held = {}) => {
     let kept = null;
 
     return lexica.createModule('pantry', {
@@ -31,6 +31,14 @@ const createPantry = (invoked = []) => {
             lexica.declarations.function('ignore', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: () => true }),
             lexica.declarations.function('keep', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ args }) => ((kept = args.test), true) }),
             lexica.declarations.function('callKept', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, implementation: ({ receiver }) => kept(receiver) }),
+            lexica.declarations.function('keepAndFail', 'String', 'Boolean', {
+                updates: { changes: 'derived', reads: 'derived' },
+                parameters: [functionParameter('test', 'Boolean', ['String'])],
+                implementation: ({ args }) => {
+                    held.test = args.test;
+                    throw new Error('The pantry is closed');
+                },
+            }),
         ],
     });
 };
@@ -129,6 +137,24 @@ describe('functions passed to members', () => {
     it('are called only while the member\'s invocation lasts, a call after that failing, an implicit body and a reference alike', () => {
         for (const test of ['w => w.size > 2', 'it.size > 2', 'pantry.vegan']) {
             expect(getError(() => evaluate(`{ kept = word.keep(${test}), called = word.callKept() }`))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("is called after 'keep' returned") });
+        }
+    });
+
+    it('expire only the function the member was given, the function beneath it staying callable in another invocation and by itself', () => {
+        for (const test of ['w => w.size > 2', 'pantry.vegan']) {
+            expect(evaluate(`let test = ${test}\nreturn { kept = word.keep(test), again = word.is(test), direct = test(word) }`).value).toEqual({ kept: true, again: true, direct: true });
+        }
+    });
+
+    it('expire when the member fails as when it returns, a call after its failure refused', () => {
+        for (const test of ['w => w.size > 2', 'it.size > 2', 'pantry.vegan']) {
+            const held = {};
+            const registry = lexica.createRegistry([createPantry([], held)]);
+            const bindings = registry.bind(values);
+            const evaluator = registry.resolve(`word.keepAndFail(${test})`, bindings).createEvaluator(bindings);
+
+            expect(getError(() => evaluator.evaluate()), test).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
+            expect(getError(() => held.test('oat')), test).toMatchObject({ code: 'LEXICA5008', kind: 'evaluation' });
         }
     });
 });

@@ -1987,7 +1987,7 @@ export class LanguageResolver {
                 ({ result, callback } = this.#resolveFunctionArgument(given.node, valuePointer, argumentScope, parameter, declaration, receiverType, typeArguments));
 
                 // An implicit body option is called by the member against the argument it supplies, and has no single value, as an expression option has none.
-                if (callback.implicit === true) {
+                if (callback.isBody === true) {
                     if (optionsObject !== null) {
                         argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { option: 'implicitBody', result: null }) };
                     }
@@ -2007,7 +2007,7 @@ export class LanguageResolver {
                 }
             }
 
-            if (parameter.kind !== 'expression' && parameter.kind !== 'predicate' && callback?.implicit !== true) {
+            if (parameter.kind !== 'expression' && parameter.kind !== 'predicate' && callback?.isBody !== true) {
 
                 // A value or a function option is in scope after its value, through the options after it, read as it was evaluated; one of the outermost object is completed, and read through root after it as the value it was given, of that value's type.
                 if (optionsObject !== null) {
@@ -2281,7 +2281,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3036', `The implicit body given as '${parameter.name}' of '${declaration.name}' gives ${result.type}, and its contract takes ${contract.resultType}`, pointer);
             }
 
-            return { result, callback: { implicit: true, parameterTypes: contract.parameterTypes, resultType: contract.resultType } };
+            return { result, callback: { isBody: true, parameterTypes: contract.parameterTypes, resultType: contract.resultType } };
         }
 
         const result = this.#resolveNode(node, pointer, scope);
@@ -2336,8 +2336,8 @@ export class LanguageResolver {
     /**
      * Resolves a function value given to a function parameter against its callback contract: each function it may be, a function the script declares, its body resolved for the contract's argument types and its result checked against the contract's result type,
      * or a function reference, whose declaration takes what the contract passes, with its argument map, of as many arguments as the contract passes, and the result type its implementation answers, its type parameters bound by
-     * the contract's receiver. It answers the targets with the contract's types,
-     * which evaluation checks the member's arguments and the function's result against. The member calls it while its own invocation lasts, with as many arguments as the contract declares.
+     * the contract's receiver. It answers the callback, those functions with the contract's types, which evaluation checks the member's arguments and the function's result against. The member calls it while its own invocation
+     * lasts, with as many arguments as the contract declares.
      */
     #resolveCallback(result, contract, pointer, scope) {
         const { type } = result;
@@ -2355,7 +2355,7 @@ export class LanguageResolver {
 
         const argumentResults = parameterTypes.map(parameterType => ({ type: parameterType, kind: 'value', isFixed: false }));
 
-        const targets = type.functions.map((target, index) => {
+        const functions = type.functions.map((target, index) => {
             if (target.reference !== undefined) {
                 if (!this.#takesContract(target.reference, contract)) {
                     this.#fail('LEXICA3036', `The function given as '${parameter}' of '${member}' is called with ${parameterTypes.join(', ')} and answers ${resultType ?? 'any value'}, and '${this.#referenceNameOf(target.reference)}' is ${this.#signatureOf(target.reference)}`, pointer);
@@ -2386,7 +2386,7 @@ export class LanguageResolver {
             return { function: resolved.function, body: resolved.body, parameters: resolved.parameters };
         });
 
-        return { targets, parameterTypes, resultType };
+        return { functions, parameterTypes, resultType };
     }
 
     /** The fields of each outermost object, by the object expression that builds it and then by name, each with its value, which a field read through the object root follows. @type {WeakMap<object, Map<string, { value: object }>>} */

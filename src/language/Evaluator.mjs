@@ -897,7 +897,8 @@ export class Evaluator {
     }
 
     /**
-     * The arguments a call is given, in the order they are written, each argument's plan made once: its default or fixed value, an expression evaluated against each item, or a value, null where it makes the call answer null.
+     * The arguments a call is given, in the order they are written, each argument's plan made once: its default or fixed value, an expression evaluated against each item, a callback the member calls, or a value, null where it
+     * makes the call answer null.
      * An options object's written values are its fields: each is in scope after its evaluation for the options after it that read it, holding its value and the selections it made, and one no other object encloses
      * builds the outermost object, which `root` refers to while its options are evaluated, each written value a field of it after its evaluation; a default is none.
      */
@@ -910,7 +911,7 @@ export class Evaluator {
         const isOptions = resolution.declaration.arguments === 'options';
         const argumentPlans = resolution.arguments.map((argument, index) => {
             const { parameter } = argument;
-            const isOption = isOptions && !argument.isDefault && parameter.kind !== 'expression' && parameter.kind !== 'predicate' && argument.callback?.implicit !== true;
+            const isOption = isOptions && !argument.isDefault && parameter.kind !== 'expression' && parameter.kind !== 'predicate' && argument.callback?.isBody !== true;
             const isRead = isOption && resolution.arguments.slice(index + 1).some(later => !later.isDefault && Evaluator.#readsLocal(later.node, parameter.name));
             const isField = isOption && buildsObjectRoot === true;
 
@@ -924,19 +925,27 @@ export class Evaluator {
                 return plan;
             }
 
-            const { targets, parameterTypes, resultType, implicit } = argument.callback;
+            // The member calls the function it is given with the arguments the callback contract declares, each checked as the contract's types say, the checks compiled once for every call.
+            const { functions, parameterTypes, resultType, isBody } = argument.callback;
             const asked = `the function given as '${parameter.name}' of '${resolution.declaration.name}'`;
             const isOfParameterType = parameterTypes.map(parameterType => Evaluator.#compileTypeCheck(parameterType, this.#moduleRegistry, asked));
             const isOfResultType = resultType === null ? null : Evaluator.#compileTypeCheck(resultType, this.#moduleRegistry, asked);
-            const callback = { ...plan, propagatesNull: false, member: resolution.declaration.name, parameterTypes, resultType, isOfParameterType, isOfResultType, pointer: argument.pointer, node: argument.node };
 
-            // A function given to an expression or a predicate parameter is called with each item, as its body would be evaluated against it.
-            if (parameter.kind !== 'function') {
-                return { ...callback, kind: 'itemFunction', policy: parameter.kind, functions: this.#compileFunctions(targets) };
-            }
-
-            // An implicit body is the argument's expression, evaluated against each argument the member calls it with, which is its implicit parameter.
-            return implicit === true ? { ...callback, kind: 'implicitBody' } : { ...callback, functions: this.#compileFunctions(targets) };
+            return {
+                ...plan,
+                kind: 'callback',
+                propagatesNull: false,
+                isBody: isBody === true,
+                isPredicate: parameter.kind === 'predicate',
+                functions: isBody === true ? null : this.#compileFunctions(functions),
+                member: resolution.declaration.name,
+                parameterTypes,
+                resultType,
+                isOfParameterType,
+                isOfResultType,
+                pointer: argument.pointer,
+                node: argument.node,
+            };
         });
 
         return (evaluator, context) => {
@@ -967,14 +976,13 @@ export class Evaluator {
                         const evaluateItem = isOptions ? item => evaluator.#evaluateWithin(frame, objectRoot, () => evaluate(evaluator, item)) : item => evaluate(evaluator, item);
 
                         args[plan.name] = plan.kind === 'expression' ? evaluateItem : item => Evaluator.#isTruthy(evaluateItem(item));
-                    } else if (plan.kind === 'itemFunction') {
-                        // The function value is evaluated where it is written, once, and the member calls it with each item; a predicate's receives the truthiness of what it gives.
-                        const callback = evaluator.#callbackOf(plan.evaluate(evaluator, context), plan);
-
-                        args[plan.name] = plan.policy === 'expression' ? callback : evaluator.#sharingLifetime(item => Evaluator.#isTruthy(callback(item)), callback);
-                    } else if (plan.kind === 'implicitBody') {
+                    } else if (plan.kind === 'callback' && plan.isBody) {
                         // The member calls it when it chooses, each call evaluating the expression anew against its argument, with the names and the object root of the place it is written.
-                        args[plan.name] = evaluator.#implicitBodyOf(plan, evaluator.#localsFrame, evaluator.#objectRoot);
+                        const { evaluate } = plan;
+                        const frame = evaluator.#localsFrame;
+                        const objectRoot = evaluator.#objectRoot;
+
+                        args[plan.name] = evaluator.#createCallback(plan, values => evaluator.#evaluateWithin(frame, objectRoot, () => evaluate(evaluator, values[0])));
                     } else {
                         let value;
 
@@ -988,9 +996,9 @@ export class Evaluator {
                             return null;
                         }
 
-                        // A function value goes to the member as a function it calls, while the expression's own names and fields hold the value itself.
+                        // A function value is evaluated where it is written, once, and goes to the member as a function it calls, while the expression's own names and fields hold the value itself.
                         held = value;
-                        args[plan.name] = plan.kind === 'function' ? evaluator.#callbackOf(value, plan) : value;
+                        args[plan.name] = plan.kind === 'callback' ? evaluator.#createCallback(plan, values => evaluator.#callFunction(value, values, plan.functions, plan.node)) : value;
                     }
 
                     if (plan.isField) {
@@ -1082,21 +1090,12 @@ export class Evaluator {
     }
 
     /**
-     * The function a member is given for an implicit body: the argument's expression evaluated against the one value the member calls it with, which is its implicit parameter, with the names and the object root of the place it is written,
-     * the value checked against the contract's argument type and the result against its result type. It is called while the member's invocation lasts, which closes it, and fails once that is over.
+     * Creates the function a member is given for a parameter that takes one, and registers its lifetime, which `#invokeImplementation` closes when the member's invocation ends, however it ends: each call checks the member's arguments
+     * against the callback contract's parameter types, gives them to the body, which evaluates the argument's expression against the first or calls the function the argument gave, checks the body's result against the contract's
+     * result type, and answers it, or its truthiness for a predicate. A call after the invocation fails, while the function the body calls stays callable wherever else it is given or called.
      */
-    #implicitBodyOf(plan, frame, objectRoot) {
-        const { evaluate } = plan;
-
-        return this.#callbackOf({ implicitBody: value => this.#evaluateWithin(frame, objectRoot, () => evaluate(this, value)) }, plan);
-    }
-
-    /**
-     * The function a member is given for a parameter its contract declares to take one: a call of the callee with the member's arguments, each checked against the contract's parameter types, and its result against the contract's result type.
-     * It is called while the member's invocation lasts, which closes it, and fails once that is over.
-     */
-    #callbackOf(callee, plan) {
-        const { name, member, functions, parameterTypes, resultType, isOfParameterType, isOfResultType, pointer } = plan;
+    #createCallback(plan, body) {
+        const { name, member, parameterTypes, resultType, isOfParameterType, isOfResultType, isPredicate, pointer } = plan;
         const lifetime = { isOpen: true };
         const callback = (...values) => {
             try {
@@ -1114,13 +1113,14 @@ export class Evaluator {
                     }
                 });
 
-                const value = callee.implicitBody !== undefined ? callee.implicitBody(values[0]) : this.#callFunction(callee, values, functions, plan.node);
+                const value = body(values);
 
                 if (isOfResultType !== null && !isOfResultType(value)) {
                     this.#fail('LEXICA5504', `The function given as '${name}' of '${member}' gave ${Evaluator.#describe(value)}, and its contract declares ${resultType}`, pointer);
                 }
 
-                return value;
+                // A predicate's contract takes any value, and the member receives its truthiness.
+                return isPredicate ? Evaluator.#isTruthy(value) : value;
             } catch (error) {
                 // A thrown value that is no object is the member's to report, as anything it throws is.
                 if (error !== null && typeof error === 'object') {
@@ -1134,13 +1134,6 @@ export class Evaluator {
         this.#callbackLifetimes.set(callback, lifetime);
 
         return callback;
-    }
-
-    /** The function, given the lifetime of the callback it calls, so the member's invocation ending ends both. */
-    #sharingLifetime(fn, callback) {
-        this.#callbackLifetimes.set(fn, this.#callbackLifetimes.get(callback));
-
-        return fn;
     }
 
     /** The lifetime of each function given to a member, open while the member's invocation lasts. @type {WeakMap<Function, { isOpen: boolean }>} */
