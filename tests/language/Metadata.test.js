@@ -87,6 +87,18 @@ describe('result metadata', () => {
         expect(other.tolerance).toBeNull();
     });
 
+    it('describes a result\'s nested identities as its own evaluation left them, however many evaluations come before its metadata is read', () => {
+        const resolution = resolve('{ rows = name.parts { label = it.label, chosen = if wide then name.size.width else name.length end } }', { name: 'tea', wide: true });
+        const first = resolution.evaluate();
+        const later = resolution.evaluate({ name: 'tea', wide: false });
+        const { rows } = first.metadata.fields;
+
+        expect(rows.sources).toEqual([{ kind: 'reference', value: parts[0] }, { kind: 'reference', value: parts[1] }]);
+        expect(rows.items.map(item => item.fields.chosen.tolerance)).toEqual([0.5, 0.5]);
+        expect(later.metadata.fields.rows.items.map(item => item.fields.chosen.tolerance)).toEqual([null, null]);
+        expect(rows.items[0].fields.chosen.origin).not.toBe(later.metadata.fields.rows.items[0].fields.chosen.origin);
+    });
+
     it('never compares origins across resolutions', () => {
         expect(metadataOf('{ size = name.size }').fields.size.origin).not.toBe(metadataOf('{ size = name.size }').fields.size.origin);
     });

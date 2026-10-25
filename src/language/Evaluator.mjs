@@ -166,9 +166,6 @@ export class Evaluator {
     /** Whether a member the evaluation in progress read answered that its sample is pending. */
     #isPending = false;
 
-    /** The identities of the value `#copyResult` detached last. @type {object | null} */
-    #copiedIdentities = null;
-
     /**
      * The host call's node and the value its host supplied, while the call's result projection is evaluated against it.
      * The value is what the implicit parameter stands for, and the call's node answers it; null outside a projection.
@@ -1842,26 +1839,27 @@ export class Evaluator {
     }
 
     /**
-     * The node evaluated and detached, the script's expression or a host call's result projection, with the metadata that describes it, built from the identities the copy left, which the evaluator lets go of once it hands them over,
-     * so it holds no source between evaluations.
+     * The node evaluated and detached, the script's expression or a host call's result projection, with the metadata that describes it, built from the identities the copy answers beside it, which the evaluator hands over and never
+     * keeps, so it holds no source between evaluations.
      */
     #evaluateResult(node) {
         this.#sourcesByList = new WeakMap();
         this.#selections = null;
 
         try {
-            const value = this.#copyResult(this.#evaluateNode(node, null));
+            const { value, copiedIdentities } = this.#copyResult(this.#evaluateNode(node, null));
 
             // The metadata is described where it is first read, from identities no later evaluation changes, so a caller that reads the value alone pays nothing for it.
-            return { node, value, identities: Evaluator.#withSelections(this.#copiedIdentities, this.#selections) };
+            return { node, value, identities: Evaluator.#withSelections(copiedIdentities, this.#selections) };
         } finally {
-            this.#copiedIdentities = null;
             this.#selections = null;
         }
     }
 
     /**
-     * A frozen copy of the data sharing no structure with the original; the identities that follow its structure are left in `#copiedIdentities`: for a list projected from elements, the element each item came from, for a field, the selections made for its value, as `branches`, and null where nothing beneath holds either.
+     * Copies the data, from one traversal, into `value`, a frozen copy sharing no structure with the original, and `copiedIdentities`, the identities that follow its structure: for a list projected from elements, the element each item
+     * came from, for an object field, the selections made for its value, as `branches`, and null where nothing beneath holds either. Each call answers its own, so a caller reads the identities of the part it copied.
+     * @returns {{ value: unknown, copiedIdentities: object | null }}
      */
     #copyResult(value) {
         if (Array.isArray(value)) {
@@ -1870,16 +1868,16 @@ export class Evaluator {
             let hasIdentities = false;
 
             for (const item of value) {
-                copy.push(this.#copyResult(item));
-                itemIdentities.push(this.#copiedIdentities);
-                hasIdentities ||= this.#copiedIdentities !== null;
+                const copied = this.#copyResult(item);
+
+                copy.push(copied.value);
+                itemIdentities.push(copied.copiedIdentities);
+                hasIdentities ||= copied.copiedIdentities !== null;
             }
 
             const sources = this.#sourcesByList.get(value) ?? null;
 
-            this.#copiedIdentities = sources === null && !hasIdentities ? null : { sources, items: itemIdentities };
-
-            return Object.freeze(copy);
+            return { value: Object.freeze(copy), copiedIdentities: sources === null && !hasIdentities ? null : { sources, items: itemIdentities } };
         }
 
         if (ObjectUtils.isNonArrayObject(value)) {
@@ -1888,7 +1886,8 @@ export class Evaluator {
             let fieldIdentities = null;
 
             for (const name of Object.keys(value)) {
-                const field = this.#copyResult(value[name]);
+                const copied = this.#copyResult(value[name]);
+                const field = copied.value;
 
                 // A read copies every field of every row, so an ordinary field is assigned here, where the assignment sees only the copies' shapes; sharing the one in `defineDataProperty` with live state's writes made reads measurably slower.
                 if (name === '__proto__') {
@@ -1897,7 +1896,7 @@ export class Evaluator {
                     copy[name] = field;
                 }
 
-                const identities = Evaluator.#withSelections(this.#copiedIdentities, fieldSelections?.get(name) ?? null);
+                const identities = Evaluator.#withSelections(copied.copiedIdentities, fieldSelections?.get(name) ?? null);
 
                 if (identities !== null) {
                     fieldIdentities ??= {};
@@ -1905,14 +1904,10 @@ export class Evaluator {
                 }
             }
 
-            this.#copiedIdentities = fieldIdentities === null ? null : { fields: fieldIdentities };
-
-            return Object.freeze(copy);
+            return { value: Object.freeze(copy), copiedIdentities: fieldIdentities === null ? null : { fields: fieldIdentities } };
         }
 
-        this.#copiedIdentities = null;
-
-        return value;
+        return { value, copiedIdentities: null };
     }
 
     /**
