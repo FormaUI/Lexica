@@ -189,7 +189,7 @@ describe('function references', () => {
         expect(held.createEvaluator({ nothing: null }).evaluate().value).toBeNull();
     });
 
-    it('are function values of a module\'s functions, a call of one its qualified form\'s call, held, passed and called as any function is', () => {
+    it('produce module delegates of a module\'s functions, a call of one its qualified form\'s call, held, passed and called as any function is', () => {
         expect(evaluate('let pad = shop.pad return pad(word, 4)').value).toBe('oat.');
         expect(evaluate('let greet = shop.greet return greet("bo")').value).toBe('hi bo');
         expect(evaluate('let test = shop.vegan return { word = word.is(test), other = other.is(shop.vegan) }').value).toEqual({ word: true, other: false });
@@ -231,7 +231,7 @@ describe('function references', () => {
     });
 });
 
-describe('a call of a function value', () => {
+describe('a call of a delegate', () => {
     /** A module of words: `cut` and `trim`, each taking a width it defaults to 2, `cut`'s propagating null and `trim`'s accepting it; and `long`, a test taking a minimum it defaults to 3. Each records what it is given. */
     const createWords = (invoked = []) => lexica.createModule('words', {
         members: [
@@ -259,8 +259,8 @@ describe('a call of a function value', () => {
         expect(evaluateWords('{ word = word.is(words.long), short = short.is(words.long) }')).toEqual({ value: { word: true, short: false }, invoked: [['long', { minimum: 3 }], ['long', { minimum: 3 }]] });
     });
 
-    it('evaluates a function\'s body in the closure each function value captured, two of one function keeping their own', () => {
-        // One call of addTen evaluates for each item, each making its own function value of add, which captures that item.
+    it('evaluates a function\'s body in the captured scope each script delegate holds, two of one function keeping their own', () => {
+        // One call of addTen evaluates for each item, each making its own script delegate of add, which captures that item.
         expect(evaluateWords('let addTen = function(n)\n    let add = (x) => x + n\n    return add(10)\nend\nreturn numbers.sum(n => addTen(n))').value).toBe(23);
     });
 

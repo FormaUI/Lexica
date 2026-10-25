@@ -167,7 +167,7 @@ export class LanguageResolver {
             case 'functionCall':
                 return this.#resolveFunctionCall(node, pointer, scope);
             case 'function':
-                // An arrow function written as an argument is a function value of its own, which captures the scope it is written in.
+                // An arrow function written as an argument is a delegate of its own, which captures the scope it is written in.
                 return { type: Type.createFunctionType([LanguageResolver.#functionLocalOf(node, pointer, scope)]), kind: 'value', isFixed: false };
             case 'optionalChain':
                 return this.#resolveOptionalChain(node, pointer, scope);
@@ -771,7 +771,7 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a call of a local function, or of a local or a parameter holding a function value: its arguments against the caller's scope, as many as each function it may be declares,
+     * Resolves a call of a local function, or of a local or a parameter holding a delegate: its arguments against the caller's scope, as many as each function it may be declares,
      * and then, for each one, a copy of its body of its own, against the scope that function captured and its parameters, typed as this call's arguments, their results merged.
      * A local call settles no fixed argument.
      */
@@ -831,7 +831,7 @@ export class LanguageResolver {
             this.#fail('LEXICA3070', `'${node.name}' may be any of ${targets.length} functions, whose results are of no one type: ${targets.map(target => target.type).join(', ')}`, pointer);
         }
 
-        // The callee is the local the call reads its function value from, which evaluation selects among the functions it may be.
+        // The callee is the local the call reads its delegate from, which evaluation selects among the functions it may be.
         this.#resolutions.set(pointer, {
             kind: 'invocation',
             functions: targets.map(({ function: declared, body, parameters, reference, argumentMap, resultType }) => (reference === undefined ? { function: declared, body, parameters } : { reference, argumentMap, resultType })),
@@ -842,7 +842,7 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a call of a function value that is one function reference: the call its qualified form makes, its receiver argument first where its declaration has a receiver, a null one answering null, and its own arguments after it,
+     * Resolves a call of a delegate that is one module delegate: the call its qualified form makes, its receiver argument first where its declaration has a receiver, a null one answering null, and its own arguments after it,
      * each of the kind its parameter declares.
      */
     #resolveReferenceCall(node, pointer, scope, local, declaration) {
@@ -975,7 +975,7 @@ export class LanguageResolver {
     #resolveLocal(node, pointer, scope) {
         const local = scope.locals.get(node.name);
 
-        // A function's name read without a call is a function value, which a local holds, an argument passes and a function returns.
+        // A function's name read without a call is a delegate, which a local holds, an argument passes and a function returns.
         if (local?.function !== undefined) {
             this.#resolutions.set(pointer, { kind: 'local', name: node.name, value: local.value });
 
@@ -1635,7 +1635,7 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a function reference: one of the module's functions the evaluator invokes, read without a call, a function value that takes its receiver first, where it has one, and its own arguments after it.
+     * Resolves a function reference: one of the module's functions the evaluator invokes, read without a call, which produces a module delegate that takes its receiver first, where it has one, and its own arguments after it.
      * Passed to a function parameter, it names the declaration whose receiver and parameters take the arguments the callback contract declares; anywhere else, the module's one function of its name. Creating it reads nothing and invokes nothing.
      */
     #resolveReference(node, pointer, declarations, contract) {
@@ -1670,7 +1670,7 @@ export class LanguageResolver {
         return { type: Type.createFunctionType([this.#referenceTargetOf(declaration)]), kind: 'value', isFixed: false };
     }
 
-    /** The one function a function value is for a reference to the declaration, so references to one declaration are one function, as two reads of one local function's name are. @type {WeakMap<object, { reference: object }>} */
+    /** The one function a module delegate's type holds for a reference to the declaration, so references to one declaration are one function, as two reads of one local function's name are. @type {WeakMap<object, { reference: object }>} */
     #referenceTargets = new WeakMap();
 
     #referenceTargetOf(declaration) {
@@ -2223,7 +2223,7 @@ export class LanguageResolver {
         return `Option '${name}' is ${what} evaluated by the member against the implicit parameter it supplies; it has no single value to read here`;
     }
 
-    /** What the type holds that no result may, itself, as a list's item or as an object's field: the object root, or a function value; null for neither. */
+    /** What the type holds that no result may, itself, as a list's item or as an object's field: the object root, or a delegate; null for neither. */
     static #heldReferenceOf(type) {
         switch (type.kind) {
             case 'root':
@@ -2255,7 +2255,7 @@ export class LanguageResolver {
 
     /**
      * Resolves the argument a function parameter is given, and the callback the member calls: a function reference, which the parameter's callback contract selects; for a contract of one argument, an implicit body, an argument
-     * no arrow function is that reads an `it` of its own scope, which the argument the member calls it with stands for; or a function value, each function it may be resolved against the contract.
+     * no arrow function is that reads an `it` of its own scope, which the argument the member calls it with stands for; or a delegate, each function it may be resolved against the contract.
      * An argument's own scope is told by the implicit parameter it resolves against, so an `it` of a projection or of an expression, a predicate or a function argument within it, each of which has its own, makes it no body.
      */
     #resolveFunctionArgument(node, pointer, scope, parameter, declaration, receiverType, typeArguments) {
@@ -2334,7 +2334,7 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a function value given to a function parameter against its callback contract: each function it may be, a function the script declares, its body resolved for the contract's argument types and its result checked against the contract's result type,
+     * Resolves a delegate given to a function parameter against its callback contract: each function it may be, a function the script declares, its body resolved for the contract's argument types and its result checked against the contract's result type,
      * or a function reference, whose declaration takes what the contract passes, with its argument map, of as many arguments as the contract passes, and the result type its implementation answers, its type parameters bound by
      * the contract's receiver. It answers the callback, those functions with the contract's types, which evaluation checks the member's arguments and the function's result against. The member calls it while its own invocation
      * lasts, with as many arguments as the contract declares.

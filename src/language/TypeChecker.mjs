@@ -69,7 +69,7 @@ export class TypeChecker {
                 return this.#fitsByName(declaredType, type) ? this.#typeArgumentsAssignability(type, declaredType) : 'refused';
             case 'object':
                 return TypeChecker.#holdsFieldsOf(type, declaredType) ? TypeChecker.#combine([...type.fieldTypes].map(([name, fieldType]) => this.assignabilityOf(fieldType, declaredType.fieldTypes.get(name)))) : 'refused';
-            // An object root stands where one of its object expression reads the fields it does, and a function value where one that may be any of its functions does.
+            // An object root stands where one of its object expression reads the fields it does, and a delegate where one that may be any of its functions does.
             case 'root':
                 return type.toNonNullable().equals(declaredType.toNonNullable()) ? 'assignable' : 'refused';
             case 'function':
@@ -119,7 +119,7 @@ export class TypeChecker {
             return firstType.toNonNullable().equals(secondType.toNonNullable()) ? (isNullable ? firstType.toNullable() : firstType.toNonNullable()) : null;
         }
 
-        // Function values merge into one that may be any of their functions, and with nothing else.
+        // Function types merge into one that may be any of their functions, and with nothing else.
         if (firstType.kind === 'function' || secondType.kind === 'function') {
             return firstType.kind === secondType.kind ? Type.createFunctionType([...firstType.functions, ...secondType.functions], isNullable) : null;
         }

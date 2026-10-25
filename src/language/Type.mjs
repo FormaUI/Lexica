@@ -1,5 +1,5 @@
 /**
- * Type — a Lexica type: a named type, a generic one with its type arguments among them, an object type, the object root, a function value, a type parameter or `Any`, each nullable or not, the type of null, and the type no value has;
+ * Type — a Lexica type: a named type, a generic one with its type arguments among them, an object type, the object root, a function type, whose values are delegates, a type parameter or `Any`, each nullable or not, the type of null, and the type no value has;
  * a value alone, whose relations to another type `TypeChecker` answers
  */
 
@@ -31,7 +31,7 @@ export class Type {
     /** The object expression that builds the outermost object the object root refers to, which its fields belong to; null for any other type. */
     objectExpression;
 
-    /** The functions a function value may be, each with the scope it was declared in, which a call through the value is checked against; null for any other type. @type {readonly object[] | null} */
+    /** The functions a delegate of the type may be, each with the scope it was declared in, which a call through the value is checked against; null for any other type. @type {readonly object[] | null} */
     functions;
 
     /** Whether the type admits null. */
@@ -105,7 +105,7 @@ export class Type {
         return new Type('root', { fieldTypes, objectExpression, isNullable });
     }
 
-    /** A function value, which may be any of the functions, each a function the expression declares with the scope it captures: no data, so no result holds one. */
+    /** The function type of a delegate, which may be any of the functions, each a function the expression declares with the scope it captures: no data, so no result holds one. */
     static createFunctionType(functions, isNullable = false) {
         return new Type('function', { functions: Object.freeze([...new Set(functions)]), isNullable });
     }

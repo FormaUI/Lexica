@@ -519,8 +519,8 @@ export class Evaluator {
                 return (evaluator, context) => !Evaluator.#isTruthy(operand(evaluator, context));
             }
             case 'function':
-                // A function's value is its closure: the locals, the implicit parameter and the object root where it is declared, which each call evaluates its body in.
-                return (evaluator, context) => ({ function: node, frame: evaluator.#localsFrame, context, objectRoot: evaluator.#objectRoot });
+                // A function evaluates to a script delegate, which holds its captured scope: all three of the locals' frame, the implicit parameter and the object root where it is declared, which each call evaluates its body in.
+                return (evaluator, context) => ({ function: node, capturedFrame: evaluator.#localsFrame, context, objectRoot: evaluator.#objectRoot });
             case 'functionCall': {
                 const resolution = this.#resolvedDefinition.resolutionOf(node);
 
@@ -532,7 +532,7 @@ export class Evaluator {
                 const functions = this.#compileFunctions(resolution.functions);
                 const evaluateArguments = node.arguments.map(argument => this.#getCompiledFunction(argument));
 
-                // The callee is evaluated once, and then the arguments, once each, left to right, in the caller's scope, and the body of the function it is in its closure's, so no local of the caller's is visible in it;
+                // The callee is evaluated once, and then the arguments, once each, left to right, in the caller's scope, and the body of the function it is in its captured scope, so no local of the caller's is visible in it;
                 // where it may be one of several, the one it is is recorded for the value's place in the result. A function reference's receiver argument is evaluated first, and a null one answers null before the others are.
                 return (evaluator, context) => {
                     const callee = evaluator.#evaluateLocal(resolution.callee);
@@ -801,11 +801,11 @@ export class Evaluator {
     #compileMember(node) {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
 
-        // A function reference is a function value, the same for every read of it, which reads nothing.
+        // A function reference produces a module delegate, the same for every read of it, which reads nothing.
         if (resolution?.kind === 'reference') {
-            const functionValue = Evaluator.#referenceClosureOf(resolution.declaration);
+            const delegate = Evaluator.#getModuleDelegate(resolution.declaration);
 
-            return () => functionValue;
+            return () => delegate;
         }
 
         if (resolution === undefined || resolution.kind === 'computedPropertyAccess' || (resolution.kind === 'invocation' && resolution.candidates !== undefined)) {
@@ -894,18 +894,19 @@ export class Evaluator {
         return invocation;
     }
 
-    /** The function value each function reference is, by its declaration: the same for every evaluation, since it holds nothing an evaluation bound. @type {WeakMap<object, { reference: object }>} */
-    static #referenceClosures = new WeakMap();
+    /** The module delegate each function reference produces, by its declaration: the same for every evaluation, since it holds nothing an evaluation bound. @type {WeakMap<object, { reference: object }>} */
+    static #moduleDelegateCache = new WeakMap();
 
-    static #referenceClosureOf(declaration) {
-        let functionValue = Evaluator.#referenceClosures.get(declaration);
+    /** The module delegate of the declaration, made at its first request and the same at every later one. */
+    static #getModuleDelegate(declaration) {
+        let delegate = Evaluator.#moduleDelegateCache.get(declaration);
 
-        if (functionValue === undefined) {
-            functionValue = Object.freeze({ reference: declaration });
-            Evaluator.#referenceClosures.set(declaration, functionValue);
+        if (delegate === undefined) {
+            delegate = Object.freeze({ reference: declaration });
+            Evaluator.#moduleDelegateCache.set(declaration, delegate);
         }
 
-        return functionValue;
+        return delegate;
     }
 
     /**
@@ -1000,7 +1001,7 @@ export class Evaluator {
                             return null;
                         }
 
-                        // A function value is evaluated where it is written, once, and goes to the member as a function it calls, while the expression's own names and fields hold the value itself.
+                        // A delegate is evaluated where it is written, once, and goes to the member as a callback it calls, while the expression's own names and fields hold the value itself.
                         held = value;
                         args[plan.name] = plan.kind === 'callback' ? evaluator.#createCallback(plan, values => evaluator.#callFunction(value, values, plan.functions, plan.node)) : value;
                     }
@@ -1036,7 +1037,7 @@ export class Evaluator {
     }
 
     /**
-     * The key a call finds a function's compiled form by: a function reference's declaration, or the node of a function the script declares. Two function values of one function share it, whatever each captured, which the callee
+     * The key a call finds a function's compiled form by: a function reference's declaration, or the node of a function the script declares. Two delegates of one function share it, whatever each captured, which the callee
      * itself still holds.
      */
     static #getFunctionKey(callee) {
@@ -1044,7 +1045,7 @@ export class Evaluator {
     }
 
     /**
-     * Calls the callee with its arguments' values, which the caller evaluated, as the call's compiled functions say: a function the script declares, its body evaluated in the callee's closure, its locals, implicit parameter and object root,
+     * Calls the callee with its arguments' values, which the caller evaluated, as the call's compiled functions say: a function the script declares, its body evaluated in the callee's captured scope, its locals, implicit parameter and object root,
      * its parameters bound to the values in order; or a function reference, its declaration invoked as its qualified form is, its receiver the first value, a null one answering null without invoking the implementation, and its own
      * arguments bound by its argument map, a null one whose parameter propagates null answering null without invoking it, each parameter the map leaves out taking its default. Its failures are named at the node that called it.
      */
@@ -1056,7 +1057,7 @@ export class Evaluator {
             const enclosingFrame = this.#localsFrame;
             const enclosingObjectRoot = this.#objectRoot;
 
-            this.#localsFrame = { node: { locals: parameters.map(parameter => ({ name: parameter })) }, item: callee.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: argumentValues[index], selections: null }])), enclosing: callee.frame };
+            this.#localsFrame = { node: { locals: parameters.map(parameter => ({ name: parameter })) }, item: callee.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: argumentValues[index], selections: null }])), enclosing: callee.capturedFrame };
             this.#objectRoot = callee.objectRoot;
 
             try {

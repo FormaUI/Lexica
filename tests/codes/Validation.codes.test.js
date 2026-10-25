@@ -161,10 +161,10 @@ describe('the codes of resolution', () => {
         it('LEXICA3068, a call of a local holding a value', () => expectCode('let v = 1\nreturn v(2)', 'LEXICA3068'));
         it('LEXICA3068, a call of a function that may be null', () => expectCode('let g = x => x\nlet f = if s.size > 1 then g else null end\nreturn f(1)', 'LEXICA3068'));
         it('LEXICA3069, a local function given the wrong number of arguments', () => expectCode('let f = x => x\nreturn f(1, 2)', 'LEXICA3069'));
-        it('LEXICA3080, a function value that may be a reference given too few arguments', () => expectCode('let g = a => a\nlet f = if s.size > 1 then shop.pad else g end\nreturn f(s)', 'LEXICA3080'));
-        it('LEXICA3058, a function value that may be a reference given too many arguments', () => expectCode('let g = (a, b, c) => a\nlet f = if s.size > 1 then shop.pad else g end\nreturn f(s, 1, 2)', 'LEXICA3058'));
-        it('LEXICA3079, a function value that may be a reference whose arguments are no values alone', () => expectCode('let g = (a, b) => true\nlet f = if s.size > 1 then shop.check else g end\nreturn f(s, 1)', 'LEXICA3079'));
-        it('LEXICA3042, a function value that may be a reference given a receiver of the wrong type', () => expectCode('let g = x => x\nlet f = if s.size > 1 then shop.wipe else g end\nreturn f(1)', 'LEXICA3042'));
+        it('LEXICA3080, a delegate that may be a module delegate given too few arguments', () => expectCode('let g = a => a\nlet f = if s.size > 1 then shop.pad else g end\nreturn f(s)', 'LEXICA3080'));
+        it('LEXICA3058, a delegate that may be a module delegate given too many arguments', () => expectCode('let g = (a, b, c) => a\nlet f = if s.size > 1 then shop.pad else g end\nreturn f(s, 1, 2)', 'LEXICA3058'));
+        it('LEXICA3079, a delegate that may be a module delegate whose arguments are no values alone', () => expectCode('let g = (a, b) => true\nlet f = if s.size > 1 then shop.check else g end\nreturn f(s, 1)', 'LEXICA3079'));
+        it('LEXICA3042, a delegate that may be a module delegate given a receiver of the wrong type', () => expectCode('let g = x => x\nlet f = if s.size > 1 then shop.wipe else g end\nreturn f(1)', 'LEXICA3042'));
         it('LEXICA3070, a call whose functions give no one type', () => expectCode('let a = x => 1\nlet g = x => "a"\nlet f = if s.size > 1 then a else g end\nreturn f(1)', 'LEXICA3070'));
         it('LEXICA3034, a call reaching a function within its own call', () => expectCode('let f = g => g(g)\nreturn f(f)', 'LEXICA3034'));
         it('LEXICA3035, a result that would hold a function', () => expectCode('let f = x => x\nreturn f', 'LEXICA3035'));
