@@ -261,7 +261,11 @@ Contracts: [Host-call declarations](../spec/members.md#members-host-calls), [hos
 
 ## Open decisions
 
-One open decision is recorded: a module that declares a type spelled as one of Lexica's own, as `Home.Number`, can't name Lexica's own type of that name in its own declarations, since [type name lookup](../spec/types.md#types-type-name-lookup) finds the module's own first and Lexica's own types have no qualified spelling. Giving Lexica a permanent namespace for that was declined; the limitation stands until another spelling is chosen. Unit 0's decisions are taken, and unit 4 settles the collections proposal's open contracts, the lineage representation first. Deferred items below require their stated trigger before design or implementation resumes.
+Two open decisions are recorded. The first: a module that declares a type spelled as one of Lexica's own, as `Home.Number`, can't name Lexica's own type of that name in its own declarations, since [type name lookup](../spec/types.md#types-type-name-lookup) finds the module's own first and Lexica's own types have no qualified spelling. Giving Lexica a permanent namespace for that was declined; the limitation stands until another spelling is chosen.
+
+The second: a type parameter's default is checked at registration to be data, and against what the parameter binds to nowhere, since resolution checks the arguments a call gives and passes a default left out as it is, so `0` reaches an implementation whose `T` is `String`. Whether resolution refuses such a call, or a parameter of a type parameter takes no default, is open.
+
+Unit 0's decisions are taken, and unit 4 settles the collections proposal's open contracts, the lineage representation first. Deferred items below require their stated trigger before design or implementation resumes.
 
 ## Deferred
 

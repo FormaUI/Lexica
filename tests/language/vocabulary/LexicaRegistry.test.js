@@ -85,6 +85,21 @@ describe('LexicaRegistry', () => {
         expect(registering('ranges.Range', { start: -0, points: [Number.MAX_VALUE] })).not.toThrow();
     });
 
+    it('refuses a type parameter\'s default that is no data, at the top level and within another type, and takes any data, whatever the parameter binds to', () => {
+        const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, new LexicaModule('lists', {
+            members: [functionDeclaration({ name: 'pick', target: 'List<T>', result: 'T?', parameters: [parameter({ name: 'fallback', type, required: false, default: value })] })],
+        })]);
+        const refused = [['T', Infinity], ['T', NaN], ['T', () => 1], ['T', [1, , 3]], ['T', [1, Infinity]], ['T', { f: () => 1 }], ['T', new Date(0)], ['List<T>', [Infinity]]];
+
+        for (const [type, value] of refused) {
+            expect(messageOf(registering(type, value)), `${type} ${String(value)}`).toContain(`The default of 'fallback' is no ${type}`);
+        }
+
+        for (const value of [0, 'x', false, [1, [2]], { a: [{ b: null }] }]) {
+            expect(registering('T', value), JSON.stringify(value)).not.toThrow();
+        }
+    });
+
     it('takes a tolerance for a result of a structured type, whichever module declares it, now that every type is known', () => {
         const boxes = new LexicaModule('boxes', { types: [{ name: 'Box', fields: { width: 'Number' } }] });
         const sized = new LexicaModule('sized', { members: [declaration({ name: 'bounds', result: 'boxes.Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });

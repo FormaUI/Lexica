@@ -753,7 +753,7 @@ export class LexicaRegistry {
 
     /**
      * Whether the type admits a default: a value of data, its nullability, its items and a structure's fields as declared, and never a node. A number is finite and a list holds a value at every index, at any depth,
-     * as every value an evaluation produces does.
+     * as every value an evaluation produces does. A type parameter admits any value of data, whatever it binds to, since what it binds to is known only where the member is called.
      */
     #admits(value, type) {
         if (value === null) {
@@ -761,8 +761,9 @@ export class LexicaRegistry {
         }
 
         switch (type.kind) {
+            // A type parameter's default is data, whatever the parameter binds to; whether it fits that binding is checked nowhere yet.
             case 'typeParameter':
-                return value !== undefined;
+                return LexicaRegistry.#isDataValue(value);
             case 'named': {
                 if (type.isList) {
                     return Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#admits(item, type.itemType));
@@ -783,6 +784,23 @@ export class LexicaRegistry {
             default:
                 return false;
         }
+    }
+
+    /** Whether the value is data as a default holds it: null, a string, a Boolean, a finite number, a list holding a value at every index, or a plain object, each item and each field data in turn, at any depth. */
+    static #isDataValue(value) {
+        if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+            return true;
+        }
+
+        if (typeof value === 'number') {
+            return Number.isFinite(value);
+        }
+
+        if (Array.isArray(value)) {
+            return ArrayUtils.findMissingIndex(value) === -1 && value.every(item => LexicaRegistry.#isDataValue(item));
+        }
+
+        return ObjectUtils.isPlainObject(value) && Object.values(value).every(field => LexicaRegistry.#isDataValue(field));
     }
 
     /**
