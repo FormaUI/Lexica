@@ -95,9 +95,13 @@ export interface LexicaStructuredTypeDeclaration {
 /** The input a projected item came from, of the kind its established type gives it: a reference as the host holds it, data as Lexica's own frozen copy, or null. */
 export type LexicaProjectionSource = { readonly kind: 'reference'; readonly value: unknown } | { readonly kind: 'data'; readonly value: unknown } | { readonly kind: 'null' };
 
-/** Where a failure is. */
-export interface LexicaErrorLocation {
-    /** The failing node's JSON Pointer into the definition. */
+/**
+ * Where something stands, by one group of attributes, never two: in a script, `pointer`, a JSON Pointer into its definition, with `offset`, `line` and `column` where the definition was read from text, and those three
+ * alone for a syntax error, which stands in text no definition holds yet; in a module, `module`, with `declaration` where it concerns a declaration, and `declarationKey`, the key it concerns, a declaration's or, with no
+ * declaration, the module's own; or in the bindings, `binding`. A failure of the API's use that stands nowhere, as bindings another registry made, holds none. `getLocation` answers the script group; an error, any one.
+ */
+export interface LexicaLocation {
+    /** The node's JSON Pointer into the definition. */
     pointer?: string;
     offset?: number;
     line?: number;
@@ -105,7 +109,7 @@ export interface LexicaErrorLocation {
     binding?: string;
     module?: string;
     declaration?: string;
-    /** The declaration key a module error is about, as `updates.misses`. */
+    /** The key it concerns, a declaration's, as `updates.misses`, or the module's own. */
     declarationKey?: string;
 }
 
@@ -117,13 +121,13 @@ export declare class LexicaError extends Error {
     readonly code: string;
     /** The kind of the failure: `syntax`, text that breaks the grammar; `structure`, what a caller gave breaking a structural rule, a definition `lexica.validate` refuses among it; `validation`, a script resolution finds does not fit its vocabulary or its types; `module`, a declaration breaking its contract; `evaluation`, a failure while evaluating. */
     readonly kind: 'syntax' | 'structure' | 'validation' | 'module' | 'evaluation';
-    readonly location: LexicaErrorLocation;
+    readonly location: LexicaLocation;
     /** A failure of what a caller gave: bindings, a definition's structure or a host's use of the API. */
-    static structure(code: string, message: string, location: LexicaErrorLocation): LexicaError;
+    static structure(code: string, message: string, location: LexicaLocation): LexicaError;
     /** A script resolution finds does not fit its vocabulary or its types, before anything is evaluated. */
-    static validation(code: string, message: string, location: LexicaErrorLocation): LexicaError;
+    static validation(code: string, message: string, location: LexicaLocation): LexicaError;
     /** A failure while evaluating, with what caused it. */
-    static evaluation(code: string, message: string, location: LexicaErrorLocation, options?: { cause?: unknown }): LexicaError;
+    static evaluation(code: string, message: string, location: LexicaLocation, options?: { cause?: unknown }): LexicaError;
 }
 
 /** How a member changes. */
@@ -423,7 +427,7 @@ export interface LexicaResolution {
     /** The type a result path reaches, in type notation, refusing a path the type does not hold. */
     typeAt(path: readonly (string | number)[]): string;
     /** Where a pointer stands in the source the definition was read from, as `lexica.getLocation` answers given the resolution's definition. */
-    getLocation(pointer: string): LexicaErrorLocation;
+    getLocation(pointer: string): LexicaLocation;
     /**
      * An evaluator holding bindings of this resolution's key and the environment the host gives it. Binding plain values asks the modules' `typeOf` and `isInstance`, as `createBindings` does, and nothing else calls host code
      * until it evaluates. It refuses bindings another registry made (LEXICA2024), bindings of another resolution key (LEXICA2025), a resolution its registry has moved past (LEXICA2040), and a script using a declaration
@@ -517,7 +521,7 @@ export interface Lexica {
     /** The canonical text of a text or a definition on one line, as a diagnostic quotes it, written without module names. */
     quote(source: string | LexicaDefinition): string;
     /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
-    getLocation(definition: LexicaDefinition, pointer: string): LexicaErrorLocation;
+    getLocation(definition: LexicaDefinition, pointer: string): LexicaLocation;
     /** Creates a module from the vocabulary it declares and the functions that carry its members out. */
     createModule(name: string, contents: LexicaModuleContents): LexicaModule;
     readonly declarations: LexicaDeclarations;
