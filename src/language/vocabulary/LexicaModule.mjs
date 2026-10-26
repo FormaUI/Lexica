@@ -137,10 +137,10 @@ export class LexicaModule {
         const observationTargetDeclarations = normalized(observationTargets);
         const conversionDeclarations = normalized(conversions);
 
-        types.forEach(type => LexicaModule.#validateTypeDeclaration(type, fail));
-        memberDeclarations.forEach(member => LexicaModule.#validateMember(member, fail));
+        LexicaModule.#validateTypeDeclarations(types, fail);
+        LexicaModule.#validateMembers(memberDeclarations, fail);
         LexicaModule.#validateTypeSelectors(typeSelectorDeclarations, fail);
-        selectableTypeDeclarations.forEach(selectable => LexicaModule.#validateSelectableType(selectable, fail));
+        LexicaModule.#validateSelectableTypes(selectableTypeDeclarations, name, fail);
         LexicaModule.#validateObservationTypes(observationTypeDeclarations, fail);
         LexicaModule.#validateObservationTargets(observationTargetDeclarations, fail);
         conversionDeclarations.forEach(conversion => LexicaModule.#validateConversion(conversion, fail));
@@ -302,6 +302,21 @@ export class LexicaModule {
         }
     }
 
+    /** Validates the types a module declares, each named once in the module, since a type is identified by its module and its name. */
+    static #validateTypeDeclarations(types, fail) {
+        const names = new Set();
+
+        for (const type of types) {
+            LexicaModule.#validateTypeDeclaration(type, fail);
+
+            if (names.has(type.name)) {
+                fail('LEXICA4033', `The type '${type.name}' is declared already`, type.name);
+            }
+
+            names.add(type.name);
+        }
+    }
+
     static #validateTypeDeclaration(type, fail) {
         const isReferenceType = type?.kind === 'reference';
 
@@ -391,6 +406,23 @@ export class LexicaModule {
             }
 
             names.add(selector.name);
+        }
+    }
+
+    /** Validates the selectable types a module declares, each key once in its selector within the module, since a key is never replaced. */
+    static #validateSelectableTypes(selectables, moduleName, fail) {
+        const keys = new Set();
+
+        for (const selectable of selectables) {
+            LexicaModule.#validateSelectableType(selectable, fail);
+
+            const key = JSON.stringify([selectable.selector, selectable.name]);
+
+            if (keys.has(key)) {
+                fail('LEXICA4038', `The type selector '${selectable.selector}' maps the key '${selectable.name}' already, as the module '${moduleName}' declared it, and a key is never replaced`, selectable.name, 'name');
+            }
+
+            keys.add(key);
         }
     }
 
@@ -648,6 +680,25 @@ export class LexicaModule {
         }
 
         LexicaModule.#validateImplementation(conversion, name, fail);
+    }
+
+    /** Validates the members a module declares, each module member named once in the module, since its namespace reaches it by its name alone. */
+    static #validateMembers(members, fail) {
+        const moduleMemberNames = new Set();
+
+        for (const member of members) {
+            LexicaModule.#validateMember(member, fail);
+
+            if (member.target !== undefined) {
+                continue;
+            }
+
+            if (moduleMemberNames.has(member.name)) {
+                fail('LEXICA4549', `The module member '${member.name}' is declared already`, member.name, 'name');
+            }
+
+            moduleMemberNames.add(member.name);
+        }
     }
 
     static #validateMember(member, fail) {

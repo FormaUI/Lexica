@@ -201,7 +201,7 @@ describe('the module error codes', () => {
         it('LEXICA4038: a selectable type whose key its selector maps already', () => {
             const selectable = { name: 'click', selector: 'report', type: 'Number' };
 
-            expectCode(registering(module('charts', { typeSelectors: [{ name: 'report' }], selectableTypes: [selectable, selectable] })), 'LEXICA4038');
+            expectCode(creating({ typeSelectors: [{ name: 'report' }], selectableTypes: [selectable, selectable] }), 'LEXICA4038');
             expectCode(registering(module('charts', { typeSelectors: [{ name: 'report' }], selectableTypes: [selectable] }), module('graphs', { selectableTypes: [selectable] })), 'LEXICA4038');
         });
 
@@ -532,7 +532,7 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4033: a type of a name its module already declares', () => {
-            expectCode(registering(module('charts', { types: [chart, chart] })), 'LEXICA4033');
+            expectCode(creating({ types: [chart, chart] }), 'LEXICA4033');
         });
 
         it('LEXICA4015: a type\'s import that does not name a registered module', () => {
@@ -560,7 +560,7 @@ describe('the module error codes', () => {
         it('LEXICA4549: a module member its module declares twice', () => {
             const rooms = property({ name: 'rooms', target: undefined });
 
-            expectCode(registering(module('charts', { members: [rooms, rooms] })), 'LEXICA4549');
+            expectCode(creating({ members: [rooms, rooms] }), 'LEXICA4549');
         });
 
         it('LEXICA4029: two members of one name on one receiver type of one module', () => {

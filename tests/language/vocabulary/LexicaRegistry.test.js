@@ -240,7 +240,7 @@ describe('LexicaRegistry', () => {
     it('refuses a type declared twice in its module, and takes one name in two modules, each type its own', () => {
         const pings = (name, types = [{ name: 'Ping', fields: { at: 'Number' } }]) => new LexicaModule(name, { types });
 
-        expect(refusalOf(() => new LexicaRegistry([pings('first', [{ name: 'Ping', fields: { at: 'Number' } }, { name: 'Ping', fields: { on: 'Number' } }])]))).toMatchObject({ module: 'first', declaration: 'Ping', message: expect.stringContaining("The type 'Ping' is declared already") });
+        expect(refusalOf(() => pings('first', [{ name: 'Ping', fields: { at: 'Number' } }, { name: 'Ping', fields: { on: 'Number' } }]))).toMatchObject({ module: 'first', declaration: 'Ping', message: expect.stringContaining("The type 'Ping' is declared already") });
 
         const registry = new LexicaRegistry([pings('first'), pings('second', [{ name: 'Ping', fields: { on: 'Boolean' } }])]);
 
@@ -329,7 +329,7 @@ describe('type selectors', () => {
         const message = "The type selector 'report' maps the key 'motion' already, as the module 'reports' declared it, and a key is never replaced";
 
         expect(refusalOf(() => new LexicaRegistry([reports(), keys('sensors', [{ name: 'motion', selector: 'report', type: 'String' }])]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'name', message: expect.stringContaining(message) });
-        expect(messageOf(() => new LexicaRegistry([keys('reports', [{ name: 'motion', selector: 'report', type: 'Number' }, { name: 'motion', selector: 'report', type: 'String' }], { typeSelectors: [{ name: 'report' }] })]))).toContain(message);
+        expect(messageOf(() => keys('reports', [{ name: 'motion', selector: 'report', type: 'Number' }, { name: 'motion', selector: 'report', type: 'String' }], { typeSelectors: [{ name: 'report' }] }))).toContain(message);
     });
 
     it('take keys of a selector its own module or one registered before it declares, and of no other', () => {

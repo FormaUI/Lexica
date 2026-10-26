@@ -106,15 +106,10 @@ export class LexicaRegistry {
             fail('LEXICA4557', `'${module.name}' is a word the language reserves, whose module this implementation's text can't reach until a script imports it`);
         }
 
-        // A type is named once within its module, and two modules may each declare a type of one name, since its module is part of its identity.
-        const ownTypes = new Set();
+        // A type is named once within its module, which creating it checks, and two modules may each declare a type of one name, since its module is part of its identity.
+        const ownTypes = new Set(module.types.map(type => type.name));
 
         for (const type of module.types) {
-            if (ownTypes.has(type.name)) {
-                fail('LEXICA4033', `The type '${type.name}' is declared already`, type.name);
-            }
-
-            ownTypes.add(type.name);
 
             for (const moduleName of type.import ?? []) {
                 if (!this.#modules.has(moduleName)) {
@@ -557,16 +552,16 @@ export class LexicaRegistry {
 
         const isDeclared = name => typeSelectors.has(name) || module.typeSelectors.some(selector => selector.name === name);
 
-        module.selectableTypes.forEach((selectable, index) => {
+        module.selectableTypes.forEach(selectable => {
             if (!isDeclared(selectable.selector)) {
                 fail('LEXICA4039', `The key '${selectable.name}' belongs to the type selector '${selectable.selector}', which no module registered declares`, selectable.name, 'selector');
             }
 
+            // A key its own module maps twice is refused when the module is created.
             const registered = selectableTypes.get(selectable.selector)?.get(selectable.name);
-            const isDeclaredEarlier = module.selectableTypes.slice(0, index).some(other => other.selector === selectable.selector && other.name === selectable.name);
 
-            if (registered !== undefined || isDeclaredEarlier) {
-                fail('LEXICA4038', `The type selector '${selectable.selector}' maps the key '${selectable.name}' already, as the module '${registered === undefined ? module.name : getDeclaringModuleName(registered)}' declared it, and a key is never replaced`, selectable.name, 'name');
+            if (registered !== undefined) {
+                fail('LEXICA4038', `The type selector '${selectable.selector}' maps the key '${selectable.name}' already, as the module '${getDeclaringModuleName(registered)}' declared it, and a key is never replaced`, selectable.name, 'name');
             }
         });
 
@@ -651,8 +646,8 @@ export class LexicaRegistry {
     }
 
     /**
-     * Refuses a module member of a name the module declares already, or one beside a member of its name on a receiver, which the namespace would reach too; a member a registered one of its name already answers on one of
-     * the same receivers; and a second default indexer of a receiver.
+     * Refuses a member a registered one of its name already answers on one of the same receivers, and a second default indexer of a receiver; a module member of a name its module declares already is refused when the module
+     * is created, and one beside a member of its name on a receiver registers, as the namespace reaches both.
      */
     #validateMemberCollisions(module, fail) {
         // A module declares members on any type, its own or another module's, by any name, a module member beside a member of its name among them: a declaration is refused where it duplicates another in its own namespace,
@@ -661,10 +656,6 @@ export class LexicaRegistry {
             const earlier = module.members.slice(0, index).filter(other => other.name === declaration.name);
 
             if (declaration.target === undefined) {
-                if (earlier.some(other => other.target === undefined)) {
-                    fail('LEXICA4549', `The module member '${declaration.name}' is declared already`, declaration.name, 'name');
-                }
-
                 return;
             }
 
