@@ -401,7 +401,11 @@ describe('the runtime codes', () => {
 
     describe('of the checks an evaluation keeps where resolution has made sure already', () => {
         it('LEXICA5500: an interpolation of what is no string or number', () => {
-            expectCode(getError(() => directEvaluatorOf([], '$"{label}"', { label: 'a' }, { label: true }).evaluate()), 'LEXICA5500', 'evaluation');
+            const failure = getError(() => directEvaluatorOf([], 'return $"a {label}"', { label: 'a' }, { label: true }).evaluate());
+
+            expectCode(failure, 'LEXICA5500', 'evaluation');
+            // A failure raised within a compiled part is located at that part.
+            expect(failure.location).toEqual({ pointer: '/expression/result/parts/1/expression', offset: 12, line: 1, column: 13 });
         });
 
         it('LEXICA5501: a comparison of what is no number', () => {
@@ -420,8 +424,13 @@ describe('the runtime codes', () => {
         });
 
         it('LEXICA4001: a used member or conversion without an implementation, reached by an evaluator made without the entry point\'s check', () => {
-            expectCode(getError(() => directEvaluatorOf([createBare()], 'word.weight', { word: 'oat' }).evaluate()), 'LEXICA4001', 'module');
-            expectCode(getError(() => directEvaluatorOf([createBare()], '(word to Mug).size', { word: 'oat' }).evaluate()), 'LEXICA4001', 'module');
+            const member = getError(() => directEvaluatorOf([createBare()], 'word.weight', { word: 'oat' }).evaluate());
+            const conversion = getError(() => directEvaluatorOf([createBare()], '(word to Mug).size', { word: 'oat' }).evaluate());
+
+            expectCode(member, 'LEXICA4001', 'module');
+            expectCode(conversion, 'LEXICA4001', 'module');
+            expect(member.location).toEqual({ pointer: '/expression', offset: 0, line: 1, column: 1 });
+            expect(conversion.location).toEqual({ pointer: '/expression/target', offset: 1, line: 1, column: 2 });
         });
     });
 
