@@ -11,7 +11,7 @@
  * The kinds a node is, each a construct of the grammar, which tooling reads as they are; a rule that only passes an operand on, a level of precedence or a repetition, is none of them.
  * A contract within Lexica until a public tooling API stabilizes it.
  */
-export const NODE_KINDS = Object.freeze([
+export const SYNTAX_NODE_KINDS = Object.freeze([
     'script',
     'conditional-expression',
     'body',
@@ -79,14 +79,21 @@ export class SyntaxTree {
     }
 
     /**
+     * The word a token writes, as the text spells it.
+     * @param {Token} token
+     * @param {string} text The text the token was read from.
+     */
+    static wordOf(token, text) {
+        return text.slice(token.start, token.end);
+    }
+
+    /**
      * The name of the type a cast's or a conversion's type part writes: its local name, or its module's name, a dot and its local name, whatever trivia the text puts between them.
      * @param {SyntaxNode | Token} part A name token or a `type-name` node.
      * @param {string} text The text the part was read from.
      */
     static typeNameOf(part, text) {
-        const wordOf = token => text.slice(token.start, token.end);
-
-        return SyntaxTree.isToken(part) ? wordOf(part) : `${wordOf(part.children[0])}.${wordOf(part.children[2])}`;
+        return SyntaxTree.isToken(part) ? SyntaxTree.wordOf(part, text) : `${SyntaxTree.wordOf(part.children[0], text)}.${SyntaxTree.wordOf(part.children[2], text)}`;
     }
 
     /**

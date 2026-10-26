@@ -63,7 +63,7 @@ export class Lowering {
             case 'function-expression': {
                 // Its parameters are in scope in its body alone, beside the locals in scope where it is declared.
                 const close = children.findIndex(part => SyntaxTree.isToken(part) && part.type === ')');
-                const parameters = children.slice(2, close).filter(part => part.type !== ',').map(part => this.#wordOf(part));
+                const parameters = children.slice(2, close).filter(part => part.type !== ',').map(part => SyntaxTree.wordOf(part, this.#text));
                 const enclosingLocalNames = this.#localNames;
 
                 this.#localNames = new Set([...this.#localNames, ...parameters]);
@@ -77,7 +77,7 @@ export class Lowering {
             case 'arrow-function': {
                 // Its parameters, one name alone or names in parentheses, are in scope in its body alone, an expression whose value is its result.
                 const arrow = children.findIndex(part => SyntaxTree.isToken(part) && part.type === '=>');
-                const parameters = children.slice(0, arrow).filter(part => part.type !== ',' && part.type !== '(' && part.type !== ')').map(part => this.#wordOf(part));
+                const parameters = children.slice(0, arrow).filter(part => part.type !== ',' && part.type !== '(' && part.type !== ')').map(part => SyntaxTree.wordOf(part, this.#text));
                 const enclosingLocalNames = this.#localNames;
 
                 this.#localNames = new Set([...this.#localNames, ...parameters]);
@@ -204,7 +204,7 @@ export class Lowering {
     #lowerNamespaceAccess(access) {
         const [namespaceName, , nameToken, ...rest] = access.children;
         const target = this.#span({ kind: 'namespace', name: namespaceName.value }, namespaceName);
-        const name = this.#wordOf(nameToken);
+        const name = SyntaxTree.wordOf(nameToken, this.#text);
 
         if (rest.length === 0) {
             return this.#span({ kind: 'member', target, name }, access);
@@ -221,7 +221,7 @@ export class Lowering {
 
         try {
             for (const part of children.slice(0, -2)) {
-                const local = this.#span({ name: this.#wordOf(part.children[1]), value: this.#lower(part.children[3]) }, part);
+                const local = this.#span({ name: SyntaxTree.wordOf(part.children[1], this.#text), value: this.#lower(part.children[3]) }, part);
 
                 locals.push(local);
                 this.#localNames = new Set(this.#localNames).add(local.name);
@@ -238,7 +238,7 @@ export class Lowering {
         const start = children[index].start;
         const test = children[index + 1];
         const isBinding = test.kind === 'conditional-binding';
-        const tested = isBinding ? this.#span({ name: this.#wordOf(test.children[1]), value: this.#lower(test.children[3]) }, test) : this.#lower(test);
+        const tested = isBinding ? this.#span({ name: SyntaxTree.wordOf(test.children[1], this.#text), value: this.#lower(test.children[3]) }, test) : this.#lower(test);
         // A binding's name is in scope in its consequent alone.
         const consequent = isBinding ? this.#lowerWithin([tested.name], children[index + 3]) : this.#lower(children[index + 3]);
         const next = children[index + 4];
@@ -282,13 +282,13 @@ export class Lowering {
 
         switch (part.kind) {
             case 'dot-property-access': {
-                const name = this.#wordOf(second);
+                const name = SyntaxTree.wordOf(second, this.#text);
 
                 node = optional ? { kind: 'member', target, name, optional } : { kind: 'member', target, name };
                 break;
             }
             case 'member-call': {
-                const name = this.#wordOf(second);
+                const name = SyntaxTree.wordOf(second, this.#text);
                 const call = { kind: 'call', target, name, arguments: this.#argumentsOf(part.children.slice(3, -1)) };
 
                 node = optional ? { ...call, optional } : call;
@@ -342,12 +342,12 @@ export class Lowering {
         // Each local is in scope after its value, through the locals and the fields after it, and each field after its value, through the fields after it.
         for (const child of object.children) {
             if (child.kind === 'local') {
-                const local = this.#span({ name: this.#wordOf(child.children[1]), value: this.#lower(child.children[3]) }, child);
+                const local = this.#span({ name: SyntaxTree.wordOf(child.children[1], this.#text), value: this.#lower(child.children[3]) }, child);
 
                 locals.push(local);
                 this.#localNames = new Set(this.#localNames).add(local.name);
             } else if (child.kind === 'field') {
-                const field = this.#span({ name: this.#wordOf(child.children[0]), value: this.#lower(child.children[2]) }, child);
+                const field = this.#span({ name: SyntaxTree.wordOf(child.children[0], this.#text), value: this.#lower(child.children[2]) }, child);
 
                 fields.push(field);
                 this.#localNames = new Set(this.#localNames).add(field.name);
@@ -377,11 +377,6 @@ export class Lowering {
         } finally {
             this.#localNames = enclosingLocalNames;
         }
-    }
-
-    /** The word a token writes, as the text spells it. */
-    #wordOf(token) {
-        return this.#text.slice(token.start, token.end);
     }
 
     /** Records the part as spanning the syntax node or token. */

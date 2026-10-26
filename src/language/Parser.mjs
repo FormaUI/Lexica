@@ -36,7 +36,7 @@ const OPTIONAL_ACCESSES = new Set(['?.', '?[']);
 const COMPARISON_DIRECTIONS = Object.freeze({ '<': 'ascending', '<=': 'ascending', '>': 'descending', '>=': 'descending' });
 
 /** The kinds of node a member expression is, each beginning with the token that joins it to its receiver. */
-const MEMBER_EXPRESSIONS = new Set(['dot-property-access', 'computed-property-access', 'member-call', 'indexer']);
+const MEMBER_EXPRESSION_KINDS = new Set(['dot-property-access', 'computed-property-access', 'member-call', 'indexer']);
 
 export class Parser {
     #text;
@@ -765,7 +765,7 @@ export class Parser {
         const dot = this.#take();
 
         if (!this.#isWord(this.#token)) {
-            throw this.#unexpected('LEXICA1000', `the name of the type '${this.#wordOf(name)}' declares, as in ${keyword} ${this.#wordOf(name)}.${example}`);
+            throw this.#unexpected('LEXICA1000', `the name of the type '${SyntaxTree.wordOf(name, this.#text)}' declares, as in ${keyword} ${SyntaxTree.wordOf(name, this.#text)}.${example}`);
         }
 
         return Parser.#node('type-name', [name, dot, this.#take()]);
@@ -1062,7 +1062,7 @@ export class Parser {
         }
 
         const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('identifier');
-        const written = `${name}.${this.#wordOf(nameToken)}`;
+        const written = `${name}.${SyntaxTree.wordOf(nameToken, this.#text)}`;
 
         this.#refuseEnclosedAccessArgument(this.#token, written);
 
@@ -1152,7 +1152,7 @@ export class Parser {
         const colon = this.#token;
         const dot = colon.type === '?:' ? '?.' : '.';
         const next = this.#tokens[this.#index + 1];
-        const name = this.#isWord(next) ? this.#wordOf(next) : '';
+        const name = this.#isWord(next) ? SyntaxTree.wordOf(next, this.#text) : '';
 
         throw this.#fail(name === '' ? 'LEXICA1014' : 'LEXICA1500', `A member follows its receiver after a dot, never a colon: write '${this.#text.slice(start, colon.start)}${dot}${name}[…]'`, colon.start);
     }
@@ -1181,7 +1181,7 @@ export class Parser {
         }
 
         const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('identifier');
-        const name = this.#wordOf(nameToken);
+        const name = SyntaxTree.wordOf(nameToken, this.#text);
 
         this.#refuseEnclosedAccessArgument(this.#token, `.${name}`);
 
@@ -1226,11 +1226,6 @@ export class Parser {
     /** Whether the token writes a word: a name, a keyword, `it`, or the word of a literal, which a declaration, a member's name and a type's take as they are, whatever the word means where an expression stands. */
     #isWord(token) {
         return token.type === 'identifier' || token.type === 'keyword' || token.type === 'it' || (token.type === 'literal' && (typeof token.value === 'boolean' || token.value === null));
-    }
-
-    /** The word a token writes, as its text spells it. */
-    #wordOf(token) {
-        return this.#text.slice(token.start, token.end);
     }
 
     /** Written text as a message quotes it: in single quotes, or in double quotes where it holds a single quote and no double one, as a raw string does. */
@@ -1351,11 +1346,11 @@ export class Parser {
         }
 
         if (this.#startsColonEntry()) {
-            throw this.#fail('LEXICA1003', `${colonMessage}: write '${prefix}${this.#wordOf(token)} = …'`, this.#tokens[this.#index + 1].start);
+            throw this.#fail('LEXICA1003', `${colonMessage}: write '${prefix}${SyntaxTree.wordOf(token, this.#text)} = …'`, this.#tokens[this.#index + 1].start);
         }
 
         if (token.type === 'literal' && (this.#tokens[this.#index + 1]?.type === '=' || this.#tokens[this.#index + 1]?.type === ':')) {
-            throw this.#fail(code, `${Parser.#quote(this.#wordOf(token))} is a literal, and names nothing`, token.start);
+            throw this.#fail(code, `${Parser.#quote(SyntaxTree.wordOf(token, this.#text))} is a literal, and names nothing`, token.start);
         }
 
         throw this.#fail(code, message, token.start);
@@ -1454,7 +1449,7 @@ export class Parser {
             case 'parenthesized-expression':
                 return Parser.#kindOf(child.children[1]);
             case 'chain':
-                return child.children.some(part => MEMBER_EXPRESSIONS.has(part.kind) && OPTIONAL_ACCESSES.has(part.children[0].type)) ? 'optionalChain' : 'access';
+                return child.children.some(part => MEMBER_EXPRESSION_KINDS.has(part.kind) && OPTIONAL_ACCESSES.has(part.children[0].type)) ? 'optionalChain' : 'access';
             case 'optional-enclosed-access':
                 return 'optionalChain';
             default:
