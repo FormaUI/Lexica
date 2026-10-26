@@ -36,7 +36,7 @@ export class DefinitionWriter {
      * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is written with, each reserved as the language's words are; none for text read without a registry.
      */
     static format(node, namespaceNames = Names.noNamespaceNames) {
-        // An expression that is a body writes its bindings and its return alone, which a do block elsewhere encloses.
+        // An expression that is a body writes its locals and its return alone, which a do block elsewhere encloses.
         return DefinitionWriter.#writing(namespaceNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
     }
 
@@ -278,7 +278,7 @@ export class DefinitionWriter {
     }
 
     /**
-     * A conditional's clauses, each a condition or a binding, and the `end` that closes them: a conditional of its own style nested in its alternative is written as an `elseif`, and one in its condition or consequent in parentheses; every branch gives its result with `return` where the branches are bodies.
+     * A conditional's clauses, each a condition or a conditional binding, and the `end` that closes them: a conditional of its own style nested in its alternative is written as an `elseif`, and one in its condition or consequent in parentheses; every branch gives its result with `return` where the branches are bodies.
      * On one line where the level is null, or where it has no `elseif` and its branches are expressions; otherwise each clause begins a line, its branch after it where the branches are expressions and on the lines a level within it where they are bodies.
      */
     static #conditional(node, level) {

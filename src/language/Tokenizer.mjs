@@ -212,7 +212,7 @@ export class Tokenizer {
             return { type: Names.isKeyword(name) ? 'keyword' : 'identifier', value: name, start, end: this.#offset };
         }
 
-        // A single `=` gives a field, a local or a binding its value, which the parser reads where one stands.
+        // A single `=` gives a field, a local or a conditional binding its value, which the parser reads where one stands.
         if (character === '=') {
             this.#offset++;
 

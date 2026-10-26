@@ -32,7 +32,7 @@ export class Lowering {
     #namesWrittenAlone = new Map();
 
     /**
-     * The definition the tree writes, the span of text each of its nodes, fields, locals and bindings came from, which the tree is no longer needed for, the parameters written alone,
+     * The definition the tree writes, the span of text each of its nodes, fields, locals and conditional bindings came from, which the tree is no longer needed for, the parameters written alone,
      * and the names written alone where a value stands.
      * @param {import('./SyntaxTree.mjs').ScriptNode} tree
      */
@@ -239,13 +239,13 @@ export class Lowering {
     #lowerConditional(children, index, end) {
         const start = children[index].start;
         const test = children[index + 1];
-        const isBinding = test.kind === 'conditional-binding';
-        const tested = isBinding ? this.#span({ name: SyntaxTree.wordOf(test.children[1], this.#text), value: this.#lower(test.children[3]) }, test) : this.#lower(test);
-        // A binding's name is in scope in its consequent alone.
-        const consequent = isBinding ? this.#lowerWithin([tested.name], children[index + 3]) : this.#lower(children[index + 3]);
+        const isConditionalBinding = test.kind === 'conditional-binding';
+        const tested = isConditionalBinding ? this.#span({ name: SyntaxTree.wordOf(test.children[1], this.#text), value: this.#lower(test.children[3]) }, test) : this.#lower(test);
+        // A conditional binding's name is in scope in its consequent alone.
+        const consequent = isConditionalBinding ? this.#lowerWithin([tested.name], children[index + 3]) : this.#lower(children[index + 3]);
         const next = children[index + 4];
         const alternative = next.value === 'elseif' ? this.#lowerConditional(children, index + 4, end) : this.#lower(children[index + 5]);
-        const node = isBinding ? { kind: 'conditional', binding: tested, consequent, alternative } : { kind: 'conditional', condition: tested, consequent, alternative };
+        const node = isConditionalBinding ? { kind: 'conditional', binding: tested, consequent, alternative } : { kind: 'conditional', condition: tested, consequent, alternative };
 
         this.#spans.set(node, { start, end });
 

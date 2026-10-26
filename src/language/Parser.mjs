@@ -67,7 +67,7 @@ export class Parser {
     }
 
     /**
-     * Reads the text into its syntax tree, whose script node holds the body, an expression alone or bindings and the `return` that gives its result, and the end of the text, with the trivia before it.
+     * Reads the text into its syntax tree, whose script node holds the body, an expression alone or locals and the `return` that gives its result, and the end of the text, with the trivia before it.
      * @returns {import('./SyntaxTree.mjs').ScriptNode}
      */
     parse() {
@@ -102,7 +102,7 @@ export class Parser {
             const start = this.#token.start;
             const expression = this.#parseExpression();
 
-            // An expression alone is its body's result, so a `return` after it follows what no binding holds.
+            // An expression alone is its body's result, so a `return` after it follows what no local holds.
             if (this.#isKeyword('return')) {
                 throw this.#fail('LEXICA1031', "Only locals may precede a body's result.", start);
             }
@@ -363,7 +363,7 @@ export class Parser {
     }
 
     /**
-     * Reads a conditional after its `if`, which the children begin with: each clause's test, a condition or a binding, `let`, a name and a value, and the expression `then` gives it, an `elseif` beginning the next clause,
+     * Reads a conditional after its `if`, which the children begin with: each clause's test, a condition or a conditional binding, `let`, a name and a value, and the expression `then` gives it, an `elseif` beginning the next clause,
      * and the alternative `else` gives, which every conditional ends with.
      */
     #parseConditionalExpression(children) {
@@ -993,7 +993,7 @@ export class Parser {
             return this.#parseNamespaceAccess();
         }
 
-        // A name that starts a chain is a local, a field or a binding, which takes no argument, so one an argument follows after a space is a member written without its receiver; parentheses after it call the function it holds.
+        // A name that starts a chain is a local, a field or a conditional binding, which takes no argument, so one an argument follows after a space is a member written without its receiver; parentheses after it call the function it holds.
         if (token.type === 'identifier' || token.type === 'lexical-reference') {
             const written = token.type === 'identifier' ? token.value : `@${token.value}`;
 
@@ -1197,13 +1197,13 @@ export class Parser {
         return this.#startsEntry() || this.#startsColonEntry();
     }
 
-    /** Whether a word and `=` begin what stands here, as a field, a local's name or a binding's does, whatever the word, a reserved word among them. */
+    /** Whether a word and `=` begin what stands here, as a field, a local's name or a conditional binding's does, whatever the word, a reserved word among them. */
     #startsEntry() {
         return this.#isWord(this.#token) && this.#tokens[this.#index + 1]?.type === '=';
     }
 
     /**
-     * Whether a word and a colon begin what stands here, as no field, local or binding writes its value, rather than a chain from the word whose colon brackets follow directly, or a name and then brackets,
+     * Whether a word and a colon begin what stands here, as no field, local or conditional binding writes its value, rather than a chain from the word whose colon brackets follow directly, or a name and then brackets,
      * which the chain refuses; a space after the colon makes it an entry's, as `k: panel["id"]` is.
      */
     #startsColonEntry() {
@@ -1327,7 +1327,7 @@ export class Parser {
     }
 
     /**
-     * Refuses what stands where a field, a local or a binding is named: a reserved word after `@`, since a declaration writes its name as it is; a word a colon follows, which gives its value as `=` does,
+     * Refuses what stands where a field, a local or a conditional binding is named: a reserved word after `@`, since a declaration writes its name as it is; a word a colon follows, which gives its value as `=` does,
      * as the colon message says with the form to write, its prefix written before the word; a number or a string `=` or a colon follows, which names nothing; and anything else is written as the message gives,
      * the last two with the code given, the one of the declaration written without its name.
      */
@@ -1397,7 +1397,7 @@ export class Parser {
     #unexpected(code, expected) {
         const token = this.#token;
 
-        // `=` gives a field, a local or a binding its value, so one anywhere else is an equality written with one sign, or the second half of a comparison operator written apart.
+        // `=` gives a field, a local or a conditional binding its value, so one anywhere else is an equality written with one sign, or the second half of a comparison operator written apart.
         if (token.type === '=') {
             const previous = this.#tokens[this.#index - 1];
             const next = this.#tokens[this.#index + 1];

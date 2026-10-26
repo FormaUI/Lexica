@@ -1,5 +1,5 @@
 /**
- * Names — Lexica's identifiers: how one is spelled, the words the language reserves, and which identifiers a reference to a binding writes with a prefix
+ * Names — Lexica's identifiers: how one is spelled, the words the language reserves, and which identifiers a lexical reference writes with a prefix
  */
 
 /** A letter followed by letters and digits, which is also a JavaScript identifier. */

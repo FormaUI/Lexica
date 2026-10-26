@@ -295,7 +295,7 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a conditional: a condition, any value, or a binding, any value, whose name the consequent alone sees, bound to that value where it is truthy; and two branches of one type, nullable where either is.
+     * Resolves a conditional: a condition, any value, or a conditional binding, any value, whose name the consequent alone sees, bound to that value where it is truthy; and two branches of one type, nullable where either is.
      * The consequent sees what the condition's being truthy guarantees of the stable references it tests, and the alternative what its being falsey does. The whole is resolved before any of it is evaluated.
      */
     #resolveConditional(node, pointer, scope) {
@@ -654,7 +654,7 @@ export class LanguageResolver {
 
     /** The scope a conditional binding's consequent is resolved in: the scope around it, with the binding's name a local holding its value, of the result given. */
     static #consequentScopeOf(node, scope, result) {
-        return { ...scope, locals: new Map(scope.locals).set(node.binding.name, { result, initializer: node.binding.value, scope, binding: node }) };
+        return { ...scope, locals: new Map(scope.locals).set(node.binding.name, { result, initializer: node.binding.value, scope, conditional: node }) };
     }
 
     /** Resolves a negation: what it negates, any value, and answers a Boolean, true where that value is falsey. */
@@ -994,7 +994,7 @@ export class LanguageResolver {
             this.#fail('LEXICA2012', `No local, object field, conditional binding or function parameter named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
         }
 
-        // A binding's value is evaluated once, by its conditional, which holds it in a frame its consequent reads as any local's; each records the expression its value came from.
+        // A conditional binding's value is evaluated once, by its conditional, which holds it in a frame its consequent reads as any local's; each records the expression its value came from.
         this.#resolutions.set(pointer, { kind: 'local', name: node.name, initializer: local.initializer });
 
         const narrowed = scope.facts.get(local);
@@ -1280,7 +1280,7 @@ export class LanguageResolver {
                 const possible = local === undefined ? null : this.#possibleNamesOf(local.initializer, local.scope);
 
                 // A conditional binding's name is used where its value is truthy.
-                return possible !== null && local.binding !== undefined ? LanguageResolver.#partOfPossible(possible, true) : possible;
+                return possible !== null && local.conditional !== undefined ? LanguageResolver.#partOfPossible(possible, true) : possible;
             }
             case 'conditional': {
                 const tested = this.#decidingResults.get(node.binding === undefined ? node.condition : node.binding.value);

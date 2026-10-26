@@ -102,7 +102,7 @@ export class DefinitionValidator {
     /** The names of the locals and the fields in scope where the node being validated stands. @type {Set<string>} */
     #localNames = new Set();
 
-    /** The names of the locals declared later in a scope the node being validated stands in, the local whose value it is among them, which no parameter there may name, each with whether a local or a conditional binding declares it. @type {Map<string, 'local' | 'binding'>} */
+    /** The names of the locals declared later in a scope the node being validated stands in, the local whose value it is among them, which no parameter there may name, each with whether a local or a conditional binding declares it. @type {Map<string, 'local' | 'conditionalBinding'>} */
     #laterNames = new Map();
 
     /** The optional chain the node being validated continues, with whether an access of it is optional so far; null where it continues none. @type {{ hasOptional: boolean } | null} */
@@ -350,8 +350,8 @@ export class DefinitionValidator {
     }
 
     /**
-     * Validates a conditional: a condition or a binding, exactly one of them, its consequent and its alternative.
-     * A binding's name is any name, which hides a local or a field of its name outside it, in scope in the consequent alone, never in its own value or the alternative.
+     * Validates a conditional: a condition or a conditional binding, exactly one of them, its consequent and its alternative.
+     * A conditional binding's name is any name, which hides a local or a field of its name outside it, in scope in the consequent alone, never in its own value or the alternative.
      */
     #validateConditional(node, pointer, contextAvailability) {
         if ((node.condition === undefined) === (node.binding === undefined)) {
@@ -388,7 +388,7 @@ export class DefinitionValidator {
         const { name } = node.binding;
 
 
-        const value = this.#validateWithLater([name], () => this.#validateNode(node.binding.value, `${bindingPointer}/value`, contextAvailability), 'binding');
+        const value = this.#validateWithLater([name], () => this.#validateNode(node.binding.value, `${bindingPointer}/value`, contextAvailability), 'conditionalBinding');
 
         const enclosingLocalNames = this.#localNames;
 
@@ -946,7 +946,7 @@ export class DefinitionValidator {
         });
     }
 
-    /** What validating answers, with the names given declared later in its scope besides those already, by a local or, for a conditional binding's name, by the binding. */
+    /** What validating answers, with the names given declared later in its scope besides those already, by a local or, for a conditional binding's name, by the conditional binding. */
     #validateWithLater(names, validate, declaredBy = 'local') {
         const enclosingLaterNames = this.#laterNames;
 
@@ -970,7 +970,7 @@ export class DefinitionValidator {
         }
 
         if (this.#laterNames.has(name)) {
-            this.#fail(this.#laterNames.get(name) === 'binding' ? 'LEXICA2014' : 'LEXICA2013', pointer, `'${name}' is used before the local of that name is declared in its scope: a local is read after its declaration, and the name reads no binding before it`);
+            this.#fail(this.#laterNames.get(name) === 'conditionalBinding' ? 'LEXICA2014' : 'LEXICA2013', pointer, `'${name}' is used before the local of that name is declared in its scope: a local is read after its declaration, and the name reads no binding before it`);
         }
     }
 
