@@ -2,6 +2,7 @@
  * LexicaRegistry — the declarations of every module registered with the registry, which requests resolve against
  */
 
+import { ArrayUtils } from '../../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
 import { LexicaErrors } from '../LexicaError.mjs';
 import { Names } from '../Names.mjs';
@@ -729,7 +730,10 @@ export class LexicaRegistry {
         }
     }
 
-    /** Whether the type admits a default: a value of data, its nullability, its items and a structure's fields as declared, and never a node. */
+    /**
+     * Whether the type admits a default: a value of data, its nullability, its items and a structure's fields as declared, and never a node. A number is finite and a list holds a value at every index, at any depth,
+     * as every value an evaluation produces does.
+     */
     #admits(value, type) {
         if (value === null) {
             return type.isNullable;
@@ -740,10 +744,14 @@ export class LexicaRegistry {
                 return value !== undefined;
             case 'named': {
                 if (type.isList) {
-                    return Array.isArray(value) && value.every(item => this.#admits(item, type.itemType));
+                    return Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#admits(item, type.itemType));
                 }
 
-                if (type.moduleName === null && ['Number', 'String', 'Boolean'].includes(type.name)) {
+                if (type.moduleName === null && type.name === 'Number') {
+                    return Number.isFinite(value);
+                }
+
+                if (type.moduleName === null && ['String', 'Boolean'].includes(type.name)) {
                     return typeof value === type.name.toLowerCase();
                 }
 

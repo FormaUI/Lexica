@@ -374,6 +374,8 @@ describe('the module error codes', () => {
 
         it('LEXICA4548: a parameter default its type does not admit', () => {
             expectCode(registering(module('charts', { members: [func({ parameters: [parameter({ required: false, default: 'many' })] })] })), 'LEXICA4548');
+            expectCode(registering(module('charts', { members: [func({ parameters: [parameter({ required: false, default: Infinity })] })] })), 'LEXICA4548');
+            expectCode(registering(module('charts', { members: [func({ parameters: [parameter({ type: 'List<Number>', required: false, default: [1, , 3] })] })] })), 'LEXICA4548');
         });
     });
 

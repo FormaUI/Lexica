@@ -69,6 +69,22 @@ describe('LexicaRegistry', () => {
         expect(registering('ranges.Range', { start: 0, end: null })).not.toThrow();
     });
 
+    it('refuses a default holding a number that is not finite or a list with a hole, at the top level and nested, as no evaluation produces them', () => {
+        const range = new LexicaModule('ranges', { types: [{ name: 'Range', fields: { start: 'Number', points: 'List<Number>' } }] });
+        const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, range, new LexicaModule('charts', withHome({
+            members: [functionDeclaration({ name: 'charts', parameters: [parameter({ name: 'value', type, required: false, default: value })] })],
+        }))]);
+        const refused = [['Number', Infinity], ['Number', -Infinity], ['Number?', NaN], ['List<Number>', [1, , 3]], ['List<Number>', [1, NaN]], ['List<List<Number>>', [[1], [2, , 4]]], ['ranges.Range', { start: Infinity, points: [] }], ['ranges.Range', { start: 0, points: [, 1] }]];
+
+        for (const [type, value] of refused) {
+            expect(messageOf(registering(type, value)), type).toContain(`The default of 'value' is no ${type}`);
+        }
+
+        expect(registering('List<Number>', [1, 2, 3])).not.toThrow();
+        expect(registering('List<List<Number>>', [[1], [], [2, 4]])).not.toThrow();
+        expect(registering('ranges.Range', { start: -0, points: [Number.MAX_VALUE] })).not.toThrow();
+    });
+
     it('takes a tolerance for a result of a structured type, whichever module declares it, now that every type is known', () => {
         const boxes = new LexicaModule('boxes', { types: [{ name: 'Box', fields: { width: 'Number' } }] });
         const sized = new LexicaModule('sized', { members: [declaration({ name: 'bounds', result: 'boxes.Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });

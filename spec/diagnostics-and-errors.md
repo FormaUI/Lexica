@@ -310,7 +310,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4545` | A fixed parameter that is not a `String` value parameter | A module error naming the parameter |
 | `LEXICA4546` | Registering what `createModule` did not make | A module error |
 | `LEXICA4547` | A parameter selecting through a selector no registered module declares | A module error naming the parameter and the selector |
-| `LEXICA4548` | A parameter's default its type does not admit | A module error naming the parameter |
+| `LEXICA4548` | A parameter's default its type does not admit, a number that is not finite and a list with a hole at any depth among them | A module error naming the parameter |
 | `LEXICA4549` | Two module members of one name in one module | A module error naming the member |
 | `LEXICA4552` | A type whose name is not an identifier | A module error naming the type |
 | `LEXICA4554` | A type of a kind that is none of a type's kinds | A module error giving the kinds |
