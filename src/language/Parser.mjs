@@ -668,7 +668,7 @@ export class Parser {
             value = this.#parseChainCast(value, chain, start);
         }
 
-        while (this.#isConversion(value, start)) {
+        while (this.#isKeyword('to')) {
             const converted = this.#parseConversion(value);
 
             // A conversion of a conversion or a cast before it in this chain is written ungrouped, which an attempt of one operation refuses.
@@ -679,25 +679,23 @@ export class Parser {
             value = converted;
         }
 
+        this.#refuseNameAfterOperand(value, start);
+
         return value;
     }
 
     /**
-     * Whether the keyword `to` follows the value, which converts it. A name there is refused: one a colon follows names the next field, which a comma comes before,
-     * and any other is a member written after its receiver without the dot that joins it, so the message gives the call to write, of the receiver in a group where it is a cast or a conversion, which a chain continues from only so.
+     * Refuses a name after the value, where nothing joins it to the value: one `=` follows names the next object field, which a comma comes before, and any other is a member written after its receiver without the dot
+     * that joins it, so the message gives the call to write, of the receiver in a group where it is a cast or a conversion, which a chain continues from only so. A name on a line of its own after a body local's value ends
+     * that value, and its body says what the name begins.
      */
-    #isConversion(value, start) {
-        if (this.#isKeyword('to')) {
-            return true;
-        }
-
+    #refuseNameAfterOperand(value, start) {
         if (this.#token.type !== 'identifier') {
-            return false;
+            return;
         }
 
-        // A name on a line of its own after a body local's value ends that value, and its body says what the name begins.
         if (this.#bodyLocalsBeingRead > 0 && this.#text.slice(this.#tokens[this.#index - 1].end, this.#token.start).includes('\n')) {
-            return false;
+            return;
         }
 
         if (this.#tokens[this.#index + 1].type === '=') {
