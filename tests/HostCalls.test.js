@@ -173,7 +173,8 @@ describe('prepared calls', () => {
         const { evaluator, home } = evaluatorOf('light.dim({ to = 40 })');
         const call = evaluator.prepareHostCall();
 
-        expect(call).toMatchObject({ kind: 'prepared', declaration: home.members[0], receiver: 'hall', args: { to: 40 }, location: { pointer: '/expression', line: 1 } });
+        expect(call).toMatchObject({ kind: 'prepared', declaration: home.members[0], receiver: 'hall', args: { to: 40 }, pointer: '/expression' });
+        expect(lexica.getLocation(lexica.parse('light.dim({ to = 40 })'), call.pointer)).toMatchObject({ pointer: '/expression', line: 1, column: 1 });
         expect(typeof call.project).toBe('function');
         expect(Object.isFrozen(call)).toBe(true);
     });
@@ -239,7 +240,7 @@ describe('prepared calls', () => {
         for (const [text, values, pointer] of skipped) {
             const call = evaluatorOf(text, { values }).evaluator.prepareHostCall();
 
-            expect(call, text).toEqual({ kind: 'skipped', location: expect.objectContaining({ pointer }) });
+            expect(call, text).toEqual({ kind: 'skipped', pointer });
             expect(Object.isFrozen(call), text).toBe(true);
         }
     });
@@ -345,7 +346,7 @@ describe('values a host supplies', () => {
     const refusalOf = (call, value) => {
         const refused = getError(() => call.project(value));
 
-        expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: call.location.pointer } });
+        expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: call.pointer } });
 
         return refused.message;
     };

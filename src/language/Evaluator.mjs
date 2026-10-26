@@ -222,10 +222,10 @@ export class Evaluator {
 
     /**
      * Prepares the host call the script ends in for its host: evaluates the locals before it, each body's along the script's terminal position in order, then its receiver and its arguments, once, without hooks, as `evaluate` given none evaluates a script.
-     * It answers a prepared call, with its declaration, its receiver, its arguments by parameter name and where it stands, whose `project` projects each value its host supplies where the call declares a result; or a skipped call where the
+     * It answers a prepared call, with its declaration, its receiver, its arguments by parameter name and its definition pointer, as an invocation request names its call, whose `project` projects each value its host supplies where the call declares a result; or a skipped call where the
      * receiver, or an argument whose parameter propagates null, is null, or the call has no declaration yet, its receiver's type unknown, so there is nothing to invoke. Each prepared call keeps the locals it was prepared with, so the prepared
      * calls of one evaluator stay apart.
-     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, location: object, project?: (value: unknown, hooks?: EvaluationHooks | null) => Evaluation } | { kind: 'skipped', location: object }}
+     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, pointer: string, project?: (value: unknown, hooks?: EvaluationHooks | null) => Evaluation } | { kind: 'skipped', pointer: string }}
      */
     prepareHostCall() {
         const { hostCall } = this.#resolvedDefinition;
@@ -235,7 +235,6 @@ export class Evaluator {
         }
 
         const { node, pointer, declaration } = hostCall;
-        const location = this.#locate(pointer);
         const resolution = this.#resolvedDefinition.resolutionOf(node);
         const { terminalNode, localsFrame } = this.#evaluateLocalsBefore();
         // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
@@ -256,10 +255,10 @@ export class Evaluator {
         }
 
         if (args === null) {
-            return Object.freeze({ kind: 'skipped', location });
+            return Object.freeze({ kind: 'skipped', pointer });
         }
 
-        const call = hasReceiver ? { kind: 'prepared', declaration, receiver, args, location } : { kind: 'prepared', declaration, args, location };
+        const call = hasReceiver ? { kind: 'prepared', declaration, receiver, args, pointer } : { kind: 'prepared', declaration, args, pointer };
 
         // A call whose host supplies nothing has nothing to project.
         if (declaration.result !== undefined) {

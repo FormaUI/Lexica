@@ -345,11 +345,14 @@ export interface LexicaResultMetadata {
     readonly sources?: readonly LexicaProjectionSource[];
 }
 
-/** A member's invocation, as the hooks receive it: its declaration as its module declared it, its receiver, which a module member has none of, its arguments by parameter name, and where it stands. */
+/** What a member's invocation is, as a hook's request and a prepared host call each give it: its declaration as its module declared it, its receiver, which a module member has none of, its arguments by parameter name, and where the call stands. */
 export interface LexicaInvocationRequest {
-    readonly declaration: object;
+    readonly declaration: LexicaMemberDeclaration;
+    /** Its receiver, a qualified form's first argument, which a module member has none of. */
     readonly receiver?: unknown;
+    /** Its arguments, by parameter name. */
     readonly args: Readonly<Record<string, unknown>>;
+    /** Where the call stands in the definition, a JSON Pointer `getLocation` expands; a call within a script function's body names the part of the body it is, whichever call of the function reached it. */
     readonly pointer: string;
 }
 
@@ -381,15 +384,9 @@ export interface LexicaEvaluator {
     prepareHostCall(): LexicaPreparedCall | LexicaSkippedCall;
 }
 
-/** A host call prepared for its host, which keeps the locals it was prepared with, apart from every other prepared call of its evaluator. */
-export interface LexicaPreparedCall {
+/** A host call prepared for its host: the invocation its host carries out, which keeps the locals it was prepared with, apart from every other prepared call of its evaluator. */
+export interface LexicaPreparedCall extends LexicaInvocationRequest {
     readonly kind: 'prepared';
-    readonly declaration: LexicaMemberDeclaration;
-    /** Its receiver, a qualified form's first argument, which a module member has none of. */
-    readonly receiver?: unknown;
-    /** Its arguments, by parameter name. */
-    readonly args: Readonly<Record<string, unknown>>;
-    readonly location: LexicaErrorLocation;
     /**
      * Projects one value its host supplies: checks it against the call's declared result, then evaluates the result projection against it, reading the locals the call was prepared with, as an evaluation with the hooks given;
      * a call whose host supplies nothing has none. Checking a reference asks the `isInstance` of the declared type and its supertypes, and the modules' `typeOf` where it does not belong, and the evaluation calls
@@ -401,7 +398,8 @@ export interface LexicaPreparedCall {
 /** A host call there is nothing to invoke for: its receiver, or an argument whose parameter propagates null, is null, or it has no declaration yet. */
 export interface LexicaSkippedCall {
     readonly kind: 'skipped';
-    readonly location: LexicaErrorLocation;
+    /** Where the call stands in the definition, a JSON Pointer `getLocation` expands. */
+    readonly pointer: string;
 }
 
 /** A declaration a resolution uses, with its names and where it is used. */
