@@ -38,13 +38,13 @@ describe('Alignment', () => {
         expect(Number(version)).toBe(Number(described));
     });
 
-    it('has packages and a bundle that carry the runtime version the sources declare, and report it', async () => {
+    it('has packages and a bundle that carry the implementation version the sources declare, and report it', async () => {
         const { bundle } = await import('../scripts/bundle.mjs');
 
         expect(project).toContain('src\\language\\Versions.mjs');
-        expect(npmPackage.version).toBe(Versions.runtime);
-        expect(lexica.info.versions.runtime).toBe(Versions.runtime);
-        expect(await bundle()).toContain(JSON.stringify(Versions.runtime));
+        expect(npmPackage.version).toBe(Versions.implementation);
+        expect(lexica.info.versions.implementation).toBe(Versions.implementation);
+        expect(await bundle()).toContain(JSON.stringify(Versions.implementation));
     });
 
     it('has a README that heads the language\'s features with the version the specification describes, and the implementation\'s with the version it reports', () => {
@@ -52,7 +52,7 @@ describe('Alignment', () => {
         const [, described] = specification.match(/^# Lexica Specification v(\S+)$/m);
 
         expect(readme).toContain(`### Language (\`${described}\`)`);
-        expect(readme).toContain(`### Implementation (\`${lexica.info.versions.runtime}\`)`);
+        expect(readme).toContain(`### Implementation (\`${lexica.info.versions.implementation}\`)`);
         expect(readme).toContain(`implements language version \`${lexica.info.versions.language}\``);
     });
 });

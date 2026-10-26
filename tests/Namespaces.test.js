@@ -166,7 +166,7 @@ describe('qualified forms', () => {
     });
 
     it('are used declarations once each, where the call invoking them stands, as a module member, a member of a receiver and a held reference\'s call are, a receiver of unknown type choosing none', () => {
-        const usesOf = text => resolve(text).usedDeclarations.map(({ name, pointer }) => [name, pointer]);
+        const usesOf = text => resolve(text).usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer]);
 
         expect(usesOf('{ a = shop.greet("x"), b = shop.pad(word, 4), c = word.size, d = shop.size(missing) }')).toEqual([
             ['shop.greet', '/expression/fields/0/value'],
@@ -223,7 +223,7 @@ describe('function references', () => {
         const created = evaluate('let pad = shop.pad return 1');
 
         expect(created).toEqual({ value: 1, invoked: [] });
-        expect(resolve('let test = shop.vegan return word.is(test)').usedDeclarations.map(use => use.name)).toEqual(expect.arrayContaining(['shop.vegan', 'is']));
+        expect(resolve('let test = shop.vegan return word.is(test)').usedDeclarations.map(use => use.qualifiedName)).toEqual(expect.arrayContaining(['shop.vegan', 'is']));
     });
 
     it('are never reached by a bare name, which reads a local, a field, a function parameter or a script parameter', () => {

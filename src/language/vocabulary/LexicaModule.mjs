@@ -100,7 +100,7 @@ export class LexicaModule {
         }
 
         const fail = (code, message, declarationName, declarationKey) => {
-            throw LexicaErrors.module(code, message, { module: name, ...(declarationName === undefined ? {} : { declaration: declarationName }), ...(declarationKey === undefined ? {} : { field: declarationKey }) });
+            throw LexicaErrors.module(code, message, { module: name, ...(declarationName === undefined ? {} : { declaration: declarationName }), ...(declarationKey === undefined ? {} : { declarationKey }) });
         };
 
         if (!ObjectUtils.isNonArrayObject(contents)) {

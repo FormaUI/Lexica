@@ -56,7 +56,7 @@ Each condition a diagnostic reports has a stable **code**, `LEXICA` and four dig
 
 ## Where a failure is located
 
-A syntax error identifies its position in the text, its offset, line and column. A structure, validation or evaluation error identifies its node in the definition, expressed as a JSON Pointer, and, where the script was read from text, its position in the text as well. An error in a binding names the binding, and a module error the module and the declaration, located by neither.
+A syntax error identifies its position in the text, its offset, line and column. A structure, validation or evaluation error identifies its node in the definition, expressed as a JSON Pointer, and, where the script was read from text, its position in the text as well. An error in a binding names the binding, and a module error the module, the declaration and, where it concerns one, the declaration key, as `updates.misses`, located by neither.
 
 An evaluation error fails the entire result and is delivered to the host in its place.
 

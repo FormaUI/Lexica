@@ -86,7 +86,7 @@ export class LexicaRegistry {
         }
 
         const fail = (code, message, declarationName, declarationKey) => {
-            throw LexicaErrors.module(code, message, { module: module.name, ...(declarationName === undefined ? {} : { declaration: declarationName }), ...(declarationKey === undefined ? {} : { field: declarationKey }) });
+            throw LexicaErrors.module(code, message, { module: module.name, ...(declarationName === undefined ? {} : { declaration: declarationName }), ...(declarationKey === undefined ? {} : { declarationKey }) });
         };
 
         // Module names are compared case-insensitively for uniqueness, each keeping its own spelling.

@@ -100,6 +100,10 @@ An **observation type** is a declaration of a module, named once across every mo
 | Invalidation | That a result it covers may have changed, so the host evaluates again, as `state` reports a device's new report. |
 | Maintained | Each sample it keeps, which the member that names it reads as its latest, as `reading` keeps each temperature a sensor reports. |
 
+<a id="observations-types-the-request"></a>
+
+Its implementation receives the **request** an observation makes, `{ type, target, arguments }`: the observation type's name; the target the observation observes, the receiver, a target its host resolved or the value of the member's argument it names; and the arguments the observation gives its type, by name, each argument reference resolved to the value the call gives it. The host builds the request as it starts the observation, since Lexica starts none.
+
 <a id="observations-targets"></a>
 
 ### Observation targets

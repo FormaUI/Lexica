@@ -46,7 +46,8 @@ describe('a host of plain data', () => {
         expect(resolution.hostCall).toBeNull();
         expect(resolution.type).toBe('{ total: Price, cut: Number }');
         expect(resolution.typeAt(['total', 'amount'])).toBe('Number');
-        expect(resolution.usedDeclarations.map(({ name, pointer }) => [name, pointer])).toEqual([['String.total', '/expression/fields/0/value'], ['String.discount', '/expression/fields/1/value']]);
+        expect(resolution.usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['String.total', '/expression/fields/0/value'], ['String.discount', '/expression/fields/1/value']]);
+        expect(resolution.usedDeclarations.map(({ name }) => name)).toEqual(['total', 'discount']);
         expect(resolution.getLocation('/expression/fields/1/value')).toMatchObject({ pointer: '/expression/fields/1/value', line: 1 });
         expect(registry.revision).toBe(2);
         expect(registry.getDeclaringModuleName(resolution.usedDeclarations[0].declaration)).toBe('shop');
@@ -56,7 +57,7 @@ describe('a host of plain data', () => {
         const registry = lexica.createRegistry([createShop()]);
         const resolution = registry.resolve('items.count', registry.createBindings({ items: [1, 2] }));
 
-        expect(resolution.usedDeclarations.map(({ name }) => name)).toEqual(['List.count']);
+        expect(resolution.usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['List.count']);
     });
 
     it('evaluates for a host, giving the environment to each implementation and describing the result', () => {
@@ -66,10 +67,10 @@ describe('a host of plain data', () => {
         const again = evaluator.evaluate();
 
         expect(first.value).toEqual({ total: { amount: 12.5, currency: 'EUR' }, cut: 10 });
-        expect(first.metadata.fields.total.tolerance).toBe(0.01);
-        expect(first.metadata.fields.cut.tolerance).toBeNull();
-        expect(again.metadata.fields.total.origin).toBe(first.metadata.fields.total.origin);
-        expect(first.metadata.fields.total.origin).not.toBe(first.metadata.fields.cut.origin);
+        expect(first.metadata.objectFields.total.tolerance).toBe(0.01);
+        expect(first.metadata.objectFields.cut.tolerance).toBeNull();
+        expect(again.metadata.objectFields.total.origin).toBe(first.metadata.objectFields.total.origin);
+        expect(first.metadata.objectFields.total.origin).not.toBe(first.metadata.objectFields.cut.origin);
     });
 
     it('answers a result that is frozen through its value and its metadata, so nothing a caller does changes what an evaluation produced', () => {
@@ -198,7 +199,7 @@ describe('the declaration shape', () => {
         const resolution = lexica.createRegistry([createMenu()]).resolve('item.special', { item: 'latte' });
 
         expect(resolution.type).toBe('String');
-        expect(getError(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', message: expect.stringContaining('so a script that uses it is resolved and never evaluated'), location: { module: 'menu', declaration: 'special', field: 'implementation' } });
+        expect(getError(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', message: expect.stringContaining('so a script that uses it is resolved and never evaluated'), location: { module: 'menu', declaration: 'special', declarationKey: 'implementation' } });
     });
 
     it('decides before anything is evaluated, so a branch evaluation would not take refuses its script too', () => {
@@ -231,7 +232,7 @@ describe('the declaration shape', () => {
         const cups = lexica.createModule('cups', { types: [{ name: 'Cup', fields: { size: 'Number' } }], conversions: [{ from: 'String', to: 'Cup' }] });
         const resolution = lexica.createRegistry([cups]).resolve('if large then (order to Cup).size else 0 end', { order: 'tall', large: false });
 
-        expect(getError(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'String to Cup', field: 'implementation' } });
+        expect(getError(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'String to Cup', declarationKey: 'implementation' } });
     });
 
     it('registers a module member, which has no target, beside the members of a type, read through its namespace and answered by no receiver, its implementation given no receiver', () => {

@@ -24,7 +24,7 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
  * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution, with one candidate selected, produced two values;
  * the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the record of each field of an object an object expression built and of each item of a list a projection built;
  * and the input each item of a list a projection built came from, a list no projection built having no sources. A part with no record inherits its parent's origin and tolerance.
- * @typedef {{ origin: object, tolerance: number | null, fields?: Record<string, ResultMetadata>, items?: ResultMetadata[], sources?: readonly ProjectionSource[] }} ResultMetadata
+ * @typedef {{ origin: object, tolerance: number | null, objectFields?: Record<string, ResultMetadata>, items?: ResultMetadata[], sources?: readonly ProjectionSource[] }} ResultMetadata
  */
 
 /**
@@ -2003,7 +2003,7 @@ export class Evaluator {
                     if (resolution?.kind === 'field') {
                         const whole = this.#resolveRecord(node.target, undefined, identities, contextRecord);
 
-                        return whole.fields?.[candidate ?? resolution.name] ?? Evaluator.#getInheritedRecord(whole);
+                        return whole.objectFields?.[candidate ?? resolution.name] ?? Evaluator.#getInheritedRecord(whole);
                     }
 
                     return this.#getExpressionRecord(node, candidate, resolution?.declaration?.updates?.tolerance ?? null);
@@ -2083,7 +2083,7 @@ export class Evaluator {
             byName[fields[index].name] = records[index];
         }
 
-        const record = Object.freeze({ origin: this.#getExpressionRecord(node, null, null).origin, tolerance: null, fields: Object.freeze(byName) });
+        const record = Object.freeze({ origin: this.#getExpressionRecord(node, null, null).origin, tolerance: null, objectFields: Object.freeze(byName) });
 
         recent.unshift({ contextRecord, fields: records, record });
 
@@ -2123,9 +2123,9 @@ export class Evaluator {
         return record;
     }
 
-    /** Gets the shared record a part with none of its own inherits from its whole, its whole's origin and tolerance without the whole's fields or items, from `#inheritedRecordCache`, creating it at the first lookup. */
+    /** Gets the shared record a part with none of its own inherits from its whole, its whole's origin and tolerance without the whole's object fields or items, from `#inheritedRecordCache`, creating it at the first lookup. */
     static #getInheritedRecord(whole) {
-        if (whole.fields === undefined && whole.items === undefined) {
+        if (whole.objectFields === undefined && whole.items === undefined) {
             return whole;
         }
 

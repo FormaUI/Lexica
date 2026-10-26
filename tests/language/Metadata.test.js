@@ -42,44 +42,44 @@ const metadataOf = (text, values) => resolve(text, values).evaluate().metadata;
 
 describe('result metadata', () => {
     it('describes a member\'s result by its origin and the tolerance its declaration gives, a part with no record inheriting both', () => {
-        const { fields } = metadataOf('{ size = name.size, length = name.length }');
+        const { objectFields } = metadataOf('{ size = name.size, length = name.length }');
 
-        expect(fields.size).toEqual({ origin: expect.any(Object), tolerance: 0.5 });
-        expect(fields.length).toEqual({ origin: expect.any(Object), tolerance: null });
-        expect(fields.size.origin).not.toBe(fields.length.origin);
-        expect(Object.isFrozen(fields.size) && Object.isFrozen(fields)).toBe(true);
+        expect(objectFields.size).toEqual({ origin: expect.any(Object), tolerance: 0.5 });
+        expect(objectFields.length).toEqual({ origin: expect.any(Object), tolerance: null });
+        expect(objectFields.size.origin).not.toBe(objectFields.length.origin);
+        expect(Object.isFrozen(objectFields.size) && Object.isFrozen(objectFields)).toBe(true);
     });
 
     it('keeps the metadata of the part an access selects: a field of a member\'s result, and one of an object a local holds', () => {
-        const { fields } = metadataOf('let dimensions = { width = name.size.width } return { direct = name.size.width, held = dimensions.width, measured = name.size { width = it.width } }');
+        const { objectFields } = metadataOf('let dimensions = { width = name.size.width } return { direct = name.size.width, held = dimensions.width, measured = name.size { width = it.width } }');
 
-        expect(fields.direct.tolerance).toBe(0.5);
-        expect(fields.held.tolerance).toBe(0.5);
-        expect(fields.measured.fields.width.tolerance).toBe(0.5);
+        expect(objectFields.direct.tolerance).toBe(0.5);
+        expect(objectFields.held.tolerance).toBe(0.5);
+        expect(objectFields.measured.objectFields.width.tolerance).toBe(0.5);
     });
 
     it('follows locals, bodies, function calls and the object root to the expression that produced the value', () => {
-        const { fields } = metadataOf('let measure = () => name.size\nreturn { let measured = name.size, kept = measured, done = do measured end, called = measure(), base = name.size, again = root.base }');
+        const { objectFields } = metadataOf('let measure = () => name.size\nreturn { let measured = name.size, kept = measured, done = do measured end, called = measure(), base = name.size, again = root.base }');
 
-        expect([fields.kept, fields.done, fields.called, fields.again].map(field => field.tolerance)).toEqual([0.5, 0.5, 0.5, 0.5]);
-        expect(fields.kept.origin).toBe(fields.done.origin);
-        expect(fields.again.origin).toBe(fields.base.origin);
-        expect(fields.called.origin).not.toBe(fields.base.origin);
+        expect([objectFields.kept, objectFields.done, objectFields.called, objectFields.again].map(field => field.tolerance)).toEqual([0.5, 0.5, 0.5, 0.5]);
+        expect(objectFields.kept.origin).toBe(objectFields.done.origin);
+        expect(objectFields.again.origin).toBe(objectFields.base.origin);
+        expect(objectFields.called.origin).not.toBe(objectFields.base.origin);
     });
 
     it('gives a computed value an origin and a null tolerance of its own, which overrides the tolerance it would inherit', () => {
-        const { fields } = metadataOf('name.size { exact = it.width + 0, measured = it.width }');
+        const { objectFields } = metadataOf('name.size { exact = it.width + 0, measured = it.width }');
 
-        expect(fields.exact.tolerance).toBeNull();
-        expect(fields.measured.tolerance).toBe(0.5);
-        expect(fields.exact.origin).not.toBe(fields.measured.origin);
+        expect(objectFields.exact.tolerance).toBeNull();
+        expect(objectFields.measured.tolerance).toBe(0.5);
+        expect(objectFields.exact.origin).not.toBe(objectFields.measured.origin);
     });
 
     it('gives a selected branch\'s origin, the same across evaluations of one resolution and different for each branch', () => {
         const resolution = resolve('{ chosen = if wide then name.size.width else name.length end }', { name: 'tea', wide: true });
-        const first = resolution.evaluate().metadata.fields.chosen;
-        const again = resolution.evaluate().metadata.fields.chosen;
-        const other = resolution.evaluate({ name: 'tea', wide: false }).metadata.fields.chosen;
+        const first = resolution.evaluate().metadata.objectFields.chosen;
+        const again = resolution.evaluate().metadata.objectFields.chosen;
+        const other = resolution.evaluate({ name: 'tea', wide: false }).metadata.objectFields.chosen;
 
         expect(again.origin).toBe(first.origin);
         expect(first.tolerance).toBe(0.5);
@@ -91,16 +91,16 @@ describe('result metadata', () => {
         const resolution = resolve('{ rows = name.parts { label = it.label, chosen = if wide then name.size.width else name.length end } }', { name: 'tea', wide: true });
         const first = resolution.evaluate();
         const later = resolution.evaluate({ name: 'tea', wide: false });
-        const { rows } = first.metadata.fields;
+        const { rows } = first.metadata.objectFields;
 
         expect(rows.sources).toEqual([{ kind: 'reference', value: parts[0] }, { kind: 'reference', value: parts[1] }]);
-        expect(rows.items.map(item => item.fields.chosen.tolerance)).toEqual([0.5, 0.5]);
-        expect(later.metadata.fields.rows.items.map(item => item.fields.chosen.tolerance)).toEqual([null, null]);
-        expect(rows.items[0].fields.chosen.origin).not.toBe(later.metadata.fields.rows.items[0].fields.chosen.origin);
+        expect(rows.items.map(item => item.objectFields.chosen.tolerance)).toEqual([0.5, 0.5]);
+        expect(later.metadata.objectFields.rows.items.map(item => item.objectFields.chosen.tolerance)).toEqual([null, null]);
+        expect(rows.items[0].objectFields.chosen.origin).not.toBe(later.metadata.objectFields.rows.items[0].objectFields.chosen.origin);
     });
 
     it('never compares origins across resolutions', () => {
-        expect(metadataOf('{ size = name.size }').fields.size.origin).not.toBe(metadataOf('{ size = name.size }').fields.size.origin);
+        expect(metadataOf('{ size = name.size }').objectFields.size.origin).not.toBe(metadataOf('{ size = name.size }').objectFields.size.origin);
     });
 
     it('describes each item of a projection and the reference it came from, which the value never holds', () => {
@@ -113,7 +113,7 @@ describe('result metadata', () => {
         expect(Object.isFrozen(metadata.sources[0])).toBe(true);
         expect(Object.isFrozen(parts[0])).toBe(false);
         expect(metadata.items).toHaveLength(2);
-        expect(metadata.items[0].fields.label.origin).toBe(metadata.items[1].fields.label.origin);
+        expect(metadata.items[0].objectFields.label.origin).toBe(metadata.items[1].objectFields.label.origin);
     });
 
     it('describes the data and the null each item of a projection came from, data as a frozen copy, by the input\'s established type', () => {
@@ -129,8 +129,8 @@ describe('result metadata', () => {
     });
 
     it('records each field by its name in the order written', () => {
-        const { fields } = metadataOf('{ b = 1, c = 2, a = 3 }');
+        const { objectFields } = metadataOf('{ b = 1, c = 2, a = 3 }');
 
-        expect(Object.keys(fields)).toEqual(['b', 'c', 'a']);
+        expect(Object.keys(objectFields)).toEqual(['b', 'c', 'a']);
     });
 });

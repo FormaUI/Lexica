@@ -132,6 +132,6 @@ describe('lexica', () => {
     });
 
     it('says which build it is and which specification it follows', () => {
-        expect(lexica.info).toEqual({ versions: { runtime: Versions.runtime, language: Versions.language, definition: Versions.definition } });
+        expect(lexica.info).toEqual({ versions: { implementation: Versions.implementation, language: Versions.language, definition: Versions.definition } });
     });
 });

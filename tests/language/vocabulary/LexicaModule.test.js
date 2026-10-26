@@ -3,11 +3,11 @@ import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { declaration, functionDeclaration, messageOf, parameter, refusalOf } from './declarations.mjs';
 
-/** The declaration and the field a module error's location names, beside a fragment of its message. */
-const refusal = (contents, declarationName, field, fragment) => {
+/** The declaration and the declaration key a module error's location names, beside a fragment of its message. */
+const refusal = (contents, declarationName, declarationKey, fragment) => {
     const refused = refusalOf(() => new LexicaModule('charts', contents));
 
-    expect({ declaration: refused.declaration, field: refused.field }).toEqual({ declaration: declarationName, field });
+    expect({ declaration: refused.declaration, declarationKey: refused.declarationKey }).toEqual({ declaration: declarationName, declarationKey });
     expect(refused.message).toContain(fragment);
 };
 
@@ -54,7 +54,7 @@ describe('LexicaModule', () => {
     it('refuses what a module does not declare, telling predicates apart as Boolean functions among its members', () => {
         const predicates = refusalOf(() => new LexicaModule('charts', { predicates: [] }));
 
-        expect(predicates).toMatchObject({ module: 'charts', field: 'predicates' });
+        expect(predicates).toMatchObject({ module: 'charts', declarationKey: 'predicates' });
         expect(predicates.message).toContain('a test of a receiver is one of its members, a function whose result is a boolean');
         expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares typeOf, types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
         expect(messageOf(() => new LexicaModule('charts', null))).toContain("A module's contents are an object declaring typeOf, types, members, typeSelectors");
@@ -196,16 +196,16 @@ describe('LexicaModule', () => {
         });
 
         it('name a selector once in its module, as a name is, and declare nothing else of it', () => {
-            expect(fails({ typeSelectors: [{ name: 'report-kind' }] })).toMatchObject({ declaration: 'report-kind', field: 'name' });
+            expect(fails({ typeSelectors: [{ name: 'report-kind' }] })).toMatchObject({ declaration: 'report-kind', declarationKey: 'name' });
             expect(fails({ typeSelectors: [{ name: 'report' }, { name: 'report' }] }).message).toContain("The type selector 'report' is declared twice");
-            expect(fails({ typeSelectors: [{ name: 'report', implementation: () => 1 }] })).toMatchObject({ declaration: 'report', field: 'implementation' });
+            expect(fails({ typeSelectors: [{ name: 'report', implementation: () => 1 }] })).toMatchObject({ declaration: 'report', declarationKey: 'implementation' });
         });
 
         it('name a key as an event is named, with the selector it belongs to and the type it maps to, and declare nothing else of it', () => {
-            expect(fails({ selectableTypes: [{ name: '1st', selector: 'report', type: 'Number' }] })).toMatchObject({ declaration: '1st', field: 'name' });
-            expect(fails({ selectableTypes: [{ name: 'motion', type: 'Number' }] })).toMatchObject({ declaration: 'motion', field: 'selector' });
-            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'List<' }] })).toMatchObject({ declaration: 'motion', field: 'type' });
-            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number', implementation: () => 1 }] })).toMatchObject({ declaration: 'motion', field: 'implementation' });
+            expect(fails({ selectableTypes: [{ name: '1st', selector: 'report', type: 'Number' }] })).toMatchObject({ declaration: '1st', declarationKey: 'name' });
+            expect(fails({ selectableTypes: [{ name: 'motion', type: 'Number' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'selector' });
+            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'List<' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'type' });
+            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number', implementation: () => 1 }] })).toMatchObject({ declaration: 'motion', declarationKey: 'implementation' });
         });
 
         it('are selected through by a function\'s one fixed parameter that names its selector, whose result writes @selected', () => {
@@ -218,9 +218,10 @@ describe('LexicaModule', () => {
         it('are selected through by one parameter at most, and a result writes @selected exactly where a parameter selects a type', () => {
             const kind = name => parameter({ name, type: 'String', fixed: true, selects: 'type', selector: 'report' });
 
-            expect(fails({ members: [selecting({ parameters: [kind('first'), kind('second')] })] })).toMatchObject({ declaration: 'report', field: 'parameters', message: expect.stringContaining("A function has one parameter at most that selects a type, since its result writes one @selected, and 'first' and 'second' each select one") });
-            expect(fails({ members: [selecting({ result: 'Number' })] })).toMatchObject({ declaration: 'report', field: 'result', message: expect.stringContaining("Its parameter 'kind' selects a type, so its result writes @selected where that type stands") });
-            expect(fails({ members: [functionDeclaration({ result: '@selected' })] })).toMatchObject({ declaration: 'zoom', field: 'result', message: expect.stringContaining('Its result writes @selected, and none of its parameters selects a type') });
+            expect(fails({ members: [selecting({ parameters: [kind('first'), kind('second')] })] })).toMatchObject({ declaration: 'report', declarationKey: 'parameters', message: expect.stringContaining("A function has one parameter at most that selects a type, since its result writes one @selected, and 'first' and 'second' each select one") });
+            expect(fails({ members: [selecting({ result: 'Number' })] })).toMatchObject({ declaration: 'report', declarationKey: 'result', message: expect.stringContaining("Its parameter 'kind' selects a type, so its result writes @selected where that type stands") });
+            expect(fails({ members: [selecting({ result: 'Number' })] }).message).toMatch(/in the module 'charts', in the declaration 'report', at 'result'\)?$/);
+            expect(fails({ members: [functionDeclaration({ result: '@selected' })] })).toMatchObject({ declaration: 'zoom', declarationKey: 'result', message: expect.stringContaining('Its result writes @selected, and none of its parameters selects a type') });
         });
     });
 
@@ -237,15 +238,15 @@ describe('LexicaModule', () => {
         });
 
         it('are each named once, as a name is, and never receiver, which names an observation\'s receiver', () => {
-            expect(fails([{ name: 'chart-area' }])).toMatchObject({ declaration: 'chart-area', field: 'name' });
+            expect(fails([{ name: 'chart-area' }])).toMatchObject({ declaration: 'chart-area', declarationKey: 'name' });
             expect(fails([{ name: 'receiver' }]).message).toContain("'receiver' names an observation's receiver");
             expect(fails([{ name: 'page' }, { name: 'page' }]).message).toContain("The observation target 'page' is declared twice");
         });
 
         it('say from: \'receiver\' and count: \'many\', or leave them out, and declare nothing else', () => {
-            expect(fails([{ name: 'page', from: 'Document' }])).toMatchObject({ declaration: 'page', field: 'from' });
-            expect(fails([{ name: 'page', count: 2 }])).toMatchObject({ declaration: 'page', field: 'count' });
-            expect(fails([{ name: 'page', scope: 'all' }])).toMatchObject({ declaration: 'page', field: 'scope' });
+            expect(fails([{ name: 'page', from: 'Document' }])).toMatchObject({ declaration: 'page', declarationKey: 'from' });
+            expect(fails([{ name: 'page', count: 2 }])).toMatchObject({ declaration: 'page', declarationKey: 'count' });
+            expect(fails([{ name: 'page', scope: 'all' }])).toMatchObject({ declaration: 'page', declarationKey: 'scope' });
             expect(fails([null]).message).toContain('An observation target is an object declaring name, from, count');
         });
     });
@@ -296,7 +297,7 @@ describe('LexicaModule', () => {
 
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'resize', of: { argument: 'other' } }], { kind: 'function', arguments: 'positional', parameters })] })).not.toThrow();
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'event', of: 'window', types: ['focus'] }, { type: 'visibility', of: 'parent' }])] })).not.toThrow();
-            expect(fails({ members: [observed([{ type: 'resize', of: 'chart-area' }])] })).toMatchObject({ declaration: 'charts', field: 'updates.observations' });
+            expect(fails({ members: [observed([{ type: 'resize', of: 'chart-area' }])] })).toMatchObject({ declaration: 'charts', declarationKey: 'updates.observations' });
             expect(fails({ members: [observed([{ type: 'resize', of: { argument: 'missing' } }])] }).message).toContain('observes the receiver, an argument of the member or an observation target by its name');
             expect(fails({ members: [observed([{ type: 'resize' }])] }).message).toContain('observes the receiver');
         });
@@ -329,7 +330,7 @@ describe('LexicaModule', () => {
 
         it('are named for a type that is a name, in a list', () => {
             expect(fails({ members: [observed([{ type: 'Not a name', of: 'receiver' }])] }).message).toContain('names its type as a name is');
-            expect(fails({ members: [observed('resize')] })).toMatchObject({ field: 'updates.observations' });
+            expect(fails({ members: [observed('resize')] })).toMatchObject({ declarationKey: 'updates.observations' });
             expect(() => new LexicaModule('charts', { members: [observed([attributes])] })).not.toThrow();
         });
     });
@@ -431,7 +432,7 @@ describe('LexicaModule', () => {
 
     describe('observation types', () => {
         const type = overrides => ({ name: 'ticks', contract: 'invalidation', ...overrides });
-        const refused = (overrides, field, fragment) => refusal({ observationTypes: [type(overrides)] }, overrides.name ?? 'ticks', field, fragment);
+        const refused = (overrides, declarationKey, fragment) => refusal({ observationTypes: [type(overrides)] }, overrides.name ?? 'ticks', declarationKey, fragment);
 
         it('are kept as data, with the arguments of their identity, whether they are shared, and their implementation', () => {
             const implementation = () => ({ stop() {} });
@@ -467,10 +468,10 @@ describe('conversions', () => {
         ['a list', { to: 'List<Number>' }, 'to'],
         ['a nullable type', { from: 'String?' }, 'from'],
         ['null', { to: 'null' }, 'to'],
-    ])('convert between types of data alone, never %s', (_, overrides, field) => {
+    ])('convert between types of data alone, never %s', (_, overrides, declarationKey) => {
         const refused = refusalOf(() => declaring([conversion(overrides)]));
 
-        expect(refused.field).toBe(field);
+        expect(refused.declarationKey).toBe(declarationKey);
         expect(refused.message).toContain('A conversion is from a type of data to another');
     });
 
@@ -479,8 +480,8 @@ describe('conversions', () => {
     });
 
     it('take from, to and implementation alone, the implementation a function', () => {
-        expect(refusalOf(() => declaring([conversion({ function: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', field: 'function' });
-        expect(refusalOf(() => declaring([conversion({ implementation: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', field: 'implementation' });
+        expect(refusalOf(() => declaring([conversion({ function: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'function' });
+        expect(refusalOf(() => declaring([conversion({ implementation: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'implementation' });
     });
 
     it('take to as a member name, a property, a function call or an indexer, since it converts only after a value', () => {

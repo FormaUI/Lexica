@@ -39,5 +39,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     await writeFile(bundlePath, text);
     await copyFile(resolve(root, 'src', 'lexica.d.ts'), declarationsPath);
 
-    console.log(`Bundled ${Buffer.byteLength(text)} bytes of Lexica ${Versions.runtime} to ${bundlePath}, with its declarations beside it`);
+    console.log(`Bundled ${Buffer.byteLength(text)} bytes of Lexica ${Versions.implementation} to ${bundlePath}, with its declarations beside it`);
 }

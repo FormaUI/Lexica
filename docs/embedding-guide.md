@@ -60,7 +60,7 @@ const resolution = registry.resolve('{ price = product.price, cut = product.disc
 
 resolution.type;                       // '{ price: Price, cut: Number }'
 resolution.typeAt(['price', 'amount']); // 'Number'
-resolution.usedDeclarations.map(used => used.name); // ['String.price', 'String.discount']
+resolution.usedDeclarations.map(used => used.qualifiedName); // ['String.price', 'String.discount']
 ```
 
 `registry.createBindings` asks the registry's modules which values are references, by each module's `typeOf`, keeps each reference as it is and a frozen copy of the data, so later changes to the original data never reach a script; the bindings are that registry's alone. A resolution is reused for bindings of the same types and the same primitive values.
@@ -74,7 +74,7 @@ const evaluator = resolution.createEvaluator(bindings, { catalog: { tea: 4.5 } }
 const { value, metadata } = evaluator.evaluate();
 
 value;                           // { price: { amount: 4.5, currency: 'EUR' }, cut: 10 }
-metadata.fields.price.tolerance; // 0.01
+metadata.objectFields.price.tolerance; // 0.01
 ```
 
 The result is frozen throughout and holds only data. Evaluate again whenever the host's state may have changed; each evaluation answers a new result and leaves earlier ones as they were.

@@ -21,7 +21,7 @@ describe('the package', () => {
             const resolution = lexica.createRegistry().resolve('{ total = price * quantity }', { price: 2, quantity: 3 });
             const { value, metadata } = resolution.createEvaluator({ price: 2, quantity: 3 }).evaluate();
 
-            console.log(JSON.stringify({ value, type: resolution.type, tolerance: metadata.fields.total.tolerance }));
+            console.log(JSON.stringify({ value, type: resolution.type, tolerance: metadata.objectFields.total.tolerance }));
         `);
 
         expect(error).toBe('');

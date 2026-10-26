@@ -27,10 +27,10 @@
         <None Include="..\README.md" Pack="true" PackagePath="\" Visible="false" />
     </ItemGroup>
 
-    <!-- The version: the runtime release version src/language/Versions.mjs declares, so the package, the bundle and the sources report one version. -->
+    <!-- The version: the implementation's release version src/language/Versions.mjs declares, so the package, the bundle and the sources report one version. -->
     <PropertyGroup>
         <VersionsSource>$(MSBuildProjectDirectory)\..\src\language\Versions.mjs</VersionsSource>
-        <Version>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(VersionsSource)')), '(?s)^.*runtime = \x27([^\x27]+)\x27.*$', '$1'))</Version>
+        <Version>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(VersionsSource)')), '(?s)^.*implementation = \x27([^\x27]+)\x27.*$', '$1'))</Version>
         <PackageVersion>$(Version)</PackageVersion>
     </PropertyGroup>
 

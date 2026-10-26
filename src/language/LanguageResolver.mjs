@@ -1462,7 +1462,7 @@ export class LanguageResolver {
         };
         const type = receiver?.isNullable === true || resolved.isNullable ? declared.toNullable() : declared;
 
-        return { result: { type, kind: LanguageResolver.#getResultKind(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution, use: { declaration, name, pointer } };
+        return { result: { type, kind: LanguageResolver.#getResultKind(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution, use: { declaration, qualifiedName: name, pointer } };
     }
 
     /** Stores an invocation's resolution at its pointer and records the use of its declaration, where it chose one, answering its result. */
@@ -1559,7 +1559,7 @@ export class LanguageResolver {
 
             const type = this.#moduleRegistry.getDeclaredType(declaration, declaration.result);
 
-            this.#usedDeclarations.push({ declaration, name: written, pointer });
+            this.#usedDeclarations.push({ declaration, qualifiedName: written, pointer });
             this.#resolutions.set(pointer, { kind: 'invocation', declaration, type, arguments: [] });
 
             return { type, kind: 'value', isFixed: false };
@@ -1666,7 +1666,7 @@ export class LanguageResolver {
 
         const [declaration] = selected;
 
-        this.#usedDeclarations.push({ declaration, name: written, pointer });
+        this.#usedDeclarations.push({ declaration, qualifiedName: written, pointer });
         this.#resolutions.set(pointer, { kind: 'functionReference', declaration });
 
         return { type: Type.createFunctionType([this.#getModuleFunctionEntry(declaration)]), kind: 'value', isFixed: false };

@@ -59,7 +59,7 @@ describe('host calls', () => {
         expect(resolution.hostCall).toEqual({ name: 'dim', declaration: home.members[0] });
         expect(Object.isFrozen(resolution.hostCall)).toBe(true);
         expect(registry.getDeclaringModuleName(resolution.hostCall.declaration)).toBe('home');
-        expect(resolution.usedDeclarations.map(({ name, pointer }) => [name, pointer])).toEqual([['String.dim', '/expression']]);
+        expect(resolution.usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['String.dim', '/expression']]);
         expect(resolve('light.room').hostCall).toBeNull();
     });
 
@@ -191,9 +191,9 @@ describe('prepared calls', () => {
         const evaluated = resolve(`${local}{ via = o.v }`, bindings, [module]).createEvaluator(bindings).evaluate();
         const prepared = resolve(`${local}light.dim({ to = 40 }) { via = o.v }`, bindings, [module]).createEvaluator(bindings).prepareHostCall();
 
-        expect(evaluated.metadata.fields.via.tolerance).toBe(0.1);
-        expect(prepared.project(40).metadata.fields.via.tolerance).toBe(0.1);
-        expect(prepared.project(30).metadata.fields.via.tolerance).toBe(0.1);
+        expect(evaluated.metadata.objectFields.via.tolerance).toBe(0.1);
+        expect(prepared.project(40).metadata.objectFields.via.tolerance).toBe(0.1);
+        expect(prepared.project(30).metadata.objectFields.via.tolerance).toBe(0.1);
     });
 
     it('project each value their host supplies, checked against the type the call declares, answering as an evaluation does', () => {

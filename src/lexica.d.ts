@@ -105,8 +105,8 @@ export interface LexicaErrorLocation {
     binding?: string;
     module?: string;
     declaration?: string;
-    /** The field of the declaration a module error is about, as `updates.misses`. */
-    field?: string;
+    /** The declaration key a module error is about, as `updates.misses`. */
+    declarationKey?: string;
 }
 
 /** A failure of Lexica, in the stage it happened in, and where. Its `name` is `LexicaError`. */
@@ -167,7 +167,7 @@ export interface LexicaUpdates {
     observations?: LexicaObservationDeclaration[];
 }
 
-/** What an implementation of an observation type receives: the request it observes, the function it calls when something may have changed, and the environment. */
+/** What an implementation of an observation type receives: the request it observes, `{ type, target, arguments }`, as the specification's observation types define it, the function it calls when something may have changed, and the environment. */
 export interface LexicaObservationImplementationInput {
     readonly request: Readonly<Record<string, unknown>>;
     readonly notify: () => void;
@@ -333,14 +333,14 @@ export interface LexicaModule {
 
 /**
  * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution,
- * with one candidate selected, produced two values; the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the records of the fields
+ * with one candidate selected, produced two values; the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the records of the object fields
  * an object expression built and of the items a projection built, with the input each item came from, a list no projection built having no sources. A part with no record inherits its parent's origin and tolerance,
  * and a record's null tolerance overrides it.
  */
 export interface LexicaResultMetadata {
     readonly origin: object;
     readonly tolerance: number | null;
-    readonly fields?: Readonly<Record<string, LexicaResultMetadata>>;
+    readonly objectFields?: Readonly<Record<string, LexicaResultMetadata>>;
     readonly items?: readonly LexicaResultMetadata[];
     readonly sources?: readonly LexicaProjectionSource[];
 }
@@ -404,10 +404,13 @@ export interface LexicaSkippedCall {
     readonly location: LexicaErrorLocation;
 }
 
-/** A declaration a resolution uses, with the name a message gives it and where it is used. */
+/** A declaration a resolution uses, with its names and where it is used. */
 export interface LexicaUsedDeclaration {
     readonly declaration: object;
+    /** Its declared name, as `total`. */
     readonly name: string;
+    /** The name a message gives it: qualified by the type its declaration is for, as `String.total`, or by its module, as `shop.greet`, for a module member or a function referenced through its namespace; its declared name alone for any receiver. */
+    readonly qualifiedName: string;
     readonly pointer: string;
 }
 
@@ -491,7 +494,7 @@ export interface LexicaPaths {
 /** The versions an implementation of Lexica reports, which change apart. */
 export interface LexicaVersions {
     /** The implementation's release version, which the packages and the bundle carry. */
-    readonly runtime: string;
+    readonly implementation: string;
     /** The language specification version the implementation follows. */
     readonly language: string;
     /** The definition format version the implementation supports. */
