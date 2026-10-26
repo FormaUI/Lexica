@@ -844,7 +844,7 @@ export class DefinitionValidator {
         this.#requireArray(node.fields, `${pointer}/fields`);
 
         if (node.fields.length === 0) {
-            this.#fail('LEXICA2009', pointer, 'An object expression names at least one field');
+            this.#fail('LEXICA2009', pointer, 'An object expression names at least one object field');
         }
 
         const fieldContextAvailability = target === undefined ? contextAvailability : ContextAvailability.present;

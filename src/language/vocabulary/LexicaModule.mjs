@@ -748,13 +748,13 @@ export class LexicaModule {
         }
 
         if (member.syntax === 'indexer') {
-            fail('LEXICA4053', 'A host call is written as a function call, never as an indexer', name, 'syntax');
+            fail('LEXICA4053', 'A function the host invokes is written as a function call, never as an indexer', name, 'syntax');
         }
 
         const unprepared = parameters.find(parameter => parameter.kind !== 'value');
 
         if (unprepared !== undefined) {
-            fail('LEXICA4056', `A host call takes value parameters alone, each argument prepared as a value its host keeps, and '${unprepared.name}' is ${unprepared.kind === 'expression' ? 'an' : 'a'} ${unprepared.kind} parameter`, name, 'parameters');
+            fail('LEXICA4056', `A function the host invokes takes value parameters alone, each argument prepared as a value its host keeps, and '${unprepared.name}' is ${unprepared.kind === 'expression' ? 'an' : 'a'} ${unprepared.kind} parameter`, name, 'parameters');
         }
     }
 

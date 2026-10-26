@@ -1057,7 +1057,7 @@ export class LanguageResolver {
     #resolveParameter(node, pointer, scope) {
         // A name a text wrote alone, which no local in scope has, reads the script parameter of its name, and one the host did not bind may be a member written without its receiver; one written with `~`, or a definition's, names a script parameter alone, which reads no local.
         if (!this.#bindings.has(node.name) && !DefinitionValidator.isWrittenAlone(node)) {
-            const local = scope.locals.has(node.name) ? `, and '~${node.name}' reads a script parameter alone: write '${Names.needsPrefix(node.name, this.#namespaceNames) ? '@' : ''}${node.name}' for the local or field of that name` : '';
+            const local = scope.locals.has(node.name) ? `, and '~${node.name}' reads a script parameter alone: write '${Names.needsPrefix(node.name, this.#namespaceNames) ? '@' : ''}${node.name}' for the local, object field, conditional binding or function parameter of that name` : '';
 
             this.#fail('LEXICA3051', `No script parameter is named '${node.name}'${local}`, pointer);
         }
@@ -1908,13 +1908,13 @@ export class LanguageResolver {
         }
 
         if (given.length > 1) {
-            this.#fail('LEXICA3058', `'${declaration.name}' takes its arguments as the fields of one object, as { ${parameters[0].name} = … }`, given[1].pointer);
+            this.#fail('LEXICA3058', `'${declaration.name}' takes its arguments as the object fields of one object, as { ${parameters[0].name} = … }`, given[1].pointer);
         }
 
         const [options] = given;
 
         if (options.node.kind !== 'object' || options.node.target !== undefined) {
-            this.#fail('LEXICA3057', `'${declaration.name}' takes its arguments as the fields of an object, as { ${parameters[0].name} = … }`, options.pointer);
+            this.#fail('LEXICA3057', `'${declaration.name}' takes its arguments as the object fields of an object, as { ${parameters[0].name} = … }`, options.pointer);
         }
 
         options.node.fields.forEach((field, index) => {

@@ -162,8 +162,8 @@ describe('LexicaModule', () => {
         });
 
         it('are written as a function call and take value parameters alone', () => {
-            refusal({ members: [hostCall({ syntax: 'indexer' })] }, 'dim', 'syntax', 'A host call is written as a function call');
-            refusal({ members: [hostCall({ parameters: [parameter({ name: 'by', kind: 'expression', context: 'item' })] })] }, 'dim', 'parameters', "A host call takes value parameters alone, each argument prepared as a value its host keeps, and 'by' is an expression parameter");
+            refusal({ members: [hostCall({ syntax: 'indexer' })] }, 'dim', 'syntax', 'A function the host invokes is written as a function call, never as an indexer');
+            refusal({ members: [hostCall({ parameters: [parameter({ name: 'by', kind: 'expression', context: 'item' })] })] }, 'dim', 'parameters', "A function the host invokes takes value parameters alone, each argument prepared as a value its host keeps, and 'by' is an expression parameter");
             refusal({ members: [hostCall({ parameters: [parameter({ name: 'f', kind: 'function', parameters: [], nulls: undefined })] })] }, 'dim', 'parameters', "'f' is a function parameter");
         });
     });

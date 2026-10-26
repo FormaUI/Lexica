@@ -250,7 +250,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4021` | A function parameter on anything but a function the evaluator invokes | A module error naming the parameter |
 | `LEXICA4054` | A function parameter that is optional or has a null policy | A module error naming the parameter |
 | `LEXICA4055` | A function parameter an observation is given | A module error naming the parameter |
-| `LEXICA4056` | A host call taking a parameter other than a value parameter | A module error naming the parameter |
+| `LEXICA4056` | A function the host invokes taking a parameter other than a value parameter | A module error naming the parameter |
 | `LEXICA4022` | A module member that is an indexer or an operator | A module error naming the member |
 | `LEXICA4057` | A module member that observes its receiver or a target found from one | A module error naming the member |
 | `LEXICA4023` | `updates` without `changes` or `reads` | A module error naming the member and the declaration key |

@@ -141,7 +141,7 @@ An identifier must follow `@` directly, and a keyword alone does not read a loca
 | Form | Diagnostic guidance |
 | --- | --- |
 | `@ it` or `@` | An identifier must follow `@` directly. |
-| `to` in a value position | `Found 'to', a keyword: write '@to' for the local or field of that name`. |
+| `to` in a value position | `Found 'to', a keyword: write '@to' for the local, object field, conditional binding or function parameter of that name`. |
 
 <a id="names-and-reserved-words-reserved-words-in-strings"></a>
 

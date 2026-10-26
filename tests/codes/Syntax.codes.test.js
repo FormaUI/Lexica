@@ -80,6 +80,7 @@ describe('the codes of syntax errors', () => {
             const registry = createShopRegistry();
 
             expectCode('LEXICA1506', ['shop', 'shop?.open'], text => registry.parse(text));
+            expect(getError(() => registry.parse('shop')).message).toContain("write '@shop' for the local, object field, conditional binding or function parameter of that name, or '~shop' for the script parameter");
         });
 
         it('gives LEXICA1001 to a comparison operator written with whitespace inside it', () => {
@@ -101,6 +102,7 @@ describe('the codes of syntax errors', () => {
 
         it('gives LEXICA1010 to a keyword where a value stands', () => {
             expectCode('LEXICA1010', ['1 + as', '{ a = to }', 'to Number', 'a + then', 'if a then end']);
+            expect(getError(() => lexica.parse('{ a = to }')).message).toContain("Found 'to', a keyword: write '@to' for the local, object field, conditional binding or function parameter of that name");
         });
 
         it('gives LEXICA1011 to a member name after a value without its dot', () => {

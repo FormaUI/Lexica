@@ -286,7 +286,7 @@ export class Parser {
         if (this.#token.type !== ')') {
             for (;;) {
                 if (this.#startsNamedArgument()) {
-                    const options = isMember ? `; a member that takes options is given them as the fields of an object, as { ${this.#token.value} = … }` : '';
+                    const options = isMember ? `; a member that takes options is given them as the object fields of an object, as { ${this.#token.value} = … }` : '';
 
                     throw this.#fail('LEXICA1012', `An argument is written as its value alone, as '${written}(…)' takes it${options}`, this.#token.start);
                 }
@@ -701,7 +701,7 @@ export class Parser {
         }
 
         if (this.#tokens[this.#index + 1].type === '=') {
-            throw this.#unexpected('LEXICA1000', "',' before the next field");
+            throw this.#unexpected('LEXICA1000', "',' before the next object field");
         }
 
         const written = this.#text.slice(start, this.#tokens[this.#index - 1].end);
@@ -1031,7 +1031,7 @@ export class Parser {
                     // A `return`, or a `let` and the name of the local it declares, where a value stands is a declaration or a result written where only a value may stand.
                     const declares = token.value === 'return' || (token.value === 'let' && this.#isWord(next));
 
-                    throw this.#fail(declares ? 'LEXICA1032' : 'LEXICA1010', `Found '${token.value}', a keyword: write '@${token.value}' for the local or field of that name`, token.start);
+                    throw this.#fail(declares ? 'LEXICA1032' : 'LEXICA1010', `Found '${token.value}', a keyword: write '@${token.value}' for the local, object field, conditional binding or function parameter of that name`, token.start);
                 }
 
                 throw this.#unexpected('LEXICA1010', 'a value');
@@ -1052,7 +1052,7 @@ export class Parser {
             const isOptional = this.#token.type === '?.';
             const access = isOptional ? `A namespace is never null, so its members are read after '.': write '${name}.…'` : `'${name}' is the namespace of the module of that name, whose members are read after a dot, as ${name}.member`;
 
-            throw this.#fail('LEXICA1506', `${access}; write '@${name}' for the local or field of that name, or '~${name}' for the script parameter`, isOptional ? this.#token.start : namespaceName.start);
+            throw this.#fail('LEXICA1506', `${access}; write '@${name}' for the local, object field, conditional binding or function parameter of that name, or '~${name}' for the script parameter`, isOptional ? this.#token.start : namespaceName.start);
         }
 
         const dot = this.#take();
@@ -1276,7 +1276,7 @@ export class Parser {
 
             if (this.#token.type !== ',') {
                 // An object expression closed after its local holds no field.
-                throw this.#unexpected(this.#token.type === '}' ? 'LEXICA1018' : 'LEXICA1000', "',' after the local, which the fields follow");
+                throw this.#unexpected(this.#token.type === '}' ? 'LEXICA1018' : 'LEXICA1000', "',' after the local, which the object fields follow");
             }
 
             children.push(this.#take());
@@ -1285,7 +1285,7 @@ export class Parser {
         if (this.#token.type === '}') {
             const example = locals > 0 ? '{ let climate = it.climate, warmth = climate?.temperature }' : '{ size = it.size }';
 
-            throw this.#fail('LEXICA1018', `An object expression holds at least one field${locals > 0 ? ' after its locals' : ''}, as ${example}`, this.#token.start);
+            throw this.#fail('LEXICA1018', `An object expression holds at least one object field${locals > 0 ? ' after its locals' : ''}, as ${example}`, this.#token.start);
         }
 
         while (this.#token.type !== '}') {
@@ -1327,12 +1327,12 @@ export class Parser {
     /** Reads a field: its name, `=` and its value. */
     #parseField() {
         if (this.#startsLocal()) {
-            throw this.#fail('LEXICA1504', 'A local is written before the fields of its object expression', this.#token.start);
+            throw this.#fail('LEXICA1504', 'A local is written before the object fields of its object expression', this.#token.start);
         }
 
         if (!this.#startsEntry()) {
             // A field written without its name, and a `return` among the fields, each have a code of their own.
-            this.#refuseName(this.#isKeyword('return') ? 'LEXICA1033' : 'LEXICA1051', 'A field takes its value after =', 'A field is written with its name and = before its value, as size = it.size', '');
+            this.#refuseName(this.#isKeyword('return') ? 'LEXICA1033' : 'LEXICA1051', 'An object field takes its value after =', 'An object field is written with its name and = before its value, as size = it.size', '');
         }
 
         return Parser.#node('field', [this.#take(), this.#take(), this.#parseExpression()]);
