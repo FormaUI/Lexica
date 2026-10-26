@@ -210,6 +210,15 @@ describe('LexicaRegistry', () => {
         });
     });
 
+    it('names the module each declaration belongs to once its module is registered, and none for a refused module\'s, which it records as registration starts', () => {
+        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [functionDeclaration({ name: 'zoom' })] })]);
+        const refused = new LexicaModule('broken', { types: [{ name: 'Box', fields: { width: 'Number' } }], members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] });
+
+        expect(() => registry.registerModule(refused)).toThrow("names the type 'Nothing'");
+        expect([refused.types[0], refused.members[0]].map(declaration => registry.getDeclaringModuleName(declaration))).toEqual([undefined, undefined]);
+        expect(registry.getDeclaringModuleName(registry.getReceiverMembers('zoom')[0])).toBe('charts');
+    });
+
     it('refuses a type declared twice in its module, and takes one name in two modules, each type its own', () => {
         const pings = (name, types = [{ name: 'Ping', fields: { at: 'Number' } }]) => new LexicaModule(name, { types });
 
