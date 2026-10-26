@@ -77,6 +77,19 @@ describe('Evaluator', () => {
         expect(requests[0]).toMatchObject({ receiver: 'tea', args: {}, pointer: '/expression/fields/0/value' });
     });
 
+    it('names a member invoked within a script function\'s body by the part of the body it is, which the definition holds, whichever call reached it', () => {
+        const text = 'let f = function(n) return n.price end\nreturn { a = f(name), b = f(other) }';
+        const requests = [];
+
+        createEvaluator(text, { name: 'tea', other: 'milk' }).evaluate({ beforeInvoke: request => void requests.push(request) });
+
+        expect(requests.map(({ receiver, pointer }) => ({ receiver, pointer }))).toEqual([
+            { receiver: 'tea', pointer: '/expression/locals/0/value/body/result' },
+            { receiver: 'milk', pointer: '/expression/locals/0/value/body/result' },
+        ]);
+        expect(ParsedTexts.locationsOf(ParsedTexts.parse(text)).locate(requests[0].pointer)).toMatchObject({ line: 1, column: 28 });
+    });
+
     it('calls the hooks for the invocations an evaluation reaches alone', () => {
         const host = createHost();
         const invoked = [];
