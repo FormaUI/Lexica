@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
+import { evaluateWith, resolveWith } from './support/pipeline.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
@@ -15,10 +16,10 @@ const createText = () => lexica.createModule('text', {
 });
 
 /** The value the text gives, read through the text module with the bindings. */
-const evaluate = (text, bindings) => lexica.createRegistry([createText()]).resolve(text, bindings).createEvaluator(bindings).evaluate().value;
+const evaluate = (text, bindings) => evaluateWith([createText()], text, bindings);
 
 /** The error resolving the text through the text module with the bindings throws. */
-const refusalOf = (text, bindings) => errorThrownBy(() => lexica.createRegistry([createText()]).resolve(text, bindings));
+const refusalOf = (text, bindings) => errorThrownBy(() => resolveWith([createText()], text, bindings));
 
 describe('indexers and computed properties', () => {
     describe('in text and definitions', () => {

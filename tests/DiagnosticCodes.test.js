@@ -1,13 +1,11 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import { repositoryRoot } from './support/paths.mjs';
 
 /** The codes a document's table rows begin with, each row's first cell holding them, the table of ranges aside. */
 const codesOfTable = (file, section) => {
-    const text = readFileSync(join(root, file), 'utf8');
+    const text = readFileSync(join(repositoryRoot, file), 'utf8');
     const start = section === undefined ? 0 : text.indexOf(section);
     const end = section === undefined ? text.length : text.indexOf('\n## ', start + section.length);
     return text
@@ -27,7 +25,7 @@ const sourcesOf = folder =>
 const retired = new Set(codesOfTable('spec/diagnostics-and-errors.md', '## Retired codes'));
 const catalog = new Set(codesOfTable('spec/diagnostics-and-errors.md').filter(code => !retired.has(code)));
 const temporary = new Set(codesOfTable('docs/features-status.md', '## Temporary implementation coverage'));
-const used = new Set(sourcesOf(join(root, 'src')).flatMap(source => [...source.matchAll(/'(LEXICA\d{4})'/g)].map(match => match[1])));
+const used = new Set(sourcesOf(join(repositoryRoot, 'src')).flatMap(source => [...source.matchAll(/'(LEXICA\d{4})'/g)].map(match => match[1])));
 
 describe('the diagnostic codes', () => {
     it('each code the sources raise is in the catalog or among the temporary codes', () => {

@@ -1,10 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { repositoryRoot } from './support/paths.mjs';
 
 // Lexica's sources, which depend on nothing outside them.
-const lexica = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'src');
+const lexica = resolve(repositoryRoot, 'src');
 
 /** Every module under the folder, by its path. */
 const modulesOf = folder => readdirSync(folder, { withFileTypes: true }).flatMap(entry => (entry.isDirectory() ? modulesOf(join(folder, entry.name)) : entry.name.endsWith('.mjs') ? [join(folder, entry.name)] : []));

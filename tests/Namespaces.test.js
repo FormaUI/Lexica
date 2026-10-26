@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
+import { resolveWith } from './support/pipeline.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
@@ -36,7 +37,7 @@ const evaluate = (text, bound = values) => {
 };
 
 /** The resolution of the text against a registry of the shop. */
-const resolve = (text, bound = values) => lexica.createRegistry([createShop()]).resolve(text, bound);
+const resolve = (text, bound = values) => resolveWith([createShop()], text, bound);
 
 describe("a registry's text", () => {
     const registry = lexica.createRegistry([createShop()]);

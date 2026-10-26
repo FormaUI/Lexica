@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
+import { evaluateWithCreatedBindings, resolveWith } from './support/pipeline.mjs';
 
 const { property, functionParameter, valueParameter, expressionParameter, predicateParameter } = lexica.declarations;
 
@@ -51,15 +52,10 @@ const createPantry = (held = {}) => {
 const values = { words: ['oat', 'milk', 'rye'], gaps: ['oat', null], flag: true, chosen: 'rye' };
 
 /** What the text evaluates to against a registry of the pantry. */
-const evaluate = (text, bound = values) => {
-    const registry = lexica.createRegistry([createPantry()]);
-    const bindings = registry.createBindings(bound);
-
-    return registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
-};
+const evaluate = (text, bound = values) => evaluateWithCreatedBindings([createPantry()], text, bound);
 
 /** The resolution of the text against a registry of the pantry. */
-const resolve = (text, bound = values) => lexica.createRegistry([createPantry()]).resolve(text, bound);
+const resolve = (text, bound = values) => resolveWith([createPantry()], text, bound);
 
 describe('the implicit parameter', () => {
     describe('of an expression argument', () => {

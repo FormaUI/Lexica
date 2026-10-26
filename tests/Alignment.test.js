@@ -1,13 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
 import { Versions } from '#lexica/language/Versions.mjs';
+import { repositoryRoot } from './support/paths.mjs';
 
 // A path from the repository root, read as text.
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const read = path => readFileSync(resolve(root, path), 'utf8');
+const read = path => readFileSync(resolve(repositoryRoot, path), 'utf8');
 
 describe('Alignment', () => {
     const specification = read('spec/README.md');

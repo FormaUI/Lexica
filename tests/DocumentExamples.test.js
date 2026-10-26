@@ -1,14 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
-
-const here = dirname(fileURLToPath(import.meta.url));
+import { repositoryRoot } from './support/paths.mjs';
 
 /** The `lexica` blocks of a document, in order, each with the line its fence opens on. */
 const blocksOf = file => {
-    const lines = readFileSync(resolve(here, '..', file), 'utf8').split('\n');
+    const lines = readFileSync(resolve(repositoryRoot, file), 'utf8').split('\n');
     const blocks = [];
     let block = null;
 

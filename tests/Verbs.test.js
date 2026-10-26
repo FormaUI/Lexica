@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
+import { resolveWith } from './support/pipeline.mjs';
 
 const { property, functionParameter } = lexica.declarations;
 
@@ -47,7 +48,7 @@ const evaluate = (text, bound = values) => {
 };
 
 /** The resolution of the text against a registry of the pantry. */
-const resolve = (text, bound = values) => lexica.createRegistry([createPantry()]).resolve(text, bound);
+const resolve = (text, bound = values) => resolveWith([createPantry()], text, bound);
 
 describe('the verbs', () => {
     it('take a test in any form a function argument takes: an arrow function, a function a name holds, a module\'s function by reference, or an implicit body', () => {

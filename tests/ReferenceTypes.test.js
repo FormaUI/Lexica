@@ -3,6 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Device, Light, Room, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
+import { evaluateWithCreatedBindings } from './support/pipeline.mjs';
 
 const { property, function: fn, valueParameter } = lexica.declarations;
 
@@ -24,12 +25,7 @@ const kitchen = new Room('kitchen', [lamp, heater]);
 const home = () => lexica.createRegistry([createHome()]);
 
 /** What the text evaluates to, bound to the values given against a registry of the home. */
-const evaluate = (text, values) => {
-    const registry = home();
-    const bindings = registry.createBindings(values);
-
-    return registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
-};
+const evaluate = (text, values) => evaluateWithCreatedBindings([createHome()], text, values);
 
 describe('reference types', () => {
     it('type a binding as the most specific type its module recognizes, and keep the reference itself', () => {

@@ -3,6 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { hostFunctionDeclaration } from './support/declarations.mjs';
+import { resolveWith } from './support/pipeline.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
@@ -38,7 +39,7 @@ const createHome = (invoked = []) => lexica.createModule('home', {
 const bindings = { light: 'hall', thermostat: 'hall', sensor: 'porch', lit: true };
 
 /** The resolution of the text against a registry holding the home's module, with the home's bindings. */
-const resolve = (text, values = bindings, modules = [createHome()]) => lexica.createRegistry(modules).resolve(text, values);
+const resolve = (text, values = bindings, modules = [createHome()]) => resolveWith(modules, text, values);
 
 describe('host calls', () => {
     it('end a script, whose resolution answers the call by its name and the declaration it resolved to', () => {
