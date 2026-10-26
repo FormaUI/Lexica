@@ -250,7 +250,7 @@ export class DefinitionValidator {
             case 'member':
             case 'call':
             case 'indexer':
-                return this.#validateMember(node, pointer, contextAvailability);
+                return this.#validateMemberAccess(node, pointer, contextAvailability);
             case 'equality':
                 return Object.freeze({
                     kind: 'equality',
@@ -318,7 +318,7 @@ export class DefinitionValidator {
                     fallback: this.#validateNode(node.fallback, `${pointer}/fallback`, contextAvailability),
                 });
             default:
-                return this.#validateObject(node, pointer, contextAvailability);
+                return this.#validateObjectExpression(node, pointer, contextAvailability);
         }
     }
 
@@ -748,7 +748,7 @@ export class DefinitionValidator {
     }
 
     /** Validates a property access, a call or an indexer: its name, its receiver, whether it is optional, which it is within an optional chain alone, and a call's arguments or an indexer's key, each a simple expression whose implicit parameter its declaration decides. */
-    #validateMember(node, pointer, contextAvailability) {
+    #validateMemberAccess(node, pointer, contextAvailability) {
         this.#refuseBlockReceiver(node.target, pointer);
 
         const name = node.kind === 'member' && ObjectUtils.isNonArrayObject(node.name) ? this.#validateNameExpression(node.name, `${pointer}/name`, contextAvailability) : node.name;
@@ -827,7 +827,12 @@ export class DefinitionValidator {
         }
     }
 
-    #validateObject(node, pointer, contextAvailability) {
+    /**
+     * Validates an object expression and answers it in canonical form: the value it follows, never a block, validated outside it; its locals, against the implicit parameter, which the value it follows supplies and the enclosing
+     * one otherwise, none within a simple expression; and its fields, at least one, each a name and a value, no two of one name, each in scope for the fields after it and hiding a local or a field of its name outside it.
+     * Its entries continue no chain of the value it follows, and are validated within the outermost object; the names in scope and whether an object expression encloses them are restored after it.
+     */
+    #validateObjectExpression(node, pointer, contextAvailability) {
         this.#refuseBlockReceiver(node.target, pointer);
 
         const target = node.target === undefined ? undefined : this.#validateNode(node.target, `${pointer}/target`, contextAvailability);

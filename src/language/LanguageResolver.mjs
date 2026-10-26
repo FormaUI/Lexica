@@ -185,7 +185,7 @@ export class LanguageResolver {
             case 'or':
                 return this.#resolveLogical(node, pointer, scope);
             default:
-                return this.#resolveObject(node, pointer, scope);
+                return this.#resolveObjectExpression(node, pointer, scope);
         }
     }
 
@@ -2080,7 +2080,13 @@ export class LanguageResolver {
         return { selected: { name, type: this.#moduleRegistry.getDeclaredType(selectable, selectable.type) } };
     }
 
-    #resolveObject(node, pointer, scope) {
+    /**
+     * Resolves an object expression: the value it follows, resolved outside it, a host call's making it that call's result projection, refused where the call supplies nothing; the implicit parameter of its entries, each item of a
+     * list it follows or the value, a fresh key standing for it, and the enclosing one where it follows none; the outermost object the object root refers to where no object expression encloses it; its locals in order, each against
+     * the scope with those before it; and its fields in order, each a value that is data, holds neither the object root nor a delegate, and is in scope by its name for the fields after it, a field of the outermost object read
+     * through the object root once completed. It answers the object's type, a list of them for a list it follows, nullable where what it follows is.
+     */
+    #resolveObjectExpression(node, pointer, scope) {
         const target = node.target === undefined ? null : this.#resolveNode(node.target, `${pointer}/target`, scope);
 
         if (target?.suppliesNothing === true) {
