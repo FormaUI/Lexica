@@ -97,6 +97,10 @@ describe('the codes of resolution', () => {
         it('LEXICA3012, an unnamed indexer on a type that declares none', () => expectCode('s[0]', 'LEXICA3012'));
         it('LEXICA3012, an unnamed indexer on root', () => expectCode('{ a = 1, b = root[0] }', 'LEXICA3012'));
         it('LEXICA3017, a property called', () => expectCode('s.size()', 'LEXICA3017'));
+        it('LEXICA3017, a property called on a script parameter a local hides, the access to write naming it with ~ as it reads in place', () => {
+            expectCode('let s = 1\nreturn { a = ~s.size() }', 'LEXICA3017');
+            expect(refusalOf('let s = 1\nreturn { a = ~s.size() }', values).message).toContain("write '~s.size'");
+        });
         it('LEXICA3017, a function read without its call', () => expectCode('s.wipe', 'LEXICA3017'));
         it('LEXICA3017, a field of a structured type called', () => expectCode('(s to Cup).size(1)', 'LEXICA3017'));
         it('LEXICA3017, a field of root called', () => expectCode('{ a = 1, b = root.a() }', 'LEXICA3017'));

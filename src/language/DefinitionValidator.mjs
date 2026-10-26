@@ -82,6 +82,12 @@ export class DefinitionValidator {
     /** The parameter nodes of canonical definitions that a text wrote alone, a bare name no local in scope has, rather than with `~`. @type {WeakSet<object>} */
     static #scriptParametersWrittenAlone = new WeakSet();
 
+    /**
+     * The parameter nodes of canonical definitions written with `~`, or given in a definition, whose name a local, an object field, a conditional binding or a function parameter in scope where they stand hides,
+     * or a local or a conditional binding of their scope declares later, which canonical text therefore writes with `~`. @type {WeakSet<object>}
+     */
+    static #hiddenScriptParameters = new WeakSet();
+
     #locations;
 
     /** The index each part of an interpolated string had in the definition being validated, by the canonical node, for each node whose parts validation moved. @type {WeakMap<object, number[]>} */
@@ -126,7 +132,15 @@ export class DefinitionValidator {
         return DefinitionValidator.#scriptParametersWrittenAlone.has(node);
     }
 
-    /** A deep copy of a canonical definition's node, each parameter node a text wrote alone marked as one in the copy too. */
+    /**
+     * Whether a canonical definition's parameter node is a script parameter that a local, an object field, a conditional binding or a function parameter in scope where it stands hides, or a local or a conditional binding
+     * of its scope declares later, so that canonical text writes it with `~`; a parameter written alone is never one, since it reads no name a local in scope has.
+     */
+    static isHidden(node) {
+        return DefinitionValidator.#hiddenScriptParameters.has(node);
+    }
+
+    /** A deep copy of a canonical definition's node, each parameter node a text wrote alone, and each one hidden where it stands, marked as one in the copy too. */
     static copyOf(node) {
         if (Array.isArray(node)) {
             return node.map(item => DefinitionValidator.copyOf(item));
@@ -140,6 +154,10 @@ export class DefinitionValidator {
 
         if (DefinitionValidator.#scriptParametersWrittenAlone.has(node)) {
             DefinitionValidator.#scriptParametersWrittenAlone.add(copy);
+        }
+
+        if (DefinitionValidator.#hiddenScriptParameters.has(node)) {
+            DefinitionValidator.#hiddenScriptParameters.add(copy);
         }
 
         return copy;
@@ -209,23 +227,28 @@ export class DefinitionValidator {
         switch (node.kind) {
             case 'literal':
                 return this.#validateLiteral(node, pointer);
-            case 'parameter':
+            case 'parameter': {
                 if (!Names.isIdentifier(node.name)) {
                     this.#fail('LEXICA2000', `${pointer}/name`, 'A parameter is named by a letter followed by letters and digits');
                 }
 
+                const parameter = Object.freeze({ kind: 'parameter', name: node.name });
+
                 // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; a script parameter written with `~` and a definition's parameter read the script parameter wherever they stand.
                 if (this.#parametersWrittenAloneInText?.has(node) === true) {
                     this.#requireScriptParameterName(node.name, pointer);
-
-                    const parameter = Object.freeze({ kind: 'parameter', name: node.name });
-
                     DefinitionValidator.#scriptParametersWrittenAlone.add(parameter);
 
                     return parameter;
                 }
 
-                return Object.freeze({ kind: 'parameter', name: node.name });
+                // A local, an object field, a conditional binding or a function parameter of its name in scope hides it, and so does a local or a conditional binding declared later in its scope, which a bare name there would read.
+                if (this.#localNames.has(node.name) || this.#laterNames.has(node.name)) {
+                    DefinitionValidator.#hiddenScriptParameters.add(parameter);
+                }
+
+                return parameter;
+            }
             case 'root':
                 // The object root is a reference to the outermost object, which an object expression around the reference builds, lexically.
                 if (!this.#isInObjectExpression) {

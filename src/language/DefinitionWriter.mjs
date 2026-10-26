@@ -2,6 +2,7 @@
  * DefinitionWriter — a definition's node as the Lexica text that writes it, parenthesized where its grouping needs it: on one line, as a diagnostic quotes it, or laid out on lines, as formatting gives its canonical text
  */
 
+import { DefinitionValidator } from './DefinitionValidator.mjs';
 import { Names } from './Names.mjs';
 
 /** The escape the canonical text writes for each character it escapes with a letter or the character itself; any other character it escapes it writes as a Unicode escape. */
@@ -26,7 +27,7 @@ export class DefinitionWriter {
      * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is written with, each reserved as the language's words are; none for text read without a registry.
      */
     static quote(node, namespaceNames = Names.noNamespaceNames) {
-        return DefinitionWriter.#writing(node, namespaceNames, () => DefinitionWriter.#write(node, null));
+        return DefinitionWriter.#writing(namespaceNames, () => DefinitionWriter.#write(node, null));
     }
 
     /**
@@ -36,106 +37,26 @@ export class DefinitionWriter {
      */
     static format(node, namespaceNames = Names.noNamespaceNames) {
         // An expression that is a body writes its bindings and its return alone, which a do block elsewhere encloses.
-        return DefinitionWriter.#writing(node, namespaceNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
+        return DefinitionWriter.#writing(namespaceNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
     }
-
-    /** The parameters a name written alone would not read, which the text being written writes with `~`. @type {WeakSet<object>} */
-    static #parameterReferences = new WeakSet();
 
     /** The namespace names the text being written is written with. @type {ReadonlySet<string>} */
     static #namespaceNames = Names.noNamespaceNames;
 
     /**
-     * What the writing gives with the namespace names in effect and the node's parameters written with `~` marked for them, in the writer's static state, which holds one writing at a time; the state of any writing around it
-     * is restored in `finally`, whether the writing completes or throws.
+     * What the writing gives with the namespace names in effect, in the writer's static state, which holds one writing at a time; the namespace names of any writing around it are restored in `finally`, whether the writing
+     * completes or throws.
      */
-    static #writing(node, namespaceNames, write) {
-        const enclosingReferences = DefinitionWriter.#parameterReferences;
+    static #writing(namespaceNames, write) {
         const enclosingNamespaceNames = DefinitionWriter.#namespaceNames;
 
         try {
             DefinitionWriter.#namespaceNames = namespaceNames;
-            DefinitionWriter.#parameterReferences = new WeakSet();
-            DefinitionWriter.#markParameterReferences(node, new Set(), new Set());
 
             return write();
         } finally {
-            DefinitionWriter.#parameterReferences = enclosingReferences;
             DefinitionWriter.#namespaceNames = enclosingNamespaceNames;
         }
-    }
-
-    /**
-     * Marks each parameter in the node that the text writes with `~`: one a reserved word names, a module's name among them where the text is written with it, or that a local or a field in scope hides,
-     * following the locals and the fields each object expression and the name each conditional binding brings into scope, and those declared later in it.
-     */
-    static #markParameterReferences(node, inScope, later) {
-        if (Array.isArray(node)) {
-            node.forEach(item => DefinitionWriter.#markParameterReferences(item, inScope, later));
-
-            return;
-        }
-
-        if (node === null || typeof node !== 'object') {
-            return;
-        }
-
-        switch (node.kind) {
-            case 'parameter':
-                if (Names.needsPrefix(node.name, DefinitionWriter.#namespaceNames) || inScope.has(node.name) || later.has(node.name)) {
-                    DefinitionWriter.#parameterReferences.add(node);
-                }
-
-                return;
-            case 'object': {
-                DefinitionWriter.#markParameterReferences(node.target, inScope, later);
-
-                const names = (node.locals ?? []).map(local => local.name);
-                let scope = inScope;
-
-                node.locals?.forEach((local, index) => {
-                    DefinitionWriter.#markParameterReferences(local.value, scope, new Set([...later, ...names.slice(index)]));
-                    scope = new Set([...scope, local.name]);
-                });
-                // A field is in scope after its value, through the fields after it.
-                node.fields.forEach(field => {
-                    DefinitionWriter.#markParameterReferences(field.value, scope, later);
-                    scope = new Set([...scope, field.name]);
-                });
-
-                return;
-            }
-            case 'function':
-                DefinitionWriter.#markParameterReferences(node.body, new Set([...inScope, ...node.parameters]), later);
-
-                return;
-            case 'body': {
-                const names = node.locals.map(local => local.name);
-                let scope = inScope;
-
-                node.locals.forEach((local, index) => {
-                    DefinitionWriter.#markParameterReferences(local.value, scope, new Set([...later, ...names.slice(index)]));
-                    scope = new Set([...scope, local.name]);
-                });
-                DefinitionWriter.#markParameterReferences(node.result, scope, later);
-
-                return;
-            }
-            case 'conditional':
-                if (node.binding !== undefined) {
-                    // A binding's value reads no name of its own, which a text writes with `~` for the script parameter, as a local's value does.
-                    DefinitionWriter.#markParameterReferences(node.binding.value, inScope, new Set([...later, node.binding.name]));
-                    DefinitionWriter.#markParameterReferences(node.consequent, new Set([...inScope, node.binding.name]), later);
-                    DefinitionWriter.#markParameterReferences(node.alternative, inScope, later);
-
-                    return;
-                }
-                break;
-            default:
-                break;
-        }
-
-        Object.values(node).forEach(value => DefinitionWriter.#markParameterReferences(value, inScope, later));
     }
 
     /**
@@ -148,7 +69,8 @@ export class DefinitionWriter {
             case 'literal':
                 return DefinitionWriter.#literal(node.value);
             case 'parameter':
-                return DefinitionWriter.#parameterReferences.has(node) ? `~${node.name}` : node.name;
+                // A script parameter a reserved word or a namespace name names, or one hidden where it stands, which validation marks on its canonical node, is written with `~`.
+                return Names.needsPrefix(node.name, DefinitionWriter.#namespaceNames) || DefinitionValidator.isHidden(node) ? `~${node.name}` : node.name;
             case 'it':
                 return 'it';
             case 'root':
