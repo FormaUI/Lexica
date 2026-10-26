@@ -83,6 +83,26 @@ describe('LanguageResolver', () => {
         });
     });
 
+    describe('the object root', () => {
+        /** The code of the error resolving the script fails with. */
+        const codeOf = result => {
+            try {
+                resolve(result);
+            } catch (error) {
+                return error.code;
+            }
+
+            return null;
+        };
+
+        it('reads the fields completed where it is written, a reference written earlier and a scope captured earlier keeping the fields completed there', () => {
+            expect(String(resolve('{ a = 1, b = root.a, c = "x", d = { e = root.c, f = root.b } }').type)).toBe('{ a: Number, b: Number, c: String, d: { e: String, f: Number } }');
+            expect(codeOf('{ a = 1, b = root.c, c = 2 }')).toBe('LEXICA3044');
+            expect(codeOf('{ let peek = () => root.a, a = 1, b = peek() }')).toBe('LEXICA3044');
+            expect(String(resolve('{ a = 1, b = { let peek = () => root.a, c = peek() } }').type)).toBe('{ a: Number, b: { c: Number } }');
+        });
+    });
+
     describe('the name a use is qualified by', () => {
         /** The qualified names `word.fade` uses, where `fade` is a property of the receiver types given, in order. */
         const usesOf = target => {

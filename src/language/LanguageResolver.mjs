@@ -49,7 +49,7 @@ export class LanguageResolver {
 
     /** Resolves and types the definition, answering what it resolved to or throwing where it cannot. */
     resolveDefinition(definition) {
-        const result = this.#resolveTerminal(definition.expression, '/expression', { contextType: null, contextKey: {}, locals: new Map(), facts: NO_FACTS, objectRoot: null });
+        const result = this.#resolveTerminal(definition.expression, '/expression', { contextType: null, contextKey: {}, locals: new Map(), facts: NO_FACTS, objectRootType: null });
 
         // A host call that supplies nothing gives no result, and one that supplies values gives, for each, what its result projection makes of it, or the value itself.
         const type = result.suppliesNothing === true ? null : result.type;
@@ -1936,12 +1936,12 @@ export class LanguageResolver {
 
         // An options object is an object expression: one no other encloses builds the outermost object, whose fields are its options, and any other builds within the one enclosing it; each option is in scope after its value, as a field is.
         const optionsObject = declaration.arguments === 'options' && supplied.size > 0 ? (node.kind === 'indexer' ? node.argument : node.arguments[offset]) : null;
-        const objectExpression = optionsObject !== null && scope.objectRoot === null ? optionsObject : null;
+        const objectExpression = optionsObject !== null && scope.objectRootType === null ? optionsObject : null;
         let argumentScope = scope;
 
         if (objectExpression !== null) {
             this.#objectRootFields.set(objectExpression, new Map());
-            argumentScope = { ...scope, objectRoot: { objectExpression, fieldTypes: new Map() } };
+            argumentScope = { ...scope, objectRootType: Type.createObjectRootType(objectExpression, new Map()) };
         }
 
         // The arguments are resolved in the order they are written, an options object's fields among them, and the parameters left to their defaults after them.
@@ -2020,7 +2020,7 @@ export class LanguageResolver {
 
                 if (objectExpression !== null) {
                     this.#objectRootFields.get(objectExpression).set(parameter.name, { initializer: given.node });
-                    argumentScope = { ...argumentScope, objectRoot: { objectExpression, fieldTypes: new Map(argumentScope.objectRoot.fieldTypes).set(parameter.name, result.type) } };
+                    argumentScope = { ...argumentScope, objectRootType: Type.createObjectRootType(objectExpression, new Map(argumentScope.objectRootType.fieldTypes).set(parameter.name, result.type)) };
                 }
             }
 
@@ -2109,8 +2109,8 @@ export class LanguageResolver {
         }
 
         // An object expression no other encloses builds the outermost object, which the object root refers to; any other builds within that object. Its receiver was resolved outside it.
-        const objectExpression = scope.objectRoot === null ? node : null;
-        let objectRoot = objectExpression === null ? scope.objectRoot : { objectExpression, fieldTypes: new Map() };
+        const objectExpression = scope.objectRootType === null ? node : null;
+        let objectRootType = objectExpression === null ? scope.objectRootType : Type.createObjectRootType(objectExpression, new Map());
 
         if (objectExpression !== null) {
             this.#objectRootFields.set(objectExpression, new Map());
@@ -2119,7 +2119,7 @@ export class LanguageResolver {
         // Each local is resolved where it is written, against the implicit parameter and the locals before it, and every field sees them all.
         let locals = scope.locals;
         // An object expression following no value keeps the implicit parameter around it, so an implicit body it stands in reads that body's own `it`.
-        const scopeHere = () => ({ ...scope, contextType, contextKey, locals, objectRoot });
+        const scopeHere = () => ({ ...scope, contextType, contextKey, locals, objectRootType });
 
         node.locals?.forEach((local, index) => {
             const valuePointer = `${pointer}/locals/${index}/value`;
@@ -2172,7 +2172,7 @@ export class LanguageResolver {
             // A field of the outermost object is completed, and read through a reference to the root written after it, as the value its evaluation gave.
             if (objectExpression !== null) {
                 this.#objectRootFields.get(objectExpression).set(name, { initializer: field.value });
-                objectRoot = { objectExpression, fieldTypes: new Map(objectRoot.fieldTypes).set(name, result.type) };
+                objectRootType = Type.createObjectRootType(objectExpression, new Map(objectRootType.fieldTypes).set(name, result.type));
             }
         });
 
@@ -2189,13 +2189,16 @@ export class LanguageResolver {
         return { type: isNullable ? objectType.toNullable() : objectType, kind, isFixed: false };
     }
 
-    /** Resolves the object root, a reference to the outermost object: its type identifies the object expression that builds it and the fields completed where it is written, the fields it reads. */
+    /**
+     * Resolves the object root, a reference to the outermost object, to the type its scope holds, which identifies the object expression that builds it and the fields completed where it is written, the fields it reads; each
+     * field completed gives a new type with a field map of its own, so a reference written earlier, and a scope captured earlier, keep the fields they saw.
+     */
     #resolveObjectRoot(pointer, scope) {
-        if (scope.objectRoot === null) {
+        if (scope.objectRootType === null) {
             this.#fail('LEXICA2018', "'root' refers to the outermost object being built, and no object expression encloses it here", pointer);
         }
 
-        return { type: Type.createObjectRootType(scope.objectRoot.objectExpression, scope.objectRoot.fieldTypes), kind: 'value', isFixed: false };
+        return { type: scope.objectRootType, kind: 'value', isFixed: false };
     }
 
     /**
