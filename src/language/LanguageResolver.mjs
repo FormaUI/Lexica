@@ -1777,12 +1777,12 @@ export class LanguageResolver {
      */
     #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#moduleRegistry.getReceiverMembers(node.name), offset = 0) {
         const isAccess = node.kind === 'member';
-        const fields = isAccess ? this.#moduleRegistry.getFieldTypes(node.name) : [];
+        const fields = isAccess ? this.#moduleRegistry.getDataPropertyTypes(node.name) : [];
         // A qualified call, a qualified form's or a function reference's, calls a property and a function alike, its receiver its first argument.
         const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#moduleRegistry.formOf(candidate)] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
-            this.#fail(this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
+            this.#fail(this.#moduleRegistry.getDataPropertyTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getDataPropertyTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
         }
 
         if (!isAccess && candidatesInForm.length === 0) {
@@ -2412,7 +2412,7 @@ export class LanguageResolver {
             return type.fieldTypes.get(name) ?? null;
         }
 
-        return this.#moduleRegistry.getFieldType(type, name);
+        return this.#moduleRegistry.getDataShape(type)?.get(name) ?? null;
     }
 
     /** Whether values of the type are data; a structure already being checked counts as data where it holds itself, since its other fields are checked where it is first met. */
@@ -2441,7 +2441,7 @@ export class LanguageResolver {
 
                 checking.add(type.identity);
 
-                return this.#moduleRegistry.getFieldTypesOf(structure).every(([, fieldType]) => this.#isData(fieldType, checking));
+                return [...this.#moduleRegistry.getDataShape(type).values()].every(propertyType => this.#isData(propertyType, checking));
             }
             default:
                 return false;

@@ -181,14 +181,17 @@ describe('LexicaRegistry', () => {
             expect(registry.getMembersDeclaredBy('garden', 'size')).toEqual([]);
         });
 
-        it('find the type of a structured type\'s field by its name, and null for a field it does not declare or a type that is not structured', () => {
+        it('answer a structured type\'s data shape, its data properties and their types in declaration order, kept once read; and null for a type that is no structure', () => {
             const registry = new LexicaRegistry([declaring()]);
             const room = Type.createNamedType('Room', false, 'home');
+            const shape = registry.getDataShape(room);
 
-            expect(registry.getFieldType(room, 'area').toString()).toBe('Number');
-            expect(registry.getFieldType(room, 'width')).toBeNull();
-            expect(registry.getFieldType(room, 'constructor')).toBeNull();
-            expect(registry.getFieldType(Type.createNamedType('String'), 'length')).toBeNull();
+            expect([...shape].map(([name, type]) => [name, type.toString()])).toEqual([['area', 'Number']]);
+            expect(shape.has('constructor')).toBe(false);
+            expect(registry.getDataShape(room)).toBe(shape);
+            expect(registry.getDataShape(Type.createNamedType('String'))).toBeNull();
+            expect(registry.getDataPropertyTypes('area').map(String)).toEqual(['Number']);
+            expect(registry.getDataPropertyTypes('width')).toEqual([]);
         });
     });
 

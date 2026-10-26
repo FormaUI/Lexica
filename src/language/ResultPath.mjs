@@ -80,6 +80,6 @@ export class ResultPath {
             return type.fieldTypes.get(name) ?? null;
         }
 
-        return moduleRegistry.getFieldType(type, name);
+        return moduleRegistry.getDataShape(type)?.get(name) ?? null;
     }
 }

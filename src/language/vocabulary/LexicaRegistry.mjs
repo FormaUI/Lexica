@@ -42,6 +42,9 @@ export class LexicaRegistry {
     /** The type each notation of a declaration writes, every name in it resolved to its identity, by the declaration and then the notation. @type {WeakMap<object, Map<string, Type>>} */
     #declaredTypeCache = new WeakMap();
 
+    /** The data shape of each structured type, by its declaration: valid for good, since a declaration is frozen and the types its notations write are kept for good, and released with the declaration. @type {WeakMap<object, ReadonlyMap<string, Type>>} */
+    #dataShapeCache = new WeakMap();
+
     /** The module being registered, its name and the names of its types, which its own declarations name before it is registered; null between registrations. */
     #pending = null;
 
@@ -404,21 +407,31 @@ export class LexicaRegistry {
         return this.#types.get(type.identity) ?? this.#pending?.types.get(type.identity);
     }
 
-    /** The fields of the structured type, in order, each with its type. @returns {[string, Type][]} */
-    getFieldTypesOf(structure) {
-        return Object.entries(structure.fields).map(([name, text]) => [name, this.getDeclaredType(structure, text)]);
-    }
-
-    /** The type of the field named so that the structured type declares, or null where it declares none, or is no structured type. */
-    getFieldType(type, name) {
+    /**
+     * Returns the structured type's data properties and their types, in declaration order, or null if the supplied type does not name a structured type; a structured type of no data properties would answer an empty
+     * map, though module creation requires one at least. The map is kept in the data-shape cache.
+     * @returns {ReadonlyMap<string, Type> | null}
+     */
+    getDataShape(type) {
         const structure = this.getStructure(type);
 
-        return structure !== undefined && Object.hasOwn(structure.fields, name) ? this.getDeclaredType(structure, structure.fields[name]) : null;
+        if (structure === undefined) {
+            return null;
+        }
+
+        let shape = this.#dataShapeCache.get(structure);
+
+        if (shape === undefined) {
+            shape = new Map(Object.entries(structure.fields).map(([name, notation]) => [name, this.getDeclaredType(structure, notation)]));
+            this.#dataShapeCache.set(structure, shape);
+        }
+
+        return shape;
     }
 
-    /** The type of each field named so, as its structured type declares it, across every structured type. */
-    getFieldTypes(name) {
-        return [...this.#types.values()].flatMap(type => (type.kind !== 'reference' && Object.hasOwn(type.fields, name) ? [this.getDeclaredType(type, type.fields[name])] : []));
+    /** The types of the data properties of the name, across every structured type, as each declares it. */
+    getDataPropertyTypes(propertyName) {
+        return [...this.#types.values()].flatMap(type => (type.kind !== 'reference' && Object.hasOwn(type.fields, propertyName) ? [this.getDeclaredType(type, type.fields[propertyName])] : []));
     }
 
     /** The names of the registered modules that declare a type of the local name, in the order they were registered. */
@@ -723,7 +736,7 @@ export class LexicaRegistry {
 
                 checking.add(type.identity);
 
-                return this.getFieldTypesOf(structure).every(([, fieldType]) => this.#isData(fieldType, checking));
+                return [...this.getDataShape(type).values()].every(propertyType => this.#isData(propertyType, checking));
             }
             default:
                 return false;
@@ -757,7 +770,7 @@ export class LexicaRegistry {
 
                 const structure = this.getStructure(type);
 
-                return structure !== undefined && ObjectUtils.isNonArrayObject(value) && this.getFieldTypesOf(structure).every(([field, fieldType]) => this.#admits(value[field], fieldType));
+                return structure !== undefined && ObjectUtils.isNonArrayObject(value) && [...this.getDataShape(type)].every(([property, propertyType]) => this.#admits(value[property], propertyType));
             }
             default:
                 return false;

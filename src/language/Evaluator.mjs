@@ -112,9 +112,6 @@ class Evaluation {
 }
 
 export class Evaluator {
-    /** The fields of each declared structure, each with its type parsed, by the structure: valid for as long as the structure, which is frozen, and released with it. @type {WeakMap<object, [string, Type][]>} */
-    static #fieldTypesByStructure = new WeakMap();
-
     /**
      * The function each node of a resolved definition compiles to, by the definition and then the node, with the registry they were compiled against: built once, it holds what the node's evaluation needs that no evaluation changes, and takes the evaluator, which holds what one does, and the implicit parameter.
      * Beside them, the function each member's arguments compile to, by the member's resolution, for the evaluations that read the member without compiling it.
@@ -1349,7 +1346,7 @@ export class Evaluator {
                     }
 
                     if (fields === null) {
-                        fields = Evaluator.#fieldTypesOf(structure, moduleRegistry).map(([name, fieldType]) => [name, Evaluator.#compileStructureCopy(fieldType, moduleRegistry)]);
+                        fields = [...moduleRegistry.getDataShape(type)].map(([name, fieldType]) => [name, Evaluator.#compileStructureCopy(fieldType, moduleRegistry)]);
                         fieldNames = new Set(fields.map(([name]) => name));
                         isFlat = fields.every(([, copyField]) => copyField === null);
                     }
@@ -1441,7 +1438,7 @@ export class Evaluator {
                         return false;
                     }
 
-                    fields ??= Evaluator.#fieldTypesOf(structure, moduleRegistry).map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, moduleRegistry, asked)]);
+                    fields ??= [...moduleRegistry.getDataShape(type)].map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, moduleRegistry, asked)]);
 
                     return fields.every(([field, conforms]) => conforms(value[field]));
                 };
@@ -1785,7 +1782,7 @@ export class Evaluator {
             fail(path, value, type);
         }
 
-        return Object.fromEntries(Evaluator.#fieldTypesOf(structure, this.#moduleRegistry).map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, Evaluator.#pathOf(path, name), fail)]));
+        return Object.fromEntries([...this.#moduleRegistry.getDataShape(type)].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, Evaluator.#pathOf(path, name), fail)]));
     }
 
     /** The path of a field within the path of the value that holds it. */
@@ -1820,18 +1817,6 @@ export class Evaluator {
         const definitionPointer = this.#resolvedDefinition.resolveDefinitionPointer(pointer);
 
         return this.#locations?.locate(definitionPointer) ?? { pointer: definitionPointer };
-    }
-
-    /** The fields of the declared structure, in order, each with its type. */
-    static #fieldTypesOf(structure, moduleRegistry) {
-        let fields = Evaluator.#fieldTypesByStructure.get(structure);
-
-        if (fields === undefined) {
-            fields = moduleRegistry.getFieldTypesOf(structure);
-            Evaluator.#fieldTypesByStructure.set(structure, fields);
-        }
-
-        return fields;
     }
 
     /** Whether a value is truthy: every value is but null and false. */
