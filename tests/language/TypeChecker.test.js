@@ -213,8 +213,8 @@ describe('TypeChecker', () => {
     describe('matchesReceiver and inferReceiverTypeArguments', () => {
         it('applies a member to a receiver its receiver types match, inferring the type arguments it binds, and a receiver of any type to any value', () => {
             const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {})]);
-            const [count] = registry.getMembers('count');
-            const [is] = registry.getMembers('is');
+            const [count] = registry.getReceiverMembers('count');
+            const [is] = registry.getReceiverMembers('is');
 
             expect(registry.typeChecker.inferReceiverTypeArguments(count, typeOf('List<Number>?')).get('T').toString()).toBe('Number');
             expect(registry.typeChecker.matchesReceiver(count, typeOf('List<Number>?'))).toBe(true);

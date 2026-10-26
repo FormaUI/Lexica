@@ -36,9 +36,9 @@ describe('Vocabulary', () => {
     });
 
     it.each(['is', 'has', 'supports'])('declares %s as the one function of any receiver, answering what its test, a function of the receiver\'s own type, answers of it', verb => {
-        const [declaration] = registry.getMembers(verb);
+        const [declaration] = registry.getReceiverMembers(verb);
 
-        expect(registry.getMembers(verb)).toHaveLength(1);
+        expect(registry.getReceiverMembers(verb)).toHaveLength(1);
         expect(declaration).toMatchObject({ kind: 'function', syntax: 'function-call', target: 'T', result: 'Boolean', updates: { changes: 'derived', reads: 'derived' } });
         expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'Boolean', parameters: ['T'], required: true }]);
         expect([read(verb, 'oat', { test: receiver => receiver === 'oat' }), read(verb, 'milk', { test: receiver => receiver === 'oat' })]).toEqual([true, false]);

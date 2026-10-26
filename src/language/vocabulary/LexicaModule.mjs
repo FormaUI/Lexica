@@ -51,7 +51,7 @@ const DECLARATION_MODEL_TYPE_KINDS = ['structured', 'extension'];
 const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 
 /** What a module can declare. */
-const CONTENTS = ['typeOf', 'types', 'members', 'typeSelectors', 'selectableTypes', 'observationTypes', 'observationTargets', 'conversions'];
+const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'selectableTypes', 'observationTypes', 'observationTargets', 'conversions'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
 const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'implementation'];
@@ -99,17 +99,17 @@ export class LexicaModule {
             throw LexicaErrors.module('LEXICA4500', 'A module is named as a name is', { module: String(name) });
         }
 
-        const fail = (code, message, declaration, field) => {
-            throw LexicaErrors.module(code, message, { module: name, ...(declaration === undefined ? {} : { declaration }), ...(field === undefined ? {} : { field }) });
+        const fail = (code, message, declarationName, declarationKey) => {
+            throw LexicaErrors.module(code, message, { module: name, ...(declarationName === undefined ? {} : { declaration: declarationName }), ...(declarationKey === undefined ? {} : { field: declarationKey }) });
         };
 
         if (!ObjectUtils.isNonArrayObject(contents)) {
-            fail('LEXICA4501', `A module's contents are an object declaring ${CONTENTS.join(', ')}`);
+            fail('LEXICA4501', `A module's contents are an object declaring ${MODULE_KEYS.join(', ')}`);
         }
 
         for (const key of Object.keys(contents)) {
-            if (!CONTENTS.includes(key)) {
-                fail('LEXICA4502', `A module declares ${CONTENTS.join(', ')}, and '${key}' is none of them${key === 'predicates' ? '; a test of a receiver is one of its members, a function whose result is a boolean' : ''}`, undefined, key);
+            if (!MODULE_KEYS.includes(key)) {
+                fail('LEXICA4502', `A module declares ${MODULE_KEYS.join(', ')}, and '${key}' is none of them${key === 'predicates' ? '; a test of a receiver is one of its members, a function whose result is a boolean' : ''}`, undefined, key);
             }
         }
 
@@ -202,12 +202,12 @@ export class LexicaModule {
     }
 
     /** Whether the declaration is a host call's: a function the host invokes, which the evaluator never does. */
-    static isHostCall(declaration) {
+    static isInvokedByHost(declaration) {
         return declaration.invokedBy === 'host';
     }
 
     /** The object without its fields that hold undefined, which a declaration leaves out as it leaves out a field it does not write. */
-    static #defined(object) {
+    static #withoutUndefinedValues(object) {
         return ObjectUtils.isNonArrayObject(object) ? Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined)) : object;
     }
 
@@ -217,7 +217,7 @@ export class LexicaModule {
             fail('LEXICA4504', `${what} is an object declaring ${keys.join(', ')}`, name === undefined ? undefined : String(name));
         }
 
-        for (const key of Object.keys(LexicaModule.#defined(declaration))) {
+        for (const key of Object.keys(LexicaModule.#withoutUndefinedValues(declaration))) {
             if (!keys.includes(key)) {
                 fail('LEXICA4030', `${what} declares ${keys.join(', ')}, and '${key}' is none of them`, String(name ?? declaration.name), key);
             }
@@ -285,7 +285,7 @@ export class LexicaModule {
     }
 
     static #validateTypeDeclaration(type, fail) {
-        const isReference = type?.kind === 'reference';
+        const isReferenceType = type?.kind === 'reference';
 
         if (ObjectUtils.isNonArrayObject(type) && DECLARATION_MODEL_TYPE_KINDS.includes(type.kind)) {
             fail('LEXICA4556', `A type of the kind '${type.kind}' declares its members within it, which this implementation does not read yet: declare a structured type by its fields, without a kind`, String(type.name), 'kind');
@@ -295,7 +295,7 @@ export class LexicaModule {
             fail('LEXICA4554', `A type is of the kind ${TYPE_KINDS.join(' or ')}, or declares its fields, and '${String(type.kind)}' is none of them`, String(type.name), 'kind');
         }
 
-        LexicaModule.#validateKeys(type, isReference ? REFERENCE_TYPE_KEYS : TYPE_KEYS, isReference ? 'A reference type' : 'A type', fail);
+        LexicaModule.#validateKeys(type, isReferenceType ? REFERENCE_TYPE_KEYS : TYPE_KEYS, isReferenceType ? 'A reference type' : 'A type', fail);
 
         if (!Names.isIdentifier(type?.name)) {
             fail('LEXICA4552', 'A type is named by an identifier, a letter followed by letters and digits', String(type?.name), 'name');
@@ -318,7 +318,7 @@ export class LexicaModule {
             fail('LEXICA4508', `The type imports the module '${repeated}' twice`, type.name, 'import');
         }
 
-        if (isReference) {
+        if (isReferenceType) {
             return LexicaModule.#validateReferenceType(type, fail);
         }
 
@@ -364,7 +364,7 @@ export class LexicaModule {
         const names = new Set();
 
         return selectors.map(declared => {
-            const selector = LexicaModule.#defined(declared);
+            const selector = LexicaModule.#withoutUndefinedValues(declared);
 
             LexicaModule.#validateKeys(selector, TYPE_SELECTOR_KEYS, 'A type selector', fail);
 
@@ -384,7 +384,7 @@ export class LexicaModule {
 
     /** Validates a selectable type: its key, the selector it belongs to, and the type it maps to. */
     static #validateSelectableType(declared, fail) {
-        const selectable = LexicaModule.#defined(declared);
+        const selectable = LexicaModule.#withoutUndefinedValues(declared);
 
         LexicaModule.#validateKeys(selectable, SELECTABLE_TYPE_KEYS, 'A selectable type', fail);
 
@@ -415,19 +415,19 @@ export class LexicaModule {
 
     /**
      * Validates how a member changes and reads, the changes it misses, the tolerance it compares with and the observations that cover its changes, as one `updates` object.
-     * @param {object} owner The declaration whose updates they are.
+     * @param {object} member The declaration whose updates they are.
      * @param {Map<string, object>} parameters Its parameters by name, which an observation can give an argument of.
      * @param {boolean} hasReceiver Whether it has a receiver, which a module member has none of.
      */
-    static #validateUpdates(owner, parameters, hasReceiver, name, fail) {
-        const updates = LexicaModule.#defined(owner.updates);
+    static #validateUpdates(member, parameters, hasReceiver, name, fail) {
+        const updates = LexicaModule.#withoutUndefinedValues(member.updates);
 
-        LexicaModule.#validateKeys(updates, UPDATES_KEYS, 'Its updates', (code, message, declaration, field) => fail(code, message, declaration, field === undefined ? 'updates' : `updates.${field}`), name);
+        LexicaModule.#validateKeys(updates, UPDATES_KEYS, 'Its updates', (code, message, declarationName, declarationKey) => fail(code, message, declarationName, declarationKey === undefined ? 'updates' : `updates.${declarationKey}`), name);
 
         if (!CHANGE_CATEGORIES.includes(updates.changes) || !READING_MODES.includes(updates.reads)) {
-            const field = CHANGE_CATEGORIES.includes(updates.changes) ? 'reads' : 'changes';
+            const updatesKey = CHANGE_CATEGORIES.includes(updates.changes) ? 'reads' : 'changes';
 
-            fail(updates[field] === undefined ? 'LEXICA4023' : 'LEXICA4514', `It declares how it changes, one of ${CHANGE_CATEGORIES.join(', ')}, and how it reads, one of ${READING_MODES.join(', ')}`, name, `updates.${field}`);
+            fail(updates[updatesKey] === undefined ? 'LEXICA4023' : 'LEXICA4514', `It declares how it changes, one of ${CHANGE_CATEGORIES.join(', ')}, and how it reads, one of ${READING_MODES.join(', ')}`, name, `updates.${updatesKey}`);
         }
 
         if (updates.changes === 'partly-observable' && (typeof updates.misses !== 'string' || updates.misses === '')) {
@@ -443,7 +443,7 @@ export class LexicaModule {
                 fail('LEXICA4515', 'Its tolerance is a number that is not negative', name, 'updates.tolerance');
             }
 
-            if (!LexicaModule.#takesTolerance(owner.result)) {
+            if (!LexicaModule.#takesTolerance(member.result)) {
                 fail('LEXICA4026', 'A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', name, 'updates.tolerance');
             }
         }
@@ -476,33 +476,34 @@ export class LexicaModule {
 
     /** Validates one observation a declaration names: its type, what it observes, which a module member's never a receiver is, and the arguments its type takes. */
     static #validateObservation(observationDeclaration, parameters, hasReceiver, name, fail) {
-        const field = 'updates.observations';
+        const declarationKey = 'updates.observations';
 
         if (observationDeclaration === null || typeof observationDeclaration !== 'object' || !Names.isIdentifier(observationDeclaration.type)) {
-            fail(observationDeclaration === null || typeof observationDeclaration !== 'object' ? 'LEXICA4504' : 'LEXICA4060', 'An observation names its type as a name is', name, field);
+            fail(observationDeclaration === null || typeof observationDeclaration !== 'object' ? 'LEXICA4504' : 'LEXICA4060', 'An observation names its type as a name is', name, declarationKey);
         }
 
         // A function a member is given lasts as long as its invocation, so no observation, which outlives it, is given one.
-        const functionArgument = Object.values(observationDeclaration).find(value => typeof value?.argument === 'string' && parameters.get(value.argument)?.kind === 'function');
+        const functionArgumentReference = Object.values(observationDeclaration).find(value => typeof value?.argument === 'string' && parameters.get(value.argument)?.kind === 'function');
 
-        if (functionArgument !== undefined) {
-            fail('LEXICA4055', `The observation '${observationDeclaration.type}' is given the parameter '${functionArgument.argument}', a function that lasts only while the member's invocation does`, name, field);
+        if (functionArgumentReference !== undefined) {
+            fail('LEXICA4055', `The observation '${observationDeclaration.type}' is given the parameter '${functionArgumentReference.argument}', a function that lasts only while the member's invocation does`, name, declarationKey);
         }
 
         // A target is named as a name is, and whether its observation type's module declares it is the registry's to check, which knows every module.
-        const isTarget = Names.isIdentifier(observationDeclaration.of) || LexicaModule.#isArgumentReference(observationDeclaration.of, parameters);
+        // Whether `of` takes a form an observation may name, an identifier or an argument reference; that the target it names exists, registration checks.
+        const namesObserved = Names.isIdentifier(observationDeclaration.of) || LexicaModule.#isArgumentReference(observationDeclaration.of, parameters);
 
-        if (!isTarget) {
-            fail('LEXICA4060', `The observation '${observationDeclaration.type}' observes the receiver, an argument of the member or an observation target by its name, and not '${JSON.stringify(observationDeclaration.of)}'`, name, field);
+        if (!namesObserved) {
+            fail('LEXICA4060', `The observation '${observationDeclaration.type}' observes the receiver, an argument of the member or an observation target by its name, and not '${JSON.stringify(observationDeclaration.of)}'`, name, declarationKey);
         }
 
         if (!hasReceiver && observationDeclaration.of === 'receiver') {
-            fail('LEXICA4057', `The observation '${observationDeclaration.type}' observes the receiver, and a member without a target has no receiver`, name, field);
+            fail('LEXICA4057', `The observation '${observationDeclaration.type}' observes the receiver, and a member without a target has no receiver`, name, declarationKey);
         }
 
         for (const [key, value] of Object.entries(observationDeclaration)) {
             if (key !== 'type' && key !== 'of' && !LexicaModule.#isObservationValue(value, parameters)) {
-                fail(LexicaModule.#isMisplacedPrefix(value, parameters) ? 'LEXICA4061' : 'LEXICA4060', `The observation '${observationDeclaration.type}' gives '${key}' a value that is no literal, list of literals or argument of the member, which a prefix, a string, is joined to only where its parameter is a value parameter of type string`, name, field);
+                fail(LexicaModule.#isMisplacedPrefix(value, parameters) ? 'LEXICA4061' : 'LEXICA4060', `The observation '${observationDeclaration.type}' gives '${key}' a value that is no literal, list of literals or argument of the member, which a prefix, a string, is joined to only where its parameter is a value parameter of type string`, name, declarationKey);
             }
         }
     }
@@ -550,7 +551,7 @@ export class LexicaModule {
         const names = new Set();
 
         return targets.map(declared => {
-            const target = LexicaModule.#defined(declared);
+            const target = LexicaModule.#withoutUndefinedValues(declared);
 
             LexicaModule.#validateKeys(target, OBSERVATION_TARGET_KEYS, 'An observation target', fail);
 
@@ -598,7 +599,7 @@ export class LexicaModule {
     }
 
     static #validateObservationType(declared, fail) {
-        const type = LexicaModule.#defined(declared);
+        const type = LexicaModule.#withoutUndefinedValues(declared);
 
         LexicaModule.#validateKeys(type, OBSERVATION_TYPE_KEYS, 'An observation type', fail);
 
@@ -626,7 +627,7 @@ export class LexicaModule {
      * A value already of a type converts to itself, as the language says, so no conversion is declared from a type to itself.
      */
     static #validateConversion(declared, fail) {
-        const conversion = LexicaModule.#defined(declared);
+        const conversion = LexicaModule.#withoutUndefinedValues(declared);
 
         LexicaModule.#validateKeys(conversion, CONVERSION_KEYS, 'A conversion', fail, ObjectUtils.isNonArrayObject(conversion) ? LexicaModule.conversionNameOf(conversion) : undefined);
 
@@ -650,7 +651,7 @@ export class LexicaModule {
     }
 
     static #validateMember(declared, fail) {
-        const member = LexicaModule.#defined(declared);
+        const member = LexicaModule.#withoutUndefinedValues(declared);
 
         if (!ObjectUtils.isNonArrayObject(member)) {
             fail('LEXICA4504', `A member is an object declaring ${MEMBER_KEYS.join(', ')} and what its kind takes`);
@@ -684,14 +685,14 @@ export class LexicaModule {
             fail('LEXICA4525', `A function is invoked by one of ${INVOKERS.join(', ')}, the evaluator where it says none`, name, 'invokedBy');
         }
 
-        const isHostCall = LexicaModule.isHostCall(member);
+        const isInvokedByHost = LexicaModule.isInvokedByHost(member);
 
         // A host call's result is the type of each value its host supplies, and one that supplies none declares none.
-        if (!(isHostCall && member.result === undefined) && !LexicaModule.#isTypeNotation(member.result)) {
-            fail(member.result === undefined ? 'LEXICA4003' : 'LEXICA4512', isHostCall ? 'It declares the type of each value its host supplies, or none, where it supplies none' : 'It declares the type of its result', name, 'result');
+        if (!(isInvokedByHost && member.result === undefined) && !LexicaModule.#isTypeNotation(member.result)) {
+            fail(member.result === undefined ? 'LEXICA4003' : 'LEXICA4512', isInvokedByHost ? 'It declares the type of each value its host supplies, or none, where it supplies none' : 'It declares the type of its result', name, 'result');
         }
 
-        const parameters = Array.isArray(member.parameters) ? member.parameters.map(parameter => LexicaModule.#defined(parameter)) : (member.parameters ?? []);
+        const parameters = Array.isArray(member.parameters) ? member.parameters.map(parameter => LexicaModule.#withoutUndefinedValues(parameter)) : (member.parameters ?? []);
 
         if (!Array.isArray(parameters)) {
             fail('LEXICA4526', 'Its parameters are a list', name, 'parameters');
@@ -709,14 +710,14 @@ export class LexicaModule {
             parameterNames.add(parameter.name);
         }
 
-        if (isHostCall) {
-            LexicaModule.#validateHostCall(member, parameters, name, fail);
+        if (isInvokedByHost) {
+            LexicaModule.#validateHostInvokedFunction(member, parameters, name, fail);
         }
 
         LexicaModule.#validateSelections(member, parameters, name, fail);
         LexicaModule.#validateSyntax(member, parameters, hasReceiver, name, fail);
 
-        if (MEMBER_KEYS_BY_KIND[member.kind].includes('updates') && !isHostCall) {
+        if (MEMBER_KEYS_BY_KIND[member.kind].includes('updates') && !isInvokedByHost) {
             if (member.updates === undefined) {
                 fail('LEXICA4003', 'It declares its updates, how it changes and how it reads', name, 'updates');
             }
@@ -728,7 +729,7 @@ export class LexicaModule {
 
         const syntax = member.kind === 'property' ? {} : { syntax: 'function-call' };
         const argumentForm = member.syntax === 'indexer' ? { arguments: 'positional' } : {};
-        const updates = member.updates === undefined ? {} : { updates: { observations: [], ...LexicaModule.#defined(member.updates) } };
+        const updates = member.updates === undefined ? {} : { updates: { observations: [], ...LexicaModule.#withoutUndefinedValues(member.updates) } };
 
         // A property is read with no arguments, so it keeps an empty list of parameters, which every member then has.
         return LexicaModule.#copyOf({ ...syntax, ...argumentForm, ...member, parameters, ...updates });
@@ -737,7 +738,7 @@ export class LexicaModule {
     /**
      * Refuses what a host call cannot take: updates, since it is never evaluated; an implementation, since its host invokes it; the indexer syntax; and a parameter other than a value parameter, whose argument is prepared as a value its host keeps.
      */
-    static #validateHostCall(member, parameters, name, fail) {
+    static #validateHostInvokedFunction(member, parameters, name, fail) {
         if (member.updates !== undefined) {
             fail('LEXICA4030', 'Its host invokes it, and the evaluator never evaluates it, so it declares no updates', name, 'updates');
         }
@@ -761,17 +762,17 @@ export class LexicaModule {
      * Checks the fixed parameters a member takes: a function's one at most, which selects a type, whose result writes `@selected` where that type stands, as a member selecting none writes none.
      */
     static #validateSelections(member, parameters, name, fail) {
-        const typeSelections = parameters.filter(parameter => parameter.fixed === true && parameter.selects === 'type');
+        const typeSelectingParameters = parameters.filter(parameter => parameter.fixed === true && parameter.selects === 'type');
 
-        if (typeSelections.length > 1) {
-            fail('LEXICA4009', `A function has one parameter at most that selects a type, since its result writes one @selected, and ${typeSelections.map(parameter => `'${parameter.name}'`).join(' and ')} each select one`, name, 'parameters');
+        if (typeSelectingParameters.length > 1) {
+            fail('LEXICA4009', `A function has one parameter at most that selects a type, since its result writes one @selected, and ${typeSelectingParameters.map(parameter => `'${parameter.name}'`).join(' and ')} each select one`, name, 'parameters');
         }
 
-        if (typeSelections.length === 1 && !LexicaModule.#writesSelected(member.result)) {
-            fail('LEXICA4529', `Its parameter '${typeSelections[0].name}' selects a type, so its result writes @selected where that type stands`, name, 'result');
+        if (typeSelectingParameters.length === 1 && !LexicaModule.#writesSelected(member.result)) {
+            fail('LEXICA4529', `Its parameter '${typeSelectingParameters[0].name}' selects a type, so its result writes @selected where that type stands`, name, 'result');
         }
 
-        if (typeSelections.length === 0 && LexicaModule.#writesSelected(member.result)) {
+        if (typeSelectingParameters.length === 0 && LexicaModule.#writesSelected(member.result)) {
             fail('LEXICA4040', 'Its result writes @selected, and none of its parameters selects a type', name, 'result');
         }
     }
@@ -837,81 +838,81 @@ export class LexicaModule {
     }
 
     static #validateParameter(parameter, memberName, fail) {
-        LexicaModule.#validateKeys(parameter, PARAMETER_KEYS, 'A parameter', (code, message, declaration, field) => fail(code, message, declaration, field === undefined ? 'parameters' : `parameters.${field}`), memberName);
+        LexicaModule.#validateKeys(parameter, PARAMETER_KEYS, 'A parameter', (code, message, declarationName, declarationKey) => fail(code, message, declarationName, declarationKey === undefined ? 'parameters' : `parameters.${declarationKey}`), memberName);
 
-        const field = 'parameters';
+        const declarationKey = 'parameters';
 
         // A function is never null, so a function parameter declares no null policy.
-        const declaresNulls = parameter?.kind === 'function' ? parameter.nulls === undefined : NULL_POLICIES.includes(parameter?.nulls);
+        const hasValidNullPolicy = parameter?.kind === 'function' ? parameter.nulls === undefined : NULL_POLICIES.includes(parameter?.nulls);
 
-        if (!Names.isIdentifier(parameter.name) || !PARAMETER_KINDS.includes(parameter.kind) || !declaresNulls || typeof parameter.required !== 'boolean') {
-            fail(parameter.kind === 'function' && !declaresNulls ? 'LEXICA4054' : 'LEXICA4536', 'A parameter declares its name, its kind, whether it is required and how it handles null, which a function parameter leaves out', memberName, field);
+        if (!Names.isIdentifier(parameter.name) || !PARAMETER_KINDS.includes(parameter.kind) || !hasValidNullPolicy || typeof parameter.required !== 'boolean') {
+            fail(parameter.kind === 'function' && !hasValidNullPolicy ? 'LEXICA4054' : 'LEXICA4536', 'A parameter declares its name, its kind, whether it is required and how it handles null, which a function parameter leaves out', memberName, declarationKey);
         }
 
         if (!LexicaModule.#isTypeNotation(parameter.type)) {
-            fail(parameter.type === undefined ? 'LEXICA4536' : 'LEXICA4512', `The parameter '${parameter.name}' declares a type`, memberName, field);
+            fail(parameter.type === undefined ? 'LEXICA4536' : 'LEXICA4512', `The parameter '${parameter.name}' declares a type`, memberName, declarationKey);
         }
 
         // A function parameter's contract declares the type of each argument the member calls the function with, in order, and, as its type, the type of the result it takes from it.
         if (parameter.kind === 'function') {
             if (!Array.isArray(parameter.parameters) || !parameter.parameters.every(type => LexicaModule.#isTypeNotation(type))) {
-                fail(Array.isArray(parameter.parameters) ? 'LEXICA4512' : 'LEXICA4537', `The parameter '${parameter.name}' is a function that declares its parameters as a list of the types it is called with`, memberName, field);
+                fail(Array.isArray(parameter.parameters) ? 'LEXICA4512' : 'LEXICA4537', `The parameter '${parameter.name}' is a function that declares its parameters as a list of the types it is called with`, memberName, declarationKey);
             }
 
             if (!parameter.required) {
-                fail('LEXICA4054', `The parameter '${parameter.name}' is a function, so it is required`, memberName, field);
+                fail('LEXICA4054', `The parameter '${parameter.name}' is a function, so it is required`, memberName, declarationKey);
             }
 
             if (parameter.fixed !== undefined) {
-                fail('LEXICA4030', `The parameter '${parameter.name}' is a function, so it cannot be fixed`, memberName, field);
+                fail('LEXICA4030', `The parameter '${parameter.name}' is a function, so it cannot be fixed`, memberName, declarationKey);
             }
 
             if (parameter.context !== undefined) {
-                fail('LEXICA4030', `The parameter '${parameter.name}' is a function, so it declares no 'context'`, memberName, field);
+                fail('LEXICA4030', `The parameter '${parameter.name}' is a function, so it declares no 'context'`, memberName, declarationKey);
             }
         } else if (parameter.parameters !== undefined) {
-            fail('LEXICA4030', `The parameter '${parameter.name}' is no function, so it declares no parameters`, memberName, field);
+            fail('LEXICA4030', `The parameter '${parameter.name}' is no function, so it declares no parameters`, memberName, declarationKey);
         }
 
         if (parameter.required && 'default' in parameter) {
-            fail('LEXICA4538', `The required parameter '${parameter.name}' declares no default`, memberName, field);
+            fail('LEXICA4538', `The required parameter '${parameter.name}' declares no default`, memberName, declarationKey);
         }
 
         if ((parameter.kind === 'expression' || parameter.kind === 'predicate') && parameter.context !== 'item') {
-            fail('LEXICA4539', `The ${parameter.kind} parameter '${parameter.name}' declares its implicit parameter as context: 'item'`, memberName, field);
+            fail('LEXICA4539', `The ${parameter.kind} parameter '${parameter.name}' declares its implicit parameter as context: 'item'`, memberName, declarationKey);
         }
 
         // A predicate's expression gives any value, and its implementation receives that value's truthiness.
         if (parameter.kind === 'predicate' && parameter.type !== 'Boolean') {
-            fail('LEXICA4540', `The predicate parameter '${parameter.name}' is of type boolean, the truthiness its implementation receives`, memberName, field);
+            fail('LEXICA4540', `The predicate parameter '${parameter.name}' is of type boolean, the truthiness its implementation receives`, memberName, declarationKey);
         }
 
         if (parameter.fixed !== undefined && typeof parameter.fixed !== 'boolean') {
-            fail('LEXICA4541', `The parameter '${parameter.name}' declares whether it is fixed as a Boolean`, memberName, field);
+            fail('LEXICA4541', `The parameter '${parameter.name}' declares whether it is fixed as a Boolean`, memberName, declarationKey);
         }
 
         if (parameter.fixed !== true) {
             if (parameter.selects !== undefined || parameter.selector !== undefined) {
-                fail('LEXICA4542', `The parameter '${parameter.name}' selects nothing, since it is not fixed`, memberName, field);
+                fail('LEXICA4542', `The parameter '${parameter.name}' selects nothing, since it is not fixed`, memberName, declarationKey);
             }
 
             return;
         }
 
         if (!SELECTION_KINDS.includes(parameter.selects)) {
-            const test = parameter.selects === 'predicate' ? '; a test of the receiver is passed as a function, to a function parameter' : '';
+            const predicateHint = parameter.selects === 'predicate' ? '; a test of the receiver is passed as a function, to a function parameter' : '';
 
-            fail('LEXICA4543', `The fixed parameter '${parameter.name}' declares what it selects, one of ${SELECTION_KINDS.join(', ')}${test}`, memberName, field);
+            fail('LEXICA4543', `The fixed parameter '${parameter.name}' declares what it selects, one of ${SELECTION_KINDS.join(', ')}${predicateHint}`, memberName, declarationKey);
         }
 
         // A type is selected through the type selector the parameter names.
         if (!Names.isIdentifier(parameter.selector)) {
-            fail('LEXICA4544', `The fixed parameter '${parameter.name}' selects a type, so it names the type selector it selects through`, memberName, field);
+            fail('LEXICA4544', `The fixed parameter '${parameter.name}' selects a type, so it names the type selector it selects through`, memberName, declarationKey);
         }
 
         // A fixed argument names a declaration, which only a string can.
         if (parameter.kind !== 'value' || parameter.type !== 'String') {
-            fail('LEXICA4545', `The fixed parameter '${parameter.name}' is a value parameter of type string, since it names what it selects`, memberName, field);
+            fail('LEXICA4545', `The fixed parameter '${parameter.name}' is a value parameter of type string, since it names what it selects`, memberName, declarationKey);
         }
     }
 }

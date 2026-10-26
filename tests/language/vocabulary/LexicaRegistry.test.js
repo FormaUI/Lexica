@@ -81,8 +81,8 @@ describe('LexicaRegistry', () => {
         const zoom = new LexicaModule('zoom', { members: [declaration({ name: 'scale', target: 'charts.Chart' }), declaration({ name: 'level', target: 'String' })] });
         const registry = new LexicaRegistry([Vocabulary.module, charts, zoom]);
 
-        expect(registry.getMembers('scale').map(member => registry.getOwner(member))).toEqual(['zoom']);
-        expect(registry.getMembers('level').map(member => member.target)).toEqual(['String']);
+        expect(registry.getReceiverMembers('scale').map(member => registry.getOwner(member))).toEqual(['zoom']);
+        expect(registry.getReceiverMembers('level').map(member => member.target)).toEqual(['String']);
     });
 
     it('refuses a member the registry already answers on the same receiver, naming its target', () => {
@@ -100,7 +100,7 @@ describe('LexicaRegistry', () => {
     });
 
     it('lets one name answer on different receivers', () => {
-        const owners = new LexicaRegistry([new LexicaModule('host', withHome({ members: [declaration({ name: 'size', target: 'Room' }), declaration({ name: 'size', target: 'Device' })] }))]).getMembers('size').map(member => member.target);
+        const owners = new LexicaRegistry([new LexicaModule('host', withHome({ members: [declaration({ name: 'size', target: 'Room' }), declaration({ name: 'size', target: 'Device' })] }))]).getReceiverMembers('size').map(member => member.target);
 
         expect(owners).toEqual(['Room', 'Device']);
     });
@@ -129,7 +129,7 @@ describe('LexicaRegistry', () => {
             const registry = new LexicaRegistry([home, office]);
 
             expect([home, office].map(module => registry.getOwner(module.members[0]))).toEqual(['home', 'office']);
-            expect(registry.getMembers('now')).toEqual([]);
+            expect(registry.getReceiverMembers('now')).toEqual([]);
         });
     });
 
@@ -339,14 +339,14 @@ describe("a module's own collisions", () => {
     it('refuse members of one name on one receiver type, an exact duplicate, and register them on overlapping receivers, a type and the type beneath it among them', () => {
         expect(refusalOf(registering(new LexicaModule('lit', withHome({ members: [lit(), lit()] }))))).toMatchObject({ declaration: 'lit', field: 'target' });
         expect(messageOf(registering(new LexicaModule('lit', withHome({ members: [lit(), lit({ target: ['Room', 'Light'] })] }))))).toContain("'lit' is declared already for Light");
-        expect(registering(new LexicaModule('lit', withHome({ members: [lit(), lit({ target: 'Device' })] })))().getMembers('lit')).toHaveLength(2);
-        expect(registering(new LexicaModule('lit', withHome({ members: [lit(), declaration({ name: 'lit', target: 'Device' })] })))().getMembers('lit')).toHaveLength(2);
+        expect(registering(new LexicaModule('lit', withHome({ members: [lit(), lit({ target: 'Device' })] })))().getReceiverMembers('lit')).toHaveLength(2);
+        expect(registering(new LexicaModule('lit', withHome({ members: [lit(), declaration({ name: 'lit', target: 'Device' })] })))().getReceiverMembers('lit')).toHaveLength(2);
     });
 
     it('take one name on receivers that do not overlap, each receiver selecting its own', () => {
         const views = new LexicaModule('views', { types: [{ name: 'PanelView', fields: { a: 'Number' } }, { name: 'RowView', fields: { a: 'Number' } }], members: [lit({ target: 'PanelView' }), lit({ target: 'RowView' })] });
 
-        expect(registering(views)().getMembers('lit')).toHaveLength(2);
+        expect(registering(views)().getReceiverMembers('lit')).toHaveLength(2);
     });
 
     it('find a module by its name, which gives its namespace, every module but Lexica\'s own', () => {

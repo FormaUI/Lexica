@@ -280,8 +280,8 @@ export class LanguageResolver {
         }
 
         const receiverType = left.type.toNonNullable();
-        const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isHostCall(candidate) && (this.#moduleRegistry.formOf(candidate) === 'access' || (this.#moduleRegistry.formOf(candidate) === 'function-call' && candidate.parameters.every(parameter => !parameter.required)));
-        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getMembers(right.value).filter(isTest), receiverType);
+        const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isInvokedByHost(candidate) && (this.#moduleRegistry.formOf(candidate) === 'access' || (this.#moduleRegistry.formOf(candidate) === 'function-call' && candidate.parameters.every(parameter => !parameter.required)));
+        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getReceiverMembers(right.value).filter(isTest), receiverType);
 
         if (declaration === undefined) {
             return '';
@@ -575,7 +575,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3019', `No module named '${moduleName}' is registered, so '${name}' does not name a type`, pointer);
             }
 
-            if (!this.#moduleRegistry.getModulesDeclaringType(localName).includes(moduleName)) {
+            if (!this.#moduleRegistry.getModuleNamesDeclaringType(localName).includes(moduleName)) {
                 this.#fail('LEXICA3019', `The module '${moduleName}' does not declare a type named '${localName}'`, pointer);
             }
 
@@ -587,7 +587,7 @@ export class LanguageResolver {
             return Type.createNamedType(name);
         }
 
-        const modules = this.#moduleRegistry.getModulesDeclaringType(name);
+        const modules = this.#moduleRegistry.getModuleNamesDeclaringType(name);
 
         if (modules.length > 1) {
             this.#fail('LEXICA3059', `'${name}' names a type several modules declare, so it is named qualified by its module: ${modules.map(moduleName => `${moduleName}.${name}`).join(' or ')}`, pointer);
@@ -598,7 +598,7 @@ export class LanguageResolver {
 
     /** Whether a type of the name a cast or a conversion writes is declared: a qualified one, which its module was found to declare, one of Lexica's own, or one a registered module declares. */
     #declaresTypeNamed(name) {
-        return name.includes('.') || LexicaModule.builtInTypeNames.includes(name) || this.#moduleRegistry.getModulesDeclaringType(name).length > 0;
+        return name.includes('.') || LexicaModule.builtInTypeNames.includes(name) || this.#moduleRegistry.getModuleNamesDeclaringType(name).length > 0;
     }
 
     /** Resolves an attempt: the conversion or the cast it attempts, as it resolves strictly, its result made nullable, since a rejection answers null. */
@@ -1014,7 +1014,7 @@ export class LanguageResolver {
             return '';
         }
 
-        const name = this.#moduleRegistry.memberNames.find(candidate => candidate.toLowerCase() === joined && this.#memberForm(receiverType, candidate) !== null);
+        const name = this.#moduleRegistry.receiverMemberNames.find(candidate => candidate.toLowerCase() === joined && this.#memberForm(receiverType, candidate) !== null);
 
         if (name === undefined) {
             return '';
@@ -1032,7 +1032,7 @@ export class LanguageResolver {
             return `${receiver}.${name}`;
         }
 
-        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getMembers(name), type);
+        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getReceiverMembers(name), type);
 
         if (declaration === undefined) {
             return null;
@@ -1149,7 +1149,7 @@ export class LanguageResolver {
      * `indexer` where any declaration of its name is a named indexer; null where none is either, as a property's or a field's name is, given the access's receiver as it resolved.
      */
     #syntaxNamedBy(access, receiver) {
-        const declarations = this.#moduleRegistry.getMembers(access.name).filter(declaration => declaration.kind !== 'property');
+        const declarations = this.#moduleRegistry.getReceiverMembers(access.name).filter(declaration => declaration.kind !== 'property');
 
         if (declarations.length === 0 || receiver.kind !== 'value') {
             return null;
@@ -1166,7 +1166,7 @@ export class LanguageResolver {
         }
 
         // The most specific member of the name decides, a property among them, which hides an indexer of its name above it.
-        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getMembers(access.name), receiverType);
+        const [declaration] = this.#typeChecker.mostSpecificOf(this.#moduleRegistry.getReceiverMembers(access.name), receiverType);
 
         return declaration === undefined || declaration.kind === 'property' ? null : this.#moduleRegistry.formOf(declaration);
     }
@@ -1191,7 +1191,7 @@ export class LanguageResolver {
         if (matching.length === 0) {
             // A string key may name a property of the receiver, which a computed property access reads.
             const key = node.argument.kind === 'literal' ? node.argument.value : null;
-            const isNamed = typeof key === 'string' && (this.#fieldTypeOf(receiverType, key) !== null || this.#moduleRegistry.getMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
+            const isNamed = typeof key === 'string' && (this.#fieldTypeOf(receiverType, key) !== null || this.#moduleRegistry.getReceiverMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
             const computed = isNamed ? DefinitionWriter.quote({ kind: 'member', target: node.target, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
 
             this.#fail('LEXICA3012', `${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
@@ -1395,7 +1395,7 @@ export class LanguageResolver {
             return { type: receiverType.isNullable ? field.toNullable() : field, kind: 'value', isFixed: false };
         }
 
-        const candidates = this.#moduleRegistry.getMembers(node.name);
+        const candidates = this.#moduleRegistry.getReceiverMembers(node.name);
 
         if (candidates.length === 0) {
             this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is no member of the vocabulary${this.#joinedNameHintOf(node, receiverType)}`, pointer);
@@ -1640,7 +1640,7 @@ export class LanguageResolver {
      */
     #resolveFunctionReference(node, pointer, declarations, contract) {
         const written = `${node.target.name}.${node.name}`;
-        const functions = declarations.filter(declaration => declaration.kind === 'function' && !LexicaModule.isHostCall(declaration));
+        const functions = declarations.filter(declaration => declaration.kind === 'function' && !LexicaModule.isInvokedByHost(declaration));
 
         if (functions.length === 0) {
             const [declaration] = declarations;
@@ -1757,7 +1757,7 @@ export class LanguageResolver {
      * Resolves a name applied to a receiver of unknown type, which chooses no declaration among the candidates, those of its name or, for an unnamed indexer, every unnamed indexer. A property is accepted whatever its name, since a bound object's fields are named by its data; a call or an indexer must be a member's, written in the form and given the arguments one of its declarations takes. The declarations that take it agree on who invokes it, the evaluator or the host.
      * Its type is the result type they share, made nullable, or left to the optional chain an optional access of null ends, and null where they share none or the name is no member's. Nothing applied to such a receiver is evaluated, so its arguments leave no resolution behind.
      */
-    #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#moduleRegistry.getMembers(node.name), offset = 0) {
+    #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#moduleRegistry.getReceiverMembers(node.name), offset = 0) {
         const isAccess = node.kind === 'member';
         const fields = isAccess ? this.#moduleRegistry.getFieldTypes(node.name) : [];
         // A qualified call, a qualified form's or a function reference's, calls a property and a function alike, its receiver its first argument.
@@ -2469,7 +2469,7 @@ export class LanguageResolver {
 
     /** What a call of the declaration makes: a host call where its host invokes it, and a value otherwise. */
     static #getResultKind(declaration) {
-        return LexicaModule.isHostCall(declaration) ? 'hostCall' : 'value';
+        return LexicaModule.isInvokedByHost(declaration) ? 'hostCall' : 'value';
     }
 
     /** Whether the type says nothing of what its value would be: null's, a null binding's, and never's, which no value has. */
