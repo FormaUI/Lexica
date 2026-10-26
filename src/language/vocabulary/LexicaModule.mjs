@@ -125,6 +125,11 @@ export class LexicaModule {
             }
         }
 
+        // Data that reaches itself is refused before anything reads into it, since validating, copying and freezing a declaration each walk its data.
+        for (const [key, list] of Object.entries({ types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions })) {
+            list.forEach(declared => LexicaModule.#refuseCycles(declared, LexicaModule.#declarationNameOf(declared, key), fail));
+        }
+
         this.#name = name;
         this.#typeOf = typeOf;
 
@@ -254,6 +259,41 @@ export class LexicaModule {
         }
 
         return value;
+    }
+
+    /**
+     * Refuses a declaration whose data reaches itself through its lists and plain objects, which data never does, naming the declaration key it stands under. A value two parts of it share, which reaches itself through
+     * neither, is no cycle, and a function, an implementation among them, is never looked into, as copying never looks into one.
+     */
+    static #refuseCycles(declaration, name, fail) {
+        const visit = (value, ancestors, declarationKey) => {
+            if (!Array.isArray(value) && !ObjectUtils.isPlainObject(value)) {
+                return;
+            }
+
+            if (ancestors.has(value)) {
+                fail('LEXICA4562', 'A declaration holds a value that reaches itself, which data never does', name, declarationKey);
+            }
+
+            ancestors.add(value);
+
+            for (const [key, item] of Object.entries(value)) {
+                visit(item, ancestors, declarationKey ?? key);
+            }
+
+            ancestors.delete(value);
+        };
+
+        visit(declaration, new Set(), undefined);
+    }
+
+    /** The name a declaration's diagnostics give it before it is validated: a conversion's source and destination, and any other declaration's own name where it is a string. */
+    static #declarationNameOf(declared, key) {
+        if (!ObjectUtils.isNonArrayObject(declared)) {
+            return undefined;
+        }
+
+        return key === 'conversions' ? LexicaModule.conversionNameOf(declared) : typeof declared.name === 'string' ? declared.name : undefined;
     }
 
     /** A copy of a declaration's data, through its lists and objects, each function in it kept as it is. */

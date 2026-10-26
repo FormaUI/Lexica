@@ -23,6 +23,35 @@ describe('LexicaModule', () => {
         expect(Object.isFrozen(implementation)).toBe(false);
     });
 
+    it('refuses a declaration whose data reaches itself, at its declaration key, and takes data two parts share and a function that holds itself', () => {
+        const selfList = [];
+        const selfObject = { at: 1 };
+
+        selfList.push(selfList);
+        selfObject.self = selfObject;
+
+        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: selfList })] })] }, 'pan', 'parameters', 'reaches itself');
+        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameter({ name: 'by', required: false, default: selfObject })] })] }, 'pan', 'parameters', 'reaches itself');
+        refusal({ types: [{ name: 'Chart', fields: selfObject }] }, 'Chart', 'fields', 'reaches itself');
+        // An observation's argument is validated by walking its lists, so a cycle there is refused before validation reads into it.
+        refusal({
+            observationTypes: [{ name: 'tick', contract: 'invalidation' }],
+            members: [declaration({ name: 'size', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'tick', of: 'receiver', every: selfList }] } })],
+        }, 'size', 'updates', 'reaches itself');
+
+        const shared = [1, 2];
+        const implementation = () => 1;
+
+        implementation.self = implementation;
+
+        expect(() => new LexicaModule('charts', {
+            members: [
+                functionDeclaration({ name: 'pan', implementation, parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
+                functionDeclaration({ name: 'zoom', parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
+            ],
+        })).not.toThrow();
+    });
+
     it('freezes copies of its declarations, leaving the declarations its caller gave unfrozen through every list and object they hold', () => {
         const option = parameter({ name: 'by', type: 'List<Number>', required: false, default: [1, 2] });
         const declared = functionDeclaration({ name: 'pan', parameters: [option] });

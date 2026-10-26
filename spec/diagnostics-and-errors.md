@@ -319,6 +319,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4559` | An extension whose target is `Any` or nullable | A module error naming the extension |
 | `LEXICA4560` | An operator named other than `cast` or `convert` | A module error naming the operator |
 | `LEXICA4561` | An operator declaring type parameters | A module error naming the operator |
+| `LEXICA4562` | A declaration holding a value that reaches itself through its lists and objects | A module error naming the declaration and the declaration key |
 
 <a id="preparation-and-type-errors"></a>
 

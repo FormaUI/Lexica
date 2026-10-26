@@ -377,6 +377,13 @@ describe('the module error codes', () => {
             expectCode(registering(module('charts', { members: [func({ parameters: [parameter({ required: false, default: Infinity })] })] })), 'LEXICA4548');
             expectCode(registering(module('charts', { members: [func({ parameters: [parameter({ type: 'List<Number>', required: false, default: [1, , 3] })] })] })), 'LEXICA4548');
         });
+
+        it('LEXICA4562: a declaration holding a value that reaches itself', () => {
+            const selfList = [];
+
+            selfList.push(selfList);
+            expectCode(creating({ members: [func({ parameters: [parameter({ type: 'List<Number>', required: false, default: selfList })] })] }), 'LEXICA4562');
+        });
     });
 
     describe('of updates and observations', () => {
