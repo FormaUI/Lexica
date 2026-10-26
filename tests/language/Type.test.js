@@ -19,9 +19,9 @@ describe('Type', () => {
         });
 
         it('reads a name qualified by its module\'s name, a list\'s item among them', () => {
-            expect(Type.parse('home.Sensor?')).toMatchObject({ kind: 'named', name: 'Sensor', module: 'home', isNullable: true, identity: 'home.Sensor' });
+            expect(Type.parse('home.Sensor?')).toMatchObject({ kind: 'named', name: 'Sensor', moduleName: 'home', isNullable: true, identity: 'home.Sensor' });
             expect(Type.parse('List<garden.Sensor>').itemType.identity).toBe('garden.Sensor');
-            expect(Type.parse('T.Sensor')).toMatchObject({ kind: 'named', module: 'T' });
+            expect(Type.parse('T.Sensor')).toMatchObject({ kind: 'named', moduleName: 'T' });
         });
 
         it.each(['home.', 'home.Sensor.Light', '@selected.Sensor', 'home.@selected', '.Sensor'])('refuses the qualified name %s', text => {
@@ -108,7 +108,7 @@ describe('Type', () => {
     it('holds a list as Lexica\'s generic List, its item type its one type argument', () => {
         const list = Type.createListType(Type.parse('Number'));
 
-        expect(list).toMatchObject({ kind: 'named', name: 'List', module: null, isList: true });
+        expect(list).toMatchObject({ kind: 'named', name: 'List', moduleName: null, isList: true });
         expect(list.typeArguments.map(String)).toEqual(['Number']);
         expect(list.itemType.toString()).toBe('Number');
         expect(Type.parse('Number').itemType).toBeNull();

@@ -391,7 +391,7 @@ export class LexicaRegistry {
 
     /** The declaration of the named type a module declares, registered or being registered, or undefined. */
     #typeDeclarationOf(type) {
-        if (type.kind !== 'named' || type.module === null) {
+        if (type.kind !== 'named' || type.moduleName === null) {
             return undefined;
         }
 
@@ -491,16 +491,16 @@ export class LexicaRegistry {
     #moduleOfType(type, text, context, fail) {
         const { name } = type;
 
-        if (type.module !== null) {
-            if (!this.#modules.has(type.module) && this.#pending?.name !== type.module) {
-                fail('LEXICA4047', `'${text}' names the type '${type.identity}', and no module named '${type.module}' is registered`);
+        if (type.moduleName !== null) {
+            if (!this.#modules.has(type.moduleName) && this.#pending?.name !== type.moduleName) {
+                fail('LEXICA4047', `'${text}' names the type '${type.identity}', and no module named '${type.moduleName}' is registered`);
             }
 
-            if (!this.#declaresType(type.module, name)) {
-                fail('LEXICA4047', `'${text}' names the type '${type.identity}', which the module '${type.module}' does not declare`);
+            if (!this.#declaresType(type.moduleName, name)) {
+                fail('LEXICA4047', `'${text}' names the type '${type.identity}', which the module '${type.moduleName}' does not declare`);
             }
 
-            return type.module;
+            return type.moduleName;
         }
 
         if (this.#declaresType(context.module, name)) {
@@ -582,7 +582,7 @@ export class LexicaRegistry {
         for (const type of module.types.filter(declared => declared.supertype !== undefined)) {
             const visited = [type.name];
 
-            for (let current = this.getSupertype(Type.createNamedType(type.name, false, module.name)); current !== null && current.module === module.name; current = this.getSupertype(current)) {
+            for (let current = this.getSupertype(Type.createNamedType(type.name, false, module.name)); current !== null && current.moduleName === module.name; current = this.getSupertype(current)) {
                 if (visited.includes(current.name)) {
                     fail('LEXICA4050', `The hierarchy of '${type.name}' is a cycle: ${[...visited, current.name].join(' beneath ')}`, type.name, 'supertype');
                 }
@@ -600,7 +600,7 @@ export class LexicaRegistry {
             const resultType = declaration.result === undefined ? null : check(declaration, declaration.result, declaration.name);
 
             // A tolerance applies to a numeric result, or to the numbers a structured result holds, which only now, every type known, is told apart from a reference type; a member with updates always declares a result.
-            if (declaration.updates?.tolerance !== undefined && !(resultType.kind === 'named' && ((resultType.module === null && resultType.name === 'Number') || this.getStructure(resultType) !== undefined))) {
+            if (declaration.updates?.tolerance !== undefined && !(resultType.kind === 'named' && ((resultType.moduleName === null && resultType.name === 'Number') || this.getStructure(resultType) !== undefined))) {
                 fail('LEXICA4026', 'A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', declaration.name, 'updates.tolerance');
             }
 
@@ -673,7 +673,7 @@ export class LexicaRegistry {
             }
 
             // A module converts to or from a type of its own; Lexica's own module alone converts between the language's types.
-            if (module !== Vocabulary.module && from.module !== module.name && to.module !== module.name) {
+            if (module !== Vocabulary.module && from.moduleName !== module.name && to.moduleName !== module.name) {
                 fail('LEXICA4028', "A conversion converts to or from one of its module's own types", name);
             }
 
@@ -696,7 +696,7 @@ export class LexicaRegistry {
                     return type.typeArguments.every(typeArgument => this.#isData(typeArgument, checking));
                 }
 
-                if ((type.module === null && LexicaModule.dataTypeNames.includes(type.name)) || checking.has(type.identity)) {
+                if ((type.moduleName === null && LexicaModule.dataTypeNames.includes(type.name)) || checking.has(type.identity)) {
                     return true;
                 }
 
@@ -729,7 +729,7 @@ export class LexicaRegistry {
                     return Array.isArray(value) && value.every(item => this.#admits(item, type.itemType));
                 }
 
-                if (type.module === null && ['Number', 'String', 'Boolean'].includes(type.name)) {
+                if (type.moduleName === null && ['Number', 'String', 'Boolean'].includes(type.name)) {
                     return typeof value === type.name.toLowerCase();
                 }
 

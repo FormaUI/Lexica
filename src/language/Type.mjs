@@ -11,7 +11,7 @@ const PRIMITIVE_TYPE_NAMES = Object.freeze({ string: 'String', number: 'Number',
 
 export class Type {
     /** @type {Map<string, Type | null>} */
-    static #parsed = new Map();
+    static #parseCache = new Map();
 
     /** The type's kind: named, object, root, function, typeParameter, any, null or never. */
     kind;
@@ -20,7 +20,7 @@ export class Type {
     name;
 
     /** The name of the module that declares a named type, null for one of Lexica's own types and for a name no module qualifies yet. */
-    module;
+    moduleName;
 
     /** A generic named type's type arguments, in the order its declaration declares its parameters; empty for any other type. @type {readonly Type[]} */
     typeArguments;
@@ -37,10 +37,10 @@ export class Type {
     /** Whether the type admits null. */
     isNullable;
 
-    constructor(kind, { name = null, module = null, typeArguments = [], fieldTypes = null, objectExpression = null, functions = null, isNullable = false } = {}) {
+    constructor(kind, { name = null, moduleName = null, typeArguments = [], fieldTypes = null, objectExpression = null, functions = null, isNullable = false } = {}) {
         this.kind = kind;
         this.name = name;
-        this.module = module;
+        this.moduleName = moduleName;
         this.typeArguments = Object.freeze([...typeArguments]);
         this.fieldTypes = fieldTypes;
         this.objectExpression = objectExpression;
@@ -51,16 +51,16 @@ export class Type {
 
     /** The type the notation writes, or null where it is not a type: a named type qualified where its module's name and a dot precede it. */
     static parse(text) {
-        if (!Type.#parsed.has(text)) {
-            Type.#parsed.set(text, new TypeReader(text).readAll());
+        if (!Type.#parseCache.has(text)) {
+            Type.#parseCache.set(text, new TypeReader(text).readAll());
         }
 
-        return Type.#parsed.get(text);
+        return Type.#parseCache.get(text);
     }
 
     /** A named type, one of Lexica's own types where no module declares it. */
-    static createNamedType(name, isNullable = false, module = null) {
-        return new Type('named', { name, module, isNullable });
+    static createNamedType(name, isNullable = false, moduleName = null) {
+        return new Type('named', { name, moduleName, isNullable });
     }
 
     /** A named type's identity, its module's name and its local name, or its local name alone for one of Lexica's own types; null for any other type. */
@@ -69,7 +69,7 @@ export class Type {
             return null;
         }
 
-        return this.module === null ? this.name : `${this.module}.${this.name}`;
+        return this.moduleName === null ? this.name : `${this.moduleName}.${this.name}`;
     }
 
     /** The type of a string, a number or a Boolean, the language's `String`, `Number` or `Boolean`. */
@@ -84,7 +84,7 @@ export class Type {
 
     /** Whether the type is a list, Lexica's own `List`. */
     get isList() {
-        return this.kind === 'named' && this.module === null && this.name === 'List';
+        return this.kind === 'named' && this.moduleName === null && this.name === 'List';
     }
 
     /** The type of a list's items, its one type argument; null for any other type. */
@@ -101,8 +101,8 @@ export class Type {
      * The object root, a reference to the outermost object the object expression builds, through which the fields completed where the reference is written are read: its type identifies the object expression and those fields,
      * and holds no data, so no result holds the reference.
      */
-    static createRootType(objectExpression, fieldTypes, isNullable = false) {
-        return new Type('root', { fieldTypes, objectExpression, isNullable });
+    static createObjectRootType(objectExpression, fieldTypes, isNullable = false) {
+        return new Type('objectRoot', { fieldTypes, objectExpression, isNullable });
     }
 
     /** The function type of a delegate, which may be any of the functions, each a function the expression declares with the scope it captures: no data, so no result holds one. */
@@ -142,17 +142,17 @@ export class Type {
             return Type.null;
         }
 
-        return this.isNullable ? this : new Type(this.kind, { name: this.name, module: this.module, typeArguments: this.typeArguments, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: true });
+        return this.isNullable ? this : new Type(this.kind, { name: this.name, moduleName: this.moduleName, typeArguments: this.typeArguments, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: true });
     }
 
     /** The same type, admitting no null. */
     toNonNullable() {
-        return !this.isNullable || this.kind === 'null' ? this : new Type(this.kind, { name: this.name, module: this.module, typeArguments: this.typeArguments, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: false });
+        return !this.isNullable || this.kind === 'null' ? this : new Type(this.kind, { name: this.name, moduleName: this.moduleName, typeArguments: this.typeArguments, fieldTypes: this.fieldTypes, objectExpression: this.objectExpression, functions: this.functions, isNullable: false });
     }
 
     /** Whether the two types are the same, nullability included. */
     equals(otherType) {
-        if (this.kind !== otherType.kind || this.name !== otherType.name || this.module !== otherType.module || this.objectExpression !== otherType.objectExpression || this.isNullable !== otherType.isNullable) {
+        if (this.kind !== otherType.kind || this.name !== otherType.name || this.moduleName !== otherType.moduleName || this.objectExpression !== otherType.objectExpression || this.isNullable !== otherType.isNullable) {
             return false;
         }
 
@@ -179,7 +179,7 @@ export class Type {
             case 'object':
                 text = `{ ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType.toString(isQualified)}`).join(', ')} }`;
                 break;
-            case 'root':
+            case 'objectRoot':
                 text = this.fieldTypes.size === 0 ? 'root { }' : `root { ${[...this.fieldTypes].map(([name, fieldType]) => `${name}: ${fieldType.toString(isQualified)}`).join(', ')} }`;
                 break;
             case 'function':
@@ -230,7 +230,7 @@ export class Type {
         }
 
         if (this.typeArguments.length > 0) {
-            return new Type(this.kind, { name: this.name, module: this.module, typeArguments: this.typeArguments.map(typeArgument => typeArgument.resolveTypeParameters(typeArguments)), isNullable: this.isNullable });
+            return new Type(this.kind, { name: this.name, moduleName: this.moduleName, typeArguments: this.typeArguments.map(typeArgument => typeArgument.resolveTypeParameters(typeArguments)), isNullable: this.isNullable });
         }
 
         return this;

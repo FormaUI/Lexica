@@ -21,7 +21,7 @@ export class Vocabulary {
 
     /** The declaration of the generic value type the type is one of, or undefined for a type of none; Lexica alone declares one. */
     static getGenericType(type) {
-        return type.kind === 'named' && type.module === null ? GENERIC_TYPES.get(type.name) : undefined;
+        return type.kind === 'named' && type.moduleName === null ? GENERIC_TYPES.get(type.name) : undefined;
     }
 
     /** @type {LexicaModule | undefined} */

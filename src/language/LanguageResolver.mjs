@@ -1161,7 +1161,7 @@ export class LanguageResolver {
             return declarations.some(declaration => this.#moduleRegistry.formOf(declaration) === 'indexer') ? 'indexer' : null;
         }
 
-        if (receiverType.kind === 'root' || this.#fieldTypeOf(receiverType, access.name) !== null) {
+        if (receiverType.kind === 'objectRoot' || this.#fieldTypeOf(receiverType, access.name) !== null) {
             return null;
         }
 
@@ -1182,7 +1182,7 @@ export class LanguageResolver {
             return this.#resolveOnUnknownType(node, pointer, scope, receiverType, defaults);
         }
 
-        if (receiverType.kind === 'root') {
+        if (receiverType.kind === 'objectRoot') {
             return this.#resolveObjectRootField(node, pointer, receiverType);
         }
 
@@ -1379,7 +1379,7 @@ export class LanguageResolver {
             return this.#resolveOnUnknownType(node, pointer, scope, receiverType);
         }
 
-        if (receiverType.kind === 'root') {
+        if (receiverType.kind === 'objectRoot') {
             return this.#resolveObjectRootField(node, pointer, receiverType);
         }
 
@@ -2146,7 +2146,7 @@ export class LanguageResolver {
 
             const heldReference = LanguageResolver.#heldReferenceOf(result.type);
 
-            if (heldReference === 'root') {
+            if (heldReference === 'objectRoot') {
                 this.#fail('LEXICA3047', `The field '${name}' would hold root, the object being built, which no result holds; read its fields, as root.name`, `${fieldPointer}/value`);
             }
 
@@ -2189,7 +2189,7 @@ export class LanguageResolver {
             this.#fail('LEXICA2018', "'root' refers to the outermost object being built, and no object expression encloses it here", pointer);
         }
 
-        return { type: Type.createRootType(scope.objectRoot.objectExpression, scope.objectRoot.fieldTypes), kind: 'value', isFixed: false };
+        return { type: Type.createObjectRootType(scope.objectRoot.objectExpression, scope.objectRoot.fieldTypes), kind: 'value', isFixed: false };
     }
 
     /**
@@ -2230,7 +2230,7 @@ export class LanguageResolver {
     /** What the type holds that no result may, itself, as a list's item or as an object's field: the object root, or a delegate; null for neither. */
     static #heldReferenceOf(type) {
         switch (type.kind) {
-            case 'root':
+            case 'objectRoot':
             case 'function':
                 return type.kind;
             case 'named':
@@ -2421,7 +2421,7 @@ export class LanguageResolver {
                     return type.typeArguments.every(typeArgument => this.#isData(typeArgument, checking));
                 }
 
-                if ((type.module === null && DATA_TYPE_NAMES.has(type.name)) || checking.has(type.identity)) {
+                if ((type.moduleName === null && DATA_TYPE_NAMES.has(type.name)) || checking.has(type.identity)) {
                     return true;
                 }
 

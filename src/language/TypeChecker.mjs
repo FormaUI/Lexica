@@ -70,7 +70,7 @@ export class TypeChecker {
             case 'object':
                 return TypeChecker.#holdsFieldsOf(type, declaredType) ? TypeChecker.#combineAssignabilities([...type.fieldTypes].map(([name, fieldType]) => this.assignabilityOf(fieldType, declaredType.fieldTypes.get(name)))) : 'refused';
             // An object root stands where one of its object expression reads the fields it does, and a delegate where one that may be any of its functions does.
-            case 'root':
+            case 'objectRoot':
                 return type.toNonNullable().equals(declaredType.toNonNullable()) ? 'assignable' : 'refused';
             case 'function':
                 return type.functions.every(candidate => declaredType.functions.includes(candidate)) ? 'assignable' : 'refused';
@@ -115,7 +115,7 @@ export class TypeChecker {
         }
 
         // Object roots merge where they identify one object expression and read the same fields, and with nothing else.
-        if (firstType.kind === 'root' || secondType.kind === 'root') {
+        if (firstType.kind === 'objectRoot' || secondType.kind === 'objectRoot') {
             return firstType.toNonNullable().equals(secondType.toNonNullable()) ? (isNullable ? firstType.toNullable() : firstType.toNonNullable()) : null;
         }
 
@@ -131,7 +131,7 @@ export class TypeChecker {
             return shared === undefined ? null : isNullable ? shared.toNullable() : shared.toNonNullable();
         }
 
-        if (firstType.kind !== secondType.kind || firstType.name !== secondType.name || firstType.module !== secondType.module) {
+        if (firstType.kind !== secondType.kind || firstType.name !== secondType.name || firstType.moduleName !== secondType.moduleName) {
             return null;
         }
 
@@ -158,7 +158,7 @@ export class TypeChecker {
         if (firstType.typeArguments.length > 0) {
             const typeArguments = this.#mergeTypeArguments(firstType, secondType);
 
-            return typeArguments === null ? null : new Type(firstType.kind, { name: firstType.name, module: firstType.module, typeArguments, isNullable });
+            return typeArguments === null ? null : new Type(firstType.kind, { name: firstType.name, moduleName: firstType.moduleName, typeArguments, isNullable });
         }
 
         return isNullable ? firstType.toNullable() : firstType.toNonNullable();
@@ -171,7 +171,7 @@ export class TypeChecker {
 
     /** Whether values of the type are compared with each other by an equality, rather than with null alone: strings, numbers and Booleans by their values, and references by their identity. */
     isComparable(type) {
-        return type.kind === 'named' && ((type.module === null && SCALAR_TYPE_NAMES.includes(type.name)) || this.#declarations.isReferenceType(type));
+        return type.kind === 'named' && ((type.moduleName === null && SCALAR_TYPE_NAMES.includes(type.name)) || this.#declarations.isReferenceType(type));
     }
 
     /** Whether the member applies to the receiver, by one of its receiver types, as inferring its receiver's type arguments succeeds; it records nothing. */
@@ -297,7 +297,7 @@ export class TypeChecker {
      * matches alone never makes two types compatible, and their type arguments are checked apart.
      */
     #isSameOrSupertypeByName(declaredType, actualType) {
-        if (declaredType.name === actualType.name && declaredType.module === actualType.module) {
+        if (declaredType.name === actualType.name && declaredType.moduleName === actualType.moduleName) {
             return true;
         }
 
