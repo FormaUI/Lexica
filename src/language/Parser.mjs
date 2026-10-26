@@ -530,7 +530,7 @@ export class Parser {
         }
 
         const operation = this.#parseEqualityOperand();
-        const kind = Parser.#kindOf(operation);
+        const kind = Parser.#syntaxKindOf(operation);
 
         if (kind !== 'conversion' && kind !== 'cast') {
             throw this.#fail('LEXICA1022', "'try' attempts a conversion or a cast: write 'try … to type' or 'try … as type'", start);
@@ -705,7 +705,7 @@ export class Parser {
         }
 
         const written = this.#text.slice(start, this.#tokens[this.#index - 1].end);
-        const kind = Parser.#kindOf(value);
+        const kind = Parser.#syntaxKindOf(value);
         const receiver = kind === 'cast' || kind === 'conversion' ? `(${written})` : written;
         // A name an argument or an options object follows is a call written without its dot, and any other a property access.
         const next = this.#tokens[this.#index + 1];
@@ -772,28 +772,25 @@ export class Parser {
     }
 
     /**
-     * Reads a chain: a chain input and the members and object expressions that continue it, and what a cast after it needs to know of it: whether an access of it is optional, which a group within it leaves to its own chain,
-     * what its input is, what a group it starts with holds, and whether anything continues it or an object expression is among what does.
+     * Reads a chain: a chain input and the members and object expressions that continue it, and what a cast after it needs to know of it: the syntax kind of its input, the syntax kind of what a group it starts with holds,
+     * and whether anything continues it or an object expression is among what does.
      */
     #parseChain() {
         const { start } = this.#token;
-        const input = this.#token.type === '(' ? 'parenthesizedExpression' : this.#token.type === '(?' ? 'optionalEnclosedAccess' : 'input';
+        const inputKind = this.#token.type === '(' ? 'parenthesized-expression' : this.#token.type === '(?' ? 'optional-enclosed-access' : 'input';
         const first = this.#parseChainInput();
-        const grouped = Parser.#kindOf(first);
+        const groupedKind = Parser.#syntaxKindOf(first);
 
-        this.#refuseChainFrom(grouped);
+        this.#refuseChainFrom(groupedKind);
         const children = [first];
-        let isOptional = false;
         let hasObject = false;
 
         for (;;) {
             if (this.#token.type === '[' || this.#token.type === '?[') {
-                isOptional ||= this.#token.type === '?[';
                 children.push(this.#parseIndexer());
             } else if (this.#token.type === ':' || this.#token.type === '?:') {
                 this.#refuseColon(start);
             } else if (this.#token.type === '.' || this.#token.type === '?.') {
-                isOptional ||= this.#token.type === '?.';
                 children.push(this.#parseAfterDot(this.#take()));
             } else if (this.#token.type === '{') {
                 children.push(this.#parseObject());
@@ -801,7 +798,7 @@ export class Parser {
             } else {
                 const node = children.length === 1 ? first : Parser.#node('chain', children);
 
-                return { node, isOptional, input, grouped, isContinued: children.length > 1, hasObject };
+                return { node, inputKind, groupedKind, isContinued: children.length > 1, hasObject };
             }
         }
     }
@@ -810,11 +807,11 @@ export class Parser {
      * Reads a cast after its target: `as` and the name of the type it casts to, written bare. Its target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and a cast continues a chain only from a group.
      */
     #parseChainCast(target, chain, start) {
-        const isTarget = !chain.hasObject && (chain.input === 'input'
-            || (chain.input === 'parenthesizedExpression' && (chain.grouped === 'cast' || (chain.grouped === 'coalescing' && !chain.isContinued)))
-            || (chain.input === 'optionalEnclosedAccess' && !chain.isContinued));
+        const isTarget = !chain.hasObject && (chain.inputKind === 'input'
+            || (chain.inputKind === 'parenthesized-expression' && (chain.groupedKind === 'cast' || (chain.groupedKind === 'coalescing' && !chain.isContinued)))
+            || (chain.inputKind === 'optional-enclosed-access' && !chain.isContinued));
 
-        if (chain.input === 'parenthesizedExpression' && chain.grouped === 'attempt' && !chain.isContinued) {
+        if (chain.inputKind === 'parenthesized-expression' && chain.groupedKind === 'attempt' && !chain.isContinued) {
             throw this.#fail('LEXICA1023', "An attempt is no cast's target: cast what it attempts, or attempt the cast, as in 'try a as Light'", start);
         }
 
@@ -908,9 +905,7 @@ export class Parser {
     #parseCastTarget(start) {
         if (this.#token.type === '(?' || (this.#token.type === '(' && !this.#groupHoldsCast())) {
             const target = this.#parseChainInput();
-            const kind = Parser.#kindOf(target);
-
-            if (kind !== 'coalescing' && kind !== 'optionalChain') {
+            if (Parser.#syntaxKindOf(target) !== 'coalescing' && !Parser.#lowersToOptionalChain(target)) {
                 throw this.#fail('LEXICA1025', `A cast's target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and this is none of them`, start);
             }
 
@@ -1440,20 +1435,20 @@ export class Parser {
         return { kind, children };
     }
 
-    /**
-     * The kind of definition node a syntax node lowers to, as far as the parser's checks ask it: a group is what it holds, a chain an optional chain where an access of it is optional,
-     * and an optional enclosed access an optional chain.
-     */
-    static #kindOf(child) {
+    /** The syntax kind of what the node holds: a group's is what it holds, and a token's its type. */
+    static #syntaxKindOf(child) {
+        return child.kind === 'parenthesized-expression' ? Parser.#syntaxKindOf(child.children[1]) : child.kind ?? child.type;
+    }
+
+    /** Whether the node lowers to an optional chain: an optional enclosed access, or a chain with an optional access, a group answering for what it holds. */
+    static #lowersToOptionalChain(child) {
         switch (child.kind) {
             case 'parenthesized-expression':
-                return Parser.#kindOf(child.children[1]);
+                return Parser.#lowersToOptionalChain(child.children[1]);
             case 'chain':
-                return child.children.some(part => MEMBER_EXPRESSION_KINDS.has(part.kind) && OPTIONAL_ACCESSES.has(part.children[0].type)) ? 'optionalChain' : 'access';
-            case 'optional-enclosed-access':
-                return 'optionalChain';
+                return child.children.some(part => MEMBER_EXPRESSION_KINDS.has(part.kind) && OPTIONAL_ACCESSES.has(part.children[0].type));
             default:
-                return child.kind ?? child.type;
+                return child.kind === 'optional-enclosed-access';
         }
     }
 }
