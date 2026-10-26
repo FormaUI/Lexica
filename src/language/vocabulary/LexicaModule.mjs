@@ -502,7 +502,7 @@ export class LexicaModule {
         }
 
         for (const [key, value] of Object.entries(observationDeclaration)) {
-            if (key !== 'type' && key !== 'of' && !LexicaModule.#isObservationValue(value, parameters)) {
+            if (key !== 'type' && key !== 'of' && !LexicaModule.#isObservationArgument(value, parameters)) {
                 fail(LexicaModule.#isMisplacedPrefix(value, parameters) ? 'LEXICA4061' : 'LEXICA4060', `The observation '${observationDeclaration.type}' gives '${key}' a value that is no literal, list of literals or argument of the member, which a prefix, a string, is joined to only where its parameter is a value parameter of type string`, name, declarationKey);
             }
         }
@@ -534,13 +534,14 @@ export class LexicaModule {
         return parameter?.kind === 'value' && parameter.type === 'String';
     }
 
-    static #isObservationValue(value, parameters) {
+    /** Whether the value is an argument an observation may give its observation type: a literal, a reference to an argument of the member, which can carry a prefix, or a list of them. */
+    static #isObservationArgument(value, parameters) {
         if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
             return true;
         }
 
         if (Array.isArray(value)) {
-            return value.every(item => LexicaModule.#isObservationValue(item, parameters));
+            return value.every(item => LexicaModule.#isObservationArgument(item, parameters));
         }
 
         return LexicaModule.#isArgumentReference(value, parameters) || LexicaModule.#isPrefixedArgumentReference(value, parameters);

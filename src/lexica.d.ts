@@ -150,8 +150,8 @@ export interface LexicaPrefixedArgumentReference extends LexicaArgumentReference
     prefix: string;
 }
 
-/** A value an observation gives: a literal, a list of values, or an argument of the member, which can carry a prefix. */
-export type LexicaObservationValue = string | number | boolean | null | LexicaArgumentReference | LexicaPrefixedArgumentReference | LexicaObservationValue[];
+/** An argument an observation gives its observation type: a literal, a reference to an argument of the member, which can carry a prefix, or a list of them. */
+export type LexicaObservationArgument = string | number | boolean | null | LexicaArgumentReference | LexicaPrefixedArgumentReference | LexicaObservationArgument[];
 
 /** An observation that covers a member's changes: its type, what it observes, and the arguments its type takes. */
 export interface LexicaObservationDeclaration {
@@ -159,7 +159,7 @@ export interface LexicaObservationDeclaration {
     type: string;
     /** What it observes: the receiver; a target the module declaring its type declares, by its name; or the argument of the member that names it. A member without a target has no receiver, and observes neither it nor a target found from it. */
     of: string | LexicaArgumentReference;
-    [argument: string]: LexicaObservationValue | undefined;
+    [argument: string]: LexicaObservationArgument | undefined;
 }
 
 /** How a member changes and reads, the changes it misses, the tolerance it is compared within and the observations that cover its changes. */
