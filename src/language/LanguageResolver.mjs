@@ -1508,7 +1508,7 @@ export class LanguageResolver {
         }
 
         // A module member and a member of its name on a receiver are both reached through the namespace, so the one reading resolution and type checking accept is taken, and one both accept is ambiguous.
-        const outcomes = readings.map(read => this.#attempt(read));
+        const outcomes = readings.map(read => this.#resolveSpeculatively(read, { keepsSuccess: true }));
         const accepted = outcomes.filter(outcome => outcome.error === undefined);
 
         if (accepted.length > 1) {
@@ -1529,24 +1529,40 @@ export class LanguageResolver {
         return `is declared for ${types.join(' and ')}, which ${receiverType.toNonNullable()} satisfies, and none of them is more specific than ${types.length === 2 ? 'the other' : 'every other'}, so which applies is ambiguous`;
     }
 
-    /** What a reading resolves to, or the failure that refuses it, leaving nothing of a refused reading behind: no resolution, no use and no function body it resolved. */
-    #attempt(read) {
+    /**
+     * Resolves a possible reading, answering what it resolves to, or the failure that refuses it where that is a LexicaError; any other failure propagates. A refused reading leaves the resolutions, the declaration uses
+     * and the body copies as they were, and so does a successful one unless `keepsSuccess` keeps its records, its result answered either way. Restoring those three stores is all it promises, since resolution writes
+     * nothing else a later reading could take for its own: the functions being resolved and the optional chains are removed as each resolution ends, whether it succeeds or fails; an object expression's object-root
+     * fields are reset before they are filled, and read only within it; the result a computed property access follows is read only once its own resolution wrote it; the name an access joins comes from its syntax alone;
+     * and the module-function cache keeps one entry for each declaration, whichever reading made it, so references to one declaration stay one function.
+     * @param {() => object} resolve The resolution of the reading.
+     * @param {{ keepsSuccess: boolean }} options Whether a successful reading's records are kept.
+     * @returns {{ result: object } | { error: LexicaError }}
+     */
+    #resolveSpeculatively(resolve, { keepsSuccess }) {
         const resolutions = new Map(this.#resolutions);
         const usedCount = this.#usedDeclarations.length;
         const instanceCount = this.#instances.length;
+        let isKept = false;
 
         try {
-            return { result: read() };
+            const result = resolve();
+
+            isKept = keepsSuccess;
+
+            return { result };
         } catch (error) {
             if (!(error instanceof LexicaError)) {
                 throw error;
             }
 
-            this.#resolutions = resolutions;
-            this.#usedDeclarations.length = usedCount;
-            this.#instances.length = instanceCount;
-
             return { error };
+        } finally {
+            if (!isKept) {
+                this.#resolutions = resolutions;
+                this.#usedDeclarations.length = usedCount;
+                this.#instances.length = instanceCount;
+            }
         }
     }
 
@@ -1776,13 +1792,14 @@ export class LanguageResolver {
         const fitting = [];
         let failure = null;
 
+        // Each candidate's arguments are resolved to determine compatibility and any selected type; their resolution records, declaration uses and body copies are discarded.
         for (const declaration of candidatesInForm) {
-            const attempt = this.#tryResolveArguments(declaration, node, pointer, scope, receiverType, offset);
+            const outcome = this.#resolveSpeculatively(() => this.#resolveArguments(declaration, node, pointer, scope, receiverType, new Map(), offset), { keepsSuccess: false });
 
-            if (attempt.error === undefined) {
-                fitting.push({ declaration, resolved: attempt.resolved });
+            if (outcome.error === undefined) {
+                fitting.push({ declaration, resolved: outcome.result });
             } else {
-                failure ??= attempt.error;
+                failure ??= outcome.error;
             }
         }
 
@@ -1816,25 +1833,6 @@ export class LanguageResolver {
         const suppliesNothing = fitting.length > 0 && fitting.every(({ declaration }) => declaration.result === undefined);
 
         return { type, kind: [...kinds][0], isFixed: false, ...(suppliesNothing ? { suppliesNothing: true } : {}) };
-    }
-
-    /** Resolves the arguments the declaration would take, leaving no resolution and no use behind, and answers them or the failure that refuses them. */
-    #tryResolveArguments(declaration, node, pointer, scope, receiverType, offset = 0) {
-        const resolutions = new Map(this.#resolutions);
-        const usedCount = this.#usedDeclarations.length;
-
-        try {
-            return { resolved: this.#resolveArguments(declaration, node, pointer, scope, receiverType, new Map(), offset) };
-        } catch (error) {
-            if (!(error instanceof LexicaError)) {
-                throw error;
-            }
-
-            return { error };
-        } finally {
-            this.#resolutions = resolutions;
-            this.#usedDeclarations.length = usedCount;
-        }
     }
 
     /** Refuses a member written in a form its declaration does not take, with the form it does: a property is accessed, and a function called or named as its declaration says. */

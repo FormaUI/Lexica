@@ -83,6 +83,14 @@ export class ResolvedDefinition {
         return [...new Set([...this.#resolutions.values()].filter(resolution => resolution.kind === 'conversion' && resolution.declaration !== null).map(resolution => resolution.declaration))];
     }
 
+    /**
+     * The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
+     * @internal
+     */
+    get instances() {
+        return this.#instances;
+    }
+
     /** What the member node at the pointer resolved to. */
     getResolution(pointer) {
         return this.#resolutions.get(pointer);
