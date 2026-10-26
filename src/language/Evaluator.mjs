@@ -64,6 +64,12 @@ const RECENT_FIELD_RECORDS = 4;
 /** The samples of a call that reads none. */
 const NO_SAMPLES = Object.freeze([]);
 
+/** What a message's description marks a number no finite number holds with, as a string JSON writes escaped. */
+const NON_FINITE_MARKER = '\u0000non-finite\u0000';
+
+/** A marked number as JSON writes it, quoted and escaped, which the description writes as its word. */
+const NON_FINITE_WRITTEN = /"\\u0000non-finite\\u0000(-?Infinity|NaN)"/g;
+
 /** What each arithmetic operator answers for its operands: `%` the remainder with the sign of the dividend, as `-5 % 3` is `-2`. */
 const ARITHMETIC = Object.freeze({
     '+': (a, b) => a + b,
@@ -1833,7 +1839,7 @@ export class Evaluator {
         return value !== null && value !== false;
     }
 
-    /** What the value is, for a message, its type never asked: nothing, or its data where it has any. */
+    /** What the value is, for a message, its type never asked: nothing, or its data where it has any, a number no finite number holds written as `Infinity`, `-Infinity` or `NaN` wherever it stands. */
     static #describe(value) {
         if (value === undefined) {
             return 'nothing';
@@ -1854,8 +1860,11 @@ export class Evaluator {
             return `an instance of ${value.constructor?.name || 'a class'}`;
         }
 
+        // JSON writes a number no finite number holds as null, so each is marked as a string JSON escapes and then written as its own word; a string holding the marker's NUL characters is no realistic value.
+        const nonFinite = (key, part) => (typeof part === 'number' && !Number.isFinite(part) ? `${NON_FINITE_MARKER}${part}` : part);
+
         try {
-            return JSON.stringify(value) ?? String(value);
+            return JSON.stringify(value, nonFinite)?.replace(NON_FINITE_WRITTEN, '$1') ?? String(value);
         } catch {
             return Object.prototype.toString.call(value);
         }

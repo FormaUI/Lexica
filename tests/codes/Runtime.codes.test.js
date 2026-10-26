@@ -355,6 +355,17 @@ describe('the runtime codes', () => {
             expectCode(failureOf('word.size'), 'LEXICA5006', 'evaluation');
         });
 
+        it('LEXICA5006: a module returning a number no finite number holds, described as it is, alone or within data', () => {
+            for (const [answer, described] of [[Infinity, 'Infinity'], [-Infinity, '-Infinity'], [NaN, 'NaN'], [[1, -Infinity, NaN], '[1,-Infinity,NaN]'], [{ low: NaN, label: 'Infinity' }, '{"low":NaN,"label":"Infinity"}']]) {
+                behaviors = { size: () => answer };
+
+                const error = failureOf('word.size');
+
+                expectCode(error, 'LEXICA5006', 'evaluation');
+                expect(error.message, described).toContain(`answered ${described}, and it declares Number`);
+            }
+        });
+
         it('LEXICA5007: a member whose implementation throws', () => {
             behaviors = { size: () => { throw new Error('no scale'); } };
 
