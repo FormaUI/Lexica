@@ -66,9 +66,9 @@ export class TypeChecker {
 
         switch (type.kind) {
             case 'named':
-                return this.#fitsByName(declaredType, type) ? this.#typeArgumentsAssignability(type, declaredType) : 'refused';
+                return this.#isSameOrSupertypeByName(declaredType, type) ? this.#getTypeArgumentsAssignability(type, declaredType) : 'refused';
             case 'object':
-                return TypeChecker.#holdsFieldsOf(type, declaredType) ? TypeChecker.#combine([...type.fieldTypes].map(([name, fieldType]) => this.assignabilityOf(fieldType, declaredType.fieldTypes.get(name)))) : 'refused';
+                return TypeChecker.#holdsFieldsOf(type, declaredType) ? TypeChecker.#combineAssignabilities([...type.fieldTypes].map(([name, fieldType]) => this.assignabilityOf(fieldType, declaredType.fieldTypes.get(name)))) : 'refused';
             // An object root stands where one of its object expression reads the fields it does, and a delegate where one that may be any of its functions does.
             case 'root':
                 return type.toNonNullable().equals(declaredType.toNonNullable()) ? 'assignable' : 'refused';
@@ -285,15 +285,18 @@ export class TypeChecker {
             return true;
         }
 
-        if (declaredType.kind !== actualType.kind || !this.#fitsByName(declaredType, actualType)) {
+        if (declaredType.kind !== actualType.kind || !this.#isSameOrSupertypeByName(declaredType, actualType)) {
             return false;
         }
 
         return declaredType.typeArguments.length === actualType.typeArguments.length && declaredType.typeArguments.every((typeArgument, index) => this.#inferInto(typeArgument, actualType.typeArguments[index], typeArguments));
     }
 
-    /** Whether a value of the actual type is a value of the declared type by its name: the same named type, by its identity, or a reference type beneath the declared one. */
-    #fitsByName(declaredType, actualType) {
+    /**
+     * Whether the declared type is the actual type or one of its supertypes by name: the same named type, by its module-qualified identity, or a named type the actual type's declared supertype chain reaches. A local name that
+     * matches alone never makes two types compatible, and their type arguments are checked apart.
+     */
+    #isSameOrSupertypeByName(declaredType, actualType) {
         if (declaredType.name === actualType.name && declaredType.module === actualType.module) {
             return true;
         }
@@ -312,15 +315,18 @@ export class TypeChecker {
         return lineage;
     }
 
-    /** Whether two types of one generic declaration, or of none, relate argument by argument: a covariant one by assignability, an invariant one by equality. */
-    #typeArgumentsAssignability(type, declaredType) {
+    /**
+     * Gets the assignability of two types of one generic declaration, or of none, argument by argument, a covariant one by assignability and an invariant one by equality: refused where an argument is refused, checked where one
+     * waits for its value, and assignable where every one is.
+     */
+    #getTypeArgumentsAssignability(type, declaredType) {
         if (type.typeArguments.length === 0) {
             return 'assignable';
         }
 
         const { parameters } = this.#declarations.getGenericType(declaredType);
 
-        return TypeChecker.#combine(type.typeArguments.map((typeArgument, index) => {
+        return TypeChecker.#combineAssignabilities(type.typeArguments.map((typeArgument, index) => {
             const declaredArgument = declaredType.typeArguments[index];
 
             if (parameters[index].variance === 'covariant') {
@@ -355,8 +361,8 @@ export class TypeChecker {
         return type.fieldTypes.size === otherType.fieldTypes.size && [...type.fieldTypes.keys()].every(name => otherType.fieldTypes.has(name));
     }
 
-    /** The assignability of a type whose parts answer these: refused where one is, checked where one waits for evaluation, and assignable where every one is. */
-    static #combine(answers) {
+    /** Combines the assignability its parts answer into a type's own, by precedence: refused where one is, then checked where one waits for evaluation, and assignable where every one is. */
+    static #combineAssignabilities(answers) {
         return answers.includes('refused') ? 'refused' : answers.includes('checked') ? 'checked' : 'assignable';
     }
 }
