@@ -21,41 +21,41 @@ export class ResolvedDefinition {
      * @param {{ node: object, pointer: string, name: string, declaration: object | null } | null} hostCall The host call the script ends in, null for one that gives a value.
      * @param {Map<string, object>} resolutions What each member node, by its JSON Pointer, resolved to.
      * @param {object[]} usedDeclarations The declarations the request uses, each with the pointer that used it and its qualified name, the name a message gives it, qualified by the type its declaration is for.
-     * @param {{ node: object, pointer: string, bodyPointer: string }[]} instances The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
+     * @param {{ node: object, pointer: string, bodyPointer: string }[]} functionBodyCopies The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
      */
-    constructor(definition, type, hostCall, resolutions, usedDeclarations, instances = []) {
+    constructor(definition, type, hostCall, resolutions, usedDeclarations, functionBodyCopies = []) {
         this.#definition = definition;
         this.#type = type;
         this.#hostCall = hostCall;
         this.#resolutions = resolutions;
         this.#usedDeclarations = Object.freeze([...usedDeclarations]);
-        this.#instances = instances;
+        this.#functionBodyCopies = functionBodyCopies;
         this.#index(definition.expression, '/expression');
-        instances.forEach(instance => this.#index(instance.node, instance.pointer));
+        functionBodyCopies.forEach(bodyCopy => this.#index(bodyCopy.node, bodyCopy.pointer));
     }
 
     /** @type {{ node: object, pointer: string, bodyPointer: string }[]} */
-    #instances;
+    #functionBodyCopies;
 
     /** Resolves the pointer into the definition a pointer names, a pointer into a call's copy of a function's body naming the part of the body it copies, and any other pointer itself. */
     resolveDefinitionPointer(pointer) {
-        return ResolvedDefinition.resolveDefinitionPointer(pointer, this.#instances);
+        return ResolvedDefinition.resolveDefinitionPointer(pointer, this.#functionBodyCopies);
     }
 
-    /** The pointer into the definition a pointer names among the instances, each call's copy of a function's body taken back to the body it copies, a copy within a copy as many times as it is one. */
-    static resolveDefinitionPointer(pointer, instances) {
+    /** The pointer into the definition a pointer names among the function body copies, each call's copy of a function's body taken back to the body it copies, a copy within a copy as many times as it is one. */
+    static resolveDefinitionPointer(pointer, functionBodyCopies) {
         let definitionPointer = pointer;
 
-        for (let instance = ResolvedDefinition.#instanceOf(definitionPointer, instances); instance !== undefined; instance = ResolvedDefinition.#instanceOf(definitionPointer, instances)) {
-            definitionPointer = `${instance.bodyPointer}${definitionPointer.slice(instance.pointer.length)}`;
+        for (let bodyCopy = ResolvedDefinition.#bodyCopyOf(definitionPointer, functionBodyCopies); bodyCopy !== undefined; bodyCopy = ResolvedDefinition.#bodyCopyOf(definitionPointer, functionBodyCopies)) {
+            definitionPointer = `${bodyCopy.bodyPointer}${definitionPointer.slice(bodyCopy.pointer.length)}`;
         }
 
         return definitionPointer;
     }
 
-    /** The instance whose pointer the pointer is or lies beneath, the innermost one, which is resolved after the one it lies in. */
-    static #instanceOf(pointer, instances) {
-        return instances.findLast(instance => pointer === instance.pointer || pointer.startsWith(`${instance.pointer}/`));
+    /** The body copy whose pointer the pointer is or lies beneath, the innermost one, which is resolved after the one it lies in. */
+    static #bodyCopyOf(pointer, functionBodyCopies) {
+        return functionBodyCopies.findLast(bodyCopy => pointer === bodyCopy.pointer || pointer.startsWith(`${bodyCopy.pointer}/`));
     }
 
     /** The request's definition. */
@@ -87,8 +87,8 @@ export class ResolvedDefinition {
      * The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
      * @internal
      */
-    get instances() {
-        return this.#instances;
+    get functionBodyCopies() {
+        return this.#functionBodyCopies;
     }
 
     /** What the member node at the pointer resolved to. */

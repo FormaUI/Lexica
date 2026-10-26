@@ -106,7 +106,7 @@ export class DefinitionValidator {
     #laterNames = new Map();
 
     /** The optional chain the node being validated continues, with whether an access of it is optional so far; null where it continues none. @type {{ hasOptional: boolean } | null} */
-    #chain = null;
+    #optionalChain = null;
 
     /**
      * The simple expression the node being validated stands in, an argument, an indexer's key, a computed property access's name or an interpolation's expression, with the subject its messages open with and whether a conditional holds the node;
@@ -209,17 +209,17 @@ export class DefinitionValidator {
 
         this.#requireProperties(node, pointer, NODE_PROPERTIES[node.kind]);
 
-        const enclosingChain = this.#chain;
+        const enclosingOptionalChain = this.#optionalChain;
 
         // A chain continues through a property access's, a call's and an object expression's target alone, so any other node ends it.
         if (!CHAIN_KINDS.has(node.kind)) {
-            this.#chain = null;
+            this.#optionalChain = null;
         }
 
         try {
             return this.#validateKind(node, pointer, contextAvailability);
         } finally {
-            this.#chain = enclosingChain;
+            this.#optionalChain = enclosingOptionalChain;
         }
     }
 
@@ -503,13 +503,13 @@ export class DefinitionValidator {
 
     /** Validates an optional chain: the chain whose optional accesses end at it, at least one of them, since a chain with none is the chain alone. */
     #validateOptionalChain(node, pointer, contextAvailability) {
-        const chain = { hasOptional: false };
+        const optionalChain = { hasOptional: false };
 
-        this.#chain = chain;
+        this.#optionalChain = optionalChain;
 
         const target = this.#validateNode(node.target, `${pointer}/target`, contextAvailability);
 
-        if (!chain.hasOptional) {
+        if (!optionalChain.hasOptional) {
             this.#fail('LEXICA2030', pointer, 'An optional chain holds a chain with an optional access, written ?.');
         }
 
@@ -628,11 +628,11 @@ export class DefinitionValidator {
 
         const names = node.locals.map(local => local?.name);
         const enclosingLocalNames = this.#localNames;
-        const enclosingChain = this.#chain;
+        const enclosingOptionalChain = this.#optionalChain;
         const declared = new Set();
 
         // A body's locals and its result continue no chain of what holds it.
-        this.#chain = null;
+        this.#optionalChain = null;
 
         try {
             const locals = node.locals.map((local, index) => {
@@ -657,7 +657,7 @@ export class DefinitionValidator {
             return Object.freeze({ kind: 'body', locals: Object.freeze(locals), result: this.#validateNode(node.result, `${pointer}/result`, contextAvailability) });
         } finally {
             this.#localNames = enclosingLocalNames;
-            this.#chain = enclosingChain;
+            this.#optionalChain = enclosingOptionalChain;
         }
     }
 
@@ -694,12 +694,12 @@ export class DefinitionValidator {
 
         const enclosingLocalNames = this.#localNames;
         const enclosingLaterNames = this.#laterNames;
-        const enclosingChain = this.#chain;
+        const enclosingOptionalChain = this.#optionalChain;
 
         // Its parameters are declared in its own scope, so in its body each hides a local of its name declared later around it.
         this.#localNames = new Set([...this.#localNames, ...node.parameters]);
         this.#laterNames = new Map([...this.#laterNames].filter(([name]) => !node.parameters.includes(name)));
-        this.#chain = null;
+        this.#optionalChain = null;
 
         try {
             if (node.arrow !== true) {
@@ -714,7 +714,7 @@ export class DefinitionValidator {
         } finally {
             this.#localNames = enclosingLocalNames;
             this.#laterNames = enclosingLaterNames;
-            this.#chain = enclosingChain;
+            this.#optionalChain = enclosingOptionalChain;
         }
     }
 
@@ -726,15 +726,15 @@ export class DefinitionValidator {
             this.#fail('LEXICA2016', pointer, `'${node.name}' is called before the local of that name is declared in its scope, so no function calls itself or one declared after it`);
         }
 
-        const enclosingChain = this.#chain;
+        const enclosingOptionalChain = this.#optionalChain;
 
-        this.#chain = null;
+        this.#optionalChain = null;
 
         try {
             // Whether an argument has an implicit parameter is the function's to say, a reference's as its qualified form's member does, which only resolution knows, so an `it` there is resolution's to refuse.
             return Object.freeze({ kind: 'functionCall', name: node.name, arguments: this.#validateArguments(node.arguments, `${pointer}/arguments`, ContextAvailability.unknown) });
         } finally {
-            this.#chain = enclosingChain;
+            this.#optionalChain = enclosingOptionalChain;
         }
     }
 
@@ -790,11 +790,11 @@ export class DefinitionValidator {
                 this.#fail('LEXICA2000', `${pointer}/optional`, 'An optional access holds optional: true, and a required one leaves it out');
             }
 
-            if (this.#chain === null) {
+            if (this.#optionalChain === null) {
                 this.#fail('LEXICA2010', pointer, 'An optional access stands within an optional chain, which ends where a null receiver ends it');
             }
 
-            this.#chain.hasOptional = true;
+            this.#optionalChain.hasOptional = true;
         }
 
         const target = node.target?.kind === 'namespace' ? this.#validateNamespace(node, pointer) : this.#validateNode(node.target, `${pointer}/target`, contextAvailability);
@@ -804,7 +804,7 @@ export class DefinitionValidator {
             return access;
         }
 
-        this.#chain = null;
+        this.#optionalChain = null;
 
         if (node.kind === 'call') {
             return Object.freeze({ ...access, arguments: this.#validateArguments(node.arguments, `${pointer}/arguments`, ContextAvailability.unknown) });
@@ -841,16 +841,16 @@ export class DefinitionValidator {
 
     /** Validates the expression a computed property access holds, which continues no chain; a string literal that is a name is the name itself, as `.` writes it, so an access has one definition. */
     #validateNameExpression(node, pointer, contextAvailability) {
-        const enclosingChain = this.#chain;
+        const enclosingOptionalChain = this.#optionalChain;
 
-        this.#chain = null;
+        this.#optionalChain = null;
 
         try {
             const expression = this.#validateSimpleExpression(node, pointer, contextAvailability, 'The name a computed property access reads');
 
             return expression.kind === 'literal' && Names.isIdentifier(expression.value) ? expression.value : expression;
         } finally {
-            this.#chain = enclosingChain;
+            this.#optionalChain = enclosingOptionalChain;
         }
     }
 
@@ -875,7 +875,7 @@ export class DefinitionValidator {
         const wasInObjectExpression = this.#isInObjectExpression;
 
         // An object expression's entries continue no chain of the one it follows, and are built within the outermost object.
-        this.#chain = null;
+        this.#optionalChain = null;
         this.#isInObjectExpression = true;
 
         try {

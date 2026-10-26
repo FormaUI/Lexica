@@ -37,7 +37,7 @@ const resolve = result => {
 /** What a resolution kept of the three stores a speculative resolution restores: each use by its name and pointer, the pointer of each body copy, and whether the pointer was resolved. */
 const keptOf = (resolved, pointer) => ({
     uses: resolved.usedDeclarations.map(use => `${use.qualifiedName}@${use.pointer}`),
-    copies: resolved.instances.map(instance => instance.pointer),
+    copies: resolved.functionBodyCopies.map(bodyCopy => bodyCopy.pointer),
     isResolved: resolved.getResolution(pointer) !== undefined,
 });
 

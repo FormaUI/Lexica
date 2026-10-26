@@ -32,7 +32,7 @@ export class LanguageResolver {
     #usedDeclarations = [];
 
     /** The optional chains being resolved, the innermost last, each with whether an optional access of it can meet a null receiver. @type {{ shortCircuits: boolean }[]} */
-    #chains = [];
+    #optionalChains = [];
 
     /**
      * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} moduleRegistry The vocabulary to resolve against.
@@ -64,7 +64,7 @@ export class LanguageResolver {
 
         const hostCall = result.kind === 'hostCall' ? this.#hostCallOf(definition.expression, '/expression') : null;
 
-        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#usedDeclarations, this.#instances);
+        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#usedDeclarations, this.#functionBodyCopies);
     }
 
     /** Resolves the node in the script's terminal position, where a host call may stand: the script's expression, the result a body there returns and the body a `do` there holds. */
@@ -220,16 +220,16 @@ export class LanguageResolver {
 
     /** Resolves an optional chain: the chain it holds, nullable where an optional access of it can meet a null receiver, which ends the chain with null. */
     #resolveOptionalChain(node, pointer, scope) {
-        const chain = { shortCircuits: false };
+        const optionalChain = { shortCircuits: false };
 
-        this.#chains.push(chain);
+        this.#optionalChains.push(optionalChain);
 
         try {
             const result = this.#resolveNode(node.target, `${pointer}/target`, scope);
 
-            return chain.shortCircuits ? { ...result, type: result.type.toNullable(), isFixed: false } : result;
+            return optionalChain.shortCircuits ? { ...result, type: result.type.toNullable(), isFixed: false } : result;
         } finally {
-            this.#chains.pop();
+            this.#optionalChains.pop();
         }
     }
 
@@ -930,12 +930,12 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves one call of a script function: copies its body for the call, so the same function serves calls of different types, registers the copy under the instance pointer, where each resolution in it is kept and a failure in it is
+     * Resolves one call of a script function: copies its body for the call, so the same function serves calls of different types, registers the copy under the copy's pointer, where each resolution in it is kept and a failure in it is
      * located back to the body it copies, and resolves the copy against the scope the function captured
      * and its parameters, each holding what the call gives it. It refuses a call reaching a function whose body is being resolved, directly or through a function passed to it (LEXICA3034), and a body that gives no value
      * (LEXICA3048).
      */
-    #resolveScriptFunctionCall(target, name, argumentResults, argumentNodes, callerScope, instancePointer, callPointer) {
+    #resolveScriptFunctionCall(target, name, argumentResults, argumentNodes, callerScope, bodyCopyPointer, callPointer) {
         const { parameters, body } = target.function;
 
         if (this.#functionsBeingResolved.has(target.function)) {
@@ -948,24 +948,24 @@ export class LanguageResolver {
             locals = new Map(locals).set(parameter, { result: argumentResults[index], value: argumentNodes?.[index] ?? null, scope: callerScope });
         });
 
-        const instance = DefinitionValidator.copyOf(body);
+        const bodyCopy = DefinitionValidator.copyOf(body);
 
-        this.#instances.push({ node: instance, pointer: instancePointer, bodyPointer: `${target.pointer}/body` });
+        this.#functionBodyCopies.push({ node: bodyCopy, pointer: bodyCopyPointer, bodyPointer: `${target.pointer}/body` });
         this.#functionsBeingResolved.add(target.function);
 
         let result;
 
         try {
-            result = this.#resolveNode(instance, instancePointer, { ...target.scope, locals });
+            result = this.#resolveNode(bodyCopy, bodyCopyPointer, { ...target.scope, locals });
         } finally {
             this.#functionsBeingResolved.delete(target.function);
         }
 
         if (result.kind !== 'value') {
-            this.#fail('LEXICA3048', `'${name}' gives ${LanguageResolver.#descriptionOf(result.kind)}, and a function gives a value`, instancePointer);
+            this.#fail('LEXICA3048', `'${name}' gives ${LanguageResolver.#descriptionOf(result.kind)}, and a function gives a value`, bodyCopyPointer);
         }
 
-        return { function: target.function, body: instance, parameters, type: result.type };
+        return { function: target.function, body: bodyCopy, parameters, type: result.type };
     }
 
     /** The functions whose bodies are being resolved, each for a call within which none is called again. @type {Set<object>} */
@@ -1094,7 +1094,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3008', `'${written}' follows ${follows}: write '${DefinitionWriter.quote(optionalForm, this.#namespaceNames)}' to read it where it is not`, pointer);
             }
 
-            this.#chains.at(-1).shortCircuits = true;
+            this.#optionalChains.at(-1).shortCircuits = true;
         }
 
         const receiverType = node.optional === true ? receiver.type.toNonNullable() : receiver.type;
@@ -1540,7 +1540,7 @@ export class LanguageResolver {
     #resolveSpeculatively(resolve, { keepsSuccess }) {
         const resolutions = new Map(this.#resolutions);
         const usedCount = this.#usedDeclarations.length;
-        const instanceCount = this.#instances.length;
+        const bodyCopyCount = this.#functionBodyCopies.length;
         let isKept = false;
 
         try {
@@ -1559,7 +1559,7 @@ export class LanguageResolver {
             if (!isKept) {
                 this.#resolutions = resolutions;
                 this.#usedDeclarations.length = usedCount;
-                this.#instances.length = instanceCount;
+                this.#functionBodyCopies.length = bodyCopyCount;
             }
         }
     }
@@ -2418,14 +2418,14 @@ export class LanguageResolver {
 
     /** Refuses the definition with the code of the condition it fails, a structure error for a structure code and a validation error otherwise, located at the source of the pointer. */
     #fail(code, message, pointer) {
-        const definitionPointer = ResolvedDefinition.resolveDefinitionPointer(pointer, this.#instances);
+        const definitionPointer = ResolvedDefinition.resolveDefinitionPointer(pointer, this.#functionBodyCopies);
         const location = this.#locations?.locate(definitionPointer) ?? { pointer: definitionPointer };
 
         throw code.startsWith('LEXICA2') ? LexicaErrors.structure(code, message, location) : LexicaErrors.validation(code, message, location);
     }
 
     /** The copy of a function's body each call resolves, with the pointer it is resolved under and the pointer of the body it copies. @type {{ node: object, pointer: string, bodyPointer: string }[]} */
-    #instances = [];
+    #functionBodyCopies = [];
 
     /** What a resolved node of the kind is, for a message: a host call, a function a local holds, or a value. */
     static #descriptionOf(kind) {
