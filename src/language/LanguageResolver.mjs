@@ -250,7 +250,7 @@ export class LanguageResolver {
             }
         }
 
-        if (!LanguageResolver.#comparesWithAny(left.type) && !LanguageResolver.#comparesWithAny(right.type)) {
+        if (!LanguageResolver.#isNullOrNever(left.type) && !LanguageResolver.#isNullOrNever(right.type)) {
             const leftType = left.type.toNonNullable();
             const rightType = right.type.toNonNullable();
 
@@ -889,7 +889,7 @@ export class LanguageResolver {
 
         if (hasReceiver) {
             const receiverType = results[0].type;
-            const inferred = LanguageResolver.#isOfUnknownType(receiverType.toNonNullable()) ? typeArguments : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType.toNonNullable());
+            const inferred = LanguageResolver.#isNullOrNever(receiverType.toNonNullable()) ? typeArguments : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType.toNonNullable());
 
             typeArguments = inferred ?? typeArguments;
 
@@ -1010,7 +1010,7 @@ export class LanguageResolver {
     #joinedNameHintOf(node, receiverType) {
         const joined = this.#joinedNames.get(node)?.toLowerCase();
 
-        if (joined === undefined || LanguageResolver.#isOfUnknownType(receiverType)) {
+        if (joined === undefined || LanguageResolver.#isNullOrNever(receiverType)) {
             return '';
         }
 
@@ -1157,7 +1157,7 @@ export class LanguageResolver {
 
         const receiverType = access.optional === true ? receiver.type.toNonNullable() : receiver.type;
 
-        if (LanguageResolver.#isOfUnknownType(receiverType)) {
+        if (LanguageResolver.#isNullOrNever(receiverType)) {
             return declarations.some(declaration => this.#moduleRegistry.formOf(declaration) === 'indexer') ? 'indexer' : null;
         }
 
@@ -1178,7 +1178,7 @@ export class LanguageResolver {
     #resolveUnnamedIndexerAccess(node, pointer, scope, receiverType) {
         const defaults = this.#moduleRegistry.getDefaultIndexers();
 
-        if (LanguageResolver.#isOfUnknownType(receiverType)) {
+        if (LanguageResolver.#isNullOrNever(receiverType)) {
             return this.#resolveOnUnknownType(node, pointer, scope, receiverType, defaults);
         }
 
@@ -1248,7 +1248,7 @@ export class LanguageResolver {
         let type = types.reduce((merged, candidateType) => (merged === null ? null : this.#typeChecker.merge(merged, candidateType)), Type.never);
 
         if (type === null) {
-            if (!LanguageResolver.#isOfUnknownType(receiverType)) {
+            if (!LanguageResolver.#isNullOrNever(receiverType)) {
                 this.#fail('LEXICA3015', `The properties '${DefinitionWriter.quote(node.name, this.#namespaceNames)}' can name are of one type, and these are ${types.join(', ')}`, namePointer);
             }
 
@@ -1375,7 +1375,7 @@ export class LanguageResolver {
 
     /** Resolves the member the node names on a receiver of the type, which its receiver's null policy has already been applied to, the name one a computed property access settled to where it is computed. */
     #resolveMemberOnReceiverType(node, pointer, scope, receiverType, isComputed = false) {
-        if (LanguageResolver.#isOfUnknownType(receiverType)) {
+        if (LanguageResolver.#isNullOrNever(receiverType)) {
             return this.#resolveOnUnknownType(node, pointer, scope, receiverType);
         }
 
@@ -1442,7 +1442,7 @@ export class LanguageResolver {
 
         // A host call that supplies nothing has no value to type, so it is typed as a never, which no value has.
         const declared = declaration.result === undefined ? Type.never : this.#moduleRegistry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(resultTypeArguments);
-        const unbound = receiverType !== null && LanguageResolver.#isOfUnknownType(receiverType) ? null : LanguageResolver.#typeParameterOf(declared);
+        const unbound = receiverType !== null && LanguageResolver.#isNullOrNever(receiverType) ? null : LanguageResolver.#typeParameterOf(declared);
 
         // A type parameter of the result that neither the receiver nor an argument binds leaves the result a type no value has, which the call is refused for; a receiver of unknown type binds none, and is never evaluated.
         if (unbound !== null) {
@@ -1610,7 +1610,7 @@ export class LanguageResolver {
         const receiverType = receiver.type.toNonNullable();
         const isReceiverNullable = receiver.type.isNullable || receiver.type.kind === 'null';
 
-        if (LanguageResolver.#isOfUnknownType(receiverType)) {
+        if (LanguageResolver.#isNullOrNever(receiverType)) {
             const result = this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
 
             return { result, resolution: this.#resolutions.get(pointer), use: null };
@@ -1965,7 +1965,7 @@ export class LanguageResolver {
             let callback;
 
             if (parameter.kind === 'expression' || parameter.kind === 'predicate') {
-                const isOfUnknownType = receiverType === null || LanguageResolver.#isOfUnknownType(receiverType);
+                const isOfUnknownType = receiverType === null || LanguageResolver.#isNullOrNever(receiverType);
 
                 if (receiverType === null) {
                     this.#fail('LEXICA3500', `'${declaration.name}' evaluates its expression against the items of the list it follows, and a module member follows none`, valuePointer);
@@ -2253,7 +2253,7 @@ export class LanguageResolver {
      * A type parameter of a receiver of unknown type, which nothing binds, is a never, which fits wherever a value of any type stands.
      */
     #createCallbackContract(parameter, declaration, receiverType, typeArguments) {
-        const isOfUnknownType = receiverType !== null && LanguageResolver.#isOfUnknownType(receiverType);
+        const isOfUnknownType = receiverType !== null && LanguageResolver.#isNullOrNever(receiverType);
         const resolve = text => {
             const type = this.#moduleRegistry.getDeclaredType(declaration, text).resolveTypeParameters(typeArguments);
 
@@ -2439,8 +2439,8 @@ export class LanguageResolver {
         return LexicaModule.isInvokedByHost(declaration) ? 'hostCall' : 'value';
     }
 
-    /** Whether the type says nothing of what its value would be: null's, a null binding's, and never's, which no value has. */
-    static #isOfUnknownType(type) {
+    /** Whether the type is null, whose only value is null, or Never, which has no values. */
+    static #isNullOrNever(type) {
         return type.kind === 'null' || type.kind === 'never';
     }
 
@@ -2475,11 +2475,6 @@ export class LanguageResolver {
         }
 
         return `${type.kind === 'named' ? type.name : type.kind}.${declaration.name}`;
-    }
-
-    /** Whether a value of the type compares with a value of any type: null, which equals null alone, or a never, which no value has. */
-    static #comparesWithAny(type) {
-        return type.kind === 'null' || type.kind === 'never';
     }
 
 }
