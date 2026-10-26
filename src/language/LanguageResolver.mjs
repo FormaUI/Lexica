@@ -950,7 +950,7 @@ export class LanguageResolver {
 
         const instance = DefinitionValidator.copyOf(body);
 
-        this.#instances.push({ node: instance, pointer: instancePointer, source: `${target.pointer}/body` });
+        this.#instances.push({ node: instance, pointer: instancePointer, bodyPointer: `${target.pointer}/body` });
         this.#functionsBeingResolved.add(target.function);
 
         let result;
@@ -2442,13 +2442,13 @@ export class LanguageResolver {
 
     /** Refuses the definition with the code of the condition it fails, a structure error for a structure code and a validation error otherwise, located at the source of the pointer. */
     #fail(code, message, pointer) {
-        const source = ResolvedDefinition.sourcePointerOf(pointer, this.#instances);
-        const location = this.#locations?.locate(source) ?? { pointer: source };
+        const definitionPointer = ResolvedDefinition.resolveDefinitionPointer(pointer, this.#instances);
+        const location = this.#locations?.locate(definitionPointer) ?? { pointer: definitionPointer };
 
         throw code.startsWith('LEXICA2') ? LexicaErrors.structure(code, message, location) : LexicaErrors.validation(code, message, location);
     }
 
-    /** The copy of a function's body each call resolves, with the pointer it is resolved under and the pointer of the body it copies. @type {{ node: object, pointer: string, source: string }[]} */
+    /** The copy of a function's body each call resolves, with the pointer it is resolved under and the pointer of the body it copies. @type {{ node: object, pointer: string, bodyPointer: string }[]} */
     #instances = [];
 
     /** What a resolved node of the kind is, for a message: a host call, a function a local holds, or a value. */

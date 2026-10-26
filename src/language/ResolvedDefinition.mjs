@@ -21,7 +21,7 @@ export class ResolvedDefinition {
      * @param {{ node: object, pointer: string, name: string, declaration: object | null } | null} hostCall The host call the script ends in, null for one that gives a value.
      * @param {Map<string, object>} resolutions What each member node, by its JSON Pointer, resolved to.
      * @param {object[]} usedDeclarations The declarations the request uses, each with the pointer that used it and the name a message gives it, qualified by the type its declaration is for.
-     * @param {{ node: object, pointer: string, source: string }[]} instances The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
+     * @param {{ node: object, pointer: string, bodyPointer: string }[]} instances The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
      */
     constructor(definition, type, hostCall, resolutions, usedDeclarations, instances = []) {
         this.#definition = definition;
@@ -34,23 +34,23 @@ export class ResolvedDefinition {
         instances.forEach(instance => this.#index(instance.node, instance.pointer));
     }
 
-    /** @type {{ node: object, pointer: string, source: string }[]} */
+    /** @type {{ node: object, pointer: string, bodyPointer: string }[]} */
     #instances;
 
-    /** The pointer into the definition a pointer names, a pointer into a call's copy of a function's body naming the part of the body it copies. */
-    sourcePointerOf(pointer) {
-        return ResolvedDefinition.sourcePointerOf(pointer, this.#instances);
+    /** Resolves the pointer into the definition a pointer names, a pointer into a call's copy of a function's body naming the part of the body it copies, and any other pointer itself. */
+    resolveDefinitionPointer(pointer) {
+        return ResolvedDefinition.resolveDefinitionPointer(pointer, this.#instances);
     }
 
     /** The pointer into the definition a pointer names among the instances, each call's copy of a function's body taken back to the body it copies, a copy within a copy as many times as it is one. */
-    static sourcePointerOf(pointer, instances) {
-        let source = pointer;
+    static resolveDefinitionPointer(pointer, instances) {
+        let definitionPointer = pointer;
 
-        for (let instance = ResolvedDefinition.#instanceOf(source, instances); instance !== undefined; instance = ResolvedDefinition.#instanceOf(source, instances)) {
-            source = `${instance.source}${source.slice(instance.pointer.length)}`;
+        for (let instance = ResolvedDefinition.#instanceOf(definitionPointer, instances); instance !== undefined; instance = ResolvedDefinition.#instanceOf(definitionPointer, instances)) {
+            definitionPointer = `${instance.bodyPointer}${definitionPointer.slice(instance.pointer.length)}`;
         }
 
-        return source;
+        return definitionPointer;
     }
 
     /** The instance whose pointer the pointer is or lies beneath, the innermost one, which is resolved after the one it lies in. */

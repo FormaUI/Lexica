@@ -1811,9 +1811,9 @@ export class Evaluator {
     }
 
     #locate(pointer) {
-        const source = this.#resolvedDefinition.sourcePointerOf(pointer);
+        const definitionPointer = this.#resolvedDefinition.resolveDefinitionPointer(pointer);
 
-        return this.#locations?.locate(source) ?? { pointer: source };
+        return this.#locations?.locate(definitionPointer) ?? { pointer: definitionPointer };
     }
 
     /** The fields of the declared structure, in order, each with its type. */
