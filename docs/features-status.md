@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. In [unit 1](#unit-1--declarations-and-the-type-model), steps 1 to 4 are complete; step 5, the declaration model, is next, its first stage, S1, to be planned before it starts; step 6 has not started.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. In [unit 1](#unit-1--declarations-and-the-type-model), steps 1 to 4 are complete; step 5, the declaration model, is next, the division of its stages S1 and S2 proposed and awaiting review; step 6 has not started.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | Unit | Work | State |
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
-| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | In progress: steps 1 to 4 done; step 5 next, S1 to be planned |
+| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | In progress: steps 1 to 4 done; step 5 next, its S1 and S2 proposed for review |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
