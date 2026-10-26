@@ -23,6 +23,17 @@ describe('LexicaModule', () => {
         expect(Object.isFrozen(implementation)).toBe(false);
     });
 
+    it('freezes copies of its declarations, leaving the declarations its caller gave unfrozen through every list and object they hold', () => {
+        const option = parameter({ name: 'by', type: 'List<Number>', required: false, default: [1, 2] });
+        const declared = functionDeclaration({ name: 'pan', parameters: [option] });
+        const type = { name: 'Chart', fields: { points: 'Number' } };
+        const module = new LexicaModule('charts', { types: [type], members: [declared] });
+
+        expect([declared, declared.parameters, option, option.default, type, type.fields].map(part => Object.isFrozen(part))).toEqual([false, false, false, false, false, false]);
+        expect([module.members[0].parameters[0].default, module.types[0].fields].map(part => Object.isFrozen(part))).toEqual([true, true]);
+        expect(module.members[0].parameters[0]).not.toBe(option);
+    });
+
     it('fills a member\'s defaults: a function call, its arguments positional for an indexer, and empty parameters and observations', () => {
         const module = new LexicaModule('charts', {
             members: [functionDeclaration({ name: 'level' }), functionDeclaration({ name: 'key', syntax: 'indexer', arguments: undefined, parameters: [parameter({ name: 'key', type: 'String' })] })],

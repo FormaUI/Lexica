@@ -127,13 +127,31 @@ export class LexicaModule {
 
         this.#name = name;
         this.#typeOf = typeOf;
-        this.#types = LexicaModule.#freezeItems(types.map(type => LexicaModule.#validateTypeDeclaration(type, fail)));
-        this.#members = LexicaModule.#freezeItems(members.map(member => LexicaModule.#validateMember(member, fail)));
-        this.#typeSelectors = LexicaModule.#freezeItems(LexicaModule.#validateTypeSelectors(typeSelectors, fail));
-        this.#selectableTypes = LexicaModule.#freezeItems(selectableTypes.map(selectable => LexicaModule.#validateSelectableType(selectable, fail)));
-        this.#observationTypes = LexicaModule.#freezeItems(LexicaModule.#validateObservationTypes(observationTypes, fail));
-        this.#observationTargets = LexicaModule.#freezeItems(LexicaModule.#validateObservationTargets(observationTargets, fail));
-        this.#conversions = LexicaModule.#freezeItems(conversions.map(conversion => LexicaModule.#validateConversion(conversion, fail)));
+
+        // Each declaration but a type is read without its keys that hold undefined, which it leaves out as it leaves out a key it does not write; a type is kept as it is given.
+        const normalized = declarations => declarations.map(declared => LexicaModule.#withoutUndefinedValues(declared));
+        const memberDeclarations = normalized(members);
+        const typeSelectorDeclarations = normalized(typeSelectors);
+        const selectableTypeDeclarations = normalized(selectableTypes);
+        const observationTypeDeclarations = normalized(observationTypes);
+        const observationTargetDeclarations = normalized(observationTargets);
+        const conversionDeclarations = normalized(conversions);
+
+        types.forEach(type => LexicaModule.#validateTypeDeclaration(type, fail));
+        memberDeclarations.forEach(member => LexicaModule.#validateMember(member, fail));
+        LexicaModule.#validateTypeSelectors(typeSelectorDeclarations, fail);
+        selectableTypeDeclarations.forEach(selectable => LexicaModule.#validateSelectableType(selectable, fail));
+        LexicaModule.#validateObservationTypes(observationTypeDeclarations, fail);
+        LexicaModule.#validateObservationTargets(observationTargetDeclarations, fail);
+        conversionDeclarations.forEach(conversion => LexicaModule.#validateConversion(conversion, fail));
+
+        this.#types = LexicaModule.#freezeItems(types.map(type => LexicaModule.#copyOf(type)));
+        this.#members = LexicaModule.#freezeItems(memberDeclarations.map(member => LexicaModule.#createMemberCopy(member)));
+        this.#typeSelectors = LexicaModule.#freezeItems(typeSelectorDeclarations.map(selector => LexicaModule.#copyOf(selector)));
+        this.#selectableTypes = LexicaModule.#freezeItems(selectableTypeDeclarations.map(selectable => LexicaModule.#copyOf(selectable)));
+        this.#observationTypes = LexicaModule.#freezeItems(observationTypeDeclarations.map(type => LexicaModule.#createObservationTypeCopy(type)));
+        this.#observationTargets = LexicaModule.#freezeItems(observationTargetDeclarations.map(target => LexicaModule.#copyOf(target)));
+        this.#conversions = LexicaModule.#freezeItems(conversionDeclarations.map(conversion => LexicaModule.#copyOf(conversion)));
     }
 
     /** The module's name. */
@@ -319,7 +337,9 @@ export class LexicaModule {
         }
 
         if (isReferenceType) {
-            return LexicaModule.#validateReferenceType(type, fail);
+            LexicaModule.#validateReferenceType(type, fail);
+
+            return;
         }
 
         const fields = Object.entries(type.fields ?? {});
@@ -334,8 +354,6 @@ export class LexicaModule {
                 fail('LEXICA4510', `The field '${name}' is not a name with a type`, type.name, 'fields');
             }
         }
-
-        return LexicaModule.#copyOf(type);
     }
 
     /** Validates a reference type's membership, the supertype it names and whether it is abstract, keeping its `isInstance` as it is. */
@@ -355,17 +373,13 @@ export class LexicaModule {
         if (type.abstract !== undefined && typeof type.abstract !== 'boolean') {
             fail('LEXICA4555', 'Whether a reference type is abstract is a Boolean', type.name, 'abstract');
         }
-
-        return LexicaModule.#copyOf(type);
     }
 
     /** Validates the type selectors a module declares, each named as a name is, once in the module. */
     static #validateTypeSelectors(selectors, fail) {
         const names = new Set();
 
-        return selectors.map(declared => {
-            const selector = LexicaModule.#withoutUndefinedValues(declared);
-
+        for (const selector of selectors) {
             LexicaModule.#validateKeys(selector, TYPE_SELECTOR_KEYS, 'A type selector', fail);
 
             if (!Names.isIdentifier(selector.name)) {
@@ -377,15 +391,11 @@ export class LexicaModule {
             }
 
             names.add(selector.name);
-
-            return LexicaModule.#copyOf(selector);
-        });
+        }
     }
 
     /** Validates a selectable type: its key, the selector it belongs to, and the type it maps to. */
-    static #validateSelectableType(declared, fail) {
-        const selectable = LexicaModule.#withoutUndefinedValues(declared);
-
+    static #validateSelectableType(selectable, fail) {
         LexicaModule.#validateKeys(selectable, SELECTABLE_TYPE_KEYS, 'A selectable type', fail);
 
         if (typeof selectable.name !== 'string' || !SELECTABLE_KEY.test(selectable.name)) {
@@ -400,8 +410,6 @@ export class LexicaModule {
         if (!LexicaModule.#isTypeNotation(selectable.type)) {
             fail(selectable.type === undefined ? 'LEXICA4008' : 'LEXICA4512', 'A selectable type declares the type its key maps to', selectable.name, 'type');
         }
-
-        return LexicaModule.#copyOf(selectable);
     }
 
     /** Validates the types a member applies to, which a module member has none of. */
@@ -551,9 +559,7 @@ export class LexicaModule {
     static #validateObservationTargets(targets, fail) {
         const names = new Set();
 
-        return targets.map(declared => {
-            const target = LexicaModule.#withoutUndefinedValues(declared);
-
+        for (const target of targets) {
             LexicaModule.#validateKeys(target, OBSERVATION_TARGET_KEYS, 'An observation target', fail);
 
             if (!Names.isIdentifier(target.name)) {
@@ -577,31 +583,25 @@ export class LexicaModule {
             if (target.count !== undefined && target.count !== 'many') {
                 fail('LEXICA4519', "A target of several says count: 'many', and one target leaves count out", target.name, 'count');
             }
-
-            return LexicaModule.#copyOf(target);
-        });
+        }
     }
 
     /** Validates the observation types a module declares, each once in the module. */
     static #validateObservationTypes(types, fail) {
         const names = new Set();
 
-        return types.map(declared => {
-            const type = LexicaModule.#validateObservationType(declared, fail);
+        for (const type of types) {
+            LexicaModule.#validateObservationType(type, fail);
 
             if (names.has(type.name)) {
                 fail('LEXICA4007', `The observation type '${type.name}' is declared twice`, type.name, 'name');
             }
 
             names.add(type.name);
-
-            return type;
-        });
+        }
     }
 
-    static #validateObservationType(declared, fail) {
-        const type = LexicaModule.#withoutUndefinedValues(declared);
-
+    static #validateObservationType(type, fail) {
         LexicaModule.#validateKeys(type, OBSERVATION_TYPE_KEYS, 'An observation type', fail);
 
         const identity = type?.identity ?? [];
@@ -619,7 +619,10 @@ export class LexicaModule {
         }
 
         LexicaModule.#validateImplementation(type, type.name, fail);
+    }
 
+    /** Creates the stored copy of a valid observation type, its identity none and its observations shared where it says neither. */
+    static #createObservationTypeCopy(type) {
         return LexicaModule.#copyOf({ identity: [], shared: true, ...type });
     }
 
@@ -627,9 +630,7 @@ export class LexicaModule {
      * Validates a conversion: the type of data it converts from, the one it converts to, each a name, and its implementation where it has one.
      * A value already of a type converts to itself, as the language says, so no conversion is declared from a type to itself.
      */
-    static #validateConversion(declared, fail) {
-        const conversion = LexicaModule.#withoutUndefinedValues(declared);
-
+    static #validateConversion(conversion, fail) {
         LexicaModule.#validateKeys(conversion, CONVERSION_KEYS, 'A conversion', fail, ObjectUtils.isNonArrayObject(conversion) ? LexicaModule.conversionNameOf(conversion) : undefined);
 
         const name = LexicaModule.conversionNameOf(conversion);
@@ -647,13 +648,9 @@ export class LexicaModule {
         }
 
         LexicaModule.#validateImplementation(conversion, name, fail);
-
-        return LexicaModule.#copyOf(conversion);
     }
 
-    static #validateMember(declared, fail) {
-        const member = LexicaModule.#withoutUndefinedValues(declared);
-
+    static #validateMember(member, fail) {
         if (!ObjectUtils.isNonArrayObject(member)) {
             fail('LEXICA4504', `A member is an object declaring ${MEMBER_KEYS.join(', ')} and what its kind takes`);
         }
@@ -727,7 +724,11 @@ export class LexicaModule {
         }
 
         LexicaModule.#validateImplementation(member, name, fail);
+    }
 
+    /** Creates the stored copy of a valid member: its syntax a function call where it is no property and says none, an indexer's arguments positional, its updates' observations none where it names none, and its parameters each without its keys that hold undefined. */
+    static #createMemberCopy(member) {
+        const parameters = (member.parameters ?? []).map(parameter => LexicaModule.#withoutUndefinedValues(parameter));
         const syntax = member.kind === 'property' ? {} : { syntax: 'function-call' };
         const argumentForm = member.syntax === 'indexer' ? { arguments: 'positional' } : {};
         const updates = member.updates === undefined ? {} : { updates: { observations: [], ...LexicaModule.#withoutUndefinedValues(member.updates) } };
