@@ -38,7 +38,10 @@ describe('lexica', () => {
 
     it('checks a definition given directly, refusing one whose structure is wrong', () => {
         expect(lexica.validate({ version: Versions.definition, expression: { kind: 'literal', value: 1 } })).toEqual({ version: Versions.definition, expression: { kind: 'literal', value: 1 } });
-        expect(getError(() => lexica.validate({ version: Versions.definition, expression: { kind: 'nothing' } }))).toBeInstanceOf(LexicaError);
+        const refused = getError(() => lexica.validate({ version: Versions.definition, expression: { kind: 'nothing' } }));
+
+        expect(refused).toBeInstanceOf(LexicaError);
+        expect(refused).toMatchObject({ code: 'LEXICA2000', kind: 'structure', location: { pointer: '/expression' }, message: expect.stringMatching(/^A node is an object whose kind is literal, /) });
     });
 
     it('reads definitions of its one version, refusing one of another, version 31 among them, with a structure error naming both', () => {
