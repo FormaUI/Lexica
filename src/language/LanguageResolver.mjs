@@ -824,7 +824,7 @@ export class LanguageResolver {
 
         const targets = functions.map((target, index) => (target.reference !== undefined
             ? this.#resolveModuleFunctionCall(target.reference, node, results, pointer)
-            : this.#resolveFunctionBody(target, node.name, results, node.arguments, scope, functions.length === 1 ? `${pointer}/body` : `${pointer}/bodies/${index}`, pointer)));
+            : this.#resolveScriptFunctionCall(target, node.name, results, node.arguments, scope, functions.length === 1 ? `${pointer}/body` : `${pointer}/bodies/${index}`, pointer)));
         const type = targets.reduce((merged, target) => (merged === null ? null : this.#typeChecker.merge(merged, target.type)), Type.never);
 
         if (type === null) {
@@ -932,10 +932,12 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a function's body for one call of it: a copy of its own, so the same function serves calls of different types, each resolution kept under the instance's pointer, against the scope the function captured
-     * and its parameters, each holding what the call gives it. A function whose body is being resolved is never called again within it, directly or through a function passed to it, which a call reaching it again would.
+     * Resolves one call of a script function: copies its body for the call, so the same function serves calls of different types, registers the copy under the instance pointer, where each resolution in it is kept and a failure in it is
+     * located back to the body it copies, and resolves the copy against the scope the function captured
+     * and its parameters, each holding what the call gives it. It refuses a call reaching a function whose body is being resolved, directly or through a function passed to it (LEXICA3034), and a body that gives no value
+     * (LEXICA3048).
      */
-    #resolveFunctionBody(target, name, argumentResults, argumentNodes, callerScope, instancePointer, callPointer) {
+    #resolveScriptFunctionCall(target, name, argumentResults, argumentNodes, callerScope, instancePointer, callPointer) {
         const { parameters, body } = target.function;
 
         if (this.#functionsBeingResolved.has(target.function)) {
@@ -2389,7 +2391,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3036', `The function given as '${parameterName}' of '${memberName}' takes ${count === 1 ? 'one argument' : `${count} arguments`}, and its contract passes ${parameterTypes.length}`, pointer);
             }
 
-            const resolved = this.#resolveFunctionBody(target, parameterName, argumentResults, null, scope, type.functions.length === 1 ? `${pointer}/callback` : `${pointer}/callbacks/${index}`, pointer);
+            const resolved = this.#resolveScriptFunctionCall(target, parameterName, argumentResults, null, scope, type.functions.length === 1 ? `${pointer}/callback` : `${pointer}/callbacks/${index}`, pointer);
 
             if (!this.#fitsResult(resolved.type, resultType)) {
                 this.#fail('LEXICA3036', `The function given as '${parameterName}' of '${memberName}' gives ${resolved.type}, and its contract takes ${resultType ?? 'any value'}`, pointer);
