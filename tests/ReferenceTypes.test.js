@@ -1,17 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Device, Light, Room, Thermostat, withHome } from './support/home.mjs';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy } from './support/errors.mjs';
 
 const { property, function: fn, valueParameter } = lexica.declarations;
 const constant = { changes: 'constant', reads: 'fresh' };
@@ -61,22 +51,22 @@ describe('reference types', () => {
         const bindings = registry.createBindings({ device: lamp }, { types: { device: 'Device' } });
 
         expect(bindings.getType('device')).toBe('Device');
-        expect(getError(() => registry.resolve('device.brightness', bindings))).toMatchObject({ code: 'LEXICA3001' });
+        expect(errorThrownBy(() => registry.resolve('device.brightness', bindings))).toMatchObject({ code: 'LEXICA3001' });
         expect(registry.resolve('(device as Light).brightness', bindings).createEvaluator(bindings).evaluate().value).toBe(40);
         expect(registry.createBindings({ device: lamp }, { types: { device: 'home.Device' } }).getType('device')).toBe('Device');
     });
 
     it('merge two types of one hierarchy to the nearest supertype they share, and refuse two hierarchies', () => {
         expect(evaluate('let d = if flag then lamp else heater end\nreturn d.name', { flag: true, lamp, heater })).toBe('lamp');
-        expect(getError(() => home().resolve('let d = if flag then lamp else heater end\nreturn d.brightness', { flag: true, lamp, heater }))).toMatchObject({ code: 'LEXICA3001' });
-        expect(getError(() => home().resolve('if flag then lamp else room end', { flag: true, lamp, room: kitchen }))).toBeInstanceOf(LexicaError);
+        expect(errorThrownBy(() => home().resolve('let d = if flag then lamp else heater end\nreturn d.brightness', { flag: true, lamp, heater }))).toMatchObject({ code: 'LEXICA3001' });
+        expect(errorThrownBy(() => home().resolve('if flag then lamp else room end', { flag: true, lamp, room: kitchen }))).toBeInstanceOf(LexicaError);
     });
 
     it('compare two references of one hierarchy by their identity, and refuse two of different hierarchies', () => {
         expect(evaluate('lamp == other', { lamp, other: lamp })).toBe(true);
         expect(evaluate('lamp == other', { lamp, other: new Light('lamp') })).toBe(false);
         expect(evaluate('room.device("lamp") == lamp', { room: kitchen, lamp })).toBe(true);
-        expect(getError(() => home().resolve('lamp == room', { lamp, room: kitchen }))).toMatchObject({ code: 'LEXICA3030' });
+        expect(errorThrownBy(() => home().resolve('lamp == room', { lamp, room: kitchen }))).toMatchObject({ code: 'LEXICA3030' });
     });
 
     it('cast within a hierarchy, checked by the destination\'s membership, an attempt answering null for a value of another type', () => {
@@ -125,7 +115,7 @@ describe('reference types', () => {
         }))]);
         const evaluateWith = (registry, text, values) => registry.resolve(text, values).createEvaluator(values).evaluate().value;
 
-        expect(getError(() => settings('Light', 'Device').resolve('lamp.setting["mode"]', { lamp }))).toMatchObject({ code: 'LEXICA3012' });
+        expect(errorThrownBy(() => settings('Light', 'Device').resolve('lamp.setting["mode"]', { lamp }))).toMatchObject({ code: 'LEXICA3012' });
         expect(evaluateWith(settings('Light', 'Device'), 'heater.setting["mode"]', { heater })).toBe('indexer');
         expect(evaluateWith(settings('Device', 'Light'), 'lamp.setting["mode"]', { lamp })).toBe('indexer');
         expect(evaluateWith(settings('Device', 'Light'), 'heater.setting', { heater })).toBe('property');
@@ -136,7 +126,7 @@ describe('reference types', () => {
             members: targets.map(target => property('total', target, 'String', { updates: constant, implementation: () => target })),
         })]);
         const evaluateWith = (registry, values) => registry.resolve('items.total', values).createEvaluator(values).evaluate().value;
-        const refused = getError(() => totals('List<Number>', 'List<String>').resolve('items.total', { items: [] }));
+        const refused = errorThrownBy(() => totals('List<Number>', 'List<String>').resolve('items.total', { items: [] }));
 
         expect(refused).toMatchObject({ code: 'LEXICA3024' });
         expect(refused.message).toContain("'total' is declared for List<Number> and List<String>, which List<Never> satisfies, and none of them is more specific than the other");
@@ -157,7 +147,7 @@ describe('reference types', () => {
 
         expect(evaluateWith(members('String'), 'home.label(room)', { room: kitchen })).toBe('room kitchen');
         expect(evaluateWith(members('String'), 'home.label(word)', { word: 'hall' })).toBe('module hall');
-        expect(getError(() => lexica.createRegistry([members('Room')]).resolve('home.label(room)', { room: kitchen }))).toMatchObject({ code: 'LEXICA3024' });
+        expect(errorThrownBy(() => lexica.createRegistry([members('Room')]).resolve('home.label(room)', { room: kitchen }))).toMatchObject({ code: 'LEXICA3024' });
         expect(evaluateWith(members('Room'), 'room.label', { room: kitchen })).toBe('room kitchen');
     });
 
@@ -165,6 +155,6 @@ describe('reference types', () => {
         const wrong = lexica.createModule('wrong', withHome({ members: [property('lamp', 'String', 'Light', { updates: constant, implementation: () => heater })] }));
         const registry = lexica.createRegistry([wrong]);
 
-        expect(getError(() => registry.resolve('(word.lamp as Light) == null', { word: 'a' }).createEvaluator({ word: 'a' }).evaluate())).toMatchObject({ code: 'LEXICA5006' });
+        expect(errorThrownBy(() => registry.resolve('(word.lamp as Light) == null', { word: 'a' }).createEvaluator({ word: 'a' }).evaluate())).toMatchObject({ code: 'LEXICA5006' });
     });
 });

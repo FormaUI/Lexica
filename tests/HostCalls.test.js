@@ -1,17 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Thermostat, withHome } from './support/home.mjs';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy } from './support/errors.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
@@ -68,7 +58,7 @@ describe('host calls', () => {
         expect(resolve('sensor.watch() { at = it.at, strong = it.strength > 0.8 }').type).toBe('{ at: Number, strong: Boolean }');
         expect(resolve('thermostat.hold({ target = 21 })').type).toBeNull();
 
-        const refused = getError(() => resolve('thermostat.hold({ target = 21 })').typeAt([]));
+        const refused = errorThrownBy(() => resolve('thermostat.hold({ target = 21 })').typeAt([]));
 
         expect(refused).toBeInstanceOf(LexicaError);
         expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression' } });
@@ -97,7 +87,7 @@ describe('host calls', () => {
         ];
 
         for (const [text, pointer, message] of refusals) {
-            const refused = getError(() => resolve(text));
+            const refused = errorThrownBy(() => resolve(text));
 
             expect(refused, text).toBeInstanceOf(LexicaError);
             expect({ kind: refused.kind, pointer: refused.location.pointer }, text).toEqual({ kind: 'validation', pointer });
@@ -106,7 +96,7 @@ describe('host calls', () => {
     });
 
     it('take a result projection where their host supplies values, and none where it supplies none', () => {
-        const refused = getError(() => resolve('thermostat.hold({ target = 21 }) { at = 1 }'));
+        const refused = errorThrownBy(() => resolve('thermostat.hold({ target = 21 }) { at = 1 }'));
 
         expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression' } });
         expect(refused.message).toContain('The host call this object expression follows declares no result, since its host supplies no values, so it takes no result projection');
@@ -120,7 +110,7 @@ describe('host calls', () => {
         expect(resolve('thing?.dim({ to = 40 })', { thing: null })).toMatchObject({ type: 'Number?', hostCall: { name: 'dim', declaration: null } });
         expect(resolve('thing?.hold({ target = 21 })', { thing: null }).type).toBeNull();
 
-        const refused = getError(() => resolve('thing?.dim({ to = 40 })', { thing: null }, [createHome(), dimmer]));
+        const refused = errorThrownBy(() => resolve('thing?.dim({ to = 40 })', { thing: null }, [createHome(), dimmer]));
 
         expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression/target' } });
         expect(refused.message).toContain("'dim' follows a value whose type is unknown, and its declarations disagree on who invokes it, the evaluator or the host, so whether the script ends in a host call is ambiguous");
@@ -131,7 +121,7 @@ describe('host calls', () => {
         expect(resolve('sensor.on("change")').type).toBe('Change');
         expect(resolve('sensor.on(kind)', { ...bindings, kind: 'motion' }).type).toBe('Motion');
 
-        const refused = getError(() => resolve('sensor.on("smoke")'));
+        const refused = errorThrownBy(() => resolve('sensor.on("smoke")'));
 
         expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression/arguments/0' } });
         expect(refused.message).toContain("The type selector 'event' maps no type to the key 'smoke'");
@@ -146,7 +136,7 @@ describe('host calls', () => {
 
     it('have no implementation, which an evaluator needs none of, and are never evaluated', () => {
         const evaluator = resolve('light.dim({ to = 40 })').createEvaluator(bindings);
-        const refused = getError(() => evaluator.evaluate());
+        const refused = errorThrownBy(() => evaluator.evaluate());
 
         expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: '/expression' } });
         expect(refused.message).toContain("The script ends in the host call 'dim', which its host invokes, so it is never evaluated; prepare it");
@@ -208,7 +198,7 @@ describe('prepared calls', () => {
         expect(Object.isFrozen(projected.value)).toBe(true);
         expect(projected.metadata.origin).toBeDefined();
 
-        const refused = getError(() => dimmed.project('bright'));
+        const refused = errorThrownBy(() => dimmed.project('bright'));
 
         expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: '/expression' } });
         expect(refused.message).toContain("The host call 'dim' supplied \"bright\", and it declares Number");
@@ -246,7 +236,7 @@ describe('prepared calls', () => {
     });
 
     it('are refused for a script that gives a value, which is evaluated', () => {
-        const refused = getError(() => evaluatorOf('light.room').evaluator.prepareHostCall());
+        const refused = errorThrownBy(() => evaluatorOf('light.room').evaluator.prepareHostCall());
 
         expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: '/expression' } });
         expect(refused.message).toContain('The script gives a value and ends in no host call, so there is nothing to prepare; evaluate it');
@@ -299,7 +289,7 @@ describe('prepared calls', () => {
         const env = { levels: {}, occupied: [] };
         const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = it, asked = level }', { env });
 
-        expect(getError(() => evaluator.prepareHostCall())).toMatchObject({ code: 'LEXICA5006', location: { pointer: '/expression/locals/0/value' } });
+        expect(errorThrownBy(() => evaluator.prepareHostCall())).toMatchObject({ code: 'LEXICA5006', location: { pointer: '/expression/locals/0/value' } });
 
         env.levels.hall = 40;
 
@@ -315,7 +305,7 @@ describe('prepared calls', () => {
 
         registry.registerModule(lexica.createModule('later', {}));
 
-        expect(getError(() => call.project(35))).toMatchObject({ kind: 'structure', message: expect.stringContaining('stale') });
+        expect(errorThrownBy(() => call.project(35))).toMatchObject({ kind: 'structure', message: expect.stringContaining('stale') });
     });
 });
 
@@ -344,7 +334,7 @@ describe('values a host supplies', () => {
 
     /** The evaluation error a projection fails with, where the call stands, by its message. */
     const refusalOf = (call, value) => {
-        const refused = getError(() => call.project(value));
+        const refused = errorThrownBy(() => call.project(value));
 
         expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: call.pointer } });
 
@@ -388,7 +378,7 @@ describe('values a host supplies', () => {
     });
 
     it('are captured where a member\'s answer never is, its implementation answering what it declares', () => {
-        const refused = getError(() => lexica.createRegistry([createReports()]).resolve('desk.spotted', { desk: 'desk' }).createEvaluator({ desk: 'desk' }).evaluate());
+        const refused = errorThrownBy(() => lexica.createRegistry([createReports()]).resolve('desk.spotted', { desk: 'desk' }).createEvaluator({ desk: 'desk' }).evaluate());
 
         expect(refused).toMatchObject({ kind: 'evaluation' });
         expect(prepared('desk.maybe()').project({ x: 1 }).value).toEqual({ x: 1, label: null });

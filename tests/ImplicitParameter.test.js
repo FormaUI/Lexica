@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy } from './support/errors.mjs';
 
 const { property, functionParameter, valueParameter, expressionParameter, predicateParameter } = lexica.declarations;
 const constant = { changes: 'constant', reads: 'fresh' };
@@ -81,9 +71,9 @@ describe('the implicit parameter', () => {
         });
 
         it('keeps the expression\'s result policy for a function as for a body, refusing a result of another type', () => {
-            expect(getError(() => resolve('words.sum(w => w)')).message).toContain("The function given as 'expression' of 'sum' gives String, and its contract takes Number");
-            expect(getError(() => resolve('words.sum(it)')).message).toContain("The expression of 'sum' must produce Number");
-            expect(getError(() => resolve('words.sum(pantry.vegan)')).message).toContain("'pantry.vegan' names no function that takes those or answers that");
+            expect(errorThrownBy(() => resolve('words.sum(w => w)')).message).toContain("The function given as 'expression' of 'sum' gives String, and its contract takes Number");
+            expect(errorThrownBy(() => resolve('words.sum(it)')).message).toContain("The expression of 'sum' must produce Number");
+            expect(errorThrownBy(() => resolve('words.sum(pantry.vegan)')).message).toContain("'pantry.vegan' names no function that takes those or answers that");
         });
 
         it('gives every item the same value where its body reads no it', () => {
@@ -92,17 +82,17 @@ describe('the implicit parameter', () => {
 
         it('is a function the member calls only while its invocation lasts, with one item of the list\'s item type, whether a body or an arrow function gives it', () => {
             for (const expression of ['it.size', 'w => w.size']) {
-                expect(getError(() => evaluate(`{ kept = words.keepBy(${expression}), late = chosen.callKept() }`)), expression).toMatchObject({
+                expect(errorThrownBy(() => evaluate(`{ kept = words.keepBy(${expression}), late = chosen.callKept() }`)), expression).toMatchObject({
                     code: 'LEXICA5008',
                     message: expect.stringContaining("The function given as 'expression' of 'keepBy' is called after 'keepBy' returned"),
                     location: { pointer: '/expression/fields/0/value/arguments/0' },
                 });
-                expect(getError(() => evaluate(`words.weighPair(${expression})`)), expression).toMatchObject({
+                expect(errorThrownBy(() => evaluate(`words.weighPair(${expression})`)), expression).toMatchObject({
                     code: 'LEXICA5503',
                     message: expect.stringContaining("The function given as 'expression' of 'weighPair' is called with 2 arguments, and its contract declares 1"),
                     location: { pointer: '/expression/arguments/0' },
                 });
-                expect(getError(() => evaluate(`words.weighNumber(${expression})`)), expression).toMatchObject({
+                expect(errorThrownBy(() => evaluate(`words.weighNumber(${expression})`)), expression).toMatchObject({
                     code: 'LEXICA5503',
                     message: expect.stringContaining("The function given as 'expression' of 'weighNumber' is called with 42, and its contract declares String"),
                     location: { pointer: '/expression/arguments/0' },
@@ -111,7 +101,7 @@ describe('the implicit parameter', () => {
         });
 
         it('refuses a body that reads it and gives a function, giving the function written as the argument', () => {
-            expect(getError(() => resolve('let weigh = w => w.weight()\nreturn words.max(if it == "oat" then weigh else weigh end)')).message).toContain("a function of the item is written as the argument itself, as max(x => …)");
+            expect(errorThrownBy(() => resolve('let weigh = w => w.weight()\nreturn words.max(if it == "oat" then weigh else weigh end)')).message).toContain("a function of the item is written as the argument itself, as max(x => …)");
         });
     });
 
@@ -135,9 +125,9 @@ describe('the implicit parameter', () => {
                 const bindings = registry.createBindings(values);
                 const evaluator = registry.resolve(`words.keepWhereAndFail(${predicate})`, bindings).createEvaluator(bindings);
 
-                expect(getError(() => evaluate(`{ kept = words.keepWhere(${predicate}), late = chosen.callKept() }`)), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhere' returned") });
-                expect(getError(() => evaluator.evaluate()), predicate).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
-                expect(getError(() => held.expression('oat')), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhereAndFail' returned") });
+                expect(errorThrownBy(() => evaluate(`{ kept = words.keepWhere(${predicate}), late = chosen.callKept() }`)), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhere' returned") });
+                expect(errorThrownBy(() => evaluator.evaluate()), predicate).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
+                expect(errorThrownBy(() => held.expression('oat')), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhereAndFail' returned") });
             }
         });
     });
@@ -151,8 +141,8 @@ describe('the implicit parameter', () => {
 
         it('is the argument an implicit body option is called with, an option that has no value to read, by its name or through root', () => {
             expect(evaluate('chosen.check({ test = it.size > 2 })')).toBe(true);
-            expect(getError(() => resolve('chosen.check({ test = it.size > 2, note = test })')).message).toContain("Option 'test' is an implicit body evaluated by the member");
-            expect(getError(() => resolve('chosen.check({ test = it.size > 2, note = root.test })')).message).toContain("Option 'test' is an implicit body evaluated by the member");
+            expect(errorThrownBy(() => resolve('chosen.check({ test = it.size > 2, note = test })')).message).toContain("Option 'test' is an implicit body evaluated by the member");
+            expect(errorThrownBy(() => resolve('chosen.check({ test = it.size > 2, note = root.test })')).message).toContain("Option 'test' is an implicit body evaluated by the member");
         });
     });
 
@@ -161,7 +151,7 @@ describe('the implicit parameter', () => {
             expect(evaluate('gaps.where(w => w == null)')).toEqual([null]);
             expect(evaluate('gaps.where(it == null)')).toEqual([null]);
             expect(evaluate('gaps.max(w => w?.size)')).toBe(3);
-            expect(getError(() => resolve('gaps.where(pantry.vegan)')).message).toContain("'pantry.vegan' names no function that takes those or answers that");
+            expect(errorThrownBy(() => resolve('gaps.where(pantry.vegan)')).message).toContain("'pantry.vegan' names no function that takes those or answers that");
         });
     });
 
@@ -173,9 +163,9 @@ describe('the implicit parameter', () => {
         });
 
         it('is refused where the function called gives it no value, by resolution, and where the text alone shows none, by the structure', () => {
-            expect(getError(() => resolve('let same = w => w\nreturn same(it)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'it' is the implicit parameter, and there is none here") });
-            expect(getError(() => resolve('let same = w => w\nreturn same(it)')).location.pointer).toBe('/expression/result/arguments/0');
-            expect(getError(() => resolve('it.size'))).toMatchObject({ kind: 'structure' });
+            expect(errorThrownBy(() => resolve('let same = w => w\nreturn same(it)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'it' is the implicit parameter, and there is none here") });
+            expect(errorThrownBy(() => resolve('let same = w => w\nreturn same(it)')).location.pointer).toBe('/expression/result/arguments/0');
+            expect(errorThrownBy(() => resolve('it.size'))).toMatchObject({ kind: 'structure' });
         });
     });
 
@@ -195,8 +185,8 @@ describe('the implicit parameter', () => {
         });
 
         it('is no value where nothing gives it one, an arrow function at the top level among them', () => {
-            expect(getError(() => resolve('words.max(w => it.size)')).message).toContain("'it' is the implicit parameter, and there is none here");
-            expect(getError(() => resolve('it.size')).message).toContain("'it' is the implicit parameter, and the top level has none");
+            expect(errorThrownBy(() => resolve('words.max(w => it.size)')).message).toContain("'it' is the implicit parameter, and there is none here");
+            expect(errorThrownBy(() => resolve('it.size')).message).toContain("'it' is the implicit parameter, and the top level has none");
         });
 
         it('is the item of a projection, which root does not change, reading the fields already built', () => {

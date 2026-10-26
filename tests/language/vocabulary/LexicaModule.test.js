@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
-import { declaration, functionDeclaration, messageOf, parameter, refusalOf } from './declarations.mjs';
+import { declaration, functionDeclaration, parameter } from './declarations.mjs';
+import { expectModuleError } from '../../support/errors.mjs';
 
 /** The declaration and the declaration key a module error's location names, beside a fragment of its message. */
 const refusal = (contents, declarationName, declarationKey, fragment) => {
-    const refused = refusalOf(() => new LexicaModule('charts', contents));
+    const refused = expectModuleError(() => new LexicaModule('charts', contents));
 
     expect({ declaration: refused.declaration, declarationKey: refused.declarationKey }).toEqual({ declaration: declarationName, declarationKey });
     expect(refused.message).toContain(fragment);
@@ -90,7 +91,7 @@ describe('LexicaModule', () => {
 
     it('refuses a name with a hyphen, which no name holds', () => {
         refusal({ members: [declaration({ name: 'chart-size' })] }, 'chart-size', 'name', 'named as a name is');
-        expect(messageOf(() => new LexicaModule('chart-tools', {}))).toContain('named as a name is');
+        expect(expectModuleError(() => new LexicaModule('chart-tools', {})).message).toContain('named as a name is');
     });
 
     it('names a property, a function, an indexer and a field of a structured type with any word, a keyword and a literal\'s word among them, read after a dot or a colon', () => {
@@ -109,14 +110,14 @@ describe('LexicaModule', () => {
     });
 
     it('refuses what a module does not declare, telling predicates apart as Boolean functions among its members', () => {
-        const predicates = refusalOf(() => new LexicaModule('charts', { predicates: [] }));
+        const predicates = expectModuleError(() => new LexicaModule('charts', { predicates: [] }));
 
         expect(predicates).toMatchObject({ module: 'charts', declarationKey: 'predicates' });
         expect(predicates.message).toContain('a test of a receiver is one of its members, a function whose result is a boolean');
-        expect(messageOf(() => new LexicaModule('charts', { member: [] }))).toContain("A module declares typeOf, types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
-        expect(messageOf(() => new LexicaModule('charts', null))).toContain("A module's contents are an object declaring typeOf, types, members, typeSelectors");
-        expect(messageOf(() => new LexicaModule('charts', { members: {} }))).toContain("A module's members are a list");
-        expect(messageOf(() => new LexicaModule('charts', { members: [null] }))).toContain('A member is an object declaring');
+        expect(expectModuleError(() => new LexicaModule('charts', { member: [] })).message).toContain("A module declares typeOf, types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
+        expect(expectModuleError(() => new LexicaModule('charts', null)).message).toContain("A module's contents are an object declaring typeOf, types, members, typeSelectors");
+        expect(expectModuleError(() => new LexicaModule('charts', { members: {} })).message).toContain("A module's members are a list");
+        expect(expectModuleError(() => new LexicaModule('charts', { members: [null] })).message).toContain('A member is an object declaring');
     });
 
     it('takes no second argument of functions, each implementation being its declaration\'s own', () => {
@@ -241,7 +242,7 @@ describe('LexicaModule', () => {
     });
 
     describe('type selectors and their keys', () => {
-        const fails = contents => refusalOf(() => new LexicaModule('charts', contents));
+        const fails = contents => expectModuleError(() => new LexicaModule('charts', contents));
         const selecting = (overrides = {}) => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameter({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report' })], ...overrides });
 
         it('are kept as frozen data, a selector by its name alone and a key with the selector it belongs to and the type it maps to', () => {
@@ -283,7 +284,7 @@ describe('LexicaModule', () => {
     });
 
     describe('observation targets', () => {
-        const fails = observationTargets => refusalOf(() => new LexicaModule('charts', { observationTargets }));
+        const fails = observationTargets => expectModuleError(() => new LexicaModule('charts', { observationTargets }));
 
         it('are kept as frozen data, each found from the receiver or independent of it, one target or several', () => {
             const declared = [{ name: 'page' }, { name: 'frame', from: 'receiver' }, { name: 'frames', from: 'receiver', count: 'many' }];
@@ -347,7 +348,7 @@ describe('LexicaModule', () => {
     describe('observations', () => {
         const attributes = { type: 'mutation', of: 'receiver', attributes: true };
         const observed = (observations, overrides = {}) => declaration({ name: 'charts', updates: { changes: 'observable', reads: 'fresh', observations }, ...overrides });
-        const fails = contents => refusalOf(() => new LexicaModule('charts', contents));
+        const fails = contents => expectModuleError(() => new LexicaModule('charts', contents));
 
         it('observe the receiver, an argument of the member or an observation target by its name, which the registry finds', () => {
             const parameters = [parameter({ name: 'other', type: 'Element' })];
@@ -526,19 +527,19 @@ describe('conversions', () => {
         ['a nullable type', { from: 'String?' }, 'from'],
         ['null', { to: 'null' }, 'to'],
     ])('convert between types of data alone, never %s', (_, overrides, declarationKey) => {
-        const refused = refusalOf(() => declaring([conversion(overrides)]));
+        const refused = expectModuleError(() => declaring([conversion(overrides)]));
 
         expect(refused.declarationKey).toBe(declarationKey);
         expect(refused.message).toContain('A conversion is from a type of data to another');
     });
 
     it('are never declared from a type to itself, which a value already of it converts to', () => {
-        expect(messageOf(() => declaring([conversion({ from: 'Chart', to: 'Chart' })]))).toContain('A value already of a type converts to itself');
+        expect(expectModuleError(() => declaring([conversion({ from: 'Chart', to: 'Chart' })])).message).toContain('A value already of a type converts to itself');
     });
 
     it('take from, to and implementation alone, the implementation a function', () => {
-        expect(refusalOf(() => declaring([conversion({ function: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'function' });
-        expect(refusalOf(() => declaring([conversion({ implementation: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'implementation' });
+        expect(expectModuleError(() => declaring([conversion({ function: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'function' });
+        expect(expectModuleError(() => declaring([conversion({ implementation: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'implementation' });
     });
 
     it('take to as a member name, a property, a function call or an indexer, since it converts only after a value', () => {

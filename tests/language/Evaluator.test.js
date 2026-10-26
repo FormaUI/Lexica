@@ -7,19 +7,9 @@ import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { errorThrownBy } from '../support/errors.mjs';
 
 const { property } = Declarations;
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
 
 /**
  * A plain application-data host's module on names: a price read from a name, a rate the environment holds, and a quote maintained by an observation, which a host samples.
@@ -116,21 +106,21 @@ describe('Evaluator', () => {
     });
 
     it('refuses a maintained member without a host to sample it', () => {
-        expect(getError(() => createEvaluator('name.quoted', { name: 'tea' }).evaluate())).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('maintained by an observation') });
-        expect(getError(() => createEvaluator('name.quoted', { name: 'tea' }).evaluate({ afterInvoke: () => {} }))).toMatchObject({ kind: 'evaluation' });
+        expect(errorThrownBy(() => createEvaluator('name.quoted', { name: 'tea' }).evaluate())).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('maintained by an observation') });
+        expect(errorThrownBy(() => createEvaluator('name.quoted', { name: 'tea' }).evaluate({ afterInvoke: () => {} }))).toMatchObject({ kind: 'evaluation' });
     });
 
     it('ends failed where the evaluation fails, and throws the failure', () => {
         const host = createHost();
-        const failure = getError(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate(host));
+        const failure = errorThrownBy(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate(host));
 
         expect(failure).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('divides by zero') });
         expect(host.calls).toEqual(['before:price@/expression/left', 'after:price=3', 'ended:failed']);
     });
 
     it('fails the evaluation at the member where beforeInvoke or afterInvoke throws', () => {
-        const before = getError(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ beforeInvoke: () => { throw new Error('no session'); } }));
-        const after = getError(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterInvoke: () => { throw new Error('no record'); } }));
+        const before = errorThrownBy(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ beforeInvoke: () => { throw new Error('no session'); } }));
+        const after = errorThrownBy(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterInvoke: () => { throw new Error('no record'); } }));
 
         expect(before).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('no session'), location: { pointer: '/expression' } });
         expect(after).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('no record'), location: { pointer: '/expression' } });
@@ -139,12 +129,12 @@ describe('Evaluator', () => {
     it('fails a completed evaluation whose afterEvaluation throws, and keeps a failure thrown, the cleanup failure recorded on it', () => {
         const cleanup = new Error('cleanup');
 
-        const completed = getError(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
+        const completed = errorThrownBy(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
 
         expect(completed).toMatchObject({ code: 'LEXICA5009', kind: 'evaluation' });
         expect(completed.cause).toBe(cleanup);
 
-        const failure = getError(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
+        const failure = errorThrownBy(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
 
         expect(failure).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('divides by zero') });
         expect(failure.suppressed).toBe(cleanup);

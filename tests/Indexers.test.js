@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy } from './support/errors.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 const constant = { changes: 'constant', reads: 'fresh' };
@@ -28,7 +18,7 @@ const createText = () => lexica.createModule('text', {
 const evaluate = (text, bindings) => lexica.createRegistry([createText()]).resolve(text, bindings).createEvaluator(bindings).evaluate().value;
 
 /** The error resolving the text through the text module with the bindings throws. */
-const refusalOf = (text, bindings) => getError(() => lexica.createRegistry([createText()]).resolve(text, bindings));
+const refusalOf = (text, bindings) => errorThrownBy(() => lexica.createRegistry([createText()]).resolve(text, bindings));
 
 describe('indexers and computed properties', () => {
     describe('in text and definitions', () => {
@@ -58,23 +48,23 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses a colon in a chain, giving the form with a dot', () => {
-            expect(getError(() => lexica.parse('device:setting["mode"]')).message).toContain("write 'device.setting[…]'");
-            expect(getError(() => lexica.parse('it:["mode"]')).message).toContain("write 'it.[…]'");
-            expect(getError(() => lexica.parse('it?:["mode"]')).message).toContain("write 'it?.[…]'");
-            expect(getError(() => lexica.parse('a.b ?: c'))).toMatchObject({ kind: 'syntax' });
+            expect(errorThrownBy(() => lexica.parse('device:setting["mode"]')).message).toContain("write 'device.setting[…]'");
+            expect(errorThrownBy(() => lexica.parse('it:["mode"]')).message).toContain("write 'it.[…]'");
+            expect(errorThrownBy(() => lexica.parse('it?:["mode"]')).message).toContain("write 'it?.[…]'");
+            expect(errorThrownBy(() => lexica.parse('a.b ?: c'))).toMatchObject({ kind: 'syntax' });
         });
 
         it('refuses an indexer of no key or of several, and optional brackets after a dot', () => {
-            expect(getError(() => lexica.parse('a.b[]')).message).toContain('An indexer takes one key in its brackets');
-            expect(getError(() => lexica.parse('a.b[1, 2]')).message).toContain('An indexer takes one key');
-            expect(getError(() => lexica.parse('a.?[p]')).message).toContain("writes its '?' before the dot, as '?.[…]'");
+            expect(errorThrownBy(() => lexica.parse('a.b[]')).message).toContain('An indexer takes one key in its brackets');
+            expect(errorThrownBy(() => lexica.parse('a.b[1, 2]')).message).toContain('An indexer takes one key');
+            expect(errorThrownBy(() => lexica.parse('a.?[p]')).message).toContain("writes its '?' before the dot, as '?.[…]'");
         });
 
         it('refuses an indexer node holding a name, and a definition of version 32', () => {
             const named = { version: 33, expression: { kind: 'indexer', target: { kind: 'parameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
 
-            expect(getError(() => lexica.validate(named))).toMatchObject({ kind: 'structure' });
-            expect(getError(() => lexica.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });
+            expect(errorThrownBy(() => lexica.validate(named))).toMatchObject({ kind: 'structure' });
+            expect(errorThrownBy(() => lexica.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });
         });
     });
 
@@ -112,7 +102,7 @@ describe('indexers and computed properties', () => {
                 members: [property('maybe', 'String', 'String?', { updates: constant, implementation: ({ receiver }) => (receiver === '' ? null : receiver) })],
             })]);
 
-            expect(getError(() => registry.resolve('item.maybe.letter?[1]', { item: 'latte' })).message).toContain("write 'item.maybe?.letter?[1]'");
+            expect(errorThrownBy(() => registry.resolve('item.maybe.letter?[1]', { item: 'latte' })).message).toContain("write 'item.maybe?.letter?[1]'");
             expect(registry.resolve('item.maybe?.letter?[1]', { item: '' }).createEvaluator({ item: '' }).evaluate().value).toBeNull();
         });
 
@@ -155,7 +145,7 @@ describe('indexers and computed properties', () => {
                 members: [lexica.declarations.function('cut', 'String', 'Number', { updates: constant, parameters: [valueParameter('percent', 'Number')], implementation: ({ args }) => args.percent })],
             })]);
 
-            expect(getError(() => registry.resolve('item.cut[5]', { item: 'latte' })).message).toContain("'cut' uses call syntax: write 'item.cut(5)'");
+            expect(errorThrownBy(() => registry.resolve('item.cut[5]', { item: 'latte' })).message).toContain("'cut' uses call syntax: write 'item.cut(5)'");
         });
     });
 
@@ -200,8 +190,8 @@ describe('indexers and computed properties', () => {
 
             expect(valueOf('{ direct = item.size, computed = item.[name] }', 3, bound)).toEqual({ direct: 3, computed: 3 });
             expect(valueOf('{ direct = item.cup, computed = item.[other] }', 3, bound)).toEqual({ direct: { volume: 2 }, computed: { volume: 2 } });
-            expect(getError(() => valueOf('item.[name]', 'large', bound))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining("The member 'size' answered") });
-            expect(getError(() => valueOf('item.size', 'large', bound))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining("The member 'size' answered") });
+            expect(errorThrownBy(() => valueOf('item.[name]', 'large', bound))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining("The member 'size' answered") });
+            expect(errorThrownBy(() => valueOf('item.size', 'large', bound))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining("The member 'size' answered") });
         });
     });
 
@@ -226,8 +216,8 @@ describe('indexers and computed properties', () => {
         it('refuses a module no registry holds, and a type its module does not declare', () => {
             const registry = lexica.createRegistry([createCups()]);
 
-            expect(getError(() => registry.resolve('order to mugs.Cup', { order: 'tall' })).message).toContain("No module named 'mugs' is registered");
-            expect(getError(() => registry.resolve('order to cups.Mug', { order: 'tall' })).message).toContain("The module 'cups' does not declare a type named 'Mug'");
+            expect(errorThrownBy(() => registry.resolve('order to mugs.Cup', { order: 'tall' })).message).toContain("No module named 'mugs' is registered");
+            expect(errorThrownBy(() => registry.resolve('order to cups.Mug', { order: 'tall' })).message).toContain("The module 'cups' does not declare a type named 'Mug'");
         });
     });
 });

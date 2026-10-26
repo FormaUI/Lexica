@@ -1,16 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
+import { errorThrownBy } from '../../support/errors.mjs';
 
 /** The module error creating a module of the members throws, as its code and location. */
 const refusalOf = members => {
-    try {
-        new LexicaModule('shop', { members });
-    } catch (error) {
-        return { code: error.code, location: error.location };
-    }
+    const error = errorThrownBy(() => new LexicaModule('shop', { members }));
 
-    throw new Error('Creating the module threw nothing');
+    return { code: error.code, location: error.location };
 };
 
 describe('Declarations', () => {

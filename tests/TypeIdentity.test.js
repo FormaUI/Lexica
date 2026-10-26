@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy, messageThrownBy } from './support/errors.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 const constant = { changes: 'constant', reads: 'fresh' };
@@ -30,9 +20,6 @@ const checks = () => lexica.createModule('checks', {
 /** The value the text gives, read through a registry of the modules. */
 const evaluate = (modules, text, bindings = {}) => lexica.createRegistry(modules).resolve(text, bindings).createEvaluator(bindings).evaluate().value;
 
-/** The message of the error the call throws. */
-const messageOf = call => getError(call).message;
-
 describe('type identity', () => {
     describe('of two modules declaring a type of one name', () => {
         it('registers both, each its own type, read by its own fields', () => {
@@ -46,7 +33,7 @@ describe('type identity', () => {
             const modules = [sensors('home', 'level'), sensors('garden', 'moisture'), checks()];
 
             expect(evaluate(modules, 'checks.level(home.sensor)')).toBe(1);
-            expect(messageOf(() => lexica.createRegistry(modules).resolve('checks.level(garden.sensor)'))).toContain("expects home.Sensor and finds garden.Sensor");
+            expect(messageThrownBy(() => lexica.createRegistry(modules).resolve('checks.level(garden.sensor)'))).toContain("expects home.Sensor and finds garden.Sensor");
         });
 
         it('converts to the one a script names qualified, and refuses an unqualified name both share', () => {
@@ -54,7 +41,7 @@ describe('type identity', () => {
 
             expect(evaluate(modules, '"abc" to home.Sensor')).toEqual({ level: 3 });
             expect(evaluate(modules, '"abc" to garden.Sensor')).toEqual({ moisture: 3 });
-            expect(messageOf(() => lexica.createRegistry(modules).resolve('"abc" to Sensor'))).toContain("'Sensor' names a type several modules declare, so it is named qualified by its module: home.Sensor or garden.Sensor");
+            expect(messageThrownBy(() => lexica.createRegistry(modules).resolve('"abc" to Sensor'))).toContain("'Sensor' names a type several modules declare, so it is named qualified by its module: home.Sensor or garden.Sensor");
         });
     });
 
@@ -76,8 +63,8 @@ describe('type identity', () => {
             const charting = result => lexica.createModule('charts', { members: [property('axis', null, result, { updates: constant, implementation: () => ({ length: 2 }) })] });
 
             expect(evaluate([axes, charting('axes.Axis')], 'charts.axis.length')).toBe(2);
-            expect(messageOf(() => lexica.createRegistry([axes, charting('Axis')]))).toContain("names the type 'Axis', which only another module declares, so it is named qualified: axes.Axis");
-            expect(messageOf(() => lexica.createRegistry([axes, charting('axes.Grid')]))).toContain("names the type 'axes.Grid', which the module 'axes' does not declare");
+            expect(messageThrownBy(() => lexica.createRegistry([axes, charting('Axis')]))).toContain("names the type 'Axis', which only another module declares, so it is named qualified: axes.Axis");
+            expect(messageThrownBy(() => lexica.createRegistry([axes, charting('axes.Grid')]))).toContain("names the type 'axes.Grid', which the module 'axes' does not declare");
         });
 
         it('resolves a structured type\'s fields among the modules it imports, its own module first, and refuses a name two imports share', () => {
@@ -90,8 +77,8 @@ describe('type identity', () => {
 
             expect(evaluate([declaring('axes', { length: 'Number' }), charting(chart(['axes']))], 'charts.chart.axis.length')).toBe(2);
             expect(evaluate([declaring('axes', { length: 'Number' }), charting(chart(['axes']), [{ name: 'Axis', fields: { step: 'Number' } }])], 'charts.chart.axis.step')).toBe(1);
-            expect(messageOf(() => lexica.createRegistry([declaring('axes', { length: 'Number' }), declaring('grids', { step: 'Number' }), charting(chart(['axes', 'grids']))]))).toContain('so it is named qualified: axes.Axis or grids.Axis');
-            expect(messageOf(() => lexica.createRegistry([charting(chart(['axes']))]))).toContain("The type imports the module 'axes', which is not registered");
+            expect(messageThrownBy(() => lexica.createRegistry([declaring('axes', { length: 'Number' }), declaring('grids', { step: 'Number' }), charting(chart(['axes', 'grids']))]))).toContain('so it is named qualified: axes.Axis or grids.Axis');
+            expect(messageThrownBy(() => lexica.createRegistry([charting(chart(['axes']))]))).toContain("The type imports the module 'axes', which is not registered");
         });
 
         it('lets a type\'s import reach its own fields alone, never its module\'s members', () => {
@@ -101,7 +88,7 @@ describe('type identity', () => {
                 members: [property('axis', null, 'Axis', { updates: constant })],
             });
 
-            expect(messageOf(() => lexica.createRegistry([axes, charts]))).toContain("names the type 'Axis', which only another module declares");
+            expect(messageThrownBy(() => lexica.createRegistry([axes, charts]))).toContain("names the type 'Axis', which only another module declares");
         });
 
         it('takes a type named as a node of Lexica\'s in its own module, where it names that type, and leaves Lexica\'s node to every other', () => {

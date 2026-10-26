@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy } from './support/errors.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 const constant = { changes: 'constant', reads: 'fresh' };
@@ -75,15 +65,15 @@ describe("a registry's text", () => {
     });
 
     it('refuses to write a namespace without the module names, and to read a definition read without them that writes one of them alone', () => {
-        expect(getError(() => lexica.format(registry.parse('shop.open')))).toMatchObject({ kind: 'structure', message: expect.stringContaining("reads through the namespace 'shop', which text read without a registry's module names cannot write") });
-        expect(getError(() => lexica.quote(registry.parse('shop.open')))).toMatchObject({ kind: 'structure' });
-        expect(getError(() => registry.resolve(lexica.parse('shop.open')))).toMatchObject({ kind: 'structure', message: expect.stringContaining("writes 'shop' alone, which this registry reads as the namespace of its module 'shop'") });
+        expect(errorThrownBy(() => lexica.format(registry.parse('shop.open')))).toMatchObject({ kind: 'structure', message: expect.stringContaining("reads through the namespace 'shop', which text read without a registry's module names cannot write") });
+        expect(errorThrownBy(() => lexica.quote(registry.parse('shop.open')))).toMatchObject({ kind: 'structure' });
+        expect(errorThrownBy(() => registry.resolve(lexica.parse('shop.open')))).toMatchObject({ kind: 'structure', message: expect.stringContaining("writes 'shop' alone, which this registry reads as the namespace of its module 'shop'") });
         expect(registry.resolve(lexica.parse('~shop + 1'), { shop: 1 })).toMatchObject({ type: 'Number' });
     });
 
     it('locates a name a definition read without the module names writes alone where the text first writes it', () => {
-        expect(getError(() => registry.format(lexica.parse('let size = 2\nreturn size + shop.size + shop')))).toMatchObject({ location: { pointer: '/expression/result/left/right/target', line: 2, column: 15 } });
-        expect(getError(() => registry.format(lexica.parse('shop(1)'))).location).toMatchObject({ pointer: '/expression', line: 1, column: 1 });
+        expect(errorThrownBy(() => registry.format(lexica.parse('let size = 2\nreturn size + shop.size + shop')))).toMatchObject({ location: { pointer: '/expression/result/left/right/target', line: 2, column: 15 } });
+        expect(errorThrownBy(() => registry.format(lexica.parse('shop(1)'))).location).toMatchObject({ pointer: '/expression', line: 1, column: 1 });
     });
 
     it('refuses a namespace no module the registry holds gives, and a definition a module registered since reads otherwise', () => {
@@ -91,13 +81,13 @@ describe("a registry's text", () => {
         const growing = lexica.createRegistry([createShop()]);
         const read = growing.parse('bakery + 1');
 
-        expect(getError(() => registry.resolve(bakery))).toMatchObject({ kind: 'structure', message: expect.stringContaining("reads through the namespace 'bakery', and this registry holds no module of that name"), location: { pointer: '/expression/target' } });
+        expect(errorThrownBy(() => registry.resolve(bakery))).toMatchObject({ kind: 'structure', message: expect.stringContaining("reads through the namespace 'bakery', and this registry holds no module of that name"), location: { pointer: '/expression/target' } });
         expect(growing.resolve(read, { bakery: 1 })).toMatchObject({ type: 'Number' });
 
         growing.registerModule(lexica.createModule('bakery', {}));
 
-        expect(getError(() => growing.resolve(read, { bakery: 1 }))).toMatchObject({ kind: 'structure', message: expect.stringContaining("writes 'bakery' alone") });
-        expect(getError(() => growing.parse('bakery + 1'))).toMatchObject({ kind: 'syntax' });
+        expect(errorThrownBy(() => growing.resolve(read, { bakery: 1 }))).toMatchObject({ kind: 'structure', message: expect.stringContaining("writes 'bakery' alone") });
+        expect(errorThrownBy(() => growing.parse('bakery + 1'))).toMatchObject({ kind: 'syntax' });
     });
 
     it("never reserves Lexica's own module's name, which has no namespace", () => {
@@ -106,13 +96,13 @@ describe("a registry's text", () => {
 
     it('refuses a module named by a word the language reserves, which its text reaches only through an import binding read with @', () => {
         for (const name of ['it', 'root', 'true', 'null', 'if', 'to']) {
-            expect(getError(() => lexica.createRegistry([lexica.createModule(name, {})]))).toMatchObject({ kind: 'module', code: 'LEXICA4557', message: expect.stringContaining(`'${name}' is a word the language reserves`) });
+            expect(errorThrownBy(() => lexica.createRegistry([lexica.createModule(name, {})]))).toMatchObject({ kind: 'module', code: 'LEXICA4557', message: expect.stringContaining(`'${name}' is a word the language reserves`) });
         }
     });
 
     it('gives the form to write in a diagnostic as the registry reads it, a script parameter and a local named after a module written with ~ and @', () => {
-        expect(getError(() => resolve('~shop.a()', { shop: { a: 1 } })).message).toContain("write '~shop.a'");
-        expect(getError(() => resolve('let shop = { a = 1 }\nreturn @shop.a()')).message).toContain("write '@shop.a'");
+        expect(errorThrownBy(() => resolve('~shop.a()', { shop: { a: 1 } })).message).toContain("write '~shop.a'");
+        expect(errorThrownBy(() => resolve('let shop = { a = 1 }\nreturn @shop.a()')).message).toContain("write '@shop.a'");
     });
 });
 
@@ -125,9 +115,9 @@ describe('module members', () => {
     });
 
     it('are refused in a form they do not take, and never reached from a receiver', () => {
-        expect(getError(() => resolve('shop.open()'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.open' is a property, read as shop.open, and takes no argument") });
-        expect(getError(() => resolve('word.open'))).toBeInstanceOf(LexicaError);
-        expect(getError(() => resolve('shop.nothing'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The module 'shop' declares no member 'nothing'") });
+        expect(errorThrownBy(() => resolve('shop.open()'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.open' is a property, read as shop.open, and takes no argument") });
+        expect(errorThrownBy(() => resolve('word.open'))).toBeInstanceOf(LexicaError);
+        expect(errorThrownBy(() => resolve('shop.nothing'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The module 'shop' declares no member 'nothing'") });
     });
 });
 
@@ -152,9 +142,9 @@ describe('qualified forms', () => {
 
     it('select the declaration their receiver takes, refusing one no declaration takes, a call without its receiver and an indexer', () => {
         expect(evaluate('{ word = shop.fits(word), number = shop.fits(7) }').value).toEqual({ word: true, number: false });
-        expect(getError(() => resolve('shop.pad(3, 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' takes a receiver of String, and is given Number") });
-        expect(getError(() => resolve('shop.pad()'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes the receiver as its first argument') });
-        expect(getError(() => resolve('shop.size(word, 1)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'size' takes no argument") });
+        expect(errorThrownBy(() => resolve('shop.pad(3, 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' takes a receiver of String, and is given Number") });
+        expect(errorThrownBy(() => resolve('shop.pad()'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes the receiver as its first argument') });
+        expect(errorThrownBy(() => resolve('shop.size(word, 1)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'size' takes no argument") });
     });
 
     it('prepare a host call through its module, its receiver the first argument, and skip it where that receiver is null', () => {
@@ -209,14 +199,14 @@ describe('function references', () => {
 
     it('name a declaration where they are written: the one a callback contract takes where they are passed, and the module\'s one function of the name anywhere else', () => {
         expect(evaluate('{ word = word.is(shop.fits), number = (7).is(shop.fits) }').value).toEqual({ word: true, number: false });
-        expect(getError(() => resolve('let test = shop.fits return word.is(test)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.fits' names 2 functions, so which it references is ambiguous") });
+        expect(errorThrownBy(() => resolve('let test = shop.fits return word.is(test)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.fits' names 2 functions, so which it references is ambiguous") });
     });
 
     it('refuse a property and a host call, which have none, and a declaration a callback contract does not take', () => {
-        expect(getError(() => resolve('let size = shop.size return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.size' is a property, read with its receiver as shop.size(receiver), and only a function has a reference") });
-        expect(getError(() => resolve('let order = shop.order return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.order' is a host call, which its host invokes, so it has no reference") });
-        expect(getError(() => resolve('word.is(shop.pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("and 'shop.pad' names no function that takes those or answers that") });
-        expect(getError(() => resolve('let pad = shop.pad return word.is(pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' is (String, Number) => String") });
+        expect(errorThrownBy(() => resolve('let size = shop.size return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.size' is a property, read with its receiver as shop.size(receiver), and only a function has a reference") });
+        expect(errorThrownBy(() => resolve('let order = shop.order return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.order' is a host call, which its host invokes, so it has no reference") });
+        expect(errorThrownBy(() => resolve('word.is(shop.pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("and 'shop.pad' names no function that takes those or answers that") });
+        expect(errorThrownBy(() => resolve('let pad = shop.pad return word.is(pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' is (String, Number) => String") });
     });
 
     it('read and invoke nothing as they are created, each call reading what its declaration does, and are used declarations of the script', () => {
@@ -227,7 +217,7 @@ describe('function references', () => {
     });
 
     it('are never reached by a bare name, which reads a local, a field, a function parameter or a script parameter', () => {
-        expect(getError(() => resolve('word.is(vegan)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("No local in scope or script parameter is named 'vegan'") });
+        expect(errorThrownBy(() => resolve('word.is(vegan)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("No local in scope or script parameter is named 'vegan'") });
     });
 });
 
@@ -288,15 +278,15 @@ describe('the answer of a held reference', () => {
         const wrong = () => 'x';
         const refusal = { code: 'LEXICA5006', message: expect.stringContaining('and it declares Number') };
 
-        expect(getError(() => evaluateLists('lists.head(numbers)', wrong))).toMatchObject(refusal);
-        expect(getError(() => evaluateLists('let head = lists.head return head(numbers)', wrong))).toMatchObject(refusal);
-        expect(getError(() => evaluateLists(`${choosing}pick(numbers)`, wrong))).toMatchObject(refusal);
-        expect(getError(() => evaluateLists('numbers.apply(lists.head)', wrong))).toMatchObject(refusal);
+        expect(errorThrownBy(() => evaluateLists('lists.head(numbers)', wrong))).toMatchObject(refusal);
+        expect(errorThrownBy(() => evaluateLists('let head = lists.head return head(numbers)', wrong))).toMatchObject(refusal);
+        expect(errorThrownBy(() => evaluateLists(`${choosing}pick(numbers)`, wrong))).toMatchObject(refusal);
+        expect(errorThrownBy(() => evaluateLists('numbers.apply(lists.head)', wrong))).toMatchObject(refusal);
     });
 
     it('is checked against each specialization the reference is called with, apart', () => {
         expect(evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, list => list[0])).toEqual({ number: 1, word: 'a' });
-        expect(getError(() => evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, () => 1))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('and it declares String') });
+        expect(errorThrownBy(() => evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, () => 1))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('and it declares String') });
     });
 
     it('is null where a null receiver short-circuits the call, and refused where the implementation answers null for a result that is not nullable', () => {
@@ -304,6 +294,6 @@ describe('the answer of a held reference', () => {
 
         expect(evaluateLists(`${choosing}pick(if full then numbers else missing end)`, () => null, invoked)).toBeNull();
         expect(invoked).toEqual([]);
-        expect(getError(() => evaluateLists(`${choosing}pick(numbers)`, () => null))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('answered null, and it declares Number') });
+        expect(errorThrownBy(() => evaluateLists(`${choosing}pick(numbers)`, () => null))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('answered null, and it declares Number') });
     });
 });

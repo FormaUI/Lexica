@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy } from './support/errors.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
@@ -96,7 +86,7 @@ describe('a host of plain data', () => {
         const resolution = lexica.createRegistry([createShop()]).resolve('{ cut = order.discount(code), note = extra.note }', { order: 'a', code: 'TEN', extra: { note: 'x' } });
 
         expect(resolution.createEvaluator({ order: 'a', code: 'TEN', extra: { note: 'y' } }).evaluate().value).toEqual({ cut: 10, note: 'y' });
-        expect(getError(() => resolution.createEvaluator({ order: 'a', code: 'NONE', extra: { note: 'x' } }))).toMatchObject({ kind: 'structure', message: expect.stringContaining('These bindings resolve the script otherwise than the bindings it was resolved with') });
+        expect(errorThrownBy(() => resolution.createEvaluator({ order: 'a', code: 'NONE', extra: { note: 'x' } }))).toMatchObject({ kind: 'structure', message: expect.stringContaining('These bindings resolve the script otherwise than the bindings it was resolved with') });
     });
 
     it('refuses to evaluate a resolution a module registered since has made stale, wherever the evaluator was created', () => {
@@ -108,8 +98,8 @@ describe('a host of plain data', () => {
 
         registry.registerModule(lexica.createModule('extra', {}));
 
-        expect(getError(() => evaluator.evaluate())).toMatchObject({ kind: 'structure', message: expect.stringContaining('its resolution is stale; resolve the script again') });
-        expect(getError(() => resolution.createEvaluator({ order: 'a' }))).toMatchObject({ kind: 'structure' });
+        expect(errorThrownBy(() => evaluator.evaluate())).toMatchObject({ kind: 'structure', message: expect.stringContaining('its resolution is stale; resolve the script again') });
+        expect(errorThrownBy(() => resolution.createEvaluator({ order: 'a' }))).toMatchObject({ kind: 'structure' });
     });
 
     it('registers a module and answers nothing, so no registration hands out the registry behind it', () => {
@@ -141,7 +131,7 @@ describe('a host of plain data', () => {
         const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' });
         let inner = null;
 
-        evaluator.evaluate({ beforeInvoke: () => { inner = getError(() => evaluator.evaluate()); } });
+        evaluator.evaluate({ beforeInvoke: () => { inner = errorThrownBy(() => evaluator.evaluate()); } });
 
         expect(inner).toBeInstanceOf(LexicaError);
         expect(inner.message).toContain('one evaluation at a time');
@@ -154,12 +144,12 @@ describe('a host of plain data', () => {
         expect(lexica.quote('{\n    total = order.total\n}')).toBe('{ total = order.total }');
         expect(lexica.getLocation(definition, '/expression/fields/0/value')).toMatchObject({ line: 1, column: 11 });
         expect(lexica.getLocation(lexica.validate({ version: lexica.info.versions.definition, expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
-        expect(getError(() => lexica.getLocation(definition, '/expression/fields/9'))).toMatchObject({ kind: 'structure' });
+        expect(errorThrownBy(() => lexica.getLocation(definition, '/expression/fields/9'))).toMatchObject({ kind: 'structure' });
     });
 
     it('checks a result path and reads the value it reaches', () => {
         expect(lexica.paths.valueAt({ total: { amount: 3 } }, ['total', 'amount'])).toBe(3);
-        expect(getError(() => lexica.paths.validate(['total', -1]))).toMatchObject({ kind: 'structure' });
+        expect(errorThrownBy(() => lexica.paths.validate(['total', -1]))).toMatchObject({ kind: 'structure' });
     });
 });
 
@@ -201,13 +191,13 @@ describe('the declaration shape', () => {
         const resolution = lexica.createRegistry([createMenu()]).resolve('item.special', { item: 'latte' });
 
         expect(resolution.type).toBe('String');
-        expect(getError(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', message: expect.stringContaining('so a script that uses it is resolved and never evaluated'), location: { module: 'menu', declaration: 'special', declarationKey: 'implementation' } });
+        expect(errorThrownBy(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', message: expect.stringContaining('so a script that uses it is resolved and never evaluated'), location: { module: 'menu', declaration: 'special', declarationKey: 'implementation' } });
     });
 
     it('decides before anything is evaluated, so a branch evaluation would not take refuses its script too', () => {
         const resolution = lexica.createRegistry([createMenu()]).resolve('if item.vegan() then item.price else item.special.price end', { item: 'oat latte' });
 
-        expect(getError(() => resolution.createEvaluator({ item: 'oat latte' }))).toMatchObject({ kind: 'module', location: { declaration: 'special' } });
+        expect(errorThrownBy(() => resolution.createEvaluator({ item: 'oat latte' }))).toMatchObject({ kind: 'module', location: { declaration: 'special' } });
     });
 
     it('reads a required parameter whose default holds undefined as one that declares none, so its argument is still required', () => {
@@ -217,11 +207,11 @@ describe('the declaration shape', () => {
         })]);
 
         expect(registry.resolve('item.cut(5)', { item: 'latte' }).createEvaluator({ item: 'latte' }).evaluate().value).toBe(5);
-        expect(getError(() => registry.resolve('item.cut()', { item: 'latte' }))).toBeInstanceOf(LexicaError);
+        expect(errorThrownBy(() => registry.resolve('item.cut()', { item: 'latte' }))).toBeInstanceOf(LexicaError);
     });
 
     it('refuses a function call written as an indexer, giving the call to write', () => {
-        expect(getError(() => lexica.createRegistry([createMenu()]).resolve('item.discounted[50]', { item: 'latte' })).message).toContain("'discounted' uses call syntax: write 'item.discounted(50)'");
+        expect(errorThrownBy(() => lexica.createRegistry([createMenu()]).resolve('item.discounted[50]', { item: 'latte' })).message).toContain("'discounted' uses call syntax: write 'item.discounted(50)'");
     });
 
     it('evaluates an expression of a mixed module that uses its implemented declarations alone', () => {
@@ -234,7 +224,7 @@ describe('the declaration shape', () => {
         const cups = lexica.createModule('cups', { types: [{ name: 'Cup', fields: { size: 'Number' } }], conversions: [{ from: 'String', to: 'Cup' }] });
         const resolution = lexica.createRegistry([cups]).resolve('if large then (order to Cup).size else 0 end', { order: 'tall', large: false });
 
-        expect(getError(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'String to Cup', declarationKey: 'implementation' } });
+        expect(errorThrownBy(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'String to Cup', declarationKey: 'implementation' } });
     });
 
     it('registers a module member, which has no target, beside the members of a type, read through its namespace and answered by no receiver, its implementation given no receiver', () => {
@@ -249,7 +239,7 @@ describe('the declaration shape', () => {
         expect(registry.moduleNames).toEqual(['lexica', 'clock']);
         expect(registry.resolve('{ length = item.length, zone = clock.zone }', { item: 'latte' }).createEvaluator({ item: 'latte' }, { rate: 1 }).evaluate().value).toEqual({ length: 5, zone: 'UTC' });
         expect(received).toEqual([{ args: {}, env: { rate: 1 } }]);
-        expect(getError(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);
+        expect(errorThrownBy(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);
     });
 
     it('registers a module member and a member on a receiver of one name in one module, the namespace reading each where resolution takes one alone', () => {

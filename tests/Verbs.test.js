@@ -1,16 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy } from './support/errors.mjs';
 
 const { property, functionParameter } = lexica.declarations;
 const constant = { changes: 'constant', reads: 'fresh' };
@@ -76,20 +66,20 @@ describe('the verbs', () => {
         expect(evaluate('{ list = words.is(ws => ws.count > 2), number = (4).is(pantry.even), text = word.is(w => w.size == 3) }').value).toEqual({ list: true, number: true, text: true });
         expect(evaluate('missing?.is(w => w.size > 2)')).toEqual({ value: null, invoked: [], asked: [] });
         expect(resolve('missing?.is(it.size > 2)').type).toBe('Boolean?');
-        expect(getError(() => resolve('word.is(pantry.even)'))).toMatchObject({ kind: 'validation' });
+        expect(errorThrownBy(() => resolve('word.is(pantry.even)'))).toMatchObject({ kind: 'validation' });
     });
 
     it('refuse a test that is no function, one that does not take the receiver\'s type, one of another number of arguments, and one answering anything but a boolean', () => {
-        expect(getError(() => resolve('word.is(metered)', { ...values, metered: true }))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The parameter 'test' of 'is' takes a function, as an arrow function, a function a name holds, a module's function by reference or an implicit body gives, and finds Boolean") });
-        expect(getError(() => resolve('word.is((a, b) => true)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes 2 arguments, and its contract passes 1') });
-        expect(getError(() => resolve('word.is(w => w.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Number, and its contract takes Boolean') });
-        expect(getError(() => resolve('word.is(it.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The implicit body given as 'test' of 'is' gives Number, and its contract takes Boolean") });
-        expect(getError(() => resolve('word.is(w => if w.size > 2 then true else null end)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Boolean?, and its contract takes Boolean') });
+        expect(errorThrownBy(() => resolve('word.is(metered)', { ...values, metered: true }))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The parameter 'test' of 'is' takes a function, as an arrow function, a function a name holds, a module's function by reference or an implicit body gives, and finds Boolean") });
+        expect(errorThrownBy(() => resolve('word.is((a, b) => true)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes 2 arguments, and its contract passes 1') });
+        expect(errorThrownBy(() => resolve('word.is(w => w.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Number, and its contract takes Boolean') });
+        expect(errorThrownBy(() => resolve('word.is(it.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The implicit body given as 'test' of 'is' gives Number, and its contract takes Boolean") });
+        expect(errorThrownBy(() => resolve('word.is(w => if w.size > 2 then true else null end)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Boolean?, and its contract takes Boolean') });
     });
 
     it('take a Boolean that cannot be null and convert no truthiness, failing where a module\'s function answers anything else', () => {
-        expect(getError(() => evaluate('word.is(pantry.fresh)'))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("The member 'fresh' answered") });
-        expect(getError(() => resolve('word.is(w => w)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives String, and its contract takes Boolean') });
+        expect(errorThrownBy(() => evaluate('word.is(pantry.fresh)'))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("The member 'fresh' answered") });
+        expect(errorThrownBy(() => resolve('word.is(w => w)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives String, and its contract takes Boolean') });
     });
 
     it('read what their test reads: a module\'s function as its declaration says, and an arrow function or an implicit body the reads it makes', () => {
@@ -103,8 +93,8 @@ describe('the verbs', () => {
 describe('implicit bodies', () => {
     it('are recognized by an it of the argument\'s own scope, and an it a projection, an expression or a predicate argument within it supplies makes it none', () => {
         expect(evaluate('word.is(it.size > 2)').value).toBe(true);
-        expect(getError(() => resolve('word.is(words { s = it.size }.count > 0)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes a function') });
-        expect(getError(() => resolve('word.is(words.where(it.vegan()).count > 0)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes a function') });
+        expect(errorThrownBy(() => resolve('word.is(words { s = it.size }.count > 0)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes a function') });
+        expect(errorThrownBy(() => resolve('word.is(words.where(it.vegan()).count > 0)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes a function') });
     });
 
     it('count an it an arrow function within them reads, since an arrow function keeps the it of the place it is written', () => {
@@ -118,7 +108,7 @@ describe('implicit bodies', () => {
 
     it('leave an arrow function the it of the place it is written, which a top level has none of', () => {
         expect(evaluate('words { shorter = word.is(w => it.size > w.size) }').value).toEqual([{ shorter: false }, { shorter: true }, { shorter: false }]);
-        expect(getError(() => resolve('word.is(w => it.size > 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'it' is the implicit parameter, and there is none here") });
+        expect(errorThrownBy(() => resolve('word.is(w => it.size > 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'it' is the implicit parameter, and there is none here") });
     });
 
     it('are evaluated only as the member calls them, so one it never calls reads nothing', () => {
@@ -136,7 +126,7 @@ describe('implicit bodies', () => {
 describe('functions passed to members', () => {
     it('are called only while the member\'s invocation lasts, a call after that failing, an implicit body and a reference alike', () => {
         for (const test of ['w => w.size > 2', 'it.size > 2', 'pantry.vegan']) {
-            expect(getError(() => evaluate(`{ kept = word.keep(${test}), called = word.callKept() }`))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("is called after 'keep' returned") });
+            expect(errorThrownBy(() => evaluate(`{ kept = word.keep(${test}), called = word.callKept() }`))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("is called after 'keep' returned") });
         }
     });
 
@@ -153,8 +143,8 @@ describe('functions passed to members', () => {
             const bindings = registry.createBindings(values);
             const evaluator = registry.resolve(`word.keepAndFail(${test})`, bindings).createEvaluator(bindings);
 
-            expect(getError(() => evaluator.evaluate()), test).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
-            expect(getError(() => held.test('oat')), test).toMatchObject({ code: 'LEXICA5008', kind: 'evaluation' });
+            expect(errorThrownBy(() => evaluator.evaluate()), test).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
+            expect(errorThrownBy(() => held.test('oat')), test).toMatchObject({ code: 'LEXICA5008', kind: 'evaluation' });
         }
     });
 });

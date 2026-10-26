@@ -1,17 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { LexicaError, lexica } from '#lexica/lexica.js';
 import { Versions } from '#lexica/language/Versions.mjs';
-
-/** The error a call throws. */
-const getError = call => {
-    try {
-        call();
-    } catch (error) {
-        return error;
-    }
-
-    throw new Error('The call threw nothing');
-};
+import { errorThrownBy } from './support/errors.mjs';
 
 describe('lexica', () => {
     it('runs where no browser global exists', () => {
@@ -38,7 +28,7 @@ describe('lexica', () => {
 
     it('checks a definition given directly, refusing one whose structure is wrong', () => {
         expect(lexica.validate({ version: Versions.definition, expression: { kind: 'literal', value: 1 } })).toEqual({ version: Versions.definition, expression: { kind: 'literal', value: 1 } });
-        const refused = getError(() => lexica.validate({ version: Versions.definition, expression: { kind: 'nothing' } }));
+        const refused = errorThrownBy(() => lexica.validate({ version: Versions.definition, expression: { kind: 'nothing' } }));
 
         expect(refused).toBeInstanceOf(LexicaError);
         expect(refused).toMatchObject({ code: 'LEXICA2000', kind: 'structure', location: { pointer: '/expression' }, message: expect.stringMatching(/^A node is an object whose kind is literal, /) });
@@ -47,8 +37,8 @@ describe('lexica', () => {
     it('reads definitions of its one version, refusing one of another, version 31 among them, with a structure error naming both', () => {
         const thirtyOne = { version: 31, expression: { kind: 'context' } };
 
-        expect(getError(() => lexica.validate(thirtyOne))).toMatchObject({ kind: 'structure', location: { pointer: '/version' }, message: expect.stringContaining(`A definition is of version ${Versions.definition}, the one this implementation reads, and this one is of version 31`) });
-        expect(getError(() => lexica.createRegistry().resolve(thirtyOne))).toMatchObject({ kind: 'structure' });
+        expect(errorThrownBy(() => lexica.validate(thirtyOne))).toMatchObject({ kind: 'structure', location: { pointer: '/version' }, message: expect.stringContaining(`A definition is of version ${Versions.definition}, the one this implementation reads, and this one is of version 31`) });
+        expect(errorThrownBy(() => lexica.createRegistry().resolve(thirtyOne))).toMatchObject({ kind: 'structure' });
     });
 
     it('reads the implicit parameter as it and the object root as root, nodes of their own, and context as an ordinary name', () => {
@@ -62,8 +52,8 @@ describe('lexica', () => {
     });
 
     it('refuses a ~ that names no script parameter, since ~ alone reads nothing', () => {
-        expect(getError(() => lexica.parse('~.size'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("no script parameter, which is named directly after '~'") });
-        expect(getError(() => lexica.parse('~ room'))).toMatchObject({ kind: 'syntax', message: "A script parameter is named directly after '~', as ~room (line 1, column 1)" });
+        expect(errorThrownBy(() => lexica.parse('~.size'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("no script parameter, which is named directly after '~'") });
+        expect(errorThrownBy(() => lexica.parse('~ room'))).toMatchObject({ kind: 'syntax', message: "A script parameter is named directly after '~', as ~room (line 1, column 1)" });
     });
 
     it('reads a lexical reference before any identifier, the local or the field of its name, and writes one only where the identifier alone means something else', () => {
@@ -73,8 +63,8 @@ describe('lexica', () => {
         expect(lexica.format('let total = 2\nreturn @total')).toBe('let total = 2\nreturn total');
         expect(lexica.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn home');
         expect(registry.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn @home');
-        expect(getError(() => lexica.parse('@room'))).toMatchObject({ kind: 'structure', message: expect.stringContaining("No local, object field, conditional binding or function parameter named 'room' is in scope. Use '~room' to read the script parameter") });
-        expect(getError(() => lexica.parse('@ room'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("An identifier follows '@' directly") });
+        expect(errorThrownBy(() => lexica.parse('@room'))).toMatchObject({ kind: 'structure', message: expect.stringContaining("No local, object field, conditional binding or function parameter named 'room' is in scope. Use '~room' to read the script parameter") });
+        expect(errorThrownBy(() => lexica.parse('@ room'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("An identifier follows '@' directly") });
     });
 
     it('reads a word as the role its position gives it where the position expects a name, a module\'s name among them, and as the language\'s own meaning where a value stands', () => {
@@ -90,14 +80,14 @@ describe('lexica', () => {
         expect(lexica.format('(try value to Number) ?? 0')).toBe('try value to Number ?? 0');
         expect(lexica.format('(node as Element)?.size')).toBe('(node as Element)?.size');
         expect(lexica.format('a as end')).toBe('a as end');
-        expect(getError(() => lexica.parse('value to "Number"'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("'to' names the type it converts to bare, as a member's name is written: write 'to Number'") });
-        expect(getError(() => lexica.parse("node as 'Element'"))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("write 'as Element'") });
-        expect(getError(() => lexica.validate({ version: Versions.definition, expression: { kind: 'conversion', type: 'List<Number>', target: { kind: 'literal', value: 1 } } }))).toMatchObject({ kind: 'structure', location: { pointer: '/expression/type' } });
+        expect(errorThrownBy(() => lexica.parse('value to "Number"'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("'to' names the type it converts to bare, as a member's name is written: write 'to Number'") });
+        expect(errorThrownBy(() => lexica.parse("node as 'Element'"))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("write 'as Element'") });
+        expect(errorThrownBy(() => lexica.validate({ version: Versions.definition, expression: { kind: 'conversion', type: 'List<Number>', target: { kind: 'literal', value: 1 } } }))).toMatchObject({ kind: 'structure', location: { pointer: '/expression/type' } });
     });
 
     it('refuses a text that is no expression with a syntax error at its place', () => {
-        expect(getError(() => lexica.parse('a +'))).toMatchObject({ kind: 'syntax', location: { line: 1 } });
-        expect(getError(() => lexica.parse(1))).toMatchObject({ kind: 'structure' });
+        expect(errorThrownBy(() => lexica.parse('a +'))).toMatchObject({ kind: 'syntax', location: { line: 1 } });
+        expect(errorThrownBy(() => lexica.parse(1))).toMatchObject({ kind: 'structure' });
     });
 
     it('creates a module from the vocabulary it declares', () => {
@@ -106,7 +96,7 @@ describe('lexica', () => {
         });
 
         expect(module.name).toBe('price');
-        expect(getError(() => lexica.createModule('price', { members: [{ name: 'other' }] }))).toMatchObject({ kind: 'module' });
+        expect(errorThrownBy(() => lexica.createModule('price', { members: [{ name: 'other' }] }))).toMatchObject({ kind: 'module' });
     });
 
     it('resolves an expression against a registry of its built-in vocabulary and the modules a host registers, each registry its own', () => {
@@ -121,7 +111,7 @@ describe('lexica', () => {
         expect(registry.resolve('items { total = it.price * it.quantity }.count', { items })).toMatchObject({ hostCall: null, type: 'Number' });
         expect(registry.resolve('"10".price + 1')).toMatchObject({ hostCall: null, type: 'Number' });
         expect(lexica.createRegistry().moduleNames).toEqual(['lexica']);
-        expect(getError(() => lexica.createRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
+        expect(errorThrownBy(() => lexica.createRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
 
     it('binds plain values each time it is given them and reuses the bindings its registry created, asking no module\'s typeOf of a script it refuses', () => {
@@ -134,7 +124,7 @@ describe('lexica', () => {
         expect(asked).toEqual(['oat']);
         registry.resolve('word.label', { word: { label: 'tea' } }).createEvaluator({ word: { label: 'rye' } });
         expect(asked).toEqual(['oat', 'tea', 'rye']);
-        expect(getError(() => registry.resolve('word.label +', { word: { label: 'bad' } }))).toMatchObject({ kind: 'syntax' });
+        expect(errorThrownBy(() => registry.resolve('word.label +', { word: { label: 'bad' } }))).toMatchObject({ kind: 'syntax' });
         expect(asked).toEqual(['oat', 'tea', 'rye']);
     });
 
