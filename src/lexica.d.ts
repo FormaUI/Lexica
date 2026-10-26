@@ -279,7 +279,7 @@ export interface LexicaImplementationInput {
 
 /**
  * A property or a function a module adds, each taking the fields it needs alone; a member without a target is a module member, read through its module's namespace.
- * A property answers a value, and a function the evaluator invokes its result; a function the host invokes is a host call, which a script ends in, and has no implementation Lexica calls.
+ * A property answers a value, and a function the evaluator invokes its result; a script ending in a call of a function the host invokes ends in a host call, and the function has no implementation Lexica calls.
  */
 export interface LexicaMemberDeclaration {
     /** The Lexica name. */
@@ -297,9 +297,9 @@ export interface LexicaMemberDeclaration {
     default?: boolean;
     /** Its parameters; a property takes none. */
     parameters?: LexicaParameterDeclaration[];
-    /** The type of its result, in Lexica's notation; a host call's is the type of each value its host supplies, left out where it supplies none. */
+    /** The type of its result, in Lexica's notation; a function the host invokes declares the type of each value its host supplies, left out where it supplies none. */
     result?: string;
-    /** How it changes and reads; a property and a function the evaluator invokes take it, and a host call refuses it. */
+    /** How it changes and reads; a property and a function the evaluator invokes take it, and a function the host invokes refuses it. */
     updates?: LexicaUpdates;
     /** What carries it out, given one object it reads by name; a member without one is resolved against and never invoked. */
     implementation?: (input: LexicaImplementationInput) => unknown;
@@ -525,7 +525,7 @@ export interface Lexica {
     quote(script: LexicaScript): string;
     /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
     getLocation(definition: LexicaDefinition, pointer: string): LexicaLocation;
-    /** Creates a module from the vocabulary it declares and the functions that carry its members out. */
+    /** Creates a module from the declarations it holds and the implementations that carry them out. */
     createModule(name: string, contents: LexicaModuleContents): LexicaModule;
     readonly declarations: LexicaDeclarations;
     /** Creates a registry of Lexica's own module and the modules given, which the host registers more modules with. */
