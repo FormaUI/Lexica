@@ -1,5 +1,5 @@
 /**
- * Lexica — a general-purpose, embeddable language whose domain each application defines: reads, validates and writes source and definitions, creates the modules that declare a vocabulary and the registries a host resolves scripsions against,
+ * Lexica — a general-purpose, embeddable language whose domain each application defines: reads, validates and writes source and definitions, creates the modules that declare a vocabulary and the registries a host resolves scripts against,
  * binds values, and evaluates a resolved script for its host, describing its result; and says which build it is and which specification it follows
  */
 
@@ -18,7 +18,7 @@ import { LexicaModule } from './language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from './language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from './language/vocabulary/Vocabulary.mjs';
 
-/** The parameter bindings each bindings object a registry's `bind` made stands for. @type {WeakMap<object, ParameterBindings>} */
+/** The parameter bindings each bindings object a registry's `createBindings` created stands for. @type {WeakMap<object, ParameterBindings>} */
 const PARAMETER_BINDINGS = new WeakMap();
 
 /** The definition a source gives: a text read with the namespace names given and checked, or a definition checked, each the same frozen definition the text's canonical form would give. */
@@ -79,13 +79,13 @@ const readWith = (definition, namespaceNames) => {
  * Bindings, the registry's: the values bound by name, data a frozen copy of the data given and each reference itself, the type each value gives its binding or its host declares for it, in type notation, and the resolution key
  * that says which resolutions they may reuse.
  */
-const bind = (registry, values = {}, options = {}) => {
+const createBindings = (registry, values = {}, options = {}) => {
     const parameterBindings = new ParameterBindings(registry, values, options);
     const bindings = Object.freeze({
         resolutionKey: parameterBindings.resolutionKey,
         has: name => parameterBindings.has(name),
-        get: name => parameterBindings.readValue(name),
-        typeOf: name => (parameterBindings.has(name) ? String(parameterBindings.getType(name)) : undefined),
+        readValue: name => parameterBindings.readValue(name),
+        getType: name => (parameterBindings.has(name) ? String(parameterBindings.getType(name)) : undefined),
     });
 
     PARAMETER_BINDINGS.set(bindings, parameterBindings);
@@ -93,7 +93,7 @@ const bind = (registry, values = {}, options = {}) => {
     return bindings;
 };
 
-/** The parameter bindings of bindings the registry's `bind` made, or of plain values, which the registry binds now; bindings another registry made are refused. */
+/** The parameter bindings of bindings the registry's `createBindings` created, or of plain values, which the registry binds now; bindings another registry made are refused. */
 const parameterBindingsOf = (registry, bindings) => {
     const parameterBindings = PARAMETER_BINDINGS.get(bindings);
 
@@ -157,7 +157,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         const unimplemented = usedDeclarations.find(use => registry.getImplementation(use.declaration) === undefined && !LexicaModule.isInvokedByHost(use.declaration));
 
         if (unimplemented !== undefined) {
-            throw LexicaErrors.module('LEXICA4001', `'${unimplemented.name}' has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
+            throw LexicaErrors.module('LEXICA4001', `'${unimplemented.name}' has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplemented.declaration), declaration: unimplemented.declaration.name, field: 'implementation' });
         }
 
         const unimplementedConversion = resolved.usedConversions.find(conversion => registry.getImplementation(conversion) === undefined);
@@ -165,7 +165,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         if (unimplementedConversion !== undefined) {
             const name = LexicaModule.conversionNameOf(unimplementedConversion);
 
-            throw LexicaErrors.module('LEXICA4001', `The conversion from ${name} has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getOwner(unimplementedConversion), declaration: name, field: 'implementation' });
+            throw LexicaErrors.module('LEXICA4001', `The conversion from ${name} has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplementedConversion), declaration: name, field: 'implementation' });
         }
 
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);
@@ -189,15 +189,15 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         };
 
         // A prepared call projects through the same entry, so each projection checks the registry and evaluates alone, as an evaluation does.
-        const prepareCall = () => {
-            const call = enter(() => evaluator.prepareCall());
+        const prepareHostCall = () => {
+            const call = enter(() => evaluator.prepareHostCall());
 
-            return call.project === undefined ? call : Object.freeze({ ...call, project: (value, host = null) => enter(() => call.project(value, host)) });
+            return call.project === undefined ? call : Object.freeze({ ...call, project: (value, hooks = null) => enter(() => call.project(value, hooks)) });
         };
 
         return Object.freeze({
-            evaluate: (host = null) => enter(() => evaluator.evaluate(host)),
-            prepareCall,
+            evaluate: (hooks = null) => enter(() => evaluator.evaluate(hooks)),
+            prepareHostCall,
         });
     };
 
@@ -218,7 +218,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         type: resolved.type === null ? null : String(resolved.type),
         usedDeclarations,
         typeAt,
-        locate: pointer => locate(definition, pointer),
+        getLocation: pointer => locate(definition, pointer),
         createEvaluator,
     });
 };
@@ -227,7 +227,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
  * A registry a host resolves scripts against: Lexica's own module and the modules the host registers, each module's vocabulary in effect for every script resolved after it.
  * It reads and writes text with the names of its modules, which begin their namespaces there. No registry is shared, so two hosts never see each other's modules.
  */
-const registryOf = modules => {
+const createRegistry = modules => {
     const registry = new LexicaRegistry([Vocabulary.module, ...modules]);
     const namespaceNames = () => new Set(registry.namespaceNames);
     const definitionWith = source => {
@@ -247,7 +247,7 @@ const registryOf = modules => {
             return registry.revision;
         },
         getObservationType: name => registry.getObservationType(name),
-        getOwner: declaration => registry.getOwner(declaration),
+        getDeclaringModuleName: declaration => registry.getDeclaringModuleName(declaration),
         getImplementation: declaration => registry.getImplementation(declaration),
         parse: text => {
             if (typeof text !== 'string') {
@@ -258,7 +258,7 @@ const registryOf = modules => {
         },
         format: source => DefinitionWriter.format(definitionWith(source).expression, namespaceNames()),
         quote: source => DefinitionWriter.quote(definitionWith(source).expression, namespaceNames()),
-        bind: (values = {}, options = {}) => bind(registry, values, options),
+        createBindings: (values = {}, options = {}) => createBindings(registry, values, options),
         resolve: (source, bindings = {}) => resolutionOf(registry, definitionWith(source), parameterBindingsOf(registry, bindings)),
     });
 };
@@ -273,9 +273,9 @@ const declarations = Object.freeze({
     functionParameter: Declarations.functionParameter,
 });
 
-/** Result paths: a path's shape checked, and the value it reaches in a result. */
+/** Result paths: a path's shape validated, and the value it reaches in a result. */
 const paths = Object.freeze({
-    check: path => ResultPath.validateShape(path),
+    validate: path => ResultPath.validateShape(path),
     valueAt: (value, path) => ResultPath.valueAt(value, path),
 });
 
@@ -291,10 +291,10 @@ export const lexica = Object.freeze({
     validate: definition => new DefinitionValidator().validate(definition),
     format: source => DefinitionWriter.format(withoutNamespaces(definitionOf(source)).expression),
     quote: source => DefinitionWriter.quote(withoutNamespaces(definitionOf(source)).expression),
-    locate,
+    getLocation: locate,
     createModule: (name, contents) => new LexicaModule(name, contents),
     declarations,
-    createRegistry: (modules = []) => registryOf(modules),
+    createRegistry: (modules = []) => createRegistry(modules),
     paths,
     info: Object.freeze({ versions: Object.freeze({ runtime: Versions.runtime, language: Versions.language, definition: Versions.definition }) }),
 });

@@ -13,13 +13,13 @@ Lexica is one ES module with its type declarations. Neither package is published
 
 ## Read and write text
 
-`lexica.parse` reads text into a definition, the script's frozen JSON form. `lexica.format` writes any definition, or text, back as canonical text, and `lexica.locate` finds where a definition node came from:
+`lexica.parse` reads text into a definition, the script's frozen JSON form. `lexica.format` writes any definition, or text, back as canonical text, and `lexica.getLocation` finds where a definition node came from:
 
 ```js
 const definition = lexica.parse('{ total = price  *  quantity }');
 
 lexica.format(definition); // '{ total = price * quantity }'
-lexica.locate(definition, '/expression/fields/0/value'); // { pointer: '/expression/fields/0/value', offset: 10, line: 1, column: 11 }
+lexica.getLocation(definition, '/expression/fields/0/value'); // { pointer: '/expression/fields/0/value', offset: 10, line: 1, column: 11 }
 ```
 
 None of these needs a domain: reading, checking and formatting know the language alone. A registry reads and writes text the same way with its modules' names, each beginning its module's namespace, through `registry.parse`, `registry.format` and `registry.quote`, and `registry.resolve` reads a text as `registry.parse` does.
@@ -55,7 +55,7 @@ A registry holds the modules a host registers. Resolving a script against it che
 
 ```js
 const registry = lexica.createRegistry([shop]);
-const bindings = registry.bind({ product: 'tea', code: 'TEN' });
+const bindings = registry.createBindings({ product: 'tea', code: 'TEN' });
 const resolution = registry.resolve('{ price = product.price, cut = product.discount(code) }', bindings);
 
 resolution.type;                       // '{ price: Price, cut: Number }'
@@ -63,7 +63,7 @@ resolution.typeAt(['price', 'amount']); // 'Number'
 resolution.usedDeclarations.map(used => used.name); // ['String.price', 'String.discount']
 ```
 
-`registry.bind` asks the registry's modules which values are references, by each module's `typeOf`, keeps each reference as it is and a frozen copy of the data, so later changes to the original data never reach a script; the bindings are that registry's alone. A resolution is reused for bindings of the same types and the same primitive values.
+`registry.createBindings` asks the registry's modules which values are references, by each module's `typeOf`, keeps each reference as it is and a frozen copy of the data, so later changes to the original data never reach a script; the bindings are that registry's alone. A resolution is reused for bindings of the same types and the same primitive values.
 
 ## Evaluate
 

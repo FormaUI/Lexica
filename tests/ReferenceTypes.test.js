@@ -36,18 +36,18 @@ const home = () => lexica.createRegistry([createHome()]);
 /** What the text evaluates to, bound to the values given against a registry of the home. */
 const evaluate = (text, values) => {
     const registry = home();
-    const bindings = registry.bind(values);
+    const bindings = registry.createBindings(values);
 
     return registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
 };
 
 describe('reference types', () => {
     it('type a binding as the most specific type its module recognizes, and keep the reference itself', () => {
-        const bindings = home().bind({ lamp, room: kitchen, devices: [lamp, heater], lights: [lamp, null] });
+        const bindings = home().createBindings({ lamp, room: kitchen, devices: [lamp, heater], lights: [lamp, null] });
 
-        expect(['lamp', 'room', 'devices', 'lights'].map(name => bindings.typeOf(name))).toEqual(['Light', 'Room', 'List<Device>', 'List<Light?>']);
-        expect(bindings.get('lamp')).toBe(lamp);
-        expect(bindings.get('devices')[0]).toBe(lamp);
+        expect(['lamp', 'room', 'devices', 'lights'].map(name => bindings.getType(name))).toEqual(['Light', 'Room', 'List<Device>', 'List<Light?>']);
+        expect(bindings.readValue('lamp')).toBe(lamp);
+        expect(bindings.readValue('devices')[0]).toBe(lamp);
         expect(Object.isFrozen(lamp)).toBe(false);
     });
 
@@ -58,12 +58,12 @@ describe('reference types', () => {
 
     it('expose a binding\'s declared type alone until a cast narrows it, the value checked by its membership', () => {
         const registry = home();
-        const bindings = registry.bind({ device: lamp }, { types: { device: 'Device' } });
+        const bindings = registry.createBindings({ device: lamp }, { types: { device: 'Device' } });
 
-        expect(bindings.typeOf('device')).toBe('Device');
+        expect(bindings.getType('device')).toBe('Device');
         expect(getError(() => registry.resolve('device.brightness', bindings))).toMatchObject({ code: 'LEXICA3001' });
         expect(registry.resolve('(device as Light).brightness', bindings).createEvaluator(bindings).evaluate().value).toBe(40);
-        expect(registry.bind({ device: lamp }, { types: { device: 'home.Device' } }).typeOf('device')).toBe('Device');
+        expect(registry.createBindings({ device: lamp }, { types: { device: 'home.Device' } }).getType('device')).toBe('Device');
     });
 
     it('merge two types of one hierarchy to the nearest supertype they share, and refuse two hierarchies', () => {
@@ -89,10 +89,10 @@ describe('reference types', () => {
     it('write a binding\'s type in its resolution key by its qualified identity, so two modules\' types of one name keep two keys', () => {
         const office = lexica.createModule('office', { typeOf: value => (value instanceof Device ? 'Device' : null), types: [{ name: 'Device', kind: 'reference', isInstance: value => value instanceof Device }] });
 
-        expect(home().bind({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:home.Device');
-        expect(lexica.createRegistry([office]).bind({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:office.Device');
-        expect(home().bind({ hall: { lamp: new Device('lamp') } }).resolutionKey).toBe('hall:{ lamp: home.Device }');
-        expect(lexica.createRegistry([office]).bind({ hall: { lamp: new Device('lamp') } }).resolutionKey).toBe('hall:{ lamp: office.Device }');
+        expect(home().createBindings({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:home.Device');
+        expect(lexica.createRegistry([office]).createBindings({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:office.Device');
+        expect(home().createBindings({ hall: { lamp: new Device('lamp') } }).resolutionKey).toBe('hall:{ lamp: home.Device }');
+        expect(lexica.createRegistry([office]).createBindings({ hall: { lamp: new Device('lamp') } }).resolutionKey).toBe('hall:{ lamp: office.Device }');
     });
 
     it('register one module\'s members of one name on related receivers, an access resolving through its receiver\'s type, the most specific declaration hiding one above it', () => {
@@ -108,7 +108,7 @@ describe('reference types', () => {
         const evaluateHere = (text, values) => registry.resolve(text, values).createEvaluator(values).evaluate().value;
 
         expect(evaluateHere('heater.active', { heater })).toBe(false);
-        expect(evaluateHere('device.active', registry.bind({ device: lamp }, { types: { device: 'Device' } }))).toBe(false);
+        expect(evaluateHere('device.active', registry.createBindings({ device: lamp }, { types: { device: 'Device' } }))).toBe(false);
         expect(evaluateHere('lamp.active', { lamp })).toBe(true);
         // A member is selected by its receiver's static type, so a light held as a device reads the device's member: hiding, never a dynamic override.
         expect(evaluateHere('devices { active = it.active }', { devices: [lamp, heater] })).toEqual([{ active: false }, { active: false }]);

@@ -130,7 +130,7 @@ export class LexicaRegistry {
 
         // A target belongs to the module that declares the observation type observing it, this module's own types observing this module's own targets.
         const ownObservationTypes = new Set(module.observationTypes);
-        const ownerOf = type => (ownObservationTypes.has(type) ? module : this.#modules.get(this.#owners.get(type)));
+        const getDeclaringModule = type => (ownObservationTypes.has(type) ? module : this.#modules.get(this.#owners.get(type)));
 
         // Every declaration's notations are read in its module: its own types, Lexica's, and those of a module a structured type imports, unqualified, and any other qualified by its module.
         for (const type of module.types) {
@@ -147,7 +147,7 @@ export class LexicaRegistry {
             this.#validateDeclaredTypes(module, fail);
 
             for (const declaration of module.members) {
-                LexicaRegistry.#validateObservations(declaration, observationTypes, ownerOf, fail);
+                LexicaRegistry.#validateObservations(declaration, observationTypes, getDeclaringModule, fail);
             }
 
             this.#validateMemberCollisions(module, fail);
@@ -455,8 +455,8 @@ export class LexicaRegistry {
         return type.kind === 'named' && type.typeArguments.length === 0 && !type.isNullable && this.#isData(type, new Set());
     }
 
-    /** The name of the module that declared the member. */
-    getOwner(declaration) {
+    /** The name of the module that declares the declaration: a member, a type, a type selector, a selectable type or a conversion. */
+    getDeclaringModuleName(declaration) {
         return this.#owners.get(declaration);
     }
 
@@ -539,10 +539,10 @@ export class LexicaRegistry {
      * Refuses a type selector named already, by this module or one registered before it; a key of a selector neither declares; a key its selector maps already, which is never replaced; and a parameter that selects a type
      * through a selector neither declares.
      */
-    static #validateTypeSelections(module, typeSelectors, selectableTypes, ownerOf, fail) {
+    static #validateTypeSelections(module, typeSelectors, selectableTypes, getDeclaringModuleName, fail) {
         for (const selector of module.typeSelectors) {
             if (typeSelectors.has(selector.name)) {
-                fail('LEXICA4007', `The type selector '${selector.name}' is declared already, by the module '${ownerOf(typeSelectors.get(selector.name))}'`, selector.name, 'name');
+                fail('LEXICA4007', `The type selector '${selector.name}' is declared already, by the module '${getDeclaringModuleName(typeSelectors.get(selector.name))}'`, selector.name, 'name');
             }
         }
 
@@ -557,7 +557,7 @@ export class LexicaRegistry {
             const isDeclaredEarlier = module.selectableTypes.slice(0, index).some(other => other.selector === selectable.selector && other.name === selectable.name);
 
             if (registered !== undefined || isDeclaredEarlier) {
-                fail('LEXICA4038', `The type selector '${selectable.selector}' maps the key '${selectable.name}' already, as the module '${registered === undefined ? module.name : ownerOf(registered)}' declared it, and a key is never replaced`, selectable.name, 'name');
+                fail('LEXICA4038', `The type selector '${selectable.selector}' maps the key '${selectable.name}' already, as the module '${registered === undefined ? module.name : getDeclaringModuleName(registered)}' declared it, and a key is never replaced`, selectable.name, 'name');
             }
         });
 
@@ -754,7 +754,7 @@ export class LexicaRegistry {
      * Refuses an observation of a type no module declares; one of a target its observation type's module declares none of, one of a target found from the receiver for a member without one,
      * and a maintained one of a target of several; and a member that reads maintained values without a maintained observation, or any other that has one.
      */
-    static #validateObservations(declaration, observationTypes, ownerOf, fail) {
+    static #validateObservations(declaration, observationTypes, getDeclaringModule, fail) {
         const { updates } = declaration;
 
         if (updates === undefined) {
@@ -771,7 +771,7 @@ export class LexicaRegistry {
             }
 
             if (typeof observationDeclaration.of === 'string' && observationDeclaration.of !== 'receiver') {
-                LexicaRegistry.#validateObservedTarget(declaration, observationDeclaration, type, ownerOf(type), fail);
+                LexicaRegistry.#validateObservedTarget(declaration, observationDeclaration, type, getDeclaringModule(type), fail);
             }
 
             hasMaintained ||= type.contract === 'maintained';

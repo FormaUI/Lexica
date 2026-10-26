@@ -50,7 +50,7 @@ const evaluate = (text, bound = values) => {
     const invoked = [];
     const asked = [];
     const registry = lexica.createRegistry([createPantry(invoked)]);
-    const bindings = registry.bind(bound);
+    const bindings = registry.createBindings(bound);
     const value = registry.resolve(text, bindings).createEvaluator(bindings).evaluate({ beforeInvoke: request => void asked.push(request.declaration.name) }).value;
 
     return { value, invoked, asked };
@@ -150,7 +150,7 @@ describe('functions passed to members', () => {
         for (const test of ['w => w.size > 2', 'it.size > 2', 'pantry.vegan']) {
             const held = {};
             const registry = lexica.createRegistry([createPantry([], held)]);
-            const bindings = registry.bind(values);
+            const bindings = registry.createBindings(values);
             const evaluator = registry.resolve(`word.keepAndFail(${test})`, bindings).createEvaluator(bindings);
 
             expect(getError(() => evaluator.evaluate()), test).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });

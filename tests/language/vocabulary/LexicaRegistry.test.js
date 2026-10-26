@@ -81,7 +81,7 @@ describe('LexicaRegistry', () => {
         const zoom = new LexicaModule('zoom', { members: [declaration({ name: 'scale', target: 'charts.Chart' }), declaration({ name: 'level', target: 'String' })] });
         const registry = new LexicaRegistry([Vocabulary.module, charts, zoom]);
 
-        expect(registry.getReceiverMembers('scale').map(member => registry.getOwner(member))).toEqual(['zoom']);
+        expect(registry.getReceiverMembers('scale').map(member => registry.getDeclaringModuleName(member))).toEqual(['zoom']);
         expect(registry.getReceiverMembers('level').map(member => member.target)).toEqual(['String']);
     });
 
@@ -128,7 +128,7 @@ describe('LexicaRegistry', () => {
             const [home, office] = [declaring('home'), declaring('office')];
             const registry = new LexicaRegistry([home, office]);
 
-            expect([home, office].map(module => registry.getOwner(module.members[0]))).toEqual(['home', 'office']);
+            expect([home, office].map(module => registry.getDeclaringModuleName(module.members[0]))).toEqual(['home', 'office']);
             expect(registry.getReceiverMembers('now')).toEqual([]);
         });
     });
@@ -255,8 +255,8 @@ describe('type selectors', () => {
 
         expect(registry.getSelectableType('report', 'motion')).toEqual({ name: 'motion', selector: 'report', type: 'Number' });
         expect(registry.getSelectableType('report', 'smoke')).toBeUndefined();
-        expect(registry.getOwner(registry.getTypeSelector('report'))).toBe('reports');
-        expect(registry.getOwner(registry.getSelectableType('report', 'door:open'))).toBe('doors');
+        expect(registry.getDeclaringModuleName(registry.getTypeSelector('report'))).toBe('reports');
+        expect(registry.getDeclaringModuleName(registry.getSelectableType('report', 'door:open'))).toBe('doors');
         expect(registry.revision).toBe(2);
     });
 
@@ -297,7 +297,7 @@ describe('conversions', () => {
         expect(registry.getConversion(STRING, CHART)).toEqual({ from: 'String', to: 'Chart', implementation: parse });
         expect(registry.getConversion(CHART, Type.createNamedType('Number'))).toBeUndefined();
         expect(registry.getConversionTargets(STRING).map(type => type.identity)).toEqual(['Number', 'Boolean', 'charts.Chart']);
-        expect(registry.getOwner(registry.getConversion(STRING, CHART))).toBe('charts');
+        expect(registry.getDeclaringModuleName(registry.getConversion(STRING, CHART))).toBe('charts');
     });
 
     it('are declared once for each source and target', () => {

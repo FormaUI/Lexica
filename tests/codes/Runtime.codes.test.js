@@ -83,16 +83,16 @@ const expectCode = (error, code, kind) => {
 describe('the runtime codes', () => {
     describe('of bindings', () => {
         it('LEXICA2020: bindings that are not a plain object', () => {
-            expectCode(getError(() => lexica.createRegistry().bind([1])), 'LEXICA2020', 'structure');
+            expectCode(getError(() => lexica.createRegistry().createBindings([1])), 'LEXICA2020', 'structure');
         });
 
         it('LEXICA2033: a binding not named by a letter followed by letters and digits', () => {
-            expectCode(getError(() => lexica.createRegistry().bind({ 'floor-area': 1 })), 'LEXICA2033', 'structure');
+            expectCode(getError(() => lexica.createRegistry().createBindings({ 'floor-area': 1 })), 'LEXICA2033', 'structure');
         });
 
         it('LEXICA2034: a binding that is not data and that nothing recognizes', () => {
-            expectCode(getError(() => lexica.createRegistry().bind({ shelf: new Map() })), 'LEXICA2034', 'structure');
-            expectCode(getError(() => lexica.createRegistry().bind({ weight: Number.NaN })), 'LEXICA2034', 'structure');
+            expectCode(getError(() => lexica.createRegistry().createBindings({ shelf: new Map() })), 'LEXICA2034', 'structure');
+            expectCode(getError(() => lexica.createRegistry().createBindings({ weight: Number.NaN })), 'LEXICA2034', 'structure');
         });
 
         it('LEXICA2022: a bound value holding a cycle', () => {
@@ -100,13 +100,13 @@ describe('the runtime codes', () => {
 
             shelf.self = shelf;
 
-            expectCode(getError(() => lexica.createRegistry().bind({ shelf })), 'LEXICA2022', 'structure');
-            expectCode(getError(() => lexica.createRegistry().bind({ shelves: [shelf] })), 'LEXICA2022', 'structure');
+            expectCode(getError(() => lexica.createRegistry().createBindings({ shelf })), 'LEXICA2022', 'structure');
+            expectCode(getError(() => lexica.createRegistry().createBindings({ shelves: [shelf] })), 'LEXICA2022', 'structure');
         });
 
         it('LEXICA2021: a bound list whose items share no type', () => {
-            expectCode(getError(() => lexica.createRegistry().bind({ items: [1, 'two'] })), 'LEXICA2021', 'structure');
-            expectCode(getError(() => lexica.createRegistry([lexica.createModule('home', withHome())]).bind({ items: [new Room('hall'), new Light('lamp')] })), 'LEXICA2021', 'structure');
+            expectCode(getError(() => lexica.createRegistry().createBindings({ items: [1, 'two'] })), 'LEXICA2021', 'structure');
+            expectCode(getError(() => lexica.createRegistry([lexica.createModule('home', withHome())]).createBindings({ items: [new Room('hall'), new Light('lamp')] })), 'LEXICA2021', 'structure');
         });
     });
 
@@ -115,40 +115,40 @@ describe('the runtime codes', () => {
         const recognizing = (typeOf, types = homeTypes) => lexica.createRegistry([lexica.createModule('home', { typeOf, types })]);
 
         it('LEXICA2034: a value no module recognizes that is no data', () => {
-            expectCode(getError(() => lexica.createRegistry().bind({ lamp: new Light('lamp') })), 'LEXICA2034', 'structure');
+            expectCode(getError(() => lexica.createRegistry().createBindings({ lamp: new Light('lamp') })), 'LEXICA2034', 'structure');
         });
 
         it('LEXICA2035: a value modules recognize as unrelated types', () => {
             const garden = lexica.createModule('garden', { typeOf: value => (value instanceof Light ? 'Lamp' : null), types: [{ name: 'Lamp', kind: 'reference', isInstance: value => value instanceof Light }] });
 
-            expectCode(getError(() => lexica.createRegistry([lexica.createModule('home', withHome()), garden]).bind({ lamp: new Light('lamp') })), 'LEXICA2035', 'structure');
+            expectCode(getError(() => lexica.createRegistry([lexica.createModule('home', withHome()), garden]).createBindings({ lamp: new Light('lamp') })), 'LEXICA2035', 'structure');
         });
 
         it('LEXICA2036: a declared type that no public type is, or that the value does not belong to', () => {
-            expectCode(getError(() => home().bind({ lamp: new Light('lamp') }, { types: { lamp: 'Lantern' } })), 'LEXICA2036', 'structure');
-            expectCode(getError(() => home().bind({ lamp: new Thermostat('heater') }, { types: { lamp: 'Light' } })), 'LEXICA2036', 'structure');
+            expectCode(getError(() => home().createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Lantern' } })), 'LEXICA2036', 'structure');
+            expectCode(getError(() => home().createBindings({ lamp: new Thermostat('heater') }, { types: { lamp: 'Light' } })), 'LEXICA2036', 'structure');
         });
 
         it('LEXICA2037: a declared type several types share unqualified', () => {
             const office = lexica.createModule('office', { types: [{ name: 'Device', kind: 'reference', isInstance: () => true }] });
 
-            expectCode(getError(() => lexica.createRegistry([lexica.createModule('home', withHome()), office]).bind({ lamp: new Light('lamp') }, { types: { lamp: 'Device' } })), 'LEXICA2037', 'structure');
+            expectCode(getError(() => lexica.createRegistry([lexica.createModule('home', withHome()), office]).createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Device' } })), 'LEXICA2037', 'structure');
         });
 
         it('LEXICA2023: a declared type that is not a reference type', () => {
-            expectCode(getError(() => home().bind({ lamp: new Light('lamp') }, { types: { lamp: 'Number' } })), 'LEXICA2023', 'structure');
+            expectCode(getError(() => home().createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Number' } })), 'LEXICA2023', 'structure');
         });
 
         it('LEXICA2038: a type declared for a value that is not a reference', () => {
-            expectCode(getError(() => home().bind({ lamp: 'lamp' }, { types: { lamp: 'Light' } })), 'LEXICA2038', 'structure');
+            expectCode(getError(() => home().createBindings({ lamp: 'lamp' }, { types: { lamp: 'Light' } })), 'LEXICA2038', 'structure');
         });
 
         it('LEXICA2039: a type declared for anything but a top-level binding', () => {
-            expectCode(getError(() => home().bind({ room: { lamp: new Light('lamp') } }, { types: { lamp: 'Light' } })), 'LEXICA2039', 'structure');
+            expectCode(getError(() => home().createBindings({ room: { lamp: new Light('lamp') } }, { types: { lamp: 'Light' } })), 'LEXICA2039', 'structure');
         });
 
         it('LEXICA2024: resolving or evaluating with a binding set another registry made', () => {
-            const bindings = home().bind({ lamp: new Light('lamp') });
+            const bindings = home().createBindings({ lamp: new Light('lamp') });
             const other = home();
 
             expectCode(getError(() => other.resolve('lamp.name == null', bindings)), 'LEXICA2024', 'structure');
@@ -159,13 +159,13 @@ describe('the runtime codes', () => {
             const abstract = [{ name: 'Device', kind: 'reference', abstract: true, isInstance: value => value instanceof Device }];
 
             for (const [typeOf, types] of [[() => 'Lantern', homeTypes], [() => 5, homeTypes], [() => 'Device', abstract], [() => 'Room', homeTypes]]) {
-                expectCode(getError(() => recognizing(typeOf, types).bind({ lamp: new Light('lamp') })), 'LEXICA5002', 'evaluation');
+                expectCode(getError(() => recognizing(typeOf, types).createBindings({ lamp: new Light('lamp') })), 'LEXICA5002', 'evaluation');
             }
         });
 
         it('LEXICA5026: a typeOf that throws, what it threw the cause', () => {
             const thrown = new Error('unrecognizable');
-            const failure = getError(() => recognizing(() => { throw thrown; }).bind({ lamp: new Light('lamp') }));
+            const failure = getError(() => recognizing(() => { throw thrown; }).createBindings({ lamp: new Light('lamp') }));
 
             expectCode(failure, 'LEXICA5026', 'evaluation');
             expect(failure.cause).toBe(thrown);
@@ -174,12 +174,12 @@ describe('the runtime codes', () => {
         it('LEXICA5017: an isInstance answering what isn\'t a Boolean', () => {
             const types = [{ name: 'Light', kind: 'reference', isInstance: () => 'yes' }];
 
-            expectCode(getError(() => recognizing(() => 'Light', types).bind({ lamp: new Light('lamp') })), 'LEXICA5017', 'evaluation');
+            expectCode(getError(() => recognizing(() => 'Light', types).createBindings({ lamp: new Light('lamp') })), 'LEXICA5017', 'evaluation');
         });
 
         it('LEXICA5027: an isInstance that throws, what it threw the cause', () => {
             const types = [{ name: 'Light', kind: 'reference', isInstance: () => { throw 'unknown'; } }];
-            const failure = getError(() => recognizing(() => 'Light', types).bind({ lamp: new Light('lamp') }));
+            const failure = getError(() => recognizing(() => 'Light', types).createBindings({ lamp: new Light('lamp') }));
 
             expectCode(failure, 'LEXICA5027', 'evaluation');
             expect(failure.cause).toBe('unknown');
@@ -188,7 +188,7 @@ describe('the runtime codes', () => {
         it('check a supertype\'s membership too, where a type beneath it answers true', () => {
             const types = [{ name: 'Device', kind: 'reference', isInstance: () => false }, { name: 'Light', kind: 'reference', supertype: 'Device', isInstance: () => true }];
 
-            expectCode(getError(() => recognizing(homeTypeOf, types).bind({ lamp: new Light('lamp') })), 'LEXICA5002', 'evaluation');
+            expectCode(getError(() => recognizing(homeTypeOf, types).createBindings({ lamp: new Light('lamp') })), 'LEXICA5002', 'evaluation');
         });
     });
 
@@ -209,12 +209,12 @@ describe('the runtime codes', () => {
         });
 
         it('LEXICA2643: a pointer that is not a JSON Pointer', () => {
-            expectCode(getError(() => lexica.locate(lexica.parse('1 + 2'), 'expression')), 'LEXICA2643', 'structure');
-            expectCode(getError(() => registry.resolve('1 + 2').locate(5)), 'LEXICA2643', 'structure');
+            expectCode(getError(() => lexica.getLocation(lexica.parse('1 + 2'), 'expression')), 'LEXICA2643', 'structure');
+            expectCode(getError(() => registry.resolve('1 + 2').getLocation(5)), 'LEXICA2643', 'structure');
         });
 
         it('LEXICA2644: a pointer at nothing the definition holds', () => {
-            expectCode(getError(() => lexica.locate(lexica.parse('1 + 2'), '/expression/middle')), 'LEXICA2644', 'structure');
+            expectCode(getError(() => lexica.getLocation(lexica.parse('1 + 2'), '/expression/middle')), 'LEXICA2644', 'structure');
         });
 
         it('LEXICA2645: parsing what is not a text', () => {
@@ -260,8 +260,8 @@ describe('the runtime codes', () => {
         const registry = lexica.createRegistry([createPantry()]);
 
         it('LEXICA2646: a path item that is neither a name nor a list index', () => {
-            expectCode(getError(() => lexica.paths.check(['total', -1])), 'LEXICA2646', 'structure');
-            expectCode(getError(() => lexica.paths.check(['total', 'floor-area'])), 'LEXICA2646', 'structure');
+            expectCode(getError(() => lexica.paths.validate(['total', -1])), 'LEXICA2646', 'structure');
+            expectCode(getError(() => lexica.paths.validate(['total', 'floor-area'])), 'LEXICA2646', 'structure');
         });
 
         it('LEXICA3600: a path into the result of a host call that supplies nothing', () => {
@@ -279,7 +279,7 @@ describe('the runtime codes', () => {
 
     describe('of evaluation', () => {
         it('LEXICA5014: preparing a script that ends in no host call', () => {
-            expectCode(getError(() => evaluatorOf('word.size').prepareCall()), 'LEXICA5014', 'evaluation');
+            expectCode(getError(() => evaluatorOf('word.size').prepareHostCall()), 'LEXICA5014', 'evaluation');
         });
 
         it('LEXICA5023: evaluating a script that ends in a host call', () => {
@@ -287,7 +287,7 @@ describe('the runtime codes', () => {
         });
 
         it('LEXICA5015: a value a host supplies that its host call\'s declared result does not admit', () => {
-            const call = evaluatorOf('word.order(2)').prepareCall();
+            const call = evaluatorOf('word.order(2)').prepareHostCall();
 
             expectCode(getError(() => call.project('many')), 'LEXICA5015', 'evaluation');
         });

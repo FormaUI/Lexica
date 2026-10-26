@@ -64,7 +64,7 @@ const values = { words: ['oat', 'milk', 'rye'], gaps: ['oat', null], flag: true,
 /** What the text evaluates to against a registry of the pantry. */
 const evaluate = (text, bound = values) => {
     const registry = lexica.createRegistry([createPantry()]);
-    const bindings = registry.bind(bound);
+    const bindings = registry.createBindings(bound);
 
     return registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
 };
@@ -132,7 +132,7 @@ describe('the implicit parameter', () => {
             for (const predicate of ['it.vegan()', 'w => w.vegan()']) {
                 const held = {};
                 const registry = lexica.createRegistry([createPantry(held)]);
-                const bindings = registry.bind(values);
+                const bindings = registry.createBindings(values);
                 const evaluator = registry.resolve(`words.keepWhereAndFail(${predicate})`, bindings).createEvaluator(bindings);
 
                 expect(getError(() => evaluate(`{ kept = words.keepWhere(${predicate}), late = chosen.callKept() }`)), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhere' returned") });

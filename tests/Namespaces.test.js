@@ -39,7 +39,7 @@ const values = { word: 'oat', other: 'milk', missing: null };
 const evaluate = (text, bound = values) => {
     const invoked = [];
     const registry = lexica.createRegistry([createShop(invoked)]);
-    const bindings = registry.bind(bound);
+    const bindings = registry.createBindings(bound);
     const value = registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
 
     return { value, invoked };
@@ -159,10 +159,10 @@ describe('qualified forms', () => {
 
     it('prepare a host call through its module, its receiver the first argument, and skip it where that receiver is null', () => {
         const registry = lexica.createRegistry([createShop()]);
-        const prepared = registry.resolve('shop.order(word, 2)', values).createEvaluator(values).prepareCall();
+        const prepared = registry.resolve('shop.order(word, 2)', values).createEvaluator(values).prepareHostCall();
 
         expect(prepared).toMatchObject({ kind: 'prepared', receiver: 'oat', args: { count: 2 } });
-        expect(registry.resolve('shop.order(missing, 2)', values).createEvaluator(values).prepareCall()).toMatchObject({ kind: 'skipped' });
+        expect(registry.resolve('shop.order(missing, 2)', values).createEvaluator(values).prepareHostCall()).toMatchObject({ kind: 'skipped' });
     });
 
     it('are used declarations once each, where the call invoking them stands, as a module member, a member of a receiver and a held reference\'s call are, a receiver of unknown type choosing none', () => {

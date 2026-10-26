@@ -33,8 +33,8 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
  */
 
 /**
- * The host an evaluation is carried out for, each hook optional.
- * @typedef {object} Host
+ * The hooks a host gives an evaluation, each optional.
+ * @typedef {object} EvaluationHooks
  * @property {(request: InvocationRequest) => unknown[] | { pending: true } | undefined} [beforeInvoke] Called before a member's implementation is invoked: answers the samples of a member that reads maintained values, that one is pending, or nothing.
  * @property {(request: InvocationRequest, value: unknown) => void} [afterInvoke] Called after an implementation answered a value of its member's result type.
  * @property {(outcome: EvaluationOutcome) => void} [afterEvaluation] Called once, as the evaluation ends.
@@ -166,8 +166,8 @@ export class Evaluator {
     /** The outermost object being built, which `root`, the object root, refers to, filled field by field; null outside every object expression. @type {object | null} */
     #objectRoot = null;
 
-    /** The host the evaluation in progress is carried out for, or null where none is. @type {Host | null} */
-    #host = null;
+    /** The hooks of the evaluation in progress, or null where it was given none. @type {EvaluationHooks | null} */
+    #hooks = null;
 
     /** Whether a member the evaluation in progress read answered that its sample is pending. */
     #isPending = false;
@@ -206,22 +206,22 @@ export class Evaluator {
     }
 
     /**
-     * Evaluates the expression once, synchronously, for the host given, answering the detached result, the metadata that describes it, and whether a member it read was pending.
-     * Without a host, or without its `beforeInvoke`, a member that reads maintained values fails the evaluation, since nothing answers its samples.
-     * @param {Host | null} [host] What the evaluation is carried out for.
+     * Evaluates the expression once, synchronously, with the hooks given, answering the detached result, the metadata that describes it, and whether a member it read was pending.
+     * Without hooks, or without a `beforeInvoke`, a member that reads maintained values fails the evaluation, since nothing answers its samples.
+     * @param {EvaluationHooks | null} [hooks] The hooks its host gives the evaluation.
      */
-    evaluate(host = null) {
-        return this.#evaluateForHost(host, () => this.#evaluateScript());
+    evaluate(hooks = null) {
+        return this.#evaluateForHost(hooks, () => this.#evaluateScript());
     }
 
     /**
-     * Prepares the host call the script ends in for its host: evaluates the locals before it, each body's along the script's terminal position in order, then its receiver and its arguments, once, as `evaluate` evaluates a script without a host.
+     * Prepares the host call the script ends in for its host: evaluates the locals before it, each body's along the script's terminal position in order, then its receiver and its arguments, once, without hooks, as `evaluate` given none evaluates a script.
      * It answers a prepared call, with its declaration, its receiver, its arguments by parameter name and where it stands, whose `project` projects each value its host supplies where the call declares a result; or a skipped call where the
      * receiver, or an argument whose parameter propagates null, is null, or the call has no declaration yet, its receiver's type unknown, so there is nothing to invoke. Each prepared call keeps the locals it was prepared with, so the prepared
      * calls of one evaluator stay apart.
-     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, location: object, project?: (value: unknown, host?: Host | null) => Evaluation } | { kind: 'skipped', location: object }}
+     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, location: object, project?: (value: unknown, hooks?: EvaluationHooks | null) => Evaluation } | { kind: 'skipped', location: object }}
      */
-    prepareCall() {
+    prepareHostCall() {
         const { hostCall } = this.#resolvedDefinition;
 
         if (hostCall === null) {
@@ -257,7 +257,7 @@ export class Evaluator {
 
         // A call whose host supplies nothing has nothing to project.
         if (declaration.result !== undefined) {
-            call.project = (value, host = null) => this.#evaluateForHost(host, () => this.#project(localsFrame, terminalNode, value));
+            call.project = (value, hooks = null) => this.#evaluateForHost(hooks, () => this.#project(localsFrame, terminalNode, value));
         }
 
         return Object.freeze(call);
@@ -330,18 +330,18 @@ export class Evaluator {
     }
 
     /**
-     * Evaluates once for the host, as `evaluate` and a prepared call's `project` each ask: holds the host for the hooks of the invocations the evaluation reaches and clears the pending mark, answers what the evaluation produced, whether
-     * a member it read was pending and the metadata, described when it is first read, and calls the host's `afterEvaluation` once as it ends: a failure of that hook after a failure is recorded on the failure as its `suppressed`,
+     * Evaluates once for the host, as `evaluate` and a prepared call's `project` each ask: holds the hooks for the invocations the evaluation reaches and clears the pending mark, answers what the evaluation produced, whether
+     * a member it read was pending and the metadata, described when it is first read, and calls its `afterEvaluation` hook once as it ends: a failure of that hook after a failure is recorded on the failure as its `suppressed`,
      * which stays the one thrown, and after a success fails the evaluation itself.
      */
-    #evaluateForHost(host, produce) {
-        this.#host = host;
+    #evaluateForHost(hooks, produce) {
+        this.#hooks = hooks;
         this.#isPending = false;
 
         let outcome = null;
 
-        // The outcome is made only for a host that is told it, and the metadata only where it is read.
-        const isTold = host?.afterEvaluation !== undefined;
+        // The outcome is made only where an `afterEvaluation` hook is told it, and the metadata only where it is read.
+        const isTold = hooks?.afterEvaluation !== undefined;
 
         try {
             const result = produce();
@@ -359,11 +359,11 @@ export class Evaluator {
 
             throw error;
         } finally {
-            this.#host = null;
+            this.#hooks = null;
 
             if (isTold) {
                 try {
-                    host.afterEvaluation(Object.freeze(outcome));
+                    hooks.afterEvaluation(Object.freeze(outcome));
                 } catch (cleanupError) {
                     if (outcome.kind !== 'failed') {
                         // A failure as the evaluation ends fails it, as a hook's failure does: one Lexica raised as it is, and anything else the hook threw, a LexicaError it built among them, as the cause of Lexica's own.
@@ -759,7 +759,7 @@ export class Evaluator {
 
         return (evaluator, value, node) => {
             if (convert === undefined) {
-                throw LexicaErrors.module('LEXICA4001', `The module '${moduleRegistry.getOwner(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#locate(evaluator.#pointerOf(node)));
+                throw LexicaErrors.module('LEXICA4001', `The module '${moduleRegistry.getDeclaringModuleName(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#locate(evaluator.#pointerOf(node)));
             }
 
             const rejection = { isRejected: false, reason: null };
@@ -1605,12 +1605,12 @@ export class Evaluator {
         const { declaration, implementation, takesReceiver, resultType, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
-            throw LexicaErrors.module('LEXICA4001', `The module '${this.#moduleRegistry.getOwner(declaration)}' gives '${declaration.name}' no implementation`, this.#locate(this.#pointerOf(node)));
+            throw LexicaErrors.module('LEXICA4001', `The module '${this.#moduleRegistry.getDeclaringModuleName(declaration)}' gives '${declaration.name}' no implementation`, this.#locate(this.#pointerOf(node)));
         }
 
         // A module member is read and called through its namespace, and has no receiver.
         const received = takesReceiver ? { receiver } : {};
-        const request = this.#host === null ? null : { declaration, ...received, args, pointer: this.#pointerOf(node) };
+        const request = this.#hooks === null ? null : { declaration, ...received, args, pointer: this.#pointerOf(node) };
         const samples = this.#beforeInvoke(request, declaration, node);
 
         if (samples === null) {
@@ -1644,9 +1644,9 @@ export class Evaluator {
             this.#fail('LEXICA5006', `${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${resultType}`, this.#pointerOf(node));
         }
 
-        if (request !== null && this.#host.afterInvoke !== undefined) {
+        if (request !== null && this.#hooks.afterInvoke !== undefined) {
             try {
-                this.#host.afterInvoke(request, value);
+                this.#hooks.afterInvoke(request, value);
             } catch (error) {
                 this.#failHook(error, declaration, node, 'after its invocation');
             }
@@ -1665,7 +1665,7 @@ export class Evaluator {
      * marking the evaluation pending, so the member answers null. A failure of the hook fails the evaluation at the member. Without the hook, it refuses a member that reads maintained values, since nothing answers its samples.
      */
     #beforeInvoke(request, declaration, node) {
-        if (request === null || this.#host.beforeInvoke === undefined) {
+        if (request === null || this.#hooks.beforeInvoke === undefined) {
             if (declaration.updates?.reads === 'maintained') {
                 this.#fail('LEXICA5011', `${this.#subjectOf(declaration, node)} is maintained by an observation, and reading it waits for the first sample, which a synchronous evaluation cannot`, this.#pointerOf(node));
             }
@@ -1676,7 +1676,7 @@ export class Evaluator {
         let answer;
 
         try {
-            answer = this.#host.beforeInvoke(request);
+            answer = this.#hooks.beforeInvoke(request);
         } catch (error) {
             this.#failHook(error, declaration, node, 'before its invocation');
         }

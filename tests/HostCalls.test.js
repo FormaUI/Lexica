@@ -58,7 +58,7 @@ describe('host calls', () => {
 
         expect(resolution.hostCall).toEqual({ name: 'dim', declaration: home.members[0] });
         expect(Object.isFrozen(resolution.hostCall)).toBe(true);
-        expect(registry.getOwner(resolution.hostCall.declaration)).toBe('home');
+        expect(registry.getDeclaringModuleName(resolution.hostCall.declaration)).toBe('home');
         expect(resolution.usedDeclarations.map(({ name, pointer }) => [name, pointer])).toEqual([['String.dim', '/expression']]);
         expect(resolve('light.room').hostCall).toBeNull();
     });
@@ -171,7 +171,7 @@ describe('prepared calls', () => {
 
     it('hold the declaration, the receiver and the arguments by parameter name, prepared once, and where the call stands', () => {
         const { evaluator, home } = evaluatorOf('light.dim({ to = 40 })');
-        const call = evaluator.prepareCall();
+        const call = evaluator.prepareHostCall();
 
         expect(call).toMatchObject({ kind: 'prepared', declaration: home.members[0], receiver: 'hall', args: { to: 40 }, location: { pointer: '/expression', line: 1 } });
         expect(typeof call.project).toBe('function');
@@ -189,7 +189,7 @@ describe('prepared calls', () => {
         });
         const local = 'let o = { v = if lit then light.fine else light.coarse end }\nreturn ';
         const evaluated = resolve(`${local}{ via = o.v }`, bindings, [module]).createEvaluator(bindings).evaluate();
-        const prepared = resolve(`${local}light.dim({ to = 40 }) { via = o.v }`, bindings, [module]).createEvaluator(bindings).prepareCall();
+        const prepared = resolve(`${local}light.dim({ to = 40 }) { via = o.v }`, bindings, [module]).createEvaluator(bindings).prepareHostCall();
 
         expect(evaluated.metadata.fields.via.tolerance).toBe(0.1);
         expect(prepared.project(40).metadata.fields.via.tolerance).toBe(0.1);
@@ -197,8 +197,8 @@ describe('prepared calls', () => {
     });
 
     it('project each value their host supplies, checked against the type the call declares, answering as an evaluation does', () => {
-        const dimmed = evaluatorOf('light.dim({ to = 40 })').evaluator.prepareCall();
-        const watched = evaluatorOf('sensor.watch() { at = it.at, strong = it.strength > 0.8 }').evaluator.prepareCall();
+        const dimmed = evaluatorOf('light.dim({ to = 40 })').evaluator.prepareHostCall();
+        const watched = evaluatorOf('sensor.watch() { at = it.at, strong = it.strength > 0.8 }').evaluator.prepareHostCall();
         const projected = watched.project({ at: 5, strength: 0.9 });
 
         expect(dimmed.project(35)).toMatchObject({ value: 35, isPending: false });
@@ -215,7 +215,7 @@ describe('prepared calls', () => {
 
     it('project for the host given, which is told as each projection ends', () => {
         const outcomes = [];
-        const call = evaluatorOf('light.dim({ to = 40 })').evaluator.prepareCall();
+        const call = evaluatorOf('light.dim({ to = 40 })').evaluator.prepareHostCall();
 
         call.project(35, { afterEvaluation: outcome => outcomes.push(outcome) });
 
@@ -223,7 +223,7 @@ describe('prepared calls', () => {
     });
 
     it('have no project where their host supplies nothing', () => {
-        const call = evaluatorOf('thermostat.hold({ target = 21 })').evaluator.prepareCall();
+        const call = evaluatorOf('thermostat.hold({ target = 21 })').evaluator.prepareHostCall();
 
         expect(call).toMatchObject({ kind: 'prepared', args: { target: 21 } });
         expect('project' in call).toBe(false);
@@ -237,7 +237,7 @@ describe('prepared calls', () => {
         ];
 
         for (const [text, values, pointer] of skipped) {
-            const call = evaluatorOf(text, { values }).evaluator.prepareCall();
+            const call = evaluatorOf(text, { values }).evaluator.prepareHostCall();
 
             expect(call, text).toEqual({ kind: 'skipped', location: expect.objectContaining({ pointer }) });
             expect(Object.isFrozen(call), text).toBe(true);
@@ -245,7 +245,7 @@ describe('prepared calls', () => {
     });
 
     it('are refused for a script that gives a value, which is evaluated', () => {
-        const refused = getError(() => evaluatorOf('light.room').evaluator.prepareCall());
+        const refused = getError(() => evaluatorOf('light.room').evaluator.prepareHostCall());
 
         expect(refused).toMatchObject({ kind: 'evaluation', location: { pointer: '/expression' } });
         expect(refused.message).toContain('The script gives a value and ends in no host call, so there is nothing to prepare; evaluate it');
@@ -253,7 +253,7 @@ describe('prepared calls', () => {
 
     it('evaluate the locals before the call once, and read them as prepared in every projection, never running their initializers again', () => {
         const invoked = [];
-        const call = evaluatorOf('let room = sensor.room return sensor.watch() { at = it.at, room = room }', { invoked }).evaluator.prepareCall();
+        const call = evaluatorOf('let room = sensor.room return sensor.watch() { at = it.at, room = room }', { invoked }).evaluator.prepareHostCall();
 
         expect(invoked).toEqual(['room:porch']);
         expect([1, 2, 3].map(at => call.project({ at, strength: 1 }).value)).toEqual([1, 2, 3].map(at => ({ at, room: "porch's room" })));
@@ -262,7 +262,7 @@ describe('prepared calls', () => {
 
     it('read a member through a local as the projection reads it, and keep a value a local holds as it was prepared', () => {
         const env = { levels: {}, occupied: [] };
-        const call = evaluatorOf('let room = sensor.room let occupied = room.occupied return sensor.watch() { isOccupied = room.occupied, wasOccupied = occupied }', { env }).evaluator.prepareCall();
+        const call = evaluatorOf('let room = sensor.room let occupied = room.occupied return sensor.watch() { isOccupied = room.occupied, wasOccupied = occupied }', { env }).evaluator.prepareHostCall();
 
         env.occupied.push("porch's room");
 
@@ -270,7 +270,7 @@ describe('prepared calls', () => {
     });
 
     it('call a function a local before the call holds in any projection', () => {
-        const call = evaluatorOf('let label = level => $"{level} lux" return light.dim({ to = 40 }) { reached = label(it) }').evaluator.prepareCall();
+        const call = evaluatorOf('let label = level => $"{level} lux" return light.dim({ to = 40 }) { reached = label(it) }').evaluator.prepareHostCall();
 
         expect(call.project(35).value).toEqual({ reached: '35 lux' });
         expect(call.project(38).value).toEqual({ reached: '38 lux' });
@@ -280,11 +280,11 @@ describe('prepared calls', () => {
         const invoked = [];
         const env = { levels: { hall: 40 }, occupied: [] };
         const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = it, asked = level }', { env, invoked });
-        const first = evaluator.prepareCall();
+        const first = evaluator.prepareHostCall();
 
         env.levels.hall = 60;
 
-        const second = evaluator.prepareCall();
+        const second = evaluator.prepareHostCall();
 
         expect([first.args, second.args]).toEqual([{ to: 40 }, { to: 60 }]);
         expect(first.project(35).value).toEqual({ reached: 35, asked: 40 });
@@ -298,11 +298,11 @@ describe('prepared calls', () => {
         const env = { levels: {}, occupied: [] };
         const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = it, asked = level }', { env });
 
-        expect(getError(() => evaluator.prepareCall())).toMatchObject({ code: 'LEXICA5006', location: { pointer: '/expression/locals/0/value' } });
+        expect(getError(() => evaluator.prepareHostCall())).toMatchObject({ code: 'LEXICA5006', location: { pointer: '/expression/locals/0/value' } });
 
         env.levels.hall = 40;
 
-        const call = evaluator.prepareCall();
+        const call = evaluator.prepareHostCall();
 
         expect(call.args).toEqual({ to: 40 });
         expect(call.project(35).value).toEqual({ reached: 35, asked: 40 });
@@ -310,7 +310,7 @@ describe('prepared calls', () => {
 
     it('project through the checks every evaluation goes through, refusing a registry that moved since the resolution', () => {
         const { evaluator, registry } = evaluatorOf('light.dim({ to = 40 })');
-        const call = evaluator.prepareCall();
+        const call = evaluator.prepareHostCall();
 
         registry.registerModule(lexica.createModule('later', {}));
 
@@ -337,7 +337,7 @@ describe('values a host supplies', () => {
     }));
 
     /** The call the text ends in, prepared against a registry holding the desk's module. */
-    const prepared = text => lexica.createRegistry([createReports()]).resolve(text, { desk: 'desk' }).createEvaluator({ desk: 'desk' }).prepareCall();
+    const prepared = text => lexica.createRegistry([createReports()]).resolve(text, { desk: 'desk' }).createEvaluator({ desk: 'desk' }).prepareHostCall();
     const reporting = () => prepared('desk.report() { hasTarget = it.target != null, note = it.note, count = it.count, spot = it.spot, spots = it.spots }');
     const report = overrides => ({ target: lamp, owner: lamp, note: 'filed', count: 1, spot: { x: 1, label: 'a' }, spots: [{ x: 2, label: null }], ...overrides });
 

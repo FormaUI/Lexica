@@ -29,32 +29,32 @@ describe('a host of plain data', () => {
     it('binds data as a frozen copy that later changes to the original never reach, keeping the resolution key', () => {
         const codes = ['TEN'];
         const registry = lexica.createRegistry([createShop()]);
-        const bindings = registry.bind({ order: 'a', codes });
+        const bindings = registry.createBindings({ order: 'a', codes });
 
         codes.push('TWENTY');
 
-        expect(bindings.get('codes')).toEqual(['TEN']);
-        expect(Object.isFrozen(bindings.get('codes'))).toBe(true);
-        expect(bindings.resolutionKey).toBe(registry.bind({ order: 'a', codes: ['X'] }).resolutionKey);
-        expect(bindings.resolutionKey).not.toBe(registry.bind({ order: 'b', codes }).resolutionKey);
+        expect(bindings.readValue('codes')).toEqual(['TEN']);
+        expect(Object.isFrozen(bindings.readValue('codes'))).toBe(true);
+        expect(bindings.resolutionKey).toBe(registry.createBindings({ order: 'a', codes: ['X'] }).resolutionKey);
+        expect(bindings.resolutionKey).not.toBe(registry.createBindings({ order: 'b', codes }).resolutionKey);
     });
 
     it('resolves against its registry, telling the type, the declarations used and where each stands', () => {
         const registry = lexica.createRegistry([createShop()]);
-        const resolution = registry.resolve('{ total = order.total, cut = order.discount(code) }', registry.bind({ order: 'a', code: 'TEN' }));
+        const resolution = registry.resolve('{ total = order.total, cut = order.discount(code) }', registry.createBindings({ order: 'a', code: 'TEN' }));
 
         expect(resolution.hostCall).toBeNull();
         expect(resolution.type).toBe('{ total: Price, cut: Number }');
         expect(resolution.typeAt(['total', 'amount'])).toBe('Number');
         expect(resolution.usedDeclarations.map(({ name, pointer }) => [name, pointer])).toEqual([['String.total', '/expression/fields/0/value'], ['String.discount', '/expression/fields/1/value']]);
-        expect(resolution.locate('/expression/fields/1/value')).toMatchObject({ pointer: '/expression/fields/1/value', line: 1 });
+        expect(resolution.getLocation('/expression/fields/1/value')).toMatchObject({ pointer: '/expression/fields/1/value', line: 1 });
         expect(registry.revision).toBe(2);
-        expect(registry.getOwner(resolution.usedDeclarations[0].declaration)).toBe('shop');
+        expect(registry.getDeclaringModuleName(resolution.usedDeclarations[0].declaration)).toBe('shop');
     });
 
     it('names a used member of a list by its type, Lexica\'s List, as any member is named by the type it matched', () => {
         const registry = lexica.createRegistry([createShop()]);
-        const resolution = registry.resolve('items.count', registry.bind({ items: [1, 2] }));
+        const resolution = registry.resolve('items.count', registry.createBindings({ items: [1, 2] }));
 
         expect(resolution.usedDeclarations.map(({ name }) => name)).toEqual(['List.count']);
     });
@@ -149,14 +149,14 @@ describe('a host of plain data', () => {
         const definition = lexica.parse('{ total = order.total }');
 
         expect(lexica.quote('{\n    total = order.total\n}')).toBe('{ total = order.total }');
-        expect(lexica.locate(definition, '/expression/fields/0/value')).toMatchObject({ line: 1, column: 11 });
-        expect(lexica.locate(lexica.validate({ version: lexica.info.versions.definition, expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
-        expect(getError(() => lexica.locate(definition, '/expression/fields/9'))).toMatchObject({ kind: 'structure' });
+        expect(lexica.getLocation(definition, '/expression/fields/0/value')).toMatchObject({ line: 1, column: 11 });
+        expect(lexica.getLocation(lexica.validate({ version: lexica.info.versions.definition, expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
+        expect(getError(() => lexica.getLocation(definition, '/expression/fields/9'))).toMatchObject({ kind: 'structure' });
     });
 
     it('checks a result path and reads the value it reaches', () => {
         expect(lexica.paths.valueAt({ total: { amount: 3 } }, ['total', 'amount'])).toBe(3);
-        expect(getError(() => lexica.paths.check(['total', -1]))).toMatchObject({ kind: 'structure' });
+        expect(getError(() => lexica.paths.validate(['total', -1]))).toMatchObject({ kind: 'structure' });
     });
 });
 

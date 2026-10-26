@@ -1692,7 +1692,7 @@ export class LanguageResolver {
 
     /** How a message names a reference's declaration: its module's name and its own, as its reference is written. */
     #referenceNameOf(declaration) {
-        return `${this.#moduleRegistry.getOwner(declaration)}.${declaration.name}`;
+        return `${this.#moduleRegistry.getDeclaringModuleName(declaration)}.${declaration.name}`;
     }
 
     /** How a message names a function's signature: its receiver's types where it has one, the types of its parameters, and its result. */

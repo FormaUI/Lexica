@@ -15,7 +15,7 @@ Three layers meet in every evaluation, and each owns its part:
 A host uses an implementation in four steps: it binds its values, resolves the script against its registry, creates an evaluator, and evaluates it as often as it needs.
 
 ```js
-const bindings = registry.bind({ room: livingRoom });
+const bindings = registry.createBindings({ room: livingRoom });
 const resolution = registry.resolve('{ name = room.name, total = room.devices.count }', bindings);
 const evaluator = resolution.createEvaluator(bindings, env);
 const { value, metadata } = evaluator.evaluate();
@@ -34,12 +34,12 @@ In this document:
 
 ## Bindings
 
-`registry.bind(values, options)` binds a host's values to a script's parameters by name, against the registry, since its modules' `typeOf` decide which values are references: it asks them of each value before copying it, keeps each reference value as it is, by its identity, a reference nested in data among them, neither copied nor frozen, and copies and freezes the rest of the data recursively. It refuses an unsupported value and a cycle. How each binding is typed is set out in [script parameters and bindings](scripts.md#scripts-script-parameters).
+`registry.createBindings(values, options)` binds a host's values to a script's parameters by name, against the registry, since its modules' `typeOf` decide which values are references: it asks them of each value before copying it, keeps each reference value as it is, by its identity, a reference nested in data among them, neither copied nor frozen, and copies and freezes the rest of the data recursively. It refuses an unsupported value and a cycle. How each binding is typed is set out in [script parameters and bindings](scripts.md#scripts-script-parameters).
 
-- **Declared types.** `options.types` declares the reference type of a top-level binding by its name, unqualified or qualified, as `registry.bind({ device }, { types: { device: 'Device' } })` and `{ device: 'Home.Device' }` bind a light as a `Device`. The name resolves against the registry when the binding is made, never a script's imports, as [type identity](types.md#types-type-identity) sets out, and the binding keeps the type it resolved to; the value must belong to the type, and no `typeOf` is asked for it, as [a declared type](types.md#reference-types) sets out. No other binding, and no value nested in one, takes a declared type.
+- **Declared types.** `options.types` declares the reference type of a top-level binding by its name, unqualified or qualified, as `registry.createBindings({ device }, { types: { device: 'Device' } })` and `{ device: 'Home.Device' }` bind a light as a `Device`. The name resolves against the registry when the binding is made, never a script's imports, as [type identity](types.md#types-type-identity) sets out, and the binding keeps the type it resolved to; the value must belong to the type, and no `typeOf` is asked for it, as [a declared type](types.md#reference-types) sets out. No other binding, and no value nested in one, takes a declared type.
 - **Captured once.** A binding set captures its values and their types when it is made. Registering a module afterwards invalidates the registry's resolutions, which a host resolves again, and leaves a binding set as it was: its values and their types stay those it captured, and a binding set made afterwards uses the registry's recognition as it then is.
-- **Its registry.** A binding set is the registry's that made it, and resolving or evaluating against another registry is refused, saying to bind with that one. Plain values given to `registry.resolve` or to an evaluator are bound by that registry, as `registry.bind` binds them.
-- **What it answers.** It answers whether it holds a binding of a name, `has`, the value, `get`, and the type, `typeOf`, of each, and its resolution key, as soon as it is made.
+- **Its registry.** A binding set is the registry's that made it, and resolving or evaluating against another registry is refused, saying to bind with that one. Plain values given to `registry.resolve` or to an evaluator are bound by that registry, as `registry.createBindings` binds them.
+- **What it answers.** It answers whether it holds a binding of a name, `has`, the value, `readValue`, and the type, `getType`, of each, and its resolution key, as soon as it is made.
 
 A binding set has a **resolution key**: each binding's type, and each primitive binding's value, since a string a script reads can select what a member reads, as a computed property access's name does.
 
@@ -139,10 +139,10 @@ The runtime gives the facts, and a host its policy, as comparing one result with
 
 ## Host calls
 
-A script that ends in a [host call](members.md#members-host-calls) is resolved as any other, and its resolution answers the call: `resolution.hostCall`, its `name` and the `declaration` it resolved to, null while its receiver's type is unknown. The runtime prepares the call and projects each value its host supplies; invoking it, when and how often, and for how long what it starts runs, are the host's. Such a script is prepared, never evaluated: `evaluate` refuses a script that ends in a host call, and `prepareCall` one that gives a value, each with an [evaluation error](diagnostics-and-errors.md#evaluation-errors).
+A script that ends in a [host call](members.md#members-host-calls) is resolved as any other, and its resolution answers the call: `resolution.hostCall`, its `name` and the `declaration` it resolved to, null while its receiver's type is unknown. The runtime prepares the call and projects each value its host supplies; invoking it, when and how often, and for how long what it starts runs, are the host's. Such a script is prepared, never evaluated: `evaluate` refuses a script that ends in a host call, and `prepareHostCall` one that gives a value, each with an [evaluation error](diagnostics-and-errors.md#evaluation-errors).
 
 ```js
-const call = evaluator.prepareCall();
+const call = evaluator.prepareHostCall();
 
 if (call.kind === 'prepared') {
     const brightness = await invokeHostCall(call.declaration, call.receiver, call.args);
@@ -150,8 +150,8 @@ if (call.kind === 'prepared') {
 }
 ```
 
-- **`evaluator.prepareCall()`** evaluates the locals the script declares before the host call, then the call's receiver and arguments, once, as `evaluate` evaluates a script without a host, and answers a **prepared call**, `{ kind: 'prepared', declaration, receiver, args, location }`, the arguments by parameter name; or a **skipped call**, `{ kind: 'skipped', location }`, where the receiver is null, an argument whose parameter propagates null is null, or the call has no declaration yet, so there is nothing to invoke and nothing to project. A skipped call is never invoked, and what its host answers for one is the host's to say. Preparing a script that gives a value is refused with an evaluation error. An evaluator prepares its call as often as it is asked, and each prepared call is its own, so the prepared calls of one evaluator coexist without affecting one another.
-- **`call.project(value, host?)`** projects one value the host supplies for the prepared call: it captures the value as the call's declared `result`, as [capturing a supplied value](#runtime-host-calls-capturing) sets out, then evaluates the result projection against it, as `evaluate` evaluates a script for the host given, and answers as `evaluate` does, with the value, whether a member it read was pending, and the metadata. A host call followed by no result projection answers the captured value itself in that shape. A call that declares no `result` supplies nothing to project, so its prepared call has no `project`.
+- **`evaluator.prepareHostCall()`** evaluates the locals the script declares before the host call, then the call's receiver and arguments, once, without hooks, as `evaluate` given none evaluates a script, and answers a **prepared call**, `{ kind: 'prepared', declaration, receiver, args, location }`, the arguments by parameter name; or a **skipped call**, `{ kind: 'skipped', location }`, where the receiver is null, an argument whose parameter propagates null is null, or the call has no declaration yet, so there is nothing to invoke and nothing to project. A skipped call is never invoked, and what its host answers for one is the host's to say. Preparing a script that gives a value is refused with an evaluation error. An evaluator prepares its call as often as it is asked, and each prepared call is its own, so the prepared calls of one evaluator coexist without affecting one another.
+- **`call.project(value, hooks?)`** projects one value the host supplies for the prepared call: it captures the value as the call's declared `result`, as [capturing a supplied value](#runtime-host-calls-capturing) sets out, then evaluates the result projection against it, as `evaluate` evaluates a script with the hooks given, and answers as `evaluate` does, with the value, whether a member it read was pending, and the metadata. A host call followed by no result projection answers the captured value itself in that shape. A call that declares no `result` supplies nothing to project, so its prepared call has no `project`.
 
 <a id="runtime-host-calls-capturing"></a>
 
@@ -169,7 +169,7 @@ A list never holds a missing item. Narrowing a reference is the one thing captur
 
 A projection reads what the call was prepared with, and evaluates the rest anew:
 
-- **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, and one holding a computed value holds the value. In the example, each projection reads `room.occupied()` of the room the call was prepared with, as that room is when the motion arrives, while `occupied` keeps whether it was occupied when the call was prepared. Both read one receiver, since reading `sensor.room` again could find another room, a sensor being movable.
+- **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareHostCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, and one holding a computed value holds the value. In the example, each projection reads `room.occupied()` of the room the call was prepared with, as that room is when the motion arrives, while `occupied` keeps whether it was occupied when the call was prepared. Both read one receiver, since reading `sensor.room` again could find another room, a sensor being movable.
 - **Its own evaluation.** Each projection is an evaluation of its own, with its own supplied value, host and state; the result projection's own locals are evaluated in each, and projecting a value for one prepared call never changes what another was prepared with.
 - **Delegates.** A delegate a local before the call holds is called in any projection, as a delegate is anywhere within the script; a callback a projection gives a member lasts while that member's invocation does, as every callback given to a member does. A host call's arguments are values, so no delegate reaches the host.
 
