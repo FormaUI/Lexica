@@ -140,7 +140,7 @@ export class Evaluator {
     /** The compiled invocations of this evaluator's declarations, by each declaration, one for each result type it answers. @type {Map<object, object[]>} */
     #compiledInvocations;
 
-    #moduleRegistry;
+    #registry;
     #resolvedDefinition;
     #parameterBindings;
     #environment;
@@ -183,14 +183,14 @@ export class Evaluator {
     #projectionContext = null;
 
     /**
-     * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} moduleRegistry The vocabulary the request was resolved against.
+     * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry The vocabulary the request was resolved against.
      * @param {import('./ResolvedDefinition.mjs').ResolvedDefinition} resolvedDefinition The resolved definition to read.
      * @param {import('./ParameterBindings.mjs').ParameterBindings} parameterBindings What the request's parameters are bound to.
      * @param {Environment} environment What the host gives the evaluation, passed to every implementation.
      * @param {import('./TextLocations.mjs').TextLocations | null} locations Where in a text each part of the definition came from.
      */
-    constructor(moduleRegistry, resolvedDefinition, parameterBindings, environment, locations) {
-        this.#moduleRegistry = moduleRegistry;
+    constructor(registry, resolvedDefinition, parameterBindings, environment, locations) {
+        this.#registry = registry;
         this.#resolvedDefinition = resolvedDefinition;
         this.#parameterBindings = parameterBindings;
         this.#environment = environment;
@@ -198,8 +198,8 @@ export class Evaluator {
 
         let compilation = Evaluator.#compilationCache.get(resolvedDefinition);
 
-        if (compilation === undefined || compilation.registry !== moduleRegistry) {
-            compilation = { registry: moduleRegistry, functions: new Map(), arguments: new Map(), invocations: new Map() };
+        if (compilation === undefined || compilation.registry !== registry) {
+            compilation = { registry, functions: new Map(), arguments: new Map(), invocations: new Map() };
             Evaluator.#compilationCache.set(resolvedDefinition, compilation);
         }
 
@@ -235,7 +235,7 @@ export class Evaluator {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
         const { terminalNode, localsFrame } = this.#evaluateLocalsBefore();
         // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
-        const hasReceiver = declaration === null || this.#moduleRegistry.hasReceiver(declaration);
+        const hasReceiver = declaration === null || this.#registry.hasReceiver(declaration);
         const enclosingSelections = this.#selections;
         let receiver;
         let args;
@@ -689,12 +689,12 @@ export class Evaluator {
         const { type: targetType, sourceType } = this.#resolvedDefinition.resolutionOf(node);
         const asked = `the cast to ${targetType}`;
         // A value of a type above the cast's is one that isn't of the cast's type, and a value of the cast's own type, or of one beneath it, is one its supertypes refuse.
-        const what = this.#moduleRegistry.typeChecker.isAssignable(targetType, sourceType) && !this.#moduleRegistry.typeChecker.isAssignable(sourceType, targetType) ? `${Evaluator.#getNameWithArticle(sourceType)} that isn't ${Evaluator.#getNameWithArticle(targetType)}` : Evaluator.#getNameWithArticle(sourceType);
+        const what = this.#registry.typeChecker.isAssignable(targetType, sourceType) && !this.#registry.typeChecker.isAssignable(sourceType, targetType) ? `${Evaluator.#getNameWithArticle(sourceType)} that isn't ${Evaluator.#getNameWithArticle(targetType)}` : Evaluator.#getNameWithArticle(sourceType);
 
         return (evaluator, context) => {
             const value = evaluateOperand(evaluator, context);
 
-            if (value === null || evaluator.#moduleRegistry.belongsTo(value, targetType, asked)) {
+            if (value === null || evaluator.#registry.belongsTo(value, targetType, asked)) {
                 return value;
             }
 
@@ -726,7 +726,7 @@ export class Evaluator {
         }
 
         const name = LexicaModule.conversionNameOf(declaration);
-        const attempt = Evaluator.#compileConversionAttempt(declaration, type, this.#moduleRegistry);
+        const attempt = Evaluator.#compileConversionAttempt(declaration, type, this.#registry);
 
         return (evaluator, context) => {
             const value = evaluateOperand(evaluator, context);
@@ -753,15 +753,15 @@ export class Evaluator {
      * The conversion of a value that is not null, attempted or not: its converted value where it accepts the value, or the reason it rejected it with.
      * A rejection is the signal `reject` throws for this attempt alone; any other exception, a reason that is no string, a rejection the conversion caught and answered past, and a value not of the type are faults, which fail the evaluation, attempted or not.
      */
-    static #compileConversionAttempt(declaration, type, moduleRegistry) {
+    static #compileConversionAttempt(declaration, type, registry) {
         const name = LexicaModule.conversionNameOf(declaration);
-        const convert = moduleRegistry.getImplementation(declaration);
-        const conforms = Evaluator.#compileTypeCheck(type, moduleRegistry, `the conversion from ${name}`);
-        const copyStructure = Evaluator.#compileStructureCopy(type, moduleRegistry);
+        const convert = registry.getImplementation(declaration);
+        const conforms = Evaluator.#compileTypeCheck(type, registry, `the conversion from ${name}`);
+        const copyStructure = Evaluator.#compileStructureCopy(type, registry);
 
         return (evaluator, value, node) => {
             if (convert === undefined) {
-                evaluator.#fail('LEXICA4001', `The module '${moduleRegistry.getDeclaringModuleName(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#pointerOf(node));
+                evaluator.#fail('LEXICA4001', `The module '${registry.getDeclaringModuleName(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#pointerOf(node));
             }
 
             const rejection = { isRejected: false, reason: null };
@@ -892,11 +892,11 @@ export class Evaluator {
         if (invocation === undefined) {
             invocation = Object.freeze({
                 declaration,
-                implementation: this.#moduleRegistry.getImplementation(declaration),
-                takesReceiver: this.#moduleRegistry.hasReceiver(declaration),
+                implementation: this.#registry.getImplementation(declaration),
+                takesReceiver: this.#registry.hasReceiver(declaration),
                 resultType,
-                isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#moduleRegistry, `the answer of '${declaration.name}'`),
-                copyStructure: Evaluator.#compileStructureCopy(resultType, this.#moduleRegistry),
+                isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${declaration.name}'`),
+                copyStructure: Evaluator.#compileStructureCopy(resultType, this.#registry),
             });
             invocations.push(invocation);
         }
@@ -951,8 +951,8 @@ export class Evaluator {
             // The member calls the function it is given with the arguments the callback contract declares, each checked as the contract's types say, the checks compiled once for every call.
             const { functions, parameterTypes, resultType, isBody } = argument.callback;
             const asked = `the function given as '${parameter.name}' of '${resolution.declaration.name}'`;
-            const isOfParameterType = parameterTypes.map(parameterType => Evaluator.#compileTypeCheck(parameterType, this.#moduleRegistry, asked));
-            const isOfResultType = resultType === null ? null : Evaluator.#compileTypeCheck(resultType, this.#moduleRegistry, asked);
+            const isOfParameterType = parameterTypes.map(parameterType => Evaluator.#compileTypeCheck(parameterType, this.#registry, asked));
+            const isOfResultType = resultType === null ? null : Evaluator.#compileTypeCheck(resultType, this.#registry, asked);
 
             return {
                 ...plan,
@@ -1197,7 +1197,7 @@ export class Evaluator {
         const evaluateSource = hasTarget ? this.#getCompiledFunction(node.target) : null;
         // An item's source is of the kind its established type gives it, a reference where its items are of a reference type, whatever the value itself is.
         const resolution = this.#resolvedDefinition.resolutionOf(node);
-        const isOfReferences = resolution?.kind === 'projection' && this.#moduleRegistry.isReferenceType(resolution.itemType.toNonNullable());
+        const isOfReferences = resolution?.kind === 'projection' && this.#registry.isReferenceType(resolution.itemType.toNonNullable());
         const names = this.#resolvedDefinition.fieldNamesOf(node);
         const localNames = node.locals === undefined ? null : node.locals.map(local => local.name);
         // A field the entries after it read is in scope for them, by the name the definition gives it.
@@ -1320,16 +1320,16 @@ export class Evaluator {
      * The copy a type makes of a value it admits: a declared structure as its declared fields alone, each read as the value offers it, a getter's included, so its declaration is the shape a result holds,
      * and a list item by item; null for a type that holds no declared structure, whose values stand as they are. A structure's fields are found at its first copy, so a structure that holds itself is copied as deep as its value goes.
      */
-    static #compileStructureCopy(type, moduleRegistry) {
+    static #compileStructureCopy(type, registry) {
         if (type.isList) {
-            const copyItem = Evaluator.#compileStructureCopy(type.itemType, moduleRegistry);
+            const copyItem = Evaluator.#compileStructureCopy(type.itemType, registry);
 
             return copyItem === null ? null : value => (value === null ? null : value.map(item => (item === null ? null : copyItem(item))));
         }
 
         switch (type.kind) {
             case 'named': {
-                const structure = moduleRegistry.getStructure(type);
+                const structure = registry.getStructure(type);
 
                 if (structure === undefined) {
                     return null;
@@ -1346,7 +1346,7 @@ export class Evaluator {
                     }
 
                     if (fields === null) {
-                        fields = [...moduleRegistry.getDataShape(type)].map(([name, fieldType]) => [name, Evaluator.#compileStructureCopy(fieldType, moduleRegistry)]);
+                        fields = [...registry.getDataShape(type)].map(([name, fieldType]) => [name, Evaluator.#compileStructureCopy(fieldType, registry)]);
                         fieldNames = new Set(fields.map(([name]) => name));
                         isFlat = fields.every(([, copyField]) => copyField === null);
                     }
@@ -1393,16 +1393,16 @@ export class Evaluator {
     }
 
     /** Whether a value is one the type admits, with the type's structure found once and each declared structure's fields at its first check. */
-    static #compileTypeCheck(type, moduleRegistry, asked) {
-        const admits = Evaluator.#compileNonNullTypeCheck(type, moduleRegistry, asked);
+    static #compileTypeCheck(type, registry, asked) {
+        const admits = Evaluator.#compileNonNullTypeCheck(type, registry, asked);
 
         return value => (value === undefined ? false : value === null ? type.isNullable : admits(value));
     }
 
     /** A compiled function holds the registry alone, never an evaluator, so it holds nothing an evaluation bound; a structure that holds itself is checked as deep as its value goes. */
-    static #compileNonNullTypeCheck(type, moduleRegistry, asked) {
+    static #compileNonNullTypeCheck(type, registry, asked) {
         if (type.isList) {
-            const checkItem = Evaluator.#compileTypeCheck(type.itemType, moduleRegistry, asked);
+            const checkItem = Evaluator.#compileTypeCheck(type.itemType, registry, asked);
 
             return value => Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(checkItem);
         }
@@ -1411,16 +1411,16 @@ export class Evaluator {
             case 'typeParameter':
                 return () => true;
             case 'object': {
-                const fields = [...type.fieldTypes].map(([name, fieldType]) => [name, Evaluator.#compileTypeCheck(fieldType, moduleRegistry, asked)]);
+                const fields = [...type.fieldTypes].map(([name, fieldType]) => [name, Evaluator.#compileTypeCheck(fieldType, registry, asked)]);
 
                 return value => ObjectUtils.isNonArrayObject(value) && fields.every(([name, conforms]) => conforms(value[name]));
             }
             default: {
                 const { name } = type;
-                const structure = moduleRegistry.getStructure(type);
+                const structure = registry.getStructure(type);
 
-                if (moduleRegistry.isReferenceType(type)) {
-                    return value => moduleRegistry.belongsTo(value, type, asked);
+                if (registry.isReferenceType(type)) {
+                    return value => registry.belongsTo(value, type, asked);
                 }
 
                 if (type.moduleName === null && LexicaModule.builtInTypeNames.includes(name)) {
@@ -1438,7 +1438,7 @@ export class Evaluator {
                         return false;
                     }
 
-                    fields ??= [...moduleRegistry.getDataShape(type)].map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, moduleRegistry, asked)]);
+                    fields ??= [...registry.getDataShape(type)].map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, registry, asked)]);
 
                     return fields.every(([field, conforms]) => conforms(value[field]));
                 };
@@ -1590,7 +1590,7 @@ export class Evaluator {
         const { declaration, implementation, takesReceiver, resultType, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
-            this.#fail('LEXICA4001', `The module '${this.#moduleRegistry.getDeclaringModuleName(declaration)}' gives '${declaration.name}' no implementation`, this.#pointerOf(node));
+            this.#fail('LEXICA4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${declaration.name}' no implementation`, this.#pointerOf(node));
         }
 
         // A module member is read and called through its namespace, and has no receiver.
@@ -1745,27 +1745,27 @@ export class Evaluator {
             return value;
         }
 
-        if (this.#moduleRegistry.isReferenceType(type)) {
+        if (this.#registry.isReferenceType(type)) {
             const asked = 'capturing a supplied value';
 
-            if (this.#moduleRegistry.belongsTo(value, type, asked)) {
+            if (this.#registry.belongsTo(value, type, asked)) {
                 return value;
             }
 
-            if (type.isNullable && this.#moduleRegistry.recognize(value, asked).length > 0) {
+            if (type.isNullable && this.#registry.recognize(value, asked).length > 0) {
                 return null;
             }
 
             fail(path, value, type);
         }
 
-        const structure = this.#moduleRegistry.getStructure(type);
+        const structure = this.#registry.getStructure(type);
 
         if (structure === undefined || !ObjectUtils.isNonArrayObject(value)) {
             fail(path, value, type);
         }
 
-        return Object.fromEntries([...this.#moduleRegistry.getDataShape(type)].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, Evaluator.#pathOf(path, name), fail)]));
+        return Object.fromEntries([...this.#registry.getDataShape(type)].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, Evaluator.#pathOf(path, name), fail)]));
     }
 
     /** The path of a field within the path of the value that holds it. */

@@ -17,14 +17,14 @@ const SCALAR_TYPE_NAMES = Object.freeze(['String', 'Number', 'Boolean']);
 
 export class TypeChecker {
     /**
-     * What declares the types the checker relates, a registry: a generic type's parameters and their variance, a reference type's supertype, whether a type is a reference type, and a member's receiver types.
+     * The registry that declares the types the checker relates, of which it reads these four methods: a generic type's parameters and their variance, a reference type's supertype, whether a type is a reference type, and a member's receiver types.
      * @type {{ getGenericType(type: Type): { parameters: readonly { variance: 'covariant' | 'invariant' }[] } | undefined, getSupertype(type: Type): Type | null, isReferenceType(type: Type): boolean, getTargetTypes(declaration: object): (Type | 'any')[] }}
      */
-    #declarations;
+    #registry;
 
-    /** @param {object} declarations What declares the types the checker relates, a registry. */
-    constructor(declarations) {
-        this.#declarations = declarations;
+    /** @param {object} registry The registry that declares the types the checker relates. */
+    constructor(registry) {
+        this.#registry = registry;
     }
 
     /**
@@ -125,7 +125,7 @@ export class TypeChecker {
         }
 
         // Two reference types of one hierarchy merge to the nearest supertype they share, and of two hierarchies to none.
-        if (firstType.kind === 'named' && secondType.kind === 'named' && firstType.identity !== secondType.identity && this.#declarations.isReferenceType(firstType) && this.#declarations.isReferenceType(secondType)) {
+        if (firstType.kind === 'named' && secondType.kind === 'named' && firstType.identity !== secondType.identity && this.#registry.isReferenceType(firstType) && this.#registry.isReferenceType(secondType)) {
             const shared = this.#lineageOf(firstType).find(ancestor => this.#lineageOf(secondType).some(other => other.identity === ancestor.identity));
 
             return shared === undefined ? null : isNullable ? shared.toNullable() : shared.toNonNullable();
@@ -171,7 +171,7 @@ export class TypeChecker {
 
     /** Whether values of the type are compared with each other by an equality, rather than with null alone: strings, numbers and Booleans by their values, and references by their identity. */
     isComparable(type) {
-        return type.kind === 'named' && ((type.moduleName === null && SCALAR_TYPE_NAMES.includes(type.name)) || this.#declarations.isReferenceType(type));
+        return type.kind === 'named' && ((type.moduleName === null && SCALAR_TYPE_NAMES.includes(type.name)) || this.#registry.isReferenceType(type));
     }
 
     /** Whether the member applies to the receiver, by one of its receiver types, as inferring its receiver's type arguments succeeds; it records nothing. */
@@ -188,7 +188,7 @@ export class TypeChecker {
         const base = receiverType.toNonNullable();
         const isValue = base.kind === 'named' || base.kind === 'object';
 
-        return this.#declarations.getTargetTypes(declaration).find(type => (type === 'any' ? isValue : (type.kind !== 'typeParameter' || isValue) && this.matchesType(type, base)));
+        return this.#registry.getTargetTypes(declaration).find(type => (type === 'any' ? isValue : (type.kind !== 'typeParameter' || isValue) && this.matchesType(type, base)));
     }
 
     /**
@@ -296,7 +296,7 @@ export class TypeChecker {
     #lineageOf(type) {
         const lineage = [];
 
-        for (let current = type.toNonNullable(); current !== null; current = this.#declarations.getSupertype(current)) {
+        for (let current = type.toNonNullable(); current !== null; current = this.#registry.getSupertype(current)) {
             lineage.push(current.toNonNullable());
         }
 
@@ -312,7 +312,7 @@ export class TypeChecker {
             return 'assignable';
         }
 
-        const { parameters } = this.#declarations.getGenericType(declaredType);
+        const { parameters } = this.#registry.getGenericType(declaredType);
 
         return TypeChecker.#combineAssignabilities(type.typeArguments.map((typeArgument, index) => {
             const declaredArgument = declaredType.typeArguments[index];
@@ -327,7 +327,7 @@ export class TypeChecker {
 
     /** The type arguments two types of one generic declaration merge to, each a covariant one's merge and an invariant one's where they are equal; null where one doesn't merge. */
     #mergeTypeArguments(firstType, secondType) {
-        const { parameters } = this.#declarations.getGenericType(firstType);
+        const { parameters } = this.#registry.getGenericType(firstType);
         const typeArguments = [];
 
         for (const [index, typeArgument] of firstType.typeArguments.entries()) {

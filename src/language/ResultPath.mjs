@@ -23,10 +23,10 @@ export class ResultPath {
      * The type the path reaches in the result's type, nullable where a step it passes is; a type that says nothing of its value takes any path, which is checked once its type is known.
      * @param {Type} resultType The result's type.
      * @param {(string | number)[]} path
-     * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} moduleRegistry Where a structured type's fields are declared.
+     * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry Where a structured type's fields are declared.
      * @param {() => object} locationOf Where a path that does not fit the result is refused, found only when one is.
      */
-    static typeAt(resultType, path, moduleRegistry, locationOf) {
+    static typeAt(resultType, path, registry, locationOf) {
         let type = resultType;
         let isNullable = false;
 
@@ -49,7 +49,7 @@ export class ResultPath {
             }
 
             // An object type's object field, or a property of a structured type's data, each type's lookup its own.
-            const nextType = type.kind === 'object' ? type.getObjectFieldType(item) : (moduleRegistry.getDataShape(type)?.get(item) ?? null);
+            const nextType = type.kind === 'object' ? type.getObjectFieldType(item) : (registry.getDataShape(type)?.get(item) ?? null);
 
             if (nextType === null) {
                 throw LexicaErrors.validation('LEXICA3602', `The path names '${item}', which ${type.toNonNullable()} does not hold`, locationOf());
