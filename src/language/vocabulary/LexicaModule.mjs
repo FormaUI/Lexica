@@ -779,7 +779,7 @@ export class LexicaModule {
     }
 
     /**
-     * Checks how the member is written and the form its arguments take: a property is accessed and takes none, and any other member is a function call by default, whose arguments are positional, one for each parameter in order,
+     * Checks how the member is written, then the form its arguments take: a property is accessed and takes none, and any other member is a function call by default, whose arguments are positional, one for each parameter in order,
      * so none that is required follows one that is optional, or an options object; or an indexer, a function whose one key is its one parameter, a required value parameter, so its argument is positional. A member without a target has no receiver to index.
      */
     static #validateSyntax(member, parameters, hasReceiver, name, fail) {
@@ -795,28 +795,39 @@ export class LexicaModule {
             fail('LEXICA4531', `It is written as ${SYNTAXES.join(' or ')}`, name, 'syntax');
         }
 
+        // An indexer's checks are its own, and its arguments are its one key, so a function's argument form is never asked of it.
         if (member.syntax === 'indexer') {
-            const [parameter] = parameters;
-
-            if (parameters.length !== 1 || parameter.kind !== 'value' || !parameter.required) {
-                fail('LEXICA4020', 'An indexer is a function whose key is its one parameter, a required value parameter', name, 'syntax');
-            }
-
-            if (!hasReceiver) {
-                fail('LEXICA4022', 'An indexer is written after its receiver, and a member without a target has none', name, 'syntax');
-            }
-
-            if (member.arguments !== undefined && member.arguments !== 'positional') {
-                fail('LEXICA4532', "An indexer's key is its one argument, so its arguments are positional", name, 'arguments');
-            }
-
-            if (member.default !== undefined && typeof member.default !== 'boolean') {
-                fail('LEXICA4533', 'It declares whether it is the default indexer of its receivers as a Boolean', name, 'default');
-            }
+            LexicaModule.#validateIndexer(member, parameters, hasReceiver, name, fail);
 
             return;
         }
 
+        LexicaModule.#validateArgumentForm(member, parameters, name, fail);
+    }
+
+    /** Checks an indexer: a function whose key is its one parameter, a required value parameter, written after its receiver, so its arguments are positional, and whose `default` is a Boolean. */
+    static #validateIndexer(member, parameters, hasReceiver, name, fail) {
+        const [parameter] = parameters;
+
+        if (parameters.length !== 1 || parameter.kind !== 'value' || !parameter.required) {
+            fail('LEXICA4020', 'An indexer is a function whose key is its one parameter, a required value parameter', name, 'syntax');
+        }
+
+        if (!hasReceiver) {
+            fail('LEXICA4022', 'An indexer is written after its receiver, and a member without a target has none', name, 'syntax');
+        }
+
+        if (member.arguments !== undefined && member.arguments !== 'positional') {
+            fail('LEXICA4532', "An indexer's key is its one argument, so its arguments are positional", name, 'arguments');
+        }
+
+        if (member.default !== undefined && typeof member.default !== 'boolean') {
+            fail('LEXICA4533', 'It declares whether it is the default indexer of its receivers as a Boolean', name, 'default');
+        }
+    }
+
+    /** Checks the form a function's arguments take: none where it has no parameters, and otherwise one it declares, its positional arguments supplying its parameters in order, so none that is required follows one that is optional. */
+    static #validateArgumentForm(member, parameters, name, fail) {
         if (parameters.length === 0) {
             if (member.arguments !== undefined) {
                 fail('LEXICA4534', 'It has no parameters, so it declares no form of its arguments', name, 'arguments');
