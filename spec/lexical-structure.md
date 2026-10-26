@@ -134,7 +134,7 @@ It is needed where the identifier alone means something else, a reserved word or
 
 A lexical reference that no local, object field, conditional binding or function parameter in scope answers is a structure error:
 
-> No local or field named 'it' is in scope. Use '~it' to read the script parameter.
+> No local, object field, conditional binding or function parameter named 'it' is in scope. Use '~it' to read the script parameter.
 
 An identifier must follow `@` directly, and a keyword alone does not read a local or object field. These are syntax errors:
 

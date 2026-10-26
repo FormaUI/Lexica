@@ -70,7 +70,7 @@ describe('lexica', () => {
         expect(lexica.format('let total = 2\nreturn @total')).toBe('let total = 2\nreturn total');
         expect(lexica.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn home');
         expect(registry.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn @home');
-        expect(getError(() => lexica.parse('@room'))).toMatchObject({ kind: 'structure', message: expect.stringContaining("No local or field named 'room' is in scope. Use '~room' to read the script parameter") });
+        expect(getError(() => lexica.parse('@room'))).toMatchObject({ kind: 'structure', message: expect.stringContaining("No local, object field, conditional binding or function parameter named 'room' is in scope. Use '~room' to read the script parameter") });
         expect(getError(() => lexica.parse('@ room'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("An identifier follows '@' directly") });
     });
 

@@ -166,7 +166,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA2010` | In a definition, an optional access outside an optional chain | A structure error at the node |
 | `LEXICA2030` | In a definition, an `optionalChain` node holding no optional access | A structure error at the node |
 | `LEXICA2011` | A `do` block, a conditional binding, or a conditional beyond an if branch and an else branch of simple values, within an argument, an indexer's key, a computed property access or an interpolation | A structure error naming the part, which a local holds first |
-| `LEXICA2012` | A lexical reference, or a definition's local, that no local, object field, conditional binding or function parameter in scope answers | A structure error: `No local or field named 'it' is in scope. Use '~it' to read the script parameter.` |
+| `LEXICA2012` | A lexical reference, or a definition's local, that no local, object field, conditional binding or function parameter in scope answers | A structure error: `No local, object field, conditional binding or function parameter named 'it' is in scope. Use '~it' to read the script parameter.` |
 | `LEXICA2013` | A name read before a local of its name declared later in its scope, or a local's initializer reading the local itself, as `{ let n = n }` | A structure error, never a read of the script parameter of that name |
 | `LEXICA2014` | A conditional binding's initializer reading the binding's own name, as `if let k = k`, where nothing else of that name is in scope | A structure error suggesting `~k` |
 | `LEXICA2015` | Two locals of one name in a body or an object expression | A structure error |

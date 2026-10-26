@@ -989,7 +989,7 @@ export class LanguageResolver {
         if (local === undefined) {
             const form = scope.contextType === null ? null : this.#memberForm(scope.contextType, node.name);
 
-            this.#fail('LEXICA2012', `No local named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
+            this.#fail('LEXICA2012', `No local, object field, conditional binding or function parameter named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
         }
 
         // A binding's value is evaluated once, by its conditional, which holds it in a frame its consequent reads as any local's; each records the expression its value came from.
@@ -1510,7 +1510,7 @@ export class LanguageResolver {
         const accepted = outcomes.filter(outcome => outcome.error === undefined);
 
         if (accepted.length > 1) {
-            this.#fail('LEXICA3024', `'${written}' is both the module member and the qualified form of the member '${node.name}' of a receiver, and this reference fits both, so which applies is ambiguous; the receiver form, receiver.${node.name}, reaches the member of the receiver`, pointer);
+            this.#fail('LEXICA3024', `'${written}' is both the module member and the qualified form of the member '${node.name}' of a receiver, and this access fits both, so which applies is ambiguous; the receiver form, receiver.${node.name}, reaches the member of the receiver`, pointer);
         }
 
         if (accepted.length === 0) {

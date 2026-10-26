@@ -243,7 +243,7 @@ export class DefinitionValidator {
 
                 // A local is read where one of its name, or a field, is in scope, which `@` and a reserved word name as a name written alone does any other.
                 if (!this.#localNames.has(node.name)) {
-                    this.#fail('LEXICA2012', pointer, `No local or field named '${node.name}' is in scope. Use '~${node.name}' to read the script parameter.`);
+                    this.#fail('LEXICA2012', pointer, `No local, object field, conditional binding or function parameter named '${node.name}' is in scope. Use '~${node.name}' to read the script parameter.`);
                 }
 
                 return Object.freeze({ kind: 'local', name: node.name });
