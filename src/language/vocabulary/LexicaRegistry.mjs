@@ -241,16 +241,9 @@ export class LexicaRegistry {
     /**
      * The type the notation writes in the declaration, a member, one of its parameters' notations among them, a structured type, a selectable type or a conversion: each name resolved to its identity in the module
      * that declares it. It is resolved once and kept by the declaration for good, since a registered module is never removed and its declarations are frozen, and it is released with the declaration; a notation that
-     * names no type the declaration's module can reach is refused and kept by none. It calls no host code.
+     * names no type the declaration's module can reach is refused at that module and the declaration's name, a conversion's being its source and destination, and kept by none. It calls no host code.
      */
     getDeclaredType(declaration, notation) {
-        return this.#declaredTypeOf(declaration, notation, (code, message) => {
-            throw LexicaErrors.module(code, message, { module: this.getDeclaringModuleName(declaration) });
-        });
-    }
-
-    /** The type the notation writes in the declaration, kept once it is resolved, a failure to resolve it refused through the function given. */
-    #declaredTypeOf(declaration, notation, fail) {
         let types = this.#declaredTypeCache.get(declaration);
 
         if (types === undefined) {
@@ -259,6 +252,10 @@ export class LexicaRegistry {
         }
 
         if (!types.has(notation)) {
+            const fail = (code, message) => {
+                throw LexicaErrors.module(code, message, { module: this.getDeclaringModuleName(declaration), declaration: declaration.name ?? LexicaModule.conversionNameOf(declaration) });
+            };
+
             types.set(notation, this.#resolveNotation(notation, this.#declaringModules.get(declaration), fail));
         }
 
@@ -586,13 +583,11 @@ export class LexicaRegistry {
      * a tolerance on a result that holds no number, and a default its parameter's type does not admit.
      */
     #validateDeclaredTypes(module, fail) {
-        const check = (declaration, notation, declarationName) => this.#declaredTypeOf(declaration, notation, (code, message) => fail(code, message, declarationName));
-
         for (const type of module.types) {
-            Object.values(type.fields ?? {}).forEach(notation => check(type, notation, type.name));
+            Object.values(type.fields ?? {}).forEach(notation => this.getDeclaredType(type, notation));
 
             // A supertype is a reference type, one the module declares or one a module registered before it declares.
-            if (type.supertype !== undefined && !this.isReferenceType(check(type, type.supertype, type.name))) {
+            if (type.supertype !== undefined && !this.isReferenceType(this.getDeclaredType(type, type.supertype))) {
                 fail('LEXICA4016', `The supertype of '${type.name}', ${type.supertype}, is no reference type`, type.name, 'supertype');
             }
         }
@@ -610,13 +605,13 @@ export class LexicaRegistry {
             }
         }
 
-        module.selectableTypes.forEach(selectable => check(selectable, selectable.type, selectable.name));
+        module.selectableTypes.forEach(selectable => this.getDeclaredType(selectable, selectable.type));
 
         for (const declaration of module.members) {
-            [declaration.target ?? []].flat().filter(notation => notation !== 'any').forEach(notation => check(declaration, notation, declaration.name));
+            [declaration.target ?? []].flat().filter(notation => notation !== 'any').forEach(notation => this.getDeclaredType(declaration, notation));
 
             // A host call that supplies nothing declares no result.
-            const resultType = declaration.result === undefined ? null : check(declaration, declaration.result, declaration.name);
+            const resultType = declaration.result === undefined ? null : this.getDeclaredType(declaration, declaration.result);
 
             // A tolerance applies to a numeric result, or to the numbers a structured result holds, which only now, every type known, is told apart from a reference type; a member with updates always declares a result.
             if (declaration.updates?.tolerance !== undefined && !(resultType.kind === 'named' && ((resultType.moduleName === null && resultType.name === 'Number') || this.getStructure(resultType) !== undefined))) {
@@ -624,9 +619,9 @@ export class LexicaRegistry {
             }
 
             for (const parameter of declaration.parameters) {
-                const type = check(declaration, parameter.type, declaration.name);
+                const type = this.getDeclaredType(declaration, parameter.type);
 
-                (parameter.parameters ?? []).forEach(notation => check(declaration, notation, declaration.name));
+                (parameter.parameters ?? []).forEach(notation => this.getDeclaredType(declaration, notation));
 
                 if (Object.hasOwn(parameter, 'default') && !this.#admits(parameter.default, type)) {
                     fail('LEXICA4548', `The default of '${parameter.name}' is no ${parameter.type}`, declaration.name);
@@ -634,7 +629,7 @@ export class LexicaRegistry {
             }
         }
 
-        module.conversions.forEach(conversion => ['from', 'to'].forEach(key => check(conversion, conversion[key], LexicaModule.conversionNameOf(conversion))));
+        module.conversions.forEach(conversion => ['from', 'to'].forEach(key => this.getDeclaredType(conversion, conversion[key])));
     }
 
     /**

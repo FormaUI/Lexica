@@ -210,6 +210,13 @@ describe('LexicaRegistry', () => {
         });
     });
 
+    it('refuses a notation that names no type at its module and its declaration, a conversion named by its source and destination', () => {
+        const registering = contents => () => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', contents)]);
+
+        expect(refusalOf(registering({ members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] }))).toMatchObject({ module: 'charts', declaration: 'pan', message: expect.stringContaining("names the type 'Nothing'") });
+        expect(refusalOf(registering({ types: [{ name: 'Chart', fields: { points: 'Number' } }], conversions: [{ from: 'Chart', to: 'Nothing' }] }))).toMatchObject({ module: 'charts', declaration: 'Chart to Nothing' });
+    });
+
     it('names the module each declaration belongs to once its module is registered, and none for a refused module\'s, which it records as registration starts', () => {
         const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [functionDeclaration({ name: 'zoom' })] })]);
         const refused = new LexicaModule('broken', { types: [{ name: 'Box', fields: { width: 'Number' } }], members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] });
