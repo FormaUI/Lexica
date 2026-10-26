@@ -21,11 +21,11 @@ const INDENTATION = '    ';
 
 export class DefinitionWriter {
     /**
-     * The text that writes the node on one line.
+     * Quotes the node: the text that writes it on one line, as a diagnostic quotes it and `lexica.quote` answers it.
      * @param {object} node A node of a definition.
      * @param {ReadonlySet<string>} [moduleNames] The module names the text is written with, each reserved as the language's words are; none for text read without a registry.
      */
-    static write(node, moduleNames = Names.noModuleNames) {
+    static quote(node, moduleNames = Names.noModuleNames) {
         return DefinitionWriter.#writing(node, moduleNames, () => DefinitionWriter.#write(node, null));
     }
 
@@ -153,7 +153,7 @@ export class DefinitionWriter {
             case 'namespace':
                 return node.name;
             case 'local':
-                return DefinitionWriter.#reference(node.name);
+                return DefinitionWriter.#localNameText(node.name);
             case 'member':
                 return typeof node.name === 'string'
                     ? `${DefinitionWriter.#within(node.target, CHAIN_PRECEDENCE, level)}${DefinitionWriter.#dot(node)}${node.name}`
@@ -176,7 +176,7 @@ export class DefinitionWriter {
             case 'function':
                 return DefinitionWriter.#function(node, level);
             case 'functionCall':
-                return `${DefinitionWriter.#reference(node.name)}(${DefinitionWriter.#arguments(node, level)})`;
+                return `${DefinitionWriter.#localNameText(node.name)}(${DefinitionWriter.#arguments(node, level)})`;
             case 'do':
                 return DefinitionWriter.#block('do', node.body, level);
             case 'body':
@@ -308,8 +308,8 @@ export class DefinitionWriter {
         return PRECEDENCE[node.kind] ?? CHAIN_PRECEDENCE;
     }
 
-    /** A reference to a local or a field: its name, after `@` where a reserved word names it, a module's name among them where the text is written with it, which written alone keeps its own meaning. */
-    static #reference(name) {
+    /** The text of a name a lexical reference reads, a local's, an object field's, a conditional binding's or a function parameter's: its name, after `@` where a reserved word names it, a module's name among them where the text is written with it, which written alone keeps its own meaning. */
+    static #localNameText(name) {
         return Names.needsPrefix(name, DefinitionWriter.#moduleNames) ? `@${name}` : name;
     }
 

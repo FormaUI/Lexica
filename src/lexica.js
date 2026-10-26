@@ -257,7 +257,7 @@ const registryOf = modules => {
             return definitionWith(text);
         },
         format: source => DefinitionWriter.format(definitionWith(source).expression, namespaceNames()),
-        quote: source => DefinitionWriter.write(definitionWith(source).expression, namespaceNames()),
+        quote: source => DefinitionWriter.quote(definitionWith(source).expression, namespaceNames()),
         bind: (values = {}, options = {}) => bind(registry, values, options),
         resolve: (source, bindings = {}) => resolutionOf(registry, definitionWith(source), parameterBindingsOf(registry, bindings)),
     });
@@ -290,7 +290,7 @@ export const lexica = Object.freeze({
     },
     validate: definition => new DefinitionValidator().validate(definition),
     format: source => DefinitionWriter.format(withoutNamespaces(definitionOf(source)).expression),
-    quote: source => DefinitionWriter.write(withoutNamespaces(definitionOf(source)).expression),
+    quote: source => DefinitionWriter.quote(withoutNamespaces(definitionOf(source)).expression),
     locate,
     createModule: (name, contents) => new LexicaModule(name, contents),
     declarations,

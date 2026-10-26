@@ -291,7 +291,7 @@ export class LanguageResolver {
         const name = node.right.kind === 'literal' ? right.value : node.right;
         const test = declaration.kind === 'property' ? { kind: 'member', target: node.left, name, ...optional } : { kind: 'call', target: node.left, name: right.value, arguments: [], ...optional };
 
-        return `: a test is the member that answers it, so write '${DefinitionWriter.write(isNegated ? { kind: 'not', operand: test } : test, this.#namespaceNames)}'`;
+        return `: a test is the member that answers it, so write '${DefinitionWriter.quote(isNegated ? { kind: 'not', operand: test } : test, this.#namespaceNames)}'`;
     }
 
     /**
@@ -380,7 +380,7 @@ export class LanguageResolver {
         if (type === null) {
             const described = [...new Set(parts.flatMap((part, index) => LanguageResolver.#describePart(part, index === last ? null : !passesWhenTruthy)))];
             const rewrite = node.kind === 'and' && node.operands.length === 2
-                ? `write 'if ${DefinitionWriter.write(node.operands[0], this.#namespaceNames)} then ${DefinitionWriter.write(node.operands[1], this.#namespaceNames)} else null end' if null is an acceptable alternative`
+                ? `write 'if ${DefinitionWriter.quote(node.operands[0], this.#namespaceNames)} then ${DefinitionWriter.quote(node.operands[1], this.#namespaceNames)} else null end' if null is an acceptable alternative`
                 : "a conditional, 'if … then … else … end', chooses between values of one type";
 
             this.#fail('LEXICA3040', `What '${node.kind}' gives is ${described.join(' or ')}, which no one type holds; ${rewrite}`, pointer);
@@ -1021,7 +1021,7 @@ export class LanguageResolver {
         }
 
         // The access written with the member's name, less that name, is its receiver as the access writes it, grouped where it needs to be and ending in `?` where the access is optional.
-        const receiver = DefinitionWriter.write({ ...node, name }, this.#namespaceNames).slice(0, -(name.length + 1));
+        const receiver = DefinitionWriter.quote({ ...node, name }, this.#namespaceNames).slice(0, -(name.length + 1));
 
         return `. Did you mean '${this.#memberForm(receiverType, name, receiver)}'?`;
     }
@@ -1080,7 +1080,7 @@ export class LanguageResolver {
 
         const receiver = given ?? this.#resolveNode(node.target, `${pointer}/target`, scope);
         const isUnnamedIndexer = node.kind === 'indexer' && node.name === undefined;
-        const written = isUnnamedIndexer ? '[…]' : typeof node.name === 'string' ? node.name : `.[${DefinitionWriter.write(node.name, this.#namespaceNames)}]`;
+        const written = isUnnamedIndexer ? '[…]' : typeof node.name === 'string' ? node.name : `.[${DefinitionWriter.quote(node.name, this.#namespaceNames)}]`;
 
         if (receiver.kind !== 'value') {
             this.#fail('LEXICA3048', `'${written}' follows ${LanguageResolver.#descriptionOf(receiver.kind)}, which takes no members`, pointer);
@@ -1091,7 +1091,7 @@ export class LanguageResolver {
             if (node.optional !== true) {
                 const follows = receiver.type.kind === 'null' ? 'null' : `${receiver.type}, which can be null`;
 
-                this.#fail('LEXICA3008', `'${written}' follows ${follows}: write '${DefinitionWriter.write(optionalForm, this.#namespaceNames)}' to read it where it is not`, pointer);
+                this.#fail('LEXICA3008', `'${written}' follows ${follows}: write '${DefinitionWriter.quote(optionalForm, this.#namespaceNames)}' to read it where it is not`, pointer);
             }
 
             this.#chains.at(-1).shortCircuits = true;
@@ -1130,7 +1130,7 @@ export class LanguageResolver {
 
         // A function's arguments are written in parentheses, so brackets after its name are a call written as an indexer.
         if (syntax === 'function-call') {
-            this.#fail('LEXICA3054', `'${target.name}' uses call syntax: write '${DefinitionWriter.write({ kind: 'call', target: target.target, name: target.name, arguments: [node.argument], ...(target.optional === true ? { optional: true } : {}) }, this.#namespaceNames)}'`, pointer);
+            this.#fail('LEXICA3054', `'${target.name}' uses call syntax: write '${DefinitionWriter.quote({ kind: 'call', target: target.target, name: target.name, arguments: [node.argument], ...(target.optional === true ? { optional: true } : {}) }, this.#namespaceNames)}'`, pointer);
         }
 
         if (syntax !== 'indexer') {
@@ -1192,7 +1192,7 @@ export class LanguageResolver {
             // A string key may name a property of the receiver, which a computed property access reads.
             const key = node.argument.kind === 'literal' ? node.argument.value : null;
             const isNamed = typeof key === 'string' && (this.#fieldTypeOf(receiverType, key) !== null || this.#moduleRegistry.getMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
-            const computed = isNamed ? DefinitionWriter.write({ kind: 'member', target: node.target, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
+            const computed = isNamed ? DefinitionWriter.quote({ kind: 'member', target: node.target, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
 
             this.#fail('LEXICA3012', `${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
         }
@@ -1214,25 +1214,25 @@ export class LanguageResolver {
 
         // A number names no property, and is the key an unnamed indexer takes.
         if (node.name.kind === 'literal' && typeof node.name.value === 'number') {
-            this.#fail('LEXICA3055', `A computed property access reads a property by its name, a string, and a number is an indexer's key: write '${DefinitionWriter.write({ kind: 'indexer', target: node.target, argument: node.name, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames)}'`, namePointer);
+            this.#fail('LEXICA3055', `A computed property access reads a property by its name, a string, and a number is an indexer's key: write '${DefinitionWriter.quote({ kind: 'indexer', target: node.target, argument: node.name, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames)}'`, namePointer);
         }
         const name = this.#resolveNode(node.name, namePointer, scope);
         const possible = name.kind === 'value' ? this.#possibleNamesOf(node.name, scope) : null;
 
         if (possible === null) {
-            this.#fail('LEXICA3014', `A computed property access reads a name determined when the expression is resolved, which a string literal, null, a script parameter, a local or a conditional binding holding one, or a conditional, a '??', an 'and' or an 'or' of them gives, and '${DefinitionWriter.write(node.name, this.#namespaceNames)}' is none of them`, namePointer);
+            this.#fail('LEXICA3014', `A computed property access reads a name determined when the expression is resolved, which a string literal, null, a script parameter, a local or a conditional binding holding one, or a conditional, a '??', an 'and' or an 'or' of them gives, and '${DefinitionWriter.quote(node.name, this.#namespaceNames)}' is none of them`, namePointer);
         }
 
         if (possible.canBeOther) {
-            this.#fail('LEXICA3013', `A computed property access reads a string, and '${DefinitionWriter.write(node.name, this.#namespaceNames)}' can be a value that is not one`, namePointer);
+            this.#fail('LEXICA3013', `A computed property access reads a string, and '${DefinitionWriter.quote(node.name, this.#namespaceNames)}' can be a value that is not one`, namePointer);
         }
 
         if (possible.canBeFalse) {
-            this.#fail('LEXICA3013', `A computed property access reads a string, and '${DefinitionWriter.write(node.name, this.#namespaceNames)}' can be false`, namePointer);
+            this.#fail('LEXICA3013', `A computed property access reads a string, and '${DefinitionWriter.quote(node.name, this.#namespaceNames)}' can be false`, namePointer);
         }
 
         if (possible.canBeNull || possible.names.size === 0) {
-            this.#fail('LEXICA3013', `A computed property access reads a string, and '${DefinitionWriter.write(node.name, this.#namespaceNames)}' can be null`, namePointer);
+            this.#fail('LEXICA3013', `A computed property access reads a string, and '${DefinitionWriter.quote(node.name, this.#namespaceNames)}' can be null`, namePointer);
         }
 
         const resolutionsByName = new Map();
@@ -1249,7 +1249,7 @@ export class LanguageResolver {
 
         if (type === null) {
             if (!LanguageResolver.#isOfUnknownType(receiverType)) {
-                this.#fail('LEXICA3015', `The properties '${DefinitionWriter.write(node.name, this.#namespaceNames)}' can name are of one type, and these are ${types.join(', ')}`, namePointer);
+                this.#fail('LEXICA3015', `The properties '${DefinitionWriter.quote(node.name, this.#namespaceNames)}' can name are of one type, and these are ${types.join(', ')}`, namePointer);
             }
 
             type = Type.null;
@@ -1387,7 +1387,7 @@ export class LanguageResolver {
 
         if (field !== null) {
             if (node.kind !== 'member') {
-                this.#fail('LEXICA3017', `'${node.name}' is a field of ${receiverType.toNonNullable()} and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
+                this.#fail('LEXICA3017', `'${node.name}' is a field of ${receiverType.toNonNullable()} and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
             }
 
             this.#resolutions.set(pointer, { kind: 'field', name: node.name, receiverType });
@@ -1764,7 +1764,7 @@ export class LanguageResolver {
         const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#moduleRegistry.formOf(candidate)] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
-            this.#fail(this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.write(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
+            this.#fail(this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getFieldTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
         }
 
         if (!isAccess && candidatesInForm.length === 0) {
@@ -1851,10 +1851,10 @@ export class LanguageResolver {
 
         // An indexer takes one key in brackets, which a node written another way may not give.
         if (form === 'indexer' && node.arguments?.length !== 1) {
-            this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.write(node.target, this.#namespaceNames)}${node.optional === true ? '?.' : '.'}${node.name}[…]'`, pointer);
+            this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.quote(node.target, this.#namespaceNames)}${node.optional === true ? '?.' : '.'}${node.name}[…]'`, pointer);
         }
 
-        this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.write(LanguageResolver.#writtenAs(node, form), this.#namespaceNames)}'`, pointer);
+        this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.quote(LanguageResolver.#writtenAs(node, form), this.#namespaceNames)}'`, pointer);
     }
 
     /** The node written in the form: an access of its name, a call of its arguments, an indexer's one, or an indexer of its key, a call's one argument. */

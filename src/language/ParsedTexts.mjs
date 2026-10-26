@@ -19,7 +19,7 @@ const CAPACITY = 256;
 
 export class ParsedTexts {
     /** Each kept text's definition, by the module names it was read with and the text, the least recently parsed first. @type {Map<string, object>} */
-    static #definitions = new Map();
+    static #definitionCache = new Map();
 
     /** @type {WeakMap<object, TextLocations>} */
     static #locations = new WeakMap();
@@ -49,11 +49,11 @@ export class ParsedTexts {
      */
     static parse(text, moduleNames = Names.noModuleNames) {
         const key = `${[...moduleNames].sort().join(' ')}|${text}`;
-        const kept = ParsedTexts.#definitions.get(key);
+        const kept = ParsedTexts.#definitionCache.get(key);
 
         if (kept) {
-            ParsedTexts.#definitions.delete(key);
-            ParsedTexts.#definitions.set(key, kept);
+            ParsedTexts.#definitionCache.delete(key);
+            ParsedTexts.#definitionCache.set(key, kept);
 
             return kept;
         }
@@ -66,10 +66,10 @@ export class ParsedTexts {
         ParsedTexts.#locations.set(validated, locations);
         ParsedTexts.#readings.set(validated, Object.freeze({ moduleNames: new Set(moduleNames), namesWrittenAlone }));
 
-        ParsedTexts.#definitions.set(key, validated);
+        ParsedTexts.#definitionCache.set(key, validated);
 
-        if (ParsedTexts.#definitions.size > CAPACITY) {
-            ParsedTexts.#definitions.delete(ParsedTexts.#definitions.keys().next().value);
+        if (ParsedTexts.#definitionCache.size > CAPACITY) {
+            ParsedTexts.#definitionCache.delete(ParsedTexts.#definitionCache.keys().next().value);
         }
 
         return validated;

@@ -92,7 +92,7 @@ export class Lowering {
                 const call = this.#span({ kind: 'functionCall', name: children[0].value, arguments: this.#argumentsOf(children.slice(2, -1)) }, child);
 
                 if (children[0].type === 'identifier') {
-                    this.#writtenAlone(children[0].value, call);
+                    this.#recordNameWrittenAlone(children[0].value, call);
                 }
 
                 return call;
@@ -146,7 +146,7 @@ export class Lowering {
                 // A cast's target written as a member chain within an optional enclosed access is the optional chain of its accesses.
                 const [target] = children;
 
-                return this.#span({ kind: 'cast', type: SyntaxTree.typeNameOf(children[2], this.#text), target: target.kind === 'member-chain' ? this.#optionalChainOf(target, target) : this.#lower(target) }, child);
+                return this.#span({ kind: 'cast', type: SyntaxTree.typeNameOf(children[2], this.#text), target: target.kind === 'member-chain' ? this.#lowerMemberChain(target, target) : this.#lower(target) }, child);
             }
             case 'namespace-access':
                 return this.#lowerNamespaceAccess(child);
@@ -154,7 +154,7 @@ export class Lowering {
             case 'receiver':
                 return this.#lower(children[1]);
             case 'optional-enclosed-access':
-                return this.#optionalChainOf(children[1], child);
+                return this.#lowerMemberChain(children[1], child);
             case 'chain':
                 return this.#lowerChain(child);
             case 'object':
@@ -184,7 +184,7 @@ export class Lowering {
                     return this.#span({ kind: 'root' }, token);
                 }
 
-                return this.#writtenAlone(token.value, this.#span({ kind: this.#localNames.has(token.value) ? 'local' : 'parameter', name: token.value }, token));
+                return this.#recordNameWrittenAlone(token.value, this.#span({ kind: this.#localNames.has(token.value) ? 'local' : 'parameter', name: token.value }, token));
             case 'lexical-reference':
                 // An identifier after `@` is the local or the field of its name, which validation finds in scope or refuses.
                 return this.#span({ kind: 'local', name: token.value }, token);
@@ -264,7 +264,7 @@ export class Lowering {
                 value = this.#lowerObject(part, value, start);
             } else {
                 isOptional ||= OPTIONAL_ACCESSES.has(part.children[0].type);
-                value = this.#lowerAccess(part, value, start, false);
+                value = this.#lowerMemberExpression(part, value, start, false);
             }
         }
 
@@ -275,7 +275,7 @@ export class Lowering {
      * A member after its receiver: a dot property access, a call, a computed property access, its name the name a string literal is where it is one, or an indexer, spanning from the start given to its own end,
      * and optional where its token says so or where every access is, as an optional enclosed access makes them.
      */
-    #lowerAccess(part, target, start, isEveryOptional) {
+    #lowerMemberExpression(part, target, start, isEveryOptional) {
         const [first, second] = part.children;
         const optional = isEveryOptional || OPTIONAL_ACCESSES.has(first.type);
         let node;
@@ -319,14 +319,14 @@ export class Lowering {
         return parts.filter(part => !(SyntaxTree.isToken(part) && part.type === ',')).map(argument => this.#lower(argument));
     }
 
-    /** The optional chain of a member chain's accesses, every one of them optional, spanning what the span node does. */
-    #optionalChainOf(chain, spanned) {
+    /** Lowers a member chain into the optional chain of its accesses, every one of them optional, spanning what the span node does. */
+    #lowerMemberChain(chain, spanned) {
         const { children } = chain;
         const start = SyntaxTree.startOf(chain);
         let value = this.#lower(children[0]);
 
         for (let index = 1; index < children.length; index++) {
-            value = this.#lowerAccess(children[index], value, start, true);
+            value = this.#lowerMemberExpression(children[index], value, start, true);
         }
 
         return this.#span({ kind: 'optionalChain', target: value }, spanned);
@@ -392,7 +392,7 @@ export class Lowering {
     }
 
     /** Records the name written alone, with the span of the part it first stands in, and answers the part. */
-    #writtenAlone(name, part) {
+    #recordNameWrittenAlone(name, part) {
         if (!this.#namesWrittenAlone.has(name)) {
             this.#namesWrittenAlone.set(name, this.#spans.get(part));
         }

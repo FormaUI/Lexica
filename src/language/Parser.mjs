@@ -374,7 +374,7 @@ export class Parser {
                 throw this.#fail('LEXICA1027', 'A conditional that is a condition is enclosed in parentheses: write if (if … then … else … end) then …', this.#token.start);
             }
 
-            children.push(this.#isKeyword('let') ? this.#parseBinding() : this.#parseSimpleValueExpression());
+            children.push(this.#isKeyword('let') ? this.#parseConditionalBinding() : this.#parseSimpleValueExpression());
 
             if (!this.#isKeyword('then')) {
                 throw this.#unexpected('LEXICA1000', "'then' after the condition");
@@ -421,7 +421,7 @@ export class Parser {
     }
 
     /** Reads a conditional's binding after its `if` or `elseif`: `let`, its name, `=` and the value it binds, a simple value expression. */
-    #parseBinding() {
+    #parseConditionalBinding() {
         const letKeyword = this.#take();
 
         if (!this.#startsEntry()) {
@@ -521,7 +521,7 @@ export class Parser {
      * Reads an attempt after its `try`: the one conversion or cast the equality operand that follows ends with, which answers null where it rejects its value.
      * It attempts that operation alone, so a conversion of a conversion or of a cast is grouped to say which it attempts, and anything else is refused.
      */
-    #parseTry(start) {
+    #parseAttempt(start) {
         const tryKeyword = this.#take();
 
         if (this.#isKeyword('try')) {
@@ -615,9 +615,9 @@ export class Parser {
         return this.#parseBinary('additive', ['+', '-'], () => this.#parseMultiplicative());
     }
 
-    /** Reads a multiplicative expression: unary expressions joined by `*`, `/` and `%`, left to right; the one alone where none follows. */
+    /** Reads a multiplicative expression: arithmetic negations joined by `*`, `/` and `%`, left to right; the one alone where none follows. */
     #parseMultiplicative() {
-        return this.#parseBinary('multiplicative', ['*', '/', '%'], () => this.#parseUnary());
+        return this.#parseBinary('multiplicative', ['*', '/', '%'], () => this.#parseArithmeticNegation());
     }
 
     /** Reads operands the operators join, left to right, as the node of the kind, or the operand alone where no operator follows it. */
@@ -639,8 +639,8 @@ export class Parser {
         return Parser.#node(kind, children);
     }
 
-    /** Reads a unary expression: `-` and what it negates, another unary expression or an equality operand, so `-x to Number` negates the converted value; or an equality operand alone. */
-    #parseUnary() {
+    /** Reads an arithmetic negation: `-` and what it negates, another arithmetic negation or an equality operand, so `-x to Number` negates the converted value; or an equality operand alone. */
+    #parseArithmeticNegation() {
         if (this.#token.type !== '-') {
             return this.#parseEqualityOperand();
         }
@@ -649,7 +649,7 @@ export class Parser {
 
         this.#refuseOperandStart(this.#token.start);
 
-        return Parser.#node('arithmetic-negation', [minus, this.#parseUnary()]);
+        return Parser.#node('arithmetic-negation', [minus, this.#parseArithmeticNegation()]);
     }
 
     /** Reads an equality operand: a chain, the cast that may end it, and the conversions that follow, each converting what is before it. */
@@ -657,14 +657,14 @@ export class Parser {
         const start = this.#token.start;
 
         if (this.#isKeyword('try')) {
-            return this.#parseTry(start);
+            return this.#parseAttempt(start);
         }
 
         const chain = this.#parseChain();
         let value = chain.node;
 
         if (this.#isKeyword('as')) {
-            value = this.#parseCast(value, chain, start);
+            value = this.#parseChainCast(value, chain, start);
         }
 
         while (this.#isConversion(value, start)) {
@@ -723,9 +723,9 @@ export class Parser {
     /** Reads a conversion after the value it converts: `to` and the name of the type it converts to, written bare. It ends its chain, and another conversion may follow it. */
     #parseConversion(target) {
         const toKeyword = this.#take();
-        const type = this.#readTypeName('to', 'converts to', 'Number');
-        const node = Parser.#node('conversion', [target, toKeyword, type]);
-        const name = SyntaxTree.typeNameOf(type, this.#text);
+        const typeName = this.#parseTypeName('to', 'converts to', 'Number');
+        const node = Parser.#node('conversion', [target, toKeyword, typeName]);
+        const name = SyntaxTree.typeNameOf(typeName, this.#text);
 
         if (this.#continuesChain()) {
             throw this.#fail('LEXICA1501', `A conversion ends its chain; group it to continue from its result, as in '(… to ${name}).value'`, this.#token.start);
@@ -742,7 +742,7 @@ export class Parser {
      * Reads the name of the type a cast or a conversion names after its keyword, written bare: any word, a reserved one included, as a member's name is after its dot, qualified by its module's name and a dot where one follows it,
      * which makes a type-name node of the three. A string in its place is refused with the bare name to write, and anything else with the form the keyword takes.
      */
-    #readTypeName(keyword, what, example) {
+    #parseTypeName(keyword, what, example) {
         const token = this.#token;
 
         if (token.type === 'literal' && typeof token.value === 'string') {
@@ -808,7 +808,7 @@ export class Parser {
     /**
      * Reads a cast after its target: `as` and the name of the type it casts to, written bare. Its target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and a cast continues a chain only from a group.
      */
-    #parseCast(target, chain, start) {
+    #parseChainCast(target, chain, start) {
         const isTarget = !chain.hasObject && (chain.input === 'input'
             || (chain.input === 'parenthesizedExpression' && (chain.grouped === 'cast' || (chain.grouped === 'coalescing' && !chain.isContinued)))
             || (chain.input === 'optionalEnclosedAccess' && !chain.isContinued));
@@ -821,15 +821,15 @@ export class Parser {
             throw this.#fail('LEXICA1025', `A cast's target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and this is none of them`, start);
         }
 
-        return this.#readCast(target);
+        return this.#parseCast(target);
     }
 
     /** Reads `as` and the type's name after a cast's target, which nothing continues but a group. */
-    #readCast(target) {
+    #parseCast(target) {
         const asKeyword = this.#take();
-        const type = this.#readTypeName('as', 'casts to', 'Light');
-        const node = Parser.#node('cast', [target, asKeyword, type]);
-        const name = SyntaxTree.typeNameOf(type, this.#text);
+        const typeName = this.#parseTypeName('as', 'casts to', 'Light');
+        const node = Parser.#node('cast', [target, asKeyword, typeName]);
+        const name = SyntaxTree.typeNameOf(typeName, this.#text);
 
         if (this.#continuesChain()) {
             throw this.#fail('LEXICA1053', `A cast continues a chain only from a group: write '(… as ${name})…'`, this.#token.start);
@@ -865,9 +865,9 @@ export class Parser {
     /** Reads an optional enclosed access: its member chain, a receiver followed by at least one member, every access of which is optional, which its closing parenthesis ends. */
     #parseOptionalEnclosedAccess() {
         const open = this.#take();
-        const { children, accesses } = this.#parseMemberChain(this.#parseReceiver());
+        const { children, accessCount } = this.#parseMemberExpressions(this.#parseReceiver());
 
-        if (accesses === 0) {
+        if (accessCount === 0) {
             throw this.#fail('LEXICA1016', 'An optional enclosed access holds a receiver and at least one access after it, as (?room.device(name).brightness)', this.#token.start);
         }
 
@@ -895,7 +895,7 @@ export class Parser {
             throw this.#fail('LEXICA1502', 'A group as the receiver of an optional enclosed access holds a cast, as in (?(room.device(name) as Light).brightness)', this.#token.start);
         }
 
-        const cast = this.#readCast(target);
+        const cast = this.#parseCast(target);
 
         return Parser.#node('receiver', [open, cast, this.#expect(')')]);
     }
@@ -921,9 +921,9 @@ export class Parser {
         }
 
         const receiver = this.#parseReceiver();
-        const { children, accesses } = this.#parseMemberChain(receiver);
+        const { children, accessCount } = this.#parseMemberExpressions(receiver);
 
-        return accesses > 0 ? Parser.#node('member-chain', children) : receiver;
+        return accessCount > 0 ? Parser.#node('member-chain', children) : receiver;
     }
 
     /**
@@ -965,8 +965,8 @@ export class Parser {
         return false;
     }
 
-    /** Reads the rest of a member chain within an optional enclosed access, the members after its receiver, every one of them optional, and how many there are. */
-    #parseMemberChain(receiver) {
+    /** Reads the member expressions after a receiver within an optional enclosed access, every one of them optional, and answers the receiver followed by them, as `children`, and how many follow it, as `accessCount`; the member chain node is its caller's to build. */
+    #parseMemberExpressions(receiver) {
         const children = [receiver];
         const start = SyntaxTree.startOf(receiver);
 
@@ -980,7 +980,7 @@ export class Parser {
             }
         }
 
-        return { children, accesses: children.length - 1 };
+        return { children, accessCount: children.length - 1 };
     }
 
     /**
@@ -1269,7 +1269,7 @@ export class Parser {
         const children = [this.#expect('{')];
         let locals = 0;
 
-        while (this.#isLocal()) {
+        while (this.#startsLocal()) {
             children.push(this.#parseLocal());
             locals++;
 
@@ -1325,7 +1325,7 @@ export class Parser {
 
     /** Reads a field: its name, `=` and its value. */
     #parseField() {
-        if (this.#isLocal()) {
+        if (this.#startsLocal()) {
             throw this.#fail('LEXICA1504', 'A local is written before the fields of its object expression', this.#token.start);
         }
 
@@ -1365,7 +1365,7 @@ export class Parser {
     }
 
     /** Whether a local starts here: `let`, which `=` or a colon after it would make a field's name instead. */
-    #isLocal() {
+    #startsLocal() {
         const next = this.#tokens[this.#index + 1]?.type;
 
         return this.#isKeyword('let') && next !== '=' && next !== ':';

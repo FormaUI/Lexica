@@ -21,7 +21,7 @@ export const TOKEN_TYPES = Object.freeze(['identifier', 'literal', 'keyword', 'i
  * @property {number} [delimiter] How many quotes that string's delimiter has: one inline, three or more for a block.
  * @property {number} start
  * @property {number} end
- * @property {number} leading Where the trivia before it begins, at its start where there is none, so every character of the text belongs to one token or to the trivia before one.
+ * @property {number} triviaStart Where the trivia before it begins, at its start where there is none, so every character of the text belongs to one token or to the trivia before one.
  * @property {boolean} spaced Whether trivia, whitespace or a comment, comes before it, which tells an argument written after a name from one of the name's own.
  * @property {{ code: string, message: string, offset: number }} [diagnostic] Why an invalid token is no token, the code of its condition and where the text first fails.
  */
@@ -95,19 +95,19 @@ export class Tokenizer {
     #read() {
         // An interpolated string's text holds no trivia: what stands between its tokens is its own text.
         if (this.#modes.at(-1)?.kind === 'text') {
-            const token = this.#readText();
+            const token = this.#readInterpolatedStringToken();
 
-            token.leading = token.start;
+            token.triviaStart = token.start;
             token.spaced = false;
 
             return token;
         }
 
-        const leading = this.#offset;
+        const triviaStart = this.#offset;
         const token = this.#skipTrivia() ?? this.#readToken();
 
-        token.leading = leading;
-        token.spaced = token.start > leading;
+        token.triviaStart = triviaStart;
+        token.spaced = token.start > triviaStart;
 
         return token;
     }
@@ -123,7 +123,7 @@ export class Tokenizer {
 
         // An interpolation whose expression begins with an object expression groups it, so its `{` is never read beside the interpolation's own.
         if (isFirstOfInterpolation && this.#text[start] === '{') {
-            return this.#invalid(start, start + 1, 'LEXICA1063', 'An interpolation that begins with an object expression groups it in parentheses, as {({ x = 1 }.x)}', start);
+            return this.#readInvalidToken(start, start + 1, 'LEXICA1063', 'An interpolation that begins with an object expression groups it in parentheses, as {({ x = 1 }.x)}', start);
         }
 
         if (start >= this.#text.length) {
@@ -140,7 +140,7 @@ export class Tokenizer {
         }
 
         if (character === '$') {
-            return this.#readDollar(start);
+            return this.#readInterpolatedStringStart(start);
         }
 
         const mode = this.#modes.at(-1);
@@ -178,7 +178,7 @@ export class Tokenizer {
         }
 
         if (character === '@') {
-            return this.#readAt(start);
+            return this.#readLexicalReference(start);
         }
 
         if (character === '~') {
@@ -228,15 +228,15 @@ export class Tokenizer {
             : undefined;
 
         if (operator !== undefined) {
-            return this.#invalid(start, start + 1, 'LEXICA1001', `'${operator}' is one operator, written with nothing between its signs`, start);
+            return this.#readInvalidToken(start, start + 1, 'LEXICA1001', `'${operator}' is one operator, written with nothing between its signs`, start);
         }
 
         // A single `!` is no operator; an inequality is written `!=`, and a negation `not`.
         if (character === '!') {
-            return this.#invalid(start, start + 1, 'LEXICA1509', "Unexpected '!': an inequality is written '!=', and a negation 'not'", start);
+            return this.#readInvalidToken(start, start + 1, 'LEXICA1509', "Unexpected '!': an inequality is written '!=', and a negation 'not'", start);
         }
 
-        return this.#invalid(start, start + 1, 'LEXICA1000', `Unexpected '${character}'`, start);
+        return this.#readInvalidToken(start, start + 1, 'LEXICA1000', `Unexpected '${character}'`, start);
     }
 
     /**
@@ -251,7 +251,7 @@ export class Tokenizer {
             const character = this.#text[this.#offset];
 
             if (isInInterpolation && (Tokenizer.#isLineBreak(character) || this.#text.startsWith('//', this.#offset))) {
-                return this.#invalid(this.#offset, this.#offset + 1, 'LEXICA1040', oneLine, this.#offset);
+                return this.#readInvalidToken(this.#offset, this.#offset + 1, 'LEXICA1040', oneLine, this.#offset);
             }
 
             if (SPACE.test(character)) {
@@ -264,11 +264,11 @@ export class Tokenizer {
                 const commentEnd = this.#text.indexOf('*/', this.#offset + 2);
 
                 if (commentEnd === -1) {
-                    return this.#invalid(this.#offset, this.#text.length, 'LEXICA1007', 'A block comment is never closed', this.#offset);
+                    return this.#readInvalidToken(this.#offset, this.#text.length, 'LEXICA1007', 'A block comment is never closed', this.#offset);
                 }
 
                 if (isInInterpolation && /[\n\r]/.test(this.#text.slice(this.#offset, commentEnd))) {
-                    return this.#invalid(this.#offset, commentEnd + 2, 'LEXICA1040', oneLine, this.#offset);
+                    return this.#readInvalidToken(this.#offset, commentEnd + 2, 'LEXICA1040', oneLine, this.#offset);
                 }
 
                 this.#offset = commentEnd + 2;
@@ -284,7 +284,7 @@ export class Tokenizer {
      * Reads what `@` begins: a lexical reference, the local or the field the identifier written directly after it names, as `@to` reads the local `to`, where the word alone keeps its own meaning, a module's name in text read with it
      * among them, and as `@total` reads `total`, which needs no `@`; invalid where no identifier follows it directly.
      */
-    #readAt(start) {
+    #readLexicalReference(start) {
         NAME.lastIndex = start + 1;
 
         if (!NAME.test(this.#text)) {
@@ -293,7 +293,7 @@ export class Tokenizer {
                 ? "An identifier follows '@' directly, as @to"
                 : "'@' and what follows it are no lexical reference, which writes an identifier directly after '@', as @to";
 
-            return this.#invalid(start, start + 1, 'LEXICA1050', message, start);
+            return this.#readInvalidToken(start, start + 1, 'LEXICA1050', message, start);
         }
 
         const name = this.#text.slice(start + 1, NAME.lastIndex);
@@ -316,7 +316,7 @@ export class Tokenizer {
                 ? "A script parameter is named directly after '~', as ~room"
                 : "'~' and what follows it are no script parameter, which is named directly after '~', as ~room";
 
-            return this.#invalid(start, start + 1, 'LEXICA1009', message, start);
+            return this.#readInvalidToken(start, start + 1, 'LEXICA1009', message, start);
         }
 
         const name = this.#text.slice(start + 1, NAME.lastIndex);
@@ -348,7 +348,7 @@ export class Tokenizer {
 
             return scanned.diagnostic === null
                 ? { type: 'literal', value: scanned.value, start, end, quote, delimiter: form.length }
-                : this.#invalid(start, end, scanned.diagnostic.code, scanned.diagnostic.message, scanned.diagnostic.offset);
+                : this.#readInvalidToken(start, end, scanned.diagnostic.code, scanned.diagnostic.message, scanned.diagnostic.offset);
         }
 
         // In an interpolation, a quote begins a string of the interpolation's own expression, so one never closed is most often the interpolated string's own quote written before the interpolation's `}`.
@@ -356,7 +356,7 @@ export class Tokenizer {
         const message = this.#modes.at(-1)?.kind === 'interpolation' ? `A ${name} is never closed: an interpolation is closed with '}' before its string's closing quote` : `A ${name} is never closed`;
         const unclosed = scanned.diagnostic ?? { code: 'LEXICA1510', message, offset: start };
 
-        return this.#invalid(start, scanned.end, unclosed.code, unclosed.message, unclosed.offset);
+        return this.#readInvalidToken(start, scanned.end, unclosed.code, unclosed.message, unclosed.offset);
     }
 
     /**
@@ -378,18 +378,18 @@ export class Tokenizer {
         if (length >= 3) {
             if (Tokenizer.#isLineBreak(this.#text[run])) {
                 if (this.#modes.at(-1)?.kind === 'interpolation') {
-                    return { token: this.#invalid(start, run, 'LEXICA1040', 'An interpolation stands on one line, so it holds no block: bind the block to a local, and interpolate its name', start) };
+                    return { token: this.#readInvalidToken(start, run, 'LEXICA1040', 'An interpolation stands on one line, so it holds no block: bind the block to a local, and interpolate its name', start) };
                 }
 
                 const contentStart = run + Tokenizer.#lineBreakLengthAt(this.#text, run);
                 const closing = this.#closingOf(contentStart, quote, length);
 
                 if (closing === null) {
-                    return { token: this.#invalid(start, this.#text.length, 'LEXICA1058', `A ${prefix}${names[1]} is never closed: its closing delimiter, ${length} quotes, stands first on a line of its own`, start) };
+                    return { token: this.#readInvalidToken(start, this.#text.length, 'LEXICA1058', `A ${prefix}${names[1]} is never closed: its closing delimiter, ${length} quotes, stands first on a line of its own`, start) };
                 }
 
                 if (closing.diagnostic !== undefined) {
-                    return { token: this.#invalid(start, closing.diagnostic.end, closing.diagnostic.code, closing.diagnostic.message, closing.diagnostic.offset) };
+                    return { token: this.#readInvalidToken(start, closing.diagnostic.end, closing.diagnostic.code, closing.diagnostic.message, closing.diagnostic.offset) };
                 }
 
                 return { form: { quote, length, isRaw, isBlock: true, contentStart, ...closing } };
@@ -398,12 +398,12 @@ export class Tokenizer {
             const lineEnd = this.#lineEndFrom(run);
 
             if (/^[ \t]+$/.test(this.#text.slice(run, lineEnd))) {
-                return { token: this.#invalid(start, lineEnd, 'LEXICA1038', `A ${prefix}${names[1]}'s opening delimiter is followed directly by its line break, with nothing after it on its line`, run) };
+                return { token: this.#readInvalidToken(start, lineEnd, 'LEXICA1038', `A ${prefix}${names[1]}'s opening delimiter is followed directly by its line break, with nothing after it on its line`, run) };
             }
 
             // Three double quotes never begin an inline string, whose empty `""` no value follows directly; three single quotes may, the doubled one standing for a quote.
             if (!isRaw) {
-                return { token: this.#invalid(start, run, 'LEXICA1038', `A ${prefix}${names[1]}'s text stands on the lines between its delimiters: its opening delimiter is followed directly by a line break, and an inline ${prefix}${names[0]} opens with one quote`, run) };
+                return { token: this.#readInvalidToken(start, run, 'LEXICA1038', `A ${prefix}${names[1]}'s text stands on the lines between its delimiters: its opening delimiter is followed directly by a line break, and an inline ${prefix}${names[0]} opens with one quote`, run) };
             }
         }
 
@@ -603,8 +603,8 @@ export class Tokenizer {
         return text[offset] === '\r' && text[offset + 1] === '\n' ? 2 : 1;
     }
 
-    /** Reads what `$` begins: an interpolated string's `$"` or `$'`, or its block's three or more quotes and line break, where the quote follows it directly, and otherwise text that is no token, a space between them saying where it stands. */
-    #readDollar(start) {
+    /** Reads what `$` begins: an interpolated string's `$"` or `$'`, or its block's three or more quotes and line break, where the quote follows it directly, pushing the mode its text is read in, and otherwise text that is no token, a space between them saying where it stands. */
+    #readInterpolatedStringStart(start) {
         const quote = this.#text[start + 1];
 
         if (quote === '"' || quote === "'") {
@@ -630,14 +630,14 @@ export class Tokenizer {
 
         const message = offset > start + 1 && (this.#text[offset] === '"' || this.#text[offset] === "'") ? `An interpolated string starts with '$${this.#text[offset]}', with no space between them` : "Unexpected '$'";
 
-        return this.#invalid(start, start + 1, 'LEXICA1005', message, start);
+        return this.#readInvalidToken(start, start + 1, 'LEXICA1005', message, start);
     }
 
     /**
-     * Reads at the offset in an interpolated string's text: what closes it, its closing quote or a block's closing delimiter, the `{` that opens an interpolation, or a run of its text up to either,
+     * Reads at the offset in an interpolated string's text, outside its interpolations: what closes it, its closing quote or a block's closing delimiter, the `{` that opens an interpolation, or a run of its text up to either,
      * scanned as its form reads text. A lone `}` and an escape the language has none of make the run invalid, as text never closed does, which ends the string at the end of the text.
      */
-    #readText() {
+    #readInterpolatedStringToken() {
         const start = this.#offset;
         const mode = this.#modes.at(-1);
         const { form } = mode;
@@ -664,11 +664,11 @@ export class Tokenizer {
 
             const names = DELIMITED_NAMES[form.quote];
 
-            return this.#invalid(start, scanned.end, scanned.diagnostic?.code ?? 'LEXICA1510', scanned.diagnostic?.message ?? `An interpolated ${names[0]} is never closed`, scanned.diagnostic?.offset ?? mode.start);
+            return this.#readInvalidToken(start, scanned.end, scanned.diagnostic?.code ?? 'LEXICA1510', scanned.diagnostic?.message ?? `An interpolated ${names[0]} is never closed`, scanned.diagnostic?.offset ?? mode.start);
         }
 
         if (scanned.diagnostic !== null) {
-            return this.#invalid(start, scanned.end, scanned.diagnostic.code, scanned.diagnostic.message, scanned.diagnostic.offset);
+            return this.#readInvalidToken(start, scanned.end, scanned.diagnostic.code, scanned.diagnostic.message, scanned.diagnostic.offset);
         }
 
         this.#offset = scanned.end;
@@ -711,7 +711,7 @@ export class Tokenizer {
         NUMBER.lastIndex = start;
 
         if (!NUMBER.test(this.#text)) {
-            return this.#invalid(start, start + 1, 'LEXICA1000', 'A number is written as in JSON', start);
+            return this.#readInvalidToken(start, start + 1, 'LEXICA1000', 'A number is written as in JSON', start);
         }
 
         this.#offset = NUMBER.lastIndex;
@@ -719,8 +719,8 @@ export class Tokenizer {
         return { type: 'literal', value: Number(this.#text.slice(start, this.#offset)), start, end: this.#offset };
     }
 
-    /** An invalid token over the text from the start to the end, which reading goes on after, with the code, the message and the offset its diagnostic gives. */
-    #invalid(start, end, code, message, offset) {
+    /** Reads an invalid token over the text from the start to the end, advancing the offset to its end, where reading goes on, with the code, the message and the offset its diagnostic gives. */
+    #readInvalidToken(start, end, code, message, offset) {
         this.#offset = end;
 
         return { type: 'invalid', start, end, diagnostic: { code, message, offset } };

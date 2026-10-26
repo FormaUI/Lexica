@@ -114,7 +114,7 @@ export class SyntaxTree {
         let text = '';
 
         for (const token of SyntaxTree.tokensOf(tree)) {
-            text += tree.text.slice(token.leading, token.end);
+            text += tree.text.slice(token.triviaStart, token.end);
         }
 
         return text;
@@ -129,7 +129,7 @@ export class SyntaxTree {
     static triviaOf(token, text) {
         const pieces = [];
 
-        for (let offset = token.leading; offset < token.start;) {
+        for (let offset = token.triviaStart; offset < token.start;) {
             const start = offset;
 
             if (text.startsWith('//', offset)) {
