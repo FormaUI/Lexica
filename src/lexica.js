@@ -93,12 +93,15 @@ const createBindings = (registry, values = {}, options = {}) => {
     return bindings;
 };
 
-/** The parameter bindings of bindings the registry's `createBindings` created, or of plain values, which the registry binds now; bindings another registry made are refused. */
-const parameterBindingsOf = (registry, bindings) => {
+/**
+ * The parameter bindings the registry's `createBindings` created for the bindings, or undefined for any other value, plain values among them, which its caller binds; bindings another registry created are refused. It creates
+ * nothing, so it calls no module's `typeOf`.
+ */
+const getParameterBindings = (registry, bindings) => {
     const parameterBindings = PARAMETER_BINDINGS.get(bindings);
 
     if (parameterBindings === undefined) {
-        return new ParameterBindings(registry, bindings ?? {});
+        return undefined;
     }
 
     if (parameterBindings.registry !== registry) {
@@ -145,7 +148,8 @@ const resolutionOf = (registry, definition, parameterBindings) => {
     };
 
     const createEvaluator = (bindings, env = {}) => {
-        const evaluatorBindings = parameterBindingsOf(registry, bindings);
+        // Plain values are bound here, which asks every module's `typeOf` of them, before the resolution key and the registry's revision are checked.
+        const evaluatorBindings = getParameterBindings(registry, bindings) ?? new ParameterBindings(registry, bindings ?? {});
 
         if (evaluatorBindings.resolutionKey !== resolutionKey) {
             throw LexicaErrors.structure('LEXICA2025', 'These bindings resolve the script otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
@@ -259,7 +263,12 @@ const createRegistry = modules => {
         format: script => DefinitionWriter.format(definitionWith(script).expression, namespaceNames()),
         quote: script => DefinitionWriter.quote(definitionWith(script).expression, namespaceNames()),
         createBindings: (values = {}, options = {}) => createBindings(registry, values, options),
-        resolve: (script, bindings = {}) => resolutionOf(registry, definitionWith(script), parameterBindingsOf(registry, bindings)),
+        resolve: (script, bindings = {}) => {
+            // The script is read before its bindings, so one that does not follow the syntax or the structure asks no module's `typeOf`.
+            const definition = definitionWith(script);
+
+            return resolutionOf(registry, definition, getParameterBindings(registry, bindings) ?? new ParameterBindings(registry, bindings ?? {}));
+        },
     });
 };
 

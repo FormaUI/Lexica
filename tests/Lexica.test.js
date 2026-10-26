@@ -121,6 +121,20 @@ describe('lexica', () => {
         expect(getError(() => lexica.createRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
 
+    it('binds plain values each time it is given them and reuses the bindings its registry created, asking no module\'s typeOf of a script it refuses', () => {
+        const asked = [];
+        const registry = lexica.createRegistry([lexica.createModule('counting', { typeOf: value => (asked.push(value.label), null) })]);
+        const bindings = registry.createBindings({ word: { label: 'oat' } });
+
+        expect(asked).toEqual(['oat']);
+        registry.resolve('word.label', bindings).createEvaluator(bindings);
+        expect(asked).toEqual(['oat']);
+        registry.resolve('word.label', { word: { label: 'tea' } }).createEvaluator({ word: { label: 'rye' } });
+        expect(asked).toEqual(['oat', 'tea', 'rye']);
+        expect(getError(() => registry.resolve('word.label +', { word: { label: 'bad' } }))).toMatchObject({ kind: 'syntax' });
+        expect(asked).toEqual(['oat', 'tea', 'rye']);
+    });
+
     it('registers a module with a registry, whose expressions resolved afterwards may use its vocabulary', () => {
         const registry = lexica.createRegistry();
 
