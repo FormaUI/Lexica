@@ -147,6 +147,7 @@ export class LexicaRegistry {
         this.#pending = { module, typeNames: ownTypes, types: new Map(module.types.map(type => [`${module.name}.${type.name}`, type])) };
 
         try {
+            this.#resolveDeclaredTypes(module);
             this.#validateDeclaredTypes(module, fail);
 
             for (const declaration of module.members) {
@@ -579,13 +580,38 @@ export class LexicaRegistry {
     }
 
     /**
-     * Resolves each notation in the module's declarations through the declared-type cache, refusing one that names no type it can reach, and refuses, as it goes, a supertype that is no reference type, a cycle of supertypes,
-     * a tolerance on a result that holds no number, and a default its parameter's type does not admit.
+     * Resolves each notation in the module's declarations through the declared-type cache, in the order the module declares them, refusing one that names no type the declaration's module can reach. Type resolution
+     * precedes resolved-type validation, so a module whose notations name no type reports that before any rule that reads a resolved type, whichever declaration breaks it.
      */
-    #validateDeclaredTypes(module, fail) {
+    #resolveDeclaredTypes(module) {
         for (const type of module.types) {
             Object.values(type.fields ?? {}).forEach(notation => this.getDeclaredType(type, notation));
 
+            if (type.supertype !== undefined) {
+                this.getDeclaredType(type, type.supertype);
+            }
+        }
+
+        module.selectableTypes.forEach(selectable => this.getDeclaredType(selectable, selectable.type));
+
+        for (const declaration of module.members) {
+            [declaration.target ?? []].flat().filter(notation => notation !== 'any').forEach(notation => this.getDeclaredType(declaration, notation));
+
+            if (declaration.result !== undefined) {
+                this.getDeclaredType(declaration, declaration.result);
+            }
+
+            for (const parameter of declaration.parameters) {
+                [parameter.type, ...(parameter.parameters ?? [])].forEach(notation => this.getDeclaredType(declaration, notation));
+            }
+        }
+
+        module.conversions.forEach(conversion => ['from', 'to'].forEach(key => this.getDeclaredType(conversion, conversion[key])));
+    }
+
+    /** Refuses, every notation resolved, a supertype that is no reference type, a cycle of supertypes, a tolerance on a result that holds no number, and a default its parameter's type does not admit. */
+    #validateDeclaredTypes(module, fail) {
+        for (const type of module.types) {
             // A supertype is a reference type, one the module declares or one a module registered before it declares.
             if (type.supertype !== undefined && !this.isReferenceType(this.getDeclaredType(type, type.supertype))) {
                 fail('LEXICA4016', `The supertype of '${type.name}', ${type.supertype}, is no reference type`, type.name, 'supertype');
@@ -605,11 +631,7 @@ export class LexicaRegistry {
             }
         }
 
-        module.selectableTypes.forEach(selectable => this.getDeclaredType(selectable, selectable.type));
-
         for (const declaration of module.members) {
-            [declaration.target ?? []].flat().filter(notation => notation !== 'any').forEach(notation => this.getDeclaredType(declaration, notation));
-
             // A host call that supplies nothing declares no result.
             const resultType = declaration.result === undefined ? null : this.getDeclaredType(declaration, declaration.result);
 
@@ -621,15 +643,11 @@ export class LexicaRegistry {
             for (const parameter of declaration.parameters) {
                 const type = this.getDeclaredType(declaration, parameter.type);
 
-                (parameter.parameters ?? []).forEach(notation => this.getDeclaredType(declaration, notation));
-
                 if (Object.hasOwn(parameter, 'default') && !this.#admits(parameter.default, type)) {
                     fail('LEXICA4548', `The default of '${parameter.name}' is no ${parameter.type}`, declaration.name);
                 }
             }
         }
-
-        module.conversions.forEach(conversion => ['from', 'to'].forEach(key => this.getDeclaredType(conversion, conversion[key])));
     }
 
     /**

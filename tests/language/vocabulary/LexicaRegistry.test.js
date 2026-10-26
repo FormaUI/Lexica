@@ -210,6 +210,17 @@ describe('LexicaRegistry', () => {
         });
     });
 
+    it('resolves every notation before the rules that read a resolved type, so a later name no type has is reported before an earlier default its type does not admit', () => {
+        const registering = () => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {
+            members: [
+                functionDeclaration({ name: 'pan', parameters: [parameter({ name: 'by', type: 'Number', required: false, default: 'far' })] }),
+                functionDeclaration({ name: 'zoom', result: 'Nothing' }),
+            ],
+        })]);
+
+        expect(refusalOf(registering)).toMatchObject({ declaration: 'zoom', message: expect.stringContaining("names the type 'Nothing'") });
+    });
+
     it('refuses a notation that names no type at its module and its declaration, a conversion named by its source and destination', () => {
         const registering = contents => () => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', contents)]);
 
