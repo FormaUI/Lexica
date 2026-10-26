@@ -262,12 +262,12 @@ export class LexicaModule {
     }
 
     /**
-     * Refuses a declaration whose data reaches itself through its lists and plain objects, which data never does, naming the declaration key it stands under. A value two parts of it share, which reaches itself through
-     * neither, is no cycle, and a function, an implementation among them, is never looked into, as copying never looks into one.
+     * Refuses a declaration whose data reaches itself through the objects it holds, lists and class instances among them, which data never does, naming the declaration key it stands under: every object freezing walks into.
+     * A value two parts of it share, which reaches itself through neither, is no cycle, and a function, an implementation among them, is never looked into, as copying and freezing never look into one.
      */
     static #refuseCycles(declaration, name, fail) {
         const visit = (value, ancestors, declarationKey) => {
-            if (!Array.isArray(value) && !ObjectUtils.isPlainObject(value)) {
+            if (value === null || typeof value !== 'object') {
                 return;
             }
 

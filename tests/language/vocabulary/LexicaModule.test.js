@@ -50,6 +50,23 @@ describe('LexicaModule', () => {
                 functionDeclaration({ name: 'zoom', parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
             ],
         })).not.toThrow();
+        // Two parts of one declaration share a value, which reaches itself through neither.
+        expect(() => new LexicaModule('charts', {
+            members: [functionDeclaration({
+                name: 'pan',
+                parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: shared }), parameter({ name: 'to', type: 'List<Number>', required: false, default: shared })],
+            })],
+        })).not.toThrow();
+    });
+
+    it('refuses a declaration holding a class instance that reaches itself, as freezing walks into one', () => {
+        class Anchor {
+            constructor() {
+                this.self = this;
+            }
+        }
+
+        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameter({ name: 'by', required: false, default: new Anchor() })] })] }, 'pan', 'parameters', 'reaches itself');
     });
 
     it('freezes copies of its declarations, leaving the declarations its caller gave unfrozen through every list and object they hold', () => {
