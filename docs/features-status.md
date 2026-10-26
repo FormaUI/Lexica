@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done, and [unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is in progress.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. In [unit 1](#unit-1--declarations-and-the-type-model), steps 1 to 3 are complete; step 4 is in progress, its remaining work listed under it; steps 5 and 6 have not started.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -20,7 +20,7 @@ The [specification](../spec/README.md) defines the contract; the [design](lexica
 The remaining work is grouped by the code it rewrites, so each mechanism is rewritten once: the declaration model and the registry, the type relation, the member selector, argument binding, the text pipeline, and the evaluator's member selection. The units are ordered by what each needs from the one before it.
 
 - **A stage is a commit.** Each stage passes the gate, and moves each aspect once: a declaration, a test or a document takes its final form the first time the aspect changes, never an intermediate one a later stage replaces.
-- **Breaking changes are made directly,** without compatibility layers, migration notes or deprecations, until the beta.
+- **Breaking changes are made directly,** without compatibility layers, migration notes or deprecations, until the beta. The one exception is the working checklist each host migration checkpoint keeps, of the changes its host has still to adopt, which is removed once that migration is verified.
 - **Three host migration checkpoints.** A host building on Lexica builds against a pinned commit, and migrates its declarations and its runtime use once at the end of unit 2, its scripts once at the end of unit 3, and its handling of collections in results once at the end of unit 4. The release then changes how it consumes Lexica, through the published packages.
 - **Documents move with their stage.** The README, the [embedding guide](embedding-guide.md), the type declarations and this file change in the stage that changes what they describe.
 - **Every diagnostic has its code.** Unit 0's third stage gives a [code](proposals/diagnostic-codes.md) to every existing condition, and every later stage gives each condition it introduces its code at once; the tests of each condition assert its code, never only its message.
@@ -28,7 +28,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | Unit | Work | State |
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
-| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | In progress: steps 1 to 3 done |
+| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | In progress: steps 1 to 3 done, step 4 in progress |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
@@ -38,17 +38,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 
 ### Unit 0 — Decisions and the specification
 
-Unit 0 lands in three stages: the specification takes the seven decisions below ✅, then the diagnostics catalog ✅, and then the implementation codes every existing condition and wraps a hook's or an implementation's failure as decision 6 sets out ✅.
-
-1. ✅ **Competing conversions register.** *Specified; [unit 2](#unit-2--member-selection-and-deferred-evaluation) implements it.* The rule of one conversion per source and destination across the registry, in [Lexica's conversions](../spec/vocabulary.md#vocabulary-conversions), is removed. Conversions compete as [operators](../spec/modules.md#modules-operators) do, among the operators a script's imports make available: an applicable owner's operator wins, otherwise the extension's whose target is more specific than every other's resolves, and several none of which is more specific are ambiguous where a script uses them. A module's own operators still collide under its collision rules, and a module still owns a conversion's source or its destination. A qualified destination identifies a type, never an operator, and an extension access reaches none.
-2. ✅ **Mappings.** *Specified; [unit 1](#unit-1--declarations-and-the-type-model) implements it.* A module's `selectableTypes` become its `mappings`, each `{ selector, key, type }`, its `name` renamed `key`, and a key maps to a named structured type whose properties are stored, as `Home`'s `motion` maps to `Motion`. A key is unique within its selector across the registered modules, its selector and key together its identity, and different selectors may share a key. "Mapping" replaces "selectable type" throughout the specification, the declarations, the helpers, the diagnostics and the tests, and the examples' vocabulary names its payload types. A declaration contract gains no object-type notation.
-3. ✅ **Diagnostic codes are accepted,** *catalog specified, and implemented in stage 3,* as [their proposal](proposals/diagnostic-codes.md) settles them. The second stage gives the specification's diagnostics document the catalog and the contract: a code for each condition it sets out, and each error table naming the code of each row. The third stage gives `LexicaError` its `code` and every condition the implementation reports today its code, in one pass, before unit 1, and the tests assert each condition's code. A condition only language `1.0.0-alpha.33` has takes an unused code of its kind's range, listed under [temporary implementation coverage](#temporary-implementation-coverage) with its condition and its kind and kept out of the specification, and the unit that removes the condition retires its code to the specification's ledger; no code is reused.
-4. ✅ **A projection source says what it is.** *Specified; [unit 1](#unit-1--declarations-and-the-type-model) implements it.* Each source records whether it is a reference or data, by its established type, a value carried through `Any` included; null is a recorded source that is neither, distinct from absent source metadata. Sources stay aligned with the projected items, the metadata's containers are frozen, and a referenced host object is kept as it is, never frozen through. Lexica reports each source's classification and identity, and a host decides how to match by them. The metadata's representation is specified here, so unit 1 implements one defined contract.
-5. ✅ **Line structure,** *specified, which [unit 3](#unit-3--script-text-imports-and-definition-version-34) implements,* as [its proposal](proposals/line-structure.md) sets out: line structure constrains which layouts are valid and never changes a reading. A line break is LF, CRLF or a lone CR, U+2028 and U+2029 are refused outside literal string text, and every position between two tokens is inside a one-line construct, at a break point or at a boundary. A line breaks before a binary operator only where parentheses, brackets or a condition enclose its expression, and never after one; a chain breaks before each step; a conditional, a `do` block and a function expression stand on one line or in block form; and each import, and each local and `return` of a body that uses `return`, starts a line of its own.
-6. ✅ **A hook's or an implementation's failure is Lexica's error, what it threw its cause.** *Specified, and implemented in stage 3.* A throwing hook, and an implementation failing unexpectedly, fail the evaluation with an evaluation error of Lexica's own, its code, kind, message and the failing invocation's location, whose `cause` is exactly what the hook threw, unchanged, any code on it kept and never copied into Lexica's; an error Lexica has raised is never wrapped again as it propagates, as [a hook that throws](../spec/runtime.md#runtime-evaluation) sets out; a rejection a contract defines keeps its specified handling.
-7. ✅ **Two gaps in the text's specification close.** *Specified; [unit 3](#unit-3--script-text-imports-and-definition-version-34) implements them.* `import` joins [the grammar](../spec/grammar.md)'s keywords, as [lexical structure](../spec/lexical-structure.md) already reserves it, and [the definition](../spec/definition.md#definition) sets how `quote` writes a definition's imports on one line.
-
-**Completion:** the specification, its proposals and this file state each decision, the catalog codes every condition the specification sets out, every diagnostic the implementation reports carries its code, and the gate passes.
+✅ Done. Its seven decisions are specified, and each is implemented, or listed in the step that implements it: competing conversions in [unit 2](#unit-2--member-selection-and-deferred-evaluation)'s step 2; mappings in [unit 1](#unit-1--declarations-and-the-type-model)'s step 5; line structure and the two gaps in the text's specification, `import` a keyword and how `quote` writes a definition's imports, in [unit 3](#unit-3--script-text-imports-and-definition-version-34)'s steps 1, 2, 6 and 7. Diagnostic codes, the classified projection sources, and the wrapping of a hook's or an implementation's failure with what it threw as its cause are implemented. The [diagnostic codes](proposals/diagnostic-codes.md) and [line structure](proposals/line-structure.md) proposals keep the reasoning.
 
 ### Unit 1 — Declarations and the type model
 
@@ -63,17 +53,22 @@ Every declaration takes its final shape, and the types those declarations make r
    - Projection sources for every projected item, in the representation unit 0 specifies, replacing the sources recorded for elements alone.
    - The resolution key written by qualified identity, so two modules' `Device` no longer share one.
    - Removed: the built-in DOM types and every `nodeType` path, in binding, evaluation, captures, casts and messages, and `lexica.bind`.
-4. **Responsibilities and terminology,** the prerequisite stage, as [its proposal](proposals/responsibilities-and-terminology.md) sets out: the model and its terms recorded, the boundaries reviewed, the mixed responsibilities resolved, and the separations, consolidations and renames its [ledger](proposals/responsibilities-and-terminology-ledger.md) reviews applied, with the part of a later step a change depends on brought forward. Serialized changes wait for definition version 34.
-5. **The declaration model:**
+4. **Responsibilities and terminology,** the prerequisite stage, as [its proposal](proposals/responsibilities-and-terminology.md) sets out: the model and its terms recorded, the boundaries reviewed, the mixed responsibilities resolved, and the separations, consolidations and renames its [ledger](proposals/responsibilities-and-terminology-ledger.md) reviews applied, with the part of a later step a change depends on brought forward. Serialized changes wait for definition version 34. *In progress.* The ledger is the detailed record; a ledger row's mark can cover part of it, the rest of it listed under the step that carries it.
+   - **Done:** the names and contracts of the script text's parsing, lowering, writing and caching; of module creation and registration; and of the resolver's and the evaluator's steps and stores. The public names and shapes, which [unit 2](#unit-2--member-selection-and-deferred-evaluation)'s checkpoint lists for its host. The specification's terms: namespace names, lexical references, a function the host invokes, a script and its source. One rollback for speculative resolution; the registry's data shape, its data classification and its record of each declaration's module, read one way each; type resolution before the rules that read resolved types; validation apart from the copies a module keeps; uniqueness checked where its key is known. The defects the review found, fixed each in its own commit, [D1 to D18](proposals/responsibilities-and-terminology-ledger.md#3-defects).
+   - **Next:** [U21 to U24](proposals/responsibilities-and-terminology-ledger.md#5-unifications), the resolver's scope and type bookkeeping, their names proposed and awaiting review.
+   - **Remaining:** [R3](proposals/responsibilities-and-terminology-ledger.md#6-combined-responsibilities-dispositions) and [U3](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s consolidation, the access records and stored-value reads; [R34](proposals/responsibilities-and-terminology-ledger.md#6-combined-responsibilities-dispositions) and [U19](proposals/responsibilities-and-terminology-ledger.md#5-unifications), the binding and error contracts; [U4](proposals/responsibilities-and-terminology-ledger.md#5-unifications), the registry's field names; [U43](proposals/responsibilities-and-terminology-ledger.md#5-unifications), the test helpers, last; and [D19](proposals/responsibilities-and-terminology-ledger.md#3-defects), a declaration holding a value that reaches itself, which overflows the stack where module creation copies it, awaiting a decision on its module error code.
+5. **The declaration model,** in two stages, which the ledger names *S1* and *S2*: S1, the declarations' shapes, and S2, named extension types and their receivers:
    - Module names unique case-insensitively at registration, their spelling kept, and Lexica's own module named `Lexica`; casing a convention for modules, namespaces and types, never enforced.
    - Type kinds, members within their types, properties declared directly in a structured type, its data shape, in place of `fields`, the `indexer` kind, named or unnamed, in place of the indexer bridge, and `impl` in place of `implementation`.
    - Named extension types, each with one target, never `Any` or nullable, in place of the `'any'` target and lists of targets; a module member and an extension of its name declared side by side.
    - Declared type parameters, their scopes and their registration checks, each parameter bound from a supported source, in place of the implicit single capitals, which lifts the refusal of a type named by one letter; reference and structured types and operators declaring none, an operator using its extension's.
    - `internal`, and the registration checks that no declaration names another module's internal one and no public one exposes an internal type, a public type's supertype and a mapping's type among them; a `typeOf` naming an internal type a fault.
-   - A type's `import` covering its whole declaration; an error located at the type a nested declaration stands in; observation types named in camelCase; the mappings unit 0 specifies.
+   - A type's `import` covering its whole declaration; an error located at the type a nested declaration stands in; observation types named in camelCase; mappings in place of selectable types, each `{ selector, key, type }`, a key unique within its selector across the registered modules, which maps to a named structured type.
    - The declaration helpers without receivers, with an indexer helper, and one property helper whose declaration follows the contract of where it stands.
    - Lexica's own `List<T>`, declared through a form internal to Lexica and owning the members of lists, which the receiver gives its `T`, with its unnamed indexer in place of `item`; and `VerbExtensions<T>`.
    - Removed: flat members, `target`, `syntax`, `default`, `fields`, `selectableTypes`, the migration hints for `predicates`, and the duplicate tolerance and identifier checks.
+   - From the ledger, at S1: [U3](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s data read named `'objectField'`; [U6](proposals/responsibilities-and-terminology-ledger.md#5-unifications), one lookup of a type's declaration; [U7](proposals/responsibilities-and-terminology-ledger.md#5-unifications), the scalar and built-in type names; [U9](proposals/responsibilities-and-terminology-ledger.md#5-unifications), how a member is written unified on `kind`, with [P8](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `#syntaxNamedBy` once it lands; [U33](proposals/responsibilities-and-terminology-ledger.md#5-unifications) and [R14](proposals/responsibilities-and-terminology-ledger.md#6-combined-responsibilities-dispositions), one key validation, the types' keys by kind; [U41](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s declaration types; [M1](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner), the declaration helpers' names; [M15](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `getUnnamedIndexers`, with [D7](proposals/responsibilities-and-terminology-ledger.md#3-defects)'s "default indexer" becoming "unnamed indexer" and [R9](proposals/responsibilities-and-terminology-ledger.md#6-combined-responsibilities-dispositions)'s `#validateIndexer` validating `kind: 'indexer'`; [M17](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner), mappings; [M18](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner), a function parameter's `parameterTypes`; and [R11](proposals/responsibilities-and-terminology-ledger.md#6-combined-responsibilities-dispositions)'s LEXICA4041 with declared type parameters.
+   - From the ledger, at S2: [M6](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `takesReceiver` and [M15](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `getReceiverTypes`, both answering a declaration's receiver, which named extension types replace.
 6. **Inference of type parameters:** a receiver binding its extension's parameters by its non-null branch, with exact extraction; value arguments binding before callbacks; nullable candidates combining and different candidates refused; the evidence of `null` and `Never`; and a callback's result binding a parameter, without chaining.
 
 Module-level conversions, and the registration's refusal of members of one name on overlapping receivers across modules, stay as they are until unit 2 replaces them.
@@ -87,11 +82,32 @@ Contracts: [Types](../spec/types.md), [Modules](../spec/modules.md), [declaring 
 One selector chooses every member, indexer and operator, at resolution and during evaluation alike.
 
 1. **The selector** replaces the three selection paths and the path for receivers of unknown type: owner precedence through inheritance; competing extensions registering, in place of the registration's refusal, and selected by the most specific target; ambiguity refused at resolution, giving the extension accesses to write; internal declarations excluded at resolution; and an empty list or a null receiver selecting as [the types](../spec/types.md) set out.
-2. **Operators:** casts and conversions declared on types and in extensions, in place of module-level conversions; Lexica's own conversions moved onto its types; declared casts, an `impl` optional, `reject` making an attempt null; and operators chosen by the selector.
+2. **Operators:** casts and conversions declared on types and in extensions, in place of module-level conversions, competing as operators do, an applicable owner's winning and otherwise the most specific extension's; Lexica's own conversions moved onto its types; declared casts, an `impl` optional, `reject` making an attempt null; and operators chosen by the selector.
 3. **`Any` and deferred selection:** a member selected when its receiver is evaluated, through the same selector; the selection cached by node and actual type within one registry, plain objects read by their own fields; identity kept through `Any`; a selection that would be a host call refused before anything is invoked; `beforeInvoke` told the selection was deferred; an `Any` argument checked against its parameter, and an operand of `Any` by its operation's rules; and a deferred access failing with the access and the actual type named.
 4. **Reporting:** used declarations including operators, in place of the separate used conversions; deferred accesses; and candidate declarations, reported as an overestimate.
+5. **From the ledger:** [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidate handling; [U10](proposals/responsibilities-and-terminology-ledger.md#5-unifications), conversions as operators; [U11](proposals/responsibilities-and-terminology-ledger.md#5-unifications), used declarations and used conversions unified; [U40](proposals/responsibilities-and-terminology-ledger.md#5-unifications), an implementation's input; [U41](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s conversion and member declaration types; and [C11](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner), `request.isDeferred`.
 
 **Completion:** the gate passes, and a host can move its declarations and its runtime use in one migration.
+
+**The first host checkpoint.** DOMQL builds against Lexica `0e98b3e`, pinned in its `lexica.commit`, and adopts at this checkpoint every change below, made since. The list is a working checklist, kept until that migration is verified and then removed; each line names where DOMQL, at its `7406eb4`, uses what changed.
+
+| Owner | At `0e98b3e` | Now | Host change |
+| --- | --- | --- | --- |
+| Module | Built-in DOM types | Reference types a module declares, `{ kind: 'reference', isInstance, supertype?, abstract? }`, and the module's `typeOf` | Declare the DOM's types and recognize its values: DOMQL declares no `isInstance` or `typeOf` |
+| `lexica` | `bind(values)` | `registry.createBindings(values, options)` | Bind with the registry the script resolves against: `DomqlQuery.mjs:47`, `domql.js:116`, `domql.js:127` |
+| Bindings | `get(name)`, `typeOf(name)` | `readValue(name)`, `getType(name)` | Rename where read; DOMQL reads neither |
+| `lexica`, resolution | `locate(…)` | `getLocation(…)` | Rename: `domql.js:445`, `domql.js:557` and `domql.d.ts:270` |
+| `lexica.paths` | `check(path)` | `validate(path)` | Rename: `DomqlQuery.mjs:57`, `DomqlQuery.mjs:107`, `Watch.mjs:152` |
+| Evaluator | `prepareCall()`, `evaluate(host)`, `LexicaHost` | `prepareHostCall()`, `evaluate(hooks)`, `LexicaEvaluationHooks` | Rename the calls, `EventListener.mjs:66`, `QueryEvaluator.mjs:100`, `domql.js:338`, `domql.js:406`, and the hooks' type |
+| Prepared and skipped call | `location` | `pointer`, a definition pointer, the prepared call extending the invocation request | Locate through `resolution.getLocation(call.pointer)` where a location is needed: `domql.js:347`, `domql.js:416` |
+| Invocation request | `pointer`, a body copy's within a script function's body | `pointer`, the definition's, whichever call reached it | Key nothing by the pointer that two calls of one function must tell apart: DOMQL reads none |
+| Registry | `getOwner(declaration)` | `getDeclaringModuleName(declaration)` | Rename: `Observations.mjs:445` |
+| Resolution | `usedDeclarations[i].name`, qualified | `name`, the declared name, and `qualifiedName` | Read `qualifiedName` where a message names the use: `domql.js:486`, `domql.d.ts:266` |
+| Metadata | `fields`; `sources`, the projected values | `objectFields`; `sources`, each `{ kind, value }` or `{ kind: 'null' }` | Rename the reads, `SnapshotComparer.mjs:27`, `:63`, `:71`, `SnapshotPatcher.mjs:171`, and read each source's `value`, `SnapshotComparer.mjs:106`, `SnapshotPatcher.mjs:245` |
+| `LexicaError` | `structure(message, location)`, `validation(…)`, `evaluation(…)`; `location.field` | `structure(code, message, location)`, and so on, with `error.code`; `location.declarationKey`, a message ending "at 'x'" | Give every error DOMQL builds a code of its own prefix: `domql.js:160`, `:167`, `:347`, `:486`, `:494`, `:538`, `:549`, `ExecutionHandle.mjs:83`, `:104`, `Observations.mjs:445` |
+| `lexica.info` | `versions.runtime` | `versions.implementation` | Rename where read; DOMQL reads `versions.language` alone |
+| Types | `LexicaErrorLocation`, `LexicaBindOptions`, `LexicaObservationValue`, a `source` parameter | `LexicaLocation`, `LexicaBindingsOptions`, `LexicaObservationArgument`, `LexicaScript` | Rename in `domql.d.ts`: `:270`, `:274`, `:292` |
+| Module creation and registration | Duplicate types, module members and mapping keys refused at registration; any default accepted for a type parameter, and `Infinity`, `NaN` or a list with a hole for a number or a list | Refused when the module is created; a default is data, finite, and a list holding a value at every index | Correct any declaration these now refuse |
 
 Contracts: [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions), [operators](../spec/modules.md#modules-operators), [internal declarations](../spec/modules.md#modules-internal-declarations), [values of `Any`](../spec/types.md#types-any), [resolution](../spec/runtime.md#runtime-bindings-and-resolution).
 
@@ -105,8 +121,9 @@ Scripts write imports and extension access, and the definition records both; a s
 4. **Resolution by imports:** one lookup context giving the namespaces, the type names, an explicitly imported name first and extensions taking no part, the members the imports make available, and what qualified access reaches; the diagnostics of a missing import; and the imports in the resolution key.
 5. **Extension access:** `:` and `?:` through the chain parser, the lowering and the writer, with the colon diagnostics and named arguments told apart; resolution through the selector, evaluation, bound function references, and host calls reached through an extension.
 6. **Line structure:** one-line constructs, break points, enclosed operator expressions, keyword blocks and boundaries, refused where broken in the parser and the syntax tree, never changing a reading.
-7. **Canonical text:** the imports' layout; keyword blocks in block form wherever they span lines; `quote` compact, breaking lines only where boundaries require; `format` given the imports a destination supplies; and the syntax tree's node kinds for imports and extension access.
+7. **Canonical text:** the imports' layout; keyword blocks in block form wherever they span lines; `quote` compact, a definition's imports written on one line, breaking lines only where boundaries require; `format` given the imports a destination supplies; and the syntax tree's node kinds for imports and extension access.
 8. **Versions:** language `1.0.0-alpha.34` and definition version 34, once every part of them is in.
+9. **From the ledger:** [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s call node, `{ kind: 'call', callee, arguments }`, and [U2](proposals/responsibilities-and-terminology-ledger.md#5-unifications), with the [definition version 34](proposals/responsibilities-and-terminology-ledger.md#8-definition-version-34) entries; [U29](proposals/responsibilities-and-terminology-ledger.md#5-unifications), the optional-access tokens; [U35](proposals/responsibilities-and-terminology-ledger.md#5-unifications), type names resolved in their scopes; [U36](proposals/responsibilities-and-terminology-ledger.md#5-unifications), reading and writing text once; and [C8](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner), the namespace checks, gone with imports.
 
 **Completion:** the implementation follows language `1.0.0-alpha.34` and reads definition version 34, and the gate passes.
 
@@ -144,7 +161,7 @@ References: [Syntax tree](lexica-design.md#the-syntax-tree), [tooling](lexica-de
 
 ### Unit 7 — Release
 
-**Packages.** One source and build produce both packages locally; neither is published. Both carry the runtime version declared by `src/language/Versions.mjs`.
+**Packages.** One source and build produce both packages locally; neither is published. Both carry the implementation version declared by `src/language/Versions.mjs`.
 
 | Package | Contents or delivery |
 | --- | --- |
@@ -206,7 +223,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Observations | Observation types and module-declared observation targets | [Observations](../spec/vocabulary.md#observations), [targets](../spec/vocabulary.md#observations-targets) |
 | Type selection | Type selectors and selectable types | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
 | Namespaces | Module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
-| Text and definitions | Parse, validate, format, quote, and locate; canonical text for definition version 33 | [Definition](../spec/definition.md) |
+| Text and definitions | Parse, validate, format, quote, and get a location; canonical text for definition version 33 | [Definition](../spec/definition.md) |
 | Types | Reference types with their hierarchy, membership and recognition, structured types, one type relation, and casts within a hierarchy | [Types](../spec/types.md) |
 | Runtime | Bindings a registry makes, recognizing references, resolution, reuse by resolution key, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
 | Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/diagnostics-and-errors.md) |
@@ -229,21 +246,6 @@ These capabilities work in the current implementation. The planned replacements 
 
 Definition version 34, which records a script's imports and the extensions its accesses select, arrives in [unit 3](#unit-3--script-text-imports-and-definition-version-34).
 
-### Definition version 32
-
-The first two slices of the original version 32 plan are complete. The unfinished third slice became the [implementation plan](#implementation-plan), whose first part advanced the definition to 33.
-
-Completed declaration work established one shape with valid combinations for each kind. Implementations are carried in declarations and receive one object. Creating an evaluator is refused when its resolution uses a declaration or conversion without an implementation, where one is required.
-
-Completed definition and resolution work includes:
-
-- `it`, `root`, and `namespace` nodes; version 31 definitions are refused.
-- Registry parsing, formatting, and quoting with its module names; definitions read without those names are refused.
-- Qualified forms and function references. A null receiver argument skips the member and its arguments, including when a reference is held, passed, or chosen.
-- Verbs taking a test and Boolean functions replacing predicates.
-- Implicit bodies recognized by their own `it`; expression and predicate arguments accepting arrows, functions held by names, or function references under their own result policy.
-- Cast and conversion types written bare. Qualified type names followed in [definition version 33](#definition-version-33).
-
 ### Host calls
 
 **Implemented.** Lexica prepares calls and projects host-supplied values; the host owns their lifecycle.
@@ -254,8 +256,6 @@ Completed definition and resolution work includes:
 - `resolution.hostCall` describes the call, with a null result type when the host supplies no result.
 - `prepareHostCall` evaluates preceding locals once and retains their frame in the prepared call. It reports a skipped call when there is nothing to invoke.
 - Each prepared call's `project` captures a supplied value as the declared result and evaluates its projection independently of other preparations from the same evaluator. Calls that supply no result have no projection.
-
-Event sources, actions, behaviors, event types, and their request kinds have been removed. Hosts must migrate from the replaced request kinds and evaluator entry points. These changes affected declarations and evaluator APIs, not the definition format.
 
 Contracts: [Host-call declarations](../spec/members.md#members-host-calls), [host calls in the host contract](../spec/runtime.md#runtime-host-calls).
 
@@ -278,4 +278,5 @@ Unit 0's decisions are taken, and unit 4 settles the collections proposal's open
 | An extension targeting several types | Each extension has one target, and reusing a declaration in an extension for each target serves current cases. | Many repeated members across unrelated types |
 | Selecting a module's operator when several compete | No syntax selects an operator by module; qualified calls cannot reach operators. | Competing operators in real use |
 | Structured-data casts, reference/data conversions, and operators beyond `cast` and `convert` | Each needs rules for checking and copying. | A use the two operators do not serve |
+| Object-typed parameter defaults, under the ordinary compatibility rules ([R13](proposals/responsibilities-and-terminology-ledger.md#6-combined-responsibilities-dispositions)) | No parameter can be object-typed while an object type has no notation a declaration writes. | An object type's notation in declarations |
 | Calling a module's internal declarations through Lexica | JavaScript implementations can reach their own values directly. | An internal-call API with a defined module context |

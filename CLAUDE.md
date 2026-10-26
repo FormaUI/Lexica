@@ -14,7 +14,7 @@ Read the documents that govern the affected contract:
 | [Guide](docs/embedding-guide.md) | Embedding Lexica, by example |
 | `.editorconfig` | Code style; read it before writing C# |
 
-Update the specification before implementing a language change, and the design before changing a module or tooling contract. Each subject has one home: state a rule where it belongs and link to it elsewhere. Record a gap between the design and the code in the status overview until it closes, and update a row's status as soon as its work lands.
+Update the specification before implementing a language change, and the design before changing a module or tooling contract. Each subject has one home: state a rule where it belongs and link to it elsewhere. Record a gap between the design and the code in the status overview until it closes, and update the status entries a change affects in the same commit as the change.
 
 ## Repository structure
 

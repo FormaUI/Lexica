@@ -6,7 +6,7 @@ The review ledger of [clarify responsibilities and unify terminology](responsibi
 
 Each entry has an identifier to review it by. Its columns carry the proposal's eight fields: the current name and location; its owner, responsibility, inputs, outputs and side effects; its relationship to other concepts and whether its distinction is meaningful or incidental; the action; its compatibility; and its dependencies and validation.
 
-**Lands:** *P*, the prerequisite stage this ledger plans; *S1*, *S2*, the declaration model's stages 1 and 2; *unit 2*; *D34*, definition version 34 in unit 3, where every serialized change lands together. **Compatibility:** *internal*; *public* (a name a host calls or reads at runtime); *types* (`lexica.d.ts` alone); *serialized* (the definition format); *declaration* (a key a host's module writes); *wording* (a message, its code unchanged); *test*.
+**Lands:** *P*, the prerequisite stage this ledger plans; *S1*, *S2*, the declaration model's stages 1 and 2, both in [step 5](../features-status.md#unit-1--declarations-and-the-type-model) of unit 1: S1 the declarations' shapes, S2 named extension types and their receivers; *unit 2*; *D34*, definition version 34 in unit 3, where every serialized change lands together. **Compatibility:** *internal*; *public* (a name a host calls or reads at runtime); *types* (`lexica.d.ts` alone); *serialized* (the definition format); *declaration* (a key a host's module writes); *wording* (a message, its code unchanged); *test*.
 
 Line numbers are those of the survey's commit and move as entries land.
 
