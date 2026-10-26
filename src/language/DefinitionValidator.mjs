@@ -145,7 +145,11 @@ export class DefinitionValidator {
         return copy;
     }
 
-    /** Checks the definition's structure, returning its canonical, frozen copy; a canonical definition validation already gave is answered as it is, keeping the locations it has. */
+    /**
+     * Validates the definition's structure and answers its canonical, frozen copy, recording it as canonical, so validating it again answers it as it is, keeping the locations it has. For a definition its caller supplied,
+     * where validation moved a part of an interpolated string, it records the index each moved part had, so a diagnostic names each part as the caller did. It refuses a definition of another version (LEXICA2007) before
+     * anything else, and any other structure the definition format does not allow.
+     */
     validate(definition) {
         if (DefinitionValidator.#canonicalDefinitions.has(definition)) {
             return definition;
@@ -533,7 +537,7 @@ export class DefinitionValidator {
 
     /**
      * Validates an interpolated string: its parts, each text, a string, or an expression, which has the implicit parameter the string has.
-     * Adjacent text is one part and empty text none, so a string written in text and its definition hold the same parts.
+     * Adjacent text is one part and empty text none, so a string written in text and its definition hold the same parts; where that moves a part, it records the index each part had, which `validate` keeps for the definition.
      */
     #validateInterpolatedString(node, pointer, contextAvailability) {
         this.#requireArray(node.parts, `${pointer}/parts`);

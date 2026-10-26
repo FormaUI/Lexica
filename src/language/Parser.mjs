@@ -432,8 +432,9 @@ export class Parser {
     }
 
     /**
-     * Reads an equality: an equality operand, `==` or `!=`, and the equality operand it compares with; an equality operand alone where neither follows it, the comparison it begins where a comparison operator follows it,
-     * or the coalescing operator that takes it where `??` follows it. An equality does not chain, and stands beside a coalescing operator or a comparison only where a group holds one of them.
+     * Reads an additive expression and the one operator that may follow it here: `==` or `!=` as an equality, comparison operators as a comparison chain, `??` as a coalescing operator, recorded in `#ungroupedCoalescings`,
+     * or the additive expression alone; it refuses an equality that chains or stands beside `??` or a comparison. The grammar places `coalescing` above the logical operators, and `??` is read here, after its first operand,
+     * so that what stands beside it without a group is refused.
      */
     #parseEquality() {
         this.#refuseOperandStart(this.#token.start);

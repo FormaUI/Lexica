@@ -392,7 +392,8 @@ export interface LexicaPreparedCall {
     readonly location: LexicaErrorLocation;
     /**
      * Projects one value its host supplies: checks it against the call's declared result, then evaluates the result projection against it, reading the locals the call was prepared with, as an evaluation for the host given;
-     * a call whose host supplies nothing has none.
+     * a call whose host supplies nothing has none. Checking a reference asks the `isInstance` of the declared type and its supertypes, and the modules' `typeOf` where it does not belong, and the evaluation calls
+     * the host's hooks as `evaluate` does. It refuses a value the declared result does not admit (LEXICA5015), a registry moved past the resolution (LEXICA2040), and a projection while its evaluator is evaluating (LEXICA5010).
      */
     readonly project?: (value: unknown, host?: LexicaHost | null) => LexicaEvaluation;
 }
@@ -422,7 +423,11 @@ export interface LexicaResolution {
     typeAt(path: readonly (string | number)[]): string;
     /** Where a pointer stands in the source the definition was read from. */
     locate(pointer: string): LexicaErrorLocation;
-    /** An evaluator holding bindings of this resolution's key and the environment the host gives it. */
+    /**
+     * An evaluator holding bindings of this resolution's key and the environment the host gives it. Binding plain values asks the modules' `typeOf` and `isInstance`, as `bind` does, and nothing else calls host code
+     * until it evaluates. It refuses bindings another registry made (LEXICA2024), bindings of another resolution key (LEXICA2025), a resolution its registry has moved past (LEXICA2040), and a script using a declaration
+     * or a conversion that has no implementation, even in a branch it may not take (LEXICA4001).
+     */
     createEvaluator(bindings: LexicaBindings | LexicaBindingValues, env?: unknown): LexicaEvaluator;
 }
 
@@ -454,7 +459,11 @@ export interface LexicaRegistry {
     quote(source: string | LexicaDefinition): string;
     /** Binds values by name against the registry, its modules recognizing which are references: data as a frozen copy, each reference as itself, a top-level binding of a declared type typed by it. */
     bind(values?: LexicaBindingValues, options?: LexicaBindOptions): LexicaBindings;
-    /** Resolves a source against the registered vocabulary and the bindings, the registry's own or plain values it binds, a text read as `parse` reads it, or throws where it does not resolve. */
+    /**
+     * Resolves a source against the registered vocabulary and the bindings, the registry's own or plain values it binds, a text read as `parse` reads it, or throws where it does not resolve. Binding plain values asks
+     * the modules' `typeOf` and `isInstance`, as `bind` does; resolving calls no host code. It refuses bindings another registry made (LEXICA2024), a definition this registry would read otherwise than it was read
+     * (LEXICA2641, LEXICA2642), and a script that does not resolve, a validation error locating it.
+     */
     resolve(source: string | LexicaDefinition, bindings?: LexicaBindings | LexicaBindingValues): LexicaResolution;
 }
 
@@ -494,7 +503,10 @@ export interface LexicaInfo {
 export interface Lexica {
     /** Reads a text into its definition without a registry, knowing no module's name, refusing a syntax error or a structure the definition cannot have. */
     parse(text: string): LexicaDefinition;
-    /** Validates a definition given directly against the definition format's structural rules, answering it frozen, as a text giving it would; it checks no vocabulary or types, which resolution validates. */
+    /**
+     * Validates a definition given directly against the definition format's structural rules, answering it frozen, as a text giving it would; it checks no vocabulary or types, which resolution validates. It calls
+     * no host code, answers a definition it answered already as it is, and refuses a definition of another version (LEXICA2007) and any other structure the format does not allow, a structure error at its pointer.
+     */
     validate(definition: unknown): LexicaDefinition;
     /** The canonical text of a text or a definition, written without module names, so a definition reading through a namespace is refused; a registry's `format` writes one. */
     format(source: string | LexicaDefinition): string;

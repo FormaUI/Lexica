@@ -1877,6 +1877,8 @@ export class LanguageResolver {
     /**
      * The arguments a call or an indexer is given, as the value of each parameter they supply: in order, the parameters of a positional declaration, an indexer's key its one,
      * or the fields of the one options object an options declaration takes, each by its name; those of a qualified call follow the receiver its first argument is, the offset its own arguments begin at.
+     * It refuses an argument no parameter takes: one given a declaration without parameters, one beyond its parameters, or a second argument of an options declaration (LEXICA3058); an options declaration's argument that is
+     * no object expression standing alone (LEXICA3057); and an options object's field that names no parameter (LEXICA3018).
      */
     #suppliedArguments(declaration, node, pointer, offset = 0) {
         const { parameters } = declaration;

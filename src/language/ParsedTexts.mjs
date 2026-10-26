@@ -43,7 +43,9 @@ export class ParsedTexts {
     }
 
     /**
-     * The validated, frozen definition the text parses into with the module names given, kept for the next parse of the same text with the same names.
+     * The validated, frozen definition the text parses into with the module names given, kept for the next parse of the same text with the same names. A definition depends on its text and those names alone, so a kept one
+     * stays valid for good; the 256 asked for most recently are kept, a kept one asked for again counting as the latest, the least recently asked for released as another is kept, and its locations and its reading are released with it. A text that fails to parse is kept by none,
+     * so parsing it again refuses it again.
      * @param {string} text
      * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with, none for text read without a registry.
      */

@@ -45,16 +45,19 @@ export class DefinitionWriter {
     /** The module names the text being written is written with. @type {ReadonlySet<string>} */
     static #moduleNames = Names.noModuleNames;
 
-    /** What the writing gives with the module names in effect and the node's parameters written with `~` marked for them, those of any writing around it restored after it. */
+    /**
+     * What the writing gives with the module names in effect and the node's parameters written with `~` marked for them, in the writer's static state, which holds one writing at a time; the state of any writing around it
+     * is restored in `finally`, whether the writing completes or throws.
+     */
     static #writing(node, moduleNames, write) {
         const enclosingReferences = DefinitionWriter.#parameterReferences;
         const enclosingModuleNames = DefinitionWriter.#moduleNames;
 
-        DefinitionWriter.#moduleNames = moduleNames;
-        DefinitionWriter.#parameterReferences = new WeakSet();
-        DefinitionWriter.#markParameterReferences(node, new Set(), new Set());
-
         try {
+            DefinitionWriter.#moduleNames = moduleNames;
+            DefinitionWriter.#parameterReferences = new WeakSet();
+            DefinitionWriter.#markParameterReferences(node, new Set(), new Set());
+
             return write();
         } finally {
             DefinitionWriter.#parameterReferences = enclosingReferences;

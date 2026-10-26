@@ -121,7 +121,9 @@ export class ParameterBindings {
 
     /**
      * The type and the bound form of a value, at any depth of a binding: a reference the registry's modules recognize, the one type beneath every other where several do, kept as it is; null, a string, a finite number and a Boolean as
-     * they are; a list typed by the type its items share and an object by its fields' types, each copied and frozen. A value no module recognizes that is no data, a list of items of no shared type, and data that reaches itself are refused.
+     * they are; a list typed by the type its items share and an object by its fields' types, each copied and frozen. It types and copies in one walk, offering each object it reaches to the registry's modules before
+     * copying it, so every module's `typeOf` is asked of it and a reference nested in data is kept as it is. A value no module recognizes that is no data (LEXICA2034), a list of items of no shared type (LEXICA2021), and data
+     * that reaches itself (LEXICA2022) are refused.
      */
     #bind(name, value, ancestors) {
         if (value === null) {
@@ -155,7 +157,7 @@ export class ParameterBindings {
         throw LexicaErrors.structure('LEXICA2034', 'A binding is a reference a registered module recognizes, or data: a number, a string, a Boolean, null, a list holding a value at every index, or an object', { binding: name });
     }
 
-    /** A list, typed by the type its items share, the nearest supertype references of different types share, made nullable where one of them is null, and the empty list's being never; copied and frozen. */
+    /** A list, typed by the type its items share, the nearest supertype references of different types share, made nullable where one of them is null, and the empty list's being never; copied and frozen. Its type merges as each item is bound, so binding stops at the first item whose type shares none with those before it. */
     #bindList(name, list, ancestors) {
         ancestors.add(list);
 

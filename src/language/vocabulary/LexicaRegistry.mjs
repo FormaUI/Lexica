@@ -76,7 +76,10 @@ export class LexicaRegistry {
         return [...this.#modules.values()].filter(module => module !== Vocabulary.module).map(module => module.name);
     }
 
-    /** Registers a module's declarations, refusing a module whose names are taken or whose declarations break the registry's rules, before registering any of them. */
+    /**
+     * Registers a module's declarations, refusing a module whose names are taken or whose declarations break the registry's rules, before registering any of them. It calls no host code: a module's `isInstance`, `typeOf`
+     * and implementations are called only as values are bound or evaluated.
+     */
     registerModule(module) {
         if (!LexicaModule.isModule(module)) {
             throw LexicaErrors.module('LEXICA4546', 'A module is registered as createModule makes it', { module: String(module?.name) });
@@ -236,7 +239,8 @@ export class LexicaRegistry {
 
     /**
      * The type the notation writes in the declaration, a member, one of its parameters' notations among them, a structured type, a selectable type or a conversion: each name resolved to its identity in the module
-     * that declares it.
+     * that declares it. It is resolved once and kept by the declaration for good, since a registered module is never removed and its declarations are frozen, and it is released with the declaration; a notation that
+     * names no type the declaration's module can reach is refused and kept by none. It calls no host code.
      */
     getDeclaredType(declaration, notation) {
         return this.#declaredTypeOf(declaration, notation, (code, message) => {
@@ -298,8 +302,8 @@ export class LexicaRegistry {
     }
 
     /**
-     * Whether the value belongs to the reference type: where the `isInstance` of the type and of every supertype above it answers true. An answer that isn't a Boolean, and an exception it throws, are faults of the module
-     * that declares the type, naming what asked.
+     * Whether the value belongs to the reference type: where the `isInstance` of the type and of every supertype above it answers true, each asked in turn until one answers false, on every call, no answer kept.
+     * An exception it throws (LEXICA5027) and an answer that isn't a Boolean (LEXICA5017) are faults of the module that declares the type, naming what asked.
      * @param {unknown} value
      * @param {Type} type
      * @param {string} asked What asked whether the value belongs, as a message names it.
@@ -330,7 +334,8 @@ export class LexicaRegistry {
 
     /**
      * The reference types the registry's modules recognize the value as, each module's `typeOf` naming the most specific of its own reference types the value is of, or null; none for a value that isn't an object, which is data.
-     * A name that is no reference type of its module, an abstract one, one the value doesn't belong to, and an exception `typeOf` throws are faults of the module, naming what asked.
+     * It asks the `typeOf` of every module declaring one, in the order they were registered, and `belongsTo` of each type named, on every call, no answer kept. A name that is no reference type of its module, an abstract one,
+     * and one the value doesn't belong to (LEXICA5002), and an exception `typeOf` throws (LEXICA5026), are faults of the module, naming what asked.
      * @param {unknown} value
      * @param {string} asked What asked for the value's type, as a message names it.
      * @returns {Type[]}
