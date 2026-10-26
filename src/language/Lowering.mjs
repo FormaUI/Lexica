@@ -202,8 +202,8 @@ export class Lowering {
 
     /** A namespace access: a member read through the module's namespace, or a call through it, its arguments as written, each spanning the access. */
     #lowerNamespaceAccess(access) {
-        const [moduleName, , nameToken, ...rest] = access.children;
-        const target = this.#span({ kind: 'namespace', name: moduleName.value }, moduleName);
+        const [namespaceName, , nameToken, ...rest] = access.children;
+        const target = this.#span({ kind: 'namespace', name: namespaceName.value }, namespaceName);
         const name = this.#wordOf(nameToken);
 
         if (rest.length === 0) {

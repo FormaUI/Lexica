@@ -44,8 +44,8 @@ export class Parser {
     #tokens;
     #index = 0;
 
-    /** The module names the text is read with, each beginning its module's namespace where a value stands. @type {ReadonlySet<string>} */
-    #moduleNames;
+    /** The namespace names the text is read with, each beginning its module's namespace where a value stands. @type {ReadonlySet<string>} */
+    #namespaceNames;
 
     /** How many bodies' locals are being read, where a name on a new line after a value is a statement no body holds rather than a member written without its dot. */
     #bodyLocalsBeingRead = 0;
@@ -58,11 +58,11 @@ export class Parser {
 
     /**
      * @param {string} text The source text.
-     * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with, none for text read without a registry.
+     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is read with, none for text read without a registry.
      */
-    constructor(text, moduleNames = Names.noModuleNames) {
+    constructor(text, namespaceNames = Names.noNamespaceNames) {
         this.#text = text;
-        this.#moduleNames = moduleNames;
+        this.#namespaceNames = namespaceNames;
         this.#tokens = new Tokenizer(text).tokenize();
     }
 
@@ -262,7 +262,7 @@ export class Parser {
         return Parser.#node('arrow-function', children);
     }
 
-    /** Reads a call of a local function, the name it is written by given: its name, or a reserved word after `@`, and its arguments in parentheses. */
+    /** Reads a call of the function a local, a function parameter or a conditional binding holds, the name it is written by given: its name, or a reserved word after `@`, and its arguments in parentheses. */
     #parseFunctionCall(written) {
         const name = this.#take();
 
@@ -996,11 +996,11 @@ export class Parser {
             throw this.#fail('LEXICA1010', `'to' converts the value written before it: write 'it to ${this.#text.slice(next.start, next.end)}' to convert the implicit parameter`, token.start);
         }
 
-        if (token.type === 'identifier' && this.#moduleNames.has(token.value)) {
+        if (token.type === 'identifier' && this.#namespaceNames.has(token.value)) {
             return this.#parseNamespaceAccess();
         }
 
-        // A name that starts a chain is a local, a field or a binding, which takes no argument, so one an argument follows after a space is a member written without its receiver; parentheses after it call the local function of its name.
+        // A name that starts a chain is a local, a field or a binding, which takes no argument, so one an argument follows after a space is a member written without its receiver; parentheses after it call the function it holds.
         if (token.type === 'identifier' || token.type === 'lexical-reference') {
             const written = token.type === 'identifier' ? token.value : `@${token.value}`;
 
@@ -1045,14 +1045,14 @@ export class Parser {
      * so only `.` follows it, and a module's name alone, which reads no value, gives the forms that read the local and the script parameter of its name.
      */
     #parseNamespaceAccess() {
-        const moduleName = this.#take();
-        const name = moduleName.value;
+        const namespaceName = this.#take();
+        const name = namespaceName.value;
 
         if (this.#token.type !== '.') {
             const isOptional = this.#token.type === '?.';
             const access = isOptional ? `A namespace is never null, so its members are read after '.': write '${name}.…'` : `'${name}' is the namespace of the module of that name, whose members are read after a dot, as ${name}.member`;
 
-            throw this.#fail('LEXICA1506', `${access}; write '@${name}' for the local or field of that name, or '~${name}' for the script parameter`, isOptional ? this.#token.start : moduleName.start);
+            throw this.#fail('LEXICA1506', `${access}; write '@${name}' for the local or field of that name, or '~${name}' for the script parameter`, isOptional ? this.#token.start : namespaceName.start);
         }
 
         const dot = this.#take();
@@ -1067,10 +1067,10 @@ export class Parser {
         this.#refuseEnclosedAccessArgument(this.#token, written);
 
         if (this.#token.type !== '(') {
-            return Parser.#node('namespace-access', [moduleName, dot, nameToken]);
+            return Parser.#node('namespace-access', [namespaceName, dot, nameToken]);
         }
 
-        return Parser.#node('namespace-access', [moduleName, dot, nameToken, ...this.#parseArguments(written, true)]);
+        return Parser.#node('namespace-access', [namespaceName, dot, nameToken, ...this.#parseArguments(written, true)]);
     }
 
     /** Reads an interpolated string: its `$"`, its runs of text and its interpolations, in the order written, and its closing quote. */

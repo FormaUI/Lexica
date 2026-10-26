@@ -695,7 +695,7 @@ export class DefinitionValidator {
         }
     }
 
-    /** Validates a call of a local function: its name, which no function calls before its local is declared, itself included, and its arguments. */
+    /** Validates a call of the function a local, a function parameter or a conditional binding holds: its name, which no function calls before the local of that name is declared, itself included, and its arguments. */
     #validateFunctionCall(node, pointer, contextAvailability) {
         this.#requireName(node.name, `${pointer}/name`);
 

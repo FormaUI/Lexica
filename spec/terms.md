@@ -62,7 +62,7 @@ In this document:
 | Block form | A conditional, a `do` block or a function expression spanning lines, each keyword ending its line and `end` on its own | [Keyword blocks](lexical-structure.md#line-structure-keyword-blocks) |
 | Reserved word | A word that keeps its language meaning where a value stands: a literal's word, `root` or a keyword; a module's name is none, though it begins its namespace there in a script importing the module | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Keyword | A reserved word other than the literals' words and `root`, as `let`, `if` and `it` | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
-| Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, object field, conditional binding or function parameter of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |
+| Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, object field, conditional binding or function parameter of that name, and otherwise resolving the import binding of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |
 | Implicit parameter | The value against which the current expression runs, read as `it` | [Names and resolution](scripts.md#names-and-resolution) |
 
 <a id="chains-and-members"></a>

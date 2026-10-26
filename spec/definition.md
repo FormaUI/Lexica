@@ -35,7 +35,7 @@ Each node is an object whose `kind` says what it is:
 | `body` | `locals`, each its `name` and its `value`, in order, and `result`, the value the body gives | A body: the root expression's, a `do` block's, a function's or a conditional branch's, and nowhere else |
 | `do` | `body`, an expression alone or a `body` node | A do block |
 | `function` | `parameters`, the names it declares; `body`, the body a call evaluates; and `arrow`, true, for an arrow function, whose body is its one expression, validated as a simple expression | A function: a local's initializer, or an arrow function written as an argument |
-| `functionCall` | `name`, the local function's name, and `arguments`, as many as its parameters | A call of a local function |
+| `functionCall` | `name`, the name of the local, the function parameter or the conditional binding holding the function, and `arguments`, as many as its parameters | A call of the function a local, a function parameter or a conditional binding holds |
 | `interpolatedString` | `parts`, its text and its interpolations in order: each `{ "kind": "text", "value": … }`, the characters the text stands for, or `{ "kind": "expression", "expression": … }` | An interpolated string; adjacent text is one part and empty text none, and a diagnostic names a part by the index the definition it was created from gave it |
 | `comparison` | `operands`, two or more expressions, and `operators`, one of `<`, `<=`, `>` and `>=` between each two | A comparison, or a chain of them |
 | `conditional` | `condition`, the expression it tests, or `binding`, the `name` it binds and the `value` it binds to it, one of them; and `consequent` and `alternative`, two expressions | A conditional, `if let` holding a binding; an `elseif` is a conditional nested in the alternative before it |
@@ -133,7 +133,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Chain receivers | A conditional or body cannot be a chain receiver. |
 | Functions | Each is a local initializer, or an arrow function that is also an argument, with unique parameter names; an arrow function's body is a simple expression; a function cannot be called before its local is declared. |
 | Optional access | Each optional access is within an optional chain, following the targets of property accesses, calls, indexers and object expressions; each optional chain contains an optional access. |
-| `it` | `it` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. Within an argument of a member call or of a local function call, the function called says whether the argument has one, so resolution decides there, and refuses an `it` the function does not give a value. |
+| `it` | `it` cannot appear where no implicit parameter is available, including a top-level object's unqualified fields. Within an argument of a member call or of a function call, the function called says whether the argument has one, so resolution decides there, and refuses an `it` the function does not give a value. |
 | Logical expressions | `and` and `or` have at least two operands; `not` has its operand. |
 | Arithmetic | An arithmetic node has a supported operator and both operands; a `negate` node has its operand. |
 | Coalescing | Both value and fallback are present. |

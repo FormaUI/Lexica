@@ -25,7 +25,7 @@ In this document:
 | Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation`, `type-name` | [Casts](types.md#casts), [conversions](values.md#conversions), [attempts](expressions.md#attempts) |
 | Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `computed-property-access`, `member-call`, `indexer-access`, `extension-access`, `extension-name`, `extension-member`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
 | Simple expressions | `simple-expression`, `simple-value-expression` | [Simple expressions](expressions.md#simple-expressions) |
-| Names and references | `value`, `identifier`, `local-name`, `object-field-name`, `member-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
+| Names and references | `value`, `identifier`, `local-name`, `object-field-name`, `member-name`, `namespace-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
 | Objects | `object`, `object-content`, `object-field` | [Objects](values.md#objects) |
 | Literals and strings | `literal`, `Number`, `String` and its forms, `interpolated-string` and its parts | [Lexical structure](lexical-structure.md), [interpolated strings](expressions.md#interpolated-strings) |
 | Trivia | `trivia`, `whitespace`, `line-comment`, `block-comment` | [Comments](lexical-structure.md#comments) |
@@ -38,9 +38,10 @@ In this document:
 script                        = { import-declaration } body end-of-input
 import-declaration            = "import" [ import-alias "=" ] import-source
 import-alias                  = identifier
-import-source                 = identifier [ "." identifier ]
+import-source                 = module-name [ "." identifier ]
                               (* a registered module, or a type
                                  qualified by its registered module *)
+module-name                   = identifier
 
 body                          = { local } "return" expression
                               | expression
@@ -113,7 +114,7 @@ conversion-target             = chain | cast | conversion
 cast                          = cast-target "as" type-name
 cast-target                   = receiver { member-expression } | enclosed-cast-target
 enclosed-cast-target          = "(" coalescing ")" | optional-enclosed-access
-type-name                     = [ module-name "." ] identifier
+type-name                     = [ namespace-name "." ] identifier
 
 chain                         = chain-input { member-expression | object }
 chain-input                   = input | enclosed-expression
@@ -135,10 +136,10 @@ arrow-function                = arrow-parameters "=>" simple-expression
 arrow-parameters              = function-parameter | "(" [ function-parameter-list ] ")"
 value                         = "it" | "root" | literal
 
-namespace-access              = module-name "." member-name
+namespace-access              = namespace-name "." member-name
                                 [ "(" [ argument-list ] ")" ]
                               (* no indexer access is written through a namespace *)
-module-name                   = identifier
+namespace-name                = identifier
                               (* a namespace where the script's imports
                                  give a module that name *)
 
@@ -152,8 +153,8 @@ member-call                   = ( "." | "?." ) member-name
                                 "(" [ argument-list ] ")"
 indexer-access                = ( "[" | "?[" ) simple-expression "]"
 extension-access              = ( ":" | "?:" ) extension-name extension-member
-extension-name                = [ module-name "." ] identifier
-                              (* a module-name where the script's imports
+extension-name                = [ namespace-name "." ] identifier
+                              (* a namespace-name where the script's imports
                                  give a module that name *)
 extension-member              = "." member-name [ "(" [ argument-list ] ")" ]
                               | "[" simple-expression "]"
@@ -243,10 +244,11 @@ The grammar uses several terms more narrowly than the prose:
 | --- | --- |
 | `value` | The forms listed by that production: the implicit parameter, the object root or a literal |
 | `identifier` | An identifier's spelling, every name and every unprefixed reference written with it; which identifiers a position takes, and what one means there, are the [interpretation rules](lexical-structure.md#names-and-reserved-words-what-an-identifier-means), which the grammar's one production leaves to them |
-| `lexical-reference` | `@` and an identifier, reading the nearest local, object field, conditional binding or function parameter of that name, whatever its spelling |
+| `lexical-reference` | `@` and an identifier, reading the nearest local, object field, conditional binding or function parameter of that name, whatever its spelling, and otherwise resolving the import binding of that name |
 | `script-parameter` | `~` and an identifier, selecting the script parameter of that name explicitly |
 | `import-declaration` | An import: its alias and `=` where it gives one, then its source, a registered module's name, and a dot and a type's local name where it imports one type |
-| `module-name` | An identifier naming a module where a value stands, or qualifying a type's or an extension's name: the local name the script's imports give a module, its own or an alias |
+| `namespace-name` | An identifier naming a module's namespace where a value stands, or qualifying a type's or an extension's name: the local name the script's imports give a module, its own or an alias |
+| `module-name` | An identifier naming a registered module by its own name, as an import's source names the module it imports from |
 | `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; a script importing no module has none |
 | `extension-access` | An extension selected explicitly, `:` or `?:` and the extension's name, its local name or one its module qualifies, then the one member operation it supplies; a named indexer's key follows as an `indexer-access`, as after a `dot-property-access` |
 | `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by the local name the script's imports give its module and a dot where written so; a qualified name parses alike whatever the script imports, and resolution decides whether the script imports the module |

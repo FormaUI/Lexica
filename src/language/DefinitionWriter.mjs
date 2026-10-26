@@ -23,45 +23,45 @@ export class DefinitionWriter {
     /**
      * Quotes the node: the text that writes it on one line, as a diagnostic quotes it and `lexica.quote` answers it.
      * @param {object} node A node of a definition.
-     * @param {ReadonlySet<string>} [moduleNames] The module names the text is written with, each reserved as the language's words are; none for text read without a registry.
+     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is written with, each reserved as the language's words are; none for text read without a registry.
      */
-    static quote(node, moduleNames = Names.noModuleNames) {
-        return DefinitionWriter.#writing(node, moduleNames, () => DefinitionWriter.#write(node, null));
+    static quote(node, namespaceNames = Names.noNamespaceNames) {
+        return DefinitionWriter.#writing(node, namespaceNames, () => DefinitionWriter.#write(node, null));
     }
 
     /**
      * The canonical text of the node, laid out on lines: an object expression of one field and no locals, whose value is on one line, stays on one line, and any other has a line for each entry, indented a level; a conditional with an `elseif` has a line for each clause.
      * @param {object} node A node of a definition.
-     * @param {ReadonlySet<string>} [moduleNames] The module names the text is written with, each reserved as the language's words are; none for text read without a registry.
+     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is written with, each reserved as the language's words are; none for text read without a registry.
      */
-    static format(node, moduleNames = Names.noModuleNames) {
+    static format(node, namespaceNames = Names.noNamespaceNames) {
         // An expression that is a body writes its bindings and its return alone, which a do block elsewhere encloses.
-        return DefinitionWriter.#writing(node, moduleNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
+        return DefinitionWriter.#writing(node, namespaceNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
     }
 
     /** The parameters a name written alone would not read, which the text being written writes with `~`. @type {WeakSet<object>} */
     static #parameterReferences = new WeakSet();
 
-    /** The module names the text being written is written with. @type {ReadonlySet<string>} */
-    static #moduleNames = Names.noModuleNames;
+    /** The namespace names the text being written is written with. @type {ReadonlySet<string>} */
+    static #namespaceNames = Names.noNamespaceNames;
 
     /**
-     * What the writing gives with the module names in effect and the node's parameters written with `~` marked for them, in the writer's static state, which holds one writing at a time; the state of any writing around it
+     * What the writing gives with the namespace names in effect and the node's parameters written with `~` marked for them, in the writer's static state, which holds one writing at a time; the state of any writing around it
      * is restored in `finally`, whether the writing completes or throws.
      */
-    static #writing(node, moduleNames, write) {
+    static #writing(node, namespaceNames, write) {
         const enclosingReferences = DefinitionWriter.#parameterReferences;
-        const enclosingModuleNames = DefinitionWriter.#moduleNames;
+        const enclosingNamespaceNames = DefinitionWriter.#namespaceNames;
 
         try {
-            DefinitionWriter.#moduleNames = moduleNames;
+            DefinitionWriter.#namespaceNames = namespaceNames;
             DefinitionWriter.#parameterReferences = new WeakSet();
             DefinitionWriter.#markParameterReferences(node, new Set(), new Set());
 
             return write();
         } finally {
             DefinitionWriter.#parameterReferences = enclosingReferences;
-            DefinitionWriter.#moduleNames = enclosingModuleNames;
+            DefinitionWriter.#namespaceNames = enclosingNamespaceNames;
         }
     }
 
@@ -82,7 +82,7 @@ export class DefinitionWriter {
 
         switch (node.kind) {
             case 'parameter':
-                if (Names.needsPrefix(node.name, DefinitionWriter.#moduleNames) || inScope.has(node.name) || later.has(node.name)) {
+                if (Names.needsPrefix(node.name, DefinitionWriter.#namespaceNames) || inScope.has(node.name) || later.has(node.name)) {
                     DefinitionWriter.#parameterReferences.add(node);
                 }
 
@@ -313,7 +313,7 @@ export class DefinitionWriter {
 
     /** The text of a name a lexical reference reads, a local's, an object field's, a conditional binding's or a function parameter's: its name, after `@` where a reserved word names it, a module's name among them where the text is written with it, which written alone keeps its own meaning. */
     static #localNameText(name) {
-        return Names.needsPrefix(name, DefinitionWriter.#moduleNames) ? `@${name}` : name;
+        return Names.needsPrefix(name, DefinitionWriter.#namespaceNames) ? `@${name}` : name;
     }
 
     /** A call's arguments, separated by commas. */

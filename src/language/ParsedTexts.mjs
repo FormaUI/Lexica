@@ -1,5 +1,5 @@
 /**
- * ParsedTexts — the definitions of the source texts parsed most recently, each with the module names it was read with
+ * ParsedTexts — the definitions of the source texts parsed most recently, each with the namespace names it was read with
  */
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
@@ -12,13 +12,13 @@ import { TextLocations } from './TextLocations.mjs';
 const CAPACITY = 256;
 
 /**
- * How a definition was read from text: the module names it was read with, and the names it writes alone where a value stands, each reading a local, a field or a script parameter, by name, each with the span of the part it
+ * How a definition was read from text: the namespace names it was read with, and the names it writes alone where a value stands, each reading a local, a field or a script parameter, by name, each with the span of the part it
  * first stands in, which its text locations locate where a diagnostic needs it.
- * @typedef {{ moduleNames: ReadonlySet<string>, namesWrittenAlone: ReadonlyMap<string, import('./Parser.mjs').Span> }} Reading
+ * @typedef {{ namespaceNames: ReadonlySet<string>, namesWrittenAlone: ReadonlyMap<string, import('./Parser.mjs').Span> }} Reading
  */
 
 export class ParsedTexts {
-    /** Each kept text's definition, by the module names it was read with and the text, the least recently parsed first. @type {Map<string, object>} */
+    /** Each kept text's definition, by the namespace names it was read with and the text, the least recently parsed first. @type {Map<string, object>} */
     static #definitionCache = new Map();
 
     /** @type {WeakMap<object, TextLocations>} */
@@ -43,14 +43,14 @@ export class ParsedTexts {
     }
 
     /**
-     * The validated, frozen definition the text parses into with the module names given, kept for the next parse of the same text with the same names. A definition depends on its text and those names alone, so a kept one
+     * The validated, frozen definition the text parses into with the namespace names given, kept for the next parse of the same text with the same names. A definition depends on its text and those names alone, so a kept one
      * stays valid for good; the 256 asked for most recently are kept, a kept one asked for again counting as the latest, the least recently asked for released as another is kept, and its locations and its reading are released with it. A text that fails to parse is kept by none,
      * so parsing it again refuses it again.
      * @param {string} text
-     * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with, none for text read without a registry.
+     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is read with, none for text read without a registry.
      */
-    static parse(text, moduleNames = Names.noModuleNames) {
-        const key = `${[...moduleNames].sort().join(' ')}|${text}`;
+    static parse(text, namespaceNames = Names.noNamespaceNames) {
+        const key = `${[...namespaceNames].sort().join(' ')}|${text}`;
         const kept = ParsedTexts.#definitionCache.get(key);
 
         if (kept) {
@@ -61,12 +61,12 @@ export class ParsedTexts {
         }
 
         // The tree is lowered and let go: a kept definition holds its locations, never its tokens or their trivia.
-        const { definition, spans, parameterReferences, namesWrittenAlone } = Lowering.lower(new Parser(text, moduleNames).parse());
+        const { definition, spans, parameterReferences, namesWrittenAlone } = Lowering.lower(new Parser(text, namespaceNames).parse());
         const locations = new TextLocations(text, definition, spans);
         const validated = new DefinitionValidator(locations, parameterReferences).validate(definition);
 
         ParsedTexts.#locations.set(validated, locations);
-        ParsedTexts.#readings.set(validated, Object.freeze({ moduleNames: new Set(moduleNames), namesWrittenAlone }));
+        ParsedTexts.#readings.set(validated, Object.freeze({ namespaceNames: new Set(namespaceNames), namesWrittenAlone }));
 
         ParsedTexts.#definitionCache.set(key, validated);
 

@@ -374,9 +374,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3066` | An equality of a value that is not a string, number, Boolean or reference value with one that is not null | A validation error naming the types |
 | `LEXICA3032` | An arithmetic operand that can be null | A validation error naming the operand, and the fallback to give it |
 | `LEXICA3067` | An arithmetic operand that is not a number | A validation error naming the operand |
-| `LEXICA3033` | A call no local function answers | A validation error naming the function |
+| `LEXICA3033` | A call that no local, function parameter or conditional binding holding a function answers | A validation error naming the function |
 | `LEXICA3068` | A call of a local holding a value, or a function that may be null | A validation error naming the function |
-| `LEXICA3069` | A call of a local function given the wrong number of arguments | A validation error naming the function |
+| `LEXICA3069` | A call of the function a local, a function parameter or a conditional binding holds, given the wrong number of arguments | A validation error naming the function |
 | `LEXICA3070` | A call whose functions give no one type | A validation error naming the function |
 | `LEXICA3034` | A call that reaches a function within its own call, through a function passed to it | A validation error |
 | `LEXICA3035` | An object field or a result that would hold a function | A validation error |

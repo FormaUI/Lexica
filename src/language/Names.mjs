@@ -10,15 +10,15 @@ const KEYWORDS = new Set(['it', 'not', 'try', 'as', 'to', 'and', 'or', 'if', 'th
 /** The object root's word, which stands for a reference to the outermost object being built where an expression stands. */
 const ROOT = 'root';
 
-/** The module names of text read without a registry, which knows no module's name. */
-const NO_MODULE_NAMES = Object.freeze(new Set());
+/** The namespace names of text read without a registry, which knows no module's name. */
+const NO_NAMESPACE_NAMES = Object.freeze(new Set());
 
 export class Names {
     /** The words the language reserves, which keep their meaning where an expression stands and which a reference to a local or a field of their name writes after `@`: those that write a literal, the keywords and `root`. */
     static reservedWords = Object.freeze([...LITERALS.keys(), ...KEYWORDS, ROOT]);
 
-    /** The module names of text read without a registry: none. */
-    static noModuleNames = NO_MODULE_NAMES;
+    /** The namespace names of text read without a registry: none. */
+    static noNamespaceNames = NO_NAMESPACE_NAMES;
 
     /** Whether the text is spelled as an identifier: a letter followed by letters and digits, a reserved word among them, since a position that expects a name tells it from the word. */
     static isIdentifier(text) {
@@ -34,10 +34,10 @@ export class Names {
      * Whether an identifier written alone where a value stands means something other than a binding of its name, so a reference to the local, the field or the script parameter writes it with `@` or `~`: a word the language
      * reserves, or, in text read through a registry, the name of one of its modules, which begins its namespace there.
      * @param {string} word
-     * @param {ReadonlySet<string>} [moduleNames] The module names the text is read with.
+     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is read with.
      */
-    static needsPrefix(word, moduleNames = NO_MODULE_NAMES) {
-        return Names.isReservedWord(word) || moduleNames.has(word);
+    static needsPrefix(word, namespaceNames = NO_NAMESPACE_NAMES) {
+        return Names.isReservedWord(word) || namespaceNames.has(word);
     }
 
     /** Whether the word is a keyword. */

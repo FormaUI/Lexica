@@ -124,7 +124,7 @@ The same rule applies to member and indexer names after `.` and `?.`. For exampl
 
 In a script, a reserved word retains its language meaning regardless of scope. After `let it = 1`, an unprefixed `it` still reads the implicit parameter, and in a script importing `Home`, after `let Home = 1`, an unprefixed `Home` still begins the module's namespace.
 
-A **lexical reference**, `@` directly before an identifier, reads the nearest local, object field, conditional binding or function parameter of that name:
+A **lexical reference**, `@` directly before an identifier, reads the nearest local, object field, conditional binding or function parameter of that name; otherwise, it resolves the import binding of that name:
 
 ```lexica
 { let to = "3", value = @to to Number }
@@ -132,7 +132,7 @@ A **lexical reference**, `@` directly before an identifier, reads the nearest lo
 
 It is needed where the identifier alone means something else, a reserved word or, in a script importing it, a module's name, and allowed before any identifier: after `let total = 2`, `@total` reads the local as `total` does. Canonical text writes `@` only where it is needed.
 
-A lexical reference that no local, object field, conditional binding or function parameter in scope answers is a structure error:
+A lexical reference that no local, object field, conditional binding or function parameter in scope, and no import binding, answers is a structure error:
 
 > No local, object field, conditional binding or function parameter named 'it' is in scope. Use '~it' to read the script parameter.
 

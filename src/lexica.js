@@ -21,8 +21,8 @@ import { Vocabulary } from './language/vocabulary/Vocabulary.mjs';
 /** The parameter bindings each bindings object a registry's `bind` made stands for. @type {WeakMap<object, ParameterBindings>} */
 const PARAMETER_BINDINGS = new WeakMap();
 
-/** The definition a source gives: a text read with the module names given and checked, or a definition checked, each the same frozen definition the text's canonical form would give. */
-const definitionOf = (source, moduleNames = Names.noModuleNames) => (typeof source === 'string' ? ParsedTexts.parse(source, moduleNames) : new DefinitionValidator().validate(source));
+/** The definition a source gives: a text read with the namespace names given and checked, or a definition checked, each the same frozen definition the text's canonical form would give. */
+const definitionOf = (source, namespaceNames = Names.noNamespaceNames) => (typeof source === 'string' ? ParsedTexts.parse(source, namespaceNames) : new DefinitionValidator().validate(source));
 
 /** Each namespace the node reads through, with where it stands, in the order written. */
 const namespacesOf = (node, pointer, found = []) => {
@@ -43,7 +43,7 @@ const namespacesOf = (node, pointer, found = []) => {
     return found;
 };
 
-/** The definition, refused where text read without module names cannot write it: a definition reading through a namespace, which only a registry's module names write. */
+/** The definition, refused where text read without namespace names cannot write it: a definition reading through a namespace, which only a registry's namespace names write. */
 const withoutNamespaces = definition => {
     const [namespace] = namespacesOf(definition.expression, '/expression');
 
@@ -55,12 +55,12 @@ const withoutNamespaces = definition => {
 };
 
 /**
- * The definition, refused where the registry would read it otherwise than it was read: one read from text without the registry's module names that writes one of them alone, which the registry reads as the module's namespace,
+ * The definition, refused where the registry would read it otherwise than it was read: one read from text without the registry's namespace names that writes one of them alone, which the registry reads as the module's namespace,
  * and one reading through a namespace no module the registry holds gives. Nothing reads a text otherwise unannounced.
  */
 const readWith = (definition, namespaceNames) => {
     const reading = ParsedTexts.readingOf(definition);
-    const misread = reading === null ? undefined : [...reading.namesWrittenAlone.keys()].find(name => namespaceNames.has(name) && !reading.moduleNames.has(name));
+    const misread = reading === null ? undefined : [...reading.namesWrittenAlone.keys()].find(name => namespaceNames.has(name) && !reading.namespaceNames.has(name));
 
     if (misread !== undefined) {
         throw LexicaErrors.structure('LEXICA2641', `The definition was read without this registry's module names, and writes '${misread}' alone, which this registry reads as the namespace of its module '${misread}'; read the text with the registry`, ParsedTexts.locationsOf(definition).locateSpan(reading.namesWrittenAlone.get(misread)));
