@@ -466,7 +466,7 @@ export class LexicaRegistry {
 
     /** Whether the type is one a conversion converts between: a type of data Lexica defines, or a structured type that holds data alone, never null. */
     isConvertible(type) {
-        return type.kind === 'named' && type.typeArguments.length === 0 && !type.isNullable && this.#isData(type, new Set());
+        return type.kind === 'named' && type.typeArguments.length === 0 && !type.isNullable && this.isData(type);
     }
 
     /** The name of the module that declares the declaration: a member, a type, a type selector, a selectable type or a conversion. */
@@ -689,7 +689,7 @@ export class LexicaRegistry {
             const to = this.getDeclaredType(conversion, conversion.to);
 
             for (const type of [from, to]) {
-                if (!this.#isData(type, new Set())) {
+                if (!this.isData(type)) {
                     fail('LEXICA4065', `'${type}' is no type of data Lexica or a module registered with it declares, which a conversion converts between`, name);
                 }
             }
@@ -710,14 +710,22 @@ export class LexicaRegistry {
     }
 
     /**
-     * Whether values of the type are data, a structured type's fields included, null and never among them; a structure already being checked counts as data where it holds itself, since its other fields are checked where it is
-     * first met. Being data does not make a type a conversion's endpoint, which module creation and `isConvertible` decide apart.
+     * Whether values of the type are data: Number, String, Boolean, null and never; a list or another generic value type of data; an object type of data; and a structured type whose data shape holds data.
+     * It classifies a type, and validates no JavaScript value: whether a value is data of a type is a separate check, as a default's and a supplied value's are. Being data does not make a type a conversion's endpoint,
+     * which module creation and `isConvertible` decide apart.
      */
+    isData(type) {
+        return this.#isData(type, new Set());
+    }
+
+    /** Whether values of the type are data, as `isData` says, a structure already being checked counting as data where it holds itself, since its other properties are checked where it is first met. */
     #isData(type, checking) {
         switch (type.kind) {
             case 'null':
             case 'never':
                 return true;
+            case 'object':
+                return [...type.fieldTypes.values()].every(fieldType => this.#isData(fieldType, checking));
             case 'named': {
                 // A generic value type holds data where each of its type arguments does, as a list of data does.
                 if (type.typeArguments.length > 0) {

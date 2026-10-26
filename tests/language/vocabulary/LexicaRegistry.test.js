@@ -350,6 +350,18 @@ describe('conversions', () => {
         expect(registry.isConvertible(Type.parse('List<Number>'))).toBe(false);
     });
 
+    it('classify a type as data where its values are data, an object type and a structure that holds itself among them, and a reference type or a structure holding one as no data', () => {
+        const registry = registering(new LexicaModule('charts', withHome({
+            types: [chart, { name: 'Tree', fields: { children: 'List<Tree>' } }, { name: 'Holder', fields: { lamp: 'Light' } }],
+        })))();
+        const named = name => Type.createNamedType(name, false, 'charts');
+        const data = [Type.parse('Number'), Type.parse('null'), Type.never, Type.parse('List<String?>'), Type.createObjectType(new Map([['a', Type.parse('Number')]])), CHART, named('Tree')];
+        const notData = [named('Light'), named('Holder'), Type.createObjectType(new Map([['lamp', named('Light')]])), Type.parse('List<Light>')];
+
+        expect(data.map(type => registry.isData(type))).toEqual(data.map(() => true));
+        expect(notData.map(type => registry.isData(type))).toEqual(notData.map(() => false));
+    });
+
     it('convert a structured type that holds null, Never or a list of null as data, while null, Never, a list and a nullable type stay no endpoint', () => {
         for (const fieldType of ['null', 'Never', 'List<null>']) {
             const registry = registering(charts([{ from: 'String', to: 'Chart' }, { from: 'Chart', to: 'String' }], [{ name: 'Chart', fields: { points: fieldType } }]))();

@@ -10,8 +10,6 @@ import { ResolvedDefinition } from './ResolvedDefinition.mjs';
 import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
-const DATA_TYPE_NAMES = new Set(['Number', 'String', 'Boolean']);
-
 /** How each form of a declaration is written, and the node that writes it. */
 const FORM_NODE_KINDS = { access: 'member', 'function-call': 'call', indexer: 'indexer' };
 
@@ -60,7 +58,7 @@ export class LanguageResolver {
             this.#fail('LEXICA3035', 'The result would hold a function, which is used within the expression and never part of its result: call it, as name(…)', '/expression');
         }
 
-        if (type !== null && !this.#isData(type)) {
+        if (type !== null && !this.#moduleRegistry.isData(type)) {
             this.#fail('LEXICA3043', `The result would hold ${type}, which is no data; read the facts it needs through an object expression`, '/expression');
         }
 
@@ -2162,7 +2160,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3035', `The field '${name}' would hold a function, which is used within the expression and never part of its result: call it, as name(…)`, `${fieldPointer}/value`);
             }
 
-            if (!this.#isData(result.type)) {
+            if (!this.#moduleRegistry.isData(result.type)) {
                 this.#fail('LEXICA3043', `The field '${name}' would hold ${result.type}, which is no data; read the facts it needs through an object expression`, `${fieldPointer}/value`);
             }
 
@@ -2413,39 +2411,6 @@ export class LanguageResolver {
         }
 
         return this.#moduleRegistry.getDataShape(type)?.get(name) ?? null;
-    }
-
-    /** Whether values of the type are data; a structure already being checked counts as data where it holds itself, since its other fields are checked where it is first met. */
-    #isData(type, checking = new Set()) {
-        switch (type.kind) {
-            case 'null':
-            case 'never':
-                return true;
-            case 'object':
-                return [...type.fieldTypes.values()].every(fieldType => this.#isData(fieldType, checking));
-            case 'named': {
-                // A generic value type holds data where each of its type arguments does, as a list of data does.
-                if (type.typeArguments.length > 0) {
-                    return type.typeArguments.every(typeArgument => this.#isData(typeArgument, checking));
-                }
-
-                if ((type.moduleName === null && DATA_TYPE_NAMES.has(type.name)) || checking.has(type.identity)) {
-                    return true;
-                }
-
-                const structure = this.#moduleRegistry.getStructure(type);
-
-                if (structure === undefined) {
-                    return false;
-                }
-
-                checking.add(type.identity);
-
-                return [...this.#moduleRegistry.getDataShape(type).values()].every(propertyType => this.#isData(propertyType, checking));
-            }
-            default:
-                return false;
-        }
     }
 
     /** Refuses the definition with the code of the condition it fails, a structure error for a structure code and a validation error otherwise, located at the source of the pointer. */
