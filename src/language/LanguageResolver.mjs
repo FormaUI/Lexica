@@ -1066,7 +1066,7 @@ export class LanguageResolver {
             this.#fail('LEXICA3009', `No local in scope or script parameter is named '${node.name}'${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
         }
 
-        return { type: scope.facts.get(`@${node.name}`) ?? this.#bindings.getType(node.name), kind: 'value', isFixed: true, value: this.#bindings.get(node.name) };
+        return { type: scope.facts.get(`@${node.name}`) ?? this.#bindings.getType(node.name), kind: 'value', isFixed: true, value: this.#bindings.readValue(node.name) };
     }
 
     /**
@@ -1272,7 +1272,7 @@ export class LanguageResolver {
             case 'literal':
                 return LanguageResolver.#possibleOf(node.value);
             case 'parameter':
-                return LanguageResolver.#possibleOf(this.#bindings.get(node.name));
+                return LanguageResolver.#possibleOf(this.#bindings.readValue(node.name));
             case 'local': {
                 const local = scope.locals.get(node.name);
                 const possible = local === undefined ? null : this.#possibleNamesOf(local.initializer, local.scope);

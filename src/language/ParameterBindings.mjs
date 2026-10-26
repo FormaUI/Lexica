@@ -32,13 +32,13 @@ export class ParameterBindings {
             throw LexicaErrors.structure('LEXICA2020', 'Bindings are a plain object of names and the values bound to them', {});
         }
 
-        const declared = options?.types ?? {};
+        const declaredTypeNames = options?.types ?? {};
 
-        if (!ObjectUtils.isPlainObject(options ?? {}) || !ObjectUtils.isPlainObject(declared)) {
+        if (!ObjectUtils.isPlainObject(options ?? {}) || !ObjectUtils.isPlainObject(declaredTypeNames)) {
             throw LexicaErrors.structure('LEXICA2020', "A binding's options are a plain object, and the types it declares a plain object of top-level bindings' names and the types declared for them", {});
         }
 
-        for (const name of Object.keys(declared)) {
+        for (const name of Object.keys(declaredTypeNames)) {
             if (!Object.hasOwn(parameters, name)) {
                 throw LexicaErrors.structure('LEXICA2039', `A type is declared for a top-level binding alone, and no binding is named '${name}'`, { binding: name });
             }
@@ -50,7 +50,7 @@ export class ParameterBindings {
                 throw LexicaErrors.structure('LEXICA2033', 'A binding is named by a letter followed by letters and digits', { binding: name });
             }
 
-            const bound = Object.hasOwn(declared, name) ? this.#bindDeclared(name, value, declared[name]) : this.#bind(name, value, new Set());
+            const bound = Object.hasOwn(declaredTypeNames, name) ? this.#bindDeclared(name, value, declaredTypeNames[name]) : this.#bind(name, value, new Set());
 
             this.#types.set(name, bound.type);
             this.#values.set(name, bound.value);
@@ -67,8 +67,8 @@ export class ParameterBindings {
         return this.#values.has(name);
     }
 
-    /** The value bound to the name: its data a frozen copy of the data given, and each reference the reference itself. */
-    get(name) {
+    /** Reads the value bound to the name: its data a frozen copy of the data given, and each reference the reference itself. */
+    readValue(name) {
         return this.#values.get(name);
     }
 

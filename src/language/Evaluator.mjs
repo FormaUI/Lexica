@@ -421,7 +421,7 @@ export class Evaluator {
                 return () => value;
             }
             case 'parameter':
-                return evaluator => evaluator.#parameterBindings.get(node.name);
+                return evaluator => evaluator.#parameterBindings.readValue(node.name);
             case 'root':
                 return evaluator => evaluator.#objectRoot;
             case 'it':

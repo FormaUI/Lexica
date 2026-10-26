@@ -84,7 +84,7 @@ const bind = (registry, values = {}, options = {}) => {
     const bindings = Object.freeze({
         resolutionKey: parameterBindings.resolutionKey,
         has: name => parameterBindings.has(name),
-        get: name => parameterBindings.get(name),
+        get: name => parameterBindings.readValue(name),
         typeOf: name => (parameterBindings.has(name) ? String(parameterBindings.getType(name)) : undefined),
     });
 
