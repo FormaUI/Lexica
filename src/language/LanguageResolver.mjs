@@ -847,10 +847,10 @@ export class LanguageResolver {
         const written = this.#referenceNameOf(declaration);
 
         if (!this.#moduleRegistry.hasReceiver(declaration)) {
-            return this.#storeInvocation(pointer, this.#resolveInvocation(declaration, node, pointer, scope, null, written));
+            return this.#storeResolution(pointer, this.#resolveInvocation(declaration, node, pointer, scope, null, written));
         }
 
-        return this.#storeInvocation(pointer, this.#resolveQualifiedCall(node, pointer, scope, [declaration], {
+        return this.#storeResolution(pointer, this.#resolveQualifiedCall(node, pointer, scope, [declaration], {
             subject: `'${node.name}'`,
             missingReceiver: `'${node.name}' holds a reference to '${written}', which takes its receiver as its first argument`,
             receiverOf: `'${node.name}' holds a reference to '${written}', which takes a receiver of`,
@@ -1107,7 +1107,7 @@ export class LanguageResolver {
             return this.#resolveComputedPropertyAccess(node, pointer, scope, receiverType);
         }
 
-        return this.#resolveMemberOnReceiverType(node, pointer, scope, receiverType);
+        return this.#storeResolution(pointer, this.#resolveMemberOnReceiverType(node, pointer, scope, receiverType));
     }
 
     /**
@@ -1179,11 +1179,11 @@ export class LanguageResolver {
         const defaults = this.#moduleRegistry.getDefaultIndexers();
 
         if (LanguageResolver.#isNullOrNever(receiverType)) {
-            return this.#resolveOnUnknownType(node, pointer, scope, receiverType, defaults);
+            return this.#storeResolution(pointer, this.#resolveOnUnknownType(node, pointer, scope, receiverType, defaults));
         }
 
         if (receiverType.kind === 'objectRoot') {
-            return this.#resolveObjectRootField(node, pointer, receiverType);
+            return this.#storeResolution(pointer, this.#resolveObjectRootField(node, pointer, receiverType));
         }
 
         const matching = this.#typeChecker.mostSpecificOf(defaults, receiverType);
@@ -1202,12 +1202,13 @@ export class LanguageResolver {
             this.#fail('LEXICA3024', `The unnamed indexers ${this.#formatCompetingDeclarations(matching, receiverType)}`, pointer);
         }
 
-        return this.#resolveMemberOnReceiverType({ ...node, name: matching[0].name }, pointer, scope, receiverType);
+        return this.#storeResolution(pointer, this.#resolveMemberOnReceiverType({ ...node, name: matching[0].name }, pointer, scope, receiverType));
     }
 
     /**
      * Resolves a computed property access: the names its expression can give, which preparation determines, each a property of the receiver, their types of one type as a conditional's branches are.
      * The resolution keeps each name's, so evaluation reads the one the name selects; on a receiver of unknown type, whether each is a property and whether their types agree are checked once its type is known.
+     * Each name's use is recorded as soon as the name is resolved, after any its resolution records, and the access stores its own resolution alone.
      */
     #resolveComputedPropertyAccess(node, pointer, scope, receiverType) {
         const namePointer = `${pointer}/name`;
@@ -1240,9 +1241,14 @@ export class LanguageResolver {
 
         for (const candidate of possible.names) {
             const access = { kind: 'member', target: node.target, name: candidate, ...(node.optional === true ? { optional: true } : {}) };
+            const { result, resolution, use } = this.#resolveMemberOnReceiverType(access, pointer, scope, receiverType, true);
 
-            types.push(this.#resolveMemberOnReceiverType(access, pointer, scope, receiverType, true).type);
-            resolutionsByName.set(candidate, this.#resolutions.get(pointer));
+            types.push(result.type);
+            resolutionsByName.set(candidate, resolution);
+
+            if (use !== null) {
+                this.#usedDeclarations.push(use);
+            }
         }
 
         let type = types.reduce((merged, candidateType) => (merged === null ? null : this.#typeChecker.merge(merged, candidateType)), Type.never);
@@ -1373,7 +1379,10 @@ export class LanguageResolver {
         return { names: new Set(), canBeNull: type.isNullable, canBeFalse: isBoolean, canBeOther: false };
     }
 
-    /** Resolves the member the node names on a receiver of the type, which its receiver's null policy has already been applied to, the name one a computed property access settled to where it is computed. */
+    /**
+     * Resolves the member the node names on a receiver of the type, which its receiver's null policy has already been applied to, the name one a computed property access settled to where it is computed. It answers the
+     * access's result, its resolution and the use of its declaration, none for a stored value or a receiver of unknown type, and records neither; resolving its arguments records theirs, as resolving any node does.
+     */
     #resolveMemberOnReceiverType(node, pointer, scope, receiverType, isComputed = false) {
         if (LanguageResolver.#isNullOrNever(receiverType)) {
             return this.#resolveOnUnknownType(node, pointer, scope, receiverType);
@@ -1390,9 +1399,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3017', `'${node.name}' is a field of ${receiverType.toNonNullable()} and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
             }
 
-            this.#resolutions.set(pointer, { kind: 'field', name: node.name, receiverType });
-
-            return { type: receiverType.isNullable ? field.toNullable() : field, kind: 'value', isFixed: false };
+            return { result: { type: receiverType.isNullable ? field.toNullable() : field, kind: 'value', isFixed: false }, resolution: { kind: 'field', name: node.name, receiverType }, use: null };
         }
 
         const candidates = this.#moduleRegistry.getReceiverMembers(node.name);
@@ -1418,7 +1425,7 @@ export class LanguageResolver {
 
         const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
 
-        return this.#storeInvocation(pointer, this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType)));
+        return this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType));
     }
 
     /**
@@ -1463,8 +1470,8 @@ export class LanguageResolver {
         return { result: { type, kind: LanguageResolver.#getResultKind(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution, use: { declaration, qualifiedName: name, pointer } };
     }
 
-    /** Stores an invocation's resolution at its pointer and records the use of its declaration, where it chose one, answering its result. */
-    #storeInvocation(pointer, { result, resolution, use }) {
+    /** Stores what the node at the pointer resolved to, an access's resolution or an invocation's, and records the use of its declaration, where it chose one, answering its result. */
+    #storeResolution(pointer, { result, resolution, use }) {
         this.#resolutions.set(pointer, resolution);
 
         if (use !== null) {
@@ -1583,12 +1590,12 @@ export class LanguageResolver {
             return this.#resolveFunctionReference(node, pointer, [declaration], contract);
         }
 
-        return this.#storeInvocation(pointer, this.#resolveInvocation(declaration, node, pointer, scope, null, written));
+        return this.#storeResolution(pointer, this.#resolveInvocation(declaration, node, pointer, scope, null, written));
     }
 
     /** Resolves a qualified form: the module's member on a type, called with its receiver as its first argument, as a qualified call. */
     #resolveQualifiedForm(node, pointer, scope, declarations, written) {
-        return this.#storeInvocation(pointer, this.#resolveQualifiedCall(node, pointer, scope, declarations, {
+        return this.#storeResolution(pointer, this.#resolveQualifiedCall(node, pointer, scope, declarations, {
             subject: `'${written}'`,
             missingReceiver: `'${written}' is the qualified form of a member of a receiver, which takes the receiver as its first argument, as ${written}(receiver)`,
             receiverOf: `'${written}' takes a receiver of`,
@@ -1611,9 +1618,7 @@ export class LanguageResolver {
         const isReceiverNullable = receiver.type.isNullable || receiver.type.kind === 'null';
 
         if (LanguageResolver.#isNullOrNever(receiverType)) {
-            const result = this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
-
-            return { result, resolution: this.#resolutions.get(pointer), use: null };
+            return this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
         }
 
         const matching = this.#typeChecker.mostSpecificOf(declarations, receiverType);
@@ -1772,6 +1777,7 @@ export class LanguageResolver {
     /**
      * Resolves a name applied to a receiver of unknown type, which chooses no declaration among the candidates, those of its name or, for an unnamed indexer, every unnamed indexer. A property is accepted whatever its name, since a bound object's fields are named by its data; a call or an indexer must be a member's, written in the form and given the arguments one of its declarations takes. The declarations that take it agree on who invokes it, the evaluator or the host.
      * Its type is the result type they share, made nullable, or left to the optional chain an optional access of null ends, and null where they share none or the name is no member's. Nothing applied to such a receiver is evaluated, so its arguments leave no resolution behind.
+     * It answers its result and its resolution, with no use, since it chooses no declaration, and records neither.
      */
     #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#moduleRegistry.getReceiverMembers(node.name), offset = 0) {
         const isAccess = node.kind === 'member';
@@ -1825,12 +1831,12 @@ export class LanguageResolver {
         const type = shared === null || shared.kind === 'never' || LanguageResolver.#holdsTypeParameter(shared) ? unknown : isNever || isShortCircuited ? shared : shared.toNullable();
 
         // A qualified call's receiver is its first argument, and any other member's the node it targets.
-        this.#resolutions.set(pointer, { kind: 'invocation', candidates: fitting.map(({ declaration }) => declaration), receiverNode: offset > 0 ? node.arguments[0] : node.target, receiverType, type, arguments: [] });
+        const resolution = { kind: 'invocation', candidates: fitting.map(({ declaration }) => declaration), receiverNode: offset > 0 ? node.arguments[0] : node.target, receiverType, type, arguments: [] };
 
         // Host calls that agree on their host supplying nothing take no result projection, whichever of them a receiver's type will choose.
         const suppliesNothing = fitting.length > 0 && fitting.every(({ declaration }) => declaration.result === undefined);
 
-        return { type, kind: [...kinds][0], isFixed: false, ...(suppliesNothing ? { suppliesNothing: true } : {}) };
+        return { result: { type, kind: [...kinds][0], isFixed: false, ...(suppliesNothing ? { suppliesNothing: true } : {}) }, resolution, use: null };
     }
 
     /** Refuses a member written in a form its declaration does not take, with the form it does: a property is accessed, and a function called or named as its declaration says. */
@@ -2203,7 +2209,7 @@ export class LanguageResolver {
 
     /**
      * Resolves a field read through the object root: one of the fields completed where the reference was written, read as an object's is, with no argument; its resolution keeps the field's value, so what reads it
-     * reuses the branches the field selected and compares it within its tolerance.
+     * reuses the branches the field selected and compares it within its tolerance. It answers its result and its resolution, with no use, and records neither.
      */
     #resolveObjectRootField(node, pointer, receiverType) {
         if (node.kind !== 'member') {
@@ -2224,9 +2230,11 @@ export class LanguageResolver {
             this.#fail('LEXICA3044', `'${node.name}' is no field of root completed where the reference to it is written; ${completed.length === 0 ? 'none is completed there' : `those completed are ${completed.join(', ')}`}`, pointer);
         }
 
-        this.#resolutions.set(pointer, { kind: 'objectRootField', name: node.name, initializer: this.#objectRootFields.get(receiverType.objectExpression).get(node.name).initializer });
-
-        return { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false };
+        return {
+            result: { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false },
+            resolution: { kind: 'objectRootField', name: node.name, initializer: this.#objectRootFields.get(receiverType.objectExpression).get(node.name).initializer },
+            use: null,
+        };
     }
 
     /** The refusal of a read of an expression, a predicate or an implicit body option, which the member evaluates and which has no value to read. */

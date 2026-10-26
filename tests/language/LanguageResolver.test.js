@@ -83,6 +83,20 @@ describe('LanguageResolver', () => {
         });
     });
 
+    describe('a computed property access', () => {
+        it('keeps each name\'s resolution by its name and records each use as its name is resolved, its own pointer holding its own resolution', () => {
+            const property = (name, result = 'Number') => Declarations.property(name, 'String', result, { updates: constant, implementation: () => 1 });
+            const lit = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', { members: [property('glow'), property('dim'), property('long', 'Boolean')] })]);
+            const definition = ParsedTexts.parse('return word.[if word.long then "glow" else "dim" end]', new Set(lit.namespaceNames));
+            const resolved = new LanguageResolver(lit, new ParameterBindings(lit, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
+            const { kind, resolutionsByName } = resolved.getResolution('/expression/result');
+
+            expect(kind).toBe('computedPropertyAccess');
+            expect([...resolutionsByName].map(([name, resolution]) => [name, resolution.kind, resolution.declaration.name])).toEqual([['glow', 'invocation', 'glow'], ['dim', 'invocation', 'dim']]);
+            expect(resolved.usedDeclarations.map(use => `${use.qualifiedName}@${use.pointer}`)).toEqual(['String.long@/expression/result/name/condition', 'String.glow@/expression/result', 'String.dim@/expression/result']);
+        });
+    });
+
     describe('the object root', () => {
         /** The code of the error resolving the script fails with. */
         const codeOf = result => {
