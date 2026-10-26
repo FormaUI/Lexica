@@ -275,7 +275,7 @@ const declarations = Object.freeze({
 
 /** Result paths: a path's shape checked, and the value it reaches in a result. */
 const paths = Object.freeze({
-    check: path => ResultPath.checkShape(path),
+    check: path => ResultPath.validateShape(path),
     valueAt: (value, path) => ResultPath.valueAt(value, path),
 });
 

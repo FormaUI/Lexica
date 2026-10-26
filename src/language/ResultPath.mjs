@@ -7,8 +7,8 @@ import { Names } from './Names.mjs';
 import { Type } from './Type.mjs';
 
 export class ResultPath {
-    /** Refuses a path item that is neither a name nor a list index, a whole number that is not negative, before anything is resolved. */
-    static checkShape(path) {
+    /** Validates a path's structure before anything is resolved: each of its items is a name or a list index, a whole number that is not negative, and any other is refused. */
+    static validateShape(path) {
         for (const item of path) {
             const isIndex = Number.isInteger(item) && item >= 0;
 
@@ -48,13 +48,13 @@ export class ResultPath {
                 continue;
             }
 
-            const fieldType = ResultPath.#fieldTypeOf(type, item, moduleRegistry);
+            const nextType = ResultPath.#fieldTypeOf(type, item, moduleRegistry);
 
-            if (fieldType === null) {
+            if (nextType === null) {
                 throw LexicaErrors.validation('LEXICA3602', `The path names '${item}', which ${type.toNonNullable()} does not hold`, locationOf());
             }
 
-            type = fieldType;
+            type = nextType;
         }
 
         return isNullable ? type.toNullable() : type;
