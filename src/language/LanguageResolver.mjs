@@ -1028,7 +1028,7 @@ export class LanguageResolver {
 
     /** How the member of the type with the name is written after the receiver, `it` unless another is given, or null where the type has none. */
     #memberForm(type, name, receiver = 'it') {
-        if (this.#fieldTypeOf(type, name) !== null) {
+        if ((type.kind === 'object' ? type.getObjectFieldType(name) : (this.#moduleRegistry.getDataShape(type)?.get(name) ?? null)) !== null) {
             return `${receiver}.${name}`;
         }
 
@@ -1161,7 +1161,7 @@ export class LanguageResolver {
             return declarations.some(declaration => this.#moduleRegistry.formOf(declaration) === 'indexer') ? 'indexer' : null;
         }
 
-        if (receiverType.kind === 'objectRoot' || this.#fieldTypeOf(receiverType, access.name) !== null) {
+        if (receiverType.kind === 'objectRoot' || (receiverType.kind === 'object' ? receiverType.getObjectFieldType(access.name) : (this.#moduleRegistry.getDataShape(receiverType)?.get(access.name) ?? null)) !== null) {
             return null;
         }
 
@@ -1191,7 +1191,7 @@ export class LanguageResolver {
         if (matching.length === 0) {
             // A string key may name a property of the receiver, which a computed property access reads.
             const key = node.argument.kind === 'literal' ? node.argument.value : null;
-            const isNamed = typeof key === 'string' && (this.#fieldTypeOf(receiverType, key) !== null || this.#moduleRegistry.getReceiverMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
+            const isNamed = typeof key === 'string' && ((receiverType.kind === 'object' ? receiverType.getObjectFieldType(key) : (this.#moduleRegistry.getDataShape(receiverType)?.get(key) ?? null)) !== null || this.#moduleRegistry.getReceiverMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
             const computed = isNamed ? DefinitionWriter.quote({ kind: 'member', target: node.target, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
 
             this.#fail('LEXICA3012', `${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
@@ -1392,14 +1392,18 @@ export class LanguageResolver {
             return this.#resolveObjectRootField(node, pointer, receiverType);
         }
 
-        const field = this.#fieldTypeOf(receiverType, node.name);
+        // A stored value is an object type's object field or a property of a structured type's data, each type's lookup its own, and both are read alike.
+        const isObject = receiverType.kind === 'object';
+        const storedType = isObject ? receiverType.getObjectFieldType(node.name) : (this.#moduleRegistry.getDataShape(receiverType)?.get(node.name) ?? null);
 
-        if (field !== null) {
+        if (storedType !== null) {
             if (node.kind !== 'member') {
-                this.#fail('LEXICA3017', `'${node.name}' is a field of ${receiverType.toNonNullable()} and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
+                const stored = isObject ? `an object field of ${receiverType.toNonNullable()}` : `a property of ${receiverType.toNonNullable()}'s data`;
+
+                this.#fail('LEXICA3017', `'${node.name}' is ${stored} and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
             }
 
-            return { result: { type: receiverType.isNullable ? field.toNullable() : field, kind: 'value', isFixed: false }, resolution: { kind: 'field', name: node.name, receiverType }, use: null };
+            return { result: { type: receiverType.isNullable ? storedType.toNullable() : storedType, kind: 'value', isFixed: false }, resolution: { kind: 'storedValue', name: node.name }, use: null };
         }
 
         const candidates = this.#moduleRegistry.getReceiverMembers(node.name);
@@ -1786,7 +1790,7 @@ export class LanguageResolver {
         const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#moduleRegistry.formOf(candidate)] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
-            this.#fail(this.#moduleRegistry.getDataPropertyTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getDataPropertyTypes(node.name).length > 0 ? `'${node.name}' is a field and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
+            this.#fail(this.#moduleRegistry.getDataPropertyTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#moduleRegistry.getDataPropertyTypes(node.name).length > 0 ? `'${node.name}' is a property of a structured type's data and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
         }
 
         if (!isAccess && candidatesInForm.length === 0) {
@@ -2414,15 +2418,6 @@ export class LanguageResolver {
 
     /** The fields of each outermost object, by the object expression that builds it and then by name, each with its initializer, which a field read through the object root follows. @type {WeakMap<object, Map<string, { initializer: object } | { optionKind: string }>>} */
     #objectRootFields = new WeakMap();
-
-    /** The type of the field a structured type or an object type declares under the name, or null. */
-    #fieldTypeOf(type, name) {
-        if (type.kind === 'object') {
-            return type.fieldTypes.get(name) ?? null;
-        }
-
-        return this.#moduleRegistry.getDataShape(type)?.get(name) ?? null;
-    }
 
     /** Refuses the definition with the code of the condition it fails, a structure error for a structure code and a validation error otherwise, located at the source of the pointer. */
     #fail(code, message, pointer) {

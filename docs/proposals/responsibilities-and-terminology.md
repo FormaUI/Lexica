@@ -436,14 +436,13 @@ The survey also identified corrections that follow actual responsibilities:
 
 Object-field names must not be assigned to operations that still handle structured properties.
 
-Where one lookup serves different type contracts, separate it by them: ResultPath's name-based type lookup becomes an object field's type lookup and a structured type's data shape lookup, though their runtime reads share an implementation.
+Where one lookup serves different type contracts, separate it by them: ResultPath's name-based type lookup becomes an object field's type lookup and a structured type's data shape lookup, though their runtime reads share an implementation, `readStoredValue`. A field read through the object root shares that read, which copies its selections as any other's; its resolution kind stays its own, since its metadata follows the field's initializer, where any other stored value's is selected from its receiver's.
 
 Keep already explicit names such as:
 
 - `objectRootField`
 - `objectRootFields`
 - `resolveObjectRootField`
-- `readObjectRootField`
 
 The full ledger must preserve these distinctions and extend the pattern to all relevant uses.
 

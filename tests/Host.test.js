@@ -46,6 +46,8 @@ describe('a host of plain data', () => {
         expect(resolution.hostCall).toBeNull();
         expect(resolution.type).toBe('{ total: Price, cut: Number }');
         expect(resolution.typeAt(['total', 'amount'])).toBe('Number');
+        expect(() => resolution.typeAt(['total', 'weight'])).toThrow("The path names 'weight', which Price does not hold");
+        expect(registry.resolve('{ none = null }').typeAt(['none'])).toBe('null');
         expect(resolution.usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['String.total', '/expression/fields/0/value'], ['String.discount', '/expression/fields/1/value']]);
         expect(resolution.usedDeclarations.map(({ name }) => name)).toEqual(['total', 'discount']);
         expect(resolution.getLocation('/expression/fields/1/value')).toMatchObject({ pointer: '/expression/fields/1/value', line: 1 });

@@ -115,4 +115,16 @@ describe('Type', () => {
         expect(list.equals(Type.parse('List<Number>'))).toBe(true);
         expect(list.equals(Type.parse('List<Number?>'))).toBe(false);
     });
+
+    describe('getObjectFieldType', () => {
+        it('answers the type of an object type\'s object field, the type null among them, and null for a field it holds none of and for a type of another kind, the object root among them', () => {
+            const fieldTypes = new Map([['a', Type.parse('Number')], ['b', Type.null]]);
+
+            expect(String(Type.createObjectType(fieldTypes).getObjectFieldType('a'))).toBe('Number');
+            expect(Type.createObjectType(fieldTypes).getObjectFieldType('b')).toBe(Type.null);
+            expect(Type.createObjectType(fieldTypes).getObjectFieldType('c')).toBeNull();
+            expect(Type.createObjectRootType({}, fieldTypes).getObjectFieldType('a')).toBeNull();
+            expect(Type.parse('Cup').getObjectFieldType('size')).toBeNull();
+        });
+    });
 });

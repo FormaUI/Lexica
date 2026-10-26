@@ -48,7 +48,8 @@ export class ResultPath {
                 continue;
             }
 
-            const nextType = ResultPath.#fieldTypeOf(type, item, moduleRegistry);
+            // An object type's object field, or a property of a structured type's data, each type's lookup its own.
+            const nextType = type.kind === 'object' ? type.getObjectFieldType(item) : (moduleRegistry.getDataShape(type)?.get(item) ?? null);
 
             if (nextType === null) {
                 throw LexicaErrors.validation('LEXICA3602', `The path names '${item}', which ${type.toNonNullable()} does not hold`, locationOf());
@@ -73,13 +74,5 @@ export class ResultPath {
         }
 
         return current;
-    }
-
-    static #fieldTypeOf(type, name, moduleRegistry) {
-        if (type.kind === 'object') {
-            return type.fieldTypes.get(name) ?? null;
-        }
-
-        return moduleRegistry.getDataShape(type)?.get(name) ?? null;
     }
 }

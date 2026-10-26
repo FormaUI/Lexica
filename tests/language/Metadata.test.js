@@ -128,6 +128,20 @@ describe('result metadata', () => {
         expect(Object.hasOwn(resolve('items', { items: [1, 2] }).evaluate().metadata, 'sources')).toBe(false);
     });
 
+    it('traces a stored value read through the root and through a value, directly and by a computed name, to the branch its field selected, of an equal value and another tolerance', () => {
+        const text = 'let held = { picked = if flag then name.size.width else name.length end }\nreturn { picked = if flag then name.size.width else name.length end, viaRoot = root.picked, viaRootComputed = root.[key], viaValue = held.picked, viaValueComputed = held.[key] }';
+        const reads = ['viaRoot', 'viaRootComputed', 'viaValue', 'viaValueComputed'];
+        const { evaluate } = resolve(text, { name: 'tea', flag: true, key: 'picked' });
+
+        for (const [flag, tolerance] of [[true, 0.5], [false, null]]) {
+            const { value, metadata } = evaluate({ name: 'tea', flag, key: 'picked' });
+
+            expect(reads.map(read => value[read])).toEqual([3, 3, 3, 3]);
+            expect(reads.map(read => metadata.objectFields[read].tolerance)).toEqual([tolerance, tolerance, tolerance, tolerance]);
+            expect(metadata.objectFields.viaRoot.origin).toBe(metadata.objectFields.picked.origin);
+        }
+    });
+
     it('records each field by its name in the order written', () => {
         const { objectFields } = metadataOf('{ b = 1, c = 2, a = 3 }');
 

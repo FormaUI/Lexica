@@ -831,18 +831,18 @@ export class Evaluator {
         if (resolution.kind === 'objectRootField') {
             const { name } = resolution;
 
-            return (evaluator, context) => evaluator.#readObjectRootField(evaluateReceiver(evaluator, context), name);
+            return (evaluator, context) => evaluator.#readStoredValue(evaluateReceiver(evaluator, context), name);
         }
 
         const { name } = resolution;
 
-        // A field of data, which a projection's host call never is.
+        // A stored value, an object field or a property of a structured type's data, which a projection's host call never is.
         return (evaluator, context) => {
             if (evaluator.#projectionContext !== null && node === evaluator.#projectionContext.node) {
                 return evaluator.#projectionContext.value;
             }
 
-            return evaluator.#readField(evaluateReceiver(evaluator, context), name);
+            return evaluator.#readStoredValue(evaluateReceiver(evaluator, context), name);
         };
     }
 
@@ -1513,16 +1513,12 @@ export class Evaluator {
     }
 
     /**
-     * Evaluates the access the resolution names on the receiver: reads a property of its data or an object field of the object root, or evaluates the arguments the declaration is given and invokes it with them, answering null
+     * Evaluates the access the resolution names on the receiver: reads a value it stores, or a completed field of the object root, or evaluates the arguments the declaration is given and invokes it with them, answering null
      * without invoking it where a null argument propagates.
      */
     #evaluateResolvedAccess(resolution, receiver, node, context) {
-        if (resolution.kind === 'field') {
-            return this.#readField(receiver, resolution.name);
-        }
-
-        if (resolution.kind === 'objectRootField') {
-            return this.#readObjectRootField(receiver, resolution.name);
+        if (resolution.kind === 'storedValue' || resolution.kind === 'objectRootField') {
+            return this.#readStoredValue(receiver, resolution.name);
         }
 
         const args = this.#evaluateArguments(resolution, context);
@@ -1530,8 +1526,12 @@ export class Evaluator {
         return args === null ? null : this.#invokeImplementation(this.#getCompiledInvocation(resolution.declaration, resolution.type), receiver, args, node);
     }
 
-    /** A field of a value, the selections that its value's evaluation made, where an object expression of this evaluation built the value, recorded where it is read; null for no receiver. */
-    #readField(receiver, name) {
+    /**
+     * A value the receiver stores under the name, an object field or a property of a structured type's data, a completed field of the outermost object read through a reference to it among them, as its evaluation gave it:
+     * the selections that evaluation made, where an object expression of this evaluation built the receiver, recorded where it is read; null for no receiver, where a receiver that can be null is. Its metadata is traced by its
+     * resolution's kind, which tells a field of the root, which follows its initializer, from any other.
+     */
+    #readStoredValue(receiver, name) {
         if (receiver === null) {
             return null;
         }
@@ -1545,23 +1545,6 @@ export class Evaluator {
         }
 
         return receiver[name] ?? null;
-    }
-
-    /** A completed field of the outermost object, read through a reference to it as the value its evaluation gave, the selections it made recorded where it is read; null for no root, where a reference that can be null is. */
-    #readObjectRootField(root, name) {
-        if (root === null) {
-            return null;
-        }
-
-        const selections = this.#objectFieldSelections.get(root)?.get(name) ?? null;
-
-        if (selections !== null) {
-            const recorded = (this.#selections ??= new Map());
-
-            selections.forEach((selection, node) => recorded.set(node, selection));
-        }
-
-        return root[name] ?? null;
     }
 
     /**
@@ -1994,7 +1977,7 @@ export class Evaluator {
                         continue;
                     }
 
-                    if (resolution?.kind === 'field') {
+                    if (resolution?.kind === 'storedValue') {
                         const whole = this.#resolveRecord(node.target, undefined, identities, contextRecord);
 
                         return whole.objectFields?.[candidate ?? resolution.name] ?? Evaluator.#getInheritedRecord(whole);

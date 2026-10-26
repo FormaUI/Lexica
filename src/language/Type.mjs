@@ -92,6 +92,14 @@ export class Type {
         return this.isList ? this.typeArguments[0] : null;
     }
 
+    /**
+     * The type of the object field an object type holds under the name, which may be the type null; null where it holds none, and for a type of any other kind, the object root among them, whose completed fields its own
+     * reads check.
+     */
+    getObjectFieldType(name) {
+        return this.kind === 'object' ? (this.fieldTypes.get(name) ?? null) : null;
+    }
+
     /** The object type of the field types, by name. */
     static createObjectType(fieldTypes, isNullable = false) {
         return new Type('object', { fieldTypes, isNullable });

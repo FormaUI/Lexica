@@ -97,6 +97,41 @@ describe('LanguageResolver', () => {
         });
     });
 
+    describe('a stored value', () => {
+        /** A registry whose `Cup` is a structured type of a size, converted from a string. */
+        const cups = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+            types: [{ name: 'Cup', fields: { size: 'Number' } }],
+            conversions: [{ from: 'String', to: 'Cup', implementation: ({ value }) => ({ size: value.length }) }],
+        })]);
+        const values = { word: 'oat', pair: { a: 1, b: null }, missing: null };
+        const resolveCups = text => {
+            const definition = ParsedTexts.parse(`return ${text}`, new Set(cups.namespaceNames));
+
+            return new LanguageResolver(cups, new ParameterBindings(cups, values), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
+        };
+        const refusalOf = text => {
+            try {
+                resolveCups(text);
+            } catch (error) {
+                return { code: error.code, message: error.message, pointer: error.location.pointer };
+            }
+
+            return null;
+        };
+
+        it('is resolved by its name alone, an object field and a property of a structured type\'s data alike, an object field of the type null among them', () => {
+            expect(resolveCups('pair.a').getResolution('/expression/result')).toEqual({ kind: 'storedValue', name: 'a' });
+            expect(String(resolveCups('pair.b').type)).toBe('null');
+            expect(resolveCups('(word to Cup).size').getResolution('/expression/result')).toEqual({ kind: 'storedValue', name: 'size' });
+        });
+
+        it('is refused where it is called, as an object field, as a property of a structured type\'s data, and as one where the receiver\'s type is unknown', () => {
+            expect(refusalOf('pair.a()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'a' is an object field of { a: Number, b: null } and takes no argument: write 'pair.a'"), pointer: '/expression/result' });
+            expect(refusalOf('(word to Cup).size()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'size' is a property of Cup's data and takes no argument: write '(word to Cup).size'"), pointer: '/expression/result' });
+            expect(refusalOf('missing?.size()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'size' is a property of a structured type's data and takes no argument: write 'missing?.size'"), pointer: '/expression/result/target' });
+        });
+    });
+
     describe('the object root', () => {
         /** The code of the error resolving the script fails with. */
         const codeOf = result => {
