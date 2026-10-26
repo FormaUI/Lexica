@@ -695,9 +695,15 @@ export class LexicaRegistry {
         });
     }
 
-    /** Whether values of the type are data, a structured type's fields included; a structure already being checked counts as data where it holds itself, since its other fields are checked where it is first met. */
+    /**
+     * Whether values of the type are data, a structured type's fields included, null and never among them; a structure already being checked counts as data where it holds itself, since its other fields are checked where it is
+     * first met. Being data does not make a type a conversion's endpoint, which module creation and `isConvertible` decide apart.
+     */
     #isData(type, checking) {
         switch (type.kind) {
+            case 'null':
+            case 'never':
+                return true;
             case 'named': {
                 // A generic value type holds data where each of its type arguments does, as a list of data does.
                 if (type.typeArguments.length > 0) {

@@ -330,6 +330,21 @@ describe('conversions', () => {
         expect(registry.isConvertible(CHART)).toBe(true);
         expect(registry.isConvertible(Type.parse('List<Number>'))).toBe(false);
     });
+
+    it('convert a structured type that holds null, Never or a list of null as data, while null, Never, a list and a nullable type stay no endpoint', () => {
+        for (const fieldType of ['null', 'Never', 'List<null>']) {
+            const registry = registering(charts([{ from: 'String', to: 'Chart' }, { from: 'Chart', to: 'String' }], [{ name: 'Chart', fields: { points: fieldType } }]))();
+
+            expect(registry.getConversion(STRING, CHART), fieldType).toBeDefined();
+            expect(registry.getConversion(CHART, STRING), fieldType).toBeDefined();
+            expect(registry.isConvertible(CHART), fieldType).toBe(true);
+            expect([Type.parse('null'), Type.never, Type.parse('List<null>'), Type.createNamedType('Chart', true, 'charts')].map(type => registry.isConvertible(type)), fieldType).toEqual([false, false, false, false]);
+        }
+
+        for (const [from, to, end] of [['String', 'null', 'to'], ['Never', 'Chart', 'from'], ['String', 'List<null>', 'to'], ['Chart?', 'String', 'from']]) {
+            expect(messageOf(() => charts([{ from, to }])), `${from} to ${to}`).toContain(`its '${end}' is none of them`);
+        }
+    });
 });
 
 describe("a module's own collisions", () => {
