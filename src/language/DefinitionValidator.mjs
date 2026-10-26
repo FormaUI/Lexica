@@ -66,7 +66,7 @@ const COMPARISON_DIRECTIONS = Object.freeze({ '<': 'ascending', '<=': 'ascending
 /** The kinds of node `try` attempts: the operations with a rejection of their own, which an attempt answers null for. */
 const ATTEMPTED_KINDS = new Set(['conversion', 'cast']);
 
-/** What a local and a field of an object expression each hold: a name, always written, and a value. */
+/** The keys a local, a conditional binding and an object field each hold: a name, always written, and a value. */
 const ENTRY_PROPERTIES = { properties: ['name', 'value'], required: ['name', 'value'] };
 
 /** Where a node's implicit parameter stands: absent at the top level, present in an object expression following a value, unknown in an argument. */
@@ -77,7 +77,7 @@ export class DefinitionValidator {
     static #suppliedLocations = new WeakMap();
 
     /** Every canonical definition validation gave, which validating again answers as it is. @type {WeakSet<object>} */
-    static #canonical = new WeakSet();
+    static #canonicalDefinitions = new WeakSet();
 
     /** The parameter nodes of canonical definitions that a text wrote alone, a bare name no local in scope has, rather than with `~`. @type {WeakSet<object>} */
     static #namesWrittenAlone = new WeakSet();
@@ -103,9 +103,9 @@ export class DefinitionValidator {
     #chain = null;
 
     /**
-     * The simple expression the node being validated stands in, an argument, an indexer's key, a computed property access's name or an interpolation's expression, with what its message calls it and whether a conditional holds the node;
+     * The simple expression the node being validated stands in, an argument, an indexer's key, a computed property access's name or an interpolation's expression, with the subject its messages open with and whether a conditional holds the node;
      * null outside one. A simple expression nested in another keeps the conditional that holds it.
-     * @type {{ holder: string, isInConditional: boolean } | null}
+     * @type {{ subject: string, isInConditional: boolean } | null}
      */
     #simpleExpression = null;
 
@@ -147,7 +147,7 @@ export class DefinitionValidator {
 
     /** Checks the definition's structure, returning its canonical, frozen copy; a canonical definition validation already gave is answered as it is, keeping the locations it has. */
     validate(definition) {
-        if (DefinitionValidator.#canonical.has(definition)) {
+        if (DefinitionValidator.#canonicalDefinitions.has(definition)) {
             return definition;
         }
 
@@ -165,7 +165,7 @@ export class DefinitionValidator {
             DefinitionValidator.#suppliedLocations.set(validated, new DefinitionLocations(validated, this.#partIndexes));
         }
 
-        DefinitionValidator.#canonical.add(validated);
+        DefinitionValidator.#canonicalDefinitions.add(validated);
 
         return validated;
     }
@@ -212,7 +212,7 @@ export class DefinitionValidator {
 
                 // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; a script parameter written with `~` and a definition's parameter read the script parameter wherever they stand.
                 if (this.#locations !== null && !this.#parameterReferences?.has(node)) {
-                    this.#requireBindingName(node.name, pointer);
+                    this.#requireScriptParameterName(node.name, pointer);
 
                     const parameter = Object.freeze({ kind: 'parameter', name: node.name });
 
@@ -281,7 +281,7 @@ export class DefinitionValidator {
                 break;
             case 'do':
                 if (this.#simpleExpression !== null) {
-                    this.#fail('LEXICA2011', pointer, `${this.#simpleExpression.holder} is a simple expression, which holds no do block: ${this.#simpleExpression.advice ?? "bind the block's value to a local first, and use the local"}`);
+                    this.#fail('LEXICA2011', pointer, `${this.#simpleExpression.subject} is a simple expression, which holds no do block: ${this.#simpleExpression.advice ?? "bind the block's value to a local first, and use the local"}`);
                 }
 
                 return Object.freeze({ kind: 'do', body: this.#validateBodyOrExpression(node.body, `${pointer}/body`, contextAvailability) });
@@ -389,20 +389,20 @@ export class DefinitionValidator {
      */
     #validateSimpleConditional(node, pointer, contextAvailability) {
         const simpleExpression = this.#simpleExpression;
-        const { holder } = simpleExpression;
+        const { subject } = simpleExpression;
         const advice = simpleExpression.advice ?? "bind the conditional's value to a local first, and use the local";
 
         if (simpleExpression.isInConditional) {
-            this.#fail('LEXICA2011', pointer, `${holder} is a simple expression, whose conditional holds no other conditional, elseif included: ${advice}`);
+            this.#fail('LEXICA2011', pointer, `${subject} is a simple expression, whose conditional holds no other conditional, elseif included: ${advice}`);
         }
 
         if (node.binding !== undefined) {
-            this.#fail('LEXICA2011', `${pointer}/binding`, `${holder} is a simple expression, whose conditional tests a value and binds none: ${advice}`);
+            this.#fail('LEXICA2011', `${pointer}/binding`, `${subject} is a simple expression, whose conditional tests a value and binds none: ${advice}`);
         }
 
         for (const branch of ['consequent', 'alternative']) {
             if (node[branch]?.kind === 'body') {
-                this.#fail('LEXICA2011', `${pointer}/${branch}`, `${holder} is a simple expression, whose conditional gives each branch's value without return or locals, as if … then … else … end does: ${advice}`);
+                this.#fail('LEXICA2011', `${pointer}/${branch}`, `${subject} is a simple expression, whose conditional gives each branch's value without return or locals, as if … then … else … end does: ${advice}`);
             }
         }
 
@@ -421,13 +421,13 @@ export class DefinitionValidator {
     }
 
     /**
-     * Validates a simple expression the holder names: the node and everything within it, which hold no do block, no local, no conditional binding, no `return`, and no conditional beyond an if branch and an else branch of simple value expressions.
+     * Validates a simple expression the subject names: the node and everything within it, which hold no do block, no local, no conditional binding, no `return`, and no conditional beyond an if branch and an else branch of simple value expressions.
      * A simple expression within another keeps the conditional that holds it, and the advice a refusal gives where a local cannot hold what it refuses, as within an arrow function's body.
      */
-    #validateSimpleExpression(node, pointer, contextAvailability, holder, advice = undefined) {
+    #validateSimpleExpression(node, pointer, contextAvailability, subject, advice = undefined) {
         const enclosingSimpleExpression = this.#simpleExpression;
 
-        this.#simpleExpression = { holder, isInConditional: enclosingSimpleExpression?.isInConditional ?? false, advice: advice ?? enclosingSimpleExpression?.advice };
+        this.#simpleExpression = { subject, isInConditional: enclosingSimpleExpression?.isInConditional ?? false, advice: advice ?? enclosingSimpleExpression?.advice };
 
         try {
             return this.#validateNode(node, pointer, contextAvailability);
@@ -853,7 +853,7 @@ export class DefinitionValidator {
 
         try {
             if (node.locals !== undefined && this.#simpleExpression !== null) {
-                this.#fail('LEXICA2527', `${pointer}/locals/0`, `${this.#simpleExpression.holder} is a simple expression, whose object expressions hold no locals: ${this.#simpleExpression.advice ?? 'bind each value to a local before the expression, and use the local'}`);
+                this.#fail('LEXICA2527', `${pointer}/locals/0`, `${this.#simpleExpression.subject} is a simple expression, whose object expressions hold no locals: ${this.#simpleExpression.advice ?? 'bind each value to a local before the expression, and use the local'}`);
             }
 
             const locals = node.locals === undefined ? [] : this.#validateLocals(node.locals, `${pointer}/locals`, fieldContextAvailability);
@@ -933,10 +933,11 @@ export class DefinitionValidator {
     }
 
     /**
-     * Refuses a parameter that text could not write: one named as a local or a field in scope where it stands, which the name reads there instead, and one named as a local declared later in its scope,
-     * the local whose value it is among them, which a name reads only after its declaration and never as a binding of that name before it.
+     * Refuses a script parameter a text wrote as a bare name where that name cannot denote one: one named as a local or a field in scope where it stands, which the name reads there instead, and one named as a local declared
+     * later in its scope, the local whose value it is among them, which a name reads only after its declaration and never as a binding of that name before it. It is not the general check of an identifier, and a parameter
+     * written with `~` follows its own rules.
      */
-    #requireBindingName(name, pointer) {
+    #requireScriptParameterName(name, pointer) {
         if (this.#localNames.has(name)) {
             this.#fail('LEXICA2528', pointer, `'${name}' names the local or field in scope here, so no binding of that name is read where it is`);
         }
