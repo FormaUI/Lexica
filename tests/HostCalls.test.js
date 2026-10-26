@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
+import { hostFunctionDeclaration } from './support/declarations.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
 /** A host call of a device, named by a string: a function its host invokes, which supplies values of the result's type, or none where it declares none. */
-const hostCall = (name, result, options) => lexica.declarations.function(name, 'String', result, { invokedBy: 'host', ...options });
 
 /**
  * A home's module: a light dimmed to a level, which supplies the level it reached; a thermostat held at a target, which supplies nothing; a sensor watched for motion, which supplies each motion; a device's reports of a kind,
@@ -23,10 +23,10 @@ const createHome = (invoked = []) => lexica.createModule('home', {
         { name: 'tone', selector: 'reading', type: 'String' },
     ],
     members: [
-        hostCall('dim', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
-        hostCall('hold', undefined, { arguments: 'options', parameters: [valueParameter('target', 'Number')] }),
-        hostCall('watch', 'Motion'),
-        hostCall('on', '@selected', { parameters: [valueParameter('type', 'String', { fixed: true, selects: 'type', selector: 'event' })] }),
+        hostFunctionDeclaration('dim', 'String', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
+        hostFunctionDeclaration('hold', 'String', undefined, { arguments: 'options', parameters: [valueParameter('target', 'Number')] }),
+        hostFunctionDeclaration('watch', 'String', 'Motion'),
+        hostFunctionDeclaration('on', 'String', '@selected', { parameters: [valueParameter('type', 'String', { fixed: true, selects: 'type', selector: 'event' })] }),
         lexica.declarations.function('reading', 'String', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('name', 'String', { fixed: true, selects: 'type', selector: 'reading' })], implementation: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
         property('room', 'String', 'String', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`room:${receiver}`), `${receiver}'s room`) }),
         property('level', 'String', 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => (invoked.push(`level:${receiver}`), env.levels[receiver]) }),
@@ -175,7 +175,7 @@ describe('prepared calls', () => {
             members: [
                 property('fine', 'String', 'Number', { ...tolerant(0.1), implementation: () => 1 }),
                 property('coarse', 'String', 'Number', { ...tolerant(5), implementation: () => 2 }),
-                hostCall('dim', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
+                hostFunctionDeclaration('dim', 'String', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
             ],
         });
         const local = 'let o = { v = if lit then light.fine else light.coarse end }\nreturn ';

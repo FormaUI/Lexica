@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
-import { declaration, functionDeclaration, parameter } from './declarations.mjs';
 import { expectModuleError } from '../../support/errors.mjs';
+import { functionDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
 
 /** The declaration and the declaration key a module error's location names, beside a fragment of its message. */
 const refusal = (contents, declarationName, declarationKey, fragment) => {
@@ -15,7 +15,7 @@ const refusal = (contents, declarationName, declarationKey, fragment) => {
 describe('LexicaModule', () => {
     it('keeps its declarations as frozen data, each implementation the function its module gave', () => {
         const implementation = () => 2;
-        const module = new LexicaModule('charts', { members: [declaration({ name: 'charts', implementation })] });
+        const module = new LexicaModule('charts', { members: [propertyDeclaration({ name: 'charts', implementation })] });
 
         expect(module.members[0]).toMatchObject({ name: 'charts', target: 'String', parameters: [], updates: { changes: 'constant', reads: 'fresh', observations: [] } });
         expect(module.members[0].implementation).toBe(implementation);
@@ -31,13 +31,13 @@ describe('LexicaModule', () => {
         selfList.push(selfList);
         selfObject.self = selfObject;
 
-        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: selfList })] })] }, 'pan', 'parameters', 'reaches itself');
-        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameter({ name: 'by', required: false, default: selfObject })] })] }, 'pan', 'parameters', 'reaches itself');
+        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: selfList })] })] }, 'pan', 'parameters', 'reaches itself');
+        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', required: false, default: selfObject })] })] }, 'pan', 'parameters', 'reaches itself');
         refusal({ types: [{ name: 'Chart', fields: selfObject }] }, 'Chart', 'fields', 'reaches itself');
         // An observation's argument is validated by walking its lists, so a cycle there is refused before validation reads into it.
         refusal({
             observationTypes: [{ name: 'tick', contract: 'invalidation' }],
-            members: [declaration({ name: 'size', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'tick', of: 'receiver', every: selfList }] } })],
+            members: [propertyDeclaration({ name: 'size', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'tick', of: 'receiver', every: selfList }] } })],
         }, 'size', 'updates', 'reaches itself');
 
         const shared = [1, 2];
@@ -47,15 +47,15 @@ describe('LexicaModule', () => {
 
         expect(() => new LexicaModule('charts', {
             members: [
-                functionDeclaration({ name: 'pan', implementation, parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
-                functionDeclaration({ name: 'zoom', parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
+                functionDeclaration({ name: 'pan', implementation, parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
+                functionDeclaration({ name: 'zoom', parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
             ],
         })).not.toThrow();
         // Two parts of one declaration share a value, which reaches itself through neither.
         expect(() => new LexicaModule('charts', {
             members: [functionDeclaration({
                 name: 'pan',
-                parameters: [parameter({ name: 'by', type: 'List<Number>', required: false, default: shared }), parameter({ name: 'to', type: 'List<Number>', required: false, default: shared })],
+                parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared }), parameterDeclaration({ name: 'to', type: 'List<Number>', required: false, default: shared })],
             })],
         })).not.toThrow();
     });
@@ -67,11 +67,11 @@ describe('LexicaModule', () => {
             }
         }
 
-        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameter({ name: 'by', required: false, default: new Anchor() })] })] }, 'pan', 'parameters', 'reaches itself');
+        refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', required: false, default: new Anchor() })] })] }, 'pan', 'parameters', 'reaches itself');
     });
 
     it('freezes copies of its declarations, leaving the declarations its caller gave unfrozen through every list and object they hold', () => {
-        const option = parameter({ name: 'by', type: 'List<Number>', required: false, default: [1, 2] });
+        const option = parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: [1, 2] });
         const declared = functionDeclaration({ name: 'pan', parameters: [option] });
         const type = { name: 'Chart', fields: { points: 'Number' } };
         const module = new LexicaModule('charts', { types: [type], members: [declared] });
@@ -83,24 +83,24 @@ describe('LexicaModule', () => {
 
     it('fills a member\'s defaults: a function call, its arguments positional for an indexer, and empty parameters and observations', () => {
         const module = new LexicaModule('charts', {
-            members: [functionDeclaration({ name: 'level' }), functionDeclaration({ name: 'key', syntax: 'indexer', arguments: undefined, parameters: [parameter({ name: 'key', type: 'String' })] })],
+            members: [functionDeclaration({ name: 'level' }), functionDeclaration({ name: 'key', syntax: 'indexer', arguments: undefined, parameters: [parameterDeclaration({ name: 'key', type: 'String' })] })],
         });
 
         expect(module.members.map(member => [member.syntax, member.arguments])).toEqual([['function-call', 'positional'], ['indexer', 'positional']]);
     });
 
     it('refuses a name with a hyphen, which no name holds', () => {
-        refusal({ members: [declaration({ name: 'chart-size' })] }, 'chart-size', 'name', 'named as a name is');
+        refusal({ members: [propertyDeclaration({ name: 'chart-size' })] }, 'chart-size', 'name', 'named as a name is');
         expect(expectModuleError(() => new LexicaModule('chart-tools', {})).message).toContain('named as a name is');
     });
 
     it('names a property, a function, an indexer and a field of a structured type with any word, a keyword and a literal\'s word among them, read after a dot or a colon', () => {
         const types = [{ name: 'Chart', fields: { else: 'Number' } }];
-        const key = [parameter({ name: 'key', type: 'String' })];
+        const key = [parameterDeclaration({ name: 'key', type: 'String' })];
 
-        expect(() => new LexicaModule('charts', { types, members: [declaration({ name: 'then', target: 'Chart' }), functionDeclaration({ name: 'if', target: 'Chart', parameters: key })] })).not.toThrow();
+        expect(() => new LexicaModule('charts', { types, members: [propertyDeclaration({ name: 'then', target: 'Chart' }), functionDeclaration({ name: 'if', target: 'Chart', parameters: key })] })).not.toThrow();
         expect(() => new LexicaModule('charts', { types, members: [functionDeclaration({ name: 'if', syntax: 'indexer', target: 'Chart', parameters: key })] })).not.toThrow();
-        expect(() => new LexicaModule('charts', { types, members: [declaration({ name: 'null', target: 'Chart' })] })).not.toThrow();
+        expect(() => new LexicaModule('charts', { types, members: [propertyDeclaration({ name: 'null', target: 'Chart' })] })).not.toThrow();
     });
 
     it('offers no way to make a module exempt from the registry\'s rules, whatever its name', () => {
@@ -128,17 +128,17 @@ describe('LexicaModule', () => {
 
     describe('members, each kind taking the fields it needs alone', () => {
         it('refuse a field their kind does not take, naming it', () => {
-            refusal({ members: [declaration({ syntax: 'function-call' })] }, 'zoom', 'syntax', "A member of kind 'property' declares");
-            refusal({ members: [declaration({ arguments: 'positional' })] }, 'zoom', 'arguments', "A member of kind 'property' declares");
-            refusal({ members: [declaration({ parameters: [] })] }, 'zoom', 'parameters', "A member of kind 'property' declares");
-            refusal({ members: [declaration({ default: true })] }, 'zoom', 'default', "A member of kind 'property' declares");
+            refusal({ members: [propertyDeclaration({ syntax: 'function-call' })] }, 'zoom', 'syntax', "A member of kind 'property' declares");
+            refusal({ members: [propertyDeclaration({ arguments: 'positional' })] }, 'zoom', 'arguments', "A member of kind 'property' declares");
+            refusal({ members: [propertyDeclaration({ parameters: [] })] }, 'zoom', 'parameters', "A member of kind 'property' declares");
+            refusal({ members: [propertyDeclaration({ default: true })] }, 'zoom', 'default', "A member of kind 'property' declares");
             refusal({ members: [functionDeclaration({ tolerence: 1 })] }, 'zoom', 'tolerence', "'tolerence' is none of them");
-            refusal({ members: [declaration({ on: 'Element' })] }, 'zoom', 'on', "'on' is none of them");
-            refusal({ members: [declaration({ function: 'zoom' })] }, 'zoom', 'function', "'function' is none of them");
+            refusal({ members: [propertyDeclaration({ on: 'Element' })] }, 'zoom', 'on', "'on' is none of them");
+            refusal({ members: [propertyDeclaration({ function: 'zoom' })] }, 'zoom', 'function', "'function' is none of them");
         });
 
         it('are a property or a function', () => {
-            refusal({ members: [declaration({ kind: 'operation' })] }, 'zoom', 'kind', 'A member is one of property, function');
+            refusal({ members: [propertyDeclaration({ kind: 'operation' })] }, 'zoom', 'kind', 'A member is one of property, function');
 
             for (const kind of ['eventSource', 'action', 'behavior']) {
                 refusal({ members: [functionDeclaration({ kind })] }, 'zoom', 'kind', 'A member is one of property, function');
@@ -146,36 +146,36 @@ describe('LexicaModule', () => {
         });
 
         it('declare the types they apply to, or none for a module member', () => {
-            expect(() => new LexicaModule('charts', { members: [declaration({ target: ['Element', 'Document'] }), declaration({ name: 'any', target: 'any' })] })).not.toThrow();
-            expect(() => new LexicaModule('charts', { members: [declaration({ target: undefined })] })).not.toThrow();
-            refusal({ members: [declaration({ target: [] })] }, 'zoom', 'target', 'It declares the types it applies to');
-            refusal({ members: [declaration({ target: 'List<' })] }, 'zoom', 'target', 'It declares the types it applies to');
+            expect(() => new LexicaModule('charts', { members: [propertyDeclaration({ target: ['Element', 'Document'] }), propertyDeclaration({ name: 'any', target: 'any' })] })).not.toThrow();
+            expect(() => new LexicaModule('charts', { members: [propertyDeclaration({ target: undefined })] })).not.toThrow();
+            refusal({ members: [propertyDeclaration({ target: [] })] }, 'zoom', 'target', 'It declares the types it applies to');
+            refusal({ members: [propertyDeclaration({ target: 'List<' })] }, 'zoom', 'target', 'It declares the types it applies to');
         });
 
         it('declare their result', () => {
-            refusal({ members: [declaration({ result: 'List<' })] }, 'zoom', 'result', 'type of its result');
-            refusal({ members: [declaration({ result: undefined })] }, 'zoom', 'result', 'type of its result');
+            refusal({ members: [propertyDeclaration({ result: 'List<' })] }, 'zoom', 'result', 'type of its result');
+            refusal({ members: [propertyDeclaration({ result: undefined })] }, 'zoom', 'result', 'type of its result');
         });
 
         it('take updates where the evaluator reads them, a property and a function it invokes', () => {
-            refusal({ members: [declaration({ updates: undefined })] }, 'zoom', 'updates', 'It declares its updates');
+            refusal({ members: [propertyDeclaration({ updates: undefined })] }, 'zoom', 'updates', 'It declares its updates');
             refusal({ members: [functionDeclaration({ updates: undefined })] }, 'zoom', 'updates', 'It declares its updates');
         });
 
         it('are written as a function call, the default, or, a function alone, as an indexer', () => {
             refusal({ members: [functionDeclaration({ syntax: 'call' })] }, 'zoom', 'syntax', 'It is written as function-call or indexer');
             refusal({ members: [functionDeclaration({ syntax: 'infix' })] }, 'zoom', 'syntax', 'It is written as function-call or indexer');
-            refusal({ members: [functionDeclaration({ syntax: 'indexer', parameters: [parameter({ required: false, default: 1 })] })] }, 'zoom', 'syntax', 'An indexer is a function whose key is its one parameter');
-            refusal({ members: [functionDeclaration({ syntax: 'indexer', parameters: [parameter(), parameter({ name: 'more' })] })] }, 'zoom', 'syntax', 'An indexer is a function whose key is its one parameter');
+            refusal({ members: [functionDeclaration({ syntax: 'indexer', parameters: [parameterDeclaration({ required: false, default: 1 })] })] }, 'zoom', 'syntax', 'An indexer is a function whose key is its one parameter');
+            refusal({ members: [functionDeclaration({ syntax: 'indexer', parameters: [parameterDeclaration(), parameterDeclaration({ name: 'more' })] })] }, 'zoom', 'syntax', 'An indexer is a function whose key is its one parameter');
             refusal({ members: [functionDeclaration({ syntax: 'indexer', arguments: 'options' })] }, 'zoom', 'arguments', "An indexer's key is its one argument, so its arguments are positional");
         });
 
         it('declare the form of their arguments where they have parameters, an optional one included, and refuse one where they have none', () => {
-            const two = [parameter({ name: 'first' }), parameter({ name: 'second', required: false, default: 1 })];
+            const two = [parameterDeclaration({ name: 'first' }), parameterDeclaration({ name: 'second', required: false, default: 1 })];
 
             expect(() => new LexicaModule('charts', { members: [functionDeclaration({ arguments: 'options', parameters: two })] })).not.toThrow();
             expect(() => new LexicaModule('charts', { members: [functionDeclaration({ arguments: 'positional', parameters: two })] })).not.toThrow();
-            refusal({ members: [functionDeclaration({ arguments: undefined, parameters: [parameter({ required: false, default: 1 })] })] }, 'zoom', 'arguments', 'It has parameters, so it declares the form of its arguments');
+            refusal({ members: [functionDeclaration({ arguments: undefined, parameters: [parameterDeclaration({ required: false, default: 1 })] })] }, 'zoom', 'arguments', 'It has parameters, so it declares the form of its arguments');
             refusal({ members: [functionDeclaration({ parameters: [] })] }, 'zoom', 'arguments', 'It has no parameters, so it declares no form of its arguments');
             refusal({ members: [functionDeclaration({ parameters: [...two].reverse() })] }, 'zoom', 'parameters', "The required parameter 'first' follows an optional one");
         });
@@ -186,14 +186,14 @@ describe('LexicaModule', () => {
         });
 
         it('take a function parameter in a function the evaluator invokes', () => {
-            const callback = parameter({ name: 'f', kind: 'function', parameters: [], nulls: undefined });
+            const callback = parameterDeclaration({ name: 'f', kind: 'function', parameters: [], nulls: undefined });
 
             expect(() => new LexicaModule('charts', { members: [functionDeclaration({ parameters: [callback] })] })).not.toThrow();
-            refusal({ members: [declaration({ parameters: [callback] })] }, 'zoom', 'parameters', "A member of kind 'property' declares");
+            refusal({ members: [propertyDeclaration({ parameters: [callback] })] }, 'zoom', 'parameters', "A member of kind 'property' declares");
         });
 
         it('carry an implementation that is a function', () => {
-            refusal({ members: [declaration({ implementation: 'zoom' })] }, 'zoom', 'implementation', 'Its implementation is a function');
+            refusal({ members: [propertyDeclaration({ implementation: 'zoom' })] }, 'zoom', 'implementation', 'Its implementation is a function');
         });
     });
 
@@ -209,7 +209,7 @@ describe('LexicaModule', () => {
 
         it('are invoked by the evaluator or by the host, a function alone saying which', () => {
             refusal({ members: [hostCall({ invokedBy: 'user' })] }, 'dim', 'invokedBy', 'A function is invoked by one of evaluator, host');
-            refusal({ members: [declaration({ invokedBy: 'host' })] }, 'zoom', 'invokedBy', "A member of kind 'property' declares");
+            refusal({ members: [propertyDeclaration({ invokedBy: 'host' })] }, 'zoom', 'invokedBy', "A member of kind 'property' declares");
             refusal({ members: [functionDeclaration({ result: undefined })] }, 'zoom', 'result', 'It declares the type of its result');
             refusal({ members: [hostCall({ result: 'List<' })] }, 'dim', 'result', 'It declares the type of each value its host supplies, or none');
         });
@@ -221,29 +221,29 @@ describe('LexicaModule', () => {
 
         it('are written as a function call and take value parameters alone', () => {
             refusal({ members: [hostCall({ syntax: 'indexer' })] }, 'dim', 'syntax', 'A function the host invokes is written as a function call, never as an indexer');
-            refusal({ members: [hostCall({ parameters: [parameter({ name: 'by', kind: 'expression', context: 'item' })] })] }, 'dim', 'parameters', "A function the host invokes takes value parameters alone, each argument prepared as a value its host keeps, and 'by' is an expression parameter");
-            refusal({ members: [hostCall({ parameters: [parameter({ name: 'f', kind: 'function', parameters: [], nulls: undefined })] })] }, 'dim', 'parameters', "'f' is a function parameter");
+            refusal({ members: [hostCall({ parameters: [parameterDeclaration({ name: 'by', kind: 'expression', context: 'item' })] })] }, 'dim', 'parameters', "A function the host invokes takes value parameters alone, each argument prepared as a value its host keeps, and 'by' is an expression parameter");
+            refusal({ members: [hostCall({ parameters: [parameterDeclaration({ name: 'f', kind: 'function', parameters: [], nulls: undefined })] })] }, 'dim', 'parameters', "'f' is a function parameter");
         });
     });
 
     describe('module members, which have no target and so no receiver', () => {
         it('are read through the namespace, any kind among them', () => {
-            const module = new LexicaModule('charts', { members: [declaration({ target: undefined }), functionDeclaration({ name: 'scale', target: undefined })] });
+            const module = new LexicaModule('charts', { members: [propertyDeclaration({ target: undefined }), functionDeclaration({ name: 'scale', target: undefined })] });
 
             expect(module.members.map(member => member.target)).toEqual([undefined, undefined]);
         });
 
         it('refuse what only a receiver gives: an indexer, being a default indexer, and an observation of the receiver', () => {
             refusal({ members: [functionDeclaration({ target: undefined, syntax: 'indexer' })] }, 'zoom', 'syntax', 'a member without a target has none');
-            refusal({ members: [declaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'resize', of: 'receiver' }] } })] }, 'zoom', 'updates.observations', 'a member without a target has no receiver');
+            refusal({ members: [propertyDeclaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'resize', of: 'receiver' }] } })] }, 'zoom', 'updates.observations', 'a member without a target has no receiver');
 
-            expect(() => new LexicaModule('charts', { members: [declaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'visibility', of: 'document' }] } })] })).not.toThrow();
+            expect(() => new LexicaModule('charts', { members: [propertyDeclaration({ target: undefined, updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'visibility', of: 'document' }] } })] })).not.toThrow();
         });
     });
 
     describe('type selectors and their keys', () => {
         const fails = contents => expectModuleError(() => new LexicaModule('charts', contents));
-        const selecting = (overrides = {}) => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameter({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report' })], ...overrides });
+        const selecting = (overrides = {}) => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report' })], ...overrides });
 
         it('are kept as frozen data, a selector by its name alone and a key with the selector it belongs to and the type it maps to', () => {
             const module = new LexicaModule('charts', { typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number' }, { name: 'door:open', selector: 'report', type: 'List<String>' }] });
@@ -268,13 +268,13 @@ describe('LexicaModule', () => {
 
         it('are selected through by a function\'s one fixed parameter that names its selector, whose result writes @selected', () => {
             expect(() => new LexicaModule('charts', { members: [selecting(), selecting({ name: 'reports', result: 'List<@selected>' })] })).not.toThrow();
-            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'String', fixed: true, selects: 'type' })] })] }).message).toContain("The fixed parameter 'kind' selects a type, so it names the type selector it selects through");
-            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'String', fixed: true, selects: 'predicate', selector: 'report' })] })] }).message).toContain("The fixed parameter 'kind' declares what it selects, one of type; a test of the receiver is passed as a function, to a function parameter");
-            expect(fails({ members: [selecting({ parameters: [parameter({ name: 'kind', type: 'String', selector: 'report' })] })] }).message).toContain("The parameter 'kind' selects nothing, since it is not fixed");
+            expect(fails({ members: [selecting({ parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type' })] })] }).message).toContain("The fixed parameter 'kind' selects a type, so it names the type selector it selects through");
+            expect(fails({ members: [selecting({ parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'predicate', selector: 'report' })] })] }).message).toContain("The fixed parameter 'kind' declares what it selects, one of type; a test of the receiver is passed as a function, to a function parameter");
+            expect(fails({ members: [selecting({ parameters: [parameterDeclaration({ name: 'kind', type: 'String', selector: 'report' })] })] }).message).toContain("The parameter 'kind' selects nothing, since it is not fixed");
         });
 
         it('are selected through by one parameter at most, and a result writes @selected exactly where a parameter selects a type', () => {
-            const kind = name => parameter({ name, type: 'String', fixed: true, selects: 'type', selector: 'report' });
+            const kind = name => parameterDeclaration({ name, type: 'String', fixed: true, selects: 'type', selector: 'report' });
 
             expect(fails({ members: [selecting({ parameters: [kind('first'), kind('second')] })] })).toMatchObject({ declaration: 'report', declarationKey: 'parameters', message: expect.stringContaining("A function has one parameter at most that selects a type, since its result writes one @selected, and 'first' and 'second' each select one") });
             expect(fails({ members: [selecting({ result: 'Number' })] })).toMatchObject({ declaration: 'report', declarationKey: 'result', message: expect.stringContaining("Its parameter 'kind' selects a type, so its result writes @selected where that type stands") });
@@ -310,7 +310,7 @@ describe('LexicaModule', () => {
     });
 
     describe('updates', () => {
-        const updating = updates => ({ members: [declaration({ updates })] });
+        const updating = updates => ({ members: [propertyDeclaration({ updates })] });
 
         it('declare how a member changes and reads', () => {
             refusal(updating({ reads: 'fresh' }), 'zoom', 'updates.changes', 'It declares how it changes');
@@ -333,25 +333,25 @@ describe('LexicaModule', () => {
 
         it('take a tolerance that is not negative, for a numeric or a structured result alone', () => {
             expect(() => new LexicaModule('charts', updating({ changes: 'unobserved', reads: 'fresh', tolerance: 0.5 }))).not.toThrow();
-            expect(() => new LexicaModule('charts', { types: [{ name: 'Box', fields: { width: 'Number' } }], members: [declaration({ result: 'Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
+            expect(() => new LexicaModule('charts', { types: [{ name: 'Box', fields: { width: 'Number' } }], members: [propertyDeclaration({ result: 'Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
 
             for (const tolerance of [-1, '1', Infinity, null]) {
                 refusal(updating({ changes: 'unobserved', reads: 'fresh', tolerance }), 'zoom', 'updates.tolerance', 'tolerance');
             }
 
             for (const result of ['String', 'Boolean?', 'List<Number>']) {
-                refusal({ members: [declaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] }, 'zoom', 'updates.tolerance', 'A tolerance applies to a numeric result');
+                refusal({ members: [propertyDeclaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] }, 'zoom', 'updates.tolerance', 'A tolerance applies to a numeric result');
             }
         });
     });
 
     describe('observations', () => {
         const attributes = { type: 'mutation', of: 'receiver', attributes: true };
-        const observed = (observations, overrides = {}) => declaration({ name: 'charts', updates: { changes: 'observable', reads: 'fresh', observations }, ...overrides });
+        const observed = (observations, overrides = {}) => propertyDeclaration({ name: 'charts', updates: { changes: 'observable', reads: 'fresh', observations }, ...overrides });
         const fails = contents => expectModuleError(() => new LexicaModule('charts', contents));
 
         it('observe the receiver, an argument of the member or an observation target by its name, which the registry finds', () => {
-            const parameters = [parameter({ name: 'other', type: 'Element' })];
+            const parameters = [parameterDeclaration({ name: 'other', type: 'Element' })];
 
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'resize', of: { argument: 'other' } }], { kind: 'function', arguments: 'positional', parameters })] })).not.toThrow();
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'event', of: 'window', types: ['focus'] }, { type: 'visibility', of: 'parent' }])] })).not.toThrow();
@@ -361,7 +361,7 @@ describe('LexicaModule', () => {
         });
 
         it('give their arguments literals, lists of literals and arguments of the member', () => {
-            const parameters = [parameter({ name: 'name', type: 'String' })];
+            const parameters = [parameterDeclaration({ name: 'name', type: 'String' })];
 
             expect(() => new LexicaModule('charts', { members: [observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name' }, 'type'], subtree: false, depth: 2 }], { kind: 'function', arguments: 'positional', parameters })] })).not.toThrow();
             expect(fails({ members: [observed([{ type: 'mutation', of: 'receiver', attributes: { anything: 1 } }])] }).message).toContain('no literal, list of literals or argument of the member');
@@ -369,7 +369,7 @@ describe('LexicaModule', () => {
         });
 
         it('join a prefix, a string, to an argument of a string value parameter, and nowhere else', () => {
-            const prefixed = (prefix, type = 'String', kind = 'value') => ({ members: [observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name', prefix }] }], { kind: 'function', arguments: 'positional', parameters: [parameter({ name: 'name', type, kind, ...(kind === 'expression' ? { context: 'item' } : {}) })] })] });
+            const prefixed = (prefix, type = 'String', kind = 'value') => ({ members: [observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name', prefix }] }], { kind: 'function', arguments: 'positional', parameters: [parameterDeclaration({ name: 'name', type, kind, ...(kind === 'expression' ? { context: 'item' } : {}) })] })] });
             const message = 'which a prefix, a string, is joined to only where its parameter is a value parameter of type string';
 
             expect(() => new LexicaModule('charts', prefixed('aria-'))).not.toThrow();
@@ -381,7 +381,7 @@ describe('LexicaModule', () => {
         });
 
         it('are never given a function parameter, which lasts only while the member\'s invocation does', () => {
-            const callback = parameter({ name: 'f', kind: 'function', parameters: [], nulls: undefined });
+            const callback = parameterDeclaration({ name: 'f', kind: 'function', parameters: [], nulls: undefined });
 
             expect(fails({ members: [observed([{ type: 'resize', of: { argument: 'f' } }], { kind: 'function', arguments: 'positional', parameters: [callback] })] }).message).toContain("is given the parameter 'f', a function that lasts only while the member's invocation does");
         });
@@ -394,7 +394,7 @@ describe('LexicaModule', () => {
     });
 
     describe('parameters', () => {
-        const declaring = overrides => ({ members: [functionDeclaration({ parameters: [parameter(overrides)] })] });
+        const declaring = overrides => ({ members: [functionDeclaration({ parameters: [parameterDeclaration(overrides)] })] });
 
         it('refuse a field a parameter does not take, naming it', () => {
             refusal(declaring({ defualt: 1 }), 'zoom', 'parameters.defualt', "'defualt' is none of them");
@@ -454,7 +454,7 @@ describe('LexicaModule', () => {
 
     describe('function parameters on any receiver', () => {
         it('take a callback of the receiver\'s own type, a target that is a type parameter binding it', () => {
-            const tested = functionDeclaration({ name: 'passes', target: 'T', result: 'Boolean', parameters: [parameter({ name: 'test', kind: 'function', type: 'Boolean', parameters: ['T'], nulls: undefined })], updates: { changes: 'derived', reads: 'derived' } });
+            const tested = functionDeclaration({ name: 'passes', target: 'T', result: 'Boolean', parameters: [parameterDeclaration({ name: 'test', kind: 'function', type: 'Boolean', parameters: ['T'], nulls: undefined })], updates: { changes: 'derived', reads: 'derived' } });
 
             expect(new LexicaModule('charts', { members: [tested] }).members[0]).toMatchObject({ target: 'T', parameters: [{ kind: 'function', parameters: ['T'], type: 'Boolean' }] });
         });
@@ -544,7 +544,7 @@ describe('conversions', () => {
 
     it('take to as a member name, a property, a function call or an indexer, since it converts only after a value', () => {
         expect(new LexicaModule('charts', { members: [functionDeclaration({ name: 'to' })] }).members[0].syntax).toBe('function-call');
-        expect(new LexicaModule('charts', { members: [declaration({ name: 'to' })] }).members[0].name).toBe('to');
+        expect(new LexicaModule('charts', { members: [propertyDeclaration({ name: 'to' })] }).members[0].name).toBe('to');
         expect(new LexicaModule('charts', { members: [functionDeclaration({ name: 'to', syntax: 'indexer', arguments: undefined })] }).members[0].syntax).toBe('indexer');
     });
 });

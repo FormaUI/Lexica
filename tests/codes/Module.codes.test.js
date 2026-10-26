@@ -2,26 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { withHome } from '../support/home.mjs';
 import { errorThrownBy, expectLexicaError, expectModuleError } from '../support/errors.mjs';
+import { constantUpdates } from '../support/updates.mjs';
+import { functionDeclaration, parameterDeclaration, propertyDeclaration } from '../support/declarations.mjs';
 
-const constant = { changes: 'constant', reads: 'fresh' };
 const observable = observations => ({ changes: 'observable', reads: 'fresh', observations });
-
-/** A property of a string, constant and fresh, with what a test changes. */
-const property = (overrides = {}) => ({ name: 'zoom', kind: 'property', target: 'String', result: 'Number', updates: constant, ...overrides });
-
-/** A function of a string taking one value parameter, positional, constant and fresh, with what a test changes. */
-const func = (overrides = {}) => property({ kind: 'function', arguments: 'positional', parameters: [parameter()], ...overrides });
-
-const parameter = (overrides = {}) => ({ name: 'amount', kind: 'value', type: 'Number', required: true, nulls: 'propagate', ...overrides });
 
 /** A function parameter, its callback taking a string and answering a Boolean. */
 const callback = (overrides = {}) => ({ name: 'test', kind: 'function', type: 'Boolean', required: true, parameters: ['String'], ...overrides });
 
 /** A fixed parameter selecting a type through the selector `report`. */
-const selecting = (overrides = {}) => parameter({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report', ...overrides });
+const selecting = (overrides = {}) => parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report', ...overrides });
 
 /** A host call of a string, which declares no updates. */
-const hostCall = (overrides = {}) => func({ invokedBy: 'host', updates: undefined, ...overrides });
+const hostCall = (overrides = {}) => functionDeclaration({ invokedBy: 'host', updates: undefined, ...overrides });
 
 /** Asserts that the call fails with a module error of the code. */
 const expectModuleCode = (call, code) => expectLexicaError(errorThrownBy(call), code, 'module');
@@ -52,26 +45,26 @@ describe('the module error codes', () => {
         it('LEXICA4504: a declaration that is not an object', () => {
             expectModuleCode(creating({ members: [null] }), 'LEXICA4504');
             expectModuleCode(creating({ typeSelectors: [5] }), 'LEXICA4504');
-            expectModuleCode(creating({ members: [property({ updates: 5 })] }), 'LEXICA4504');
-            expectModuleCode(creating({ members: [func({ parameters: [null] })] }), 'LEXICA4504');
-            expectModuleCode(creating({ members: [property({ updates: observable([null]) })] }), 'LEXICA4504');
+            expectModuleCode(creating({ members: [propertyDeclaration({ updates: 5 })] }), 'LEXICA4504');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [null] })] }), 'LEXICA4504');
+            expectModuleCode(creating({ members: [propertyDeclaration({ updates: observable([null]) })] }), 'LEXICA4504');
         });
 
         it('LEXICA4030: a field a declaration does not take', () => {
-            expectModuleCode(creating({ members: [property({ on: 'String' })] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [property({ syntax: 'function-call' })] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [property({ updates: { ...constant, tolerence: 1 } })] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [func({ parameters: [parameter({ fixd: true })] })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [propertyDeclaration({ on: 'String' })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [propertyDeclaration({ syntax: 'function-call' })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [propertyDeclaration({ updates: { ...constantUpdates, tolerence: 1 } })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ fixd: true })] })] }), 'LEXICA4030');
             expectModuleCode(creating({ types: [{ name: 'Chart', fields: { points: 'Number' }, members: [] }] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [hostCall({ updates: constant })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [hostCall({ updates: constantUpdates })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [hostCall({ implementation: () => 1 })] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [func({ parameters: [callback({ fixed: false })] })] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [func({ parameters: [callback({ context: 'item' })] })] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [func({ parameters: [parameter({ parameters: ['Number'] })] })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ fixed: false })] })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ context: 'item' })] })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ parameters: ['Number'] })] })] }), 'LEXICA4030');
         });
 
         it('LEXICA4505: an implementation that is not a function', () => {
-            expectModuleCode(creating({ members: [property({ implementation: 5 })] }), 'LEXICA4505');
+            expectModuleCode(creating({ members: [propertyDeclaration({ implementation: 5 })] }), 'LEXICA4505');
             expectModuleCode(creating({ observationTypes: [{ name: 'state', contract: 'invalidation', implementation: 'run' }] }), 'LEXICA4505');
         });
     });
@@ -191,118 +184,118 @@ describe('the module error codes', () => {
 
         it('LEXICA4512: a type notation that does not parse', () => {
             expectModuleCode(creating({ selectableTypes: [{ name: 'click', selector: 'report', type: 'List<' }] }), 'LEXICA4512');
-            expectModuleCode(creating({ members: [property({ result: 'List<' })] }), 'LEXICA4512');
-            expectModuleCode(creating({ members: [func({ parameters: [parameter({ type: 'List<' })] })] }), 'LEXICA4512');
-            expectModuleCode(creating({ members: [func({ parameters: [callback({ parameters: ['List<'] })] })] }), 'LEXICA4512');
+            expectModuleCode(creating({ members: [propertyDeclaration({ result: 'List<' })] }), 'LEXICA4512');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ type: 'List<' })] })] }), 'LEXICA4512');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ parameters: ['List<'] })] })] }), 'LEXICA4512');
             expectModuleCode(creating({ types: [{ name: 'Lamp', kind: 'reference', isInstance: () => true, supertype: 'List<' }] }), 'LEXICA4512');
         });
     });
 
     describe('of a member', () => {
         it('LEXICA4513: a member whose target is not a type, a list of types or any', () => {
-            expectModuleCode(creating({ members: [property({ target: [] })] }), 'LEXICA4513');
-            expectModuleCode(creating({ members: [property({ target: 'List<' })] }), 'LEXICA4513');
+            expectModuleCode(creating({ members: [propertyDeclaration({ target: [] })] }), 'LEXICA4513');
+            expectModuleCode(creating({ members: [propertyDeclaration({ target: 'List<' })] }), 'LEXICA4513');
         });
 
         it('LEXICA4002: a member declared without a name', () => {
-            expectModuleCode(creating({ members: [property({ name: undefined })] }), 'LEXICA4002');
+            expectModuleCode(creating({ members: [propertyDeclaration({ name: undefined })] }), 'LEXICA4002');
         });
 
         it('LEXICA4523: a member whose name is not an identifier', () => {
-            expectModuleCode(creating({ members: [property({ name: 'chart-size' })] }), 'LEXICA4523');
+            expectModuleCode(creating({ members: [propertyDeclaration({ name: 'chart-size' })] }), 'LEXICA4523');
         });
 
         it('LEXICA4524: a member of a kind that is not a property or a function', () => {
-            expectModuleCode(creating({ members: [property({ kind: 'operation' })] }), 'LEXICA4524');
+            expectModuleCode(creating({ members: [propertyDeclaration({ kind: 'operation' })] }), 'LEXICA4524');
         });
 
         it('LEXICA4525: a function invoked by neither the evaluator nor the host', () => {
-            expectModuleCode(creating({ members: [func({ invokedBy: 'user' })] }), 'LEXICA4525');
+            expectModuleCode(creating({ members: [functionDeclaration({ invokedBy: 'user' })] }), 'LEXICA4525');
         });
 
         it('LEXICA4003: a member without a field its kind requires', () => {
-            expectModuleCode(creating({ members: [property({ result: undefined })] }), 'LEXICA4003');
-            expectModuleCode(creating({ members: [property({ updates: undefined })] }), 'LEXICA4003');
-            expectModuleCode(creating({ members: [func({ arguments: undefined })] }), 'LEXICA4003');
+            expectModuleCode(creating({ members: [propertyDeclaration({ result: undefined })] }), 'LEXICA4003');
+            expectModuleCode(creating({ members: [propertyDeclaration({ updates: undefined })] }), 'LEXICA4003');
+            expectModuleCode(creating({ members: [functionDeclaration({ arguments: undefined })] }), 'LEXICA4003');
         });
 
         it('LEXICA4526: a member whose parameters are not a list', () => {
-            expectModuleCode(creating({ members: [func({ parameters: {} })] }), 'LEXICA4526');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: {} })] }), 'LEXICA4526');
         });
 
         it('LEXICA4527: a member declaring a parameter twice', () => {
-            expectModuleCode(creating({ members: [func({ parameters: [parameter(), parameter()] })] }), 'LEXICA4527');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration(), parameterDeclaration()] })] }), 'LEXICA4527');
         });
 
         it('LEXICA4053: a host call written as an indexer', () => {
-            expectModuleCode(creating({ members: [hostCall({ syntax: 'indexer', arguments: undefined, parameters: [parameter({ type: 'String' })] })] }), 'LEXICA4053');
+            expectModuleCode(creating({ members: [hostCall({ syntax: 'indexer', arguments: undefined, parameters: [parameterDeclaration({ type: 'String' })] })] }), 'LEXICA4053');
         });
 
         it('LEXICA4528: an indexer declared without a name', () => {
-            expectModuleCode(creating({ members: [func({ name: undefined, syntax: 'indexer', arguments: undefined, parameters: [parameter({ type: 'String' })] })] }), 'LEXICA4528');
+            expectModuleCode(creating({ members: [functionDeclaration({ name: undefined, syntax: 'indexer', arguments: undefined, parameters: [parameterDeclaration({ type: 'String' })] })] }), 'LEXICA4528');
         });
 
         it('LEXICA4056: a host call taking a parameter other than a value parameter', () => {
-            expectModuleCode(creating({ members: [hostCall({ parameters: [parameter({ kind: 'expression', context: 'item' })] })] }), 'LEXICA4056');
+            expectModuleCode(creating({ members: [hostCall({ parameters: [parameterDeclaration({ kind: 'expression', context: 'item' })] })] }), 'LEXICA4056');
         });
 
         it('LEXICA4009: a function with more than one parameter that selects a type', () => {
-            expectModuleCode(creating({ members: [func({ result: '@selected', parameters: [selecting(), selecting({ name: 'other' })] })] }), 'LEXICA4009');
+            expectModuleCode(creating({ members: [functionDeclaration({ result: '@selected', parameters: [selecting(), selecting({ name: 'other' })] })] }), 'LEXICA4009');
         });
 
         it('LEXICA4529: a function with a parameter that selects a type whose result writes no @selected', () => {
-            expectModuleCode(creating({ members: [func({ parameters: [selecting()] })] }), 'LEXICA4529');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [selecting()] })] }), 'LEXICA4529');
         });
 
         it('LEXICA4040: a result writing @selected without a parameter that selects a type', () => {
-            expectModuleCode(creating({ members: [func({ result: '@selected' })] }), 'LEXICA4040');
+            expectModuleCode(creating({ members: [functionDeclaration({ result: '@selected' })] }), 'LEXICA4040');
         });
     });
 
     describe('of how a member is written', () => {
-        const key = [parameter({ name: 'key', type: 'String' })];
+        const key = [parameterDeclaration({ name: 'key', type: 'String' })];
 
         it('LEXICA4530: a default on a member that is not an indexer', () => {
-            expectModuleCode(creating({ members: [func({ default: true })] }), 'LEXICA4530');
-            expect(expectModuleError(creating({ members: [func({ default: true })] })).message).toContain('which `[…]` invokes');
+            expectModuleCode(creating({ members: [functionDeclaration({ default: true })] }), 'LEXICA4530');
+            expect(expectModuleError(creating({ members: [functionDeclaration({ default: true })] })).message).toContain('which `[…]` invokes');
         });
 
         it('LEXICA4531: a function written as neither a function call nor an indexer', () => {
-            expectModuleCode(creating({ members: [func({ syntax: 'call' })] }), 'LEXICA4531');
+            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'call' })] }), 'LEXICA4531');
         });
 
         it('LEXICA4020: an indexer without exactly one required value parameter as its key', () => {
-            expectModuleCode(creating({ members: [func({ syntax: 'indexer', parameters: [parameter(), parameter({ name: 'more' })] })] }), 'LEXICA4020');
+            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer', parameters: [parameterDeclaration(), parameterDeclaration({ name: 'more' })] })] }), 'LEXICA4020');
         });
 
         it('LEXICA4022: a module member that is an indexer', () => {
-            expectModuleCode(creating({ members: [func({ syntax: 'indexer', target: undefined, parameters: key })] }), 'LEXICA4022');
+            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer', target: undefined, parameters: key })] }), 'LEXICA4022');
         });
 
         it('LEXICA4532: an indexer whose arguments are not positional', () => {
-            expectModuleCode(creating({ members: [func({ syntax: 'indexer', arguments: 'options', parameters: key })] }), 'LEXICA4532');
+            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer', arguments: 'options', parameters: key })] }), 'LEXICA4532');
         });
 
         it('LEXICA4533: an indexer declaring whether it is the default by what is not a Boolean', () => {
-            expectModuleCode(creating({ members: [func({ syntax: 'indexer', default: 'yes', parameters: key })] }), 'LEXICA4533');
+            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer', default: 'yes', parameters: key })] }), 'LEXICA4533');
         });
 
         it('LEXICA4534: a function without parameters declaring the form of its arguments', () => {
-            expectModuleCode(creating({ members: [func({ parameters: [] })] }), 'LEXICA4534');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [] })] }), 'LEXICA4534');
         });
 
         it('LEXICA4535: a function whose arguments are neither positional nor options', () => {
-            expectModuleCode(creating({ members: [func({ arguments: 'named' })] }), 'LEXICA4535');
+            expectModuleCode(creating({ members: [functionDeclaration({ arguments: 'named' })] }), 'LEXICA4535');
         });
 
         it('LEXICA4019: a required positional parameter after an optional one', () => {
-            expectModuleCode(creating({ members: [func({ parameters: [parameter({ required: false, default: 1 }), parameter({ name: 'more' })] })] }), 'LEXICA4019');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ required: false, default: 1 }), parameterDeclaration({ name: 'more' })] })] }), 'LEXICA4019');
         });
     });
 
     describe('of a parameter', () => {
-        const declaring = overrides => creating({ members: [func({ parameters: [parameter(overrides)] })] });
-        const declaringCallback = overrides => creating({ members: [func({ parameters: [callback(overrides)] })] });
+        const declaring = overrides => creating({ members: [functionDeclaration({ parameters: [parameterDeclaration(overrides)] })] });
+        const declaringCallback = overrides => creating({ members: [functionDeclaration({ parameters: [callback(overrides)] })] });
 
         it('LEXICA4536: a parameter without its name, kind, type, required or null policy, or with one it does not take', () => {
             expectModuleCode(declaring({ kind: undefined }), 'LEXICA4536');
@@ -349,31 +342,31 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4545: a fixed parameter that is not a value parameter of type String', () => {
-            expectModuleCode(creating({ members: [func({ result: '@selected', parameters: [selecting({ type: 'Number' })] })] }), 'LEXICA4545');
+            expectModuleCode(creating({ members: [functionDeclaration({ result: '@selected', parameters: [selecting({ type: 'Number' })] })] }), 'LEXICA4545');
         });
 
         it('LEXICA4547: a parameter selecting through a type selector no module declares', () => {
-            expectModuleCode(registering(module('charts', { members: [func({ result: '@selected', parameters: [selecting()] })] })), 'LEXICA4547');
+            expectModuleCode(registering(module('charts', { members: [functionDeclaration({ result: '@selected', parameters: [selecting()] })] })), 'LEXICA4547');
         });
 
         it('LEXICA4548: a parameter default its type does not admit', () => {
-            expectModuleCode(registering(module('charts', { members: [func({ parameters: [parameter({ required: false, default: 'many' })] })] })), 'LEXICA4548');
-            expectModuleCode(registering(module('charts', { members: [func({ parameters: [parameter({ required: false, default: Infinity })] })] })), 'LEXICA4548');
-            expectModuleCode(registering(module('charts', { members: [func({ parameters: [parameter({ type: 'List<Number>', required: false, default: [1, , 3] })] })] })), 'LEXICA4548');
+            expectModuleCode(registering(module('charts', { members: [functionDeclaration({ parameters: [parameterDeclaration({ required: false, default: 'many' })] })] })), 'LEXICA4548');
+            expectModuleCode(registering(module('charts', { members: [functionDeclaration({ parameters: [parameterDeclaration({ required: false, default: Infinity })] })] })), 'LEXICA4548');
+            expectModuleCode(registering(module('charts', { members: [functionDeclaration({ parameters: [parameterDeclaration({ type: 'List<Number>', required: false, default: [1, , 3] })] })] })), 'LEXICA4548');
         });
 
         it('LEXICA4562: a declaration holding a value that reaches itself', () => {
             const selfList = [];
 
             selfList.push(selfList);
-            expectModuleCode(creating({ members: [func({ parameters: [parameter({ type: 'List<Number>', required: false, default: selfList })] })] }), 'LEXICA4562');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ type: 'List<Number>', required: false, default: selfList })] })] }), 'LEXICA4562');
         });
     });
 
     describe('of updates and observations', () => {
         const state = { name: 'state', contract: 'invalidation' };
         const reading = { name: 'reading', contract: 'maintained' };
-        const observing = (updates, overrides = {}) => creating({ observationTypes: [state], members: [property({ updates, ...overrides })] });
+        const observing = (updates, overrides = {}) => creating({ observationTypes: [state], members: [propertyDeclaration({ updates, ...overrides })] });
 
         it('LEXICA4023: updates without changes or reads', () => {
             expectModuleCode(observing({ reads: 'fresh' }), 'LEXICA4023');
@@ -387,36 +380,36 @@ describe('the module error codes', () => {
 
         it('LEXICA4058: misses missing where partly observable, or present otherwise', () => {
             expectModuleCode(observing({ changes: 'partly-observable', reads: 'fresh', observations: [{ type: 'state', of: 'receiver' }] }), 'LEXICA4058');
-            expectModuleCode(observing({ ...constant, misses: 'drains' }), 'LEXICA4058');
+            expectModuleCode(observing({ ...constantUpdates, misses: 'drains' }), 'LEXICA4058');
         });
 
         it('LEXICA4515: a tolerance that is not a number that is not negative', () => {
-            expectModuleCode(observing({ ...constant, tolerance: -1 }), 'LEXICA4515');
+            expectModuleCode(observing({ ...constantUpdates, tolerance: -1 }), 'LEXICA4515');
         });
 
         it('LEXICA4026: a tolerance on a result that holds no number', () => {
-            expectModuleCode(observing({ ...constant, tolerance: 1 }, { result: 'String' }), 'LEXICA4026');
-            expectModuleCode(registering(module('charts', withHome({ members: [property({ result: 'Light', updates: { ...constant, tolerance: 1 } })] }))), 'LEXICA4026');
+            expectModuleCode(observing({ ...constantUpdates, tolerance: 1 }, { result: 'String' }), 'LEXICA4026');
+            expectModuleCode(registering(module('charts', withHome({ members: [propertyDeclaration({ result: 'Light', updates: { ...constantUpdates, tolerance: 1 } })] }))), 'LEXICA4026');
         });
 
         it('LEXICA4516: observations that are not a list', () => {
-            expectModuleCode(observing({ ...constant, observations: {} }), 'LEXICA4516');
+            expectModuleCode(observing({ ...constantUpdates, observations: {} }), 'LEXICA4516');
         });
 
         it('LEXICA4059: observations missing where observable, or present otherwise', () => {
             expectModuleCode(observing({ changes: 'observable', reads: 'fresh' }), 'LEXICA4059');
-            expectModuleCode(observing({ ...constant, observations: [{ type: 'state', of: 'receiver' }] }), 'LEXICA4059');
+            expectModuleCode(observing({ ...constantUpdates, observations: [{ type: 'state', of: 'receiver' }] }), 'LEXICA4059');
         });
 
         it('LEXICA4060: an observation of the wrong type, target or arguments', () => {
             expectModuleCode(observing(observable([{ type: 'chart-state', of: 'receiver' }])), 'LEXICA4060');
             expectModuleCode(observing(observable([{ type: 'state', of: 'chart-home' }])), 'LEXICA4060');
             expectModuleCode(observing(observable([{ type: 'state', of: 'receiver', level: { value: 1 } }])), 'LEXICA4060');
-            expectModuleCode(registering(module('charts', { members: [property({ updates: observable([{ type: 'nothing', of: 'receiver' }]) })] })), 'LEXICA4060');
+            expectModuleCode(registering(module('charts', { members: [propertyDeclaration({ updates: observable([{ type: 'nothing', of: 'receiver' }]) })] })), 'LEXICA4060');
         });
 
         it('LEXICA4055: a function parameter an observation is given', () => {
-            expectModuleCode(creating({ members: [func({ parameters: [callback()], updates: observable([{ type: 'state', of: { argument: 'test' } }]) })] }), 'LEXICA4055');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback()], updates: observable([{ type: 'state', of: { argument: 'test' } }]) })] }), 'LEXICA4055');
         });
 
         it('LEXICA4057: a module member that observes its receiver or a target found from one', () => {
@@ -424,31 +417,31 @@ describe('the module error codes', () => {
             expectModuleCode(registering(module('charts', {
                 observationTypes: [state],
                 observationTargets: [{ name: 'parent', from: 'receiver' }],
-                members: [property({ target: undefined, updates: observable([{ type: 'state', of: 'parent' }]) })],
+                members: [propertyDeclaration({ target: undefined, updates: observable([{ type: 'state', of: 'parent' }]) })],
             })), 'LEXICA4057');
         });
 
         it('LEXICA4061: a prefix on an argument that is not a String value parameter', () => {
-            expectModuleCode(creating({ members: [func({ updates: observable([{ type: 'state', of: 'receiver', attribute: { argument: 'amount', prefix: 'aria-' } }]) })] }), 'LEXICA4061');
+            expectModuleCode(creating({ members: [functionDeclaration({ updates: observable([{ type: 'state', of: 'receiver', attribute: { argument: 'amount', prefix: 'aria-' } }]) })] }), 'LEXICA4061');
         });
 
         it('LEXICA4024: an observation of a target its observation type\'s module does not declare', () => {
-            expectModuleCode(registering(module('charts', { observationTypes: [state], members: [property({ updates: observable([{ type: 'state', of: 'home' }]) })] })), 'LEXICA4024');
+            expectModuleCode(registering(module('charts', { observationTypes: [state], members: [propertyDeclaration({ updates: observable([{ type: 'state', of: 'home' }]) })] })), 'LEXICA4024');
         });
 
         it('LEXICA4025: a member reading maintained values without a maintained observation', () => {
-            expectModuleCode(registering(module('charts', { observationTypes: [state], members: [property({ updates: { ...observable([{ type: 'state', of: 'receiver' }]), reads: 'maintained' } })] })), 'LEXICA4025');
+            expectModuleCode(registering(module('charts', { observationTypes: [state], members: [propertyDeclaration({ updates: { ...observable([{ type: 'state', of: 'receiver' }]), reads: 'maintained' } })] })), 'LEXICA4025');
         });
 
         it('LEXICA4062: a member naming a maintained observation without reading maintained values', () => {
-            expectModuleCode(registering(module('charts', { observationTypes: [reading], members: [property({ updates: observable([{ type: 'reading', of: 'receiver' }]) })] })), 'LEXICA4062');
+            expectModuleCode(registering(module('charts', { observationTypes: [reading], members: [propertyDeclaration({ updates: observable([{ type: 'reading', of: 'receiver' }]) })] })), 'LEXICA4062');
         });
 
         it('LEXICA4063: a maintained observation of a target of many', () => {
             expectModuleCode(registering(module('charts', {
                 observationTypes: [reading],
                 observationTargets: [{ name: 'sensors', count: 'many' }],
-                members: [property({ updates: { ...observable([{ type: 'reading', of: 'sensors' }]), reads: 'maintained' } })],
+                members: [propertyDeclaration({ updates: { ...observable([{ type: 'reading', of: 'sensors' }]), reads: 'maintained' } })],
             })), 'LEXICA4063');
         });
     });
@@ -533,9 +526,9 @@ describe('the module error codes', () => {
         it('LEXICA4047: a type reference resolving to no type', () => {
             const axes = module('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
 
-            expectModuleCode(registering(module('charts', { members: [property({ result: 'Chart' })] })), 'LEXICA4047');
-            expectModuleCode(registering(module('charts', { members: [property({ result: 'axes.Axis' })] })), 'LEXICA4047');
-            expectModuleCode(registering(axes, module('charts', { members: [property({ result: 'axes.Scale' })] })), 'LEXICA4047');
+            expectModuleCode(registering(module('charts', { members: [propertyDeclaration({ result: 'Chart' })] })), 'LEXICA4047');
+            expectModuleCode(registering(module('charts', { members: [propertyDeclaration({ result: 'axes.Axis' })] })), 'LEXICA4047');
+            expectModuleCode(registering(axes, module('charts', { members: [propertyDeclaration({ result: 'axes.Scale' })] })), 'LEXICA4047');
         });
 
         it('LEXICA4048: a type reference resolving to several types', () => {
@@ -545,26 +538,26 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4049: a foreign type named unqualified outside its import', () => {
-            expectModuleCode(registering(module('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] }), module('charts', { members: [property({ result: 'Axis' })] })), 'LEXICA4049');
+            expectModuleCode(registering(module('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] }), module('charts', { members: [propertyDeclaration({ result: 'Axis' })] })), 'LEXICA4049');
         });
 
         it('LEXICA4549: a module member its module declares twice', () => {
-            const rooms = property({ name: 'rooms', target: undefined });
+            const rooms = propertyDeclaration({ name: 'rooms', target: undefined });
 
             expectModuleCode(creating({ members: [rooms, rooms] }), 'LEXICA4549');
         });
 
         it('LEXICA4029: two members of one name on one receiver type of one module', () => {
-            expectModuleCode(registering(module('charts', { members: [property(), property()] })), 'LEXICA4029');
-            expectModuleCode(registering(module('charts', withHome({ members: [property({ target: 'Light' }), property({ target: ['Room', 'Light'] })] }))), 'LEXICA4029');
-            expect(registering(module('charts', withHome({ members: [property({ target: 'Light' }), property({ target: 'Device' })] })))).not.toThrow();
+            expectModuleCode(registering(module('charts', { members: [propertyDeclaration(), propertyDeclaration()] })), 'LEXICA4029');
+            expectModuleCode(registering(module('charts', withHome({ members: [propertyDeclaration({ target: 'Light' }), propertyDeclaration({ target: ['Room', 'Light'] })] }))), 'LEXICA4029');
+            expect(registering(module('charts', withHome({ members: [propertyDeclaration({ target: 'Light' }), propertyDeclaration({ target: 'Device' })] })))).not.toThrow();
         });
 
         it('LEXICA4551: a member of a name another module declares on an overlapping receiver', () => {
-            expectModuleCode(registering(module('charts', { members: [property()] }), module('graphs', { members: [property()] })), 'LEXICA4551');
+            expectModuleCode(registering(module('charts', { members: [propertyDeclaration()] }), module('graphs', { members: [propertyDeclaration()] })), 'LEXICA4551');
         });
 
-        const indexer = (name, target = 'String') => func({ name, target, syntax: 'indexer', default: true, parameters: [parameter({ name: 'key', type: 'String' })] });
+        const indexer = (name, target = 'String') => functionDeclaration({ name, target, syntax: 'indexer', default: true, parameters: [parameterDeclaration({ name: 'key', type: 'String' })] });
 
         it('LEXICA4068: two unnamed indexers for one receiver type of one module', () => {
             expectModuleCode(registering(module('charts', { members: [indexer('setting'), indexer('option')] })), 'LEXICA4068');

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
+import { constantUpdates } from './support/updates.mjs';
 
 const { property, valueParameter } = lexica.declarations;
-const constant = { changes: 'constant', reads: 'fresh' };
 
 /**
  * A shop's module on words: whether it is open and a greeting, its module members; a word's size, padded, whether it is vegan, and its partner, which a word of `p` lacks; a test of a word's fit beside one of a number's;
@@ -12,13 +12,13 @@ const constant = { changes: 'constant', reads: 'fresh' };
 const createShop = (invoked = []) => lexica.createModule('shop', {
     members: [
         property('open', null, 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: input => (invoked.push(['open', input]), true) }),
-        lexica.declarations.function('greet', null, 'String', { updates: constant, parameters: [valueParameter('name', 'String')], implementation: ({ args }) => (invoked.push(['greet', args.name]), `hi ${args.name}`) }),
-        property('size', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
-        lexica.declarations.function('pad', 'String', 'String', { updates: constant, parameters: [valueParameter('width', 'Number')], implementation: ({ receiver, args }) => (invoked.push(['pad', receiver]), receiver.padEnd(args.width, '.')) }),
-        lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
-        property('partner', 'String', 'String?', { updates: constant, implementation: ({ receiver }) => (invoked.push(['partner', receiver]), receiver.startsWith('p') ? null : `${receiver}'s`) }),
-        lexica.declarations.function('fits', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver.length < 5 }),
-        lexica.declarations.function('fits', 'Number', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver < 5 }),
+        lexica.declarations.function('greet', null, 'String', { updates: constantUpdates, parameters: [valueParameter('name', 'String')], implementation: ({ args }) => (invoked.push(['greet', args.name]), `hi ${args.name}`) }),
+        property('size', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
+        lexica.declarations.function('pad', 'String', 'String', { updates: constantUpdates, parameters: [valueParameter('width', 'Number')], implementation: ({ receiver, args }) => (invoked.push(['pad', receiver]), receiver.padEnd(args.width, '.')) }),
+        lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
+        property('partner', 'String', 'String?', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push(['partner', receiver]), receiver.startsWith('p') ? null : `${receiver}'s`) }),
+        lexica.declarations.function('fits', 'String', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => receiver.length < 5 }),
+        lexica.declarations.function('fits', 'Number', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => receiver < 5 }),
         lexica.declarations.function('order', 'String', 'Number', { invokedBy: 'host', parameters: [valueParameter('count', 'Number')] }),
     ],
 });
@@ -170,7 +170,7 @@ describe('qualified forms', () => {
 
 describe('function references', () => {
     it('resolve a held reference\'s call through a receiver of unknown type as its qualified form does, answering null without invoking it', () => {
-        const pick = lexica.declarations.function('pick', 'List<Number>', 'List<Number>', { updates: constant, parameters: [lexica.declarations.expressionParameter('Number')], implementation: ({ receiver }) => receiver });
+        const pick = lexica.declarations.function('pick', 'List<Number>', 'List<Number>', { updates: constantUpdates, parameters: [lexica.declarations.expressionParameter('Number')], implementation: ({ receiver }) => receiver });
         const registry = lexica.createRegistry([lexica.createModule('lists', { members: [pick] })]);
         const held = registry.resolve('let f = lists.pick\nreturn f(nothing, it + 1)', { nothing: null });
 
@@ -225,9 +225,9 @@ describe('a call of a delegate', () => {
     /** A module of words: `cut` and `trim`, each taking a width it defaults to 2, `cut`'s propagating null and `trim`'s accepting it; and `long`, a test taking a minimum it defaults to 3. Each records what it is given. */
     const createWords = (invoked = []) => lexica.createModule('words', {
         members: [
-            lexica.declarations.function('cut', 'String', 'String', { updates: constant, parameters: [valueParameter('width', 'Number', { default: 2 })], implementation: ({ receiver, args }) => (invoked.push(['cut', args]), receiver.slice(0, args.width)) }),
-            lexica.declarations.function('trim', 'String', 'String', { updates: constant, parameters: [valueParameter('width', 'Number?', { default: 2, nulls: 'accept' })], implementation: ({ receiver, args }) => (invoked.push(['trim', args]), receiver.slice(0, args.width ?? 1)) }),
-            lexica.declarations.function('long', 'String', 'Boolean', { updates: constant, parameters: [valueParameter('minimum', 'Number', { default: 3 })], implementation: ({ receiver, args }) => (invoked.push(['long', args]), receiver.length >= args.minimum) }),
+            lexica.declarations.function('cut', 'String', 'String', { updates: constantUpdates, parameters: [valueParameter('width', 'Number', { default: 2 })], implementation: ({ receiver, args }) => (invoked.push(['cut', args]), receiver.slice(0, args.width)) }),
+            lexica.declarations.function('trim', 'String', 'String', { updates: constantUpdates, parameters: [valueParameter('width', 'Number?', { default: 2, nulls: 'accept' })], implementation: ({ receiver, args }) => (invoked.push(['trim', args]), receiver.slice(0, args.width ?? 1)) }),
+            lexica.declarations.function('long', 'String', 'Boolean', { updates: constantUpdates, parameters: [valueParameter('minimum', 'Number', { default: 3 })], implementation: ({ receiver, args }) => (invoked.push(['long', args]), receiver.length >= args.minimum) }),
         ],
     });
     const bound = { word: 'oatmeal', short: 'oa', flag: true, none: null, numbers: [1, 2] };
@@ -263,8 +263,8 @@ describe('the answer of a held reference', () => {
     /** A module of lists: `head`, generic, answering what the test gives it for its receiver, and `apply`, calling the function it is given with its receiver. */
     const createLists = (answer, invoked = []) => lexica.createModule('lists', {
         members: [
-            lexica.declarations.function('head', 'List<T>', 'T', { updates: constant, implementation: ({ receiver }) => (invoked.push(receiver), answer(receiver)) }),
-            lexica.declarations.function('apply', 'List<T>', 'T', { updates: constant, parameters: [lexica.declarations.functionParameter('f', 'T', ['List<T>'])], implementation: ({ receiver, args }) => args.f(receiver) }),
+            lexica.declarations.function('head', 'List<T>', 'T', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push(receiver), answer(receiver)) }),
+            lexica.declarations.function('apply', 'List<T>', 'T', { updates: constantUpdates, parameters: [lexica.declarations.functionParameter('f', 'T', ['List<T>'])], implementation: ({ receiver, args }) => args.f(receiver) }),
         ],
     });
     const bound = { numbers: [1, 2], words: ['a', 'b'], missing: null, flag: true, full: false };

@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
+import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 
 const { property, functionParameter, valueParameter, expressionParameter, predicateParameter } = lexica.declarations;
-const constant = { changes: 'constant', reads: 'fresh' };
-const derived = { changes: 'derived', reads: 'derived' };
 
 /**
  * A pantry's module on words: a word's size, its weight and whether it is vegan; members that keep the predicate or the expression they are given, so a later call finds it called after its member returned, and one that keeps
@@ -16,31 +15,31 @@ const createPantry = (held = {}) => {
 
     return lexica.createModule('pantry', {
         members: [
-            property('size', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => receiver.length }),
-            lexica.declarations.function('weight', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => receiver.length * 10 }),
-            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver.startsWith('oat') }),
-            lexica.declarations.function('keepWhere', 'List<String>', 'Number', { updates: derived, parameters: [predicateParameter()], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
-            lexica.declarations.function('keepBy', 'List<String>', 'Number', { updates: derived, parameters: [expressionParameter('Number')], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
-            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: derived, implementation: ({ receiver }) => kept(receiver) }),
+            property('size', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => receiver.length }),
+            lexica.declarations.function('weight', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => receiver.length * 10 }),
+            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => receiver.startsWith('oat') }),
+            lexica.declarations.function('keepWhere', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [predicateParameter()], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
+            lexica.declarations.function('keepBy', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
+            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: derivedUpdates, implementation: ({ receiver }) => kept(receiver) }),
             lexica.declarations.function('keepWhereAndFail', 'List<String>', 'Number', {
-                updates: derived,
+                updates: derivedUpdates,
                 parameters: [predicateParameter()],
                 implementation: ({ args }) => {
                     held.expression = args.expression;
                     throw new Error('The pantry is closed');
                 },
             }),
-            lexica.declarations.function('weighPair', 'List<String>', 'Number', { updates: derived, parameters: [expressionParameter('Number')], implementation: ({ args }) => args.expression('oat', 'rye') }),
-            lexica.declarations.function('weighNumber', 'List<String>', 'Number', { updates: derived, parameters: [expressionParameter('Number')], implementation: ({ args }) => args.expression(42) }),
-            lexica.declarations.function('passes', 'String', 'Boolean', { updates: derived, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ receiver, args }) => args.test(receiver) }),
+            lexica.declarations.function('weighPair', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], implementation: ({ args }) => args.expression('oat', 'rye') }),
+            lexica.declarations.function('weighNumber', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], implementation: ({ args }) => args.expression(42) }),
+            lexica.declarations.function('passes', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ receiver, args }) => args.test(receiver) }),
             lexica.declarations.function('check', 'String', 'Boolean', {
-                updates: derived,
+                updates: derivedUpdates,
                 arguments: 'options',
                 parameters: [functionParameter('test', 'Boolean', ['String']), valueParameter('note', 'Boolean?', { default: null })],
                 implementation: ({ receiver, args }) => args.test(receiver),
             }),
             lexica.declarations.function('pick', 'List<String>', 'Number', {
-                updates: derived,
+                updates: derivedUpdates,
                 arguments: 'options',
                 parameters: [{ ...expressionParameter('Number'), name: 'by' }, { ...predicateParameter(), name: 'keep' }],
                 implementation: ({ receiver, args }) => receiver.filter(word => args.keep(word)).reduce((sum, word) => sum + args.by(word), 0),

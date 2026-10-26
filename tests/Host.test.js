@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
+import { constantUpdates } from './support/updates.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
@@ -110,10 +111,9 @@ describe('a host of plain data', () => {
     });
 
     it('types a call nullable where an argument that may be null meets a parameter propagating null, its own type nullable or not, as the call answers null without invoking the implementation', () => {
-        const constant = { changes: 'constant', reads: 'fresh' };
         const invoked = [];
-        const add = type => lexica.declarations.function('add', 'Number', 'Number', { updates: constant, parameters: [valueParameter('amount', type)], implementation: ({ receiver, args }) => (invoked.push(args.amount), receiver + args.amount) });
-        const sums = type => lexica.createRegistry([lexica.createModule('sums', { members: [add(type), property('none', 'Number', 'Number?', { updates: constant, implementation: () => null })] })]);
+        const add = type => lexica.declarations.function('add', 'Number', 'Number', { updates: constantUpdates, parameters: [valueParameter('amount', type)], implementation: ({ receiver, args }) => (invoked.push(args.amount), receiver + args.amount) });
+        const sums = type => lexica.createRegistry([lexica.createModule('sums', { members: [add(type), property('none', 'Number', 'Number?', { updates: constantUpdates, implementation: () => null })] })]);
         const resolve = (type, text) => sums(type).resolve(text, { n: 1 });
 
         for (const type of ['Number', 'Number?']) {

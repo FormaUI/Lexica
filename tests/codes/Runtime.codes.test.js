@@ -8,10 +8,9 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Device, Light, Room, Thermostat, homeTypeOf, homeTypes, withHome } from '../support/home.mjs';
 import { errorThrownBy, expectLexicaError } from '../support/errors.mjs';
+import { constantUpdates, derivedUpdates } from '../support/updates.mjs';
 
 const { property, valueParameter, functionParameter } = lexica.declarations;
-const constant = { changes: 'constant', reads: 'fresh' };
-const derived = { changes: 'derived', reads: 'derived' };
 
 /** What the test gives a member's implementation to do, by the member's name, so each test decides how its member fails. */
 let behaviors = {};
@@ -28,12 +27,12 @@ const createPantry = () => lexica.createModule('pantry', withHome({
     observationTypes: [{ name: 'quote', contract: 'maintained', implementation: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
     conversions: [{ from: 'String', to: 'Cup', implementation: input => behaviors.convert(input) }],
     members: [
-        property('size', 'String', 'Number', { updates: constant, implementation: input => (behaviors.size ?? (({ receiver }) => receiver.length))(input) }),
-        property('device', 'String', 'Device', { updates: constant, implementation: () => new Thermostat('heater') }),
+        property('size', 'String', 'Number', { updates: constantUpdates, implementation: input => (behaviors.size ?? (({ receiver }) => receiver.length))(input) }),
+        property('device', 'String', 'Device', { updates: constantUpdates, implementation: () => new Thermostat('heater') }),
         property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, implementation: ({ samples: [quote] }) => quote }),
-        lexica.declarations.function('check', 'String', 'Boolean', { updates: derived, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: input => (behaviors.check ?? (({ receiver, args }) => args.test(receiver)))(input) }),
-        lexica.declarations.function('keep', 'String', 'Boolean', { updates: derived, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ args }) => ((kept = args.test), true) }),
-        lexica.declarations.function('callKept', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => kept(receiver) }),
+        lexica.declarations.function('check', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: input => (behaviors.check ?? (({ receiver, args }) => args.test(receiver)))(input) }),
+        lexica.declarations.function('keep', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ args }) => ((kept = args.test), true) }),
+        lexica.declarations.function('callKept', 'String', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => kept(receiver) }),
         lexica.declarations.function('order', 'String', 'Number', { invokedBy: 'host', parameters: [valueParameter('count', 'Number')] }),
         lexica.declarations.function('drop', 'String', undefined, { invokedBy: 'host' }),
     ],
@@ -43,7 +42,7 @@ const createPantry = () => lexica.createModule('pantry', withHome({
 const createBare = () => lexica.createModule('bare', {
     types: [{ name: 'Mug', fields: { size: 'Number' } }],
     conversions: [{ from: 'String', to: 'Mug' }],
-    members: [property('weight', 'String', 'Number', { updates: constant })],
+    members: [property('weight', 'String', 'Number', { updates: constantUpdates })],
 });
 
 /** The evaluator of the text against a registry of the pantry, bound to the values given. */

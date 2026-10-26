@@ -8,6 +8,7 @@ import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../support/home.mjs';
+import { constantUpdates } from '../support/updates.mjs';
 
 const { property } = Declarations;
 
@@ -15,15 +16,14 @@ const { property } = Declarations;
 const parts = [new Light('a'), new Light('b')];
 
 /** A plain host's module on names: a size measured within half a unit, a length, a list of references and each reference's label. */
-const constant = { changes: 'constant', reads: 'fresh' };
 const shapes = new LexicaModule('shapes', withHome({
     types: [{ name: 'Size', fields: { width: 'Number', height: 'Number' } }],
     members: [
-        property('size', 'String', 'Size', { updates: { ...constant, tolerance: 0.5 }, implementation: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
-        property('length', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => receiver.length }),
-        property('parts', 'String', 'List<Light?>', { updates: constant, implementation: () => parts }),
-        property('label', 'Light', 'String', { updates: constant, implementation: ({ receiver }) => receiver.name }),
-        property('sizes', 'String', 'List<Size?>', { updates: constant, implementation: () => [{ width: 1, height: 2 }, null] }),
+        property('size', 'String', 'Size', { updates: { ...constantUpdates, tolerance: 0.5 }, implementation: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
+        property('length', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => receiver.length }),
+        property('parts', 'String', 'List<Light?>', { updates: constantUpdates, implementation: () => parts }),
+        property('label', 'Light', 'String', { updates: constantUpdates, implementation: ({ receiver }) => receiver.name }),
+        property('sizes', 'String', 'List<Size?>', { updates: constantUpdates, implementation: () => [{ width: 1, height: 2 }, null] }),
     ],
 }));
 

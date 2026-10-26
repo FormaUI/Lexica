@@ -1,20 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
 import { errorThrownBy, messageThrownBy } from './support/errors.mjs';
+import { constantUpdates } from './support/updates.mjs';
 
 const { property, valueParameter } = lexica.declarations;
-const constant = { changes: 'constant', reads: 'fresh' };
 
 /** A module declaring a structured type `Sensor` of the field given, a module member answering one, and a conversion from a string to it. */
 const sensors = (name, field) => lexica.createModule(name, {
     types: [{ name: 'Sensor', fields: { [field]: 'Number' } }],
-    members: [property('sensor', null, 'Sensor', { updates: constant, implementation: () => ({ [field]: 1 }) })],
+    members: [property('sensor', null, 'Sensor', { updates: constantUpdates, implementation: () => ({ [field]: 1 }) })],
     conversions: [{ from: 'String', to: 'Sensor', implementation: ({ value }) => ({ [field]: value.length }) }],
 });
 
 /** A module whose module member takes a home sensor and answers its level. */
 const checks = () => lexica.createModule('checks', {
-    members: [lexica.declarations.function('level', null, 'Number', { updates: constant, parameters: [valueParameter('sensor', 'home.Sensor')], implementation: ({ args }) => args.sensor.level })],
+    members: [lexica.declarations.function('level', null, 'Number', { updates: constantUpdates, parameters: [valueParameter('sensor', 'home.Sensor')], implementation: ({ args }) => args.sensor.level })],
 });
 
 /** The value the text gives, read through a registry of the modules. */
@@ -60,7 +60,7 @@ describe('type identity', () => {
     describe('of a reference in a declaration', () => {
         it('resolves a foreign type written qualified, and refuses one written unqualified, giving its qualified name', () => {
             const axes = lexica.createModule('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
-            const charting = result => lexica.createModule('charts', { members: [property('axis', null, result, { updates: constant, implementation: () => ({ length: 2 }) })] });
+            const charting = result => lexica.createModule('charts', { members: [property('axis', null, result, { updates: constantUpdates, implementation: () => ({ length: 2 }) })] });
 
             expect(evaluate([axes, charting('axes.Axis')], 'charts.axis.length')).toBe(2);
             expect(messageThrownBy(() => lexica.createRegistry([axes, charting('Axis')]))).toContain("names the type 'Axis', which only another module declares, so it is named qualified: axes.Axis");
@@ -71,7 +71,7 @@ describe('type identity', () => {
             const declaring = (name, fields) => lexica.createModule(name, { types: [{ name: 'Axis', fields }] });
             const charting = (type, ownTypes = []) => lexica.createModule('charts', {
                 types: [type, ...ownTypes],
-                members: [property('chart', null, 'Chart', { updates: constant, implementation: () => ({ axis: { length: 2, step: 1 } }) })],
+                members: [property('chart', null, 'Chart', { updates: constantUpdates, implementation: () => ({ axis: { length: 2, step: 1 } }) })],
             });
             const chart = imports => ({ name: 'Chart', fields: { axis: 'Axis' }, import: imports });
 
@@ -85,7 +85,7 @@ describe('type identity', () => {
             const axes = lexica.createModule('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
             const charts = lexica.createModule('charts', {
                 types: [{ name: 'Chart', fields: { axis: 'Axis' }, import: ['axes'] }],
-                members: [property('axis', null, 'Axis', { updates: constant })],
+                members: [property('axis', null, 'Axis', { updates: constantUpdates })],
             });
 
             expect(messageThrownBy(() => lexica.createRegistry([axes, charts]))).toContain("names the type 'Axis', which only another module declares");
@@ -94,7 +94,7 @@ describe('type identity', () => {
         it('takes a type named as a node of Lexica\'s in its own module, where it names that type, and leaves Lexica\'s node to every other', () => {
             const shapes = lexica.createModule('shapes', {
                 types: [{ name: 'Element', fields: { width: 'Number' } }],
-                members: [property('element', null, 'Element', { updates: constant, implementation: () => ({ width: 3 }) })],
+                members: [property('element', null, 'Element', { updates: constantUpdates, implementation: () => ({ width: 3 }) })],
             });
 
             expect(evaluate([shapes], 'shapes.element.width')).toBe(3);

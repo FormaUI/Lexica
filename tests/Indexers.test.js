@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
+import { constantUpdates } from './support/updates.mjs';
 
 const { property, valueParameter } = lexica.declarations;
-const constant = { changes: 'constant', reads: 'fresh' };
 
 /** A plain host's module of text: a word's letter by its index, a named indexer, and its words, a list, which a word without any has none of. */
 const createText = () => lexica.createModule('text', {
     members: [
-        lexica.declarations.function('letter', 'String', 'String?', { syntax: 'indexer', updates: constant, parameters: [valueParameter('index', 'Number')], implementation: ({ receiver, args }) => receiver[args.index] ?? null }),
-        property('words', 'String', 'List<String>', { updates: constant, implementation: ({ receiver }) => receiver.split(' ') }),
-        property('someWords', 'String', 'List<String>?', { updates: constant, implementation: ({ receiver }) => (receiver === '' ? null : receiver.split(' ')) }),
+        lexica.declarations.function('letter', 'String', 'String?', { syntax: 'indexer', updates: constantUpdates, parameters: [valueParameter('index', 'Number')], implementation: ({ receiver, args }) => receiver[args.index] ?? null }),
+        property('words', 'String', 'List<String>', { updates: constantUpdates, implementation: ({ receiver }) => receiver.split(' ') }),
+        property('someWords', 'String', 'List<String>?', { updates: constantUpdates, implementation: ({ receiver }) => (receiver === '' ? null : receiver.split(' ')) }),
     ],
 });
 
@@ -99,7 +99,7 @@ describe('indexers and computed properties', () => {
 
         it('refuses a receiver that can be null where only its brackets are optional, which protect nothing before its name', () => {
             const registry = lexica.createRegistry([createText(), lexica.createModule('maybe', {
-                members: [property('maybe', 'String', 'String?', { updates: constant, implementation: ({ receiver }) => (receiver === '' ? null : receiver) })],
+                members: [property('maybe', 'String', 'String?', { updates: constantUpdates, implementation: ({ receiver }) => (receiver === '' ? null : receiver) })],
             })]);
 
             expect(errorThrownBy(() => registry.resolve('item.maybe.letter?[1]', { item: 'latte' })).message).toContain("write 'item.maybe?.letter?[1]'");
@@ -109,7 +109,7 @@ describe('indexers and computed properties', () => {
         it('answers null for a null receiver written optionally, its key unevaluated', () => {
             const keys = [];
             const registry = lexica.createRegistry([createText(), lexica.createModule('keys', {
-                members: [property('key', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => (keys.push(receiver), 1) })],
+                members: [property('key', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => (keys.push(receiver), 1) })],
             })]);
 
             expect(registry.resolve('item?.letter[other.key]', { item: null, other: 'x' }).createEvaluator({ item: null, other: 'x' }).evaluate().value).toBeNull();
@@ -121,8 +121,8 @@ describe('indexers and computed properties', () => {
             const invoked = [];
             const registry = lexica.createRegistry([createText(), lexica.createModule('steps', {
                 members: [
-                    property('trimmed', 'String', 'String', { updates: constant, implementation: ({ receiver }) => (invoked.push('trimmed'), receiver.trim()) }),
-                    property('key', 'String', 'Number', { updates: constant, implementation: () => (invoked.push('key'), 1) }),
+                    property('trimmed', 'String', 'String', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push('trimmed'), receiver.trim()) }),
+                    property('key', 'String', 'Number', { updates: constantUpdates, implementation: () => (invoked.push('key'), 1) }),
                 ],
             })]);
             const bound = { item: ' latte ', other: 'x' };
@@ -142,7 +142,7 @@ describe('indexers and computed properties', () => {
 
         it('refuses a function written with brackets, giving its call', () => {
             const registry = lexica.createRegistry([lexica.createModule('cut', {
-                members: [lexica.declarations.function('cut', 'String', 'Number', { updates: constant, parameters: [valueParameter('percent', 'Number')], implementation: ({ args }) => args.percent })],
+                members: [lexica.declarations.function('cut', 'String', 'Number', { updates: constantUpdates, parameters: [valueParameter('percent', 'Number')], implementation: ({ args }) => args.percent })],
             })]);
 
             expect(errorThrownBy(() => registry.resolve('item.cut[5]', { item: 'latte' })).message).toContain("'cut' uses call syntax: write 'item.cut(5)'");
@@ -179,8 +179,8 @@ describe('indexers and computed properties', () => {
         const createCups = size => lexica.createModule('cups', {
             types: [{ name: 'Cup', fields: { volume: 'Number' } }],
             members: [
-                property('size', 'String', 'Number', { updates: constant, implementation: () => size }),
-                property('cup', 'String', 'Cup', { updates: constant, implementation: () => ({ volume: 2, lid: true }) }),
+                property('size', 'String', 'Number', { updates: constantUpdates, implementation: () => size }),
+                property('cup', 'String', 'Cup', { updates: constantUpdates, implementation: () => ({ volume: 2, lid: true }) }),
             ],
         });
         const valueOf = (text, size, bound) => lexica.createRegistry([createCups(size)]).resolve(text, bound).createEvaluator(bound).evaluate().value;

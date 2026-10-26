@@ -2,15 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Room, withHome } from '../support/home.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
+import { constantUpdates } from '../support/updates.mjs';
+import { hostFunctionDeclaration } from '../support/declarations.mjs';
 
 const { property, valueParameter, expressionParameter, functionParameter } = lexica.declarations;
-const constant = { changes: 'constant', reads: 'fresh' };
 
 /** A member a script calls, of a receiver of the target or of none for a module member, unevaluated by these tests. */
-const call = (name, target, result, options = {}) => lexica.declarations.function(name, target, result, { updates: constant, ...options });
+const call = (name, target, result, options = {}) => lexica.declarations.function(name, target, result, { updates: constantUpdates, ...options });
 
 /** A member its host invokes. */
-const hostCall = (name, target, result, options = {}) => lexica.declarations.function(name, target, result, { invokedBy: 'host', ...options });
 
 /**
  * A shop's module on words, with a member of each shape the conditions need: properties, a named indexer, functions of positional and options arguments, a fixed argument, a function parameter, expression
@@ -22,10 +22,10 @@ const createShop = () => lexica.createModule('shop', withHome({
     selectableTypes: [{ name: 'size', selector: 'flavor', type: 'Number' }],
     conversions: [{ from: 'String', to: 'Cup', implementation: ({ value }) => ({ size: value.length }) }],
     members: [
-        property('size', 'String', 'Number', { updates: constant }),
-        property('partner', 'String', 'String?', { updates: constant }),
-        property('device', 'String', 'Device', { updates: constant }),
-        property('open', null, 'Boolean', { updates: constant }),
+        property('size', 'String', 'Number', { updates: constantUpdates }),
+        property('partner', 'String', 'String?', { updates: constantUpdates }),
+        property('device', 'String', 'Device', { updates: constantUpdates }),
+        property('open', null, 'Boolean', { updates: constantUpdates }),
         call('letter', 'String', 'String?', { syntax: 'indexer', parameters: [valueParameter('index', 'Number')] }),
         call('pad', 'String', 'String', { parameters: [valueParameter('width', 'Number')] }),
         call('wipe', 'String', 'String'),
@@ -41,8 +41,8 @@ const createShop = () => lexica.createModule('shop', withHome({
         call('sweep', null, 'Number', { parameters: [expressionParameter('Number')] }),
         call('make', null, 'T'),
         call('greet', null, 'String', { parameters: [valueParameter('name', 'String')] }),
-        hostCall('order', 'String', 'Number', { parameters: [valueParameter('count', 'Number')] }),
-        hostCall('hold', 'String', undefined),
+        hostFunctionDeclaration('order', 'String', 'Number', { parameters: [valueParameter('count', 'Number')] }),
+        hostFunctionDeclaration('hold', 'String', undefined),
     ],
 }));
 

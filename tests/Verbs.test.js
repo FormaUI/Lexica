@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
+import { constantUpdates } from './support/updates.mjs';
 
 const { property, functionParameter } = lexica.declarations;
-const constant = { changes: 'constant', reads: 'fresh' };
 
 /**
  * A pantry's module on words: a word's size and whether it is vegan; a test that answers no Boolean; a member that ignores the test it is given, one that keeps it for a member that calls it later, and one that keeps it
@@ -14,10 +14,10 @@ const createPantry = (invoked = [], held = {}) => {
 
     return lexica.createModule('pantry', {
         members: [
-            property('size', 'String', 'Number', { updates: constant, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
-            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constant, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
-            lexica.declarations.function('fresh', 'String', 'Boolean', { updates: constant, implementation: () => 'yes' }),
-            lexica.declarations.function('even', 'Number', 'Boolean', { updates: constant, implementation: ({ receiver }) => receiver % 2 === 0 }),
+            property('size', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
+            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
+            lexica.declarations.function('fresh', 'String', 'Boolean', { updates: constantUpdates, implementation: () => 'yes' }),
+            lexica.declarations.function('even', 'Number', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => receiver % 2 === 0 }),
             lexica.declarations.function('ignore', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: () => true }),
             lexica.declarations.function('keep', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ args }) => ((kept = args.test), true) }),
             lexica.declarations.function('callKept', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, implementation: ({ receiver }) => kept(receiver) }),
