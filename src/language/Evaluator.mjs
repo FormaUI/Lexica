@@ -368,7 +368,7 @@ export class Evaluator {
                     if (outcome.kind !== 'failed') {
                         // A failure as the evaluation ends fails it, as a hook's failure does: one Lexica raised as it is, and anything else the hook threw, a LexicaError it built among them, as the cause of Lexica's own.
                         // The finally block's throw replaces the completed result.
-                        if (LexicaErrors.has(cleanupError)) {
+                        if (LexicaErrors.isRaisedByLexica(cleanupError)) {
                             throw cleanupError;
                         }
 
@@ -775,7 +775,7 @@ export class Evaluator {
                 converted = convert({ value, reject });
             } catch (error) {
                 // A failure Lexica raised keeps its own code and place; anything else the conversion threw but its rejection, a LexicaError it built among them, is the cause of Lexica's own, exactly as thrown.
-                if (LexicaErrors.has(error)) {
+                if (LexicaErrors.isRaisedByLexica(error)) {
                     throw error;
                 }
 
@@ -1624,7 +1624,7 @@ export class Evaluator {
         } catch (error) {
             // A failure Lexica raised, within a function the member was given or a nested evaluation among them, keeps its own code and place; anything else the implementation threw, a LexicaError it built among them,
             // is the cause of Lexica's own, exactly as thrown.
-            if (LexicaErrors.has(error) || this.#callbackErrors.has(error)) {
+            if (LexicaErrors.isRaisedByLexica(error) || this.#callbackErrors.has(error)) {
                 throw error;
             }
 
@@ -1695,7 +1695,7 @@ export class Evaluator {
      * the hooks are called directly, since they run on every invocation.
      */
     #failHook(error, declaration, node, moment) {
-        if (LexicaErrors.has(error) || this.#callbackErrors.has(error)) {
+        if (LexicaErrors.isRaisedByLexica(error) || this.#callbackErrors.has(error)) {
             throw error;
         }
 
