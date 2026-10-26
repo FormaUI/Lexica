@@ -207,8 +207,9 @@ describe('the structure codes of a definition', () => {
     it('LEXICA2528: a parameter a text wrote alone named as a local in scope', () => {
         // Lowering reads such a name as the local, so only a text's definition given to validation directly holds one.
         const locations = { locate: pointer => ({ pointer }) };
-        const definition = definitionOf({ kind: 'object', locals: [{ name: 'a', value: literal(1) }], fields: [{ name: 'b', value: parameter('a') }] });
+        const writtenAlone = parameter('a');
+        const definition = definitionOf({ kind: 'object', locals: [{ name: 'a', value: literal(1) }], fields: [{ name: 'b', value: writtenAlone }] });
 
-        expectStructure(getError(() => new DefinitionValidator(locations, new WeakSet()).validate(definition)), 'LEXICA2528');
+        expectStructure(getError(() => new DefinitionValidator(locations, new WeakSet([writtenAlone])).validate(definition)), 'LEXICA2528');
     });
 });

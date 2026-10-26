@@ -22,8 +22,8 @@ export class Lowering {
     /** The names of the locals and the fields in scope where the node being lowered stands, which a name reads; any other name reads the script parameter of its name. @type {Set<string>} */
     #localNames = new Set();
 
-    /** The parameters written with `~`, which read the script parameter wherever they stand, whatever local shares their name. @type {WeakSet<object>} */
-    #parameterReferences = new WeakSet();
+    /** The parameters a bare name reads, where no local or field in scope has its name, rather than written with `~`, which validation marks as written alone. @type {WeakSet<object>} */
+    #scriptParametersWrittenAlone = new WeakSet();
 
     /**
      * The names written alone where a value stands, each reading a local, a field or a script parameter, which text read with a module of its name would have read as the module's namespace, by name, each with the span of the part
@@ -32,7 +32,7 @@ export class Lowering {
     #namesWrittenAlone = new Map();
 
     /**
-     * The definition the tree writes, the span of text each of its nodes, fields, locals and bindings came from, which the tree is no longer needed for, the parameters written with `~`,
+     * The definition the tree writes, the span of text each of its nodes, fields, locals and bindings came from, which the tree is no longer needed for, the parameters written alone,
      * and the names written alone where a value stands.
      * @param {import('./SyntaxTree.mjs').ScriptNode} tree
      */
@@ -40,7 +40,7 @@ export class Lowering {
         const lowering = new Lowering(tree.text);
         const expression = lowering.#lower(tree.children[0]);
 
-        return { definition: { version: Versions.definition, expression }, spans: lowering.#spans, parameterReferences: lowering.#parameterReferences, namesWrittenAlone: lowering.#namesWrittenAlone };
+        return { definition: { version: Versions.definition, expression }, spans: lowering.#spans, scriptParametersWrittenAlone: lowering.#scriptParametersWrittenAlone, namesWrittenAlone: lowering.#namesWrittenAlone };
     }
 
     /** @param {string} text The text the tree was read from. */
@@ -178,23 +178,25 @@ export class Lowering {
                 return this.#span({ kind: 'it' }, token);
             case 'literal':
                 return this.#span({ kind: 'literal', value: token.value }, token);
-            case 'identifier':
+            case 'identifier': {
                 // `root` is the object root wherever it stands; any other name is the local or the field its lexical scope declares, and otherwise the script parameter of its name.
                 if (Names.isRoot(token.value)) {
                     return this.#span({ kind: 'root' }, token);
                 }
 
-                return this.#recordNameWrittenAlone(token.value, this.#span({ kind: this.#localNames.has(token.value) ? 'local' : 'parameter', name: token.value }, token));
+                const read = this.#span({ kind: this.#localNames.has(token.value) ? 'local' : 'parameter', name: token.value }, token);
+
+                if (read.kind === 'parameter') {
+                    this.#scriptParametersWrittenAlone.add(read);
+                }
+
+                return this.#recordNameWrittenAlone(token.value, read);
+            }
             case 'lexical-reference':
                 // An identifier after `@` is the local or the field of its name, which validation finds in scope or refuses.
                 return this.#span({ kind: 'local', name: token.value }, token);
-            case 'script-parameter': {
-                const parameter = this.#span({ kind: 'parameter', name: token.value }, token);
-
-                this.#parameterReferences.add(parameter);
-
-                return parameter;
-            }
+            case 'script-parameter':
+                return this.#span({ kind: 'parameter', name: token.value }, token);
             default:
                 throw new TypeError(`No definition is lowered from the token '${token.type}'`);
         }

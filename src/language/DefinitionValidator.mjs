@@ -80,7 +80,7 @@ export class DefinitionValidator {
     static #canonicalDefinitions = new WeakSet();
 
     /** The parameter nodes of canonical definitions that a text wrote alone, a bare name no local in scope has, rather than with `~`. @type {WeakSet<object>} */
-    static #namesWrittenAlone = new WeakSet();
+    static #scriptParametersWrittenAlone = new WeakSet();
 
     #locations;
 
@@ -109,21 +109,21 @@ export class DefinitionValidator {
      */
     #simpleExpression = null;
 
-    /** The parameters of a definition parsed from text that were written with `~`, which read the script parameter wherever they stand; null for a definition not parsed from text. @type {WeakSet<object> | null} */
-    #parameterReferences;
+    /** The parameters of a definition parsed from text that the text wrote alone, as the lowering gave them; null for a definition not parsed from text. @type {WeakSet<object> | null} */
+    #parametersWrittenAloneInText;
 
     /**
      * @param {TextLocations | null} locations Where in a text each part of the definition came from, for one parsed from text.
-     * @param {WeakSet<object> | null} parameterReferences The parameters a text wrote with `~`, for one parsed from text.
+     * @param {WeakSet<object> | null} scriptParametersWrittenAlone The parameters a text wrote alone, for one parsed from text.
      */
-    constructor(locations = null, parameterReferences = null) {
+    constructor(locations = null, scriptParametersWrittenAlone = null) {
         this.#locations = locations;
-        this.#parameterReferences = parameterReferences;
+        this.#parametersWrittenAloneInText = scriptParametersWrittenAlone;
     }
 
     /** Whether a canonical definition's parameter node is a name a text wrote alone, which reads a local or field of its name where one is in scope, rather than a script parameter written with `~` or a definition's. */
     static isWrittenAlone(node) {
-        return DefinitionValidator.#namesWrittenAlone.has(node);
+        return DefinitionValidator.#scriptParametersWrittenAlone.has(node);
     }
 
     /** A deep copy of a canonical definition's node, each parameter node a text wrote alone marked as one in the copy too. */
@@ -138,8 +138,8 @@ export class DefinitionValidator {
 
         const copy = Object.fromEntries(Object.entries(node).map(([key, value]) => [key, DefinitionValidator.copyOf(value)]));
 
-        if (DefinitionValidator.#namesWrittenAlone.has(node)) {
-            DefinitionValidator.#namesWrittenAlone.add(copy);
+        if (DefinitionValidator.#scriptParametersWrittenAlone.has(node)) {
+            DefinitionValidator.#scriptParametersWrittenAlone.add(copy);
         }
 
         return copy;
@@ -215,12 +215,12 @@ export class DefinitionValidator {
                 }
 
                 // A name a text wrote alone reads the local in scope of its name, so one before a later local of its name reads nothing; a script parameter written with `~` and a definition's parameter read the script parameter wherever they stand.
-                if (this.#locations !== null && !this.#parameterReferences?.has(node)) {
+                if (this.#parametersWrittenAloneInText?.has(node) === true) {
                     this.#requireScriptParameterName(node.name, pointer);
 
                     const parameter = Object.freeze({ kind: 'parameter', name: node.name });
 
-                    DefinitionValidator.#namesWrittenAlone.add(parameter);
+                    DefinitionValidator.#scriptParametersWrittenAlone.add(parameter);
 
                     return parameter;
                 }

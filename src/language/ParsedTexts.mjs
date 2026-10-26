@@ -61,9 +61,9 @@ export class ParsedTexts {
         }
 
         // The tree is lowered and let go: a kept definition holds its locations, never its tokens or their trivia.
-        const { definition, spans, parameterReferences, namesWrittenAlone } = Lowering.lower(new Parser(text, namespaceNames).parse());
+        const { definition, spans, scriptParametersWrittenAlone, namesWrittenAlone } = Lowering.lower(new Parser(text, namespaceNames).parse());
         const locations = new TextLocations(text, definition, spans);
-        const validated = new DefinitionValidator(locations, parameterReferences).validate(definition);
+        const validated = new DefinitionValidator(locations, scriptParametersWrittenAlone).validate(definition);
 
         ParsedTexts.#locations.set(validated, locations);
         ParsedTexts.#readings.set(validated, Object.freeze({ namespaceNames: new Set(namespaceNames), namesWrittenAlone }));
