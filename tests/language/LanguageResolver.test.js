@@ -82,4 +82,22 @@ describe('LanguageResolver', () => {
             expect(String(resolved.type)).toBe('String?');
         });
     });
+
+    describe('the name a use is qualified by', () => {
+        /** The qualified names `word.fade` uses, where `fade` is a property of the receiver types given, in order. */
+        const usesOf = target => {
+            const fading = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+                members: [Declarations.property('fade', target, 'String', { updates: constant, implementation: ({ receiver }) => receiver })],
+            })]);
+            const definition = ParsedTexts.parse('return word.fade', new Set(fading.namespaceNames));
+
+            return new LanguageResolver(fading, new ParameterBindings(fading, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition).usedDeclarations.map(use => use.qualifiedName);
+        };
+
+        it('is the type of the first receiver type the receiver applies to it by, and the name alone where that one is any receiver or a type parameter, though a later one is the receiver\'s type', () => {
+            expect(usesOf(['String', 'any'])).toEqual(['String.fade']);
+            expect(usesOf(['any', 'String'])).toEqual(['fade']);
+            expect(usesOf(['T', 'String'])).toEqual(['fade']);
+        });
+    });
 });

@@ -414,7 +414,10 @@ export interface LexicaUsedDeclaration {
     readonly declaration: object;
     /** Its declared name, as `total`. */
     readonly name: string;
-    /** The name a message gives it: qualified by the type its declaration is for, as `String.total`, or by its module, as `shop.greet`, for a module member or a function referenced through its namespace; its declared name alone for any receiver. */
+    /**
+     * The name a message gives it: qualified by the first of its declaration's receiver types the receiver applies to it by, as `String.total`, or by its module, as `shop.greet`, for a module member or a function referenced
+     * through its namespace; its declared name alone where that receiver type is any receiver or a type parameter.
+     */
     readonly qualifiedName: string;
     readonly pointer: string;
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Type } from '#lexica/language/Type.mjs';
 import { TypeChecker } from '#lexica/language/TypeChecker.mjs';
+import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
@@ -210,7 +211,24 @@ describe('TypeChecker', () => {
         });
     });
 
-    describe('matchesReceiver and inferReceiverTypeArguments', () => {
+    describe('resolveApplyingReceiverType, matchesReceiver and inferReceiverTypeArguments', () => {
+        it('resolves the first receiver type the receiver applies to a member by, in the order it declares them, any receiver and a type parameter alone among them, which a never takes neither of', () => {
+            const property = (name, target) => Declarations.property(name, target, 'String', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver });
+            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [property('fade', ['any', 'String']), property('dim', ['T', 'String']), property('glow', ['String', 'any'])] })]);
+            const [[anyFirst], [parameterFirst], [stringFirst]] = ['fade', 'dim', 'glow'].map(name => registry.getReceiverMembers(name));
+            const { typeChecker } = registry;
+
+            expect(typeChecker.resolveApplyingReceiverType(anyFirst, typeOf('String?'))).toBe('any');
+            expect(typeChecker.inferReceiverTypeArguments(anyFirst, typeOf('String'))).toEqual(new Map());
+            expect(String(typeChecker.resolveApplyingReceiverType(parameterFirst, typeOf('String')))).toBe('T');
+            expect(typeChecker.inferReceiverTypeArguments(parameterFirst, typeOf('String')).get('T').toString()).toBe('String');
+            expect(String(typeChecker.resolveApplyingReceiverType(stringFirst, typeOf('String')))).toBe('String');
+            expect(typeChecker.resolveApplyingReceiverType(stringFirst, typeOf('Number'))).toBe('any');
+            expect(String(typeChecker.resolveApplyingReceiverType(anyFirst, Type.never))).toBe('String');
+            expect(typeChecker.resolveApplyingReceiverType(anyFirst, Type.null)).toBeUndefined();
+            expect(typeChecker.inferReceiverTypeArguments(anyFirst, Type.null)).toBeNull();
+        });
+
         it('applies a member to a receiver its receiver types match, inferring the type arguments it binds, and a receiver of any type to any value', () => {
             const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {})]);
             const [count] = registry.getReceiverMembers('count');

@@ -180,34 +180,30 @@ export class TypeChecker {
     }
 
     /**
-     * The arguments of the type parameters the member's receiver type binds for the receiver, by the first of its receiver types the receiver applies to: an empty map where that one binds none, or null where the member applies
-     * to the receiver by none. Each receiver type is matched apart, so one that does not apply binds nothing for the next.
-     * @returns {Map<string, Type> | null}
+     * The first of the member's receiver types the receiver applies to it by, in the order it declares them: a type, a type parameter alone, which takes a receiver of any type a value has, or `any` for a receiver of any type;
+     * undefined where it applies by none. Each receiver type is matched apart, so one that does not apply binds nothing for the next.
+     * @returns {Type | 'any' | undefined}
      */
-    inferReceiverTypeArguments(declaration, receiverType) {
+    resolveApplyingReceiverType(declaration, receiverType) {
         const base = receiverType.toNonNullable();
         const isValue = base.kind === 'named' || base.kind === 'object';
 
-        for (const type of this.#declarations.getTargetTypes(declaration)) {
-            if (type === 'any') {
-                if (isValue) {
-                    return new Map();
-                }
+        return this.#declarations.getTargetTypes(declaration).find(type => (type === 'any' ? isValue : (type.kind !== 'typeParameter' || isValue) && this.matchesType(type, base)));
+    }
 
-                continue;
-            }
+    /**
+     * The arguments of the type parameters the member's receiver type binds for the receiver, by the receiver type it applies to it by: an empty map where that one binds none, `any` among them, or null where the member
+     * applies to the receiver by none.
+     * @returns {Map<string, Type> | null}
+     */
+    inferReceiverTypeArguments(declaration, receiverType) {
+        const type = this.resolveApplyingReceiverType(declaration, receiverType);
 
-            // A target that is a type parameter alone takes a receiver of any type a value has, and binds the parameter to it.
-            if (type.kind !== 'typeParameter' || isValue) {
-                const typeArguments = this.inferTypeArguments(type, base);
-
-                if (typeArguments !== null) {
-                    return typeArguments;
-                }
-            }
+        if (type === undefined) {
+            return null;
         }
 
-        return null;
+        return type === 'any' ? new Map() : this.inferTypeArguments(type, receiverType.toNonNullable());
     }
 
     /**
@@ -216,7 +212,7 @@ export class TypeChecker {
      * none where none applies.
      */
     mostSpecificOf(declarations, receiverType) {
-        const applying = declarations.map(declaration => ({ declaration, type: this.#applyingTypeOf(declaration, receiverType) })).filter(({ type }) => type !== undefined);
+        const applying = declarations.map(declaration => ({ declaration, type: this.resolveApplyingReceiverType(declaration, receiverType) })).filter(({ type }) => type !== undefined);
         const selected = applying.find(candidate => applying.every(other => other === candidate || this.#isMoreSpecific(candidate.type, other.type)));
 
         if (selected !== undefined) {
@@ -224,14 +220,6 @@ export class TypeChecker {
         }
 
         return applying.filter(({ type }) => !applying.some(other => this.#isMoreSpecific(other.type, type))).map(({ declaration }) => declaration);
-    }
-
-    /** The receiver type of the declaration the receiver applies to it by, `any` for a receiver of any type, or undefined where it applies by none. */
-    #applyingTypeOf(declaration, receiverType) {
-        const base = receiverType.toNonNullable();
-        const isValue = base.kind === 'named' || base.kind === 'object';
-
-        return this.#declarations.getTargetTypes(declaration).find(type => (type === 'any' ? isValue : (type.kind !== 'typeParameter' || isValue) && this.matchesType(type, base)));
     }
 
     /** Whether the one receiver type is more specific than the other: assignable to it by the type relationships, the other matching it and not it the other; a receiver of any type, written `any`, is the least specific. */

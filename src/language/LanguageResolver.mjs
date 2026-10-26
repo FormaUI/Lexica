@@ -2463,14 +2463,13 @@ export class LanguageResolver {
     }
 
     /**
-     * The member's name qualified by the type of the declaration the receiver matched, as `node.root` and `shadow.root` are, so two members of one name are told apart; a declaration for any receiver keeps its name alone.
-     * A list is named by its type, Lexica's `List`, as `List.count` is.
+     * The member's name qualified by the receiver type the receiver applies to it by, the first its matching takes, as `node.root` and `shadow.root` are, so two members of one name are told apart; a member it applies to by
+     * a receiver of any type, or by a type parameter alone, keeps its name alone. A list is named by its type, Lexica's `List`, as `List.count` is.
      */
     #qualifiedNameOf(declaration, receiverType) {
-        const base = receiverType.toNonNullable();
-        const type = this.#moduleRegistry.getTargetTypes(declaration).find(target => target !== 'any' && target.kind !== 'typeParameter' && this.#typeChecker.matchesType(target, base));
+        const type = this.#typeChecker.resolveApplyingReceiverType(declaration, receiverType);
 
-        if (type === undefined) {
+        if (type === undefined || type === 'any' || type.kind === 'typeParameter') {
             return declaration.name;
         }
 
