@@ -217,9 +217,10 @@ describe('the runtime codes', () => {
             expectCode(getError(() => lexica.getLocation(lexica.parse('1 + 2'), '/expression/middle')), 'LEXICA2644', 'structure');
         });
 
-        it('LEXICA2645: parsing what is not a text', () => {
+        it('LEXICA2645: parsing what is not a script\'s source', () => {
             expectCode(getError(() => lexica.parse(5)), 'LEXICA2645', 'structure');
             expectCode(getError(() => registry.parse({ version: 33 })), 'LEXICA2645', 'structure');
+            expect(getError(() => lexica.parse(5)).message).toBe("What parse reads is a script's source");
         });
 
         it('LEXICA2040: creating or entering an evaluator after its registry\'s revision has moved', () => {

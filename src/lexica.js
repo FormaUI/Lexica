@@ -21,8 +21,8 @@ import { Vocabulary } from './language/vocabulary/Vocabulary.mjs';
 /** The parameter bindings each bindings object a registry's `createBindings` created stands for. @type {WeakMap<object, ParameterBindings>} */
 const PARAMETER_BINDINGS = new WeakMap();
 
-/** The definition a source gives: a text read with the namespace names given and checked, or a definition checked, each the same frozen definition the text's canonical form would give. */
-const definitionOf = (source, namespaceNames = Names.noNamespaceNames) => (typeof source === 'string' ? ParsedTexts.parse(source, namespaceNames) : new DefinitionValidator().validate(source));
+/** The definition a script gives: its source read with the namespace names given and checked, or its definition checked, each the same frozen definition its canonical text would give. */
+const definitionOf = (script, namespaceNames = Names.noNamespaceNames) => (typeof script === 'string' ? ParsedTexts.parse(script, namespaceNames) : new DefinitionValidator().validate(script));
 
 /** Each namespace the node reads through, with where it stands, in the order written. */
 const namespacesOf = (node, pointer, found = []) => {
@@ -230,10 +230,10 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 const createRegistry = modules => {
     const registry = new LexicaRegistry([Vocabulary.module, ...modules]);
     const namespaceNames = () => new Set(registry.namespaceNames);
-    const definitionWith = source => {
+    const definitionWith = script => {
         const names = namespaceNames();
 
-        return readWith(definitionOf(source, names), names);
+        return readWith(definitionOf(script, names), names);
     };
 
     return Object.freeze({
@@ -249,17 +249,17 @@ const createRegistry = modules => {
         getObservationType: name => registry.getObservationType(name),
         getDeclaringModuleName: declaration => registry.getDeclaringModuleName(declaration),
         getImplementation: declaration => registry.getImplementation(declaration),
-        parse: text => {
-            if (typeof text !== 'string') {
-                throw LexicaErrors.structure('LEXICA2645', 'What parse reads is a text', {});
+        parse: source => {
+            if (typeof source !== 'string') {
+                throw LexicaErrors.structure('LEXICA2645', "What parse reads is a script's source", {});
             }
 
-            return definitionWith(text);
+            return definitionWith(source);
         },
-        format: source => DefinitionWriter.format(definitionWith(source).expression, namespaceNames()),
-        quote: source => DefinitionWriter.quote(definitionWith(source).expression, namespaceNames()),
+        format: script => DefinitionWriter.format(definitionWith(script).expression, namespaceNames()),
+        quote: script => DefinitionWriter.quote(definitionWith(script).expression, namespaceNames()),
         createBindings: (values = {}, options = {}) => createBindings(registry, values, options),
-        resolve: (source, bindings = {}) => resolutionOf(registry, definitionWith(source), parameterBindingsOf(registry, bindings)),
+        resolve: (script, bindings = {}) => resolutionOf(registry, definitionWith(script), parameterBindingsOf(registry, bindings)),
     });
 };
 
@@ -281,16 +281,16 @@ const paths = Object.freeze({
 
 /** Lexica: reads, checks and writes source and definitions, declares and registers vocabulary, binds values, resolves and evaluates, and says which build it is and which specification it follows. */
 export const lexica = Object.freeze({
-    parse: text => {
-        if (typeof text !== 'string') {
-            throw LexicaErrors.structure('LEXICA2645', 'What parse reads is a text', {});
+    parse: source => {
+        if (typeof source !== 'string') {
+            throw LexicaErrors.structure('LEXICA2645', "What parse reads is a script's source", {});
         }
 
-        return ParsedTexts.parse(text);
+        return ParsedTexts.parse(source);
     },
     validate: definition => new DefinitionValidator().validate(definition),
-    format: source => DefinitionWriter.format(withoutNamespaces(definitionOf(source)).expression),
-    quote: source => DefinitionWriter.quote(withoutNamespaces(definitionOf(source)).expression),
+    format: script => DefinitionWriter.format(withoutNamespaces(definitionOf(script)).expression),
+    quote: script => DefinitionWriter.quote(withoutNamespaces(definitionOf(script)).expression),
     getLocation: locate,
     createModule: (name, contents) => new LexicaModule(name, contents),
     declarations,

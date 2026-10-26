@@ -199,7 +199,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA2528` | A script parameter a text writes alone where a local or an object field of its name is in scope | A structure error naming the parameter |
 | `LEXICA2643` | A location asked for by a pointer that is not a JSON Pointer | A structure error |
 | `LEXICA2644` | A location asked for at a pointer the definition holds nothing at | A structure error naming the pointer |
-| `LEXICA2645` | Reading what is not a text | A structure error |
+| `LEXICA2645` | Reading what is not a script's source | A structure error |
 | `LEXICA2646` | A result path holding an item that is neither a name nor a whole number that is not negative | A structure error naming the item |
 
 <a id="module-errors"></a>

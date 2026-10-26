@@ -3,6 +3,9 @@
  * and the registries a host resolves scripts against.
  */
 
+/** A script as a host gives it: its source, the text read into its definition, or the definition itself. */
+export type LexicaScript = string | LexicaDefinition;
+
 /** A Lexica definition: the JSON document that records a script's meaning, its expression tree with the version of its format, without the values its script parameters are bound to. */
 export interface LexicaDefinition {
     readonly version: number;
@@ -457,22 +460,22 @@ export interface LexicaRegistry {
     /** The implementation that carries the declaration out, as its module gives it. */
     getImplementation(declaration: object): ((input: any) => unknown) | undefined;
     /** Reads a text into its definition with the registry's module names, refusing a syntax error or a structure the definition cannot have. */
-    parse(text: string): LexicaDefinition;
+    parse(source: string): LexicaDefinition;
     /** The canonical text of a text or a definition, written with the registry's module names, which a registry of the same module names reads back as the same definition. */
-    format(source: string | LexicaDefinition): string;
+    format(script: LexicaScript): string;
     /** The canonical text of a text or a definition on one line, written with the registry's module names, as a diagnostic quotes it. */
-    quote(source: string | LexicaDefinition): string;
+    quote(script: LexicaScript): string;
     /**
      * Creates bindings of values by name against the registry, its modules recognizing which are references, each module's `typeOf` asked of every object and the `isInstance` of each type it names, or of a top-level
      * binding's declared type: data as a frozen copy, each reference as itself, a top-level binding of a declared type typed by it.
      */
     createBindings(values?: LexicaBindingValues, options?: LexicaBindingsOptions): LexicaBindings;
     /**
-     * Resolves a source against the registered vocabulary and the bindings, the registry's own or plain values it binds, a text read as `parse` reads it, or throws where it does not resolve. Binding plain values asks
+     * Resolves a script against the registered vocabulary and the bindings, the registry's own or plain values it binds, its source read as `parse` reads it, or throws where it does not resolve. Binding plain values asks
      * the modules' `typeOf` and `isInstance`, as `createBindings` does; resolving calls no host code. It refuses bindings another registry made (LEXICA2024), a definition this registry would read otherwise than it was read
      * (LEXICA2641, LEXICA2642), and a script that does not resolve, a validation error locating it.
      */
-    resolve(source: string | LexicaDefinition, bindings?: LexicaBindings | LexicaBindingValues): LexicaResolution;
+    resolve(script: LexicaScript, bindings?: LexicaBindings | LexicaBindingValues): LexicaResolution;
 }
 
 /** The declaration helpers, each giving a declaration as a module declares it. */
@@ -510,16 +513,16 @@ export interface LexicaInfo {
 
 export interface Lexica {
     /** Reads a text into its definition without a registry, knowing no module's name, refusing a syntax error or a structure the definition cannot have. */
-    parse(text: string): LexicaDefinition;
+    parse(source: string): LexicaDefinition;
     /**
      * Validates a definition given directly against the definition format's structural rules, answering it frozen, as a text giving it would; it checks no vocabulary or types, which resolution validates. It calls
      * no host code, answers a definition it answered already as it is, and refuses a definition of another version (LEXICA2007) and any other structure the format does not allow, a structure error at its pointer.
      */
     validate(definition: unknown): LexicaDefinition;
     /** The canonical text of a text or a definition, written without module names, so a definition reading through a namespace is refused; a registry's `format` writes one. */
-    format(source: string | LexicaDefinition): string;
+    format(script: LexicaScript): string;
     /** The canonical text of a text or a definition on one line, as a diagnostic quotes it, written without module names. */
-    quote(source: string | LexicaDefinition): string;
+    quote(script: LexicaScript): string;
     /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
     getLocation(definition: LexicaDefinition, pointer: string): LexicaLocation;
     /** Creates a module from the vocabulary it declares and the functions that carry its members out. */
