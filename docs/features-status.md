@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. In [unit 1](#unit-1--declarations-and-the-type-model), steps 1 to 4 are complete; steps 1 to 5 are complete, step 5 the declaration model, its S1 and S2 done; step 6, the inference of type parameters, is next.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation)'s selector is next.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | Unit | Work | State |
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
-| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | In progress: steps 1 to 5 done; step 6 next |
+| 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | ✅ Done |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | Planned |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
@@ -78,7 +78,7 @@ Every declaration takes its final shape, and the types those declarations make r
      - ✅ The declaration helpers without receivers, [M1](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `create…` names, with `createIndexerDeclaration` and one property helper whose declaration follows the contract of where it stands; [M6](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `takesReceiver` and [M15](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `getReceiverTypes`, one type for a member that takes a receiver and none for a module member ([I18](proposals/implementation-decisions.md)).
      - ✅ Removed: flat members, a member among a module's `members` a module member, `target` refused on every member with LEXICA4030, the `'any'` target and lists of targets, the implicit single capitals, and the migration hint for `predicates`; the duplicate tolerance and identifier checks, as [I16](proposals/implementation-decisions.md) reads them. Every test declares in the final shape, a test that reached a receiver's member through a namespace reading a module's own type or a module member ([I17](proposals/implementation-decisions.md)). It retires LEXICA4513 and LEXICA4506; LEXICA4556 retired with the first commit, which reads extensions.
    - In [unit 2](#unit-2--member-selection-and-deferred-evaluation), with the selector: LEXICA4550, another module's unnamed indexer of an overlapping receiver, retired with LEXICA4551.
-6. **Inference of type parameters:** a receiver binding its extension's parameters by its non-null branch, with exact extraction; value arguments binding before callbacks; nullable candidates combining and different candidates refused; the evidence of `null` and `Never`; and a callback's result binding a parameter, without chaining. A held reference to a generic module member, its answer checked against each specialization it is called with, is tested again once value arguments bind ([I17](proposals/implementation-decisions.md)). *Next.*
+6. ✅ **Inference of type parameters:** a receiver binding its extension's parameters by its non-null branch, with exact extraction; value arguments binding before callbacks, whatever their order, as [I19](proposals/implementation-decisions.md) sets out; nullable candidates combining and different candidates refused with LEXICA3064; the evidence of `null` and `Never`; a callback's result binding a parameter, without chaining; and a reference to a generic member binding its own parameters from the contract it is passed to, or the values a held reference is called with, each specialization checked apart.
 
 Module-level conversions, and the registration's refusal of members of one name on overlapping receivers across modules, stay as they are until unit 2 replaces them.
 
@@ -88,7 +88,7 @@ Contracts: [Types](../spec/types.md), [Modules](../spec/modules.md), [declaring 
 
 ### Unit 2 — Member selection and deferred evaluation
 
-One selector chooses every member, indexer and operator, at resolution and during evaluation alike.
+One selector chooses every member, indexer and operator, at resolution and during evaluation alike. *Next: step 1, the selector.*
 
 1. **The selector** replaces the three selection paths and the path for receivers of unknown type: owner precedence through inheritance; competing extensions registering, in place of the registration's refusal, and selected by the most specific target; ambiguity refused at resolution, giving the extension accesses to write; internal declarations excluded at resolution; and an empty list or a null receiver selecting as [the types](../spec/types.md) set out.
 2. **Operators:** casts and conversions declared on types and in extensions, in place of module-level conversions, competing as operators do, an applicable owner's winning and otherwise the most specific extension's; Lexica's own conversions moved onto its types; declared casts, an `impl` optional, `reject` making an attempt null; and operators chosen by the selector.
@@ -123,6 +123,7 @@ One selector chooses every member, indexer and operator, at resolution and durin
 | Lexica's own module | Named `lexica`; the members of lists and the verbs declared flat, with the targets `List<T>` and `T` | Named `Lexica`, as `moduleNames` and `getDeclaringModuleName` answer it; a module named `lexica` is still refused, its message naming `Lexica`. It owns `List<T>`, with the members of lists, and declares the verbs in `VerbExtensions<T>`; `List` is one of Lexica's own type names, so a binding declared `List` is refused as no reference type (LEXICA2023) | None: DOMQL compares no module's name with Lexica's, reads none of its declarations, and declares no binding `List` |
 | Resolution | `usedDeclarations[i].name`, qualified | `name`, the declared name, and `qualifiedName` | Read `qualifiedName` where a message names the use: `domql.js:486`, `domql.d.ts:266` |
 | Qualified name | Qualified by the first concrete receiver type that matches, `any` and a type parameter skipped | Qualified by the one receiver type a member takes, its type's or its extension's target, the declared name alone where that is a type parameter | None: DOMQL declares no member of several receiver types, so every name it reads is unchanged |
+| Type parameters | A single capital letter in a member's notations a type parameter, bound by its receiver alone | A member's own parameters, declared in its name, bound by its value arguments and its callbacks' results, a `T?` binding a type without null; candidates of different types refused with LEXICA3064 | None: DOMQL declares no type parameter |
 | Declaration helpers | `lexica.declarations.property(name, target, result, options)`, `.function`, `.indexer`, `.valueParameter`, `.expressionParameter`, `.predicateParameter` and `.functionParameter` | `createPropertyDeclaration(name, result, options)`, `createFunctionDeclaration`, `createIndexerDeclaration`, `createValueParameterDeclaration`, `createExpressionParameterDeclaration`, `createPredicateParameterDeclaration` and `createFunctionParameterDeclaration`, a member helper taking no target, since where the member stands gives it its receiver | Rename and drop the target where `BrowserVocabularyDeclarations.mjs` calls them: `:8`, `:46`, and each call from `:94` to `:160` |
 | Metadata | `fields`; `sources`, the projected values | `objectFields`; `sources`, each `{ kind, value }` or `{ kind: 'null' }` | Rename the reads, `SnapshotComparer.mjs:27`, `:63`, `:71`, `SnapshotPatcher.mjs:171`, and read each source's `value`, `SnapshotComparer.mjs:106`, `SnapshotPatcher.mjs:245` |
 | `LexicaError` | `structure(message, location)`, `validation(…)`, `evaluation(…)`; `location.field` | `structure(code, message, location)`, and so on, with `error.code`; `location.declarationKey`, a message ending "at 'x'" | Give every error DOMQL builds a code of its own prefix: `domql.js:160`, `:167`, `:347`, `:486`, `:494`, `:538`, `:549`, `ExecutionHandle.mjs:83`, `:104`, `Observations.mjs:445` |

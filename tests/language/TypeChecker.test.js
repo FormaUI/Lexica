@@ -212,6 +212,39 @@ describe('TypeChecker', () => {
         });
     });
 
+    describe('extractTypeArgumentEvidence and resolveTypeArgument', () => {
+        /** The binding of T the actual types give, one occurrence each of the declared types given, as resolveTypeArgument answers it, its types written as a message writes them. */
+        const bindingOf = (...pairs) => {
+            const evidence = new Map();
+
+            pairs.forEach(([declared, actual]) => checker.extractTypeArgumentEvidence(typeOf(declared), actual === 'Never' ? Type.never : typeOf(actual), evidence));
+
+            const resolved = checker.resolveTypeArgument(evidence.get('T') ?? []);
+
+            return resolved === null ? null : resolved.type !== undefined ? String(resolved.type) : { candidates: resolved.candidates.map(String) };
+        };
+
+        it('extract a binding exactly, a T given a type as it is, a T? given it without null, and a list\'s items matched as its items', () => {
+            expect([bindingOf(['T', 'Number?']), bindingOf(['T?', 'Number?']), bindingOf(['List<T>', 'List<Number?>']), bindingOf(['List<T?>', 'List<Number?>'])]).toEqual(['Number?', 'Number', 'Number?', 'Number']);
+            expect(checker.inferTypeArguments(typeOf('T?'), typeOf('Number?')).get('T').toString()).toBe('Number');
+        });
+
+        it('combine candidates differing in nullability alone into the nullable type, and answer candidates of different types', () => {
+            expect(bindingOf(['T', 'Number'], ['T', 'Number?'])).toBe('Number?');
+            expect(bindingOf(['T', 'Number'], ['T', 'String'])).toEqual({ candidates: ['Number', 'String'] });
+            expect(bindingOf(['T', 'List<Number>'], ['T', 'List<Number?>'])).toEqual({ candidates: ['List<Number>', 'List<Number?>'] });
+        });
+
+        it('read null and a never as the specification\'s table sets out, and answer null where nothing is evidence', () => {
+            expect(bindingOf(['T', 'null'])).toBe('null');
+            expect(bindingOf(['T', 'null'], ['T', 'Number'])).toBe('Number?');
+            expect(bindingOf(['T', 'Never'])).toBe('Never');
+            expect(bindingOf(['T?', 'null'], ['T', 'Number'])).toBe('Number');
+            expect(bindingOf(['T?', 'null'])).toBe('Never');
+            expect(bindingOf(['Number', 'Number'])).toBeNull();
+        });
+    });
+
     describe('resolveApplyingReceiverType, matchesReceiver and inferReceiverTypeArguments', () => {
         it('resolves the receiver type the receiver applies to a member by, its extension\'s target, a type parameter alone taking any value, which a never and null take neither of, and none for a module member', () => {
             const property = name => Declarations.createPropertyDeclaration(name, 'String', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver });

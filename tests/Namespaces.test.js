@@ -290,7 +290,7 @@ describe('a call of a delegate', () => {
 });
 
 describe('the answer of a held reference', () => {
-    /** A module of lists: `head`, a module member answering what the test gives it for the list of numbers it is given, and `apply`, a list's member calling the function it is given with its receiver. */
+    /** A module of lists: `head`, a generic module member answering what the test gives it for the list it is given, and `apply`, a list's member calling the function it is given with its receiver. */
     const createLists = (answer, invoked = []) => lexica.createModule('lists', {
         types: [
             {
@@ -300,9 +300,9 @@ describe('the answer of a held reference', () => {
                 members: [createFunctionDeclaration('apply', 'T', { updates: constantUpdates, parameters: [createFunctionParameterDeclaration('f', 'T', ['List<T>'])], impl: ({ receiver, args }) => args.f(receiver) })],
             },
         ],
-        members: [createFunctionDeclaration('head', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('list', 'List<Number>')], impl: ({ args }) => (invoked.push(args.list), answer(args.list)) })],
+        members: [createFunctionDeclaration('head<T>', 'T', { updates: constantUpdates, parameters: [createValueParameterDeclaration('list', 'List<T>')], impl: ({ args }) => (invoked.push(args.list), answer(args.list)) })],
     });
-    const bound = { numbers: [1, 2], missing: null, flag: true, full: false };
+    const bound = { numbers: [1, 2], words: ['a', 'b'], missing: null, flag: true, full: false };
     // A local that may hold the reference or a function answering null, so the call's own type is nullable while the reference's answer is not.
     const choosing = 'let none = (list) => null\nlet pick = if flag then lists.head else none end\nreturn ';
 
@@ -317,6 +317,11 @@ describe('the answer of a held reference', () => {
         expect(errorThrownBy(() => evaluateLists('let head = lists.head return head(numbers)', wrong))).toMatchObject(refusal);
         expect(errorThrownBy(() => evaluateLists(`${choosing}pick(numbers)`, wrong))).toMatchObject(refusal);
         expect(errorThrownBy(() => evaluateLists('numbers.apply(lists.head)', wrong))).toMatchObject(refusal);
+    });
+
+    it('is checked against each specialization the reference is called with, apart', () => {
+        expect(evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, list => list[0])).toEqual({ number: 1, word: 'a' });
+        expect(errorThrownBy(() => evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, () => 1))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('and it declares String') });
     });
 
     it('is null where a null receiver short-circuits the call, and refused where the implementation answers null for a result that is not nullable', () => {

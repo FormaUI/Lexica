@@ -901,6 +901,16 @@ export class LanguageResolver {
             isNullable = receiverType.isNullable || receiverType.kind === 'null';
         }
 
+        // Its own type parameters are bound by the values it is given, as a call's value arguments bind them.
+        const evidence = new Map();
+
+        own.forEach((result, index) => {
+            if (result.type.kind !== 'function') {
+                this.#typeChecker.extractTypeArgumentEvidence(this.#registry.getDeclaredType(declaration, parameters[index].type), result.type, evidence);
+            }
+        });
+        this.#bindTypeArguments(declaration, evidence, typeArguments, pointer);
+
         own.forEach((result, index) => {
             const parameter = parameters[index];
             const expected = this.#registry.getDeclaredType(declaration, parameter.type).resolveTypeParameters(typeArguments);
@@ -1450,17 +1460,23 @@ export class LanguageResolver {
 
     /**
      * Resolves an invocation of the declaration on its receiver, a node with its type and whether it can be null, or on none for a module member: the arguments its node gives it, those after its receiver where the node's first argument is that,
-     * its type parameters bound by its receiver's type and the type a fixed argument selects. It answers its result, nullable where its receiver or an argument whose parameter propagates null can be null, its resolution and the use of its
-     * declaration, under the name its messages give it, and stores neither: whoever stores the resolution records the use.
+     * its type parameters bound by its receiver's type, its own by its value arguments and then its callbacks' results, and the type a fixed argument selects. It answers its result, nullable where its receiver or an argument whose
+     * parameter propagates null can be null, its resolution and the use of its declaration, under the name its messages give it, and stores neither: whoever stores the resolution records the use.
      */
     #resolveInvocation(declaration, node, pointer, scope, receiver, name) {
         const receiverType = receiver?.type ?? null;
         // A qualified call's receiver is its first argument, and its own arguments follow it.
         const offset = receiver !== null && receiver.node === node.arguments?.[0] ? 1 : 0;
-        // The declaration was selected for its receiver, so its receiver type always applies and binds what it writes.
-        const typeArguments = receiverType === null ? new Map() : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType) ?? new Map();
+        // The declaration was selected for its receiver, so its receiver type always applies and binds what it writes; every value argument's binding is collected before any callback is resolved, whatever their order.
+        const typeArguments = new Map(receiverType === null ? [] : (this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType) ?? []));
+
+        this.#bindTypeArguments(declaration, this.#collectValueArgumentEvidence(declaration, node, pointer, scope, offset), typeArguments, pointer);
 
         const resolved = this.#resolveArguments(declaration, node, pointer, scope, receiverType, typeArguments, offset);
+
+        // A callback's result binds what nothing before it bound, once every callback is resolved, so no callback's result establishes another's inputs.
+        this.#bindTypeArguments(declaration, resolved.callbackEvidence, typeArguments, pointer);
+
         const resultTypeArguments = new Map(typeArguments);
 
         if (resolved.selected !== undefined) {
@@ -1488,6 +1504,80 @@ export class LanguageResolver {
         const type = receiver?.isNullable === true || resolved.isNullable ? declared.toNullable() : declared;
 
         return { result: { type, kind: LanguageResolver.#getResultKind(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution, use: { declaration, qualifiedName: name, pointer } };
+    }
+
+    /**
+     * The evidence the member's value arguments give the type parameters their parameters' types write, each argument resolved as it will be, against the scope of where it is written, and nothing of it kept: an options
+     * object's value options in scope by their names after their values, and its other options, which give no single value, refusing a read. An argument its resolution refuses gives none, and is refused where it is resolved.
+     */
+    #collectValueArgumentEvidence(declaration, node, pointer, scope, offset) {
+        const evidence = new Map();
+
+        if ((declaration.typeParameters ?? []).length === 0) {
+            return evidence;
+        }
+
+        const supplied = this.#suppliedArguments(declaration, node, pointer, offset);
+        const optionsObject = declaration.arguments === 'options' && supplied.size > 0 ? (node.kind === 'indexer' ? node.argument : node.arguments[offset]) : null;
+        const objectExpression = optionsObject !== null && scope.objectRootType === null ? optionsObject : null;
+        let argumentScope = scope;
+
+        if (objectExpression !== null) {
+            this.#objectRootFields.set(objectExpression, new Map());
+            argumentScope = { ...scope, objectRootType: Type.createObjectRootType(objectExpression, new Map()) };
+        }
+
+        for (const [parameterName, given] of supplied) {
+            const parameter = declaration.parameters.find(candidate => candidate.name === parameterName);
+
+            if (parameter.kind !== 'value') {
+                if (optionsObject !== null) {
+                    argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { optionKind: parameter.kind === 'function' ? 'implicitBody' : parameter.kind, result: null }) };
+                }
+
+                continue;
+            }
+
+            const outcome = this.#resolveSpeculatively(() => this.#resolveNode(given.node, given.pointer, argumentScope), { keepsSuccess: false });
+
+            if (outcome.error !== undefined) {
+                continue;
+            }
+
+            if (outcome.result.type.kind !== 'function') {
+                this.#typeChecker.extractTypeArgumentEvidence(this.#registry.getDeclaredType(declaration, parameter.type), outcome.result.type, evidence);
+            }
+
+            if (optionsObject !== null) {
+                argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { result: outcome.result, initializer: given.node, scope: argumentScope }) };
+            }
+
+            if (objectExpression !== null) {
+                this.#objectRootFields.get(objectExpression).set(parameter.name, { initializer: given.node });
+                argumentScope = { ...argumentScope, objectRootType: Type.createObjectRootType(objectExpression, new Map(argumentScope.objectRootType.fieldTypes).set(parameter.name, outcome.result.type)) };
+            }
+        }
+
+        return evidence;
+    }
+
+    /** Binds each of the member's own type parameters that nothing bound yet and the evidence gives a type, refusing candidates of different types (LEXICA3064), which no binding reconciles. */
+    #bindTypeArguments(declaration, evidence, typeArguments, pointer) {
+        for (const parameterName of declaration.typeParameters ?? []) {
+            if (typeArguments.has(parameterName) || !evidence.has(parameterName)) {
+                continue;
+            }
+
+            const resolved = this.#typeChecker.resolveTypeArgument(evidence.get(parameterName));
+
+            if (resolved?.candidates !== undefined) {
+                this.#fail('LEXICA3064', `'${declaration.name}' is given ${resolved.candidates.join(' and ')} for its type parameter ${parameterName}, which binds one type, never a type they share`, pointer);
+            }
+
+            if (resolved !== null) {
+                typeArguments.set(parameterName, resolved.type);
+            }
+        }
     }
 
     /** Stores what the node at the pointer resolved to, an access's resolution or an invocation's, and records the use of its declaration, where it chose one, answering its result. */
@@ -1772,21 +1862,49 @@ export class LanguageResolver {
     }
 
     /**
-     * The arguments of the type parameters the callback contract's receiver binds for the declaration: none where the declaration has no receiver or the contract's receiver type fits any, and null where the contract gives no receiver,
-     * one that can be null, or one the declaration does not apply to.
+     * The arguments of the type parameters the callback contract binds for the declaration: those its receiver binds, none where the declaration takes no receiver or the contract's receiver type fits any, and its own,
+     * which the arguments the contract passes after its receiver bind, as a call's value arguments do. It answers null where the contract gives no receiver, one that can be null, or one the declaration does not apply to,
+     * and where it gives an own parameter candidates of different types.
      */
     #contractTypeArgumentsOf(declaration, contract) {
-        if (!this.#registry.takesReceiver(declaration)) {
-            return new Map();
+        const takesReceiver = this.#registry.takesReceiver(declaration);
+        let typeArguments = new Map();
+
+        if (takesReceiver) {
+            const [receiverType] = contract.parameterTypes;
+
+            if (receiverType === undefined || receiverType.isNullable) {
+                return null;
+            }
+
+            typeArguments = LanguageResolver.#fitsAny(receiverType) ? new Map() : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType);
+
+            if (typeArguments === null) {
+                return null;
+            }
         }
 
-        const [receiverType] = contract.parameterTypes;
+        const evidence = new Map();
 
-        if (receiverType === undefined || receiverType.isNullable) {
-            return null;
+        (takesReceiver ? contract.parameterTypes.slice(1) : contract.parameterTypes).forEach((type, index) => {
+            const parameter = declaration.parameters[index];
+
+            if (parameter !== undefined && !LanguageResolver.#fitsAny(type)) {
+                this.#typeChecker.extractTypeArgumentEvidence(this.#registry.getDeclaredType(declaration, parameter.type), type, evidence);
+            }
+        });
+
+        for (const parameterName of (declaration.typeParameters ?? []).filter(name => !typeArguments.has(name) && evidence.has(name))) {
+            const resolved = this.#typeChecker.resolveTypeArgument(evidence.get(parameterName));
+
+            if (resolved.candidates !== undefined) {
+                return null;
+            }
+
+            typeArguments.set(parameterName, resolved.type);
         }
 
-        return LanguageResolver.#fitsAny(receiverType) ? new Map() : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType);
+        return typeArguments;
     }
 
     /** Whether a type a callback contract gives fits any: a never, the type of an unknown receiver's arguments, or a type parameter no receiver bound. */
@@ -1960,8 +2078,20 @@ export class LanguageResolver {
         const supplied = this.#suppliedArguments(declaration, node, pointer, offset);
 
         const resolved = [];
+        const callbackEvidence = new Map();
         let isNullable = false;
         let selected;
+
+        // A callback whose result writes a parameter nothing bound is given that parameter by the types its functions or its body give.
+        const addCallbackEvidence = (parameter, result, callback) => {
+            const declaredResult = this.#registry.getDeclaredType(declaration, parameter.type).resolveTypeParameters(typeArguments);
+
+            if (LanguageResolver.#holdsTypeParameter(declaredResult)) {
+                const resultTypes = callback.isBody === true ? [result.type] : callback.functions.map(entry => entry.resultType);
+
+                resultTypes.forEach(type => this.#typeChecker.extractTypeArgumentEvidence(declaredResult, type, callbackEvidence));
+            }
+        };
 
         // An options object is an object expression: one no other encloses builds the outermost object, whose fields are its options, and any other builds within the one enclosing it; each option is in scope after its value, as a field is.
         const optionsObject = declaration.arguments === 'options' && supplied.size > 0 ? (node.kind === 'indexer' ? node.argument : node.arguments[offset]) : null;
@@ -2007,6 +2137,7 @@ export class LanguageResolver {
                 const itemType = isOfUnknownType ? Type.never : receiverType.itemType;
 
                 ({ result, callback } = this.#resolveItemArgument(given.node, valuePointer, { ...argumentScope, facts: scope.facts }, parameter, declaration, itemType, expected));
+                addCallbackEvidence(parameter, result, callback);
 
                 // An expression or a predicate option is evaluated by the member, and has no single value: a name or a field of it after its initializer refuses a read, hiding any enclosing name of its spelling.
                 if (optionsObject !== null) {
@@ -2018,6 +2149,7 @@ export class LanguageResolver {
                 }
             } else if (parameter.kind === 'function') {
                 ({ result, callback } = this.#resolveFunctionArgument(given.node, valuePointer, argumentScope, parameter, declaration, receiverType, typeArguments));
+                addCallbackEvidence(parameter, result, callback);
 
                 // An implicit body option is called by the member against the argument it supplies, and has no single value, as an expression option has none.
                 if (callback.isBody === true) {
@@ -2062,7 +2194,7 @@ export class LanguageResolver {
             resolved.push({ parameter, isDefault: false, pointer: valuePointer, node: given.node, value: parameter.fixed === true ? result.value : undefined, ...(callback === undefined ? {} : { callback }) });
         }
 
-        return { arguments: resolved, isNullable, selected, buildsObjectRoot: objectExpression !== null };
+        return { arguments: resolved, isNullable, selected, buildsObjectRoot: objectExpression !== null, callbackEvidence };
     }
 
     /** Refuses a value argument its parameter can't take: a function, or a value of a type it doesn't admit, the null of a parameter that propagates null aside, which answers for the call. */
@@ -2283,8 +2415,9 @@ export class LanguageResolver {
     }
 
     /**
-     * The callback contract a function parameter declares, its member's type parameters bound: the types of the arguments the member calls the function with, in order, and the type of the result it takes from it.
-     * A type parameter of a receiver of unknown type, which nothing binds, is a never, which fits wherever a value of any type stands.
+     * The callback contract a function parameter declares, its member's type parameters bound: the types of the arguments the member calls the function with, in order, and the type of the result it takes from it, any
+     * value where that result writes a parameter nothing bound yet, which the callback's result binds. A type parameter of a receiver of unknown type, which nothing binds, is a never, which fits wherever a value of any type
+     * stands.
      */
     #createCallbackContract(parameter, declaration, receiverType, typeArguments) {
         const isOfUnknownType = receiverType !== null && LanguageResolver.#isNullOrNever(receiverType);
@@ -2294,7 +2427,9 @@ export class LanguageResolver {
             return isOfUnknownType && LanguageResolver.#holdsTypeParameter(type) ? Type.never : type;
         };
 
-        return { memberName: declaration.name, parameterName: parameter.name, parameterTypes: parameter.parameterTypes.map(resolve), resultType: resolve(parameter.type) };
+        const resultType = resolve(parameter.type);
+
+        return { memberName: declaration.name, parameterName: parameter.name, parameterTypes: parameter.parameterTypes.map(resolve), resultType: LanguageResolver.#holdsTypeParameter(resultType) ? null : resultType };
     }
 
     /**
@@ -2322,8 +2457,8 @@ export class LanguageResolver {
                 return { result, callback: this.#resolveCallback(result, contract, pointer, scope) };
             }
 
-            if (!this.#typeChecker.isAssignable(result.type, contract.resultType)) {
-                this.#fail('LEXICA3036', `The implicit body given as '${parameter.name}' of '${declaration.name}' gives ${result.type}, and its contract takes ${contract.resultType}`, pointer);
+            if (!this.#fitsResult(result.type, contract.resultType)) {
+                this.#fail('LEXICA3036', `The implicit body given as '${parameter.name}' of '${declaration.name}' gives ${result.type}, and its contract takes ${contract.resultType ?? 'any value'}`, pointer);
             }
 
             return { result, callback: { isBody: true, parameterTypes: contract.parameterTypes, resultType: contract.resultType } };
@@ -2343,7 +2478,8 @@ export class LanguageResolver {
      */
     #resolveItemArgument(node, pointer, scope, parameter, declaration, itemType, expected) {
         // A function of the item is called with each item as it is, null among them where the list holds nulls, while a body reads each item as a value that is not.
-        const contract = { memberName: declaration.name, parameterName: parameter.name, parameterTypes: [itemType], resultType: parameter.kind === 'expression' ? expected : null };
+        // An expression whose result writes a parameter nothing bound yet takes any value, which then binds it.
+        const contract = { memberName: declaration.name, parameterName: parameter.name, parameterTypes: [itemType], resultType: parameter.kind === 'expression' && !LanguageResolver.#holdsTypeParameter(expected) ? expected : null };
         let result;
 
         if (node.kind === 'function') {
@@ -2429,7 +2565,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3036', `The function given as '${parameterName}' of '${memberName}' gives ${resolved.type}, and its contract takes ${resultType ?? 'any value'}`, pointer);
             }
 
-            return { function: resolved.function, body: resolved.body, parameters: resolved.parameters };
+            return { function: resolved.function, body: resolved.body, parameters: resolved.parameters, resultType: resolved.type };
         });
 
         return { functions, parameterTypes, resultType };

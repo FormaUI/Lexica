@@ -6,11 +6,6 @@ import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
 /**
- * The scalar types, whose values an equality compares by value, as the specification's equalities set out. A list apart from the built-in type names, which hold the same names today, since a type a later version builds in
- * compares by value only once its equality semantics are decided.
- */
-
-/**
  * The answers to whether a value of one type is assignable to another: assignable, assignable once its value is checked when it is evaluated, as a value of `Any` is, or refused.
  * @typedef {'assignable' | 'checked' | 'refused'} Assignability
  */
@@ -242,13 +237,87 @@ export class TypeChecker {
         return this.#inferInto(declaredType, actualType, typeArguments) ? typeArguments : null;
     }
 
-    /** Matches the actual type against the declared one, adding each argument it binds to the map: the one relation matching and inferring share. */
+    /**
+     * Adds to the evidence the actual type gives each type parameter the declared type writes, by exact extraction, structure for structure: a parameter written `T` is given the type as it is, and one written `T?` the
+     * type without null; a null is evidence that its occurrence accepts null, kept with whether that occurrence is written `T?`, and a never, the item of an empty list, is evidence of no type. A part of the actual type
+     * whose structure the declared one doesn't share gives nothing, since checking the argument against its binding refuses it apart.
+     * @param {Type} declaredType
+     * @param {Type} actualType
+     * @param {Map<string, ({ kind: 'type', type: Type } | { kind: 'null', isNullableOccurrence: boolean } | { kind: 'never' })[]>} evidence The evidence by parameter name, which it adds to.
+     */
+    extractTypeArgumentEvidence(declaredType, actualType, evidence) {
+        const add = entry => evidence.set(declaredType.name, [...(evidence.get(declaredType.name) ?? []), entry]);
+
+        if (declaredType.kind === 'typeParameter') {
+            if (declaredType.name === '@selected') {
+                return;
+            }
+
+            if (actualType.kind === 'never') {
+                add({ kind: 'never' });
+            } else if (actualType.kind === 'null') {
+                add({ kind: 'null', isNullableOccurrence: declaredType.isNullable });
+            } else {
+                add({ kind: 'type', type: declaredType.isNullable ? actualType.toNonNullable() : actualType });
+            }
+
+            return;
+        }
+
+        if (declaredType.kind === 'object' && actualType.kind === 'object') {
+            for (const [name, fieldType] of declaredType.fieldTypes) {
+                const actualField = actualType.getObjectFieldType(name);
+
+                if (actualField !== null) {
+                    this.extractTypeArgumentEvidence(fieldType, actualField, evidence);
+                }
+            }
+
+            return;
+        }
+
+        if (declaredType.kind === 'named' && actualType.kind === 'named' && declaredType.identity === actualType.identity && declaredType.typeArguments.length === actualType.typeArguments.length) {
+            declaredType.typeArguments.forEach((typeArgument, index) => this.extractTypeArgumentEvidence(typeArgument, actualType.typeArguments[index], evidence));
+        }
+    }
+
+    /**
+     * The type a type parameter binds to from the evidence its sources gave it: the one type its candidates are, made nullable where one is nullable or an occurrence written `T` was given null, so a `Device` and a
+     * `Device?` give `Device?`; `null` where an occurrence written `T` was given null alone; and `Never` where it was given only nevers, or only nulls at occurrences written `T?`, so that `T?` is `null`. It answers the
+     * candidates where they are of different types, which no binding reconciles, whichever came first, and null where there is no evidence.
+     * @returns {{ type: Type } | { candidates: Type[] } | null}
+     */
+    resolveTypeArgument(evidence) {
+        const types = evidence.filter(entry => entry.kind === 'type').map(entry => entry.type);
+        const acceptsNull = evidence.some(entry => entry.kind === 'null' && !entry.isNullableOccurrence);
+
+        if (types.length > 0) {
+            const base = types[0].toNonNullable();
+
+            if (types.some(type => !type.toNonNullable().equals(base))) {
+                return { candidates: types.filter((type, index) => types.findIndex(other => other.equals(type)) === index) };
+            }
+
+            return { type: acceptsNull || types.some(type => type.isNullable) ? base.toNullable() : base };
+        }
+
+        if (acceptsNull) {
+            return { type: Type.null };
+        }
+
+        return evidence.length > 0 ? { type: Type.never } : null;
+    }
+
+    /**
+     * Matches the actual type against the declared one, adding each argument it binds to the map: the one relation matching and inferring share. Binding is exact: a parameter written `T` binds the type as it is, and one
+     * written `T?` the type without null, since the `?` it is written with gives it that.
+     */
     #inferInto(declaredType, actualType, typeArguments) {
         if (declaredType.kind === 'typeParameter') {
             const typeArgument = typeArguments.get(declaredType.name);
 
             if (typeArgument === undefined) {
-                typeArguments.set(declaredType.name, actualType);
+                typeArguments.set(declaredType.name, declaredType.isNullable ? actualType.toNonNullable() : actualType);
 
                 return true;
             }
