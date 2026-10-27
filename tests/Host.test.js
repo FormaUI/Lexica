@@ -49,6 +49,14 @@ describe('a host of plain data', () => {
         expect(registry.getDeclaringModuleName(resolution.usedDeclarations[0].declaration)).toBe('shop');
     });
 
+    it('tells where a declaration a script function\'s body uses stands in the definition, once for every call that reaches it', () => {
+        const registry = lexica.createRegistry([createShop()]);
+        const resolution = registry.resolve('let f = function(x) return x.count end\nreturn f(items) + f(items)', registry.createBindings({ items: [1, 2] }));
+
+        expect(resolution.usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['List.count', '/expression/locals/0/value/body/result']]);
+        expect(resolution.getLocation(resolution.usedDeclarations[0].pointer)).toMatchObject({ line: 1, column: 28 });
+    });
+
     it('names a used member of a list by its type, Lexica\'s List, as any member is named by the type it matched', () => {
         const registry = lexica.createRegistry([createShop()]);
         const resolution = registry.resolve('items.count', registry.createBindings({ items: [1, 2] }));

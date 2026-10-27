@@ -20,7 +20,8 @@ export class ResolvedDefinition {
      * @param {import('./Type.mjs').Type | null} type The type of its result, null for a host call that supplies nothing.
      * @param {{ node: object, pointer: string, name: string, declaration: object | null } | null} hostCall The host call the script ends in, null for one that gives a value.
      * @param {Map<string, object>} resolutions What each member node, by its JSON Pointer, resolved to.
-     * @param {object[]} usedDeclarations The declarations the request uses, each with the pointer that used it and its qualified name, the name a message gives it, qualified by the type its declaration is for.
+     * @param {object[]} usedDeclarations The declarations the request uses, each with the pointer that used it, a call's copy of a function's body among them, and its qualified name, the name a message gives it, qualified
+     * by the type its declaration is for.
      * @param {{ node: object, pointer: string, bodyPointer: string }[]} functionBodyCopies The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
      */
     constructor(definition, type, hostCall, resolutions, usedDeclarations, functionBodyCopies = []) {
@@ -28,14 +29,32 @@ export class ResolvedDefinition {
         this.#type = type;
         this.#hostCall = hostCall;
         this.#resolutions = resolutions;
-        this.#usedDeclarations = Object.freeze([...usedDeclarations]);
         this.#functionBodyCopies = functionBodyCopies;
+        this.#usedDeclarations = Object.freeze(this.#definitionUsesOf(usedDeclarations));
         this.#index(definition.expression, '/expression');
         functionBodyCopies.forEach(bodyCopy => this.#index(bodyCopy.node, bodyCopy.pointer));
     }
 
     /** @type {{ node: object, pointer: string, bodyPointer: string }[]} */
     #functionBodyCopies;
+
+    /**
+     * The uses, each named by the pointer into the definition it stands at, as a hook's request names its call, a body copy's pointer taken back to the body it copies; a declaration is kept once at each pointer, since
+     * every call of one function resolves its body's uses again.
+     */
+    #definitionUsesOf(usedDeclarations) {
+        const kept = [];
+
+        for (const use of usedDeclarations) {
+            const pointer = this.resolveDefinitionPointer(use.pointer);
+
+            if (!kept.some(other => other.declaration === use.declaration && other.pointer === pointer)) {
+                kept.push({ ...use, pointer });
+            }
+        }
+
+        return kept;
+    }
 
     /** Resolves the pointer into the definition a pointer names, a pointer into a call's copy of a function's body naming the part of the body it copies, and any other pointer itself. */
     resolveDefinitionPointer(pointer) {
@@ -73,7 +92,7 @@ export class ResolvedDefinition {
         return this.#hostCall;
     }
 
-    /** The declarations the request uses, with where each is used and the name a message gives it. */
+    /** The declarations the request uses, with where each is used in the definition and the name a message gives it. */
     get usedDeclarations() {
         return this.#usedDeclarations;
     }

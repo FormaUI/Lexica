@@ -438,6 +438,7 @@ export interface LexicaUsedDeclaration {
      * through its namespace; its declared name alone where that receiver type is any receiver or a type parameter.
      */
     readonly qualifiedName: string;
+    /** Where it is used, a definition pointer `getLocation` expands; a declaration a script function's body uses is used once at its place in the body, whichever calls reach it. */
     readonly pointer: string;
 }
 
