@@ -475,6 +475,7 @@ A code leaves its table only by being retired here, with the condition it identi
 | `LEXICA4509` | A structured type whose `fields` were empty, a code of language `1.0.0-alpha.33` alone: a structured type declares its data shape as its properties, and may declare none | `1.0.0-alpha.34` |
 | `LEXICA4510` | A `fields` entry that was not a name with a type, a code of language `1.0.0-alpha.33` alone: a data property is a member, refused as any member is | `1.0.0-alpha.34` |
 | `LEXICA4511` | A selectable type's key not written as a letter followed by letters, digits, colons and hyphens, a code of language `1.0.0-alpha.33` alone: a mapping's key is any string | `1.0.0-alpha.34` |
+| `LEXICA4556` | A type of the kind `structured` or `extension`, a code of language `1.0.0-alpha.33` alone, which read neither | `1.0.0-alpha.34` |
 | `LEXICA4528` | An indexer declared without a name, a code of language `1.0.0-alpha.33` alone: an indexer without one is its type's unnamed indexer | `1.0.0-alpha.34` |
 | `LEXICA4530` | `default` on a member that was not an indexer, a code of language `1.0.0-alpha.33` alone: `default` is a key no member takes | `1.0.0-alpha.34` |
 | `LEXICA4531` | A `syntax` that was neither `function-call` nor `indexer`, a code of language `1.0.0-alpha.33` alone: a member's kind says how it is written | `1.0.0-alpha.34` |

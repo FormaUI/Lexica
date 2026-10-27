@@ -80,10 +80,6 @@ describe('the module error codes', () => {
             expectModuleCode(creating({ types: [structured({ kind: undefined })] }), 'LEXICA4554');
         });
 
-        it('LEXICA4556: a type of a kind the declaration model brings', () => {
-            expectModuleCode(creating({ types: [{ name: 'Lamps', kind: 'extension', target: 'Light' }] }), 'LEXICA4556');
-        });
-
         it('LEXICA4017: a reference type without isInstance', () => {
             expectModuleCode(creating({ types: [reference({ isInstance: undefined })] }), 'LEXICA4017');
         });
@@ -482,6 +478,57 @@ describe('the module error codes', () => {
             const box = { name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) };
 
             expectModuleCode(registering(module('charts', { types: [box], conversions: [{ from: 'String', to: 'Box' }, { from: 'String', to: 'Box' }] })), 'LEXICA4069');
+        });
+    });
+
+    describe('of extensions and type parameters', () => {
+        const extension = (overrides = {}) => ({ name: 'Usage', kind: 'extension', target: 'String', members: [propertyDeclaration({ name: 'usage', target: undefined })], ...overrides });
+
+        it('takes an extension of a type another module owns, its name declaring the parameters its target and its members share', () => {
+            const [declared] = module('energy', { types: [extension({ name: 'Middles<T>', target: 'List<T>', members: [propertyDeclaration({ name: 'middle', target: undefined, result: 'T?' })] })] }).types;
+
+            expect(declared).toMatchObject({ name: 'Middles', typeParameters: ['T'], kind: 'extension', target: 'List<T>' });
+            expect(() => lexica.createRegistry([module('energy', { types: [extension()] })])).not.toThrow();
+        });
+
+        it('LEXICA4012: an extension that names no target', () => {
+            expectModuleCode(creating({ types: [extension({ target: undefined })] }), 'LEXICA4012');
+        });
+
+        it('LEXICA4559: an extension whose target is Any or nullable', () => {
+            expectModuleCode(creating({ types: [extension({ target: 'Any' })] }), 'LEXICA4559');
+            expectModuleCode(creating({ types: [extension({ target: 'String?' })] }), 'LEXICA4559');
+        });
+
+        it('LEXICA4045: an extension whose target its own module owns', () => {
+            expectModuleCode(registering(module('charts', withHome({ types: [extension({ target: 'Light' })] }))), 'LEXICA4045');
+        });
+
+        it('LEXICA4030: an extension\'s import, which it never declares, its types its own module\'s, Lexica\'s and foreign ones qualified', () => {
+            expectModuleCode(creating({ types: [extension({ import: ['home'] })] }), 'LEXICA4030');
+        });
+
+        it('LEXICA4033: an extension named as a type its module declares', () => {
+            expectModuleCode(creating({ types: [{ name: 'Usage', kind: 'structured', members: [] }, extension({ name: 'Usage<T>', target: 'List<T>' })] }), 'LEXICA4033');
+        });
+
+        it('LEXICA4010: empty angle brackets after a declaration\'s name, or a type parameter without a name', () => {
+            expectModuleCode(creating({ types: [extension({ name: 'Usage<>' })] }), 'LEXICA4010');
+            expectModuleCode(creating({ types: [extension({ name: 'Usage<T,>', target: 'List<T>' })] }), 'LEXICA4010');
+            expectModuleCode(creating({ members: [functionDeclaration({ name: 'pick<>', target: undefined })] }), 'LEXICA4010');
+        });
+
+        it('LEXICA4041: a type parameter declared twice', () => {
+            expectModuleCode(creating({ types: [extension({ name: 'Usage<T,T>', target: 'List<T>' })] }), 'LEXICA4041');
+        });
+
+        it('LEXICA4043: a member declaring a parameter its extension declares', () => {
+            expectModuleCode(creating({ types: [extension({ name: 'Middles<T>', target: 'List<T>', members: [propertyDeclaration({ name: 'middle<T>', target: undefined, result: 'T?' })] })] }), 'LEXICA4043');
+        });
+
+        it('LEXICA4558: a reference or structured type declaring type parameters', () => {
+            expectModuleCode(creating({ types: [{ name: 'Box<T>', kind: 'structured', members: [] }] }), 'LEXICA4558');
+            expectModuleCode(creating({ types: [{ name: 'Lamp<T>', kind: 'reference', isInstance: () => true }] }), 'LEXICA4558');
         });
     });
 

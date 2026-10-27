@@ -40,7 +40,7 @@ const createShop = () => lexica.createModule('shop', withHome({
         call('total', 'List<String>', 'Number'),
         call('scan', 'String', 'Number', { parameters: [expressionParameter('Number')] }),
         call('sweep', null, 'Number', { parameters: [expressionParameter('Number')] }),
-        call('make', null, 'T'),
+        call('make<T>', null, 'T'),
         call('greet', null, 'String', { parameters: [valueParameter('name', 'String')] }),
         hostFunctionDeclaration('order', 'String', 'Number', { parameters: [valueParameter('count', 'Number')] }),
         hostFunctionDeclaration('hold', 'String', undefined),

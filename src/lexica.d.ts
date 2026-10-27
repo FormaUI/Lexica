@@ -106,8 +106,24 @@ export interface LexicaStructuredTypeDeclaration {
     internal?: boolean;
 }
 
-/** A type a module declares, of the kind it says. */
-export type LexicaTypeDeclaration = LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration;
+/**
+ * An extension a module declares among its types: the members it adds to its one target, a type another module owns, one of Lexica's own or a parameter it declares, which its members take as their receiver. It is
+ * never a value's type.
+ */
+export interface LexicaExtensionDeclaration {
+    /** Its local name, and the type parameters its target and its members share, `ListExtensions<T>`. */
+    name: string;
+    kind: 'extension';
+    /** The type its members extend, never `Any` or nullable: a foreign type qualified, one of Lexica's own, or a parameter it declares. */
+    target: string;
+    /** The members it adds, each taking its target as its receiver, so none names a `target`. */
+    members?: LexicaMemberDeclaration[];
+    /** Whether it is available within its declaring module alone, `false` where left out; its members are internal with it. */
+    internal?: boolean;
+}
+
+/** A type a module declares, of the kind it says, or an extension it declares among its types. */
+export type LexicaTypeDeclaration = LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration | LexicaExtensionDeclaration;
 
 /** The input a projected item came from, of the kind its established type gives it: a reference as the host holds it, data as Lexica's own frozen copy, or null. */
 export type LexicaProjectionSource = { readonly kind: 'reference'; readonly value: unknown } | { readonly kind: 'data'; readonly value: unknown } | { readonly kind: 'null' };
@@ -298,7 +314,7 @@ export interface LexicaImplementationInput {
  * A property answers a value, and a function the evaluator invokes its result; a script ending in a call of a function the host invokes ends in a host call, and the function has no implementation Lexica calls.
  */
 export interface LexicaMemberDeclaration {
-    /** The Lexica name; left out for an unnamed indexer, which brackets after its receiver invoke. */
+    /** The Lexica name, and the type parameters it declares in angle brackets after it, `identity<T>`, where it is declared within a type, an extension or the module; left out for an unnamed indexer, which brackets after its receiver invoke. */
     name?: string;
     /** A property, read by its name; a function, called; or an indexer, given its one key in brackets, after its name, `it.setting["mode"]`, or, unnamed, after its receiver, `rooms[0]`. */
     kind: 'property' | 'function' | 'indexer';

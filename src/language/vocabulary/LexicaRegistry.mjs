@@ -21,8 +21,11 @@ export class LexicaRegistry {
     /** Every unnamed indexer registered, across every module, in the order registered: an indexer declared without a name, which no name finds. @type {object[]} */
     #unnamedIndexers = [];
 
-    /** Each structured type, by its identity, its module's name and its local name. @type {Map<string, object>} */
+    /** Each value type a module declares, reference and structured, by its identity, its module's name and its local name. @type {Map<string, object>} */
     #types = new Map();
+
+    /** Each extension a module declares, by its identity, as a type's: never a value's type, so no notation names one. @type {Map<string, object>} */
+    #extensions = new Map();
 
     /** Each type selector, by its name. @type {Map<string, object>} */
     #typeSelectors = new Map();
@@ -123,7 +126,9 @@ export class LexicaRegistry {
         }
 
         // A type is named once within its module, which creating it checks, and two modules may each declare a type of one name, since its module is part of its identity.
-        const ownTypes = new Set(module.types.map(type => type.name));
+        // An extension is no value's type, so a notation names its module's value types alone.
+        const valueTypes = module.types.filter(type => type.kind !== 'extension');
+        const ownTypes = new Set(valueTypes.map(type => type.name));
 
         for (const type of module.types) {
 
@@ -159,12 +164,12 @@ export class LexicaRegistry {
         for (const declaration of declarations) {
             const type = module.types.includes(declaration) ? declaration : typesOfMembers.get(declaration);
 
-            this.#declaringModules.set(declaration, { moduleName: module.name, imports: type?.import ?? [] });
+            this.#declaringModules.set(declaration, { moduleName: module.name, imports: type?.import ?? [], typeParameters: LexicaRegistry.#typeParameterScopeOf(declaration, type) });
         }
 
         typesOfMembers.forEach((type, member) => this.#containingTypes.set(member, type));
 
-        this.#pending = { module, typeNames: ownTypes, types: new Map(module.types.map(type => [`${module.name}.${type.name}`, type])) };
+        this.#pending = { module, typeNames: ownTypes, types: new Map(valueTypes.map(type => [`${module.name}.${type.name}`, type])) };
 
         try {
             this.#resolveDeclaredTypes(module, members);
@@ -190,7 +195,7 @@ export class LexicaRegistry {
         this.#modules.set(module.name, module);
 
         for (const type of module.types) {
-            this.#types.set(`${module.name}.${type.name}`, type);
+            (type.kind === 'extension' ? this.#extensions : this.#types).set(`${module.name}.${type.name}`, type);
         }
 
         for (const selector of module.typeSelectors) {
@@ -233,11 +238,15 @@ export class LexicaRegistry {
         return this.#receiverMembers.get(name) ?? [];
     }
 
-    /** The members named so that the module declares, its module members among them, those it declares flat first and then those its types declare within them, each in the order it declares them. */
+    /**
+     * The members named so that the module's namespace reaches: its module members, those it declares flat, and those its own types declare within them, each in the order it declares them; an extension's members, which
+     * extension access selects, are none of them.
+     */
     getMembersDeclaredBy(moduleName, name) {
         const module = this.#modules.get(moduleName);
+        const ownTypes = module?.types.filter(type => type.kind !== 'extension') ?? [];
 
-        return module === undefined ? [] : [...module.members, ...module.types.flatMap(type => type.members ?? [])].filter(declaration => declaration.name === name);
+        return module === undefined ? [] : [...module.members, ...ownTypes.flatMap(type => type.members ?? [])].filter(declaration => declaration.name === name);
     }
 
     /** Whether the member has a receiver: one a type declares within it, whose receiver the type is, or one that names its target; a module member has none. */
@@ -253,7 +262,7 @@ export class LexicaRegistry {
         const type = this.#containingTypes.get(declaration);
 
         if (type !== undefined) {
-            return [type.name];
+            return [type.kind === 'extension' ? type.target : type.name];
         }
 
         return declaration.target === undefined ? [] : [declaration.target].flat();
@@ -267,6 +276,24 @@ export class LexicaRegistry {
     /** The module registered under the name, or undefined. */
     getModule(name) {
         return this.#modules.get(name);
+    }
+
+    /**
+     * The type parameters a declaration's notations read as parameters: an extension's own, and an extension member's with its own; a member's own; and none for any other declaration, whose names are types'. A member
+     * declared flat with its target answers undefined, since it reads every single capital letter as a parameter, until named extension types replace it.
+     */
+    static #typeParameterScopeOf(declaration, type) {
+        if (declaration === type) {
+            return new Set(declaration.typeParameters ?? []);
+        }
+
+        const isFlatWithTarget = type === undefined && declaration.target !== undefined && declaration.kind !== undefined && declaration.parameters !== undefined;
+
+        if (isFlatWithTarget) {
+            return undefined;
+        }
+
+        return new Set([...(type?.kind === 'extension' ? (type.typeParameters ?? []) : []), ...(declaration.typeParameters ?? [])]);
     }
 
     /** The unnamed indexers, each declared without a name for its receivers, across every module. */
@@ -313,6 +340,11 @@ export class LexicaRegistry {
     /** The types the member applies to, in the order it declares them: each a type, a type parameter for a receiver of any type, or 'any'; the type a member declared within it stands in, which is its receiver. */
     getTargetTypes(declaration) {
         const type = this.#containingTypes.get(declaration);
+
+        // An extension's member is read on its extension's target, which the extension's own context resolves.
+        if (type?.kind === 'extension') {
+            return [this.getDeclaredType(type, type.target)];
+        }
 
         if (type !== undefined) {
             return [Type.createNamedType(type.name, false, this.getDeclaringModuleName(declaration))];
@@ -554,7 +586,17 @@ export class LexicaRegistry {
      * or the one type of its name among the modules a structured type imports, refusing one that several imported modules declare and one outside them, which is named qualified.
      */
     #resolveNotation(notation, context, fail) {
+        // A name the declaration's scope declares is that parameter, and any other names a type, whatever its length; a scope left undefined reads every single capital letter as a parameter.
+        const scope = context.typeParameters;
         const resolve = type => {
+            if (scope !== undefined && type.kind === 'typeParameter' && type.name !== '@selected' && !scope.has(type.name)) {
+                return Type.createNamedType(type.name, type.isNullable, this.#moduleOfType(type, notation, context, fail));
+            }
+
+            if (scope?.has(type.name) && type.kind === 'named' && type.typeArguments.length === 0) {
+                return Type.createTypeParameter(type.name, type.isNullable);
+            }
+
             switch (type.kind) {
                 case 'object':
                     return Type.createObjectType(new Map([...type.fieldTypes].map(([name, fieldType]) => [name, resolve(fieldType)])), type.isNullable);
@@ -658,6 +700,10 @@ export class LexicaRegistry {
             if (type.supertype !== undefined) {
                 this.getDeclaredType(type, type.supertype);
             }
+
+            if (type.kind === 'extension') {
+                this.getDeclaredType(type, type.target);
+            }
         }
 
         module.mappings.forEach(mapping => this.getDeclaredType(mapping, mapping.type));
@@ -682,6 +728,16 @@ export class LexicaRegistry {
 
     /** Refuses, every notation resolved, a supertype that is no reference type, a cycle of supertypes, a tolerance on a result that holds no number, and a default its parameter's type does not admit. */
     #validateDeclaredTypes(module, members, fail, failAt) {
+        for (const type of module.types.filter(declared => declared.kind === 'extension')) {
+            const target = this.getDeclaredType(type, type.target);
+            const isOwnType = target.kind === 'named' && (target.moduleName === module.name || (target.moduleName === null && module === Vocabulary.module && target.typeArguments.length === 0));
+
+            // A type its module owns takes its members in its own declaration, so an extension's target is another module's.
+            if (isOwnType) {
+                fail('LEXICA4045', `The extension '${type.name}' targets ${target}, a type its own module owns, which takes its members within its own declaration`, type.name, 'target');
+            }
+        }
+
         for (const type of module.types) {
             // A supertype is a reference type, one the module declares or one a module registered before it declares.
             if (type.supertype !== undefined && !this.isReferenceType(this.getDeclaredType(type, type.supertype))) {
@@ -769,7 +825,7 @@ export class LexicaRegistry {
     #validateAccessibility(module, members, fail, failAt) {
         const writtenTypesOf = declaration => {
             if (module.types.includes(declaration)) {
-                return declaration.supertype === undefined ? [] : [declaration.supertype];
+                return [...(declaration.supertype === undefined ? [] : [declaration.supertype]), ...(declaration.kind === 'extension' ? [declaration.target] : [])];
             }
 
             if (module.mappings.includes(declaration)) {

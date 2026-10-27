@@ -43,11 +43,11 @@ const BUILT_IN_TYPE_NAMES = Object.freeze([...SCALAR_TYPE_NAMES]);
 /** The names of the scalar types whose values hold no number, so a tolerance means nothing for them. */
 const UNTOLERATED_TYPE_NAMES = new Set(SCALAR_TYPE_NAMES.filter(name => name !== 'Number'));
 
-/** The kinds of type a module declares: a reference type, whose values have identity, and a structured type, of data. */
-const TYPE_KINDS = ['reference', 'structured'];
+/** The kinds of type a module declares: a reference type, whose values have identity; a structured type, of data; and an extension, the members it adds to a type another module owns, which is never a value's type. */
+const TYPE_KINDS = ['reference', 'structured', 'extension'];
 
-/** The kinds of type the declaration model brings that this implementation does not read yet: an extension, which named extension types bring. */
-const DECLARATION_MODEL_TYPE_KINDS = ['extension'];
+/** A declaration's name as it declares its type parameters: a local name, and, in angle brackets after it, the parameters, separated by commas. */
+const DECLARED_NAME = /^([^<>]*)(?:<(.*)>)?$/;
 
 /** What a module can declare. */
 const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'mappings', 'observationTypes', 'observationTargets', 'conversions'];
@@ -69,6 +69,8 @@ const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 
 const TYPE_KEYS_BY_KIND = {
     reference: ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import', 'members', 'internal'],
     structured: ['name', 'kind', 'import', 'members', 'internal'],
+    // An extension's types are its module's and Lexica's, and foreign ones written qualified, so it imports none.
+    extension: ['name', 'kind', 'target', 'members', 'internal'],
 };
 
 /** The keys a property of a structured type's data shape takes: its name, its kind and the type of its value, which Lexica reads from the data, so it takes no `impl`. */
@@ -377,32 +379,86 @@ export class LexicaModule {
         for (const type of types) {
             LexicaModule.#validateTypeDeclaration(type, fail, failWithin);
 
-            if (names.has(type.name)) {
-                fail('LEXICA4033', `The type '${type.name}' is declared already`, type.name);
+            // A type and an extension are named once among a module's types, by their local names, the parameters a name declares taking no part.
+            const { name } = LexicaModule.#parseDeclaredName(type.name);
+
+            if (names.has(name)) {
+                fail('LEXICA4033', `The type '${name}' is declared already`, name);
             }
 
-            names.add(type.name);
+            names.add(name);
         }
     }
 
-    static #validateTypeDeclaration(type, fail, failWithin) {
-        if (ObjectUtils.isNonArrayObject(type) && DECLARATION_MODEL_TYPE_KINDS.includes(type.kind)) {
-            fail('LEXICA4556', `A type of the kind '${type.kind}' is one this implementation does not read yet: declare a member of a type another module owns flat, with its target`, String(type.name), 'kind');
+    /**
+     * A declaration's name as it is written: its local name and the type parameters it declares in angle brackets after it, `ListExtensions<T>` naming `ListExtensions` and declaring `T`, and none where it writes no
+     * brackets. A name that writes brackets with nothing in them, or a parameter without a name, answers the failure.
+     * @returns {{ name: string, typeParameters: string[], failure?: string }}
+     */
+    static #parseDeclaredName(written) {
+        const match = typeof written === 'string' ? DECLARED_NAME.exec(written) : null;
+
+        if (match === null) {
+            return { name: written, typeParameters: [] };
         }
 
+        const [, name, list] = match;
+
+        if (list === undefined) {
+            return { name, typeParameters: [] };
+        }
+
+        const typeParameters = list.split(',').map(parameter => parameter.trim());
+
+        if (typeParameters.some(parameter => !Names.isIdentifier(parameter))) {
+            return { name, typeParameters, failure: list.trim() === '' ? `'${written}' writes empty angle brackets, where a declaration declares its type parameters` : `'${written}' declares a type parameter without a name` };
+        }
+
+        return { name, typeParameters };
+    }
+
+    /** Refuses a declared name's failed parameters (LEXICA4010) and a parameter it declares twice (LEXICA4041), answering its local name and its parameters. */
+    static #validateDeclaredName(written, fail, declarationKey = 'name') {
+        const parsed = LexicaModule.#parseDeclaredName(written);
+
+        if (parsed.failure !== undefined) {
+            fail('LEXICA4010', parsed.failure, String(parsed.name), declarationKey);
+        }
+
+        const repeated = parsed.typeParameters.find((parameter, index) => parsed.typeParameters.indexOf(parameter) < index);
+
+        if (repeated !== undefined) {
+            fail('LEXICA4041', `'${written}' declares the type parameter '${repeated}' twice`, parsed.name, declarationKey);
+        }
+
+        return parsed;
+    }
+
+    static #validateTypeDeclaration(type, fail, failWithin) {
         if (ObjectUtils.isNonArrayObject(type) && !TYPE_KINDS.includes(type.kind)) {
             fail('LEXICA4554', type.kind === undefined ? `A type declares its kind, ${TYPE_KINDS.join(' or ')}` : `A type is of the kind ${TYPE_KINDS.join(' or ')}, and '${String(type.kind)}' is none of them`, String(type.name), 'kind');
         }
 
-        LexicaModule.#validateKeys(type, TYPE_KEYS_BY_KIND[type?.kind] ?? TYPE_KEYS_BY_KIND.structured, `A ${type?.kind ?? 'structured'} type`, fail);
+        LexicaModule.#validateKeys(type, TYPE_KEYS_BY_KIND[type?.kind] ?? TYPE_KEYS_BY_KIND.structured, type?.kind === 'extension' ? 'An extension' : `A ${type?.kind ?? 'structured'} type`, fail);
 
-        if (!Names.isIdentifier(type?.name)) {
-            fail('LEXICA4552', 'A type is named by an identifier, a letter followed by letters and digits', String(type?.name), 'name');
+        const { name, typeParameters } = LexicaModule.#validateDeclaredName(type.name, fail);
+
+        if (!Names.isIdentifier(name)) {
+            fail('LEXICA4552', 'A type is named by an identifier, a letter followed by letters and digits', String(name), 'name');
         }
 
-        // Every single capital letter is a type parameter, so a type of one letter would be read as one wherever it is named.
-        if (type.name.length === 1) {
-            fail('LEXICA4506', `'${type.name}', a single capital letter, is read as a type parameter, so a type is named by more than one letter`, type.name, 'name');
+        // A type's data is never generic, so only an extension's name declares type parameters.
+        if (type.kind !== 'extension' && typeParameters.length > 0) {
+            fail('LEXICA4558', `'${type.name}' is a ${type.kind} type, which declares no type parameters`, name, 'name');
+        }
+
+        // Every single capital letter is a type parameter of a member declared flat with its target, so a type of one letter would be read as one wherever such a member names it.
+        if (name.length === 1) {
+            fail('LEXICA4506', `'${name}', a single capital letter, is read as a type parameter, so a type is named by more than one letter`, name, 'name');
+        }
+
+        if (type.kind === 'extension') {
+            LexicaModule.#validateExtensionTarget(type, name, fail);
         }
 
         const imports = type.import ?? [];
@@ -417,13 +473,30 @@ export class LexicaModule {
             fail('LEXICA4508', `The type imports the module '${repeated}' twice`, type.name, 'import');
         }
 
-        LexicaModule.#validateInternal(type, type.name, fail);
+        LexicaModule.#validateInternal(type, name, fail);
 
         if (type.kind === 'reference') {
             LexicaModule.#validateReferenceType(type, fail);
         }
 
-        LexicaModule.#validateOwnMembers(type, fail, failWithin(type.name));
+        LexicaModule.#validateOwnMembers(type, fail, failWithin(name), typeParameters);
+    }
+
+    /** Refuses an extension that names no target (LEXICA4012), one that is no type (LEXICA4512), and one that is `Any` or nullable (LEXICA4559): its one target, a type or a parameter it declares, which a member is read on a value of. */
+    static #validateExtensionTarget(extension, name, fail) {
+        if (extension.target === undefined) {
+            fail('LEXICA4012', 'An extension names its target, the type its members extend', name, 'target');
+        }
+
+        if (!LexicaModule.#isTypeNotation(extension.target)) {
+            fail('LEXICA4512', 'An extension names its target as a type', name, 'target');
+        }
+
+        const target = Type.parse(extension.target);
+
+        if (target.isNullable || (target.kind === 'named' && target.name === 'Any' && target.moduleName === null)) {
+            fail('LEXICA4559', `An extension's target is never Any, since a parameter it declares extends every type, and never nullable, since a member is read on a value, and ${extension.target} is ${target.isNullable ? 'nullable' : 'Any'}`, name, 'target');
+        }
     }
 
     /** Validates a reference type's membership, the supertype it names and whether it is abstract, keeping its `isInstance` as it is. */
@@ -449,7 +522,7 @@ export class LexicaModule {
      * Validates the members a type declares within it, a list of members each taking the type as its receiver, so none names a target, a structured type's properties without updates its data shape; each is located at
      * the type.
      */
-    static #validateOwnMembers(type, fail, failWithinType) {
+    static #validateOwnMembers(type, fail, failWithinType, typeParameters) {
         if (type.members === undefined) {
             return;
         }
@@ -458,14 +531,21 @@ export class LexicaModule {
             fail('LEXICA4503', "A type's members are a list", type.name, 'members');
         }
 
-        type.members.forEach(member => LexicaModule.#validateMember(LexicaModule.#withoutUndefinedValues(member), failWithinType, type.kind));
+        type.members.forEach(member => LexicaModule.#validateMember(LexicaModule.#withoutUndefinedValues(member), failWithinType, type.kind, typeParameters));
     }
 
-    /** Creates the stored copy of a valid type: its data, and each of its own members as a member's stored copy is created. */
+    /** Creates the stored copy of a valid type: its data, named by its local name with the type parameters it declares beside it, and each of its own members as a member's stored copy is created. */
     static #createTypeCopy(type) {
-        const copy = LexicaModule.#copyOf(type);
+        const copy = { ...LexicaModule.#copyOf(type), ...LexicaModule.#namedCopyOf(type.name) };
 
-        return type.members === undefined ? copy : { ...copy, members: type.members.map(member => LexicaModule.#createMemberCopy(LexicaModule.#withoutUndefinedValues(member))) };
+        return type.members === undefined ? copy : { ...copy, members: type.members.map(member => LexicaModule.#createMemberCopy(LexicaModule.#withoutUndefinedValues(member), true)) };
+    }
+
+    /** The keys a declared name gives its stored copy: its local name, and the type parameters it declares, `typeParameters`, where it declares any. */
+    static #namedCopyOf(written) {
+        const { name, typeParameters } = LexicaModule.#parseDeclaredName(written);
+
+        return typeParameters.length === 0 ? { name } : { name, typeParameters: Object.freeze(typeParameters) };
     }
 
     /** Validates the type selectors a module declares, each named as a name is, once in the module. */
@@ -783,7 +863,7 @@ export class LexicaModule {
      * Validates a member: a flat one, which names its target where it has a receiver, or one declared within a type of the kind given, whose receiver the type is, so it names none; a property a structured type declares
      * directly without updates is a property of its data shape, which takes its name, its kind and its result alone.
      */
-    static #validateMember(member, fail, containingKind = undefined) {
+    static #validateMember(member, fail, containingKind = undefined, containingParameters = []) {
         const isWithinType = containingKind !== undefined;
         const isDataProperty = containingKind === 'structured' && member?.kind === 'property' && member.updates === undefined;
         // A member within a type takes the type as its receiver, so it takes no target.
@@ -794,9 +874,17 @@ export class LexicaModule {
             fail('LEXICA4504', `A member is an object declaring ${memberKeys.join(', ')} and what its kind takes`);
         }
 
-        // An unnamed indexer declares no name, and is located as its access is written.
+        // An unnamed indexer declares no name, and is located as its access is written; a member within a type or an extension, and a module member, declare their own type parameters in their names, and a member
+        // declared flat with its target reads every single capital letter as one, until named extension types replace it.
         const isUnnamedIndexer = member.kind === 'indexer' && member.name === undefined;
-        const name = isUnnamedIndexer ? UNNAMED_INDEXER_NAME : member.name;
+        const declaresParameters = isWithinType || member.target === undefined;
+        const declared = declaresParameters && !isUnnamedIndexer ? LexicaModule.#validateDeclaredName(member.name, fail) : { name: member.name, typeParameters: [] };
+        const name = isUnnamedIndexer ? UNNAMED_INDEXER_NAME : declared.name;
+        const ownParameter = declared.typeParameters.find(parameter => containingParameters.includes(parameter));
+
+        if (ownParameter !== undefined) {
+            fail('LEXICA4043', `'${member.name}' declares the type parameter '${ownParameter}', which its extension declares, so its extension's stands within it`, name, 'name');
+        }
 
         // A member is read after a dot or, an indexer, after a colon, where only a member's name stands, so a keyword names one.
         if (!isUnnamedIndexer && !Names.isIdentifier(name)) {
@@ -876,12 +964,14 @@ export class LexicaModule {
     }
 
     /** Creates the stored copy of a valid member: its updates' observations none where it names none, and its parameters each without its keys that hold undefined. */
-    static #createMemberCopy(member) {
+    static #createMemberCopy(member, isWithinType = false) {
         const parameters = (member.parameters ?? []).map(parameter => LexicaModule.#withoutUndefinedValues(parameter));
         const updates = member.updates === undefined ? {} : { updates: { observations: [], ...LexicaModule.#withoutUndefinedValues(member.updates) } };
+        // A member that declares its own type parameters is named by its local name, and keeps them beside it.
+        const named = member.name !== undefined && (isWithinType || member.target === undefined) ? LexicaModule.#namedCopyOf(member.name) : {};
 
         // A property is read with no arguments, so it keeps an empty list of parameters, which every member then has.
-        return LexicaModule.#copyOf({ ...member, parameters, ...updates });
+        return LexicaModule.#copyOf({ ...member, ...named, parameters, ...updates });
     }
 
     /**
