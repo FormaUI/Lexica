@@ -3,12 +3,12 @@
  */
 
 import { Type } from './Type.mjs';
+import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
 /**
  * The scalar types, whose values an equality compares by value, as the specification's equalities set out. A list apart from the built-in type names, which hold the same names today, since a type a later version builds in
  * compares by value only once its equality semantics are decided.
  */
-const SCALAR_TYPE_NAMES = Object.freeze(['String', 'Number', 'Boolean']);
 
 /**
  * The answers to whether a value of one type is assignable to another: assignable, assignable once its value is checked when it is evaluated, as a value of `Any` is, or refused.
@@ -171,7 +171,7 @@ export class TypeChecker {
 
     /** Whether values of the type are compared with each other by an equality, rather than with null alone: strings, numbers and Booleans by their values, and references by their identity. */
     isComparable(type) {
-        return type.kind === 'named' && ((type.moduleName === null && SCALAR_TYPE_NAMES.includes(type.name)) || this.#registry.isReferenceType(type));
+        return type.kind === 'named' && ((type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) || this.#registry.isReferenceType(type));
     }
 
     /** Whether the member applies to the receiver, by one of its receiver types, as inferring its receiver's type arguments succeeds; it records nothing. */

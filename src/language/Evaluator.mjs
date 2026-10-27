@@ -1423,7 +1423,7 @@ export class Evaluator {
                     return value => registry.belongsTo(value, type, asked);
                 }
 
-                if (type.moduleName === null && LexicaModule.builtInTypeNames.includes(name)) {
+                if (type.moduleName === null && LexicaModule.scalarTypeNames.includes(name)) {
                     return value => Evaluator.#belongsToBuiltIn(value, name);
                 }
 
@@ -1738,7 +1738,7 @@ export class Evaluator {
      * in turn. A supplied value has no type until it is captured, so where it doesn't belong to a reference type, the registry's recognition tells a reference of another type from mistyped data, which fails whatever its nullability.
      */
     #captureNamed(value, type, path, fail) {
-        if (type.moduleName === null && LexicaModule.builtInTypeNames.includes(type.name)) {
+        if (type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) {
             if (!Evaluator.#belongsToBuiltIn(value, type.name)) {
                 fail(path, value, type);
             }
@@ -1774,7 +1774,7 @@ export class Evaluator {
         return path === '' ? name : `${path}.${name}`;
     }
 
-    /** Whether the value belongs to the built-in type the name names, one of `LexicaModule.builtInTypeNames`: a finite number, a string or a Boolean. */
+    /** Whether the value belongs to the scalar type the name names, one of `LexicaModule.scalarTypeNames`: a finite number, a string or a Boolean. */
     static #belongsToBuiltIn(value, typeName) {
         switch (typeName) {
             case 'Number':

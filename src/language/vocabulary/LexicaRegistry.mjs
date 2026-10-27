@@ -867,7 +867,7 @@ export class LexicaRegistry {
                     return type.typeArguments.every(typeArgument => this.#isData(typeArgument, checking));
                 }
 
-                if ((type.moduleName === null && LexicaModule.dataTypeNames.includes(type.name)) || checking.has(type.identity)) {
+                if ((type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) || checking.has(type.identity)) {
                     return true;
                 }
 
@@ -908,7 +908,8 @@ export class LexicaRegistry {
                     return Number.isFinite(value);
                 }
 
-                if (type.moduleName === null && ['String', 'Boolean'].includes(type.name)) {
+                // The scalars beside a number, which is finite, are admitted by their JavaScript type.
+                if (type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) {
                     return typeof value === type.name.toLowerCase();
                 }
 

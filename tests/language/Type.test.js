@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Type } from '#lexica/language/Type.mjs';
+import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 
 describe('Type', () => {
     describe('parse', () => {
@@ -114,6 +115,13 @@ describe('Type', () => {
         expect(Type.parse('Number').itemType).toBeNull();
         expect(list.equals(Type.parse('List<Number>'))).toBe(true);
         expect(list.equals(Type.parse('List<Number?>'))).toBe(false);
+    });
+
+    describe('createPrimitiveType', () => {
+        it('types a string, a number and a Boolean as the scalar types Lexica\'s own module names, each by its JavaScript type', () => {
+            expect(['oat', 1, true].map(value => String(Type.createPrimitiveType(value)))).toEqual(['String', 'Number', 'Boolean']);
+            expect(['oat', 1, true].map(value => String(Type.createPrimitiveType(value))).sort()).toEqual([...LexicaModule.scalarTypeNames].sort());
+        });
     });
 
     describe('getObjectFieldType', () => {

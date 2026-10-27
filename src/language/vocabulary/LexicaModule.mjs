@@ -31,20 +31,23 @@ const OBSERVATION_CONTRACTS = ['invalidation', 'maintained'];
 /** The categories whose changes observations cover. */
 const OBSERVED_CHANGE_CATEGORIES = ['observable', 'partly-observable'];
 
-/** The names of the types Lexica defines, which a declaration names without any module declaring them. */
-const BUILT_IN_TYPE_NAMES = ['Number', 'String', 'Boolean'];
+/** The scalar types Lexica defines, each a value of data alone: what conversions convert between, what data and equality read as scalars, and what a default of one is. */
+const SCALAR_TYPE_NAMES = Object.freeze(['Number', 'String', 'Boolean']);
 
-/** The names of the types Lexica defines whose values hold no number, so a tolerance means nothing for them. */
-const UNTOLERATED_TYPE_NAMES = new Set(BUILT_IN_TYPE_NAMES.filter(name => name !== 'Number'));
+/**
+ * The names of the types Lexica defines that a declaration or a script names unqualified with no module declaring them, which resolving a name reads: its scalar types today, and from S2 every type Lexica's own module
+ * declares, `List` among them, from which they are derived there.
+ */
+const BUILT_IN_TYPE_NAMES = Object.freeze([...SCALAR_TYPE_NAMES]);
+
+/** The names of the scalar types whose values hold no number, so a tolerance means nothing for them. */
+const UNTOLERATED_TYPE_NAMES = new Set(SCALAR_TYPE_NAMES.filter(name => name !== 'Number'));
 
 /** The kinds of type a module declares: a reference type, whose values have identity, and a structured type, of data. */
 const TYPE_KINDS = ['reference', 'structured'];
 
 /** The kinds of type the declaration model brings that this implementation does not read yet: an extension, which named extension types bring. */
 const DECLARATION_MODEL_TYPE_KINDS = ['extension'];
-
-/** The types of data Lexica defines, which a conversion converts between, as it does between them and the structured types modules declare. */
-const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 
 /** What a module can declare. */
 const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'mappings', 'observationTypes', 'observationTargets', 'conversions'];
@@ -218,9 +221,9 @@ export class LexicaModule {
         return BUILT_IN_TYPE_NAMES;
     }
 
-    /** The names of the types of data Lexica defines, which a conversion converts between. */
-    static get dataTypeNames() {
-        return DATA_TYPE_NAMES;
+    /** The names of the scalar types Lexica defines, each a value of data alone, which conversions, data, equality and defaults read. */
+    static get scalarTypeNames() {
+        return SCALAR_TYPE_NAMES;
     }
 
     /** How a conversion is named where a message names it: its source type and its target, as `String to Number`. */
@@ -746,7 +749,7 @@ export class LexicaModule {
             const type = Type.parse(conversion[key]);
 
             if (type?.kind !== 'named' || type.isNullable || type.typeArguments.length > 0) {
-                fail('LEXICA4065', `A conversion is from a type of data to another, each named as it is declared: ${DATA_TYPE_NAMES.join(', ')} or a structured type, and its '${key}' is none of them`, name, key);
+                fail('LEXICA4065', `A conversion is from a type of data to another, each named as it is declared: ${SCALAR_TYPE_NAMES.join(', ')} or a structured type, and its '${key}' is none of them`, name, key);
             }
         }
 
