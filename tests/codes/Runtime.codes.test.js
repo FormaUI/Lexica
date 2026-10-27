@@ -9,6 +9,7 @@ import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Device, Light, Room, Thermostat, homeTypeOf, homeTypes, withHome } from '../support/home.mjs';
 import { errorThrownBy, expectLexicaError } from '../support/errors.mjs';
 import { constantUpdates, derivedUpdates } from '../support/updates.mjs';
+import { dataPropertyDeclarations } from '../support/declarations.mjs';
 
 const { property, valueParameter, functionParameter } = lexica.declarations;
 
@@ -23,7 +24,7 @@ let kept = null;
  * through the conversion the test gives.
  */
 const createPantry = () => lexica.createModule('pantry', withHome({
-    types: [{ name: 'Cup', fields: { size: 'Number' } }],
+    types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
     observationTypes: [{ name: 'quote', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
     conversions: [{ from: 'String', to: 'Cup', impl: input => behaviors.convert(input) }],
     members: [
@@ -40,7 +41,7 @@ const createPantry = () => lexica.createModule('pantry', withHome({
 
 /** A module whose member and conversion have no implementation. */
 const createBare = () => lexica.createModule('bare', {
-    types: [{ name: 'Mug', fields: { size: 'Number' } }],
+    types: [{ name: 'Mug', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
     conversions: [{ from: 'String', to: 'Mug' }],
     members: [property('weight', 'String', 'Number', { updates: constantUpdates })],
 });

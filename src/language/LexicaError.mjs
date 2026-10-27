@@ -112,6 +112,10 @@ export class LexicaError extends Error {
             parts.push(`in the module '${location.module}'`);
         }
 
+        if (location.type !== undefined) {
+            parts.push(`in the type '${location.type}'`);
+        }
+
         if (location.declaration !== undefined) {
             parts.push(`in the declaration '${location.declaration}'`);
         }

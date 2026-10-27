@@ -158,7 +158,8 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         requireCurrent();
 
         // A declaration without an implementation is resolved against and never invoked, so a script that uses one, in a branch it may not take among them, is refused before anything is evaluated; a host call has none, its host invoking it.
-        const unimplemented = usedDeclarations.find(use => registry.getImplementation(use.declaration) === undefined && !LexicaModule.isInvokedByHost(use.declaration));
+        // A structured type's data property is read from the data, so it takes no implementation.
+        const unimplemented = usedDeclarations.find(use => registry.getImplementation(use.declaration) === undefined && !LexicaModule.isInvokedByHost(use.declaration) && !registry.isDataProperty(use.declaration));
 
         if (unimplemented !== undefined) {
             throw LexicaErrors.module('LEXICA4001', `'${unimplemented.qualifiedName}' has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplemented.declaration), declaration: unimplemented.declaration.name, declarationKey: 'impl' });

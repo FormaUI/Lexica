@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { expectModuleError } from '../../support/errors.mjs';
-import { functionDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
+import { dataPropertyDeclarations, functionDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
 
 /** The declaration and the declaration key a module error's location names, beside a fragment of its message. */
 const refusal = (contents, declarationName, declarationKey, fragment) => {
@@ -45,7 +45,7 @@ describe('LexicaModule', () => {
 
         expect(refused({ members: [propertyDeclaration({ implementation })] })).toEqual({ module: 'charts', declaration: 'zoom', declarationKey: 'implementation' });
         expect(refused({ observationTypes: [{ name: 'tick', contract: 'invalidation', implementation }] })).toEqual({ module: 'charts', declaration: 'tick', declarationKey: 'implementation' });
-        expect(refused({ types: [{ name: 'Cup', fields: { size: 'Number' } }], conversions: [{ from: 'String', to: 'Cup', implementation }] })).toEqual({ module: 'charts', declaration: 'String to Cup', declarationKey: 'implementation' });
+        expect(refused({ types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }], conversions: [{ from: 'String', to: 'Cup', implementation }] })).toEqual({ module: 'charts', declaration: 'String to Cup', declarationKey: 'implementation' });
         expect(expectModuleError(() => new LexicaModule('charts', { members: [propertyDeclaration({ impl: 'size' })] }))).toEqual({ message: expect.stringContaining('Its `impl` is a function'), module: 'charts', declaration: 'zoom', declarationKey: 'impl' });
     });
 
@@ -58,7 +58,7 @@ describe('LexicaModule', () => {
 
         refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: selfList })] })] }, 'pan', 'parameters', 'reaches itself');
         refusal({ members: [functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', required: false, default: selfObject })] })] }, 'pan', 'parameters', 'reaches itself');
-        refusal({ types: [{ name: 'Chart', fields: selfObject }] }, 'Chart', 'fields', 'reaches itself');
+        refusal({ types: [{ name: 'Chart', kind: 'structured', members: [selfObject] }] }, 'Chart', 'members', 'reaches itself');
         // An observation's argument is validated by walking its lists, so a cycle there is refused before validation reads into it.
         refusal({
             observationTypes: [{ name: 'tick', contract: 'invalidation' }],
@@ -98,11 +98,11 @@ describe('LexicaModule', () => {
     it('freezes copies of its declarations, leaving the declarations its caller gave unfrozen through every list and object they hold', () => {
         const option = parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: [1, 2] });
         const declared = functionDeclaration({ name: 'pan', parameters: [option] });
-        const type = { name: 'Chart', fields: { points: 'Number' } };
+        const type = { name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) };
         const module = new LexicaModule('charts', { types: [type], members: [declared] });
 
-        expect([declared, declared.parameters, option, option.default, type, type.fields].map(part => Object.isFrozen(part))).toEqual([false, false, false, false, false, false]);
-        expect([module.members[0].parameters[0].default, module.types[0].fields].map(part => Object.isFrozen(part))).toEqual([true, true]);
+        expect([declared, declared.parameters, option, option.default, type, type.members, type.members[0]].map(part => Object.isFrozen(part))).toEqual([false, false, false, false, false, false, false]);
+        expect([module.members[0].parameters[0].default, module.types[0].members, module.types[0].members[0]].map(part => Object.isFrozen(part))).toEqual([true, true, true]);
         expect(module.members[0].parameters[0]).not.toBe(option);
     });
 
@@ -120,7 +120,7 @@ describe('LexicaModule', () => {
     });
 
     it('names a property, a function, an indexer and a field of a structured type with any word, a keyword and a literal\'s word among them, read after a dot or a colon', () => {
-        const types = [{ name: 'Chart', fields: { else: 'Number' } }];
+        const types = [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ else: 'Number' }) }];
         const key = [parameterDeclaration({ name: 'key', type: 'String' })];
 
         expect(() => new LexicaModule('charts', { types, members: [propertyDeclaration({ name: 'then', target: 'Chart' }), functionDeclaration({ name: 'if', target: 'Chart', parameters: key })] })).not.toThrow();
@@ -358,7 +358,7 @@ describe('LexicaModule', () => {
 
         it('take a tolerance that is not negative, for a numeric or a structured result alone', () => {
             expect(() => new LexicaModule('charts', updating({ changes: 'unobserved', reads: 'fresh', tolerance: 0.5 }))).not.toThrow();
-            expect(() => new LexicaModule('charts', { types: [{ name: 'Box', fields: { width: 'Number' } }], members: [propertyDeclaration({ result: 'Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
+            expect(() => new LexicaModule('charts', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }], members: [propertyDeclaration({ result: 'Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
 
             for (const tolerance of [-1, '1', Infinity, null]) {
                 refusal(updating({ changes: 'unobserved', reads: 'fresh', tolerance }), 'zoom', 'updates.tolerance', 'tolerance');
@@ -487,29 +487,29 @@ describe('LexicaModule', () => {
 
     describe('types, which run nothing', () => {
         it('refuse an implementation, which would mean nothing for them', () => {
-            refusal({ types: [{ name: 'Chart', fields: { size: 'Number' }, impl: () => 1 }] }, 'Chart', 'impl', "'impl' is none of them");
+            refusal({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }), impl: () => 1 }] }, 'Chart', 'impl', "'impl' is none of them");
         });
 
         it.each(['Number', 'List', 'Null', 'Never', 'chart', 'null', 'number'])('take a structured type named %s, a casing that is a convention and a name another declaration may share', name => {
-            expect(new LexicaModule('charts', { types: [{ name, fields: { level: 'Number' } }] }).types[0].name).toBe(name);
+            expect(new LexicaModule('charts', { types: [{ name, kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] }).types[0].name).toBe(name);
         });
 
         it('refuse a structured type named by one capital letter, which is read as a type parameter', () => {
-            refusal({ types: [{ name: 'X', fields: { level: 'Number' } }] }, 'X', 'name', "'X', a single capital letter, is read as a type parameter");
+            refusal({ types: [{ name: 'X', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] }, 'X', 'name', "'X', a single capital letter, is read as a type parameter");
         });
 
         it('take a structured type named as a node of Lexica\'s, which its module tells apart', () => {
-            expect(() => new LexicaModule('charts', { types: [{ name: 'Element', fields: { level: 'Number' } }] })).not.toThrow();
+            expect(() => new LexicaModule('charts', { types: [{ name: 'Element', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] })).not.toThrow();
         });
 
         it('take the modules a structured type imports, by their names, each once', () => {
-            expect(new LexicaModule('charts', { types: [{ name: 'Chart', fields: { level: 'Number' }, import: ['axes'] }] }).types[0].import).toEqual(['axes']);
-            refusal({ types: [{ name: 'Chart', fields: { level: 'Number' }, import: 'axes' }] }, 'Chart', 'import', 'A type imports modules by their names, as a list');
-            refusal({ types: [{ name: 'Chart', fields: { level: 'Number' }, import: ['axes', 'axes'] }] }, 'Chart', 'import', "imports the module 'axes' twice");
+            expect(new LexicaModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }), import: ['axes'] }] }).types[0].import).toEqual(['axes']);
+            refusal({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }), import: 'axes' }] }, 'Chart', 'import', 'A type imports modules by their names, as a list');
+            refusal({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }), import: ['axes', 'axes'] }] }, 'Chart', 'import', "imports the module 'axes' twice");
         });
 
         it('refuse a field they do not take', () => {
-            refusal({ types: [{ name: 'Chart', fields: { size: 'Number' }, field: {} }] }, 'Chart', 'field', "'field' is none of them");
+            refusal({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }), field: {} }] }, 'Chart', 'field', "'field' is none of them");
         });
     });
 
@@ -539,7 +539,7 @@ describe('LexicaModule', () => {
 
 describe('conversions', () => {
     const conversion = (overrides = {}) => ({ from: 'String', to: 'Chart', ...overrides });
-    const declaring = conversions => new LexicaModule('charts', { types: [{ name: 'Chart', fields: { points: 'Number' } }], conversions });
+    const declaring = conversions => new LexicaModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }], conversions });
 
     it('are kept as data, each from a type to another with its implementation', () => {
         const implementation = ({ value }) => ({ points: value.length });

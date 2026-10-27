@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LexicaError, lexica } from '#lexica/lexica.js';
 import { Versions } from '#lexica/language/Versions.mjs';
 import { errorThrownBy } from './support/errors.mjs';
+import { dataPropertyDeclarations } from './support/declarations.mjs';
 
 describe('lexica', () => {
     it('runs where no browser global exists', () => {
@@ -93,7 +94,7 @@ describe('lexica', () => {
     it('carries out each declaration that runs code by its impl: a member and a conversion when evaluated, and an observation type as its host starts it', () => {
         const tick = ({ request }) => ({ stop: () => request.type });
         const module = lexica.createModule('cups', {
-            types: [{ name: 'Cup', fields: { size: 'Number' } }],
+            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
             members: [{ name: 'zoom', kind: 'property', target: 'String', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length * 2 }],
             conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
             observationTypes: [{ name: 'tick', contract: 'invalidation', impl: tick }],
@@ -104,6 +105,26 @@ describe('lexica', () => {
         expect(evaluate('{ zoom = word.zoom, size = (word to Cup).size }')).toEqual({ zoom: 6, size: 3 });
         expect(registry.getImplementation(registry.getObservationType('tick'))).toBe(tick);
         expect(registry.getImplementation(registry.getObservationType('tick'))({ request: { type: 'tick' } }).stop()).toBe('tick');
+    });
+
+    it('reads a structured type\'s data properties from the data, each a used declaration that no implementation carries out and no hook is told of', () => {
+        const cups = lexica.createModule('cups', {
+            types: [{
+                name: 'Cup',
+                kind: 'structured',
+                members: [
+                    { name: 'size', kind: 'property', result: 'Number' },
+                    { name: 'doubled', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.size * 2 },
+                ],
+            }],
+            conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
+        });
+        const resolution = lexica.createRegistry([cups]).resolve('{ size = (word to Cup).size, doubled = (word to Cup).doubled }', { word: 'oat' });
+        const told = [];
+
+        expect(resolution.usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Cup.size', 'Cup.doubled']);
+        expect(resolution.createEvaluator({ word: 'oat' }).evaluate({ beforeInvoke: request => void told.push(request.declaration.name) }).value).toEqual({ size: 3, doubled: 6 });
+        expect(told).toEqual(['doubled']);
     });
 
     it('creates a module from the vocabulary it declares', () => {
@@ -117,7 +138,7 @@ describe('lexica', () => {
 
     it('resolves an expression against a registry of its built-in vocabulary and the modules a host registers, each registry its own', () => {
         const prices = lexica.createModule('price', {
-            types: [{ name: 'Item', fields: { price: 'Number', quantity: 'Number' } }],
+            types: [{ name: 'Item', kind: 'structured', members: dataPropertyDeclarations({ price: 'Number', quantity: 'Number' }) }],
             members: [{ name: 'price', kind: 'property', target: 'String', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }],
         });
         const registry = lexica.createRegistry([prices]);

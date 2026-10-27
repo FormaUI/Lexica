@@ -9,6 +9,7 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../support/home.mjs';
 import { constantUpdates } from '../support/updates.mjs';
+import { dataPropertyDeclarations } from '../support/declarations.mjs';
 
 const { property } = Declarations;
 
@@ -17,7 +18,7 @@ const parts = [new Light('a'), new Light('b')];
 
 /** A plain host's module on names: a size measured within half a unit, a length, a list of references and each reference's label. */
 const shapes = new LexicaModule('shapes', withHome({
-    types: [{ name: 'Size', fields: { width: 'Number', height: 'Number' } }],
+    types: [{ name: 'Size', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number', height: 'Number' }) }],
     members: [
         property('size', 'String', 'Size', { updates: { ...constantUpdates, tolerance: 0.5 }, impl: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
         property('length', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),

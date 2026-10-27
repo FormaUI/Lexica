@@ -836,7 +836,7 @@ export class Evaluator {
 
         const { name } = resolution;
 
-        // A stored value, an object field or a property of a structured type's data, which a projection's host call never is.
+        // A stored value, an object field or a property of a structured type's data, read alike, which a projection's host call never is.
         return (evaluator, context) => {
             if (evaluator.#projectionContext !== null && node === evaluator.#projectionContext.node) {
                 return evaluator.#projectionContext.value;
@@ -1517,7 +1517,7 @@ export class Evaluator {
      * without invoking it where a null argument propagates.
      */
     #evaluateResolvedAccess(resolution, receiver, node, context) {
-        if (resolution.kind === 'storedValue' || resolution.kind === 'objectRootField') {
+        if (resolution.kind === 'objectField' || resolution.kind === 'dataProperty' || resolution.kind === 'objectRootField') {
             return this.#readStoredValue(receiver, resolution.name);
         }
 
@@ -1983,7 +1983,7 @@ export class Evaluator {
                         continue;
                     }
 
-                    if (resolution?.kind === 'storedValue') {
+                    if (resolution?.kind === 'objectField' || resolution?.kind === 'dataProperty') {
                         const whole = this.#resolveRecord(node.target, undefined, identities, contextRecord);
 
                         return whole.objectFields?.[candidate ?? resolution.name] ?? Evaluator.#getInheritedRecord(whole);

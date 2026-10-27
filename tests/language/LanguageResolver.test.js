@@ -7,6 +7,7 @@ import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { constantUpdates } from '../support/updates.mjs';
+import { dataPropertyDeclarations } from '../support/declarations.mjs';
 
 const padding = (target, countType) => Declarations.function('pad', target, 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', countType)], impl: ({ receiver }) => receiver });
 
@@ -97,10 +98,10 @@ describe('LanguageResolver', () => {
         });
     });
 
-    describe('a stored value', () => {
+    describe('an object field and a structured type\'s data property', () => {
         /** A registry whose `Cup` is a structured type of a size, converted from a string. */
         const cups = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
-            types: [{ name: 'Cup', fields: { size: 'Number' } }],
+            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
             conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
         })]);
         const values = { word: 'oat', pair: { a: 1, b: null }, missing: null };
@@ -119,10 +120,14 @@ describe('LanguageResolver', () => {
             return null;
         };
 
-        it('is resolved by its name alone, an object field and a property of a structured type\'s data alike, an object field of the type null among them', () => {
-            expect(resolveCups('pair.a').getResolution('/expression/result')).toEqual({ kind: 'storedValue', name: 'a' });
+        it('are read by their names: an object field by its name alone, of the type null among them, and a data property by its declaration, which the script uses and never invokes', () => {
+            expect(resolveCups('pair.a').getResolution('/expression/result')).toEqual({ kind: 'objectField', name: 'a' });
             expect(String(resolveCups('pair.b').type)).toBe('null');
-            expect(resolveCups('(word to Cup).size').getResolution('/expression/result')).toEqual({ kind: 'storedValue', name: 'size' });
+
+            const resolved = resolveCups('(word to Cup).size');
+
+            expect(resolved.getResolution('/expression/result')).toEqual({ kind: 'dataProperty', declaration: { name: 'size', kind: 'property', result: 'Number', parameters: [] }, name: 'size' });
+            expect(resolved.usedDeclarations.map(use => use.qualifiedName)).toEqual(['Cup.size']);
         });
 
         it('is refused where it is called, as an object field, as a property of a structured type\'s data, and as one where the receiver\'s type is unknown', () => {

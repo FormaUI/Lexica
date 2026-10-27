@@ -39,13 +39,11 @@ const BUILT_IN_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 /** The names of the types Lexica defines whose values hold no number, so a tolerance means nothing for them. */
 const UNTOLERATED_TYPE_NAMES = new Set(BUILT_IN_TYPE_NAMES.filter(name => name !== 'Number'));
 
-/** The kinds of type a module declares: a reference type, whose values have identity; a type declared without a kind is structured, of data. */
-const TYPE_KINDS = ['reference'];
+/** The kinds of type a module declares: a reference type, whose values have identity, and a structured type, of data. */
+const TYPE_KINDS = ['reference', 'structured'];
 
-/** The kinds of type the declaration model brings, which a type declared in the flat member shape does not take yet. */
-const DECLARATION_MODEL_TYPE_KINDS = ['structured', 'extension'];
-
-
+/** The kinds of type the declaration model brings that this implementation does not read yet: an extension, which named extension types bring. */
+const DECLARATION_MODEL_TYPE_KINDS = ['extension'];
 
 /** The types of data Lexica defines, which a conversion converts between, as it does between them and the structured types modules declare. */
 const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
@@ -61,8 +59,14 @@ const MEMBER_KEYS_BY_KIND = {
 };
 const UPDATES_KEYS = ['changes', 'reads', 'misses', 'tolerance', 'observations'];
 const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameters'];
-const TYPE_KEYS = ['name', 'fields', 'import'];
-const REFERENCE_TYPE_KEYS = ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import', 'members'];
+/** The keys each kind of type takes, so a key its kind does not take, a structured type's `fields` among them, is refused rather than ignored. */
+const TYPE_KEYS_BY_KIND = {
+    reference: ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import', 'members'],
+    structured: ['name', 'kind', 'import', 'members'],
+};
+
+/** The keys a property of a structured type's data shape takes: its name, its kind and the type of its value, which Lexica reads from the data, so it takes no `impl`. */
+const DATA_PROPERTY_KEYS = ['name', 'kind', 'result'];
 const TYPE_SELECTOR_KEYS = ['name'];
 const SELECTABLE_TYPE_KEYS = ['name', 'selector', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'impl'];
@@ -86,7 +90,7 @@ export class LexicaModule {
     /**
      * @param {string} name The module's name.
      * @param {object} contents What the module declares, each declaration that runs code carrying its implementation.
-     * @param {object[]} [contents.types] The types it declares: its structured types, each with its fields, and its reference types, each with its own members, which take it as their receiver.
+     * @param {object[]} [contents.types] The types it declares, reference and structured, each with its own members, which take it as their receiver; a structured type's data shape is the properties it declares directly without updates.
      * @param {object[]} [contents.members] The properties and functions it adds, a function its host invokes among them, a member without a target a module member.
      * @param {object[]} [contents.typeSelectors] The type selectors it declares, each by its name alone, through which a function's fixed argument selects the type of its result.
      * @param {object[]} [contents.selectableTypes] The keys it declares for type selectors, its own or another module's, each with the selector it belongs to and the type it maps to.
@@ -110,15 +114,13 @@ export class LexicaModule {
         };
         const fail = failWithin(undefined);
 
-        if (!ObjectUtils.isNonArrayObject(contents)) {
-            fail('LEXICA4501', `A module's contents are an object declaring ${MODULE_KEYS.join(', ')}`);
-        }
-
-        for (const key of Object.keys(contents)) {
-            if (!MODULE_KEYS.includes(key)) {
-                fail('LEXICA4502', `A module declares ${MODULE_KEYS.join(', ')}, and '${key}' is none of them${key === 'predicates' ? '; a test of a receiver is one of its members, a function whose result is a boolean' : ''}`, undefined, key);
-            }
-        }
+        // A module's contents take their keys as a declaration does, refused by codes of their own.
+        LexicaModule.#validateKeys(contents, MODULE_KEYS, "A module's contents", fail, null, {
+            notObjectCode: 'LEXICA4501',
+            unknownKeyCode: 'LEXICA4502',
+            declaringSubject: 'A module',
+            hintOf: key => (key === 'predicates' ? '; a test of a receiver is one of its members, a function whose result is a boolean' : ''),
+        });
 
         const { typeOf, types = [], members = [], typeSelectors = [], selectableTypes = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
 
@@ -241,17 +243,27 @@ export class LexicaModule {
         return ObjectUtils.isNonArrayObject(object) ? Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined)) : object;
     }
 
-    /** Refuses a declaration that is no object, or that declares a field its kind does not take, naming that field; a field holding undefined is one it leaves out. */
-    static #validateKeys(declaration, keys, what, fail, name) {
+    /**
+     * Refuses a declaration that is no object, or that declares a key its kind does not take, naming that key; a key holding undefined is one it leaves out. A declaration is named by the name given, by its own where none
+     * is, and by none where the name is null, as a module's contents are, which keep codes of their own, the subject that declares their keys, and a hint for a key.
+     */
+    static #validateKeys(declaration, keys, what, fail, name, { notObjectCode = 'LEXICA4504', unknownKeyCode = 'LEXICA4030', declaringSubject = what, hintOf = () => '' } = {}) {
         if (!ObjectUtils.isNonArrayObject(declaration)) {
-            fail('LEXICA4504', `${what} is an object declaring ${keys.join(', ')}`, name === undefined ? undefined : String(name));
+            fail(notObjectCode, `${what} ${name === null ? 'are' : 'is'} an object declaring ${keys.join(', ')}`, name === undefined || name === null ? undefined : String(name));
         }
+
+        const declarationName = name === null ? undefined : String(name ?? declaration.name);
 
         for (const key of Object.keys(LexicaModule.#withoutUndefinedValues(declaration))) {
             if (!keys.includes(key)) {
-                fail('LEXICA4030', `${what} declares ${keys.join(', ')}, and '${key}' is none of them`, String(name ?? declaration.name), key);
+                fail(unknownKeyCode, `${declaringSubject} declares ${keys.join(', ')}, and '${key}' is none of them${hintOf(key)}`, declarationName, key);
             }
         }
+    }
+
+    /** The failure of a declaration's part under the key given, `updates` or `parameters`: its own key is located beneath that key, and the part itself at it. */
+    static #failUnder(fail, partKey) {
+        return (code, message, declarationName, declarationKey) => fail(code, message, declarationName, declarationKey === undefined ? partKey : `${partKey}.${declarationKey}`);
     }
 
     static #freezeItems(items) {
@@ -365,17 +377,15 @@ export class LexicaModule {
     }
 
     static #validateTypeDeclaration(type, fail, failWithin) {
-        const isReferenceType = type?.kind === 'reference';
-
         if (ObjectUtils.isNonArrayObject(type) && DECLARATION_MODEL_TYPE_KINDS.includes(type.kind)) {
-            fail('LEXICA4556', `A type of the kind '${type.kind}' declares its members within it, which this implementation does not read yet: declare a structured type by its fields, without a kind`, String(type.name), 'kind');
+            fail('LEXICA4556', `A type of the kind '${type.kind}' is one this implementation does not read yet: declare a member of a type another module owns flat, with its target`, String(type.name), 'kind');
         }
 
-        if (ObjectUtils.isNonArrayObject(type) && type.kind !== undefined && !TYPE_KINDS.includes(type.kind)) {
-            fail('LEXICA4554', `A type is of the kind ${TYPE_KINDS.join(' or ')}, or declares its fields, and '${String(type.kind)}' is none of them`, String(type.name), 'kind');
+        if (ObjectUtils.isNonArrayObject(type) && !TYPE_KINDS.includes(type.kind)) {
+            fail('LEXICA4554', type.kind === undefined ? `A type declares its kind, ${TYPE_KINDS.join(' or ')}` : `A type is of the kind ${TYPE_KINDS.join(' or ')}, and '${String(type.kind)}' is none of them`, String(type.name), 'kind');
         }
 
-        LexicaModule.#validateKeys(type, isReferenceType ? REFERENCE_TYPE_KEYS : TYPE_KEYS, isReferenceType ? 'A reference type' : 'A type', fail);
+        LexicaModule.#validateKeys(type, TYPE_KEYS_BY_KIND[type?.kind] ?? TYPE_KEYS_BY_KIND.structured, `A ${type?.kind ?? 'structured'} type`, fail);
 
         if (!Names.isIdentifier(type?.name)) {
             fail('LEXICA4552', 'A type is named by an identifier, a letter followed by letters and digits', String(type?.name), 'name');
@@ -398,25 +408,11 @@ export class LexicaModule {
             fail('LEXICA4508', `The type imports the module '${repeated}' twice`, type.name, 'import');
         }
 
-        if (isReferenceType) {
+        if (type.kind === 'reference') {
             LexicaModule.#validateReferenceType(type, fail);
-            LexicaModule.#validateOwnMembers(type, fail, failWithin(type.name));
-
-            return;
         }
 
-        const fields = Object.entries(type.fields ?? {});
-
-        if (fields.length === 0) {
-            fail('LEXICA4509', 'A structured type declares at least one field', type.name, 'fields');
-        }
-
-        for (const [name, notation] of fields) {
-            // A field of a structured type is read after a dot, so a keyword names one.
-            if (!Names.isIdentifier(name) || !LexicaModule.#isTypeNotation(notation)) {
-                fail('LEXICA4510', `The field '${name}' is not a name with a type`, type.name, 'fields');
-            }
-        }
+        LexicaModule.#validateOwnMembers(type, fail, failWithin(type.name));
     }
 
     /** Validates a reference type's membership, the supertype it names and whether it is abstract, keeping its `isInstance` as it is. */
@@ -438,7 +434,10 @@ export class LexicaModule {
         }
     }
 
-    /** Validates the members a type declares within it, a list of members each taking the type as its receiver, so none names a target; each is located at the type. */
+    /**
+     * Validates the members a type declares within it, a list of members each taking the type as its receiver, so none names a target, a structured type's properties without updates its data shape; each is located at
+     * the type.
+     */
     static #validateOwnMembers(type, fail, failWithinType) {
         if (type.members === undefined) {
             return;
@@ -448,7 +447,7 @@ export class LexicaModule {
             fail('LEXICA4503', "A type's members are a list", type.name, 'members');
         }
 
-        type.members.forEach(member => LexicaModule.#validateMember(LexicaModule.#withoutUndefinedValues(member), failWithinType, true));
+        type.members.forEach(member => LexicaModule.#validateMember(LexicaModule.#withoutUndefinedValues(member), failWithinType, type.kind));
     }
 
     /** Creates the stored copy of a valid type: its data, and each of its own members as a member's stored copy is created. */
@@ -530,7 +529,7 @@ export class LexicaModule {
     static #validateUpdates(member, parameters, hasReceiver, name, fail) {
         const updates = LexicaModule.#withoutUndefinedValues(member.updates);
 
-        LexicaModule.#validateKeys(updates, UPDATES_KEYS, 'Its updates', (code, message, declarationName, declarationKey) => fail(code, message, declarationName, declarationKey === undefined ? 'updates' : `updates.${declarationKey}`), name);
+        LexicaModule.#validateKeys(updates, UPDATES_KEYS, 'Its updates', LexicaModule.#failUnder(fail, 'updates'), name);
 
         if (!CHANGE_CATEGORIES.includes(updates.changes) || !READING_MODES.includes(updates.reads)) {
             const updatesKey = CHANGE_CATEGORIES.includes(updates.changes) ? 'reads' : 'changes';
@@ -769,10 +768,16 @@ export class LexicaModule {
         }
     }
 
-    /** Validates a member: a flat one, which names its target where it has a receiver, or one declared within a type, whose receiver its type is, so it names none. */
-    static #validateMember(member, fail, isWithinType = false) {
+    /**
+     * Validates a member: a flat one, which names its target where it has a receiver, or one declared within a type of the kind given, whose receiver the type is, so it names none; a property a structured type declares
+     * directly without updates is a property of its data shape, which takes its name, its kind and its result alone.
+     */
+    static #validateMember(member, fail, containingKind = undefined) {
+        const isWithinType = containingKind !== undefined;
+        const isDataProperty = containingKind === 'structured' && member?.kind === 'property' && member.updates === undefined;
         // A member within a type takes the type as its receiver, so it takes no target.
-        const memberKeys = isWithinType ? MEMBER_KEYS.filter(key => key !== 'target') : MEMBER_KEYS;
+        const memberKeys = isDataProperty ? DATA_PROPERTY_KEYS : isWithinType ? MEMBER_KEYS.filter(key => key !== 'target') : MEMBER_KEYS;
+        const kindKeys = isDataProperty ? [] : (MEMBER_KEYS_BY_KIND[member?.kind] ?? []);
 
         if (!ObjectUtils.isNonArrayObject(member)) {
             fail('LEXICA4504', `A member is an object declaring ${memberKeys.join(', ')} and what its kind takes`);
@@ -794,7 +799,7 @@ export class LexicaModule {
             fail('LEXICA4524', `A member is one of ${MEMBER_KINDS.join(', ')}`, name, 'kind');
         }
 
-        LexicaModule.#validateKeys(member, [...memberKeys, ...MEMBER_KEYS_BY_KIND[member.kind]], `A member of kind '${member.kind}'`, fail);
+        LexicaModule.#validateKeys(member, [...memberKeys, ...kindKeys], isDataProperty ? "A property of a structured type's data" : `A member of kind '${member.kind}'`, fail);
 
         const hasReceiver = isWithinType || member.target !== undefined;
 
@@ -838,7 +843,12 @@ export class LexicaModule {
         LexicaModule.#validateSelections(member, parameters, name, fail);
         LexicaModule.#validateSyntax(member, parameters, hasReceiver, name, fail);
 
-        if (MEMBER_KEYS_BY_KIND[member.kind].includes('updates') && !isInvokedByHost) {
+        if (kindKeys.includes('updates') && !isInvokedByHost) {
+            // A property declared directly in a structured type without updates is its data, which Lexica reads; any other property declares how it changes and how it reads, as a function does.
+            if (member.updates === undefined && member.kind === 'property') {
+                fail('LEXICA4032', "It declares its updates, how it changes and how it reads, since only a property declared directly in a structured type declares none, and is that type's data", name, 'updates');
+            }
+
             if (member.updates === undefined) {
                 fail('LEXICA4003', 'It declares its updates, how it changes and how it reads', name, 'updates');
             }
@@ -974,7 +984,7 @@ export class LexicaModule {
     }
 
     static #validateParameter(parameter, memberName, fail) {
-        LexicaModule.#validateKeys(parameter, PARAMETER_KEYS, 'A parameter', (code, message, declarationName, declarationKey) => fail(code, message, declarationName, declarationKey === undefined ? 'parameters' : `parameters.${declarationKey}`), memberName);
+        LexicaModule.#validateKeys(parameter, PARAMETER_KEYS, 'A parameter', LexicaModule.#failUnder(fail, 'parameters'), memberName);
 
         const declarationKey = 'parameters';
 

@@ -2,12 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
+import { dataPropertyDeclarations } from './support/declarations.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
 /** A plain host's module, of no domain: an order's total within a cent, a discount by code, and a product's stock, maintained by an observation the host samples. */
 const createShop = () => lexica.createModule('shop', {
-    types: [{ name: 'Price', fields: { amount: 'Number', currency: 'String' } }],
+    types: [{ name: 'Price', kind: 'structured', members: dataPropertyDeclarations({ amount: 'Number', currency: 'String' }) }],
     observationTypes: [{ name: 'stock', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 0 }) }) }],
     members: [
         property('total', 'String', 'Price', { updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 }, impl: ({ receiver, env }) => ({ amount: env.prices[receiver], currency: 'EUR' }) }),
@@ -221,7 +222,7 @@ describe('the declaration shape', () => {
     });
 
     it('refuses to evaluate an expression that converts through a conversion without an implementation, in a branch it may not take as well', () => {
-        const cups = lexica.createModule('cups', { types: [{ name: 'Cup', fields: { size: 'Number' } }], conversions: [{ from: 'String', to: 'Cup' }] });
+        const cups = lexica.createModule('cups', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }], conversions: [{ from: 'String', to: 'Cup' }] });
         const resolution = lexica.createRegistry([cups]).resolve('if large then (order to Cup).size else 0 end', { order: 'tall', large: false });
 
         expect(errorThrownBy(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'String to Cup', declarationKey: 'impl' } });

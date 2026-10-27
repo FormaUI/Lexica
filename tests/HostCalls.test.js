@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
-import { hostFunctionDeclaration } from './support/declarations.mjs';
+import { dataPropertyDeclarations, hostFunctionDeclaration } from './support/declarations.mjs';
 import { resolveWith } from './support/pipeline.mjs';
 
 const { property, valueParameter } = lexica.declarations;
@@ -15,7 +15,7 @@ const { property, valueParameter } = lexica.declarations;
  * from the environment as it is when read; and a device's partner, which none has. The room and the level record each invocation, so a test sees which ran.
  */
 const createHome = (invoked = []) => lexica.createModule('home', {
-    types: [{ name: 'Motion', fields: { at: 'Number', strength: 'Number' } }, { name: 'Change', fields: { setting: 'String', value: 'String?' } }],
+    types: [{ name: 'Motion', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number', strength: 'Number' }) }, { name: 'Change', kind: 'structured', members: dataPropertyDeclarations({ setting: 'String', value: 'String?' }) }],
     typeSelectors: [{ name: 'event' }, { name: 'reading' }],
     selectableTypes: [
         { name: 'motion', selector: 'event', type: 'Motion' },
@@ -318,8 +318,8 @@ describe('values a host supplies', () => {
     /** A desk's module: a report its host supplies, with references, data and spots nested in it; a spot that may be none; and a spot a member answers, which its implementation answers with no label. */
     const createReports = () => lexica.createModule('reports', withHome({
         types: [
-            { name: 'Spot', fields: { x: 'Number', label: 'String?' } },
-            { name: 'Report', fields: { target: 'Light?', owner: 'Light', note: 'String?', count: 'Number', spot: 'Spot?', spots: 'List<Spot>' } },
+            { name: 'Spot', kind: 'structured', members: dataPropertyDeclarations({ x: 'Number', label: 'String?' }) },
+            { name: 'Report', kind: 'structured', members: dataPropertyDeclarations({ target: 'Light?', owner: 'Light', note: 'String?', count: 'Number', spot: 'Spot?', spots: 'List<Spot>' }) },
         ],
         members: [
             lexica.declarations.function('report', 'String', 'Report', { invokedBy: 'host' }),

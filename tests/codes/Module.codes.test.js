@@ -3,7 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { withHome } from '../support/home.mjs';
 import { errorThrownBy, expectLexicaError, expectModuleError } from '../support/errors.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { functionDeclaration, parameterDeclaration, propertyDeclaration } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, functionDeclaration, parameterDeclaration, propertyDeclaration } from '../support/declarations.mjs';
 
 const observable = observations => ({ changes: 'observable', reads: 'fresh', observations });
 
@@ -55,7 +55,6 @@ describe('the module error codes', () => {
             expectModuleCode(creating({ members: [propertyDeclaration({ syntax: 'function-call' })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [propertyDeclaration({ updates: { ...constantUpdates, tolerence: 1 } })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ fixd: true })] })] }), 'LEXICA4030');
-            expectModuleCode(creating({ types: [{ name: 'Chart', fields: { points: 'Number' }, members: [] }] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [hostCall({ updates: constantUpdates })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [hostCall({ impl: () => 1 })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ fixed: false })] })] }), 'LEXICA4030');
@@ -70,15 +69,15 @@ describe('the module error codes', () => {
     });
 
     describe('of a type', () => {
-        const fields = { points: 'Number' };
+        const structured = (overrides = {}) => ({ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }), ...overrides });
         const reference = (overrides = {}) => ({ name: 'Lamp', kind: 'reference', isInstance: () => true, ...overrides });
 
-        it('LEXICA4554: a type of a kind that is none of a type\'s kinds', () => {
-            expectModuleCode(creating({ types: [{ name: 'Lamp', kind: 'object', fields }] }), 'LEXICA4554');
+        it('LEXICA4554: a type of a kind that is none of a type\'s kinds, or of no kind', () => {
+            expectModuleCode(creating({ types: [structured({ kind: 'object' })] }), 'LEXICA4554');
+            expectModuleCode(creating({ types: [structured({ kind: undefined })] }), 'LEXICA4554');
         });
 
         it('LEXICA4556: a type of a kind the declaration model brings', () => {
-            expectModuleCode(creating({ types: [{ name: 'Climate', kind: 'structured', fields }] }), 'LEXICA4556');
             expectModuleCode(creating({ types: [{ name: 'Lamps', kind: 'extension', target: 'Light' }] }), 'LEXICA4556');
         });
 
@@ -95,13 +94,14 @@ describe('the module error codes', () => {
             expectModuleCode(creating({ types: [reference({ abstract: 'yes' })] }), 'LEXICA4555');
         });
 
-        it('LEXICA4030: a field a reference type does not take, its fields among them', () => {
-            expectModuleCode(creating({ types: [reference({ fields })] }), 'LEXICA4030');
-            expectModuleCode(creating({ types: [{ name: 'Chart', fields, supertype: 'Lamp' }] }), 'LEXICA4030');
+        it('LEXICA4030: a declaration key a type\'s kind does not take, a type-level fields collection among them', () => {
+            expectModuleCode(creating({ types: [reference({ fields: { points: 'Number' } })] }), 'LEXICA4030');
+            expectModuleCode(creating({ types: [structured({ fields: { points: 'Number' } })] }), 'LEXICA4030');
+            expectModuleCode(creating({ types: [structured({ supertype: 'Lamp' })] }), 'LEXICA4030');
         });
 
         it('LEXICA4016: a supertype that is not a reference type', () => {
-            expectModuleCode(registering(module('charts', { types: [{ name: 'Chart', fields }, reference({ supertype: 'Chart' })] })), 'LEXICA4016');
+            expectModuleCode(registering(module('charts', { types: [structured(), reference({ supertype: 'Chart' })] })), 'LEXICA4016');
             expectModuleCode(registering(module('charts', { types: [reference({ supertype: 'String' })] })), 'LEXICA4016');
         });
 
@@ -110,38 +110,45 @@ describe('the module error codes', () => {
             expectModuleCode(registering(module('charts', { types: [reference({ supertype: 'Lamp' })] })), 'LEXICA4050');
         });
 
-        it('takes a type of any name, a lowercase one and one Lexica\'s own types spell among them', () => {
+        it('takes a type of any name, a lowercase one and one Lexica\'s own types spell among them, and a structured type of no data property', () => {
             for (const name of ['chart', 'Number', 'Null', 'List']) {
-                expect(() => lexica.createRegistry([module('charts', { types: [{ name, fields }] })])).not.toThrow();
+                expect(() => lexica.createRegistry([module('charts', { types: [structured({ name })] })])).not.toThrow();
             }
+
+            expect(lexica.createRegistry([module('charts', { types: [structured({ members: [] }), structured({ name: 'Axis', members: undefined })] })]).moduleNames).toContain('charts');
         });
 
         it('LEXICA4552: a type whose name is not an identifier', () => {
-            expectModuleCode(creating({ types: [{ name: 'Chart_1', fields }] }), 'LEXICA4552');
-            expectModuleCode(creating({ types: [{ fields }] }), 'LEXICA4552');
+            expectModuleCode(creating({ types: [structured({ name: 'Chart_1' })] }), 'LEXICA4552');
+            expectModuleCode(creating({ types: [structured({ name: undefined })] }), 'LEXICA4552');
         });
 
-
         it('LEXICA4506: a type named by a single capital letter', () => {
-            expectModuleCode(creating({ types: [{ name: 'C', fields }] }), 'LEXICA4506');
+            expectModuleCode(creating({ types: [structured({ name: 'C' })] }), 'LEXICA4506');
         });
 
         it('LEXICA4507: a type whose import is not a list of module names', () => {
-            expectModuleCode(creating({ types: [{ name: 'Chart', fields, import: 'axes' }] }), 'LEXICA4507');
-            expectModuleCode(creating({ types: [{ name: 'Chart', fields, import: ['axes-two'] }] }), 'LEXICA4507');
+            expectModuleCode(creating({ types: [structured({ import: 'axes' })] }), 'LEXICA4507');
+            expectModuleCode(creating({ types: [structured({ import: ['axes-two'] })] }), 'LEXICA4507');
         });
 
         it('LEXICA4508: a type importing a module twice', () => {
-            expectModuleCode(creating({ types: [{ name: 'Chart', fields, import: ['axes', 'axes'] }] }), 'LEXICA4508');
+            expectModuleCode(creating({ types: [structured({ import: ['axes', 'axes'] })] }), 'LEXICA4508');
         });
 
-        it('LEXICA4509: a structured type of no field', () => {
-            expectModuleCode(creating({ types: [{ name: 'Chart' }] }), 'LEXICA4509');
+        it('LEXICA4503: a type\'s members that are not a list', () => {
+            expectModuleCode(creating({ types: [structured({ members: {} })] }), 'LEXICA4503');
         });
 
-        it('LEXICA4510: a field of a structured type that is not a name with a type', () => {
-            expectModuleCode(creating({ types: [{ name: 'Chart', fields: { 'point-count': 'Number' } }] }), 'LEXICA4510');
-            expectModuleCode(creating({ types: [{ name: 'Chart', fields: { points: 'List<' } }] }), 'LEXICA4510');
+        it('LEXICA4032: a property declared without updates anywhere but directly in a structured type', () => {
+            expectModuleCode(creating({ members: [propertyDeclaration({ updates: undefined })] }), 'LEXICA4032');
+            expectModuleCode(creating({ types: [reference({ members: [propertyDeclaration({ target: undefined, updates: undefined })] })] }), 'LEXICA4032');
+        });
+
+        it('refuses a data property that is not a name with a type, or that carries an impl, which Lexica never invokes', () => {
+            expectModuleCode(creating({ types: [structured({ members: dataPropertyDeclarations({ 'point-count': 'Number' }) })] }), 'LEXICA4523');
+            expectModuleCode(creating({ types: [structured({ members: dataPropertyDeclarations({ points: 'List<' }) })] }), 'LEXICA4512');
+            expectModuleCode(creating({ types: [structured({ members: [{ name: 'points', kind: 'property', result: 'Number', impl: () => 1 }] })] }), 'LEXICA4030');
         });
     });
 
@@ -215,7 +222,6 @@ describe('the module error codes', () => {
 
         it('LEXICA4003: a member without a field its kind requires', () => {
             expectModuleCode(creating({ members: [propertyDeclaration({ result: undefined })] }), 'LEXICA4003');
-            expectModuleCode(creating({ members: [propertyDeclaration({ updates: undefined })] }), 'LEXICA4003');
             expectModuleCode(creating({ members: [functionDeclaration({ arguments: undefined })] }), 'LEXICA4003');
         });
 
@@ -479,7 +485,7 @@ describe('the module error codes', () => {
     describe('of a conversion', () => {
         it('LEXICA4065: a conversion from or to a type that is not data', () => {
             expectModuleCode(creating({ conversions: [{ from: 'String?', to: 'Number' }] }), 'LEXICA4065');
-            expectModuleCode(registering(module('charts', withHome({ types: [{ name: 'Holder', fields: { lamp: 'Light' } }], conversions: [{ from: 'String', to: 'Holder' }] }))), 'LEXICA4065');
+            expectModuleCode(registering(module('charts', withHome({ types: [{ name: 'Holder', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light' }) }], conversions: [{ from: 'String', to: 'Holder' }] }))), 'LEXICA4065');
         });
 
         it('LEXICA4066: a conversion from a type to itself', () => {
@@ -491,14 +497,14 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4069: a conversion its module declares twice', () => {
-            const box = { name: 'Box', fields: { width: 'Number' } };
+            const box = { name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) };
 
             expectModuleCode(registering(module('charts', { types: [box], conversions: [{ from: 'String', to: 'Box' }, { from: 'String', to: 'Box' }] })), 'LEXICA4069');
         });
     });
 
     describe('of registering a module', () => {
-        const chart = { name: 'Chart', fields: { points: 'Number' } };
+        const chart = { name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) };
 
         it('LEXICA4546: registering what createModule did not make', () => {
             expectModuleCode(registering({ name: 'fake', members: [] }), 'LEXICA4546');
@@ -526,7 +532,7 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4047: a type reference resolving to no type', () => {
-            const axes = module('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
+            const axes = module('axes', { types: [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ length: 'Number' }) }] });
 
             expectModuleCode(registering(module('charts', { members: [propertyDeclaration({ result: 'Chart' })] })), 'LEXICA4047');
             expectModuleCode(registering(module('charts', { members: [propertyDeclaration({ result: 'axes.Axis' })] })), 'LEXICA4047');
@@ -534,13 +540,13 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4048: a type reference resolving to several types', () => {
-            const axis = { name: 'Axis', fields: { length: 'Number' } };
+            const axis = { name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ length: 'Number' }) };
 
-            expectModuleCode(registering(module('axes', { types: [axis] }), module('scales', { types: [axis] }), module('charts', { types: [{ name: 'Chart', fields: { axis: 'Axis' }, import: ['axes', 'scales'] }] })), 'LEXICA4048');
+            expectModuleCode(registering(module('axes', { types: [axis] }), module('scales', { types: [axis] }), module('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'Axis' }), import: ['axes', 'scales'] }] })), 'LEXICA4048');
         });
 
         it('LEXICA4049: a foreign type named unqualified outside its import', () => {
-            expectModuleCode(registering(module('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] }), module('charts', { members: [propertyDeclaration({ result: 'Axis' })] })), 'LEXICA4049');
+            expectModuleCode(registering(module('axes', { types: [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ length: 'Number' }) }] }), module('charts', { members: [propertyDeclaration({ result: 'Axis' })] })), 'LEXICA4049');
         });
 
         it('LEXICA4549: a module member its module declares twice', () => {

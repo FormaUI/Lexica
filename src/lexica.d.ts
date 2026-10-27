@@ -90,12 +90,20 @@ export interface LexicaReferenceTypeDeclaration {
     members?: LexicaMemberDeclaration[];
 }
 
-/** A structured type a module declares: its name, its fields' types and the modules whose types its fields name unqualified. */
+/** A structured type a module declares, a type of immutable data: its name, the modules whose types its declaration names unqualified, its own members included, and its own members, its data shape among them. */
 export interface LexicaStructuredTypeDeclaration {
     name: string;
-    fields: Record<string, string>;
+    kind: 'structured';
     import?: string[];
+    /**
+     * The members it declares within it, each taking it as its receiver, so none names a `target`: its data shape is the properties it declares without `updates`, each naming its value's type as its `result`, which
+     * Lexica reads from the data and never invokes, so each takes no `impl`.
+     */
+    members?: LexicaMemberDeclaration[];
 }
+
+/** A type a module declares, of the kind it says. */
+export type LexicaTypeDeclaration = LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration;
 
 /** The input a projected item came from, of the kind its established type gives it: a reference as the host holds it, data as Lexica's own frozen copy, or null. */
 export type LexicaProjectionSource = { readonly kind: 'reference'; readonly value: unknown } | { readonly kind: 'data'; readonly value: unknown } | { readonly kind: 'null' };
@@ -314,7 +322,7 @@ export interface LexicaModuleContents {
     /** Its recognition of a host's value: the name of the most specific of its own reference types the value is of, or null. */
     typeOf?(value: unknown): string | null;
     /** The reference types and the structured types it declares. */
-    types?: (LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration)[];
+    types?: LexicaTypeDeclaration[];
     /** Its members, each named as a name is; a test of a receiver is a function whose result is a boolean. */
     members?: LexicaMemberDeclaration[];
     /** The type selectors it declares, each by its name alone, named once across every module. */
@@ -333,7 +341,7 @@ export interface LexicaModuleContents {
 export interface LexicaModule {
     readonly name: string;
     readonly typeOf: ((value: unknown) => string | null) | undefined;
-    readonly types: readonly Readonly<LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration>[];
+    readonly types: readonly Readonly<LexicaTypeDeclaration>[];
     readonly members: readonly LexicaMemberDeclaration[];
     readonly typeSelectors: readonly LexicaTypeSelectorDeclaration[];
     readonly selectableTypes: readonly LexicaSelectableTypeDeclaration[];

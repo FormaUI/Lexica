@@ -3,7 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Room, withHome } from '../support/home.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { hostFunctionDeclaration } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, hostFunctionDeclaration } from '../support/declarations.mjs';
 
 const { property, valueParameter, expressionParameter, functionParameter } = lexica.declarations;
 
@@ -17,7 +17,7 @@ const call = (name, target, result, options = {}) => lexica.declarations.functio
  * parameters on a list, on a word and on no receiver, members of one name for two kinds of list, module members, host calls and a structured type converted from a word.
  */
 const createShop = () => lexica.createModule('shop', withHome({
-    types: [{ name: 'Cup', fields: { size: 'Number' } }],
+    types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
     typeSelectors: [{ name: 'flavor' }],
     selectableTypes: [{ name: 'size', selector: 'flavor', type: 'Number' }],
     conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
@@ -203,7 +203,7 @@ describe('the codes of resolution', () => {
         it('LEXICA3019, a type qualified by a module the registry does not hold', () => expectResolutionCode('s to elsewhere.Cup', 'LEXICA3019'));
         it('LEXICA3019, a type qualified by a module that does not declare it', () => expectResolutionCode('s to shop.Mug', 'LEXICA3019'));
         it('LEXICA3059, a type several modules share unqualified', () => {
-            const mugs = lexica.createModule('mugs', { types: [{ name: 'Cup', fields: { size: 'Number' } }] });
+            const mugs = lexica.createModule('mugs', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }] });
 
             expectResolutionCode('s to Cup', 'LEXICA3059', 'validation', values, [mugs]);
         });

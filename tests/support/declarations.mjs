@@ -21,3 +21,6 @@ export const parameterDeclaration = (overrides = {}) => ({ name: 'amount', kind:
 
 /** A function the host invokes, declared through the declaration helpers as a host declares one, of the receiver and the result given. */
 export const hostFunctionDeclaration = (name, target, result, options = {}) => lexica.declarations.function(name, target, result, { invokedBy: 'host', ...options });
+
+/** The data properties of a structured type's data shape, in the declaration shape, from the type of each property by its name: each a property without updates, which Lexica reads from the data. */
+export const dataPropertyDeclarations = shape => Object.entries(shape).map(([name, result]) => ({ name, kind: 'property', result }));

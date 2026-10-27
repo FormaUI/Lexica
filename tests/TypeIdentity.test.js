@@ -3,12 +3,13 @@ import { lexica } from '#lexica/lexica.js';
 import { errorThrownBy, messageThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { evaluateWith } from './support/pipeline.mjs';
+import { dataPropertyDeclarations } from './support/declarations.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
 /** A module declaring a structured type `Sensor` of the field given, a module member answering one, and a conversion from a string to it. */
 const sensors = (name, field) => lexica.createModule(name, {
-    types: [{ name: 'Sensor', fields: { [field]: 'Number' } }],
+    types: [{ name: 'Sensor', kind: 'structured', members: dataPropertyDeclarations({ [field]: 'Number' }) }],
     members: [property('sensor', null, 'Sensor', { updates: constantUpdates, impl: () => ({ [field]: 1 }) })],
     conversions: [{ from: 'String', to: 'Sensor', impl: ({ value }) => ({ [field]: value.length }) }],
 });
@@ -46,7 +47,7 @@ describe('type identity', () => {
     describe("of a module's type spelled as one of Lexica's own", () => {
         it("leaves an unqualified name Lexica's own, the module's named qualified, and a declaration of the module naming its own", () => {
             const measures = lexica.createModule('measures', {
-                types: [{ name: 'Number', fields: { amount: 'String' } }],
+                types: [{ name: 'Number', kind: 'structured', members: dataPropertyDeclarations({ amount: 'String' }) }],
                 conversions: [{ from: 'String', to: 'Number', impl: ({ value }) => ({ amount: value }) }],
             });
 
@@ -57,7 +58,7 @@ describe('type identity', () => {
 
     describe('of a reference in a declaration', () => {
         it('resolves a foreign type written qualified, and refuses one written unqualified, giving its qualified name', () => {
-            const axes = lexica.createModule('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
+            const axes = lexica.createModule('axes', { types: [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ length: 'Number' }) }] });
             const charting = result => lexica.createModule('charts', { members: [property('axis', null, result, { updates: constantUpdates, impl: () => ({ length: 2 }) })] });
 
             expect(evaluateWith([axes, charting('axes.Axis')], 'charts.axis.length')).toBe(2);
@@ -66,23 +67,23 @@ describe('type identity', () => {
         });
 
         it('resolves a structured type\'s fields among the modules it imports, its own module first, and refuses a name two imports share', () => {
-            const declaring = (name, fields) => lexica.createModule(name, { types: [{ name: 'Axis', fields }] });
+            const declaring = (name, fields) => lexica.createModule(name, { types: [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations(fields) }] });
             const charting = (type, ownTypes = []) => lexica.createModule('charts', {
                 types: [type, ...ownTypes],
                 members: [property('chart', null, 'Chart', { updates: constantUpdates, impl: () => ({ axis: { length: 2, step: 1 } }) })],
             });
-            const chart = imports => ({ name: 'Chart', fields: { axis: 'Axis' }, import: imports });
+            const chart = imports => ({ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'Axis' }), import: imports });
 
             expect(evaluateWith([declaring('axes', { length: 'Number' }), charting(chart(['axes']))], 'charts.chart.axis.length')).toBe(2);
-            expect(evaluateWith([declaring('axes', { length: 'Number' }), charting(chart(['axes']), [{ name: 'Axis', fields: { step: 'Number' } }])], 'charts.chart.axis.step')).toBe(1);
+            expect(evaluateWith([declaring('axes', { length: 'Number' }), charting(chart(['axes']), [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ step: 'Number' }) }])], 'charts.chart.axis.step')).toBe(1);
             expect(messageThrownBy(() => lexica.createRegistry([declaring('axes', { length: 'Number' }), declaring('grids', { step: 'Number' }), charting(chart(['axes', 'grids']))]))).toContain('so it is named qualified: axes.Axis or grids.Axis');
             expect(messageThrownBy(() => lexica.createRegistry([charting(chart(['axes']))]))).toContain("The type imports the module 'axes', which is not registered");
         });
 
         it('lets a type\'s import reach its own fields alone, never its module\'s members', () => {
-            const axes = lexica.createModule('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
+            const axes = lexica.createModule('axes', { types: [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ length: 'Number' }) }] });
             const charts = lexica.createModule('charts', {
-                types: [{ name: 'Chart', fields: { axis: 'Axis' }, import: ['axes'] }],
+                types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'Axis' }), import: ['axes'] }],
                 members: [property('axis', null, 'Axis', { updates: constantUpdates })],
             });
 
@@ -91,7 +92,7 @@ describe('type identity', () => {
 
         it('takes a type named as a node of Lexica\'s in its own module, where it names that type, and leaves Lexica\'s node to every other', () => {
             const shapes = lexica.createModule('shapes', {
-                types: [{ name: 'Element', fields: { width: 'Number' } }],
+                types: [{ name: 'Element', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }],
                 members: [property('element', null, 'Element', { updates: constantUpdates, impl: () => ({ width: 3 }) })],
             });
 

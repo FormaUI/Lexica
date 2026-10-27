@@ -3,6 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { evaluateWith, resolveWith } from './support/pipeline.mjs';
+import { dataPropertyDeclarations } from './support/declarations.mjs';
 
 const { property, valueParameter } = lexica.declarations;
 
@@ -178,7 +179,7 @@ describe('indexers and computed properties', () => {
     describe('a property read by a computed name', () => {
         /** A module whose `size` answers what the test gives it and `cup`, a structure, a copy of the one it answers. */
         const createCups = size => lexica.createModule('cups', {
-            types: [{ name: 'Cup', fields: { volume: 'Number' } }],
+            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ volume: 'Number' }) }],
             members: [
                 property('size', 'String', 'Number', { updates: constantUpdates, impl: () => size }),
                 property('cup', 'String', 'Cup', { updates: constantUpdates, impl: () => ({ volume: 2, lid: true }) }),
@@ -198,7 +199,7 @@ describe('indexers and computed properties', () => {
 
     describe('a type name qualified by its module', () => {
         const createCups = () => lexica.createModule('cups', {
-            types: [{ name: 'Cup', fields: { size: 'Number' } }],
+            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
             conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
         });
 

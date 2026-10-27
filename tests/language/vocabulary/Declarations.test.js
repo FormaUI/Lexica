@@ -16,7 +16,7 @@ describe('Declarations', () => {
     it('writes the updates a member is given, and none it isn\'t, so a member without them is refused for what it lacks', () => {
         expect(Declarations.property('price', 'String', 'Number', { updates: constantUpdates }).updates).toEqual(constantUpdates);
         expect(Declarations.property('price', 'String', 'Number')).not.toHaveProperty('updates');
-        expect(refusalOf([Declarations.property('price', 'String', 'Number', { impl: () => 1 })])).toEqual({ code: 'LEXICA4003', location: { module: 'shop', declaration: 'price', declarationKey: 'updates' } });
+        expect(refusalOf([Declarations.property('price', 'String', 'Number', { impl: () => 1 })])).toEqual({ code: 'LEXICA4032', location: { module: 'shop', declaration: 'price', declarationKey: 'updates' } });
         expect(() => new LexicaModule('shop', { members: [Declarations.property('price', 'String', 'Number', { updates: constantUpdates, impl: () => 1 })] })).not.toThrow();
     });
 

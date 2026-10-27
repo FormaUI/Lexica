@@ -32,7 +32,7 @@ A module declares what scripts can read: its types, and the members it adds to t
 const { property, function: fn, valueParameter } = lexica.declarations;
 
 const shop = lexica.createModule('Shop', {
-    types: [{ name: 'Price', fields: { amount: 'Number', currency: 'String' } }],
+    types: [{ name: 'Price', kind: 'structured', members: [{ name: 'amount', kind: 'property', result: 'Number' }, { name: 'currency', kind: 'property', result: 'String' }] }],
     members: [
         property('price', 'String', 'Price', {
             updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 },

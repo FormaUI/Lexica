@@ -240,8 +240,8 @@ export class LexicaRegistry {
     }
 
     /**
-     * The notations of the types the member applies to, in the order it declares them: its type's local name for a member declared within it, which resolves to that type in its module as any notation does, and its target
-     * otherwise, a type, a list of them or 'any'; none for a module member.
+     * How the types the member applies to are written, in the order it declares them, as a message names them: its type's local name for a member declared within it, whose receiver is that type, and its target otherwise,
+     * a type, a list of them or 'any'; none for a module member.
      */
     #receiverNotationsOf(declaration) {
         const type = this.#containingTypes.get(declaration);
@@ -298,8 +298,14 @@ export class LexicaRegistry {
         return types.get(notation);
     }
 
-    /** The types the member applies to, in the order it declares them: each a type, a type parameter for a receiver of any type, or 'any'. */
+    /** The types the member applies to, in the order it declares them: each a type, a type parameter for a receiver of any type, or 'any'; the type a member declared within it stands in, which is its receiver. */
     getTargetTypes(declaration) {
+        const type = this.#containingTypes.get(declaration);
+
+        if (type !== undefined) {
+            return [Type.createNamedType(type.name, false, this.getDeclaringModuleName(declaration))];
+        }
+
         return this.#receiverNotationsOf(declaration).map(notation => (notation === 'any' ? notation : this.getDeclaredType(declaration, notation)));
     }
 
@@ -307,7 +313,12 @@ export class LexicaRegistry {
     getStructure(type) {
         const declared = this.#typeDeclarationOf(type);
 
-        return declared?.kind === 'reference' ? undefined : declared;
+        return declared?.kind === 'structured' ? declared : undefined;
+    }
+
+    /** Whether the member is a property of a structured type's data shape: a property the structured type declares directly without updates, which Lexica reads from the data and never invokes. */
+    isDataProperty(declaration) {
+        return declaration.kind === 'property' && declaration.updates === undefined && this.#containingTypes.get(declaration)?.kind === 'structured';
     }
 
     /** The reference type the named type is, or undefined for a type no module declares as one. */
@@ -438,8 +449,8 @@ export class LexicaRegistry {
     }
 
     /**
-     * Returns the structured type's data properties and their types, in declaration order, or null if the supplied type does not name a structured type; a structured type of no data properties would answer an empty
-     * map, though module creation requires one at least. The map is kept in the data-shape cache.
+     * Returns the structured type's data properties and their types, in declaration order, or null if the supplied type does not name a structured type; a structured type of no data properties answers an empty map.
+     * The map is kept in the data-shape cache.
      * @returns {ReadonlyMap<string, Type> | null}
      */
     getDataShape(type) {
@@ -452,7 +463,7 @@ export class LexicaRegistry {
         let shape = this.#dataShapeCache.get(structure);
 
         if (shape === undefined) {
-            shape = new Map(Object.entries(structure.fields).map(([name, notation]) => [name, this.getDeclaredType(structure, notation)]));
+            shape = new Map(LexicaRegistry.#dataPropertiesOf(structure).map(property => [property.name, this.getDeclaredType(property, property.result)]));
             this.#dataShapeCache.set(structure, shape);
         }
 
@@ -461,7 +472,14 @@ export class LexicaRegistry {
 
     /** The types of the data properties of the name, across every structured type, as each declares it. */
     getDataPropertyTypes(propertyName) {
-        return [...this.#types.values()].flatMap(type => (type.kind !== 'reference' && Object.hasOwn(type.fields, propertyName) ? [this.getDeclaredType(type, type.fields[propertyName])] : []));
+        return [...this.#types.values()]
+            .filter(type => type.kind === 'structured')
+            .flatMap(type => LexicaRegistry.#dataPropertiesOf(type).filter(property => property.name === propertyName).map(property => this.getDeclaredType(property, property.result)));
+    }
+
+    /** The properties the structured type declares directly without updates, its data shape, in the order it declares them. */
+    static #dataPropertiesOf(structure) {
+        return (structure.members ?? []).filter(member => member.kind === 'property' && member.updates === undefined);
     }
 
     /** The names of the registered modules that declare a type of the local name, in the order they were registered. */
@@ -620,8 +638,6 @@ export class LexicaRegistry {
      */
     #resolveDeclaredTypes(module, members) {
         for (const type of module.types) {
-            Object.values(type.fields ?? {}).forEach(notation => this.getDeclaredType(type, notation));
-
             if (type.supertype !== undefined) {
                 this.getDeclaredType(type, type.supertype);
             }
@@ -630,7 +646,10 @@ export class LexicaRegistry {
         module.selectableTypes.forEach(selectable => this.getDeclaredType(selectable, selectable.type));
 
         for (const declaration of members) {
-            this.#receiverNotationsOf(declaration).filter(notation => notation !== 'any').forEach(notation => this.getDeclaredType(declaration, notation));
+            // A member declared within a type has that type for its receiver, written by no notation.
+            if (!this.#containingTypes.has(declaration)) {
+                this.#receiverNotationsOf(declaration).filter(notation => notation !== 'any').forEach(notation => this.getDeclaredType(declaration, notation));
+            }
 
             if (declaration.result !== undefined) {
                 this.getDeclaredType(declaration, declaration.result);

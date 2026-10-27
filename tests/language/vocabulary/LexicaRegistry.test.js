@@ -5,12 +5,12 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../../support/home.mjs';
 import { expectModuleError } from '../../support/errors.mjs';
-import { functionDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
+import { dataPropertyDeclarations, functionDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
 
 describe('LexicaRegistry', () => {
     const own = () => new LexicaModule('charts', {
-        types: [{ name: 'Chart', fields: { points: 'Number' } }],
-        members: [propertyDeclaration({ name: 'points', target: 'Chart' }), propertyDeclaration({ name: 'charts', target: 'String' })],
+        types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }],
+        members: [propertyDeclaration({ name: 'scale', target: 'Chart' }), propertyDeclaration({ name: 'charts', target: 'String' })],
     });
 
     it('registers Lexica\'s own module and a module beside it', () => {
@@ -31,7 +31,7 @@ describe('LexicaRegistry', () => {
 
         expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'Chart' })] })).toContain("'Chart' names the type 'Chart', which neither Lexica nor a module registered with it declares");
         expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'List<Chart?>' })] })).toContain("'List<Chart?>' names the type 'Chart'");
-        expect(failing({ types: [{ name: 'Chart', fields: { axis: 'Axis' } }] })).toContain("names the type 'Axis'");
+        expect(failing({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'Axis' }) }] })).toContain("names the type 'Axis'");
         expect(failing({ typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'chartclick', selector: 'report', type: 'ChartEvent' }] })).toContain("names the type 'ChartEvent'");
         expect(failing({ members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'range', type: 'Range' })] })] })).toContain("names the type 'Range'");
     });
@@ -43,10 +43,10 @@ describe('LexicaRegistry', () => {
     });
 
     it('takes a type the module declares wherever it declares it, and one an earlier module declares, qualified, whatever the order of the declarations', () => {
-        const axes = new LexicaModule('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
+        const axes = new LexicaModule('axes', { types: [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ length: 'Number' }) }] });
         const charts = new LexicaModule('charts', {
             members: [propertyDeclaration({ name: 'charts', result: 'Chart' })],
-            types: [{ name: 'Chart', fields: { axis: 'axes.Axis', domain: 'List<Number>' } }],
+            types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'axes.Axis', domain: 'List<Number>' }) }],
         });
 
         expect(() => new LexicaRegistry([Vocabulary.module, axes, charts])).not.toThrow();
@@ -54,7 +54,7 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a default its parameter does not admit, by its type, its nullability and a structure\'s fields', () => {
-        const range = new LexicaModule('ranges', { types: [{ name: 'Range', fields: { start: 'Number', end: 'Number?' } }] });
+        const range = new LexicaModule('ranges', { types: [{ name: 'Range', kind: 'structured', members: dataPropertyDeclarations({ start: 'Number', end: 'Number?' }) }] });
         const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, range, new LexicaModule('charts', withHome({
             members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'value', type, required: false, default: value })] })],
         }))]);
@@ -71,7 +71,7 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a default holding a number that is not finite or a list with a hole, at the top level and nested, as no evaluation produces them', () => {
-        const range = new LexicaModule('ranges', { types: [{ name: 'Range', fields: { start: 'Number', points: 'List<Number>' } }] });
+        const range = new LexicaModule('ranges', { types: [{ name: 'Range', kind: 'structured', members: dataPropertyDeclarations({ start: 'Number', points: 'List<Number>' }) }] });
         const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, range, new LexicaModule('charts', withHome({
             members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'value', type, required: false, default: value })] })],
         }))]);
@@ -102,14 +102,14 @@ describe('LexicaRegistry', () => {
     });
 
     it('takes a tolerance for a result of a structured type, whichever module declares it, now that every type is known', () => {
-        const boxes = new LexicaModule('boxes', { types: [{ name: 'Box', fields: { width: 'Number' } }] });
+        const boxes = new LexicaModule('boxes', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }] });
         const sized = new LexicaModule('sized', { members: [propertyDeclaration({ name: 'bounds', result: 'boxes.Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });
 
         expect(() => new LexicaRegistry([Vocabulary.module, boxes, sized])).not.toThrow();
     });
 
     it('lets a module declare a member of any name on a type another module or the language declares', () => {
-        const charts = new LexicaModule('charts', { types: [{ name: 'Chart', fields: { points: 'Number' } }] });
+        const charts = new LexicaModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] });
         const zoom = new LexicaModule('zoom', { members: [propertyDeclaration({ name: 'scale', target: 'charts.Chart' }), propertyDeclaration({ name: 'level', target: 'String' })] });
         const registry = new LexicaRegistry([Vocabulary.module, charts, zoom]);
 
@@ -168,7 +168,7 @@ describe('LexicaRegistry', () => {
     describe('the queries a declaration is read through', () => {
         const indexer = functionDeclaration({ name: 'letter', syntax: 'indexer', target: 'String', result: 'String?' });
         const declaring = () => new LexicaModule('home', {
-            types: [{ name: 'Room', fields: { area: 'Number' } }],
+            types: [{ name: 'Room', kind: 'structured', members: dataPropertyDeclarations({ area: 'Number' }) }],
             members: [propertyDeclaration({ name: 'now', target: undefined }), propertyDeclaration({ name: 'size', target: 'Room' }), functionDeclaration({ name: 'size', target: 'String' }), indexer],
         });
 
@@ -226,12 +226,12 @@ describe('LexicaRegistry', () => {
         const registering = contents => () => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', contents)]);
 
         expect(expectModuleError(registering({ members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] }))).toMatchObject({ module: 'charts', declaration: 'pan', message: expect.stringContaining("names the type 'Nothing'") });
-        expect(expectModuleError(registering({ types: [{ name: 'Chart', fields: { points: 'Number' } }], conversions: [{ from: 'Chart', to: 'Nothing' }] }))).toMatchObject({ module: 'charts', declaration: 'Chart to Nothing' });
+        expect(expectModuleError(registering({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }], conversions: [{ from: 'Chart', to: 'Nothing' }] }))).toMatchObject({ module: 'charts', declaration: 'Chart to Nothing' });
     });
 
     it('names the module each declaration belongs to once its module is registered, and none for a refused module\'s, which it records as registration starts', () => {
         const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [functionDeclaration({ name: 'zoom' })] })]);
-        const refused = new LexicaModule('broken', { types: [{ name: 'Box', fields: { width: 'Number' } }], members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] });
+        const refused = new LexicaModule('broken', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }], members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] });
 
         expect(() => registry.registerModule(refused)).toThrow("names the type 'Nothing'");
         expect([refused.types[0], refused.members[0]].map(declaration => registry.getDeclaringModuleName(declaration))).toEqual([undefined, undefined]);
@@ -239,13 +239,13 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a type declared twice in its module, and takes one name in two modules, each type its own', () => {
-        const pings = (name, types = [{ name: 'Ping', fields: { at: 'Number' } }]) => new LexicaModule(name, { types });
+        const pings = (name, types = [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number' }) }]) => new LexicaModule(name, { types });
 
-        expect(expectModuleError(() => pings('first', [{ name: 'Ping', fields: { at: 'Number' } }, { name: 'Ping', fields: { on: 'Number' } }]))).toMatchObject({ module: 'first', declaration: 'Ping', message: expect.stringContaining("The type 'Ping' is declared already") });
+        expect(expectModuleError(() => pings('first', [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number' }) }, { name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ on: 'Number' }) }]))).toMatchObject({ module: 'first', declaration: 'Ping', message: expect.stringContaining("The type 'Ping' is declared already") });
 
-        const registry = new LexicaRegistry([pings('first'), pings('second', [{ name: 'Ping', fields: { on: 'Boolean' } }])]);
+        const registry = new LexicaRegistry([pings('first'), pings('second', [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ on: 'Boolean' }) }])]);
 
-        expect(['first', 'second'].map(module => Object.keys(registry.getStructure(Type.createNamedType('Ping', false, module)).fields))).toEqual([['at'], ['on']]);
+        expect(['first', 'second'].map(module => registry.getStructure(Type.createNamedType('Ping', false, module)).members.map(member => member.name))).toEqual([['at'], ['on']]);
     });
 
     describe('observation types', () => {
@@ -348,7 +348,7 @@ describe('type selectors', () => {
 describe('conversions', () => {
     const STRING = Type.createNamedType('String');
     const CHART = Type.createNamedType('Chart', false, 'charts');
-    const chart = { name: 'Chart', fields: { points: 'Number' } };
+    const chart = { name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) };
     const charts = (conversions, types = [chart]) => new LexicaModule('charts', { types, conversions });
     const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, ...modules]);
 
@@ -367,7 +367,7 @@ describe('conversions', () => {
     });
 
     it('take disjoint sources to one target', () => {
-        const registry = registering(new LexicaModule('charts', { types: [chart, { name: 'Other', fields: { a: 'Number' } }], conversions: [{ from: 'String', to: 'Chart' }, { from: 'Other', to: 'Chart' }, { from: 'Number', to: 'Chart' }] }))();
+        const registry = registering(new LexicaModule('charts', { types: [chart, { name: 'Other', kind: 'structured', members: dataPropertyDeclarations({ a: 'Number' }) }], conversions: [{ from: 'String', to: 'Chart' }, { from: 'Other', to: 'Chart' }, { from: 'Number', to: 'Chart' }] }))();
 
         expect([STRING, Type.createNamedType('Other', false, 'charts'), Type.createNamedType('Number')].map(from => registry.getConversion(from, CHART)?.from)).toEqual(['String', 'Other', 'Number']);
     });
@@ -382,11 +382,11 @@ describe('conversions', () => {
     it('convert between types of data a module declares, never a reference type, one that holds a reference or one that no module declares', () => {
         expect(expectModuleError(registering(new LexicaModule('charts', withHome({ types: [chart], conversions: [{ from: 'String', to: 'Chart' }, { from: 'Light', to: 'Chart' }] })))).message).toContain("'Light' is no type of data");
         expect(expectModuleError(registering(charts([{ from: 'Axis', to: 'Chart' }]))).message).toContain("'Axis' names the type 'Axis', which neither Lexica nor a module registered with it declares");
-        expect(expectModuleError(registering(new LexicaModule('charts', withHome({ types: [{ name: 'Chart', fields: { anchor: 'Light' } }], conversions: [{ from: 'String', to: 'Chart' }] })))).message).toContain("'Chart' is no type of data");
+        expect(expectModuleError(registering(new LexicaModule('charts', withHome({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ anchor: 'Light' }) }], conversions: [{ from: 'String', to: 'Chart' }] })))).message).toContain("'Chart' is no type of data");
     });
 
     it('convert a structured type that holds a list of data as any other, a list itself waiting for the collection model', () => {
-        const registry = registering(charts([{ from: 'String', to: 'Chart' }], [{ name: 'Chart', fields: { points: 'List<Number>' } }]))();
+        const registry = registering(charts([{ from: 'String', to: 'Chart' }], [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'List<Number>' }) }]))();
 
         expect(registry.getConversion(STRING, CHART)).toBeDefined();
         expect(registry.isConvertible(CHART)).toBe(true);
@@ -395,7 +395,7 @@ describe('conversions', () => {
 
     it('classify a type as data where its values are data, an object type and a structure that holds itself among them, and a reference type or a structure holding one as no data', () => {
         const registry = registering(new LexicaModule('charts', withHome({
-            types: [chart, { name: 'Tree', fields: { children: 'List<Tree>' } }, { name: 'Holder', fields: { lamp: 'Light' } }],
+            types: [chart, { name: 'Tree', kind: 'structured', members: dataPropertyDeclarations({ children: 'List<Tree>' }) }, { name: 'Holder', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light' }) }],
         })))();
         const named = name => Type.createNamedType(name, false, 'charts');
         const data = [Type.parse('Number'), Type.parse('null'), Type.never, Type.parse('List<String?>'), Type.createObjectType(new Map([['a', Type.parse('Number')]])), CHART, named('Tree')];
@@ -407,7 +407,7 @@ describe('conversions', () => {
 
     it('convert a structured type that holds null, Never or a list of null as data, while null, Never, a list and a nullable type stay no endpoint', () => {
         for (const fieldType of ['null', 'Never', 'List<null>']) {
-            const registry = registering(charts([{ from: 'String', to: 'Chart' }, { from: 'Chart', to: 'String' }], [{ name: 'Chart', fields: { points: fieldType } }]))();
+            const registry = registering(charts([{ from: 'String', to: 'Chart' }, { from: 'Chart', to: 'String' }], [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: fieldType }) }]))();
 
             expect(registry.getConversion(STRING, CHART), fieldType).toBeDefined();
             expect(registry.getConversion(CHART, STRING), fieldType).toBeDefined();
@@ -433,7 +433,7 @@ describe("a module's own collisions", () => {
     });
 
     it('take one name on receivers that do not overlap, each receiver selecting its own', () => {
-        const views = new LexicaModule('views', { types: [{ name: 'PanelView', fields: { a: 'Number' } }, { name: 'RowView', fields: { a: 'Number' } }], members: [lit({ target: 'PanelView' }), lit({ target: 'RowView' })] });
+        const views = new LexicaModule('views', { types: [{ name: 'PanelView', kind: 'structured', members: dataPropertyDeclarations({ a: 'Number' }) }, { name: 'RowView', kind: 'structured', members: dataPropertyDeclarations({ a: 'Number' }) }], members: [lit({ target: 'PanelView' }), lit({ target: 'RowView' })] });
 
         expect(registering(views)().getReceiverMembers('lit')).toHaveLength(2);
     });

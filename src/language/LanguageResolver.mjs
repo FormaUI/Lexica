@@ -1392,18 +1392,13 @@ export class LanguageResolver {
             return this.#resolveObjectRootField(node, pointer, receiverType);
         }
 
-        // A stored value is an object type's object field or a property of a structured type's data, each type's lookup its own, and both are read alike.
-        const isObject = receiverType.kind === 'object';
-        const storedType = isObject ? receiverType.getObjectFieldType(node.name) : (this.#registry.getDataShape(receiverType)?.get(node.name) ?? null);
+        // An object type's object field is read by its name, as the object expression or the binding that gave the object holds it.
+        const fieldType = receiverType.getObjectFieldType(node.name);
 
-        if (storedType !== null) {
-            if (node.kind !== 'member') {
-                const stored = isObject ? `an object field of ${receiverType.toNonNullable()}` : `a property of ${receiverType.toNonNullable()}'s data`;
+        if (fieldType !== null) {
+            this.#requireReadWithoutArgument(node, pointer, `an object field of ${receiverType.toNonNullable()}`);
 
-                this.#fail('LEXICA3017', `'${node.name}' is ${stored} and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
-            }
-
-            return { result: { type: receiverType.isNullable ? storedType.toNullable() : storedType, kind: 'value', isFixed: false }, resolution: { kind: 'storedValue', name: node.name }, use: null };
+            return { result: { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false }, resolution: { kind: 'objectField', name: node.name }, use: null };
         }
 
         const candidates = this.#registry.getReceiverMembers(node.name);
@@ -1425,11 +1420,28 @@ export class LanguageResolver {
 
         const [declaration] = matching;
 
+        // A property of a structured type's data shape is read from the data, never invoked, and is used as every declaration selected is.
+        if (this.#registry.isDataProperty(declaration)) {
+            this.#requireReadWithoutArgument(node, pointer, `a property of ${receiverType.toNonNullable()}'s data`);
+
+            const type = this.#registry.getDeclaredType(declaration, declaration.result);
+            const result = { type: receiverType.isNullable ? type.toNullable() : type, kind: 'value', isFixed: false };
+
+            return { result, resolution: { kind: 'dataProperty', declaration, name: node.name }, use: { declaration, qualifiedName: this.#qualifiedNameOf(declaration, receiverType), pointer } };
+        }
+
         this.#requireDeclaredForm(declaration, node, pointer, isComputed);
 
         const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
 
         return this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType));
+    }
+
+    /** Refuses a call or an indexer of what is read by its name alone, an object field or a property of a structured type's data, which the description names, giving the access to write. */
+    #requireReadWithoutArgument(node, pointer, description) {
+        if (node.kind !== 'member') {
+            this.#fail('LEXICA3017', `'${node.name}' is ${description} and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
+        }
     }
 
     /**
@@ -1785,12 +1797,16 @@ export class LanguageResolver {
      */
     #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#registry.getReceiverMembers(node.name), offset = 0) {
         const isAccess = node.kind === 'member';
-        const fields = isAccess ? this.#registry.getDataPropertyTypes(node.name) : [];
         // A qualified call, a qualified form's or a function reference's, calls a property and a function alike, its receiver its first argument.
         const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#registry.formOf(candidate)] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
-            this.#fail(this.#registry.getDataPropertyTypes(node.name).length > 0 ? 'LEXICA3017' : 'LEXICA3001', this.#registry.getDataPropertyTypes(node.name).length > 0 ? `'${node.name}' is a property of a structured type's data and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'` : `'${node.name}' is no member of the vocabulary`, pointer);
+            this.#fail('LEXICA3001', `'${node.name}' is no member of the vocabulary`, pointer);
+        }
+
+        // A structured type's data property among the candidates is read by its name alone, whichever type a receiver will have.
+        if (!isAccess && candidatesInForm.length === 0 && candidates.every(candidate => this.#registry.isDataProperty(candidate))) {
+            this.#requireReadWithoutArgument(node, pointer, "a property of a structured type's data");
         }
 
         if (!isAccess && candidatesInForm.length === 0) {
@@ -1824,7 +1840,6 @@ export class LanguageResolver {
 
         const resultTypes = [
             ...fitting.filter(({ declaration }) => declaration.result !== undefined).map(({ declaration, resolved }) => this.#registry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(new Map(resolved.selected === undefined ? [] : [['@selected', resolved.selected.type]]))),
-            ...fields,
         ];
         const shared = resultTypes.reduce((merged, type) => (merged === null ? null : this.#typeChecker.merge(merged, type)), Type.never);
         // A member of a never is never evaluated, since no value has that type, so it answers what its declarations share as they declare it, and where none says what it would answer, nothing yet: a never, which fits wherever a value of any type is required.

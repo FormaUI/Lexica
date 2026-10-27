@@ -472,6 +472,8 @@ A code leaves its table only by being retired here, with the condition it identi
 | `LEXICA4005` | A module whose name begins with no capital letter, a casing that is a convention and never enforced | `1.0.0-alpha.34` |
 | `LEXICA4034` | A type named as one of Lexica's own types or `Null`, a name a type of another module may share | `1.0.0-alpha.34` |
 | `LEXICA4013` | A module member named as one of the module's extensions, the two never reached in one position | `1.0.0-alpha.34` |
+| `LEXICA4509` | A structured type whose `fields` were empty, a code of language `1.0.0-alpha.33` alone: a structured type declares its data shape as its properties, and may declare none | `1.0.0-alpha.34` |
+| `LEXICA4510` | A `fields` entry that was not a name with a type, a code of language `1.0.0-alpha.33` alone: a data property is a member, refused as any member is | `1.0.0-alpha.34` |
 | `LEXICA4014` | A module member and a member of its name on one of the module's own types, a qualified call both take refused as ambiguous where it is resolved | `1.0.0-alpha.34` |
 | `LEXICA4553` | A module member and a member of its name on a type its module does not declare, which alpha.33 refused; a qualified call both take is refused as ambiguous where it is resolved | `1.0.0-alpha.34` |
 | `LEXICA4036` | A module named by a reserved word, `Lexica`, or one of Lexica's own types or extensions, `Lexica` refused as any registered name is and the rest names a module may share | `1.0.0-alpha.34` |
