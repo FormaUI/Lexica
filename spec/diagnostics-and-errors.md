@@ -299,7 +299,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4534` | `arguments` on a function without parameters | A module error naming the function |
 | `LEXICA4535` | `arguments` that are neither `positional` nor `options` | A module error naming the function |
 | `LEXICA4536` | A parameter without its name, its kind, its type, its `required` or its null policy, or with a value none of them takes | A module error naming the parameter |
-| `LEXICA4537` | A function parameter whose `parameters` are not a list | A module error naming the parameter |
+| `LEXICA4537` | A function parameter whose `parameterTypes` are not a list | A module error naming the parameter |
 | `LEXICA4538` | A required parameter with a default | A module error naming the parameter |
 | `LEXICA4539` | An expression or a predicate parameter whose `context` is not `item` | A module error naming the parameter |
 | `LEXICA4540` | A predicate parameter whose type is not `Boolean` | A module error naming the parameter |

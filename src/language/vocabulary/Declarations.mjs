@@ -26,8 +26,8 @@ export class Declarations {
     }
 
     /** A function parameter, always required: its callback contract, the types of the arguments the member calls the function with, in order, and the type of the result it takes from it. */
-    static functionParameter(name, type, parameters) {
-        return { name, kind: 'function', type, parameters, required: true };
+    static functionParameter(name, type, parameterTypes) {
+        return { name, kind: 'function', type, parameterTypes, required: true };
     }
 
     /**

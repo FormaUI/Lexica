@@ -206,7 +206,7 @@ describe('LexicaModule', () => {
         });
 
         it('take a function parameter in a function the evaluator invokes', () => {
-            const callback = parameterDeclaration({ name: 'f', kind: 'function', parameters: [], nulls: undefined });
+            const callback = parameterDeclaration({ name: 'f', kind: 'function', parameterTypes: [], nulls: undefined });
 
             expect(() => new LexicaModule('charts', { members: [functionDeclaration({ parameters: [callback] })] })).not.toThrow();
             refusal({ members: [propertyDeclaration({ parameters: [callback] })] }, 'zoom', 'parameters', "A member of kind 'property' declares");
@@ -242,7 +242,7 @@ describe('LexicaModule', () => {
         it('are written as a function call and take value parameters alone', () => {
             refusal({ members: [indexerDeclaration({ name: 'dim', invokedBy: 'host', updates: undefined })] }, 'dim', 'invokedBy', 'A function the host invokes is written as a function call, never as an indexer');
             refusal({ members: [hostCall({ parameters: [parameterDeclaration({ name: 'by', kind: 'expression', context: 'item' })] })] }, 'dim', 'parameters', "A function the host invokes takes value parameters alone, each argument prepared as a value its host keeps, and 'by' is an expression parameter");
-            refusal({ members: [hostCall({ parameters: [parameterDeclaration({ name: 'f', kind: 'function', parameters: [], nulls: undefined })] })] }, 'dim', 'parameters', "'f' is a function parameter");
+            refusal({ members: [hostCall({ parameters: [parameterDeclaration({ name: 'f', kind: 'function', parameterTypes: [], nulls: undefined })] })] }, 'dim', 'parameters', "'f' is a function parameter");
         });
     });
 
@@ -402,7 +402,7 @@ describe('LexicaModule', () => {
         });
 
         it('are never given a function parameter, which lasts only while the member\'s invocation does', () => {
-            const callback = parameterDeclaration({ name: 'f', kind: 'function', parameters: [], nulls: undefined });
+            const callback = parameterDeclaration({ name: 'f', kind: 'function', parameterTypes: [], nulls: undefined });
 
             expect(fails({ members: [observed([{ type: 'resize', of: { argument: 'f' } }], { kind: 'function', arguments: 'positional', parameters: [callback] })] }).message).toContain("is given the parameter 'f', a function that lasts only while the member's invocation does");
         });
@@ -446,13 +446,14 @@ describe('LexicaModule', () => {
         });
 
         it('refuse a function parameter that is optional, fixed, given a context, or declares no list of the types it is called with', () => {
-            const callback = overrides => declaring({ name: 'f', kind: 'function', parameters: [], nulls: undefined, ...overrides });
+            const callback = overrides => declaring({ name: 'f', kind: 'function', parameterTypes: [], nulls: undefined, ...overrides });
 
             refusal(callback({ required: false }), 'zoom', 'parameters', "The parameter 'f' is a function, so it is required");
             refusal(callback({ fixed: false }), 'zoom', 'parameters', "The parameter 'f' is a function, so it cannot be fixed");
             refusal(callback({ context: 'item' }), 'zoom', 'parameters', "The parameter 'f' is a function, so it declares no 'context'");
-            refusal(callback({ parameters: undefined }), 'zoom', 'parameters', "The parameter 'f' is a function that declares its parameters as a list");
-            refusal(declaring({ parameters: [] }), 'zoom', 'parameters', "The parameter 'amount' is no function, so it declares no parameters");
+            refusal(callback({ parameterTypes: undefined }), 'zoom', 'parameters', "The parameter 'f' is a function that declares its parameterTypes, a list");
+            refusal(declaring({ parameterTypes: [] }), 'zoom', 'parameters', "The parameter 'amount' is no function, so it declares no parameterTypes");
+            refusal(callback({ parameters: ['String'] }), 'zoom', 'parameters.parameters', "A parameter declares");
         });
     });
 
@@ -475,9 +476,9 @@ describe('LexicaModule', () => {
 
     describe('function parameters on any receiver', () => {
         it('take a callback of the receiver\'s own type, a target that is a type parameter binding it', () => {
-            const tested = functionDeclaration({ name: 'passes', target: 'T', result: 'Boolean', parameters: [parameterDeclaration({ name: 'test', kind: 'function', type: 'Boolean', parameters: ['T'], nulls: undefined })], updates: { changes: 'derived', reads: 'derived' } });
+            const tested = functionDeclaration({ name: 'passes', target: 'T', result: 'Boolean', parameters: [parameterDeclaration({ name: 'test', kind: 'function', type: 'Boolean', parameterTypes: ['T'], nulls: undefined })], updates: { changes: 'derived', reads: 'derived' } });
 
-            expect(new LexicaModule('charts', { members: [tested] }).members[0]).toMatchObject({ target: 'T', parameters: [{ kind: 'function', parameters: ['T'], type: 'Boolean' }] });
+            expect(new LexicaModule('charts', { members: [tested] }).members[0]).toMatchObject({ target: 'T', parameters: [{ kind: 'function', parameterTypes: ['T'], type: 'Boolean' }] });
         });
     });
 

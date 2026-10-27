@@ -262,8 +262,8 @@ export interface LexicaParameterDeclaration {
     kind: 'value' | 'expression' | 'predicate' | 'function';
     /** The parameter's type, in Lexica's notation; a predicate's is `Boolean`, what the implementation receives, and a function parameter's the type of its function's result. */
     type: string;
-    /** The types its function is called with, in order, in Lexica's notation, which may write a type parameter its member's target binds; only a function parameter declares them. */
-    parameters?: string[];
+    /** The types its function is called with, in order, in Lexica's notation, which may write a type parameter its member's target binds; only a function parameter declares them, beside its member's `parameters`, which are declarations. */
+    parameterTypes?: string[];
     required: boolean;
     default?: unknown;
     /** Whether the argument names something the vocabulary resolves before any evaluation; a fixed parameter is a value parameter of type `String`. */
@@ -501,7 +501,7 @@ export interface LexicaDeclarations {
     expressionParameter(type: string, options?: object): LexicaParameterDeclaration;
     predicateParameter(options?: object): LexicaParameterDeclaration;
     /** A function parameter, always required: the types of the arguments the member calls its function with, in order, and the type of the result it takes from it. */
-    functionParameter(name: string, type: string, parameters: readonly string[]): LexicaParameterDeclaration;
+    functionParameter(name: string, type: string, parameterTypes: readonly string[]): LexicaParameterDeclaration;
 }
 
 /** Result paths: a path's shape validated, and the value it reaches in a result. */

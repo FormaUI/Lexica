@@ -61,7 +61,7 @@ const MEMBER_KEYS_BY_KIND = {
 /** How a location names an unnamed indexer, which declares no name: as a script writes its access after the receiver. */
 const UNNAMED_INDEXER_NAME = '[]';
 const UPDATES_KEYS = ['changes', 'reads', 'misses', 'tolerance', 'observations'];
-const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameters'];
+const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameterTypes'];
 /** The keys each kind of type takes, so a key its kind does not take, a structured type's `fields` among them, is refused rather than ignored. */
 const TYPE_KEYS_BY_KIND = {
     reference: ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import', 'members'],
@@ -981,8 +981,8 @@ export class LexicaModule {
 
         // A function parameter's contract declares the type of each argument the member calls the function with, in order, and, as its type, the type of the result it takes from it.
         if (parameter.kind === 'function') {
-            if (!Array.isArray(parameter.parameters) || !parameter.parameters.every(type => LexicaModule.#isTypeNotation(type))) {
-                fail(Array.isArray(parameter.parameters) ? 'LEXICA4512' : 'LEXICA4537', `The parameter '${parameter.name}' is a function that declares its parameters as a list of the types it is called with`, memberName, declarationKey);
+            if (!Array.isArray(parameter.parameterTypes) || !parameter.parameterTypes.every(type => LexicaModule.#isTypeNotation(type))) {
+                fail(Array.isArray(parameter.parameterTypes) ? 'LEXICA4512' : 'LEXICA4537', `The parameter '${parameter.name}' is a function that declares its parameterTypes, a list of the types it is called with`, memberName, declarationKey);
             }
 
             if (!parameter.required) {
@@ -996,8 +996,8 @@ export class LexicaModule {
             if (parameter.context !== undefined) {
                 fail('LEXICA4030', `The parameter '${parameter.name}' is a function, so it declares no 'context'`, memberName, declarationKey);
             }
-        } else if (parameter.parameters !== undefined) {
-            fail('LEXICA4030', `The parameter '${parameter.name}' is no function, so it declares no parameters`, memberName, declarationKey);
+        } else if (parameter.parameterTypes !== undefined) {
+            fail('LEXICA4030', `The parameter '${parameter.name}' is no function, so it declares no parameterTypes`, memberName, declarationKey);
         }
 
         if (parameter.required && 'default' in parameter) {

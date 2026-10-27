@@ -2293,7 +2293,7 @@ export class LanguageResolver {
             return isOfUnknownType && LanguageResolver.#holdsTypeParameter(type) ? Type.never : type;
         };
 
-        return { memberName: declaration.name, parameterName: parameter.name, parameterTypes: parameter.parameters.map(resolve), resultType: resolve(parameter.type) };
+        return { memberName: declaration.name, parameterName: parameter.name, parameterTypes: parameter.parameterTypes.map(resolve), resultType: resolve(parameter.type) };
     }
 
     /**

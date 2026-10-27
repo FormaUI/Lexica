@@ -8,7 +8,7 @@ import { dataPropertyDeclarations, functionDeclaration, indexerDeclaration, para
 const observable = observations => ({ changes: 'observable', reads: 'fresh', observations });
 
 /** A function parameter, its callback taking a string and answering a Boolean. */
-const callback = (overrides = {}) => ({ name: 'test', kind: 'function', type: 'Boolean', required: true, parameters: ['String'], ...overrides });
+const callback = (overrides = {}) => ({ name: 'test', kind: 'function', type: 'Boolean', required: true, parameterTypes: ['String'], ...overrides });
 
 /** A fixed parameter selecting a type through the selector `report`. */
 const selecting = (overrides = {}) => parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report', ...overrides });
@@ -62,7 +62,7 @@ describe('the module error codes', () => {
             expectModuleCode(creating({ members: [hostCall({ impl: () => 1 })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ fixed: false })] })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ context: 'item' })] })] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ parameters: ['Number'] })] })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ parameterTypes: ['Number'] })] })] }), 'LEXICA4030');
         });
 
         it('LEXICA4505: an implementation that is not a function', () => {
@@ -197,7 +197,7 @@ describe('the module error codes', () => {
             expectModuleCode(creating({ mappings: [{ key: 'click', selector: 'report', type: 'List<' }] }), 'LEXICA4512');
             expectModuleCode(creating({ members: [propertyDeclaration({ result: 'List<' })] }), 'LEXICA4512');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ type: 'List<' })] })] }), 'LEXICA4512');
-            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ parameters: ['List<'] })] })] }), 'LEXICA4512');
+            expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ parameterTypes: ['List<'] })] })] }), 'LEXICA4512');
             expectModuleCode(creating({ types: [{ name: 'Lamp', kind: 'reference', isInstance: () => true, supertype: 'List<' }] }), 'LEXICA4512');
         });
     });
@@ -297,8 +297,8 @@ describe('the module error codes', () => {
             expectModuleCode(declaringCallback({ required: false }), 'LEXICA4054');
         });
 
-        it('LEXICA4537: a function parameter not declaring its parameters as a list', () => {
-            expectModuleCode(declaringCallback({ parameters: undefined }), 'LEXICA4537');
+        it('LEXICA4537: a function parameter not declaring its parameterTypes as a list', () => {
+            expectModuleCode(declaringCallback({ parameterTypes: undefined }), 'LEXICA4537');
         });
 
         it('LEXICA4538: a required parameter with a default', () => {

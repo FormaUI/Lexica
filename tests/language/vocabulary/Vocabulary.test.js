@@ -41,7 +41,7 @@ describe('Vocabulary', () => {
 
         expect(registry.getReceiverMembers(verb)).toHaveLength(1);
         expect(declaration).toMatchObject({ kind: 'function', target: 'T', result: 'Boolean', updates: { changes: 'derived', reads: 'derived' } });
-        expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'Boolean', parameters: ['T'], required: true }]);
+        expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'Boolean', parameterTypes: ['T'], required: true }]);
         expect([read(verb, 'oat', { test: receiver => receiver === 'oat' }), read(verb, 'milk', { test: receiver => receiver === 'oat' })]).toEqual([true, false]);
     });
 

@@ -667,7 +667,7 @@ export class LexicaRegistry {
             }
 
             for (const parameter of declaration.parameters) {
-                [parameter.type, ...(parameter.parameters ?? [])].forEach(notation => this.getDeclaredType(declaration, notation));
+                [parameter.type, ...(parameter.parameterTypes ?? [])].forEach(notation => this.getDeclaredType(declaration, notation));
             }
         }
 
