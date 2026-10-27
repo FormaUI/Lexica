@@ -5,7 +5,7 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../../support/home.mjs';
 import { errorThrownBy, expectModuleError } from '../../support/errors.mjs';
-import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, operatorDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
 
 /** A module's contents holding the members given in an extension of strings, which take a string as their receiver. */
 const onStrings = members => ({ types: [extensionDeclaration('Words', 'String', members)] });
@@ -259,11 +259,11 @@ describe('LexicaRegistry', () => {
         expect(expectModuleError(registering)).toMatchObject({ declaration: 'zoom', message: expect.stringContaining("names the type 'Nothing'") });
     });
 
-    it('refuses a notation that names no type at its module and its declaration, a conversion named by its source and destination', () => {
+    it('refuses a notation that names no type at its module and its declaration, an operator at the type it stands in', () => {
         const registering = contents => () => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', contents)]);
 
         expect(expectModuleError(registering({ members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] }))).toMatchObject({ module: 'charts', declaration: 'pan', message: expect.stringContaining("names the type 'Nothing'") });
-        expect(expectModuleError(registering({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }], conversions: [{ from: 'Chart', to: 'Nothing' }] }))).toMatchObject({ module: 'charts', declaration: 'Chart to Nothing' });
+        expect(expectModuleError(registering({ types: [{ name: 'Chart', kind: 'structured', members: [...dataPropertyDeclarations({ points: 'Number' }), operatorDeclaration('convert', 'Nothing')] }] }))).toMatchObject({ module: 'charts', type: 'Chart', declaration: 'convert' });
     });
 
     it('names the module each declaration belongs to once its module is registered, and none for a refused module\'s, which it records as registration starts', () => {
@@ -381,79 +381,83 @@ describe('type selectors', () => {
     });
 });
 
-describe('conversions', () => {
+describe('operators', () => {
     const STRING = Type.createNamedType('String');
     const CHART = Type.createNamedType('Chart', false, 'charts');
-    const chart = { name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) };
-    const charts = (conversions, types = [chart]) => new LexicaModule('charts', { types, conversions });
+    const convert = (result, impl) => operatorDeclaration('convert', result, impl);
+
+    /** A module of charts: its chart of the points given, holding the operators given, an extension of strings holding the string operators given, and the contents given beside them. */
+    const charts = ({ chart = [], strings = [], points = 'Number' } = {}, contents = {}) => new LexicaModule('charts', {
+        ...contents,
+        types: [{ name: 'Chart', kind: 'structured', members: [...dataPropertyDeclarations({ points }), ...chart] }, ...(strings.length === 0 ? [] : [extensionDeclaration('Strings', 'String', strings)]), ...(contents.types ?? [])],
+    });
     const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, ...modules]);
 
-    it('are found by their source type and their target, and listed by their source', () => {
+    it('are found by their operation, each with its destination, named by their receiver and destination, and never as members', () => {
         const parse = ({ value }) => ({ points: value.length });
-        const registry = registering(charts([{ from: 'String', to: 'Chart', impl: parse }, { from: 'Chart', to: 'String' }]))();
+        const registry = registering(charts({ chart: [convert('String')], strings: [convert('Chart', parse)] }))();
+        const toChart = registry.getOperators('convert').find(operator => registry.getOperatorDestination(operator).equals(CHART));
 
-        expect(registry.getConversion(STRING, CHART)).toEqual({ from: 'String', to: 'Chart', impl: parse });
-        expect(registry.getConversion(CHART, Type.createNamedType('Number'))).toBeUndefined();
-        expect(registry.getConversionTargets(STRING).map(type => type.identity)).toEqual(['Number', 'Boolean', 'charts.Chart']);
-        expect(registry.getDeclaringModuleName(registry.getConversion(STRING, CHART))).toBe('charts');
+        expect(toChart).toMatchObject({ kind: 'operator', name: 'convert', impl: parse });
+        expect(registry.getOperators('convert').map(operator => registry.formatOperator(operator))).toEqual(['Number to String', 'String to Number', 'String to Boolean', 'Boolean to String', 'Chart to String', 'String to Chart']);
+        expect([registry.getMembersDeclaredBy('charts', 'convert'), registry.getReceiverMembers('convert')]).toEqual([[], []]);
+        expect(registry.getDeclaringModuleName(toChart)).toBe('charts');
     });
 
-    it('are declared once for each source and target', () => {
-        expect(expectModuleError(registering(charts([{ from: 'String', to: 'Chart' }, { from: 'String', to: 'Chart' }]))).message).toContain('The conversion from String to Chart is declared already');
-    });
-
-    it('take disjoint sources to one target', () => {
-        const registry = registering(new LexicaModule('charts', { types: [chart, { name: 'Other', kind: 'structured', members: dataPropertyDeclarations({ a: 'Number' }) }], conversions: [{ from: 'String', to: 'Chart' }, { from: 'Other', to: 'Chart' }, { from: 'Number', to: 'Chart' }] }))();
-
-        expect([STRING, Type.createNamedType('Other', false, 'charts'), Type.createNamedType('Number')].map(from => registry.getConversion(from, CHART)?.from)).toEqual(['String', 'Other', 'Number']);
+    it('are declared once for each name, receiver and destination in their module, and from several sources to one destination', () => {
+        expect(expectModuleError(registering(charts({ strings: [convert('Chart'), convert('Chart')] }))).message).toContain('The operator String to Chart is declared already on String');
+        expect(() => registering(charts({ strings: [convert('Chart')] }, { types: [extensionDeclaration('Numbers', 'Number', [convert('Chart')])] }))()).not.toThrow();
     });
 
     it('convert to or from a type of their own module, Lexica\'s own module alone converting between the language\'s types', () => {
-        expect(expectModuleError(registering(charts([{ from: 'String', to: 'Number' }]))).message).toContain("A conversion converts to or from one of its module's own types");
-        expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('Lexica', { conversions: [{ from: 'String', to: 'Number' }] })])).message).toContain("converts to or from one of its module's own types");
-        expect(new LexicaRegistry([Vocabulary.module]).getConversion(STRING, Type.createNamedType('Number'))).toMatchObject({ from: 'String', to: 'Number' });
-        expect(expectModuleError(registering(charts([{ from: 'Number', to: 'Boolean' }]))).message).toContain("converts to or from one of its module's own types");
+        expect(expectModuleError(registering(charts({ strings: [convert('Number')] }))).message).toContain("A conversion operator converts to or from one of its module's own types, and String to Number does neither");
+        expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('Lexica', { types: [extensionDeclaration('Strings', 'String', [convert('Number')])] })])).message).toContain("converts to or from one of its module's own types");
+        const lexicaOnly = new LexicaRegistry([Vocabulary.module]);
+
+        expect(lexicaOnly.getOperators('convert').map(operator => lexicaOnly.getDeclaringModuleName(operator))).toEqual(['Lexica', 'Lexica', 'Lexica', 'Lexica']);
     });
 
-    it('convert between types of data a module declares, never a reference type, one that holds a reference or one that no module declares', () => {
-        expect(expectModuleError(registering(new LexicaModule('charts', withHome({ types: [chart], conversions: [{ from: 'String', to: 'Chart' }, { from: 'Light', to: 'Chart' }] })))).message).toContain("'Light' is no type of data");
-        expect(expectModuleError(registering(charts([{ from: 'Axis', to: 'Chart' }]))).message).toContain("'Axis' names the type 'Axis', which neither Lexica nor a module registered with it declares");
-        expect(expectModuleError(registering(new LexicaModule('charts', withHome({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ anchor: 'Light' }) }], conversions: [{ from: 'String', to: 'Chart' }] })))).message).toContain("'Chart' is no type of data");
+    it('convert between types of data, each named as it is declared, never a reference type, one holding a reference, a list or a type to itself', () => {
+        expect(expectModuleError(registering(new LexicaModule('charts', withHome({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] }, { Light: [convert('Chart')] })))).message).toContain('its receiver, Light, is none of them');
+        expect(expectModuleError(registering(charts({ points: 'Light' }, withHome({ types: [extensionDeclaration('Strings', 'String', [convert('Chart')])] })))).message).toContain('its destination, Chart, is none of them');
+        expect(expectModuleError(registering(charts({}, { types: [extensionDeclaration('Lists', 'List<Number>', [convert('Chart')])] }))).message).toContain('its receiver, List<Number>, is none of them');
+        expect(expectModuleError(registering(charts({ chart: [convert('Chart')] }))).message).toContain('A value already of Chart converts to itself');
     });
 
-    it('convert a structured type that holds a list of data as any other, a list itself waiting for the collection model', () => {
-        const registry = registering(charts([{ from: 'String', to: 'Chart' }], [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'List<Number>' }) }]))();
+    it('convert a structured type that holds data, a list of data, null, Never or a list of null among it, while null, Never, a list and a nullable type stay no endpoint', () => {
+        for (const points of ['List<Number>', 'null', 'Never', 'List<null>']) {
+            const registry = registering(charts({ chart: [convert('String')], strings: [convert('Chart')], points }))();
 
-        expect(registry.getConversion(STRING, CHART)).toBeDefined();
-        expect(registry.isConvertible(CHART)).toBe(true);
-        expect(registry.isConvertible(Type.parse('List<Number>'))).toBe(false);
+            expect(registry.isConvertible(CHART), points).toBe(true);
+            expect([Type.parse('null'), Type.never, Type.parse('List<null>'), Type.createNamedType('Chart', true, 'charts')].map(type => registry.isConvertible(type)), points).toEqual([false, false, false, false]);
+        }
     });
+
+    it('cast from one reference type to another outside its hierarchy alone, a type and its own hierarchy cast without one', () => {
+        const meters = ({ meter = [], types = [] }) => new LexicaModule('meters', withHome({ types: [{ name: 'Meter', kind: 'reference', isInstance: () => false, members: meter }, ...types] }));
+        const cast = result => operatorDeclaration('cast', result);
+
+        expect(() => registering(meters({ meter: [cast('Device')] }))()).not.toThrow();
+        expect(expectModuleError(registering(meters({ meter: [cast('Number')] })))).toMatchObject({ message: expect.stringContaining('A cast operator is declared on a reference type and casts to another, and Meter as Number is not') });
+        expect(expectModuleError(registering(meters({ types: [{ name: 'Reading', kind: 'structured', members: [...dataPropertyDeclarations({ value: 'Number' }), cast('Meter')] }] })))).toMatchObject({ message: expect.stringContaining('Reading as Meter is not') });
+        expect(expectModuleError(registering(meters({ meter: [cast('Meter')] })))).toMatchObject({ message: expect.stringContaining('Meter as Meter is a cast within one hierarchy') });
+    });
+});
+
+describe('data', () => {
+    const CHART = Type.createNamedType('Chart', false, 'charts');
+    const chart = { name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) };
 
     it('classify a type as data where its values are data, an object type and a structure that holds itself among them, and a reference type or a structure holding one as no data', () => {
-        const registry = registering(new LexicaModule('charts', withHome({
+        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', withHome({
             types: [chart, { name: 'Tree', kind: 'structured', members: dataPropertyDeclarations({ children: 'List<Tree>' }) }, { name: 'Holder', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light' }) }],
-        })))();
+        }))]);
         const named = name => Type.createNamedType(name, false, 'charts');
         const data = [Type.parse('Number'), Type.parse('null'), Type.never, Type.parse('List<String?>'), Type.createObjectType(new Map([['a', Type.parse('Number')]])), CHART, named('Tree')];
         const notData = [named('Light'), named('Holder'), Type.createObjectType(new Map([['lamp', named('Light')]])), Type.parse('List<Light>')];
 
         expect(data.map(type => registry.isData(type))).toEqual(data.map(() => true));
         expect(notData.map(type => registry.isData(type))).toEqual(notData.map(() => false));
-    });
-
-    it('convert a structured type that holds null, Never or a list of null as data, while null, Never, a list and a nullable type stay no endpoint', () => {
-        for (const fieldType of ['null', 'Never', 'List<null>']) {
-            const registry = registering(charts([{ from: 'String', to: 'Chart' }, { from: 'Chart', to: 'String' }], [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: fieldType }) }]))();
-
-            expect(registry.getConversion(STRING, CHART), fieldType).toBeDefined();
-            expect(registry.getConversion(CHART, STRING), fieldType).toBeDefined();
-            expect(registry.isConvertible(CHART), fieldType).toBe(true);
-            expect([Type.parse('null'), Type.never, Type.parse('List<null>'), Type.createNamedType('Chart', true, 'charts')].map(type => registry.isConvertible(type)), fieldType).toEqual([false, false, false, false]);
-        }
-
-        for (const [from, to, end] of [['String', 'null', 'to'], ['Never', 'Chart', 'from'], ['String', 'List<null>', 'to'], ['Chart?', 'String', 'from']]) {
-            expect(expectModuleError(() => charts([{ from, to }])).message, `${from} to ${to}`).toContain(`its '${end}' is none of them`);
-        }
     });
 });
 

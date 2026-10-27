@@ -8,7 +8,10 @@ import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 
 /** The kinds of member a module declares: a property, read by its name; a function, called; and an indexer, given its key in brackets, after its name or, an unnamed one, after its receiver. */
-const MEMBER_KINDS = ['property', 'function', 'indexer'];
+const MEMBER_KINDS = ['property', 'function', 'indexer', 'operator'];
+
+/** The operators a type's members may hold, each named by the operation the language's own syntax invokes it for: `cast`, which `as` invokes, and `convert`, which `to` invokes. */
+const OPERATOR_NAMES = ['cast', 'convert'];
 
 /** Who invokes a function: the evaluator, as it evaluates the script, or the host, which the script's host call is prepared for. */
 const INVOKERS = ['evaluator', 'host'];
@@ -31,7 +34,7 @@ const OBSERVATION_CONTRACTS = ['invalidation', 'maintained'];
 /** The categories whose changes observations cover. */
 const OBSERVED_CHANGE_CATEGORIES = ['observable', 'partly-observable'];
 
-/** The scalar types Lexica defines, each a value of data alone: what conversions convert between, what data and equality read as scalars, and what a default of one is. */
+/** The scalar types Lexica defines, each a value of data alone: what conversion operators convert between, what data and equality read as scalars, and what a default of one is. */
 const SCALAR_TYPE_NAMES = Object.freeze(['Number', 'String', 'Boolean']);
 
 /** The kinds of type a module declares: a reference type, whose values have identity; a structured type, of data; and an extension, the members it adds to a type another module owns, which is never a value's type. */
@@ -41,7 +44,7 @@ const TYPE_KINDS = ['reference', 'structured', 'extension'];
 const DECLARED_NAME = /^([^<>]*)(?:<(.*)>)?$/;
 
 /** What a module can declare. */
-const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'mappings', 'observationTypes', 'observationTargets', 'conversions'];
+const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'mappings', 'observationTypes', 'observationTargets'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
 const MEMBER_KEYS = ['name', 'kind', 'result', 'impl', 'internal'];
@@ -50,6 +53,8 @@ const MEMBER_KEYS_BY_KIND = {
     function: ['invokedBy', 'arguments', 'parameters', 'updates'],
     // An indexer's arguments are its one key, positional, so it takes no argument form; who invokes it is read to refuse the host.
     indexer: ['invokedBy', 'parameters', 'updates'],
+    // An operator is invoked by the language's own syntax, given its value alone, so it takes no parameters and declares no updates.
+    operator: [],
 };
 
 /** How a location names an unnamed indexer, which declares no name: as a script writes its access after the receiver. */
@@ -70,7 +75,6 @@ const TYPE_SELECTOR_KEYS = ['name'];
 const MAPPING_KEYS = ['selector', 'key', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'impl'];
 const OBSERVATION_TARGET_KEYS = ['name', 'from', 'count'];
-const CONVERSION_KEYS = ['from', 'to', 'impl'];
 
 export class LexicaModule {
     #name;
@@ -81,7 +85,6 @@ export class LexicaModule {
     #mappings;
     #observationTypes;
     #observationTargets;
-    #conversions;
 
     /**
      * @param {string} name The module's name.
@@ -93,7 +96,6 @@ export class LexicaModule {
      * @param {object[]} [contents.mappings] The keys it maps for type selectors, its own or another module's, each with the selector it belongs to, the key, any string, and the type it maps to.
      * @param {object[]} [contents.observationTypes] The types of observation it declares.
      * @param {object[]} [contents.observationTargets] The targets its observation types observe besides a receiver and an argument, each found from the receiver or independent of it, one target or several.
-     * @param {object[]} [contents.conversions] The conversions it declares, each from a type of data to another.
      */
     constructor(name, contents = {}) {
         if (!Names.isIdentifier(name)) {
@@ -118,20 +120,20 @@ export class LexicaModule {
             declaringSubject: 'A module',
         });
 
-        const { typeOf, types = [], members = [], typeSelectors = [], mappings = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
+        const { typeOf, types = [], members = [], typeSelectors = [], mappings = [], observationTypes = [], observationTargets = [] } = contents;
 
         if (typeOf !== undefined && typeof typeOf !== 'function') {
             fail('LEXICA4051', "A module's typeOf is a function, which names the type of a value it recognizes", undefined, 'typeOf');
         }
 
-        for (const [key, list] of Object.entries({ types, members, typeSelectors, mappings, observationTypes, observationTargets, conversions })) {
+        for (const [key, list] of Object.entries({ types, members, typeSelectors, mappings, observationTypes, observationTargets })) {
             if (!Array.isArray(list)) {
                 fail('LEXICA4503', `A module's ${key} are a list`, undefined, key);
             }
         }
 
         // Data that reaches itself is refused before anything reads into it, since validating, copying and freezing a declaration each walk its data.
-        for (const [key, list] of Object.entries({ types, members, typeSelectors, mappings, observationTypes, observationTargets, conversions })) {
+        for (const [key, list] of Object.entries({ types, members, typeSelectors, mappings, observationTypes, observationTargets })) {
             list.forEach(declared => LexicaModule.#refuseCycles(declared, LexicaModule.#declarationNameOf(declared, key), fail));
         }
 
@@ -145,7 +147,6 @@ export class LexicaModule {
         const mappingDeclarations = normalized(mappings);
         const observationTypeDeclarations = normalized(observationTypes);
         const observationTargetDeclarations = normalized(observationTargets);
-        const conversionDeclarations = normalized(conversions);
 
         LexicaModule.#validateTypeDeclarations(types, fail, failWithin);
         LexicaModule.#validateMembers(memberDeclarations, fail);
@@ -153,7 +154,6 @@ export class LexicaModule {
         LexicaModule.#validateMappings(mappingDeclarations, name, fail);
         LexicaModule.#validateObservationTypes(observationTypeDeclarations, fail);
         LexicaModule.#validateObservationTargets(observationTargetDeclarations, fail);
-        conversionDeclarations.forEach(conversion => LexicaModule.#validateConversion(conversion, fail));
 
         this.#types = LexicaModule.#freezeItems(types.map(type => LexicaModule.#createTypeCopy(type)));
         this.#members = LexicaModule.#freezeItems(memberDeclarations.map(member => LexicaModule.#createMemberCopy(member)));
@@ -161,7 +161,6 @@ export class LexicaModule {
         this.#mappings = LexicaModule.#freezeItems(mappingDeclarations.map(mapping => LexicaModule.#copyOf(mapping)));
         this.#observationTypes = LexicaModule.#freezeItems(observationTypeDeclarations.map(type => LexicaModule.#createObservationTypeCopy(type)));
         this.#observationTargets = LexicaModule.#freezeItems(observationTargetDeclarations.map(target => LexicaModule.#copyOf(target)));
-        this.#conversions = LexicaModule.#freezeItems(conversionDeclarations.map(conversion => LexicaModule.#copyOf(conversion)));
     }
 
     /** The module's name. */
@@ -204,19 +203,9 @@ export class LexicaModule {
         return this.#observationTargets;
     }
 
-    /** The conversions the module declares. */
-    get conversions() {
-        return this.#conversions;
-    }
-
-    /** The names of the scalar types Lexica defines, each a value of data alone, which conversions, data, equality and defaults read. */
+    /** The names of the scalar types Lexica defines, each a value of data alone, which conversion operators, data, equality and defaults read. */
     static get scalarTypeNames() {
         return SCALAR_TYPE_NAMES;
-    }
-
-    /** How a conversion is named where a message names it: its source type and its target, as `String to Number`. */
-    static conversionNameOf(conversion) {
-        return `${conversion.from} to ${conversion.to}`;
     }
 
     /** Whether the value is a module `createModule` made. */
@@ -297,14 +286,10 @@ export class LexicaModule {
         visit(declaration, new Set(), undefined);
     }
 
-    /** The name a declaration's diagnostics give it before it is validated: a conversion's source and destination, a mapping's key, and any other declaration's own name, each where it is a string. */
+    /** The name a declaration's diagnostics give it before it is validated: a mapping's key, and any other declaration's own name, each where it is a string. */
     static #declarationNameOf(declared, key) {
         if (!ObjectUtils.isNonArrayObject(declared)) {
             return undefined;
-        }
-
-        if (key === 'conversions') {
-            return LexicaModule.conversionNameOf(declared);
         }
 
         const name = key === 'mappings' ? declared.key : declared.name;
@@ -772,30 +757,6 @@ export class LexicaModule {
         return LexicaModule.#copyOf({ identity: [], shared: true, ...type });
     }
 
-    /**
-     * Validates a conversion: the type of data it converts from, the one it converts to, each a name, and its implementation where it has one.
-     * A value already of a type converts to itself, as the language says, so no conversion is declared from a type to itself.
-     */
-    static #validateConversion(conversion, fail) {
-        LexicaModule.#validateKeys(conversion, CONVERSION_KEYS, 'A conversion', fail, ObjectUtils.isNonArrayObject(conversion) ? LexicaModule.conversionNameOf(conversion) : undefined);
-
-        const name = LexicaModule.conversionNameOf(conversion);
-
-        for (const key of ['from', 'to']) {
-            const type = Type.parse(conversion[key]);
-
-            if (type?.kind !== 'named' || type.isNullable || type.typeArguments.length > 0) {
-                fail('LEXICA4065', `A conversion is from a type of data to another, each named as it is declared: ${SCALAR_TYPE_NAMES.join(', ')} or a structured type, and its '${key}' is none of them`, name, key);
-            }
-        }
-
-        if (conversion.from === conversion.to) {
-            fail('LEXICA4066', 'A value already of a type converts to itself, so no conversion is declared from a type to itself', name, 'to');
-        }
-
-        LexicaModule.#validateImplementation(conversion, name, fail);
-    }
-
     /** Validates the module members a module declares, each named once in the module, since its namespace reaches it by its name alone. */
     static #validateMembers(members, fail) {
         const moduleMemberNames = new Set();
@@ -843,6 +804,10 @@ export class LexicaModule {
 
         if (!MEMBER_KINDS.includes(member.kind)) {
             fail('LEXICA4524', `A member is one of ${MEMBER_KINDS.join(', ')}`, name, 'kind');
+        }
+
+        if (member.kind === 'operator') {
+            LexicaModule.#validateOperator(member, declared, takesReceiver, name, fail);
         }
 
         LexicaModule.#validateKeys(member, [...memberKeys, ...kindKeys], isDataProperty ? "A property of a structured type's data" : `A member of kind '${member.kind}'`, fail, isUnnamedIndexer ? UNNAMED_INDEXER_NAME : undefined);
@@ -898,6 +863,24 @@ export class LexicaModule {
 
         LexicaModule.#validateInternal(member, name, fail);
         LexicaModule.#validateImplementation(member, name, fail);
+    }
+
+    /**
+     * Refuses an operator named other than `cast` or `convert` (LEXICA4560), one declaring type parameters (LEXICA4561), since its destination selects it and no rule binds a parameter from a destination, and a module
+     * member that is one (LEXICA4022), since the language's own syntax invokes it on a value of its type, which a module member has none of.
+     */
+    static #validateOperator(member, declared, takesReceiver, name, fail) {
+        if (!OPERATOR_NAMES.includes(declared.name)) {
+            fail('LEXICA4560', `An operator is named ${OPERATOR_NAMES.join(' or ')}, the operation the language's syntax invokes it for, and '${declared.name}' is neither`, name, 'name');
+        }
+
+        if (declared.typeParameters.length > 0) {
+            fail('LEXICA4561', `The operator '${member.name}' declares type parameters, which its destination never binds, so it uses its extension's`, name, 'name');
+        }
+
+        if (!takesReceiver) {
+            fail('LEXICA4022', 'An operator is invoked on a value of its type, and a module member takes none', name, 'kind');
+        }
     }
 
     /** Refuses an `internal` that is given and is no Boolean: `false` where it is left out, and any other value, a string among them, refused. */

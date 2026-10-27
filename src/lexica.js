@@ -167,10 +167,11 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
         const unimplementedConversion = resolved.usedConversions.find(conversion => registry.getImplementation(conversion) === undefined);
 
+        // A conversion operator is located at the type or the extension it stands in, as any member within one is.
         if (unimplementedConversion !== undefined) {
-            const name = LexicaModule.conversionNameOf(unimplementedConversion);
+            const location = { module: registry.getDeclaringModuleName(unimplementedConversion), type: registry.getContainingType(unimplementedConversion).name, declaration: unimplementedConversion.name, declarationKey: 'impl' };
 
-            throw LexicaErrors.module('LEXICA4001', `The conversion from ${name} has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplementedConversion), declaration: name, declarationKey: 'impl' });
+            throw LexicaErrors.module('LEXICA4001', `The conversion from ${registry.formatOperator(unimplementedConversion)} has no implementation, so a script that uses it is resolved and never evaluated`, location);
         }
 
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);

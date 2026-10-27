@@ -37,8 +37,8 @@ export class LexicaRegistry {
     /** @type {Map<string, object>} */
     #observationTypes = new Map();
 
-    /** Each conversion, by the identity of its source type and then of its target. @type {Map<string, Map<string, object>>} */
-    #conversions = new Map();
+    /** Every operator registered, by its name, `cast` or `convert`, in the order registered: looked up apart from the members, which the language's syntax never confuses with one. @type {Map<string, object[]>} */
+    #operators = new Map();
 
     /**
      * The module each declaration belongs to, by the declaration: the name of the module that declares it, which its notations are read in, and the modules a structured type imports, which they read unqualified too.
@@ -164,7 +164,7 @@ export class LexicaRegistry {
 
         // Every declaration's notations are read in its module: its own types, Lexica's, and those of a module a type imports, unqualified, and any other qualified by its module; a member a type declares within it reads
         // its type's imports, which cover the type's whole declaration.
-        const declarations = [...module.types, ...members, ...module.typeSelectors, ...module.mappings, ...module.observationTypes, ...module.conversions];
+        const declarations = [...module.types, ...members, ...module.typeSelectors, ...module.mappings, ...module.observationTypes];
 
         for (const declaration of declarations) {
             const type = module.types.includes(declaration) ? declaration : typesOfMembers.get(declaration);
@@ -187,7 +187,7 @@ export class LexicaRegistry {
             this.#validateMemberCollisions(members, failAt);
             this.#validateAccessibility(module, members, fail, failAt);
             this.#validateTypeParameters(module, members, fail, failAt);
-            this.#validateConversions(module, fail);
+            this.#validateOperators(module, members, failAt);
         } catch (error) {
             // A refused module's declarations belong to no module of the registry, and its members to none of its types.
             declarations.forEach(declaration => this.#declaringModules.delete(declaration));
@@ -217,23 +217,15 @@ export class LexicaRegistry {
             this.#observationTypes.set(type.name, type);
         }
 
-        // A module member has no receiver, so no receiver's member of its name finds it, and an unnamed indexer has no name.
+        // A module member has no receiver, so no receiver's member of its name finds it; an unnamed indexer has no name; and an operator is looked up by its operation alone.
         for (const declaration of members) {
-            if (LexicaRegistry.#isUnnamedIndexer(declaration)) {
+            if (declaration.kind === 'operator') {
+                this.#operators.set(declaration.name, [...this.getOperators(declaration.name), declaration]);
+            } else if (LexicaRegistry.#isUnnamedIndexer(declaration)) {
                 this.#unnamedIndexers.push(declaration);
             } else if (this.takesReceiver(declaration)) {
                 this.#receiverMembers.set(declaration.name, [...this.getReceiverMembers(declaration.name), declaration]);
             }
-        }
-
-        for (const conversion of module.conversions) {
-            const from = this.getDeclaredType(conversion, conversion.from).identity;
-
-            if (!this.#conversions.has(from)) {
-                this.#conversions.set(from, new Map());
-            }
-
-            this.#conversions.get(from).set(this.getDeclaredType(conversion, conversion.to).identity, conversion);
         }
 
         return this;
@@ -246,13 +238,14 @@ export class LexicaRegistry {
 
     /**
      * The members named so that the module's namespace reaches: its module members, and those its own types declare within them, each in the order it declares them; an extension's members, which extension access
-     * selects, are none of them.
+     * selects, and an operator, which its syntax alone invokes, are none of them.
      */
     getMembersDeclaredBy(moduleName, name) {
         const module = this.#modules.get(moduleName);
         const ownTypes = module?.types.filter(type => type.kind !== 'extension') ?? [];
 
-        return module === undefined ? [] : [...module.members, ...ownTypes.flatMap(type => type.members ?? [])].filter(declaration => declaration.name === name);
+        // An operator is reached through its syntax alone, never through a namespace.
+        return module === undefined ? [] : [...module.members, ...ownTypes.flatMap(type => type.members ?? [])].filter(declaration => declaration.name === name && declaration.kind !== 'operator');
     }
 
     /** The type, Lexica's own value type or the extension the member is declared within, which gives its receiver and decides whether its module owns it; undefined for a module member. */
@@ -316,15 +309,15 @@ export class LexicaRegistry {
         return declaration.kind === 'indexer' && declaration.name === undefined;
     }
 
-    /** How a location names the declaration where it is given no name: an unnamed indexer as its access is written, and a conversion by its source and destination. */
+    /** How a location names the declaration: an unnamed indexer, which is given no name, as its access is written, and any other by its name. */
     static #locatedNameOf(declaration) {
         return LexicaRegistry.#isUnnamedIndexer(declaration) ? '[]' : declaration.name;
     }
 
     /**
-     * The type the notation writes in the declaration, a member, one of its parameters' notations among them, a structured type, a mapping or a conversion: each name resolved to its identity in the module
-     * that declares it. It is resolved once and kept by the declaration for good, since a registered module is never removed and its declarations are frozen, and it is released with the declaration; a notation that
-     * names no type the declaration's module can reach is refused at that module and the declaration's name, a conversion's being its source and destination, and kept by none. It calls no host code.
+     * The type the notation writes in the declaration, a member, one of its parameters' notations among them, a type, an extension or a mapping: each name resolved to its identity in the module that declares it. It is
+     * resolved once and kept by the declaration for good, since a registered module is never removed and its declarations are frozen, and it is released with the declaration; a notation that names no type the
+     * declaration's module can reach is refused at that module and the declaration's name, and kept by none. It calls no host code.
      */
     getDeclaredType(declaration, notation) {
         let types = this.#declaredTypeCache.get(declaration);
@@ -336,7 +329,7 @@ export class LexicaRegistry {
 
         if (!types.has(notation)) {
             const typeName = this.#containingTypes.get(declaration)?.name;
-            const declarationName = LexicaRegistry.#locatedNameOf(declaration) ?? LexicaModule.conversionNameOf(declaration);
+            const declarationName = LexicaRegistry.#locatedNameOf(declaration);
             const fail = (code, message) => {
                 throw LexicaErrors.module(code, message, { module: this.getDeclaringModuleName(declaration), ...(typeName === undefined ? {} : { type: typeName }), declaration: declarationName });
             };
@@ -359,8 +352,13 @@ export class LexicaRegistry {
             return [this.getDeclaredType(type, type.target)];
         }
 
+        // Lexica's own value types are named without a module, as a notation writes them.
         if (type?.kind === 'generic') {
             return [new Type('named', { name: type.name, typeArguments: type.typeParameters.map(name => Type.createTypeParameter(name)), isNullable: false })];
+        }
+
+        if (type?.kind === 'scalar') {
+            return [Type.createNamedType(type.name)];
         }
 
         if (type !== undefined) {
@@ -562,14 +560,19 @@ export class LexicaRegistry {
         return this.#observationTypes.get(name);
     }
 
-    /** The conversion declared from the one type to the other, or undefined. */
-    getConversion(from, to) {
-        return this.#conversions.get(from.identity)?.get(to.identity);
+    /** The operators of the name, `cast` or `convert`, across every module, in the order registered, each within the type or the extension whose receiver it is invoked on. */
+    getOperators(name) {
+        return this.#operators.get(name) ?? [];
     }
 
-    /** The types a value of the type converts to through a declared conversion. */
-    getConversionTargets(from) {
-        return [...(this.#conversions.get(from.identity)?.values() ?? [])].map(conversion => this.getDeclaredType(conversion, conversion.to));
+    /** The type an operator answers, its destination, which selects it beside its receiver's type. */
+    getOperatorDestination(declaration) {
+        return this.getDeclaredType(declaration, declaration.result);
+    }
+
+    /** How a message names an operator: its receiver's type and its destination, by the syntax that invokes it, as `String to Number` and `Meter as Device`. */
+    formatOperator(declaration) {
+        return `${this.getReceiverTypes(declaration)[0]} ${declaration.name === 'cast' ? 'as' : 'to'} ${declaration.result}`;
     }
 
     /** Whether the type is one a conversion converts between: a type of data Lexica defines, or a structured type that holds data alone, never null. */
@@ -577,7 +580,7 @@ export class LexicaRegistry {
         return type.kind === 'named' && type.typeArguments.length === 0 && !type.isNullable && this.isData(type);
     }
 
-    /** The name of the module that declares the declaration: a member, a type, a type selector, a mapping or a conversion. */
+    /** The name of the module that declares the declaration: a member, an operator among them, a type, an extension, a type selector, a mapping or an observation type. */
     getDeclaringModuleName(declaration) {
         return this.#declaringModules.get(declaration)?.moduleName;
     }
@@ -719,7 +722,7 @@ export class LexicaRegistry {
 
         module.mappings.forEach(mapping => this.getDeclaredType(mapping, mapping.type));
 
-        // A member's receiver is the type it is declared within, or its extension's target, resolved with the extension.
+        // A member's receiver is the type it is declared within, or its extension's target, resolved with the extension; an operator's result is its destination.
         for (const declaration of members) {
             if (declaration.result !== undefined) {
                 this.getDeclaredType(declaration, declaration.result);
@@ -730,7 +733,6 @@ export class LexicaRegistry {
             }
         }
 
-        module.conversions.forEach(conversion => ['from', 'to'].forEach(key => this.getDeclaredType(conversion, conversion[key])));
     }
 
     /** Refuses, every notation resolved, a supertype that is no reference type, a cycle of supertypes, a tolerance on a result that holds no number, and a default its parameter's type does not admit. */
@@ -792,10 +794,11 @@ export class LexicaRegistry {
     #validateMemberCollisions(members, failAt) {
         // Two of one module's members on overlapping receivers, as a type and the type beneath it, both register, an access both take refused where it is resolved.
         members.forEach((declaration, index) => {
-            const earlier = members.slice(0, index).filter(other => other.name === declaration.name);
+            const earlier = members.slice(0, index).filter(other => other.name === declaration.name && other.kind !== 'operator');
             const fail = failAt(declaration);
 
-            if (!this.takesReceiver(declaration)) {
+            // An operator collides by its destination too, which its own check reads.
+            if (!this.takesReceiver(declaration) || declaration.kind === 'operator') {
                 return;
             }
 
@@ -820,9 +823,9 @@ export class LexicaRegistry {
     }
 
     /**
-     * Refuses a declaration that names another module's internal type, as a supertype, an extension's target, a parameter's, a callback's, a result's, a mapping's or a conversion's type (LEXICA4018), and a public
-     * declaration that exposes an internal type of its own module through what it writes of them (LEXICA4052): a type's supertype, an extension's target, a member's parameters', callbacks' and result's types, a mapping's type and a conversion's
-     * types, through list items and nullable types. A member within an internal type, and an internal one, is no public declaration; within one module, declarations name each other's internal declarations freely.
+     * Refuses a declaration that names another module's internal type, as a supertype, an extension's target, a parameter's, a callback's, a result's, an operator's destination or a mapping's type (LEXICA4018), and a
+     * public declaration that exposes an internal type of its own module through what it writes of them (LEXICA4052): a type's supertype, an extension's target, a member's parameters', callbacks' and result's types, an
+     * operator's destination among them, and a mapping's type, through list items and nullable types. A member within an internal type, and an internal one, is no public declaration; within one module, declarations name each other's internal declarations freely.
      */
     #validateAccessibility(module, members, fail, failAt) {
         const writtenTypesOf = declaration => {
@@ -832,10 +835,6 @@ export class LexicaRegistry {
 
             if (module.mappings.includes(declaration)) {
                 return [declaration.type];
-            }
-
-            if (module.conversions.includes(declaration)) {
-                return [declaration.from, declaration.to];
             }
 
             return [...(declaration.result === undefined ? [] : [declaration.result]), ...declaration.parameters.flatMap(parameter => [parameter.type, ...(parameter.parameterTypes ?? [])])];
@@ -852,9 +851,9 @@ export class LexicaRegistry {
             return [...(type.moduleName === null ? [] : [type]), ...type.typeArguments.flatMap(namedTypesOf)];
         };
 
-        for (const declaration of [...module.types, ...members, ...module.mappings, ...module.conversions]) {
+        for (const declaration of [...module.types, ...members, ...module.mappings]) {
             const failHere = members.includes(declaration) ? failAt(declaration) : fail;
-            const name = module.conversions.includes(declaration) ? LexicaModule.conversionNameOf(declaration) : module.mappings.includes(declaration) ? declaration.key : declaration.name;
+            const name = module.mappings.includes(declaration) ? declaration.key : declaration.name;
 
             for (const type of writtenTypesOf(declaration).flatMap(notation => namedTypesOf(this.getDeclaredType(declaration, notation)))) {
                 if (this.getTypeDeclaration(type)?.internal !== true) {
@@ -928,30 +927,48 @@ export class LexicaRegistry {
         return new Set(parts.flatMap(part => [...LexicaRegistry.#typeParametersWrittenBy(part)]));
     }
 
-    /** Refuses a conversion between types that are not data, one between types none of which its module owns, and one declared already. */
-    #validateConversions(module, fail) {
-        module.conversions.forEach((conversion, index) => {
-            const name = LexicaModule.conversionNameOf(conversion);
-            const from = this.getDeclaredType(conversion, conversion.from);
-            const to = this.getDeclaredType(conversion, conversion.to);
+    /**
+     * Refuses an operator its receiver and its destination don't admit: a conversion between types that are not data, as each is named (LEXICA4065), from a type to itself (LEXICA4066), and between types none of which
+     * its module owns (LEXICA4028), Lexica's own module alone converting between the language's types; a cast on or to a type that is no reference type (LEXICA4027), and one between types of one hierarchy, which the
+     * hierarchy decides (LEXICA4064); and an operator of a name and a destination its module declares already on its receiver type (LEXICA4069).
+     */
+    #validateOperators(module, members, failAt) {
+        const operators = members.filter(declaration => declaration.kind === 'operator');
 
-            for (const type of [from, to]) {
-                if (!this.isData(type)) {
-                    fail('LEXICA4065', `'${type}' is no type of data Lexica or a module registered with it declares, which a conversion converts between`, name);
+        operators.forEach((operator, index) => {
+            const fail = failAt(operator);
+            const [source] = this.getReceiverTypes(operator);
+            const destination = this.getOperatorDestination(operator);
+
+            if (operator.name === 'convert') {
+                for (const [type, end] of [[source, 'its receiver'], [destination, 'its destination']]) {
+                    if (!this.isConvertible(type)) {
+                        fail('LEXICA4065', `A conversion operator is from a type of data to another, each named as it is declared, Number, String, Boolean or a structured type holding data alone, and ${end}, ${type}, is none of them`, operator.name, type === source ? 'kind' : 'result');
+                    }
+                }
+
+                if (source.equals(destination)) {
+                    fail('LEXICA4066', `A value already of ${source} converts to itself, so no conversion operator is declared from a type to itself`, operator.name, 'result');
+                }
+
+                if (module !== Vocabulary.module && source.moduleName !== module.name && destination.moduleName !== module.name) {
+                    fail('LEXICA4028', `A conversion operator converts to or from one of its module's own types, and ${this.formatOperator(operator)} does neither`, operator.name, 'result');
+                }
+            } else {
+                if (!this.isReferenceType(source) || !this.isReferenceType(destination)) {
+                    fail('LEXICA4027', `A cast operator is declared on a reference type and casts to another, and ${this.formatOperator(operator)} is not`, operator.name, this.isReferenceType(source) ? 'result' : 'kind');
+                }
+
+                // A type and its supertypes and the types beneath it are cast through their hierarchy, which needs no operator.
+                if (this.#typeChecker.isAssignable(source, destination) || this.#typeChecker.isAssignable(destination, source)) {
+                    fail('LEXICA4064', `${this.formatOperator(operator)} is a cast within one hierarchy, which the hierarchy decides, so no cast operator is declared for it`, operator.name, 'result');
                 }
             }
 
-            // A module converts to or from a type of its own; Lexica's own module alone converts between the language's types.
-            if (module !== Vocabulary.module && from.moduleName !== module.name && to.moduleName !== module.name) {
-                fail('LEXICA4028', "A conversion converts to or from one of its module's own types", name);
-            }
-
-            // A conversion is declared once across the registry: it converts to or from a type of its own module, which no module registered before it names, so its own module alone can declare it again.
-            // Types of data have no subtypes, so two sources overlap where they are one type.
-            const isDeclaredEarlier = module.conversions.slice(0, index).some(other => this.getDeclaredType(other, other.from).equals(from) && this.getDeclaredType(other, other.to).equals(to));
+            const isDeclaredEarlier = operators.slice(0, index).some(other => other.name === operator.name && this.getReceiverTypes(other)[0].equals(source) && this.getOperatorDestination(other).equals(destination));
 
             if (isDeclaredEarlier) {
-                fail('LEXICA4069', `The conversion from ${conversion.from} to ${conversion.to} is declared already`, name);
+                fail('LEXICA4069', `The operator ${this.formatOperator(operator)} is declared already on ${source}`, operator.name, 'result');
             }
         });
     }

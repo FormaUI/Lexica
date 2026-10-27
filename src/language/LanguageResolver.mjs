@@ -553,13 +553,15 @@ export class LanguageResolver {
 
         const from = target.type;
         const base = from.toNonNullable();
-        const canBe = from.kind === 'null' || from.kind === 'never' || (this.#registry.isReferenceType(base) && (this.#typeChecker.isAssignable(targetType, base) || this.#typeChecker.isAssignable(base, targetType)));
+        const isWithinHierarchy = from.kind === 'null' || from.kind === 'never' || (this.#registry.isReferenceType(base) && (this.#typeChecker.isAssignable(targetType, base) || this.#typeChecker.isAssignable(base, targetType)));
+        // A cast across hierarchies is the one a cast operator of its target's type declares to its type.
+        const declaration = isWithinHierarchy ? null : this.#selectOperator('cast', base, targetType, `The cast from ${base} to ${targetType}`, pointer);
 
-        if (!canBe) {
-            this.#fail('LEXICA3060', `A value of ${base} can never be cast to ${node.type}, a type of another hierarchy: the cast would always reject it`, pointer);
+        if (declaration === undefined) {
+            this.#fail('LEXICA3060', `A value of ${base} can never be cast to ${node.type}, a type of another hierarchy no cast operator reaches: the cast would always reject it`, pointer);
         }
 
-        this.#resolutions.set(pointer, { kind: 'cast', type: targetType, sourceType: base });
+        this.#resolutions.set(pointer, { kind: 'cast', type: targetType, sourceType: base, declaration });
 
         return { type: from.kind === 'null' || from.isNullable ? targetType.toNullable() : targetType, kind: 'value', isFixed: false };
     }
@@ -618,6 +620,27 @@ export class LanguageResolver {
         return name.includes('.') || Vocabulary.builtInTypeNames.includes(name) || this.#registry.getModuleNamesDeclaringType(name).length > 0;
     }
 
+    /**
+     * The operator of the name a value of the source type is cast or converted to the destination by, among those of that destination the selector selects, the owner's winning and otherwise the extension's whose
+     * receiver is more specific than every other's; undefined where none applies, refusing an internal one (LEXICA3023) and several none of which is more specific (LEXICA3024), since no syntax selects one module's.
+     */
+    #selectOperator(name, source, destination, subject, pointer) {
+        const candidates = this.#registry.getOperators(name).filter(operator => this.#registry.getOperatorDestination(operator).equals(destination));
+        const selection = this.#memberSelector.select(candidates, source);
+
+        if (selection.kind === 'internal') {
+            this.#failInternal(subject, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
+        }
+
+        if (selection.kind === 'ambiguous') {
+            const modules = [...new Set(selection.declarations.map(operator => this.#registry.getDeclaringModuleName(operator)))];
+
+            this.#fail('LEXICA3024', `${subject} is declared by the modules ${modules.map(module => `'${module}'`).join(' and ')}, none of whose receivers is more specific than every other's, so which applies is ambiguous`, pointer);
+        }
+
+        return selection.kind === 'selected' ? selection.declaration : undefined;
+    }
+
     /** Resolves an attempt: the conversion or the cast it attempts, as it resolves strictly, its result made nullable, since a rejection answers null. */
     #resolveTry(node, pointer, scope) {
         const result = this.#resolveNode(node.target, `${pointer}/target`, scope);
@@ -627,7 +650,7 @@ export class LanguageResolver {
 
     /**
      * Resolves a conversion: its target, a value, and the type of data it converts to, its result of that type, nullable where the target is.
-     * A value already of the type answers itself, which no declaration overrides; any other takes the one conversion declared from its type to that one, never a chain of them.
+     * A value already of the type answers itself, which no declaration overrides; any other takes the conversion operator of its type to that one the selector selects, never a chain of them.
      * A target of unknown type chooses none: null answers null, and a never is never evaluated.
      */
     #resolveConversion(node, pointer, scope) {
@@ -655,10 +678,10 @@ export class LanguageResolver {
 
         const source = from.toNonNullable();
         const isIdentity = source.kind === 'named' && source.equals(to);
-        const declaration = isIdentity || source.kind !== 'named' ? undefined : this.#registry.getConversion(source, to);
+        const declaration = isIdentity ? undefined : this.#selectOperator('convert', source, to, `The conversion from ${source} to ${to}`, pointer);
 
         if (!isIdentity && declaration === undefined) {
-            const targets = source.kind === 'named' ? this.#registry.getConversionTargets(source) : [];
+            const targets = [...new Set(this.#memberSelector.getAccessible(this.#registry.getOperators('convert')).filter(operator => this.#typeChecker.resolveApplyingReceiverType(operator, source) !== undefined).map(operator => String(this.#registry.getOperatorDestination(operator))))];
             const available = targets.length === 0 ? `${source} converts to nothing` : `${source} converts to ${targets.join(', ')}`;
 
             this.#fail('LEXICA3022', `No conversion from ${source} to ${to.name} is declared, and ${available}`, pointer);

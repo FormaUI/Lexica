@@ -3,7 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Room, withHome } from '../support/home.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations, extensionDeclaration, hostFunctionDeclaration } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, hostFunctionDeclaration, operatorDeclaration } from '../support/declarations.mjs';
 
 const { createValueParameterDeclaration, createExpressionParameterDeclaration, createFunctionParameterDeclaration, createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration } = lexica.declarations;
 
@@ -45,6 +45,7 @@ const createShop = () => lexica.createModule('shop', withHome({
             call('scan', 'Number', { parameters: [createExpressionParameterDeclaration('Number')] }),
             hostFunctionDeclaration('order', 'Number', { parameters: [createValueParameterDeclaration('count', 'Number')] }),
             hostFunctionDeclaration('hold', undefined),
+            operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length })),
         ]),
         extensionDeclaration('Numbers', 'List<Number>', [
             call('rank', 'Number', { arguments: 'options', parameters: [{ ...createExpressionParameterDeclaration('Number'), name: 'by' }, createValueParameterDeclaration('limit', 'Number', { default: 1 })] }),
@@ -54,7 +55,6 @@ const createShop = () => lexica.createModule('shop', withHome({
     ],
     typeSelectors: [{ name: 'flavor' }],
     mappings: [{ key: 'size', selector: 'flavor', type: 'Number' }],
-    conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
     members: [
         property('open', 'Boolean'),
         call('sweep', 'Number', { parameters: [createExpressionParameterDeclaration('Number')] }),

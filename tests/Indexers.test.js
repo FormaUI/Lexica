@@ -3,7 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { evaluateWith, resolveWith } from './support/pipeline.mjs';
-import { dataPropertyDeclarations, extensionDeclaration } from './support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 
 const { createPropertyDeclaration, createValueParameterDeclaration, createIndexerDeclaration, createFunctionDeclaration } = lexica.declarations;
 
@@ -205,8 +205,7 @@ describe('indexers and computed properties', () => {
 
     describe('a type name qualified by its module', () => {
         const createCups = () => lexica.createModule('cups', {
-            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
-            conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
+            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length }))])],
         });
 
         it('is read and written as it is, in text read without a registry too', () => {

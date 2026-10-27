@@ -3,7 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { withHome } from '../support/home.mjs';
 import { errorThrownBy, expectLexicaError, expectModuleError } from '../support/errors.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, parameterDeclaration, propertyDeclaration } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, operatorDeclaration, parameterDeclaration, propertyDeclaration } from '../support/declarations.mjs';
 
 const observable = observations => ({ changes: 'observable', reads: 'fresh', observations });
 
@@ -454,24 +454,51 @@ describe('the module error codes', () => {
         });
     });
 
-    describe('of a conversion', () => {
-        it('LEXICA4065: a conversion from or to a type that is not data', () => {
-            expectModuleCode(creating({ conversions: [{ from: 'String?', to: 'Number' }] }), 'LEXICA4065');
-            expectModuleCode(registering(module('charts', withHome({ types: [{ name: 'Holder', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light' }) }], conversions: [{ from: 'String', to: 'Holder' }] }))), 'LEXICA4065');
+    describe('of an operator', () => {
+        const box = (members = []) => ({ name: 'Box', kind: 'structured', members: [...dataPropertyDeclarations({ width: 'Number' }), ...members] });
+        const convert = result => operatorDeclaration('convert', result);
+        const cast = result => operatorDeclaration('cast', result);
+
+        it('LEXICA4560: an operator named other than cast or convert', () => {
+            expectModuleCode(creating({ types: [box([operatorDeclaration('parse', 'String')])] }), 'LEXICA4560');
         });
 
-        it('LEXICA4066: a conversion from a type to itself', () => {
-            expectModuleCode(creating({ conversions: [{ from: 'String', to: 'String' }] }), 'LEXICA4066');
+        it('LEXICA4561: an operator declaring type parameters', () => {
+            expectModuleCode(creating({ types: [box([operatorDeclaration('convert<T>', 'String')])] }), 'LEXICA4561');
         });
 
-        it('LEXICA4028: a conversion neither of whose types is its module\'s', () => {
-            expectModuleCode(registering(module('charts', { conversions: [{ from: 'String', to: 'Number' }] })), 'LEXICA4028');
+        it('LEXICA4022: a module member that is an operator', () => {
+            expectModuleCode(creating({ members: [convert('String')] }), 'LEXICA4022');
         });
 
-        it('LEXICA4069: a conversion its module declares twice', () => {
-            const box = { name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) };
+        it('LEXICA4065: a conversion operator from or to a type that is not data', () => {
+            expectModuleCode(registering(module('charts', withHome({ types: [{ name: 'Holder', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light' }) }, onStrings([convert('Holder')]).types[0]] }))), 'LEXICA4065');
+            expectModuleCode(registering(module('charts', withHome({ types: [box()] }, { Light: [convert('Box')] }))), 'LEXICA4065');
+        });
 
-            expectModuleCode(registering(module('charts', { types: [box], conversions: [{ from: 'String', to: 'Box' }, { from: 'String', to: 'Box' }] })), 'LEXICA4069');
+        it('LEXICA4066: a conversion operator from a type to itself', () => {
+            expectModuleCode(registering(module('charts', { types: [box([convert('Box')])] })), 'LEXICA4066');
+        });
+
+        it('LEXICA4028: a conversion operator neither of whose types is its module\'s', () => {
+            expectModuleCode(registering(module('charts', onStrings([convert('Number')]))), 'LEXICA4028');
+        });
+
+        it('LEXICA4027: a cast operator not declared on a reference type, or not casting to one', () => {
+            expectModuleCode(registering(module('charts', { types: [box([cast('Box')])] })), 'LEXICA4027');
+            expectModuleCode(registering(module('charts', withHome({}, { Light: [cast('Number')] }))), 'LEXICA4027');
+        });
+
+        it('LEXICA4064: a cast operator to its own type, its supertype or a type beneath it', () => {
+            for (const result of ['Light', 'Device']) {
+                expectModuleCode(registering(module('charts', withHome({}, { Light: [cast(result)] }))), 'LEXICA4064');
+            }
+
+            expectModuleCode(registering(module('charts', withHome({}, { Device: [cast('Light')] }))), 'LEXICA4064');
+        });
+
+        it('LEXICA4069: two operators of one name and destination on one receiver type of one module', () => {
+            expectModuleCode(registering(module('charts', { types: [box(), onStrings([convert('Box'), convert('Box')]).types[0]] })), 'LEXICA4069');
         });
     });
 

@@ -9,7 +9,7 @@ import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Device, Light, Room, Thermostat, homeTypeOf, homeTypes, withHome } from '../support/home.mjs';
 import { errorThrownBy, expectLexicaError } from '../support/errors.mjs';
 import { constantUpdates, derivedUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations, extensionDeclaration } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from '../support/declarations.mjs';
 
 const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
@@ -35,16 +35,15 @@ const createPantry = () => lexica.createModule('pantry', withHome({
             createFunctionDeclaration('callKept', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => kept(receiver) }),
             createFunctionDeclaration('order', 'Number', { invokedBy: 'host', parameters: [createValueParameterDeclaration('count', 'Number')] }),
             createFunctionDeclaration('drop', undefined, { invokedBy: 'host' }),
+            operatorDeclaration('convert', 'Cup', input => behaviors.convert(input)),
         ]),
     ],
     observationTypes: [{ name: 'quote', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
-    conversions: [{ from: 'String', to: 'Cup', impl: input => behaviors.convert(input) }],
 }));
 
 /** A module whose member and conversion have no implementation. */
 const createBare = () => lexica.createModule('bare', {
-    types: [{ name: 'Mug', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('weight', 'Number', { updates: constantUpdates })])],
-    conversions: [{ from: 'String', to: 'Mug' }],
+    types: [{ name: 'Mug', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('weight', 'Number', { updates: constantUpdates }), operatorDeclaration('convert', 'Mug')])],
 });
 
 /** The evaluator of the text against a registry of the pantry, bound to the values given. */

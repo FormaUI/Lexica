@@ -29,3 +29,6 @@ export const indexerDeclaration = (overrides = {}) => propertyDeclaration({ kind
 
 /** An extension, in the declaration shape: its name, which declares the type parameters its target and its members share, its target and the members it adds to it. */
 export const extensionDeclaration = (name, target, members) => ({ name, kind: 'extension', target, members });
+
+/** An operator, in the declaration shape: `cast` or `convert`, its destination, and its implementation where it is given one. */
+export const operatorDeclaration = (name, result, impl) => ({ kind: 'operator', name, result, ...(impl === undefined ? {} : { impl }) });

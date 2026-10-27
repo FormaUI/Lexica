@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
-import { dataPropertyDeclarations, extensionDeclaration } from './support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 
 const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
@@ -234,10 +234,10 @@ describe('the declaration shape', () => {
     });
 
     it('refuses to evaluate an expression that converts through a conversion without an implementation, in a branch it may not take as well', () => {
-        const cups = lexica.createModule('cups', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }], conversions: [{ from: 'String', to: 'Cup' }] });
+        const cups = lexica.createModule('cups', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup')])] });
         const resolution = lexica.createRegistry([cups]).resolve('if large then (order to Cup).size else 0 end', { order: 'tall', large: false });
 
-        expect(errorThrownBy(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'String to Cup', declarationKey: 'impl' } });
+        expect(errorThrownBy(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', message: expect.stringContaining('The conversion from String to Cup has no implementation'), location: { module: 'cups', type: 'Orders', declaration: 'convert', declarationKey: 'impl' } });
     });
 
     it('registers a module member, which has no target, beside the members of a type, read through its namespace and answered by no receiver, its implementation given no receiver', () => {

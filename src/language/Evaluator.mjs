@@ -681,28 +681,37 @@ export class Evaluator {
     }
 
     /**
-     * A cast, with its target evaluated once: its target itself where it belongs to the type, by the type's membership and its supertypes', and null where it is null. A target that doesn't fails the evaluation of a cast, naming the
-     * type its target is of, which is never asked again, and an attempted one answers null instead.
+     * A cast, with its target evaluated once: its target itself where it belongs to the type, by the type's membership and its supertypes', and null where it is null, its cast operator, where one casts across
+     * hierarchies, called first where it has an implementation, which answers its target or rejects it. A target that doesn't belong, and one the operator rejects, fails the evaluation of a cast, naming the type its
+     * target is of, which is never asked again, or the operator's reason, and an attempted one answers null instead; an operator failing otherwise is a fault, which an attempt does not catch.
      */
     #compileCast(node, isAttempted) {
         const evaluateOperand = this.#getCompiledFunction(node.target);
-        const { type: targetType, sourceType } = this.#resolvedDefinition.resolutionOf(node);
+        const { type: targetType, sourceType, declaration } = this.#resolvedDefinition.resolutionOf(node);
         const asked = `the cast to ${targetType}`;
         // A value of a type above the cast's is one that isn't of the cast's type, and a value of the cast's own type, or of one beneath it, is one its supertypes refuse.
         const what = this.#registry.typeChecker.isAssignable(targetType, sourceType) && !this.#registry.typeChecker.isAssignable(sourceType, targetType) ? `${Evaluator.#getNameWithArticle(sourceType)} that isn't ${Evaluator.#getNameWithArticle(targetType)}` : Evaluator.#getNameWithArticle(sourceType);
+        const implementation = declaration === null ? undefined : this.#registry.getImplementation(declaration);
+        const name = declaration === null ? null : this.#registry.formatOperator(declaration);
 
         return (evaluator, context) => {
             const value = evaluateOperand(evaluator, context);
 
-            if (value === null || evaluator.#registry.belongsTo(value, targetType, asked)) {
-                return value;
+            if (value === null) {
+                return null;
+            }
+
+            const outcome = implementation === undefined ? { isAccepted: true, value } : Evaluator.#invokeOperator(evaluator, implementation, value, node, `The cast operator ${name}`, { failure: 'LEXICA5004', rejection: 'LEXICA5004' });
+
+            if (outcome.isAccepted && evaluator.#registry.belongsTo(outcome.value, targetType, asked)) {
+                return outcome.value;
             }
 
             if (isAttempted) {
                 return null;
             }
 
-            return evaluator.#fail('LEXICA5001', `The cast to ${targetType} rejected its value: it is ${what}`, evaluator.#pointerOf(node));
+            return evaluator.#fail('LEXICA5001', `The cast to ${targetType} rejected its value: ${outcome.isAccepted ? `it is ${what}` : outcome.reason}`, evaluator.#pointerOf(node));
         };
     }
 
@@ -725,7 +734,7 @@ export class Evaluator {
             return evaluateOperand;
         }
 
-        const name = LexicaModule.conversionNameOf(declaration);
+        const name = this.#registry.formatOperator(declaration);
         const attempt = Evaluator.#compileConversionAttempt(declaration, type, this.#registry);
 
         return (evaluator, context) => {
@@ -754,7 +763,7 @@ export class Evaluator {
      * A rejection is the signal `reject` throws for this attempt alone; any other exception, a reason that is no string, a rejection the conversion caught and answered past, and a value not of the type are faults, which fail the evaluation, attempted or not.
      */
     static #compileConversionAttempt(declaration, type, registry) {
-        const name = LexicaModule.conversionNameOf(declaration);
+        const name = registry.formatOperator(declaration);
         const convert = registry.getImplementation(declaration);
         const conforms = Evaluator.#compileTypeCheck(type, registry, `the conversion from ${name}`);
         const copyStructure = Evaluator.#compileStructureCopy(type, registry);
@@ -764,44 +773,60 @@ export class Evaluator {
                 evaluator.#fail('LEXICA4001', `The module '${registry.getDeclaringModuleName(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#pointerOf(node));
             }
 
-            const rejection = { isRejected: false, reason: null };
-            const reject = reason => {
-                rejection.isRejected = true;
-                rejection.reason = reason;
+            const outcome = Evaluator.#invokeOperator(evaluator, convert, value, node, `The conversion from ${name}`, { failure: 'LEXICA5003', rejection: 'LEXICA5018' });
 
-                throw rejection;
-            };
-            let converted;
-
-            try {
-                converted = convert({ value, reject });
-            } catch (error) {
-                // A failure Lexica raised keeps its own code and place; anything else the conversion threw but its rejection, a LexicaError it built among them, is the cause of Lexica's own, exactly as thrown.
-                if (LexicaErrors.isRaisedByLexica(error)) {
-                    throw error;
-                }
-
-                if (error !== rejection) {
-                    evaluator.#fail('LEXICA5003', `The conversion from ${name} failed: ${Evaluator.#messageOf(error)}`, evaluator.#pointerOf(node), { cause: error });
-                }
-
-                if (typeof rejection.reason !== 'string') {
-                    evaluator.#fail('LEXICA5018', `The conversion from ${name} rejected its value with a reason that is no string`, evaluator.#pointerOf(node));
-                }
-
-                return { isAccepted: false, reason: rejection.reason };
+            if (!outcome.isAccepted) {
+                return outcome;
             }
 
-            if (rejection.isRejected) {
-                evaluator.#fail('LEXICA5018', `The conversion from ${name} rejected its value and then answered one`, evaluator.#pointerOf(node));
+            if (!conforms(outcome.value)) {
+                evaluator.#fail('LEXICA5019', `The conversion from ${name} answered ${Evaluator.#describe(outcome.value)}, and it converts to ${type}`, evaluator.#pointerOf(node));
             }
 
-            if (!conforms(converted)) {
-                evaluator.#fail('LEXICA5019', `The conversion from ${name} answered ${Evaluator.#describe(converted)}, and it converts to ${type}`, evaluator.#pointerOf(node));
-            }
-
-            return { isAccepted: true, value: copyStructure === null ? converted : copyStructure(converted) };
+            return { isAccepted: true, value: copyStructure === null ? outcome.value : copyStructure(outcome.value) };
         };
+    }
+
+    /**
+     * An operator's implementation called with a value, never null, and `reject`: what it answers where it accepts the value, or the reason it rejected it with. A rejection is the signal `reject` throws for this call
+     * alone; any other exception, the codes' `failure`, and a reason that is no string or a rejection the operator caught and answered past, their `rejection`, are faults, which fail the evaluation, attempted or not.
+     * @param {string} subject How a message names the operator, as `The conversion from String to Number`.
+     * @param {{ failure: string, rejection: string }} codes The codes of the operator's faults.
+     */
+    static #invokeOperator(evaluator, implementation, value, node, subject, codes) {
+        const rejection = { isRejected: false, reason: null };
+        const reject = reason => {
+            rejection.isRejected = true;
+            rejection.reason = reason;
+
+            throw rejection;
+        };
+        let answered;
+
+        try {
+            answered = implementation({ value, reject });
+        } catch (error) {
+            // A failure Lexica raised keeps its own code and place; anything else the operator threw but its rejection, a LexicaError it built among them, is the cause of Lexica's own, exactly as thrown.
+            if (LexicaErrors.isRaisedByLexica(error)) {
+                throw error;
+            }
+
+            if (error !== rejection) {
+                evaluator.#fail(codes.failure, `${subject} failed: ${Evaluator.#messageOf(error)}`, evaluator.#pointerOf(node), { cause: error });
+            }
+
+            if (typeof rejection.reason !== 'string') {
+                evaluator.#fail(codes.rejection, `${subject} rejected its value with a reason that is no string`, evaluator.#pointerOf(node));
+            }
+
+            return { isAccepted: false, reason: rejection.reason };
+        }
+
+        if (rejection.isRejected) {
+            evaluator.#fail(codes.rejection, `${subject} rejected its value and then answered one`, evaluator.#pointerOf(node));
+        }
+
+        return { isAccepted: true, value: answered };
     }
 
     /**

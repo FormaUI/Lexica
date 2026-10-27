@@ -15,19 +15,22 @@ describe('Vocabulary', () => {
     /** How the registry writes each receiver the member is read on, and the member, as a message names it. */
     const writtenOf = member => `${registry.getReceiverTypes(member).join(' or ')}${member.name === undefined ? '[]' : `.${member.name}`}`;
 
+    /** The conversion operators of Lexica's own scalar types, each standing in the type it converts from. */
+    const conversions = Vocabulary.valueTypes.filter(type => type.kind === 'scalar').flatMap(type => type.members);
+
     /** What the implementation of a conversion gives the value, or the reason it rejects it. */
     const convert = (from, to, value) => {
         try {
-            return module.conversions.find(conversion => conversion.from === from && conversion.to === to).impl({ value, reject: reason => { throw new Error(reason); } });
+            return conversions.find(operator => registry.formatOperator(operator) === `${from} to ${to}`).impl({ value, reject: reason => { throw new Error(reason); } });
         } catch (error) {
             return `rejected: ${error.message}`;
         }
     };
 
-    it('is Lexica\'s own module, one module of its own name, each of its members and conversions carrying its implementation', () => {
+    it('is Lexica\'s own module, one module of its own name, each of its members and operators carrying its implementation', () => {
         expect(module.name).toBe('Lexica');
         expect(module).toBe(Vocabulary.module);
-        expect(module.conversions.every(conversion => typeof conversion.impl === 'function')).toBe(true);
+        expect(conversions.every(operator => operator.kind === 'operator' && operator.name === 'convert' && typeof operator.impl === 'function')).toBe(true);
         expect([...list.members, ...verbs.members].every(member => typeof member.impl === 'function')).toBe(true);
     });
 
@@ -45,12 +48,12 @@ describe('Vocabulary', () => {
         expect(registry.getTypeDeclaration(Type.createNamedType('VerbExtensions', false, 'Lexica'))).toBeUndefined();
     });
 
-    it('declares the members of lists, the verbs that test a receiver, and the conversions between strings, numbers and Booleans, and nothing of any domain', () => {
+    it('declares the members of lists, the verbs that test a receiver, and the conversion operators of strings, numbers and Booleans, and nothing of any domain', () => {
         // The unnamed indexer has no name, and is written as its access is, brackets after the list; the members of lists read the list's T, and the verbs their extension's, the receiver's own type.
         expect(list.members.map(writtenOf)).toEqual(['List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where']);
         expect(verbs).toMatchObject({ name: 'VerbExtensions', kind: 'extension', typeParameters: ['T'], target: 'T' });
         expect(verbs.members.map(writtenOf)).toEqual(['T.is', 'T.has', 'T.supports']);
-        expect(module.conversions.map(conversion => `${conversion.from} to ${conversion.to}`)).toEqual(['String to Number', 'Number to String', 'Boolean to String', 'String to Boolean']);
+        expect(conversions.map(operator => registry.formatOperator(operator))).toEqual(['Number to String', 'String to Number', 'String to Boolean', 'Boolean to String']);
         expect([module.types.length, module.members]).toEqual([1, []]);
         expect(module.observationTypes).toEqual([]);
         expect([module.typeSelectors, module.mappings]).toEqual([[], []]);

@@ -3,15 +3,17 @@ import { lexica } from '#lexica/lexica.js';
 import { errorThrownBy, messageThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { evaluateWith } from './support/pipeline.mjs';
-import { dataPropertyDeclarations } from './support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 
 const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
 /** A module declaring a structured type `Sensor` of the field given, a module member answering one, and a conversion from a string to it. */
 const sensors = (name, field) => lexica.createModule(name, {
-    types: [{ name: 'Sensor', kind: 'structured', members: dataPropertyDeclarations({ [field]: 'Number' }) }],
+    types: [
+        { name: 'Sensor', kind: 'structured', members: dataPropertyDeclarations({ [field]: 'Number' }) },
+        extensionDeclaration('Readings', 'String', [operatorDeclaration('convert', 'Sensor', ({ value }) => ({ [field]: value.length }))]),
+    ],
     members: [createPropertyDeclaration('sensor', 'Sensor', { updates: constantUpdates, impl: () => ({ [field]: 1 }) })],
-    conversions: [{ from: 'String', to: 'Sensor', impl: ({ value }) => ({ [field]: value.length }) }],
 });
 
 /** A module whose module member takes a home sensor and answers its level. */
@@ -47,8 +49,7 @@ describe('type identity', () => {
     describe("of a module's type spelled as one of Lexica's own", () => {
         it("leaves an unqualified name Lexica's own, the module's named qualified, and a declaration of the module naming its own", () => {
             const measures = lexica.createModule('measures', {
-                types: [{ name: 'Number', kind: 'structured', members: dataPropertyDeclarations({ amount: 'String' }) }],
-                conversions: [{ from: 'String', to: 'Number', impl: ({ value }) => ({ amount: value }) }],
+                types: [{ name: 'Number', kind: 'structured', members: dataPropertyDeclarations({ amount: 'String' }) }, extensionDeclaration('Amounts', 'String', [operatorDeclaration('convert', 'Number', ({ value }) => ({ amount: value }))])],
             });
 
             expect(evaluateWith([measures], '"12" to Number')).toBe(12);

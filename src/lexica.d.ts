@@ -207,7 +207,7 @@ export interface LexicaUpdates {
 }
 
 /** What an implementation of an observation type receives: the request it observes, `{ type, target, arguments }`, as the specification's observation types define it, the function it calls when something may have changed, and the environment. */
-export interface LexicaObservationImplementationInput {
+export interface LexicaObservationTypeImplementationInput {
     readonly request: Readonly<Record<string, unknown>>;
     readonly notify: () => void;
     readonly env: unknown;
@@ -223,7 +223,7 @@ export interface LexicaObservationTypeDeclaration {
     /** Whether equivalent requests share one observation; one that is not shared is kept for each of its host's evaluations alone. */
     shared?: boolean;
     /** Starts an observation, and answers an object whose `stop` ends it and, for a maintained one, whose `sample` answers its latest sample as `{ pending, value }`, pending until the first arrives. */
-    impl?: (input: LexicaObservationImplementationInput) => { stop(): void; sample?(): { pending: boolean; value?: unknown } };
+    impl?: (input: LexicaObservationTypeImplementationInput) => { stop(): void; sample?(): { pending: boolean; value?: unknown } };
 }
 
 /** A type selector, through which a function's fixed argument selects the type of its result: declared by its name alone. */
@@ -251,24 +251,14 @@ export interface LexicaObservationTargetDeclaration {
     count?: 'many';
 }
 
-/** What an implementation of a conversion receives: the value, never null, and `reject`. */
-export interface LexicaConversionImplementationInput {
+/** What an implementation of an operator receives: the value, never null, and `reject`. */
+export interface LexicaOperatorImplementationInput {
     readonly value: unknown;
     /**
-     * Rejects the value, which has no conversion, with a reason that is a diagnostic string. It throws a signal private to Lexica and to this attempt at the conversion,
-     * so it never returns and the implementation stops where it calls it, unlike a promise's `reject`. Any other exception it throws, and a value not of the type it converts to, is a fault.
+     * Rejects the value, which the operator does not cast or convert, with a reason that is a diagnostic string. It throws a signal private to Lexica and to this attempt at the operator,
+     * so it never returns and the implementation stops where it calls it, unlike a promise's `reject`. Any other exception it throws, and a value not of its destination, is a fault.
      */
     reject(reason: string): never;
-}
-
-/** A conversion from one type of data to another, which `to` asks for: a value already of a type converts to itself, so none is declared from a type to itself. */
-export interface LexicaConversionDeclaration {
-    /** The type it converts from: `Number`, `String`, `Boolean` or a structured type. */
-    from: string;
-    /** The type it converts to: `Number`, `String`, `Boolean` or a structured type. */
-    to: string;
-    /** Converts the value, reading nothing else, and answers the converted value, of the type it converts to, or calls `reject` where the value has none. */
-    impl?: (input: LexicaConversionImplementationInput) => unknown;
 }
 
 /** A parameter of a member. */
@@ -301,7 +291,7 @@ export interface LexicaParameterDeclaration {
 }
 
 /** What a member's implementation receives, by name: its receiver, which a module member has none of, its arguments by parameter name, the environment, and what its kind adds. */
-export interface LexicaImplementationInput {
+export interface LexicaMemberImplementationInput {
     readonly receiver?: unknown;
     readonly args: Readonly<Record<string, unknown>>;
     readonly env: unknown;
@@ -310,27 +300,27 @@ export interface LexicaImplementationInput {
 }
 
 /**
- * A property, a function or an indexer a module declares, each taking the fields it needs alone: within a type, whose receiver the type is, within an extension, whose receiver its target is, or among the module's
+ * A property, a function, an indexer or an operator a module declares, each taking the fields it needs alone: within a type, whose receiver the type is, within an extension, whose receiver its target is, or among the module's
  * `members`, a module member, which takes no receiver and is read through its module's namespace.
  * A property answers a value, and a function the evaluator invokes its result; a script ending in a call of a function the host invokes ends in a host call, and the function has no implementation Lexica calls.
  */
 export interface LexicaMemberDeclaration {
     /** The Lexica name, and the type parameters it declares in angle brackets after it, `identity<T>`, where it is declared within a type, an extension or the module; left out for an unnamed indexer, which brackets after its receiver invoke. */
     name?: string;
-    /** A property, read by its name; a function, called; or an indexer, given its one key in brackets, after its name, `it.setting["mode"]`, or, unnamed, after its receiver, `rooms[0]`. */
-    kind: 'property' | 'function' | 'indexer';
+    /** A property, read by its name; a function, called; an indexer, given its one key in brackets, after its name, `it.setting["mode"]`, or, unnamed, after its receiver, `rooms[0]`; or an operator, named `cast` or `convert`, which `as` or `to` invokes. */
+    kind: 'property' | 'function' | 'indexer' | 'operator';
     /** Who invokes a function: the evaluator, the default, or the host, which a script ending in a call of it is prepared for; a function the host invokes takes value parameters alone, and neither updates nor an implementation. */
     invokedBy?: 'evaluator' | 'host';
     /** The form its arguments take where it has parameters, an optional one included: one for each parameter, in order, the required ones before the optional ones, or one options object whose fields supply them; a function alone takes it, since an indexer's one key is positional. */
     arguments?: 'positional' | 'options';
     /** Its parameters; a property takes none. */
     parameters?: LexicaParameterDeclaration[];
-    /** The type of its result, in Lexica's notation; a function the host invokes declares the type of each value its host supplies, left out where it supplies none. */
+    /** The type of its result, in Lexica's notation, an operator's its destination; a function the host invokes declares the type of each value its host supplies, left out where it supplies none. */
     result?: string;
     /** How it changes and reads; a property and a function the evaluator invokes take it, and a function the host invokes refuses it. */
     updates?: LexicaUpdates;
-    /** What carries it out, given one object it reads by name; a member without one is resolved against and never invoked. */
-    impl?: (input: LexicaImplementationInput) => unknown;
+    /** What carries it out, given one object it reads by name, an operator's its value and `reject`; a member without one is resolved against and never invoked, and a cast operator without one answers its value. */
+    impl?: ((input: LexicaMemberImplementationInput) => unknown) | ((input: LexicaOperatorImplementationInput) => unknown);
     /** Whether it is available within its declaring module alone, `false` where left out: no other module's declaration names it, and no script reaches it; a member within an internal type is internal whatever it says. */
     internal?: boolean;
 }
@@ -351,8 +341,6 @@ export interface LexicaModuleContents {
     observationTypes?: LexicaObservationTypeDeclaration[];
     /** The targets its observation types observe besides the receiver and an argument of the member, each named once. */
     observationTargets?: LexicaObservationTargetDeclaration[];
-    /** The conversions it declares, each to or from one of its own types, and one for each source and target. */
-    conversions?: LexicaConversionDeclaration[];
 }
 
 /** A vocabulary's declarations as data, each that runs code carrying its implementation. */
@@ -365,7 +353,6 @@ export interface LexicaModule {
     readonly mappings: readonly LexicaMappingDeclaration[];
     readonly observationTypes: readonly LexicaObservationTypeDeclaration[];
     readonly observationTargets: readonly LexicaObservationTargetDeclaration[];
-    readonly conversions: readonly LexicaConversionDeclaration[];
 }
 
 /**

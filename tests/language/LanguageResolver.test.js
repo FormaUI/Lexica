@@ -7,7 +7,7 @@ import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations, extensionDeclaration } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from '../support/declarations.mjs';
 
 /** A word the shop sells, a value with identity the shop recognizes. */
 class Word {
@@ -111,8 +111,7 @@ describe('LanguageResolver', () => {
     describe('an object field and a structured type\'s data property', () => {
         /** A registry whose `Cup` is a structured type of a size, converted from a string. */
         const cups = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
-            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
-            conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
+            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length }))])],
         })]);
         const values = { word: 'oat', pair: { a: 1, b: null }, missing: null };
         const resolveCups = text => {

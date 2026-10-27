@@ -1,5 +1,5 @@
 /**
- * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the language's value types, the members of lists, the conversions between strings, numbers and Booleans,
+ * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the language's value types, the members of lists, the conversion operators of strings, numbers and Booleans,
  * and the verbs that test a receiver, each carrying its implementation
  */
 
@@ -23,14 +23,14 @@ export class Vocabulary {
     static #valueTypes;
 
     /**
-     * The value types Lexica's own module owns, each declared through a form internal to Lexica, which no other module declares through: its scalar types, of kind `scalar`, and `List<T>`, of kind `generic`, its type
-     * parameters under `typeParameters` and the variance of each, in order, under `variances`, covariant in its items, since a list is immutable, and the members of lists within it, whose receiver gives them its `T`.
-     * Created once, frozen, and read by identity: the registry registers their members with Lexica's own module.
+     * The value types Lexica's own module owns, each declared through a form internal to Lexica, which no other module declares through: its scalar types, of kind `scalar`, each holding its conversion operators to
+     * the others, and `List<T>`, of kind `generic`, its type parameters under `typeParameters` and the variance of each, in order, under `variances`, covariant in its items, since a list is immutable, and the members
+     * of lists within it, whose receiver gives them its `T`. Created once, frozen, and read by identity: the registry registers their members with Lexica's own module.
      */
     static get valueTypes() {
         return Vocabulary.#valueTypes ??= Object.freeze([
-            ...LexicaModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar' })),
-            Object.freeze({ name: 'List', kind: 'generic', typeParameters: Object.freeze(['T']), variances: Object.freeze(['covariant']), members: Vocabulary.#createListMembers() }),
+            ...LexicaModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar', members: Vocabulary.#createMembers(name, name, Vocabulary.#createConversions(name)) })),
+            Object.freeze({ name: 'List', kind: 'generic', typeParameters: Object.freeze(['T']), variances: Object.freeze(['covariant']), members: Vocabulary.#createMembers('List<T>', 'List<T>', Vocabulary.#createListMembers()) }),
         ]);
     }
 
@@ -51,9 +51,9 @@ export class Vocabulary {
     static #module;
 
     /**
-     * Lexica's own module, each member and conversion carrying its implementation: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's types no other module may declare.
-     * It declares the verbs in `VerbExtensions<T>`, an extension targeting its parameter, so on any type, and owns the value types, whose members the registry registers with it. A module of its name made elsewhere
-     * is an ordinary module, so the exception belongs to this one alone.
+     * Lexica's own module, each member and operator carrying its implementation: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's
+     * types no other module may declare. It declares the verbs in `VerbExtensions<T>`, an extension targeting its parameter, so on any type, and owns the value types, whose members and operators the registry registers
+     * with it. A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
      */
     static get module() {
         // The verbs, each answering what its test answers of its receiver, a function of the receiver's own type that answers a Boolean, so each reads and changes as its test does.
@@ -61,13 +61,28 @@ export class Vocabulary {
 
         return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
             types: [{ name: 'VerbExtensions<T>', kind: 'extension', target: 'T', members: ['is', 'has', 'supports'].map(verb) }],
+        });
+    }
 
-            // Each conversion takes the value, never null, and `reject`, which stops it for a value it does not convert.
-            conversions: [
-                {
-                    from: 'String',
-                    to: 'Number',
-                    impl: ({ value, reject }) => {
+    /**
+     * The members of one of Lexica's own value types, validated, copied and frozen as a module's are, by a module created for that alone and never registered: an extension of the type gives them the receiver and the
+     * scope its members read, a list's `T` among them, and no module declares Lexica's value types, whose form is Lexica's alone.
+     */
+    static #createMembers(name, target, members) {
+        return new LexicaModule(Vocabulary.moduleName, { types: [{ name, kind: 'extension', target, members }] }).types[0].members;
+    }
+
+    /**
+     * The conversion operators of the scalar type, each taking the value, never null, and `reject`, which stops it for a value it does not convert: a string to a number, as HTML's valid floating-point number, and to a
+     * Boolean, written "true" or "false"; and a number and a Boolean to a string.
+     */
+    static #createConversions(name) {
+        const convert = (result, impl) => ({ kind: 'operator', name: 'convert', result, impl });
+
+        switch (name) {
+            case 'String':
+                return [
+                    convert('Number', ({ value, reject }) => {
                         const trimmed = value.replace(SURROUNDING_ASCII_WHITESPACE, '');
 
                         if (!VALID_FLOATING_POINT_NUMBER.test(trimmed)) {
@@ -81,32 +96,27 @@ export class Vocabulary {
                         }
 
                         return number;
-                    },
-                },
-                // The shortest text that reads back as the same number, as ECMAScript writes it, and negative zero as "0".
-                { from: 'Number', to: 'String', impl: ({ value }) => String(value) },
-                { from: 'Boolean', to: 'String', impl: ({ value }) => String(value) },
-                {
-                    from: 'String',
-                    to: 'Boolean',
-                    impl: ({ value, reject }) => {
+                    }),
+                    convert('Boolean', ({ value, reject }) => {
                         if (value !== 'true' && value !== 'false') {
                             reject(`${JSON.stringify(value)} is no Boolean, which is written "true" or "false"`);
                         }
 
                         return value === 'true';
-                    },
-                },
-            ],
-        });
+                    }),
+                ];
+            // The shortest text that reads back as the same number, as ECMAScript writes it, and negative zero as "0".
+            case 'Number':
+                return [convert('String', ({ value }) => String(value))];
+            // A Boolean's text, "true" or "false".
+            default:
+                return [convert('String', ({ value }) => String(value))];
+        }
     }
 
-    /**
-     * The members of lists, validated, copied and frozen as a module's are, by a module created for that alone and never registered: an extension of `List<T>` gives them the scope a list's members read, its `T`,
-     * and no module declares a generic type, whose form is Lexica's alone.
-     */
+    /** The members of lists, each reading and changing as the items it selects and the expression it evaluates do. */
     static #createListMembers() {
-        const members = [
+        return [
             Declarations.createPropertyDeclaration('count', 'Number', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.length }),
             Declarations.createPropertyDeclaration('first', 'T?', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.at(0) ?? null }),
             Declarations.createPropertyDeclaration('last', 'T?', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.at(-1) ?? null }),
@@ -120,8 +130,6 @@ export class Vocabulary {
             Declarations.createFunctionDeclaration('sum', 'Number', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
             Declarations.createFunctionDeclaration('where', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
         ];
-
-        return new LexicaModule(Vocabulary.moduleName, { types: [{ name: 'List<T>', kind: 'extension', target: 'List<T>', members }] }).types[0].members;
     }
 
     /** The greatest or the least of the numbers an expression produces for the items, or null where it produces none. */

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LexicaError, lexica } from '#lexica/lexica.js';
 import { Versions } from '#lexica/language/Versions.mjs';
 import { errorThrownBy } from './support/errors.mjs';
-import { dataPropertyDeclarations, extensionDeclaration } from './support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 
 describe('lexica', () => {
     it('runs where no browser global exists', () => {
@@ -94,8 +94,7 @@ describe('lexica', () => {
     it('carries out each declaration that runs code by its impl: a member and a conversion when evaluated, and an observation type as its host starts it', () => {
         const tick = ({ request }) => ({ stop: () => request.type });
         const module = lexica.createModule('cups', {
-            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [{ name: 'zoom', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length * 2 }])],
-            conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
+            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [{ name: 'zoom', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length * 2 }, operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length }))])],
             observationTypes: [{ name: 'tick', contract: 'invalidation', impl: tick }],
         });
         const registry = lexica.createRegistry([module]);
@@ -115,8 +114,7 @@ describe('lexica', () => {
                     { name: 'size', kind: 'property', result: 'Number' },
                     { name: 'doubled', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.size * 2 },
                 ],
-            }],
-            conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
+            }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length }))])],
         });
         const resolution = lexica.createRegistry([cups]).resolve('{ size = (word to Cup).size, doubled = (word to Cup).doubled }', { word: 'oat' });
         const told = [];

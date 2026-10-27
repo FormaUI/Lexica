@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { expectModuleError } from '../../support/errors.mjs';
-import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, operatorDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
 
 /** The declaration and the declaration key a module error's location names, beside a fragment of its message. */
 const refusal = (contents, declarationName, declarationKey, fragment) => {
@@ -38,7 +38,7 @@ describe('LexicaModule', () => {
         expect(expectModuleError(() => new LexicaModule('charts', { types: [lamp({})] }))).toEqual({ message: expect.stringContaining('members are a list'), module: 'charts', declaration: 'Lamp', declarationKey: 'members' });
     });
 
-    it('refuses the key implementation on a member, an observation type and a conversion, each carrying its code as its impl', () => {
+    it('refuses the key implementation on a member, an observation type and an operator, each carrying its code as its impl', () => {
         const implementation = () => 1;
         const refused = contents => {
             const { module, declaration, declarationKey } = expectModuleError(() => new LexicaModule('charts', contents));
@@ -48,7 +48,7 @@ describe('LexicaModule', () => {
 
         expect(refused({ members: [propertyDeclaration({ implementation })] })).toEqual({ module: 'charts', declaration: 'zoom', declarationKey: 'implementation' });
         expect(refused({ observationTypes: [{ name: 'tick', contract: 'invalidation', implementation }] })).toEqual({ module: 'charts', declaration: 'tick', declarationKey: 'implementation' });
-        expect(refused({ types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }], conversions: [{ from: 'String', to: 'Cup', implementation }] })).toEqual({ module: 'charts', declaration: 'String to Cup', declarationKey: 'implementation' });
+        expect(refused({ types: [{ name: 'Cup', kind: 'structured', members: [...dataPropertyDeclarations({ size: 'Number' }), { ...operatorDeclaration('convert', 'String'), implementation }] }] })).toEqual({ module: 'charts', declaration: 'convert', declarationKey: 'implementation' });
         expect(expectModuleError(() => new LexicaModule('charts', { members: [propertyDeclaration({ impl: 'size' })] }))).toEqual({ message: expect.stringContaining('Its `impl` is a function'), module: 'charts', declaration: 'zoom', declarationKey: 'impl' });
     });
 
@@ -138,7 +138,7 @@ describe('LexicaModule', () => {
 
     it('refuses what a module does not declare, naming it', () => {
         expect(expectModuleError(() => new LexicaModule('charts', { predicates: [] }))).toMatchObject({ module: 'charts', declarationKey: 'predicates', message: expect.stringMatching(/and 'predicates' is none of them \(/) });
-        expect(expectModuleError(() => new LexicaModule('charts', { member: [] })).message).toContain("A module declares typeOf, types, members, typeSelectors, mappings, observationTypes, observationTargets, conversions, and 'member' is none of them");
+        expect(expectModuleError(() => new LexicaModule('charts', { member: [] })).message).toContain("A module declares typeOf, types, members, typeSelectors, mappings, observationTypes, observationTargets, and 'member' is none of them");
         expect(expectModuleError(() => new LexicaModule('charts', null)).message).toContain("A module's contents are an object declaring typeOf, types, members, typeSelectors");
         expect(expectModuleError(() => new LexicaModule('charts', { members: {} })).message).toContain("A module's members are a list");
         expect(expectModuleError(() => new LexicaModule('charts', { members: [null] })).message).toContain('A member is an object declaring');
@@ -530,34 +530,29 @@ describe('LexicaModule', () => {
     });
 });
 
-describe('conversions', () => {
-    const conversion = (overrides = {}) => ({ from: 'String', to: 'Chart', ...overrides });
-    const declaring = conversions => new LexicaModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }], conversions });
+describe('operators', () => {
+    /** A module's contents declaring a chart, holding its points and the members given. */
+    const chart = members => ({ types: [{ name: 'Chart', kind: 'structured', members: [...dataPropertyDeclarations({ points: 'Number' }), ...members] }] });
 
-    it('are kept as data, each from a type to another with its implementation', () => {
-        const implementation = ({ value }) => ({ points: value.length });
+    it('are kept as members of their type, each named for its operation, its destination its result, with its implementation', () => {
+        const implementation = ({ value }) => String(value.points);
+        const [, operator] = new LexicaModule('charts', chart([operatorDeclaration('convert', 'String', implementation), operatorDeclaration('cast', 'Chart')])).types[0].members;
 
-        expect(declaring([conversion({ impl: implementation })]).conversions[0]).toMatchObject({ from: 'String', to: 'Chart', impl: implementation });
+        expect(operator).toMatchObject({ kind: 'operator', name: 'convert', result: 'String', parameters: [], impl: implementation });
     });
 
-    it.each([
-        ['a list', { to: 'List<Number>' }, 'to'],
-        ['a nullable type', { from: 'String?' }, 'from'],
-        ['null', { to: 'null' }, 'to'],
-    ])('convert between types of data alone, never %s', (_, overrides, declarationKey) => {
-        const refused = expectModuleError(() => declaring([conversion(overrides)]));
-
-        expect(refused.declarationKey).toBe(declarationKey);
-        expect(refused.message).toContain('A conversion is from a type of data to another');
+    it('are named cast or convert, declare no type parameters, and stand in a type or an extension, never among a module\'s members', () => {
+        refusal(chart([operatorDeclaration('parse', 'String')]), 'parse', 'name', 'An operator is named cast or convert');
+        refusal(chart([operatorDeclaration('convert<T>', 'T')]), 'convert', 'name', 'declares type parameters, which its destination never binds');
+        refusal({ members: [operatorDeclaration('convert', 'String')] }, 'convert', 'kind', 'An operator is invoked on a value of its type, and a module member takes none');
+        expect(() => new LexicaModule('charts', onStrings([operatorDeclaration('convert', 'Number')]))).not.toThrow();
     });
 
-    it('are never declared from a type to itself, which a value already of it converts to', () => {
-        expect(expectModuleError(() => declaring([conversion({ from: 'Chart', to: 'Chart' })])).message).toContain('A value already of a type converts to itself');
-    });
-
-    it('take from, to and implementation alone, the implementation a function', () => {
-        expect(expectModuleError(() => declaring([conversion({ function: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'function' });
-        expect(expectModuleError(() => declaring([conversion({ impl: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'impl' });
+    it('take a name, a kind, a result, an implementation that is a function and internal alone, its destination required', () => {
+        refusal(chart([{ ...operatorDeclaration('convert', 'String'), updates: { changes: 'constant', reads: 'fresh' } }]), 'convert', 'updates', "'updates' is none of them");
+        refusal(chart([{ ...operatorDeclaration('convert', 'String'), parameters: [] }]), 'convert', 'parameters', "'parameters' is none of them");
+        refusal(chart([operatorDeclaration('convert', 'String', 'parse')]), 'convert', 'impl', 'Its `impl` is a function');
+        refusal(chart([operatorDeclaration('convert', undefined)]), 'convert', 'result', 'It declares the type of its result');
     });
 
     it('take to as a member name, a property, a function call or an indexer, since it converts only after a value', () => {
