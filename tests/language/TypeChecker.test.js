@@ -5,6 +5,7 @@ import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { extensionDeclaration } from '../support/declarations.mjs';
 import { withHome } from '../support/home.mjs';
 
 /** The checker of a registry of the home's types: a light and a thermostat beneath a device, and a room of a hierarchy of its own. */
@@ -212,21 +213,24 @@ describe('TypeChecker', () => {
     });
 
     describe('resolveApplyingReceiverType, matchesReceiver and inferReceiverTypeArguments', () => {
-        it('resolves the first receiver type the receiver applies to a member by, in the order it declares them, any receiver and a type parameter alone among them, which a never takes neither of', () => {
-            const property = (name, target) => Declarations.property(name, target, 'String', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver });
-            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [property('fade', ['any', 'String']), property('dim', ['T', 'String']), property('glow', ['String', 'any'])] })]);
-            const [[anyFirst], [parameterFirst], [stringFirst]] = ['fade', 'dim', 'glow'].map(name => registry.getReceiverMembers(name));
+        it('resolves the receiver type the receiver applies to a member by, its extension\'s target, a type parameter alone taking any value, which a never and null take neither of, and none for a module member', () => {
+            const property = name => Declarations.createPropertyDeclaration(name, 'String', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver });
+            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {
+                types: [extensionDeclaration('Values<T>', 'T', [property('dim')]), extensionDeclaration('Words', 'String', [property('glow')])],
+                members: [property('fade')],
+            })]);
+            const [[dim], [glow], [fade]] = [registry.getReceiverMembers('dim'), registry.getReceiverMembers('glow'), registry.getMembersDeclaredBy('charts', 'fade')];
             const { typeChecker } = registry;
 
-            expect(typeChecker.resolveApplyingReceiverType(anyFirst, typeOf('String?'))).toBe('any');
-            expect(typeChecker.inferReceiverTypeArguments(anyFirst, typeOf('String'))).toEqual(new Map());
-            expect(String(typeChecker.resolveApplyingReceiverType(parameterFirst, typeOf('String')))).toBe('T');
-            expect(typeChecker.inferReceiverTypeArguments(parameterFirst, typeOf('String')).get('T').toString()).toBe('String');
-            expect(String(typeChecker.resolveApplyingReceiverType(stringFirst, typeOf('String')))).toBe('String');
-            expect(typeChecker.resolveApplyingReceiverType(stringFirst, typeOf('Number'))).toBe('any');
-            expect(String(typeChecker.resolveApplyingReceiverType(anyFirst, Type.never))).toBe('String');
-            expect(typeChecker.resolveApplyingReceiverType(anyFirst, Type.null)).toBeUndefined();
-            expect(typeChecker.inferReceiverTypeArguments(anyFirst, Type.null)).toBeNull();
+            expect(String(typeChecker.resolveApplyingReceiverType(dim, typeOf('String')))).toBe('T');
+            expect(typeChecker.inferReceiverTypeArguments(dim, typeOf('String')).get('T').toString()).toBe('String');
+            expect(String(typeChecker.resolveApplyingReceiverType(glow, typeOf('String?')))).toBe('String');
+            expect(typeChecker.inferReceiverTypeArguments(glow, typeOf('String'))).toEqual(new Map());
+            expect(typeChecker.resolveApplyingReceiverType(glow, typeOf('Number'))).toBeUndefined();
+            expect(String(typeChecker.resolveApplyingReceiverType(glow, Type.never))).toBe('String');
+            expect([typeChecker.resolveApplyingReceiverType(dim, Type.never), typeChecker.resolveApplyingReceiverType(dim, Type.null)]).toEqual([undefined, undefined]);
+            expect(typeChecker.inferReceiverTypeArguments(glow, Type.null)).toBeNull();
+            expect(typeChecker.resolveApplyingReceiverType(fade, typeOf('String'))).toBeUndefined();
         });
 
         it('applies a member to a receiver its receiver types match, inferring the type arguments it binds, and a receiver of any type to any value', () => {

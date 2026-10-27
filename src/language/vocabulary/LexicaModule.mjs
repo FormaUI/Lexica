@@ -44,7 +44,7 @@ const DECLARED_NAME = /^([^<>]*)(?:<(.*)>)?$/;
 const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'mappings', 'observationTypes', 'observationTargets', 'conversions'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
-const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'impl', 'internal'];
+const MEMBER_KEYS = ['name', 'kind', 'result', 'impl', 'internal'];
 const MEMBER_KEYS_BY_KIND = {
     property: ['updates'],
     function: ['invokedBy', 'arguments', 'parameters', 'updates'],
@@ -86,8 +86,9 @@ export class LexicaModule {
     /**
      * @param {string} name The module's name.
      * @param {object} contents What the module declares, each declaration that runs code carrying its implementation.
-     * @param {object[]} [contents.types] The types it declares, reference and structured, each with its own members, which take it as their receiver; a structured type's data shape is the properties it declares directly without updates.
-     * @param {object[]} [contents.members] The properties and functions it adds, a function its host invokes among them, a member without a target a module member.
+     * @param {object[]} [contents.types] The types it declares, reference and structured, each with its own members, which take it as their receiver, a structured type's data shape the properties it declares
+     * directly without updates; and its extensions, each with the members it adds to its target, which take a value of the target as their receiver.
+     * @param {object[]} [contents.members] Its module members, properties and functions without a receiver, which its namespace reaches, a function its host invokes among them.
      * @param {object[]} [contents.typeSelectors] The type selectors it declares, each by its name alone, through which a function's fixed argument selects the type of its result.
      * @param {object[]} [contents.mappings] The keys it maps for type selectors, its own or another module's, each with the selector it belongs to, the key, any string, and the type it maps to.
      * @param {object[]} [contents.observationTypes] The types of observation it declares.
@@ -115,7 +116,6 @@ export class LexicaModule {
             notObjectCode: 'LEXICA4501',
             unknownKeyCode: 'LEXICA4502',
             declaringSubject: 'A module',
-            hintOf: key => (key === 'predicates' ? '; a test of a receiver is one of its members, a function whose result is a boolean' : ''),
         });
 
         const { typeOf, types = [], members = [], typeSelectors = [], mappings = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
@@ -238,7 +238,7 @@ export class LexicaModule {
      * Refuses a declaration that is no object, or that declares a key its kind does not take, naming that key; a key holding undefined is one it leaves out. A declaration is named by the name given, by its own where none
      * is, and by none where the name is null, as a module's contents are, which keep codes of their own, the subject that declares their keys, and a hint for a key.
      */
-    static #validateKeys(declaration, keys, what, fail, name, { notObjectCode = 'LEXICA4504', unknownKeyCode = 'LEXICA4030', declaringSubject = what, hintOf = () => '' } = {}) {
+    static #validateKeys(declaration, keys, what, fail, name, { notObjectCode = 'LEXICA4504', unknownKeyCode = 'LEXICA4030', declaringSubject = what } = {}) {
         if (!ObjectUtils.isNonArrayObject(declaration)) {
             fail(notObjectCode, `${what} ${name === null ? 'are' : 'is'} an object declaring ${keys.join(', ')}`, name === undefined || name === null ? undefined : String(name));
         }
@@ -247,7 +247,7 @@ export class LexicaModule {
 
         for (const key of Object.keys(LexicaModule.#withoutUndefinedValues(declaration))) {
             if (!keys.includes(key)) {
-                fail(unknownKeyCode, `${declaringSubject} declares ${keys.join(', ')}, and '${key}' is none of them${hintOf(key)}`, declarationName, key);
+                fail(unknownKeyCode, `${declaringSubject} declares ${keys.join(', ')}, and '${key}' is none of them`, declarationName, key);
             }
         }
     }
@@ -434,11 +434,6 @@ export class LexicaModule {
             fail('LEXICA4558', `'${type.name}' is a ${type.kind} type, which declares no type parameters`, name, 'name');
         }
 
-        // Every single capital letter is a type parameter of a member declared flat with its target, so a type of one letter would be read as one wherever such a member names it.
-        if (name.length === 1) {
-            fail('LEXICA4506', `'${name}', a single capital letter, is read as a type parameter, so a type is named by more than one letter`, name, 'name');
-        }
-
         if (type.kind === 'extension') {
             LexicaModule.#validateExtensionTarget(type, name, fail);
         }
@@ -520,7 +515,7 @@ export class LexicaModule {
     static #createTypeCopy(type) {
         const copy = { ...LexicaModule.#copyOf(type), ...LexicaModule.#namedCopyOf(type.name) };
 
-        return type.members === undefined ? copy : { ...copy, members: type.members.map(member => LexicaModule.#createMemberCopy(LexicaModule.#withoutUndefinedValues(member), true)) };
+        return type.members === undefined ? copy : { ...copy, members: type.members.map(member => LexicaModule.#createMemberCopy(LexicaModule.#withoutUndefinedValues(member))) };
     }
 
     /** The keys a declared name gives its stored copy: its local name, and the type parameters it declares, `typeParameters`, where it declares any. */
@@ -584,22 +579,13 @@ export class LexicaModule {
         }
     }
 
-    /** Validates the types a member applies to, which a module member has none of. */
-    static #validateTarget(declaration, name, fail) {
-        const targets = [declaration.target].flat();
-
-        if (targets.length === 0 || targets.some(notation => notation !== 'any' && !LexicaModule.#isTypeNotation(notation))) {
-            fail('LEXICA4513', 'It declares the types it applies to, a type, a list of types or any', name, 'target');
-        }
-    }
-
     /**
      * Validates how a member changes and reads, the changes it misses, the tolerance it compares with and the observations that cover its changes, as one `updates` object.
      * @param {object} member The declaration whose updates they are.
      * @param {Map<string, object>} parameters Its parameters by name, which an observation can give an argument of.
-     * @param {boolean} hasReceiver Whether it has a receiver, which a module member has none of.
+     * @param {boolean} takesReceiver Whether it takes a receiver, which a module member takes none of.
      */
-    static #validateUpdates(member, parameters, hasReceiver, name, fail) {
+    static #validateUpdates(member, parameters, takesReceiver, name, fail) {
         const updates = LexicaModule.#withoutUndefinedValues(member.updates);
 
         LexicaModule.#validateKeys(updates, UPDATES_KEYS, 'Its updates', LexicaModule.#failUnder(fail, 'updates'), name);
@@ -638,12 +624,12 @@ export class LexicaModule {
         }
 
         for (const observationDeclaration of observations) {
-            LexicaModule.#validateObservation(observationDeclaration, parameters, hasReceiver, name, fail);
+            LexicaModule.#validateObservation(observationDeclaration, parameters, takesReceiver, name, fail);
         }
     }
 
     /** Validates one observation a declaration names: its type, what it observes, which a module member's never a receiver is, and the arguments its type takes. */
-    static #validateObservation(observationDeclaration, parameters, hasReceiver, name, fail) {
+    static #validateObservation(observationDeclaration, parameters, takesReceiver, name, fail) {
         const declarationKey = 'updates.observations';
 
         if (observationDeclaration === null || typeof observationDeclaration !== 'object' || !Names.isIdentifier(observationDeclaration.type)) {
@@ -665,8 +651,8 @@ export class LexicaModule {
             fail('LEXICA4060', `The observation '${observationDeclaration.type}' observes the receiver, an argument of the member or an observation target by its name, and not '${JSON.stringify(observationDeclaration.of)}'`, name, declarationKey);
         }
 
-        if (!hasReceiver && observationDeclaration.of === 'receiver') {
-            fail('LEXICA4057', `The observation '${observationDeclaration.type}' observes the receiver, and a member without a target has no receiver`, name, declarationKey);
+        if (!takesReceiver && observationDeclaration.of === 'receiver') {
+            fail('LEXICA4057', `The observation '${observationDeclaration.type}' observes the receiver, and a module member takes no receiver`, name, declarationKey);
         }
 
         for (const [key, value] of Object.entries(observationDeclaration)) {
@@ -810,16 +796,12 @@ export class LexicaModule {
         LexicaModule.#validateImplementation(conversion, name, fail);
     }
 
-    /** Validates the members a module declares, each module member named once in the module, since its namespace reaches it by its name alone. */
+    /** Validates the module members a module declares, each named once in the module, since its namespace reaches it by its name alone. */
     static #validateMembers(members, fail) {
         const moduleMemberNames = new Set();
 
         for (const member of members) {
             LexicaModule.#validateMember(member, fail);
-
-            if (member.target !== undefined) {
-                continue;
-            }
 
             if (moduleMemberNames.has(member.name)) {
                 fail('LEXICA4549', `The module member '${member.name}' is declared already`, member.name, 'name');
@@ -830,25 +812,23 @@ export class LexicaModule {
     }
 
     /**
-     * Validates a member: a flat one, which names its target where it has a receiver, or one declared within a type of the kind given, whose receiver the type is, so it names none; a property a structured type declares
-     * directly without updates is a property of its data shape, which takes its name, its kind and its result alone.
+     * Validates a member: a module member, declared flat, which takes no receiver, or one declared within a type or an extension of the kind given, whose receiver the type or the extension's target is; a property a
+     * structured type declares directly without updates is a property of its data shape, which takes its name, its kind and its result alone.
      */
     static #validateMember(member, fail, containingKind = undefined, containingParameters = []) {
-        const isWithinType = containingKind !== undefined;
+        const takesReceiver = containingKind !== undefined;
         const isDataProperty = containingKind === 'structured' && member?.kind === 'property' && member.updates === undefined;
-        // A member within a type takes the type as its receiver, so it takes no target.
-        const memberKeys = isDataProperty ? DATA_PROPERTY_KEYS : isWithinType ? MEMBER_KEYS.filter(key => key !== 'target') : MEMBER_KEYS;
+        // A member's place gives its receiver, so no member names a target.
+        const memberKeys = isDataProperty ? DATA_PROPERTY_KEYS : MEMBER_KEYS;
         const kindKeys = isDataProperty ? [] : (MEMBER_KEYS_BY_KIND[member?.kind] ?? []);
 
         if (!ObjectUtils.isNonArrayObject(member)) {
             fail('LEXICA4504', `A member is an object declaring ${memberKeys.join(', ')} and what its kind takes`);
         }
 
-        // An unnamed indexer declares no name, and is located as its access is written; a member within a type or an extension, and a module member, declare their own type parameters in their names, and a member
-        // declared flat with its target reads every single capital letter as one, until named extension types replace it.
+        // An unnamed indexer declares no name, and is located as its access is written; any other member declares its own type parameters in its name.
         const isUnnamedIndexer = member.kind === 'indexer' && member.name === undefined;
-        const declaresParameters = isWithinType || member.target === undefined;
-        const declared = declaresParameters && !isUnnamedIndexer ? LexicaModule.#validateDeclaredName(member.name, fail) : { name: member.name, typeParameters: [] };
+        const declared = isUnnamedIndexer ? { name: member.name, typeParameters: [] } : LexicaModule.#validateDeclaredName(member.name, fail);
         const name = isUnnamedIndexer ? UNNAMED_INDEXER_NAME : declared.name;
         const ownParameter = declared.typeParameters.find(parameter => containingParameters.includes(parameter));
 
@@ -866,12 +846,6 @@ export class LexicaModule {
         }
 
         LexicaModule.#validateKeys(member, [...memberKeys, ...kindKeys], isDataProperty ? "A property of a structured type's data" : `A member of kind '${member.kind}'`, fail, isUnnamedIndexer ? UNNAMED_INDEXER_NAME : undefined);
-
-        const hasReceiver = isWithinType || member.target !== undefined;
-
-        if (!isWithinType && hasReceiver) {
-            LexicaModule.#validateTarget(member, name, fail);
-        }
 
         if (member.invokedBy !== undefined && !INVOKERS.includes(member.invokedBy)) {
             fail('LEXICA4525', `A function is invoked by one of ${INVOKERS.join(', ')}, the evaluator where it says none`, name, 'invokedBy');
@@ -907,7 +881,7 @@ export class LexicaModule {
         }
 
         LexicaModule.#validateSelections(member, parameters, name, fail);
-        LexicaModule.#validateForm(member, parameters, hasReceiver, name, fail);
+        LexicaModule.#validateForm(member, parameters, takesReceiver, name, fail);
 
         if (kindKeys.includes('updates') && !isInvokedByHost) {
             // A property declared directly in a structured type without updates is its data, which Lexica reads; any other property declares how it changes and how it reads, as a function does.
@@ -919,7 +893,7 @@ export class LexicaModule {
                 fail('LEXICA4003', 'It declares its updates, how it changes and how it reads', name, 'updates');
             }
 
-            LexicaModule.#validateUpdates(member, new Map(parameters.map(parameter => [parameter.name, parameter])), hasReceiver, name, fail);
+            LexicaModule.#validateUpdates(member, new Map(parameters.map(parameter => [parameter.name, parameter])), takesReceiver, name, fail);
         }
 
         LexicaModule.#validateInternal(member, name, fail);
@@ -934,11 +908,11 @@ export class LexicaModule {
     }
 
     /** Creates the stored copy of a valid member: its updates' observations none where it names none, and its parameters each without its keys that hold undefined. */
-    static #createMemberCopy(member, isWithinType = false) {
+    static #createMemberCopy(member) {
         const parameters = (member.parameters ?? []).map(parameter => LexicaModule.#withoutUndefinedValues(parameter));
         const updates = member.updates === undefined ? {} : { updates: { observations: [], ...LexicaModule.#withoutUndefinedValues(member.updates) } };
         // A member that declares its own type parameters is named by its local name, and keeps them beside it.
-        const named = member.name !== undefined && (isWithinType || member.target === undefined) ? LexicaModule.#namedCopyOf(member.name) : {};
+        const named = member.name === undefined ? {} : LexicaModule.#namedCopyOf(member.name);
 
         // A property is read with no arguments, so it keeps an empty list of parameters, which every member then has.
         return LexicaModule.#copyOf({ ...member, ...named, parameters, ...updates });
@@ -990,9 +964,9 @@ export class LexicaModule {
      * Checks how the member is written, by its kind, then the form its arguments take: a property is accessed and takes none; a function is called, its arguments positional, one for each parameter in order, so none that
      * is required follows one that is optional, or an options object; and an indexer is given its one key in brackets.
      */
-    static #validateForm(member, parameters, hasReceiver, name, fail) {
+    static #validateForm(member, parameters, takesReceiver, name, fail) {
         if (member.kind === 'indexer') {
-            LexicaModule.#validateIndexer(parameters, hasReceiver, name, fail);
+            LexicaModule.#validateIndexer(parameters, takesReceiver, name, fail);
         }
 
         if (member.kind === 'function') {
@@ -1000,16 +974,16 @@ export class LexicaModule {
         }
     }
 
-    /** Checks an indexer, named or unnamed: its key is its one parameter, a required value parameter, given positionally in brackets after its receiver, so a member without a receiver is none. */
-    static #validateIndexer(parameters, hasReceiver, name, fail) {
+    /** Checks an indexer, named or unnamed: its key is its one parameter, a required value parameter, given positionally in brackets after its receiver, so a module member is none. */
+    static #validateIndexer(parameters, takesReceiver, name, fail) {
         const [parameter] = parameters;
 
         if (parameters.length !== 1 || parameter.kind !== 'value' || !parameter.required) {
             fail('LEXICA4020', 'An indexer takes its key as its one parameter, a required value parameter', name, 'parameters');
         }
 
-        if (!hasReceiver) {
-            fail('LEXICA4022', 'An indexer is written after its receiver, and a member without a target has none', name, 'kind');
+        if (!takesReceiver) {
+            fail('LEXICA4022', 'An indexer is written after its receiver, and a module member takes none', name, 'kind');
         }
     }
 

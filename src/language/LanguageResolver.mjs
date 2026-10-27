@@ -847,7 +847,7 @@ export class LanguageResolver {
     #resolveReferenceCall(node, pointer, scope, local, declaration) {
         const written = this.#referenceNameOf(declaration);
 
-        if (!this.#registry.hasReceiver(declaration)) {
+        if (!this.#registry.takesReceiver(declaration)) {
             return this.#storeResolution(pointer, this.#resolveInvocation(declaration, node, pointer, scope, null, written));
         }
 
@@ -866,8 +866,8 @@ export class LanguageResolver {
      */
     #resolveModuleFunctionCall(declaration, node, results, pointer) {
         const written = this.#referenceNameOf(declaration);
-        const hasReceiver = this.#registry.hasReceiver(declaration);
-        const own = hasReceiver ? results.slice(1) : results;
+        const takesReceiver = this.#registry.takesReceiver(declaration);
+        const own = takesReceiver ? results.slice(1) : results;
         const { parameters } = declaration;
         const required = parameters.filter(parameter => parameter.required).length;
 
@@ -875,9 +875,9 @@ export class LanguageResolver {
             this.#fail('LEXICA3079', `'${node.name}' may hold a reference to '${written}', whose arguments are no values alone, and a call of a value that may be one of several functions gives each values; call it through '${written}(…)'`, pointer);
         }
 
-        const takes = `${hasReceiver ? 'its receiver and ' : ''}${parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`}`;
+        const takes = `${takesReceiver ? 'its receiver and ' : ''}${parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`}`;
 
-        if ((hasReceiver && results.length === 0) || own.length < required) {
+        if ((takesReceiver && results.length === 0) || own.length < required) {
             this.#fail('LEXICA3080', `'${node.name}' may hold a reference to '${written}', which takes ${takes}, and is given ${node.arguments.length}`, pointer);
         }
 
@@ -888,14 +888,14 @@ export class LanguageResolver {
         let isNullable = false;
         let typeArguments = new Map();
 
-        if (hasReceiver) {
+        if (takesReceiver) {
             const receiverType = results[0].type;
             const inferred = LanguageResolver.#isNullOrNever(receiverType.toNonNullable()) ? typeArguments : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType.toNonNullable());
 
             typeArguments = inferred ?? typeArguments;
 
             if (inferred === null) {
-                this.#fail('LEXICA3042', `'${node.name}' may hold a reference to '${written}', which takes a receiver of ${this.#registry.getTargetTypes(declaration).join(', ')}, and is given ${receiverType.toNonNullable()}`, `${pointer}/arguments/0`);
+                this.#fail('LEXICA3042', `'${node.name}' may hold a reference to '${written}', which takes a receiver of ${this.#registry.getReceiverTypes(declaration).join(', ')}, and is given ${receiverType.toNonNullable()}`, `${pointer}/arguments/0`);
             }
 
             isNullable = receiverType.isNullable || receiverType.kind === 'null';
@@ -905,7 +905,7 @@ export class LanguageResolver {
             const parameter = parameters[index];
             const expected = this.#registry.getDeclaredType(declaration, parameter.type).resolveTypeParameters(typeArguments);
 
-            this.#requireArgumentType(result, expected, parameter, declaration, `${pointer}/arguments/${index + (hasReceiver ? 1 : 0)}`);
+            this.#requireArgumentType(result, expected, parameter, declaration, `${pointer}/arguments/${index + (takesReceiver ? 1 : 0)}`);
 
             if (LanguageResolver.#propagatesNull(result, parameter)) {
                 isNullable = true;
@@ -1414,7 +1414,7 @@ export class LanguageResolver {
         const matching = this.#typeChecker.mostSpecificOf(candidates, receiverType);
 
         if (matching.length === 0) {
-            this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is not available on ${receiverType.toNonNullable()}; it is available on ${candidates.flatMap(candidate => this.#registry.getTargetTypes(candidate)).join(', ')}`, pointer);
+            this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is not available on ${receiverType.toNonNullable()}; it is available on ${candidates.flatMap(candidate => this.#registry.getReceiverTypes(candidate)).join(', ')}`, pointer);
         }
 
         // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
@@ -1521,8 +1521,8 @@ export class LanguageResolver {
             this.#fail(namedDeclarations.length > 0 ? 'LEXICA3011' : 'LEXICA3001', namedDeclarations.length > 0 ? `'${node.name}' is an indexer, which no namespace qualifies: write its receiver and ':${node.name}[…]'` : `The module '${moduleName}' declares no member '${node.name}'`, pointer);
         }
 
-        const moduleMemberDeclaration = declarations.find(declaration => !this.#registry.hasReceiver(declaration));
-        const receiverMemberDeclarations = declarations.filter(declaration => this.#registry.hasReceiver(declaration));
+        const moduleMemberDeclaration = declarations.find(declaration => !this.#registry.takesReceiver(declaration));
+        const receiverMemberDeclarations = declarations.filter(declaration => this.#registry.takesReceiver(declaration));
         const readings = [
             ...(moduleMemberDeclaration === undefined ? [] : [() => this.#resolveModuleMember(node, pointer, scope, moduleMemberDeclaration, written, contract)]),
             ...(receiverMemberDeclarations.length === 0 ? [] : [() => (node.kind === 'member' ? this.#resolveFunctionReference(node, pointer, receiverMemberDeclarations, contract) : this.#resolveQualifiedForm(node, pointer, scope, receiverMemberDeclarations, written))]),
@@ -1549,7 +1549,7 @@ export class LanguageResolver {
 
     /** How a message names the competing declarations an access can't choose among: their receiver types, none more specific than another, which the receiver satisfies. */
     #formatCompetingDeclarations(declarations, receiverType) {
-        const types = declarations.flatMap(declaration => this.#registry.getTargetTypes(declaration));
+        const types = declarations.flatMap(declaration => this.#registry.getReceiverTypes(declaration));
 
         return `is declared for ${types.join(' and ')}, which ${receiverType.toNonNullable()} satisfies, and none of them is more specific than ${types.length === 2 ? 'the other' : 'every other'}, so which applies is ambiguous`;
     }
@@ -1644,7 +1644,7 @@ export class LanguageResolver {
         const matching = this.#typeChecker.mostSpecificOf(declarations, receiverType);
 
         if (matching.length === 0) {
-            this.#fail('LEXICA3042', `${wording.receiverOf} ${declarations.flatMap(declaration => this.#registry.getTargetTypes(declaration)).join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
+            this.#fail('LEXICA3042', `${wording.receiverOf} ${declarations.flatMap(declaration => this.#registry.getReceiverTypes(declaration)).join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
         }
 
         // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
@@ -1736,7 +1736,7 @@ export class LanguageResolver {
 
     /** How a message names a function's signature: its receiver's types where it has one, the types of its parameters, and its result. */
     #signatureOf(declaration) {
-        const parameters = [...(this.#registry.hasReceiver(declaration) ? [this.#registry.getTargetTypes(declaration).join(' | ')] : []), ...declaration.parameters.map(parameter => parameter.type)];
+        const parameters = [...(this.#registry.takesReceiver(declaration) ? [this.#registry.getReceiverTypes(declaration).join(' | ')] : []), ...declaration.parameters.map(parameter => parameter.type)];
 
         return `(${parameters.join(', ')}) => ${declaration.result}`;
     }
@@ -1747,14 +1747,14 @@ export class LanguageResolver {
      */
     #takesContract(declaration, contract) {
         const { parameterTypes, resultType } = contract;
-        const hasReceiver = this.#registry.hasReceiver(declaration);
+        const takesReceiver = this.#registry.takesReceiver(declaration);
         const typeArguments = this.#contractTypeArgumentsOf(declaration, contract);
 
         if (typeArguments === null) {
             return false;
         }
 
-        const own = hasReceiver ? parameterTypes.slice(1) : parameterTypes;
+        const own = takesReceiver ? parameterTypes.slice(1) : parameterTypes;
         const { parameters } = declaration;
 
         if (parameters.some(parameter => parameter.kind !== 'value') || (parameters.length > 0 && declaration.arguments === 'options')) {
@@ -1776,7 +1776,7 @@ export class LanguageResolver {
      * one that can be null, or one the declaration does not apply to.
      */
     #contractTypeArgumentsOf(declaration, contract) {
-        if (!this.#registry.hasReceiver(declaration)) {
+        if (!this.#registry.takesReceiver(declaration)) {
             return new Map();
         }
 
@@ -2408,7 +2408,7 @@ export class LanguageResolver {
                 }
 
                 const typeArguments = this.#contractTypeArgumentsOf(target.reference, contract);
-                const ownCount = parameterTypes.length - (this.#registry.hasReceiver(target.reference) ? 1 : 0);
+                const ownCount = parameterTypes.length - (this.#registry.takesReceiver(target.reference) ? 1 : 0);
 
                 return {
                     reference: target.reference,
@@ -2489,14 +2489,14 @@ export class LanguageResolver {
 
     /**
      * The member's name qualified by the receiver type the receiver applies to it by, the first its matching takes, as `node.root` and `shadow.root` are, so two members of one name are told apart; a member it applies to by
-     * a receiver of any type, or by a type parameter alone, keeps its name alone. A list is named by its type, Lexica's `List`, as `List.count` is.
+     * a type parameter alone, which takes a receiver of any type, keeps its name alone. A list is named by its type, Lexica's `List`, as `List.count` is.
      */
     #qualifiedNameOf(declaration, receiverType) {
         const type = this.#typeChecker.resolveApplyingReceiverType(declaration, receiverType);
         // An unnamed indexer is named as its access is written, brackets after its receiver.
         const isUnnamedIndexer = declaration.kind === 'indexer' && declaration.name === undefined;
 
-        if (type === undefined || type === 'any' || type.kind === 'typeParameter') {
+        if (type === undefined || type.kind === 'typeParameter') {
             return isUnnamedIndexer ? '[]' : declaration.name;
         }
 

@@ -4,27 +4,51 @@ import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { resolveWith } from './support/pipeline.mjs';
 
-const { property, valueParameter } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration, createExpressionParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
+
+/** A word the shop sells, a value with identity its module recognizes, written as its text. */
+class Word {
+    constructor(text) {
+        this.text = text;
+    }
+}
+
+/** A bag the shop fills, holding a count of things. */
+class Bag {
+    constructor(count) {
+        this.count = count;
+    }
+}
 
 /**
- * A shop's module on words: whether it is open and a greeting, its module members; a word's size, padded, whether it is vegan, and its partner, which a word of `p` lacks; a test of a word's fit beside one of a number's;
- * and an order its host invokes. Every implementation records what it was given, so a test sees which ran.
+ * A shop's module of its own types, a word and a bag, whose members its namespace reaches: whether it is open and a greeting, its module members; a word's size, padded, whether it is vegan, and its partner, which a word
+ * of `p` lacks; a test of a word's fit beside one of a bag's; and an order its host invokes. Every implementation records what it was given, a word by its text, so a test sees which ran.
  */
 const createShop = (invoked = []) => lexica.createModule('shop', {
+    typeOf: value => (value instanceof Word ? 'Word' : value instanceof Bag ? 'Bag' : null),
+    types: [
+        {
+            name: 'Word',
+            kind: 'reference',
+            isInstance: value => value instanceof Word,
+            members: [
+                createPropertyDeclaration('size', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['size', receiver.text]), receiver.text.length) }),
+                createFunctionDeclaration('pad', 'String', { updates: constantUpdates, parameters: [createValueParameterDeclaration('width', 'Number')], impl: ({ receiver, args }) => (invoked.push(['pad', receiver.text]), receiver.text.padEnd(args.width, '.')) }),
+                createFunctionDeclaration('vegan', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['vegan', receiver.text]), receiver.text.startsWith('oat')) }),
+                createPropertyDeclaration('partner', 'Word?', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['partner', receiver.text]), receiver.text.startsWith('p') ? null : new Word(`${receiver.text}'s`)) }),
+                createFunctionDeclaration('fits', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => receiver.text.length < 5 }),
+                createFunctionDeclaration('order', 'Number', { invokedBy: 'host', parameters: [createValueParameterDeclaration('count', 'Number')] }),
+            ],
+        },
+        { name: 'Bag', kind: 'reference', isInstance: value => value instanceof Bag, members: [createFunctionDeclaration('fits', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => receiver.count < 5 })] },
+    ],
     members: [
-        property('open', null, 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: input => (invoked.push(['open', input]), true) }),
-        lexica.declarations.function('greet', null, 'String', { updates: constantUpdates, parameters: [valueParameter('name', 'String')], impl: ({ args }) => (invoked.push(['greet', args.name]), `hi ${args.name}`) }),
-        property('size', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
-        lexica.declarations.function('pad', 'String', 'String', { updates: constantUpdates, parameters: [valueParameter('width', 'Number')], impl: ({ receiver, args }) => (invoked.push(['pad', receiver]), receiver.padEnd(args.width, '.')) }),
-        lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
-        property('partner', 'String', 'String?', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['partner', receiver]), receiver.startsWith('p') ? null : `${receiver}'s`) }),
-        lexica.declarations.function('fits', 'String', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => receiver.length < 5 }),
-        lexica.declarations.function('fits', 'Number', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => receiver < 5 }),
-        lexica.declarations.function('order', 'String', 'Number', { invokedBy: 'host', parameters: [valueParameter('count', 'Number')] }),
+        createPropertyDeclaration('open', 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: input => (invoked.push(['open', input]), true) }),
+        createFunctionDeclaration('greet', 'String', { updates: constantUpdates, parameters: [createValueParameterDeclaration('name', 'String')], impl: ({ args }) => (invoked.push(['greet', args.name]), `hi ${args.name}`) }),
     ],
 });
 
-const values = { word: 'oat', other: 'milk', missing: null };
+const values = { word: new Word('oat'), other: new Word('milk'), bag: new Bag(7), missing: null };
 
 /** What the text evaluates to against a registry of the shop, with what each implementation was given. */
 const evaluate = (text, bound = values) => {
@@ -135,15 +159,15 @@ describe('qualified forms', () => {
         expect([qualified.value, optional.value]).toEqual([null, null]);
         expect(qualified.invoked).toEqual([]);
         expect(optional.invoked).toEqual([]);
-        expect(evaluate('shop.pad(word.partner, other.size)', { word: 'pear', other: 'milk' }).invoked).toEqual([['partner', 'pear']]);
+        expect(evaluate('shop.pad(word.partner, other.size)', { word: new Word('pear'), other: new Word('milk') }).invoked).toEqual([['partner', 'pear']]);
         expect(resolve('shop.pad(missing, other.size)').type).toBe('String?');
         expect(resolve('shop.pad(word.partner, 2)').type).toBe('String?');
         expect(resolve('shop.pad(word, 2)').type).toBe('String');
     });
 
     it('select the declaration their receiver takes, refusing one no declaration takes, a call without its receiver and an indexer', () => {
-        expect(evaluate('{ word = shop.fits(word), number = shop.fits(7) }').value).toEqual({ word: true, number: false });
-        expect(errorThrownBy(() => resolve('shop.pad(3, 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' takes a receiver of String, and is given Number") });
+        expect(evaluate('{ word = shop.fits(word), bag = shop.fits(bag) }').value).toEqual({ word: true, bag: false });
+        expect(errorThrownBy(() => resolve('shop.pad(3, 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' takes a receiver of Word, and is given Number") });
         expect(errorThrownBy(() => resolve('shop.pad()'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes the receiver as its first argument') });
         expect(errorThrownBy(() => resolve('shop.size(word, 1)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'size' takes no argument") });
     });
@@ -152,7 +176,7 @@ describe('qualified forms', () => {
         const registry = lexica.createRegistry([createShop()]);
         const prepared = registry.resolve('shop.order(word, 2)', values).createEvaluator(values).prepareHostCall();
 
-        expect(prepared).toMatchObject({ kind: 'prepared', receiver: 'oat', args: { count: 2 } });
+        expect(prepared).toMatchObject({ kind: 'prepared', receiver: values.word, args: { count: 2 } });
         expect(registry.resolve('shop.order(missing, 2)', values).createEvaluator(values).prepareHostCall()).toMatchObject({ kind: 'skipped' });
     });
 
@@ -161,8 +185,8 @@ describe('qualified forms', () => {
 
         expect(usesOf('{ a = shop.greet("x"), b = shop.pad(word, 4), c = word.size, d = shop.size(missing) }')).toEqual([
             ['shop.greet', '/expression/fields/0/value'],
-            ['String.pad', '/expression/fields/1/value'],
-            ['String.size', '/expression/fields/2/value'],
+            ['Word.pad', '/expression/fields/1/value'],
+            ['Word.size', '/expression/fields/2/value'],
         ]);
         expect(usesOf('let pad = shop.pad return pad(word, 4)')).toEqual([['shop.pad', '/expression/locals/0/value'], ['shop.pad', '/expression/result']]);
         expect(usesOf('let pad = shop.pad return pad(missing, 4)')).toEqual([['shop.pad', '/expression/locals/0/value']]);
@@ -171,13 +195,11 @@ describe('qualified forms', () => {
 
 describe('function references', () => {
     it('resolve a held reference\'s call through a receiver of unknown type as its qualified form does, answering null without invoking it', () => {
-        const pick = lexica.declarations.function('pick', 'List<Number>', 'List<Number>', { updates: constantUpdates, parameters: [lexica.declarations.expressionParameter('Number')], impl: ({ receiver }) => receiver });
-        const registry = lexica.createRegistry([lexica.createModule('lists', { members: [pick] })]);
-        const held = registry.resolve('let f = lists.pick\nreturn f(nothing, it + 1)', { nothing: null });
+        const held = evaluate('let f = shop.pad\nreturn f(missing, 2)');
 
-        expect(held.type).toBe('List<Number>?');
-        expect(held.type).toBe(registry.resolve('lists.pick(nothing, it + 1)', { nothing: null }).type);
-        expect(held.createEvaluator({ nothing: null }).evaluate().value).toBeNull();
+        expect(resolve('let f = shop.pad\nreturn f(missing, 2)').type).toBe('String?');
+        expect(resolve('let f = shop.pad\nreturn f(missing, 2)').type).toBe(resolve('shop.pad(missing, 2)').type);
+        expect(held).toEqual({ value: null, invoked: [] });
     });
 
     it('produce module delegates of a module\'s functions, a call of one its qualified form\'s call, held, passed and called as any function is', () => {
@@ -199,7 +221,7 @@ describe('function references', () => {
     });
 
     it('name a declaration where they are written: the one a callback contract takes where they are passed, and the module\'s one function of the name anywhere else', () => {
-        expect(evaluate('{ word = word.is(shop.fits), number = (7).is(shop.fits) }').value).toEqual({ word: true, number: false });
+        expect(evaluate('{ word = word.is(shop.fits), bag = bag.is(shop.fits) }').value).toEqual({ word: true, bag: false });
         expect(errorThrownBy(() => resolve('let test = shop.fits return word.is(test)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.fits' names 2 functions, so which it references is ambiguous") });
     });
 
@@ -207,7 +229,7 @@ describe('function references', () => {
         expect(errorThrownBy(() => resolve('let size = shop.size return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.size' is a property, read with its receiver as shop.size(receiver), and only a function has a reference") });
         expect(errorThrownBy(() => resolve('let order = shop.order return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.order' is a host call, which its host invokes, so it has no reference") });
         expect(errorThrownBy(() => resolve('word.is(shop.pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("and 'shop.pad' names no function that takes those or answers that") });
-        expect(errorThrownBy(() => resolve('let pad = shop.pad return word.is(pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' is (String, Number) => String") });
+        expect(errorThrownBy(() => resolve('let pad = shop.pad return word.is(pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' is (Word, Number) => String") });
     });
 
     it('read and invoke nothing as they are created, each call reading what its declaration does, and are used declarations of the script', () => {
@@ -223,15 +245,22 @@ describe('function references', () => {
 });
 
 describe('a call of a delegate', () => {
-    /** A module of words: `cut` and `trim`, each taking a width it defaults to 2, `cut`'s propagating null and `trim`'s accepting it; and `long`, a test taking a minimum it defaults to 3. Each records what it is given. */
-    const createWords = (invoked = []) => lexica.createModule('words', {
-        members: [
-            lexica.declarations.function('cut', 'String', 'String', { updates: constantUpdates, parameters: [valueParameter('width', 'Number', { default: 2 })], impl: ({ receiver, args }) => (invoked.push(['cut', args]), receiver.slice(0, args.width)) }),
-            lexica.declarations.function('trim', 'String', 'String', { updates: constantUpdates, parameters: [valueParameter('width', 'Number?', { default: 2, nulls: 'accept' })], impl: ({ receiver, args }) => (invoked.push(['trim', args]), receiver.slice(0, args.width ?? 1)) }),
-            lexica.declarations.function('long', 'String', 'Boolean', { updates: constantUpdates, parameters: [valueParameter('minimum', 'Number', { default: 3 })], impl: ({ receiver, args }) => (invoked.push(['long', args]), receiver.length >= args.minimum) }),
-        ],
-    });
-    const bound = { word: 'oatmeal', short: 'oa', flag: true, none: null, numbers: [1, 2] };
+    /**
+     * A module of words, each a module member of the word it is given: `cut` and `trim`, each taking a width it defaults to 2, `cut`'s propagating null and `trim`'s accepting it; and `long`, a test taking a minimum it
+     * defaults to 3. Each records what it is given.
+     */
+    const createWords = (invoked = []) => {
+        const word = createValueParameterDeclaration('word', 'String');
+
+        return lexica.createModule('words', {
+            members: [
+                createFunctionDeclaration('cut', 'String', { updates: constantUpdates, parameters: [word, createValueParameterDeclaration('width', 'Number', { default: 2 })], impl: ({ args }) => (invoked.push(['cut', args]), args.word.slice(0, args.width)) }),
+                createFunctionDeclaration('trim', 'String', { updates: constantUpdates, parameters: [word, createValueParameterDeclaration('width', 'Number?', { default: 2, nulls: 'accept' })], impl: ({ args }) => (invoked.push(['trim', args]), args.word.slice(0, args.width ?? 1)) }),
+                createFunctionDeclaration('long', 'Boolean', { updates: constantUpdates, parameters: [word, createValueParameterDeclaration('minimum', 'Number', { default: 3 })], impl: ({ args }) => (invoked.push(['long', args]), args.word.length >= args.minimum) }),
+            ],
+        });
+    };
+    const bound = { word: 'oatmeal', short: 'oa', small: new Word('oa'), bag: new Bag(7), flag: true, none: null, numbers: [1, 2] };
 
     /** What the text evaluates to against the words and the shop, with what the words' implementations were given. */
     const evaluateWords = text => {
@@ -244,10 +273,10 @@ describe('a call of a delegate', () => {
     it('binds a reference\'s omitted argument to its default, and an explicit null by its parameter\'s null policy, held, chosen or given to a member', () => {
         const chosen = name => `let keep = (w) => w\nlet call = if flag then words.${name} else keep end\nreturn call(word)`;
 
-        expect(evaluateWords(chosen('cut'))).toEqual({ value: 'oa', invoked: [['cut', { width: 2 }]] });
+        expect(evaluateWords(chosen('cut'))).toEqual({ value: 'oa', invoked: [['cut', { word: 'oatmeal', width: 2 }]] });
         expect(evaluateWords('let keep = (w, n) => w\nlet cut = if flag then words.cut else keep end\nreturn cut(word, none)')).toEqual({ value: null, invoked: [] });
-        expect(evaluateWords('let keep = (w, n) => w\nlet trim = if flag then words.trim else keep end\nreturn trim(word, none)')).toEqual({ value: 'o', invoked: [['trim', { width: null }]] });
-        expect(evaluateWords('{ word = word.is(words.long), short = short.is(words.long) }')).toEqual({ value: { word: true, short: false }, invoked: [['long', { minimum: 3 }], ['long', { minimum: 3 }]] });
+        expect(evaluateWords('let keep = (w, n) => w\nlet trim = if flag then words.trim else keep end\nreturn trim(word, none)')).toEqual({ value: 'o', invoked: [['trim', { word: 'oatmeal', width: null }]] });
+        expect(evaluateWords('{ word = word.is(words.long), short = short.is(words.long) }')).toEqual({ value: { word: true, short: false }, invoked: [['long', { word: 'oatmeal', minimum: 3 }], ['long', { word: 'oa', minimum: 3 }]] });
     });
 
     it('evaluates a function\'s body in the captured scope each script delegate holds, two of one function keeping their own', () => {
@@ -256,19 +285,24 @@ describe('a call of a delegate', () => {
     });
 
     it('evaluates, at each place a function is called, the body resolved for that call', () => {
-        expect(evaluateWords('let check = (x) => shop.fits(x)\nreturn { word = check(short), number = check(7) }').value).toEqual({ word: true, number: false });
+        expect(evaluateWords('let check = (x) => shop.fits(x)\nreturn { word = check(small), bag = check(bag) }').value).toEqual({ word: true, bag: false });
     });
 });
 
 describe('the answer of a held reference', () => {
-    /** A module of lists: `head`, generic, answering what the test gives it for its receiver, and `apply`, calling the function it is given with its receiver. */
+    /** A module of lists: `head`, a module member answering what the test gives it for the list of numbers it is given, and `apply`, a list's member calling the function it is given with its receiver. */
     const createLists = (answer, invoked = []) => lexica.createModule('lists', {
-        members: [
-            lexica.declarations.function('head', 'List<T>', 'T', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(receiver), answer(receiver)) }),
-            lexica.declarations.function('apply', 'List<T>', 'T', { updates: constantUpdates, parameters: [lexica.declarations.functionParameter('f', 'T', ['List<T>'])], impl: ({ receiver, args }) => args.f(receiver) }),
+        types: [
+            {
+                name: 'ListExtensions<T>',
+                kind: 'extension',
+                target: 'List<T>',
+                members: [createFunctionDeclaration('apply', 'T', { updates: constantUpdates, parameters: [createFunctionParameterDeclaration('f', 'T', ['List<T>'])], impl: ({ receiver, args }) => args.f(receiver) })],
+            },
         ],
+        members: [createFunctionDeclaration('head', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('list', 'List<Number>')], impl: ({ args }) => (invoked.push(args.list), answer(args.list)) })],
     });
-    const bound = { numbers: [1, 2], words: ['a', 'b'], missing: null, flag: true, full: false };
+    const bound = { numbers: [1, 2], missing: null, flag: true, full: false };
     // A local that may hold the reference or a function answering null, so the call's own type is nullable while the reference's answer is not.
     const choosing = 'let none = (list) => null\nlet pick = if flag then lists.head else none end\nreturn ';
 
@@ -283,11 +317,6 @@ describe('the answer of a held reference', () => {
         expect(errorThrownBy(() => evaluateLists('let head = lists.head return head(numbers)', wrong))).toMatchObject(refusal);
         expect(errorThrownBy(() => evaluateLists(`${choosing}pick(numbers)`, wrong))).toMatchObject(refusal);
         expect(errorThrownBy(() => evaluateLists('numbers.apply(lists.head)', wrong))).toMatchObject(refusal);
-    });
-
-    it('is checked against each specialization the reference is called with, apart', () => {
-        expect(evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, list => list[0])).toEqual({ number: 1, word: 'a' });
-        expect(errorThrownBy(() => evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, () => 1))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('and it declares String') });
     });
 
     it('is null where a null receiver short-circuits the call, and refused where the implementation answers null for a result that is not nullable', () => {

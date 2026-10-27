@@ -9,23 +9,26 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../support/home.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration } from '../support/declarations.mjs';
 
-const { property } = Declarations;
+const { createPropertyDeclaration } = Declarations;
 
 /** The references a plain host's member answers, lights of the home. */
 const parts = [new Light('a'), new Light('b')];
 
 /** A plain host's module on names: a size measured within half a unit, a length, a list of references and each reference's label. */
 const shapes = new LexicaModule('shapes', withHome({
-    types: [{ name: 'Size', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number', height: 'Number' }) }],
-    members: [
-        property('size', 'String', 'Size', { updates: { ...constantUpdates, tolerance: 0.5 }, impl: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
-        property('length', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
-        property('parts', 'String', 'List<Light?>', { updates: constantUpdates, impl: () => parts }),
-        property('label', 'Light', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name }),
-        property('sizes', 'String', 'List<Size?>', { updates: constantUpdates, impl: () => [{ width: 1, height: 2 }, null] }),
+    types: [
+        { name: 'Size', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number', height: 'Number' }) },
+        extensionDeclaration('Names', 'String', [
+            createPropertyDeclaration('size', 'Size', { updates: { ...constantUpdates, tolerance: 0.5 }, impl: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
+            createPropertyDeclaration('length', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
+            createPropertyDeclaration('parts', 'List<Light?>', { updates: constantUpdates, impl: () => parts }),
+            createPropertyDeclaration('sizes', 'List<Size?>', { updates: constantUpdates, impl: () => [{ width: 1, height: 2 }, null] }),
+        ]),
     ],
+}, {
+    Light: [createPropertyDeclaration('label', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name })],
 }));
 
 /** The resolution of the text against a registry of Lexica's own module and the shapes, and an evaluation of it with the bindings given. */

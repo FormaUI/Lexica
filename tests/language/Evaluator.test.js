@@ -7,9 +7,10 @@ import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { extensionDeclaration } from '../support/declarations.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
 
-const { property } = Declarations;
+const { createPropertyDeclaration } = Declarations;
 
 /**
  * A plain application-data host's module on names: a price read from a name, a rate the environment holds, and a quote maintained by an observation, which a host samples.
@@ -17,10 +18,12 @@ const { property } = Declarations;
  */
 const createPrices = invoked => new LexicaModule('prices', {
     observationTypes: [{ name: 'quote', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
-    members: [
-        property('price', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => (invoked.push(`price:${receiver}`), receiver.length) }),
-        property('rate', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ env }) => env.rate }),
-        property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, impl: ({ samples: [quote] }) => quote }),
+    types: [
+        extensionDeclaration('StringExtensions', 'String', [
+            createPropertyDeclaration('price', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => (invoked.push(`price:${receiver}`), receiver.length) }),
+            createPropertyDeclaration('rate', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ env }) => env.rate }),
+            createPropertyDeclaration('quoted', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, impl: ({ samples: [quote] }) => quote }),
+        ]),
     ],
 });
 

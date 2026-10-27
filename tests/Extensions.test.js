@@ -3,7 +3,7 @@ import { lexica } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 
-const { property, function: fn, valueParameter, functionParameter } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
 
 /**
  * A module of extensions on Lexica's own types: a string's shout, a list's middle item, its `T` the list's items, and a receiver of any type's echo, its `T` the receiver's own type, each a member of its extension, which
@@ -11,13 +11,13 @@ const { property, function: fn, valueParameter, functionParameter } = lexica.dec
  */
 const createWords = () => lexica.createModule('words', {
     types: [
-        { name: 'Shouting', kind: 'extension', target: 'String', members: [property('shout', null, 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.toUpperCase() })] },
-        { name: 'Middles<Item>', kind: 'extension', target: 'List<Item>', members: [property('middle', null, 'Item?', { updates: derivedUpdates, impl: ({ receiver }) => receiver[Math.floor(receiver.length / 2)] ?? null })] },
+        { name: 'Shouting', kind: 'extension', target: 'String', members: [createPropertyDeclaration('shout', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.toUpperCase() })] },
+        { name: 'Middles<Item>', kind: 'extension', target: 'List<Item>', members: [createPropertyDeclaration('middle', 'Item?', { updates: derivedUpdates, impl: ({ receiver }) => receiver[Math.floor(receiver.length / 2)] ?? null })] },
         {
             name: 'Echoes<T>',
             kind: 'extension',
             target: 'T',
-            members: [fn('echoes', null, 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) })],
+            members: [createFunctionDeclaration('echoes', 'Boolean', { updates: derivedUpdates, parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) })],
         },
     ],
 });

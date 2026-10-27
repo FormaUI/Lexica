@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
-import { dataPropertyDeclarations, hostFunctionDeclaration } from './support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, hostFunctionDeclaration } from './support/declarations.mjs';
 import { resolveWith } from './support/pipeline.mjs';
 
-const { property, valueParameter } = lexica.declarations;
+const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
 /** A host call of a device, named by a string: a function its host invokes, which supplies values of the result's type, or none where it declares none. */
 
@@ -15,24 +15,27 @@ const { property, valueParameter } = lexica.declarations;
  * from the environment as it is when read; and a device's partner, which none has. The room and the level record each invocation, so a test sees which ran.
  */
 const createHome = (invoked = []) => lexica.createModule('home', {
-    types: [{ name: 'Motion', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number', strength: 'Number' }) }, { name: 'Change', kind: 'structured', members: dataPropertyDeclarations({ setting: 'String', value: 'String?' }) }],
+    types: [
+        { name: 'Motion', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number', strength: 'Number' }) },
+        { name: 'Change', kind: 'structured', members: dataPropertyDeclarations({ setting: 'String', value: 'String?' }) },
+        extensionDeclaration('StringExtensions', 'String', [
+            hostFunctionDeclaration('dim', 'Number', { arguments: 'options', parameters: [createValueParameterDeclaration('to', 'Number')] }),
+            hostFunctionDeclaration('hold', undefined, { arguments: 'options', parameters: [createValueParameterDeclaration('target', 'Number')] }),
+            hostFunctionDeclaration('watch', 'Motion'),
+            hostFunctionDeclaration('on', '@selected', { parameters: [createValueParameterDeclaration('type', 'String', { fixed: true, selects: 'type', selector: 'event' })] }),
+            createFunctionDeclaration('reading', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [createValueParameterDeclaration('name', 'String', { fixed: true, selects: 'type', selector: 'reading' })], impl: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
+            createPropertyDeclaration('room', 'String', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => (invoked.push(`room:${receiver}`), `${receiver}'s room`) }),
+            createPropertyDeclaration('level', 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: ({ receiver, env }) => (invoked.push(`level:${receiver}`), env.levels[receiver]) }),
+            createPropertyDeclaration('occupied', 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: ({ receiver, env }) => env.occupied.includes(receiver) }),
+            createPropertyDeclaration('partner', 'String?', { updates: { changes: 'constant', reads: 'fresh' }, impl: () => null }),
+        ]),
+    ],
     typeSelectors: [{ name: 'event' }, { name: 'reading' }],
     mappings: [
         { key: 'motion', selector: 'event', type: 'Motion' },
         { key: 'change', selector: 'event', type: 'Change' },
         { key: 'level', selector: 'reading', type: 'Number' },
         { key: 'tone', selector: 'reading', type: 'String' },
-    ],
-    members: [
-        hostFunctionDeclaration('dim', 'String', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
-        hostFunctionDeclaration('hold', 'String', undefined, { arguments: 'options', parameters: [valueParameter('target', 'Number')] }),
-        hostFunctionDeclaration('watch', 'String', 'Motion'),
-        hostFunctionDeclaration('on', 'String', '@selected', { parameters: [valueParameter('type', 'String', { fixed: true, selects: 'type', selector: 'event' })] }),
-        lexica.declarations.function('reading', 'String', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('name', 'String', { fixed: true, selects: 'type', selector: 'reading' })], impl: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
-        property('room', 'String', 'String', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => (invoked.push(`room:${receiver}`), `${receiver}'s room`) }),
-        property('level', 'String', 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: ({ receiver, env }) => (invoked.push(`level:${receiver}`), env.levels[receiver]) }),
-        property('occupied', 'String', 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: ({ receiver, env }) => env.occupied.includes(receiver) }),
-        property('partner', 'String', 'String?', { updates: { changes: 'constant', reads: 'fresh' }, impl: () => null }),
     ],
 });
 
@@ -47,7 +50,7 @@ describe('host calls', () => {
         const registry = lexica.createRegistry([home]);
         const resolution = registry.resolve('light.dim({ to = 40 })', bindings);
 
-        expect(resolution.hostCall).toEqual({ name: 'dim', declaration: home.members[0] });
+        expect(resolution.hostCall).toEqual({ name: 'dim', declaration: home.types[2].members[0] });
         expect(Object.isFrozen(resolution.hostCall)).toBe(true);
         expect(registry.getDeclaringModuleName(resolution.hostCall.declaration)).toBe('home');
         expect(resolution.usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['String.dim', '/expression']]);
@@ -105,7 +108,7 @@ describe('host calls', () => {
 
     it('on a receiver of unknown type, keep their name and have no declaration yet, and are refused where the declarations disagree on who invokes them', () => {
         const dimmer = lexica.createModule('dimmer', {
-            members: [lexica.declarations.function('dim', 'Number', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, arguments: 'options', parameters: [valueParameter('to', 'Number')], impl: ({ args }) => args.to })],
+            types: [extensionDeclaration('NumberExtensions', 'Number', [createFunctionDeclaration('dim', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, arguments: 'options', parameters: [createValueParameterDeclaration('to', 'Number')], impl: ({ args }) => args.to })])],
         });
 
         expect(resolve('thing?.dim({ to = 40 })', { thing: null })).toMatchObject({ type: 'Number?', hostCall: { name: 'dim', declaration: null } });
@@ -164,7 +167,7 @@ describe('prepared calls', () => {
         const { evaluator, home } = evaluatorOf('light.dim({ to = 40 })');
         const call = evaluator.prepareHostCall();
 
-        expect(call).toMatchObject({ kind: 'prepared', declaration: home.members[0], receiver: 'hall', args: { to: 40 }, pointer: '/expression' });
+        expect(call).toMatchObject({ kind: 'prepared', declaration: home.types[2].members[0], receiver: 'hall', args: { to: 40 }, pointer: '/expression' });
         expect(lexica.getLocation(lexica.parse('light.dim({ to = 40 })'), call.pointer)).toMatchObject({ pointer: '/expression', line: 1, column: 1 });
         expect(typeof call.project).toBe('function');
         expect(Object.isFrozen(call)).toBe(true);
@@ -173,10 +176,12 @@ describe('prepared calls', () => {
     it('describe a field of an object a local built before the call as an evaluation does, by the branch its value took, in every projection', () => {
         const tolerant = tolerance => ({ updates: { changes: 'constant', reads: 'fresh', tolerance } });
         const module = lexica.createModule('home', {
-            members: [
-                property('fine', 'String', 'Number', { ...tolerant(0.1), impl: () => 1 }),
-                property('coarse', 'String', 'Number', { ...tolerant(5), impl: () => 2 }),
-                hostFunctionDeclaration('dim', 'String', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
+            types: [
+                extensionDeclaration('StringExtensions', 'String', [
+                    createPropertyDeclaration('fine', 'Number', { ...tolerant(0.1), impl: () => 1 }),
+                    createPropertyDeclaration('coarse', 'Number', { ...tolerant(5), impl: () => 2 }),
+                    hostFunctionDeclaration('dim', 'Number', { arguments: 'options', parameters: [createValueParameterDeclaration('to', 'Number')] }),
+                ]),
             ],
         });
         const local = 'let o = { v = if lit then light.fine else light.coarse end }\nreturn ';
@@ -320,11 +325,11 @@ describe('values a host supplies', () => {
         types: [
             { name: 'Spot', kind: 'structured', members: dataPropertyDeclarations({ x: 'Number', label: 'String?' }) },
             { name: 'Report', kind: 'structured', members: dataPropertyDeclarations({ target: 'Light?', owner: 'Light', note: 'String?', count: 'Number', spot: 'Spot?', spots: 'List<Spot>' }) },
-        ],
-        members: [
-            lexica.declarations.function('report', 'String', 'Report', { invokedBy: 'host' }),
-            lexica.declarations.function('maybe', 'String', 'Spot?', { invokedBy: 'host' }),
-            property('spotted', 'String', 'Spot', { updates: { changes: 'constant', reads: 'fresh' }, impl: () => ({ x: 1 }) }),
+            extensionDeclaration('StringExtensions', 'String', [
+                createFunctionDeclaration('report', 'Report', { invokedBy: 'host' }),
+                createFunctionDeclaration('maybe', 'Spot?', { invokedBy: 'host' }),
+                createPropertyDeclaration('spotted', 'Spot', { updates: { changes: 'constant', reads: 'fresh' }, impl: () => ({ x: 1 }) }),
+            ]),
         ],
     }));
 

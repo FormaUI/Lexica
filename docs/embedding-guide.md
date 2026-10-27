@@ -26,23 +26,30 @@ None of these needs a domain: reading, checking and formatting know the language
 
 ## Declare a domain
 
-A module declares what scripts can read: its types, and the members it adds to them, each with its signature, how its value changes, and the implementation that answers it. The declaration helpers fill in the defaults:
+A module declares what scripts can read: its types, with their members, and the members it adds to other types in extensions, each with its signature, how its value changes, and the implementation that answers it. The declaration helpers fill in the defaults, and where a member stands gives it its receiver:
 
 ```js
-const { property, function: fn, valueParameter } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration } = lexica.declarations;
 
 const shop = lexica.createModule('Shop', {
-    types: [{ name: 'Price', kind: 'structured', members: [{ name: 'amount', kind: 'property', result: 'Number' }, { name: 'currency', kind: 'property', result: 'String' }] }],
-    members: [
-        property('price', 'String', 'Price', {
-            updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 },
-            impl: ({ receiver, env }) => ({ amount: env.catalog[receiver], currency: 'EUR' }),
-        }),
-        fn('discount', 'String', 'Number', {
-            updates: { changes: 'constant', reads: 'fresh' },
-            parameters: [valueParameter('code', 'String')],
-            impl: ({ args }) => (args.code === 'TEN' ? 10 : 0),
-        }),
+    types: [
+        { name: 'Price', kind: 'structured', members: [createPropertyDeclaration('amount', 'Number'), createPropertyDeclaration('currency', 'String')] },
+        {
+            name: 'Products',
+            kind: 'extension',
+            target: 'String',
+            members: [
+                createPropertyDeclaration('price', 'Price', {
+                    updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 },
+                    impl: ({ receiver, env }) => ({ amount: env.catalog[receiver], currency: 'EUR' }),
+                }),
+                createFunctionDeclaration('discount', 'Number', {
+                    updates: { changes: 'constant', reads: 'fresh' },
+                    parameters: [createValueParameterDeclaration('code', 'String')],
+                    impl: ({ args }) => (args.code === 'TEN' ? 10 : 0),
+                }),
+            ],
+        },
     ],
 });
 ```

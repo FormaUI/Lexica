@@ -48,5 +48,9 @@ export const homeTypeOf = value => {
     return value instanceof Room ? 'Room' : null;
 };
 
-/** A module's contents declaring the home's types and its recognition, with the contents given, their own types after the home's. */
-export const withHome = (contents = {}) => ({ ...contents, typeOf: homeTypeOf, types: [...homeTypes, ...(contents.types ?? [])] });
+/** A module's contents declaring the home's types and its recognition, with the contents given, their own types after the home's; each of the home's types holds the members given for it by its name, which take it as their receiver. */
+export const withHome = (contents = {}, membersByType = {}) => ({
+    ...contents,
+    typeOf: homeTypeOf,
+    types: [...homeTypes.map(type => (membersByType[type.name] === undefined ? type : { ...type, members: membersByType[type.name] })), ...(contents.types ?? [])],
+});

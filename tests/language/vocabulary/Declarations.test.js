@@ -12,15 +12,29 @@ const refusalOf = members => {
 };
 
 describe('Declarations', () => {
+    it('creates each member with no receiver of its own, where it stands giving it one, a null name leaving an indexer unnamed', () => {
+        const key = Declarations.createValueParameterDeclaration('key', 'String');
 
-    it('writes the updates a member is given, and none it isn\'t, so a member without them is refused for what it lacks', () => {
-        expect(Declarations.property('price', 'String', 'Number', { updates: constantUpdates }).updates).toEqual(constantUpdates);
-        expect(Declarations.property('price', 'String', 'Number')).not.toHaveProperty('updates');
-        expect(refusalOf([Declarations.property('price', 'String', 'Number', { impl: () => 1 })])).toEqual({ code: 'LEXICA4032', location: { module: 'shop', declaration: 'price', declarationKey: 'updates' } });
-        expect(() => new LexicaModule('shop', { members: [Declarations.property('price', 'String', 'Number', { updates: constantUpdates, impl: () => 1 })] })).not.toThrow();
+        expect(Declarations.createPropertyDeclaration('price', 'Number', { updates: constantUpdates })).toEqual({ name: 'price', kind: 'property', result: 'Number', updates: constantUpdates });
+        expect(Declarations.createFunctionDeclaration('pad', 'String', { updates: constantUpdates, parameters: [key] })).toEqual({ name: 'pad', kind: 'function', result: 'String', parameters: [key], arguments: 'positional', updates: constantUpdates });
+        expect(Declarations.createIndexerDeclaration(null, 'String?', { updates: constantUpdates, parameters: [key] })).toEqual({ kind: 'indexer', result: 'String?', parameters: [key], updates: constantUpdates });
+    });
+
+    it('creates a property without updates as a property of a structured type\'s data, which a module member is refused for lacking', () => {
+        expect(Declarations.createPropertyDeclaration('price', 'Number')).toEqual({ name: 'price', kind: 'property', result: 'Number' });
+        expect(refusalOf([Declarations.createPropertyDeclaration('price', 'Number', { impl: () => 1 })])).toEqual({ code: 'LEXICA4032', location: { module: 'shop', declaration: 'price', declarationKey: 'updates' } });
+        expect(() => new LexicaModule('shop', { types: [{ name: 'Cup', kind: 'structured', members: [Declarations.createPropertyDeclaration('price', 'Number')] }] })).not.toThrow();
+        expect(() => new LexicaModule('shop', { members: [Declarations.createPropertyDeclaration('price', 'Number', { updates: constantUpdates, impl: () => 1 })] })).not.toThrow();
     });
 
     it('writes no updates for a function the host invokes, whatever it is given', () => {
-        expect(Declarations.function('dim', 'String', 'Number', { invokedBy: 'host', updates: constantUpdates })).not.toHaveProperty('updates');
+        expect(Declarations.createFunctionDeclaration('dim', 'Number', { invokedBy: 'host', updates: constantUpdates })).toEqual({ name: 'dim', kind: 'function', invokedBy: 'host', result: 'Number', parameters: [] });
+    });
+
+    it('creates the parameters in their declaration shape, each with the defaults its contract gives it', () => {
+        expect(Declarations.createValueParameterDeclaration('width', 'Number', { default: 2 })).toEqual({ name: 'width', kind: 'value', type: 'Number', required: false, fixed: false, nulls: 'propagate', default: 2 });
+        expect(Declarations.createExpressionParameterDeclaration('Number')).toEqual({ name: 'expression', kind: 'expression', type: 'Number', context: 'item', required: true, fixed: false, nulls: 'accept' });
+        expect(Declarations.createPredicateParameterDeclaration()).toEqual({ name: 'expression', kind: 'predicate', type: 'Boolean', context: 'item', required: true, fixed: false, nulls: 'accept' });
+        expect(Declarations.createFunctionParameterDeclaration('test', 'Boolean', ['String'])).toEqual({ name: 'test', kind: 'function', type: 'Boolean', parameterTypes: ['String'], required: true });
     });
 });

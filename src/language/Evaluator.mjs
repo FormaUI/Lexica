@@ -235,7 +235,7 @@ export class Evaluator {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
         const { terminalNode, localsFrame } = this.#evaluateLocalsBefore();
         // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
-        const hasReceiver = declaration === null || this.#registry.hasReceiver(declaration);
+        const takesReceiver = declaration === null || this.#registry.takesReceiver(declaration);
         const enclosingSelections = this.#selections;
         let receiver;
         let args;
@@ -243,7 +243,7 @@ export class Evaluator {
         // The receiver and the arguments are evaluated within the locals' frame, and no result records the selections they make.
         try {
             ({ receiver, args } = this.#evaluateWithin(localsFrame, this.#objectRoot, evaluator => {
-                const evaluatedReceiver = declaration === null ? null : hasReceiver ? evaluator.#evaluateNode(resolution.receiverNode, null) : undefined;
+                const evaluatedReceiver = declaration === null ? null : takesReceiver ? evaluator.#evaluateNode(resolution.receiverNode, null) : undefined;
 
                 return { receiver: evaluatedReceiver, args: evaluatedReceiver === null ? null : evaluator.#evaluateArguments(resolution, null) };
             }, null));
@@ -255,7 +255,7 @@ export class Evaluator {
             return Object.freeze({ kind: 'skipped', pointer });
         }
 
-        const call = hasReceiver ? { kind: 'prepared', declaration, receiver, args, pointer } : { kind: 'prepared', declaration, args, pointer };
+        const call = takesReceiver ? { kind: 'prepared', declaration, receiver, args, pointer } : { kind: 'prepared', declaration, args, pointer };
 
         // A call whose host supplies nothing has nothing to project.
         if (declaration.result !== undefined) {
@@ -893,7 +893,7 @@ export class Evaluator {
             invocation = Object.freeze({
                 declaration,
                 implementation: this.#registry.getImplementation(declaration),
-                takesReceiver: this.#registry.hasReceiver(declaration),
+                takesReceiver: this.#registry.takesReceiver(declaration),
                 resultType,
                 isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${declaration.name}'`),
                 copyStructure: Evaluator.#compileStructureCopy(resultType, this.#registry),

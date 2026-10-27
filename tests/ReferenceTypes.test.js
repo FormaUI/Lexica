@@ -1,19 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
+import { extensionDeclaration } from './support/declarations.mjs';
 import { Device, Light, Room, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { evaluateWithCreatedBindings } from './support/pipeline.mjs';
 
-const { property, function: fn, valueParameter } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
 
 /** The home's module: a device's name, which a light and a thermostat read as devices, a light's brightness, a room's devices and the device a room names. */
-const createHome = () => lexica.createModule('home', withHome({
-    members: [
-        property('name', 'Device', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name }),
-        property('brightness', 'Light', 'Number', { updates: constantUpdates, impl: () => 40 }),
-        property('devices', 'Room', 'List<Device>', { updates: constantUpdates, impl: ({ receiver }) => receiver.devices }),
-        fn('device', 'Room', 'Device?', { updates: constantUpdates, parameters: [valueParameter('name', 'String')], impl: ({ receiver, args }) => receiver.devices.find(device => device.name === args.name) ?? null }),
+const createHome = () => lexica.createModule('home', withHome({}, {
+    Device: [createPropertyDeclaration('name', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name })],
+    Light: [createPropertyDeclaration('brightness', 'Number', { updates: constantUpdates, impl: () => 40 })],
+    Room: [
+        createPropertyDeclaration('devices', 'List<Device>', { updates: constantUpdates, impl: ({ receiver }) => receiver.devices }),
+        createFunctionDeclaration('device', 'Device?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('name', 'String')], impl: ({ receiver, args }) => receiver.devices.find(device => device.name === args.name) ?? null }),
     ],
 }));
 
@@ -82,12 +83,15 @@ describe('reference types', () => {
     });
 
     it('register one module\'s members of one name on related receivers, an access resolving through its receiver\'s type, the most specific declaration hiding one above it', () => {
-        const active = lexica.createModule('home', withHome({
-            members: [
-                property('active', 'Device', 'Boolean', { updates: constantUpdates, impl: () => false }),
-                property('active', 'Light', 'Boolean', { updates: constantUpdates, impl: () => true }),
-                lexica.declarations.indexer(null, 'Device', 'String?', { updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'device' }),
-                lexica.declarations.indexer(null, 'Light', 'String?', { updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'light' }),
+        const key = createValueParameterDeclaration('key', 'String');
+        const active = lexica.createModule('home', withHome({}, {
+            Device: [
+                createPropertyDeclaration('active', 'Boolean', { updates: constantUpdates, impl: () => false }),
+                createIndexerDeclaration(null, 'String?', { updates: constantUpdates, parameters: [key], impl: () => 'device' }),
+            ],
+            Light: [
+                createPropertyDeclaration('active', 'Boolean', { updates: constantUpdates, impl: () => true }),
+                createIndexerDeclaration(null, 'String?', { updates: constantUpdates, parameters: [key], impl: () => 'light' }),
             ],
         }));
         const registry = lexica.createRegistry([active]);
@@ -103,11 +107,9 @@ describe('reference types', () => {
     });
 
     it('read brackets after a name by the most specific member of it, a property hiding a named indexer above it and an indexer one', () => {
-        const settings = (propertyTarget, indexerTarget) => lexica.createRegistry([lexica.createModule('home', withHome({
-            members: [
-                property('setting', propertyTarget, 'String', { updates: constantUpdates, impl: () => 'property' }),
-                lexica.declarations.indexer('setting', indexerTarget, 'String?', { updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'indexer' }),
-            ],
+        const settings = (propertyType, indexerType) => lexica.createRegistry([lexica.createModule('home', withHome({}, {
+            [propertyType]: [createPropertyDeclaration('setting', 'String', { updates: constantUpdates, impl: () => 'property' })],
+            [indexerType]: [createIndexerDeclaration('setting', 'String?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')], impl: () => 'indexer' })],
         }))]);
         const evaluateWith = (registry, text, values) => registry.resolve(text, values).createEvaluator(values).evaluate().value;
 
@@ -118,8 +120,9 @@ describe('reference types', () => {
     });
 
     it('resolve an empty list by the most specific applicable declaration, and refuse it, naming the competing ones, where none is', () => {
+        // One extension for each target, its name declaring the parameter a target writes.
         const totals = (...targets) => lexica.createRegistry([lexica.createModule('shop', {
-            members: targets.map(target => property('total', target, 'String', { updates: constantUpdates, impl: () => target })),
+            types: targets.map((target, index) => extensionDeclaration(`Totals${index}${target.includes('<T>') ? '<T>' : ''}`, target, [createPropertyDeclaration('total', 'String', { updates: constantUpdates, impl: () => target })])),
         })]);
         const evaluateWith = (registry, values) => registry.resolve('items.total', values).createEvaluator(values).evaluate().value;
         const refused = errorThrownBy(() => totals('List<Number>', 'List<String>').resolve('items.total', { items: [] }));
@@ -134,10 +137,9 @@ describe('reference types', () => {
 
     it('register a module member beside a receiver\'s member of its name, a qualified call taking the one reading resolution accepts and refused where both are accepted', () => {
         const members = moduleMemberParameter => lexica.createModule('home', withHome({
-            members: [
-                property('label', 'Room', 'String', { updates: constantUpdates, impl: ({ receiver }) => `room ${receiver.name}` }),
-                fn('label', null, 'String', { updates: constantUpdates, parameters: [valueParameter('of', moduleMemberParameter)], impl: ({ args }) => `module ${args.of.name ?? args.of}` }),
-            ],
+            members: [createFunctionDeclaration('label', 'String', { updates: constantUpdates, parameters: [createValueParameterDeclaration('of', moduleMemberParameter)], impl: ({ args }) => `module ${args.of.name ?? args.of}` })],
+        }, {
+            Room: [createPropertyDeclaration('label', 'String', { updates: constantUpdates, impl: ({ receiver }) => `room ${receiver.name}` })],
         }));
         const evaluateWith = (module, text, values) => lexica.createRegistry([module]).resolve(text, values).createEvaluator(values).evaluate().value;
 
@@ -148,7 +150,7 @@ describe('reference types', () => {
     });
 
     it('check a member\'s answer by its declared type\'s membership, a reference of another type refused', () => {
-        const wrong = lexica.createModule('wrong', withHome({ members: [property('lamp', 'String', 'Light', { updates: constantUpdates, impl: () => heater })] }));
+        const wrong = lexica.createModule('wrong', withHome({ types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('lamp', 'Light', { updates: constantUpdates, impl: () => heater })])] }));
         const registry = lexica.createRegistry([wrong]);
 
         expect(errorThrownBy(() => registry.resolve('(word.lamp as Light) == null', { word: 'a' }).createEvaluator({ word: 'a' }).evaluate())).toMatchObject({ code: 'LEXICA5006' });
@@ -164,18 +166,17 @@ describe('an internal reference type', () => {
 });
 
 describe('members declared within their reference type', () => {
-    const glow = property('glow', null, 'String', { updates: constantUpdates, impl: ({ receiver }) => `${receiver.name} glows` });
+    const glow = createPropertyDeclaration('glow', 'String', { updates: constantUpdates, impl: ({ receiver }) => `${receiver.name} glows` });
 
-    /** A module of lamps, a reference type holding the members given, beside the flat members given. */
-    const lamps = (members, flat = [], type = {}) => lexica.createModule('lamps', {
+    /** A module of lamps, a reference type holding the members given, and the declaration keys given. */
+    const lamps = (members, type = {}) => lexica.createModule('lamps', {
         typeOf: value => (value instanceof Light ? 'Lamp' : null),
         types: [{ name: 'Lamp', kind: 'reference', isInstance: value => value instanceof Light, members, ...type }],
-        members: flat,
     });
 
-    it('take their type as their receiver, beside its flat members, and are reached through their module\'s qualified form', () => {
-        const dim = property('dim', 'Lamp', 'Number', { updates: constantUpdates, impl: () => 30 });
-        const registry = lexica.createRegistry([lamps([glow], [dim])]);
+    it('take their type as their receiver, and are reached through their module\'s qualified form', () => {
+        const dim = createPropertyDeclaration('dim', 'Number', { updates: constantUpdates, impl: () => 30 });
+        const registry = lexica.createRegistry([lamps([glow, dim])]);
         const resolution = registry.resolve('{ glow = lamp.glow, dim = lamp.dim, qualified = lamps.glow(lamp) }', { lamp });
 
         expect(resolution.createEvaluator({ lamp }).evaluate().value).toEqual({ glow: 'lamp glows', dim: 30, qualified: 'lamp glows' });
@@ -183,18 +184,18 @@ describe('members declared within their reference type', () => {
         expect(registry.getDeclaringModuleName(resolution.usedDeclarations[0].declaration)).toBe('lamps');
     });
 
-    it('collide with a flat member of their name on their type, the one declared within it refused at its name', () => {
-        const flatGlow = property('glow', 'Lamp', 'String', { updates: constantUpdates, impl: () => 'flat' });
+    it('collide with a member of their name within their type, the later refused at its name', () => {
+        const otherGlow = createPropertyDeclaration('glow', 'String', { updates: constantUpdates, impl: () => 'other' });
 
-        expect(errorThrownBy(() => lexica.createRegistry([lamps([glow], [flatGlow])]))).toMatchObject({ code: 'LEXICA4029', location: { module: 'lamps', type: 'Lamp', declaration: 'glow', declarationKey: 'name' } });
+        expect(errorThrownBy(() => lexica.createRegistry([lamps([glow, otherGlow])]))).toMatchObject({ code: 'LEXICA4029', location: { module: 'lamps', type: 'Lamp', declaration: 'glow', declarationKey: 'name' } });
     });
 
     it('read their notations through their type\'s import, a notation naming no type refused at their type', () => {
-        const room = property('room', null, 'Room?', { updates: constantUpdates, impl: () => null });
+        const room = createPropertyDeclaration('room', 'Room?', { updates: constantUpdates, impl: () => null });
         // A home declaring rooms, which recognizes no value, so the lamp is the lamps' alone.
         const rooms = () => lexica.createModule('home', { types: [{ name: 'Room', kind: 'reference', isInstance: value => value instanceof Room }] });
 
-        expect(lexica.createRegistry([rooms(), lamps([room], [], { import: ['home'] })]).resolve('lamp.room == null', { lamp }).usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Lamp.room']);
+        expect(lexica.createRegistry([rooms(), lamps([room], { import: ['home'] })]).resolve('lamp.room == null', { lamp }).usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Lamp.room']);
         expect(errorThrownBy(() => lexica.createRegistry([rooms(), lamps([room])]))).toMatchObject({ code: 'LEXICA4049', location: { module: 'lamps', type: 'Lamp', declaration: 'room' } });
     });
 });

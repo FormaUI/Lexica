@@ -86,7 +86,7 @@ export interface LexicaReferenceTypeDeclaration {
     supertype?: string;
     abstract?: boolean;
     import?: string[];
-    /** The members it declares within it, each taking it as its receiver, so none names a `target`. */
+    /** The members it declares within it, each taking it as its receiver. */
     members?: LexicaMemberDeclaration[];
     /** Whether it is available within its declaring module alone, `false` where left out: no other module's declaration names it, and no script reaches it; its members are internal with it. */
     internal?: boolean;
@@ -98,7 +98,7 @@ export interface LexicaStructuredTypeDeclaration {
     kind: 'structured';
     import?: string[];
     /**
-     * The members it declares within it, each taking it as its receiver, so none names a `target`: its data shape is the properties it declares without `updates`, each naming its value's type as its `result`, which
+     * The members it declares within it, each taking it as its receiver: its data shape is the properties it declares without `updates`, each naming its value's type as its `result`, which
      * Lexica reads from the data and never invokes, so each takes no `impl`.
      */
     members?: LexicaMemberDeclaration[];
@@ -116,7 +116,7 @@ export interface LexicaExtensionDeclaration {
     kind: 'extension';
     /** The type its members extend, never `Any` or nullable: a foreign type qualified, one of Lexica's own, or a parameter it declares. */
     target: string;
-    /** The members it adds, each taking its target as its receiver, so none names a `target`. */
+    /** The members it adds, each taking its target as its receiver. */
     members?: LexicaMemberDeclaration[];
     /** Whether it is available within its declaring module alone, `false` where left out; its members are internal with it. */
     internal?: boolean;
@@ -189,7 +189,7 @@ export type LexicaObservationArgument = string | number | boolean | null | Lexic
 export interface LexicaObservationDeclaration {
     /** The name of the type of observation, which a module declares. */
     type: string;
-    /** What it observes: the receiver; a target the module declaring its type declares, by its name; or the argument of the member that names it. A member without a target has no receiver, and observes neither it nor a target found from it. */
+    /** What it observes: the receiver; a target the module declaring its type declares, by its name; or the argument of the member that names it. A module member takes no receiver, and observes neither it nor a target found from it. */
     of: string | LexicaArgumentReference;
     [argument: string]: LexicaObservationArgument | undefined;
 }
@@ -245,7 +245,7 @@ export interface LexicaMappingDeclaration {
 export interface LexicaObservationTargetDeclaration {
     /** Its name, which an observation's `of` gives, and never `receiver`. */
     name: string;
-    /** Whether it is found from the receiver, so a member without a target observes none of it, or independent of it, the default. */
+    /** Whether it is found from the receiver, so a module member observes none of it, or independent of it, the default. */
     from?: 'receiver';
     /** Whether it is several targets, each observed alike, which a maintained observation never observes, or one, the default. */
     count?: 'many';
@@ -282,7 +282,7 @@ export interface LexicaParameterDeclaration {
     kind: 'value' | 'expression' | 'predicate' | 'function';
     /** The parameter's type, in Lexica's notation; a predicate's is `Boolean`, what the implementation receives, and a function parameter's the type of its function's result. */
     type: string;
-    /** The types its function is called with, in order, in Lexica's notation, which may write a type parameter its member's target binds; only a function parameter declares them, beside its member's `parameters`, which are declarations. */
+    /** The types its function is called with, in order, in Lexica's notation, which may write a type parameter its member's receiver binds; only a function parameter declares them, beside its member's `parameters`, which are declarations. */
     parameterTypes?: string[];
     required: boolean;
     default?: unknown;
@@ -310,7 +310,8 @@ export interface LexicaImplementationInput {
 }
 
 /**
- * A property or a function a module adds, each taking the fields it needs alone; a member without a target is a module member, read through its module's namespace.
+ * A property, a function or an indexer a module declares, each taking the fields it needs alone: within a type, whose receiver the type is, within an extension, whose receiver its target is, or among the module's
+ * `members`, a module member, which takes no receiver and is read through its module's namespace.
  * A property answers a value, and a function the evaluator invokes its result; a script ending in a call of a function the host invokes ends in a host call, and the function has no implementation Lexica calls.
  */
 export interface LexicaMemberDeclaration {
@@ -320,8 +321,6 @@ export interface LexicaMemberDeclaration {
     kind: 'property' | 'function' | 'indexer';
     /** Who invokes a function: the evaluator, the default, or the host, which a script ending in a call of it is prepared for; a function the host invokes takes value parameters alone, and neither updates nor an implementation. */
     invokedBy?: 'evaluator' | 'host';
-    /** The types it applies to, in Lexica's notation, `any`, or a type parameter `T` that binds the receiver's type; none for a module member, and none for a member a type declares within it, whose receiver the type is. */
-    target?: string | string[];
     /** The form its arguments take where it has parameters, an optional one included: one for each parameter, in order, the required ones before the optional ones, or one options object whose fields supply them; a function alone takes it, since an indexer's one key is positional. */
     arguments?: 'positional' | 'options';
     /** Its parameters; a property takes none. */
@@ -340,9 +339,9 @@ export interface LexicaMemberDeclaration {
 export interface LexicaModuleContents {
     /** Its recognition of a host's value: the name of the most specific of its own reference types the value is of, or null. */
     typeOf?(value: unknown): string | null;
-    /** The reference types and the structured types it declares. */
+    /** The reference types and the structured types it declares, and its extensions. */
     types?: LexicaTypeDeclaration[];
-    /** Its members, each named as a name is; a test of a receiver is a function whose result is a boolean. */
+    /** Its module members, each named as a name is, which take no receiver; a member of a type stands within the type or an extension of it. */
     members?: LexicaMemberDeclaration[];
     /** The type selectors it declares, each by its name alone, named once across every module. */
     typeSelectors?: LexicaTypeSelectorDeclaration[];
@@ -512,18 +511,19 @@ export interface LexicaRegistry {
     resolve(script: LexicaScript, bindings?: LexicaBindings | LexicaBindingValues): LexicaResolution;
 }
 
-/** The declaration helpers, each giving a declaration as a module declares it. */
+/** The declaration helpers, each creating a declaration as a module declares it, constructing a record and registering nothing; a member takes no receiver of its own, since where it stands gives it one. */
 export interface LexicaDeclarations {
-    property(name: string, target: string | readonly string[] | null, result: string, options?: object): LexicaMemberDeclaration;
+    /** A property: with updates, one the evaluator invokes, or, without them, a property of a structured type's data where it stands directly in that type. */
+    createPropertyDeclaration(name: string, result: string, options?: object): LexicaMemberDeclaration;
     /** A member a script calls with arguments, or, with `invokedBy: 'host'`, that its host invokes, its result left out where its host supplies nothing. */
-    function(name: string, target: string | readonly string[] | null, result: string | undefined, options?: object): LexicaMemberDeclaration;
+    createFunctionDeclaration(name: string, result: string | undefined, options?: object): LexicaMemberDeclaration;
     /** An indexer, given its key in brackets: a named one, `x.name[key]`, or, where its name is null, the unnamed one of its receivers, `x[key]`. */
-    indexer(name: string | null, target: string | readonly string[] | null, result: string, options?: object): LexicaMemberDeclaration;
-    valueParameter(name: string, type: string, options?: object): LexicaParameterDeclaration;
-    expressionParameter(type: string, options?: object): LexicaParameterDeclaration;
-    predicateParameter(options?: object): LexicaParameterDeclaration;
+    createIndexerDeclaration(name: string | null, result: string, options?: object): LexicaMemberDeclaration;
+    createValueParameterDeclaration(name: string, type: string, options?: object): LexicaParameterDeclaration;
+    createExpressionParameterDeclaration(type: string, options?: object): LexicaParameterDeclaration;
+    createPredicateParameterDeclaration(options?: object): LexicaParameterDeclaration;
     /** A function parameter, always required: the types of the arguments the member calls its function with, in order, and the type of the result it takes from it. */
-    functionParameter(name: string, type: string, parameterTypes: readonly string[]): LexicaParameterDeclaration;
+    createFunctionParameterDeclaration(name: string, type: string, parameterTypes: readonly string[]): LexicaParameterDeclaration;
 }
 
 /** Result paths: a path's shape validated, and the value it reaches in a result. */

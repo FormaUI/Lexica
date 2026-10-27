@@ -3,27 +3,29 @@
  */
 import { lexica } from '#lexica/lexica.js';
 
-/** A property of a string, constant and fresh, in the declaration shape, with what a test changes. */
+/** A property, constant and fresh, in the declaration shape, with what a test changes: a module member where it stands among a module's members, and a member of its type or its extension's target within either. */
 export const propertyDeclaration = (overrides = {}) => ({
     name: 'zoom',
     kind: 'property',
-    target: 'String',
     result: 'Number',
     updates: { changes: 'constant', reads: 'fresh' },
     ...overrides,
 });
 
-/** A function of a string taking one value parameter, positional, constant and fresh. */
+/** A function taking one value parameter, positional, constant and fresh. */
 export const functionDeclaration = (overrides = {}) => propertyDeclaration({ kind: 'function', arguments: 'positional', parameters: [parameterDeclaration()], ...overrides });
 
 /** A value parameter, a required number that propagates null, in the declaration shape, with what a test changes. */
 export const parameterDeclaration = (overrides = {}) => ({ name: 'amount', kind: 'value', type: 'Number', required: true, nulls: 'propagate', ...overrides });
 
-/** A function the host invokes, declared through the declaration helpers as a host declares one, of the receiver and the result given. */
-export const hostFunctionDeclaration = (name, target, result, options = {}) => lexica.declarations.function(name, target, result, { invokedBy: 'host', ...options });
+/** A function the host invokes, declared through the declaration helpers as a host declares one, of the result given. */
+export const hostFunctionDeclaration = (name, result, options = {}) => lexica.declarations.createFunctionDeclaration(name, result, { invokedBy: 'host', ...options });
 
 /** The data properties of a structured type's data shape, in the declaration shape, from the type of each property by its name: each a property without updates, which Lexica reads from the data. */
 export const dataPropertyDeclarations = shape => Object.entries(shape).map(([name, result]) => ({ name, kind: 'property', result }));
 
-/** An indexer, by default the unnamed indexer of a string, taking its key, a string, in the declaration shape, with what a test changes: a name makes it a named one. */
+/** An indexer, by default an unnamed one, taking its key, a string, in the declaration shape, with what a test changes: a name makes it a named one. */
 export const indexerDeclaration = (overrides = {}) => propertyDeclaration({ kind: 'indexer', name: undefined, result: 'String?', parameters: [parameterDeclaration({ name: 'key', type: 'String' })], ...overrides });
+
+/** An extension, in the declaration shape: its name, which declares the type parameters its target and its members share, its target and the members it adds to it. */
+export const extensionDeclaration = (name, target, members) => ({ name, kind: 'extension', target, members });

@@ -57,7 +57,7 @@ export class Vocabulary {
      */
     static get module() {
         // The verbs, each answering what its test answers of its receiver, a function of the receiver's own type that answers a Boolean, so each reads and changes as its test does.
-        const verb = name => Declarations.function(name, null, 'Boolean', { updates: DERIVED_UPDATES, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) });
+        const verb = name => Declarations.createFunctionDeclaration(name, 'Boolean', { updates: DERIVED_UPDATES, parameters: [Declarations.createFunctionParameterDeclaration('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) });
 
         return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
             types: [{ name: 'VerbExtensions<T>', kind: 'extension', target: 'T', members: ['is', 'has', 'supports'].map(verb) }],
@@ -107,18 +107,18 @@ export class Vocabulary {
      */
     static #createListMembers() {
         const members = [
-            Declarations.property('count', null, 'Number', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.length }),
-            Declarations.property('first', null, 'T?', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.at(0) ?? null }),
-            Declarations.property('last', null, 'T?', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.at(-1) ?? null }),
+            Declarations.createPropertyDeclaration('count', 'Number', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.length }),
+            Declarations.createPropertyDeclaration('first', 'T?', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.at(0) ?? null }),
+            Declarations.createPropertyDeclaration('last', 'T?', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.at(-1) ?? null }),
             // The item at a whole index from zero, null for any other index, a negative one included, which never counts from the end.
-            Declarations.indexer(null, null, 'T?', {
-                updates: DERIVED_UPDATES, parameters: [Declarations.valueParameter('index', 'Number')],
+            Declarations.createIndexerDeclaration(null, 'T?', {
+                updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('index', 'Number')],
                 impl: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
             }),
-            Declarations.function('max', null, 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
-            Declarations.function('min', null, 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
-            Declarations.function('sum', null, 'Number', { updates: DERIVED_UPDATES, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
-            Declarations.function('where', null, 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.predicateParameter()], impl: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
+            Declarations.createFunctionDeclaration('max', 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
+            Declarations.createFunctionDeclaration('min', 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
+            Declarations.createFunctionDeclaration('sum', 'Number', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
+            Declarations.createFunctionDeclaration('where', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
         ];
 
         return new LexicaModule(Vocabulary.moduleName, { types: [{ name: 'List<T>', kind: 'extension', target: 'List<T>', members }] }).types[0].members;

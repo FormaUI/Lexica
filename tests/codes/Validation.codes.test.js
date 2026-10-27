@@ -3,48 +3,64 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Room, withHome } from '../support/home.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations, hostFunctionDeclaration } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration, hostFunctionDeclaration } from '../support/declarations.mjs';
 
-const { property, valueParameter, expressionParameter, functionParameter } = lexica.declarations;
+const { createValueParameterDeclaration, createExpressionParameterDeclaration, createFunctionParameterDeclaration, createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration } = lexica.declarations;
 
-/** A member a script calls, of a receiver of the target or of none for a module member, unevaluated by these tests. */
-const call = (name, target, result, options = {}) => lexica.declarations.function(name, target, result, { updates: constantUpdates, ...options });
-const indexer = (name, target, result, options = {}) => lexica.declarations.indexer(name, target, result, { updates: constantUpdates, ...options });
+/** A property, a member a script calls and an indexer, each unevaluated by these tests. */
+const property = (name, result) => createPropertyDeclaration(name, result, { updates: constantUpdates });
+const call = (name, result, options = {}) => createFunctionDeclaration(name, result, { updates: constantUpdates, ...options });
+const indexer = (name, result, options = {}) => createIndexerDeclaration(name, result, { updates: constantUpdates, ...options });
 
-/** A member its host invokes. */
+/** The members of a till, the shop's own type, which its namespace reaches: a function of a receiver, one taking a function, a property, a host call, and a function of a name its cup's shares. */
+const tillMembers = () => [
+    property('size', 'Number'),
+    call('pad', 'String', { parameters: [createValueParameterDeclaration('width', 'Number')] }),
+    call('wipe', 'String'),
+    call('check', 'Boolean', { parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['String'])] }),
+    call('fits', 'Boolean'),
+    hostFunctionDeclaration('hold', undefined),
+];
 
 /**
  * A shop's module on words, with a member of each shape the conditions need: properties, a named indexer, functions of positional and options arguments, a fixed argument, a function parameter, expression
- * parameters on a list, on a word and on no receiver, members of one name for two kinds of list, module members, host calls and a structured type converted from a word.
+ * parameters on a list, on a word and on no receiver, members of one name for two kinds of list, module members, host calls and a structured type converted from a word, each on a word declared in an extension of
+ * strings; and its own type, a till, whose members its namespace reaches, as no extension's are, for the qualified forms and the function references.
  */
 const createShop = () => lexica.createModule('shop', withHome({
-    types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
+    types: [
+        // A cup's function of the name a till's has, so a reference to the name names two functions.
+        { name: 'Cup', kind: 'structured', members: [...dataPropertyDeclarations({ size: 'Number' }), call('fits', 'Boolean')] },
+        { name: 'Till', kind: 'reference', isInstance: () => false, members: tillMembers() },
+        extensionDeclaration('Words', 'String', [
+            property('size', 'Number'),
+            property('partner', 'String?'),
+            property('device', 'Device'),
+            indexer('letter', 'String?', { parameters: [createValueParameterDeclaration('index', 'Number')] }),
+            call('pad', 'String', { parameters: [createValueParameterDeclaration('width', 'Number')] }),
+            call('wipe', 'String'),
+            call('brew', 'Number', { arguments: 'options', parameters: [createValueParameterDeclaration('strength', 'Number'), createValueParameterDeclaration('milk', 'Boolean', { default: false })] }),
+            call('flavored', '@selected', { parameters: [createValueParameterDeclaration('flavor', 'String', { fixed: true, selects: 'type', selector: 'flavor' })] }),
+            call('check', 'Boolean', { parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['String'])] }),
+            call('scan', 'Number', { parameters: [createExpressionParameterDeclaration('Number')] }),
+            hostFunctionDeclaration('order', 'Number', { parameters: [createValueParameterDeclaration('count', 'Number')] }),
+            hostFunctionDeclaration('hold', undefined),
+        ]),
+        extensionDeclaration('Numbers', 'List<Number>', [
+            call('rank', 'Number', { arguments: 'options', parameters: [{ ...createExpressionParameterDeclaration('Number'), name: 'by' }, createValueParameterDeclaration('limit', 'Number', { default: 1 })] }),
+            call('total', 'Number'),
+        ]),
+        extensionDeclaration('Texts', 'List<String>', [call('total', 'Number')]),
+    ],
     typeSelectors: [{ name: 'flavor' }],
     mappings: [{ key: 'size', selector: 'flavor', type: 'Number' }],
     conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
     members: [
-        property('size', 'String', 'Number', { updates: constantUpdates }),
-        property('partner', 'String', 'String?', { updates: constantUpdates }),
-        property('device', 'String', 'Device', { updates: constantUpdates }),
-        property('open', null, 'Boolean', { updates: constantUpdates }),
-        indexer('letter', 'String', 'String?', { parameters: [valueParameter('index', 'Number')] }),
-        call('pad', 'String', 'String', { parameters: [valueParameter('width', 'Number')] }),
-        call('wipe', 'String', 'String'),
-        call('brew', 'String', 'Number', { arguments: 'options', parameters: [valueParameter('strength', 'Number'), valueParameter('milk', 'Boolean', { default: false })] }),
-        call('flavored', 'String', '@selected', { parameters: [valueParameter('flavor', 'String', { fixed: true, selects: 'type', selector: 'flavor' })] }),
-        call('check', 'String', 'Boolean', { parameters: [functionParameter('test', 'Boolean', ['String'])] }),
-        call('fits', 'String', 'Boolean'),
-        call('fits', 'Number', 'Boolean'),
-        call('rank', 'List<Number>', 'Number', { arguments: 'options', parameters: [{ ...expressionParameter('Number'), name: 'by' }, valueParameter('limit', 'Number', { default: 1 })] }),
-        call('total', 'List<Number>', 'Number'),
-        call('total', 'List<String>', 'Number'),
-        call('scan', 'String', 'Number', { parameters: [expressionParameter('Number')] }),
-        call('sweep', null, 'Number', { parameters: [expressionParameter('Number')] }),
+        property('open', 'Boolean'),
+        call('sweep', 'Number', { parameters: [createExpressionParameterDeclaration('Number')] }),
         // A parameter its one optional argument binds, which a call that leaves the argument out leaves unbound.
-        call('make<T>', null, 'T', { parameters: [valueParameter('seed', 'T?', { default: null })] }),
-        call('greet', null, 'String', { parameters: [valueParameter('name', 'String')] }),
-        hostFunctionDeclaration('order', 'String', 'Number', { parameters: [valueParameter('count', 'Number')] }),
-        hostFunctionDeclaration('hold', 'String', undefined),
+        call('make<T>', 'T', { parameters: [createValueParameterDeclaration('seed', 'T?', { default: null })] }),
+        call('greet', 'String', { parameters: [createValueParameterDeclaration('name', 'String')] }),
     ],
 }));
 
@@ -99,7 +115,7 @@ describe('the codes of resolution', () => {
         it('LEXICA3017, a module property called', () => expectResolutionCode('shop.open()', 'LEXICA3017'));
         it('LEXICA3024, a member several declarations take on a List<Never>', () => expectResolutionCode('e.total()', 'LEXICA3024'));
         it('LEXICA3025, a receiver of unknown type whose candidates disagree on who invokes them', () => {
-            const cafe = lexica.createModule('cafe', { members: [call('order', 'Number', 'Number', { parameters: [valueParameter('count', 'Number')] })] });
+            const cafe = lexica.createModule('cafe', { types: [extensionDeclaration('Orders', 'Number', [call('order', 'Number', { parameters: [createValueParameterDeclaration('count', 'Number')] })])] });
 
             expectResolutionCode('nothing?.order(1)', 'LEXICA3025', 'validation', values, [cafe]);
         });
@@ -135,7 +151,7 @@ describe('the codes of resolution', () => {
         it('LEXICA3042, a qualified form given a function as its receiver', () => expectResolutionCode('let g = x => x\nreturn shop.wipe(g)', 'LEXICA3042'));
         it('LEXICA3042, an expression argument of the wrong type', () => expectResolutionCode('xs.max("a")', 'LEXICA3042'));
         it('LEXICA3011, a named indexer called through its namespace', () => {
-            const words = lexica.createModule('words', { members: [indexer('glyph', 'String', 'String?', { parameters: [valueParameter('index', 'Number')] })] });
+            const words = lexica.createModule('words', { types: [{ name: 'Glyphs', kind: 'reference', isInstance: () => false, members: [indexer('glyph', 'String?', { parameters: [createValueParameterDeclaration('index', 'Number')] })] }] });
 
             expectResolutionCode('words.glyph(s, 1)', 'LEXICA3011', 'validation', values, [words]);
         });

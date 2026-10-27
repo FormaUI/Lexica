@@ -19,7 +19,7 @@ export class TypeChecker {
     /**
      * The registry that declares the types the checker relates, of which it reads these four methods: a value type's declaration, a generic one's variances among it, a reference type's supertype, whether a type is a
      * reference type, and a member's receiver types.
-     * @type {{ getTypeDeclaration(type: Type): { kind: string, variances?: readonly ('covariant' | 'invariant')[] } | undefined, getSupertype(type: Type): Type | null, isReferenceType(type: Type): boolean, getTargetTypes(declaration: object): (Type | 'any')[] }}
+     * @type {{ getTypeDeclaration(type: Type): { kind: string, variances?: readonly ('covariant' | 'invariant')[] } | undefined, getSupertype(type: Type): Type | null, isReferenceType(type: Type): boolean, getReceiverTypes(declaration: object): Type[] }}
      */
     #registry;
 
@@ -181,35 +181,30 @@ export class TypeChecker {
     }
 
     /**
-     * The first of the member's receiver types the receiver applies to it by, in the order it declares them: a type, a type parameter alone, which takes a receiver of any type a value has, or `any` for a receiver of any type;
-     * undefined where it applies by none. Each receiver type is matched apart, so one that does not apply binds nothing for the next.
-     * @returns {Type | 'any' | undefined}
+     * The member's receiver type where the receiver applies to it by that type: a type, or a type parameter alone, which takes a receiver of any type a value has; undefined where it does not apply, a module member's
+     * among them, which takes no receiver.
+     * @returns {Type | undefined}
      */
     resolveApplyingReceiverType(declaration, receiverType) {
         const base = receiverType.toNonNullable();
         const isValue = base.kind === 'named' || base.kind === 'object';
 
-        return this.#registry.getTargetTypes(declaration).find(type => (type === 'any' ? isValue : (type.kind !== 'typeParameter' || isValue) && this.matchesType(type, base)));
+        return this.#registry.getReceiverTypes(declaration).find(type => (type.kind !== 'typeParameter' || isValue) && this.matchesType(type, base));
     }
 
     /**
-     * The arguments of the type parameters the member's receiver type binds for the receiver, by the receiver type it applies to it by: an empty map where that one binds none, `any` among them, or null where the member
-     * applies to the receiver by none.
+     * The arguments of the type parameters the member's receiver type binds for the receiver: an empty map where it binds none, or null where the member does not apply to the receiver.
      * @returns {Map<string, Type> | null}
      */
     inferReceiverTypeArguments(declaration, receiverType) {
         const type = this.resolveApplyingReceiverType(declaration, receiverType);
 
-        if (type === undefined) {
-            return null;
-        }
-
-        return type === 'any' ? new Map() : this.inferTypeArguments(type, receiverType.toNonNullable());
+        return type === undefined ? null : this.inferTypeArguments(type, receiverType.toNonNullable());
     }
 
     /**
-     * The applicable declaration of those given whose receiver type is more specific than every other applicable declaration's, alone, as `Light` is than `Device` and `List<Light>` than `List<Device>`, a receiver of any type
-     * the least specific: a type's member hides one of its name its supertype declares. Where no declaration is, it answers the competing ones, each applicable and none less specific than another, which make the access ambiguous;
+     * The applicable declaration of those given whose receiver type is more specific than every other applicable declaration's, alone, as `Light` is than `Device` and `List<Light>` than `List<Device>`, a type parameter
+     * that takes a receiver of any type the least specific: a type's member hides one of its name its supertype declares. Where no declaration is, it answers the competing ones, each applicable and none less specific than another, which make the access ambiguous;
      * none where none applies.
      */
     mostSpecificOf(declarations, receiverType) {
@@ -223,16 +218,8 @@ export class TypeChecker {
         return applying.filter(({ type }) => !applying.some(other => this.#isMoreSpecific(other.type, type))).map(({ declaration }) => declaration);
     }
 
-    /** Whether the one receiver type is more specific than the other: assignable to it by the type relationships, the other matching it and not it the other; a receiver of any type, written `any`, is the least specific. */
+    /** Whether the one receiver type is more specific than the other: assignable to it by the type relationships, the other matching it and not it the other, so a type parameter, which matches every type, is the least specific. */
     #isMoreSpecific(one, other) {
-        if (one === 'any') {
-            return false;
-        }
-
-        if (other === 'any') {
-            return true;
-        }
-
         return this.matchesType(other, one) && !this.matchesType(one, other);
     }
 

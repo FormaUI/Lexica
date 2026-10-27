@@ -9,9 +9,9 @@ import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Device, Light, Room, Thermostat, homeTypeOf, homeTypes, withHome } from '../support/home.mjs';
 import { errorThrownBy, expectLexicaError } from '../support/errors.mjs';
 import { constantUpdates, derivedUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration } from '../support/declarations.mjs';
 
-const { property, valueParameter, functionParameter } = lexica.declarations;
+const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
 /** What the test gives a member's implementation to do, by the member's name, so each test decides how its member fails. */
 let behaviors = {};
@@ -24,26 +24,27 @@ let kept = null;
  * through the conversion the test gives.
  */
 const createPantry = () => lexica.createModule('pantry', withHome({
-    types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
+    types: [
+        { name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) },
+        extensionDeclaration('StringExtensions', 'String', [
+            createPropertyDeclaration('size', 'Number', { updates: constantUpdates, impl: input => (behaviors.size ?? (({ receiver }) => receiver.length))(input) }),
+            createPropertyDeclaration('device', 'Device', { updates: constantUpdates, impl: () => new Thermostat('heater') }),
+            createPropertyDeclaration('quoted', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, impl: ({ samples: [quote] }) => quote }),
+            createFunctionDeclaration('check', 'Boolean', { updates: derivedUpdates, parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['String'])], impl: input => (behaviors.check ?? (({ receiver, args }) => args.test(receiver)))(input) }),
+            createFunctionDeclaration('keep', 'Boolean', { updates: derivedUpdates, parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['String'])], impl: ({ args }) => ((kept = args.test), true) }),
+            createFunctionDeclaration('callKept', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => kept(receiver) }),
+            createFunctionDeclaration('order', 'Number', { invokedBy: 'host', parameters: [createValueParameterDeclaration('count', 'Number')] }),
+            createFunctionDeclaration('drop', undefined, { invokedBy: 'host' }),
+        ]),
+    ],
     observationTypes: [{ name: 'quote', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
     conversions: [{ from: 'String', to: 'Cup', impl: input => behaviors.convert(input) }],
-    members: [
-        property('size', 'String', 'Number', { updates: constantUpdates, impl: input => (behaviors.size ?? (({ receiver }) => receiver.length))(input) }),
-        property('device', 'String', 'Device', { updates: constantUpdates, impl: () => new Thermostat('heater') }),
-        property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, impl: ({ samples: [quote] }) => quote }),
-        lexica.declarations.function('check', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], impl: input => (behaviors.check ?? (({ receiver, args }) => args.test(receiver)))(input) }),
-        lexica.declarations.function('keep', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], impl: ({ args }) => ((kept = args.test), true) }),
-        lexica.declarations.function('callKept', 'String', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => kept(receiver) }),
-        lexica.declarations.function('order', 'String', 'Number', { invokedBy: 'host', parameters: [valueParameter('count', 'Number')] }),
-        lexica.declarations.function('drop', 'String', undefined, { invokedBy: 'host' }),
-    ],
 }));
 
 /** A module whose member and conversion have no implementation. */
 const createBare = () => lexica.createModule('bare', {
-    types: [{ name: 'Mug', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
+    types: [{ name: 'Mug', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('weight', 'Number', { updates: constantUpdates })])],
     conversions: [{ from: 'String', to: 'Mug' }],
-    members: [property('weight', 'String', 'Number', { updates: constantUpdates })],
 });
 
 /** The evaluator of the text against a registry of the pantry, bound to the values given. */

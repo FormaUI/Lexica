@@ -1,49 +1,63 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
+import { extensionDeclaration } from './support/declarations.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 import { evaluateWithCreatedBindings, resolveWith } from './support/pipeline.mjs';
 
-const { property, functionParameter, valueParameter, expressionParameter, predicateParameter } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionParameterDeclaration, createValueParameterDeclaration, createExpressionParameterDeclaration, createPredicateParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
 /**
- * A pantry's module on words: a word's size, its weight and whether it is vegan; members that keep the predicate or the expression they are given, so a later call finds it called after its member returned, and one that keeps
- * its predicate in what the host holds and fails; members that call their expression with two items, and with a number; and one that picks the words its options' predicate keeps and sums what its options' expression gives
- * of each.
+ * A pantry's module on words: a word's size, its weight and whether it is vegan, the last two also module members of the word, which a script names by reference; members that keep the predicate or the expression they are
+ * given, so a later call finds it called after its member returned, and one that keeps its predicate in what the host holds and fails; members that call their expression with two items, and with a number; one that picks
+ * the words its options' predicate keeps and sums what its options' expression gives of each; and a module member that gives a word to its test.
  */
 const createPantry = (held = {}) => {
     let kept = null;
 
     return lexica.createModule('pantry', {
+        types: [
+            extensionDeclaration('StringExtensions', 'String', [
+                createPropertyDeclaration('size', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
+                createFunctionDeclaration('weight', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length * 10 }),
+                createFunctionDeclaration('vegan', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => receiver.startsWith('oat') }),
+                createFunctionDeclaration('callKept', 'Boolean', { updates: derivedUpdates, impl: ({ receiver }) => kept(receiver) }),
+                createFunctionDeclaration('check', 'Boolean', {
+                    updates: derivedUpdates,
+                    arguments: 'options',
+                    parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['String']), createValueParameterDeclaration('note', 'Boolean?', { default: null })],
+                    impl: ({ receiver, args }) => args.test(receiver),
+                }),
+            ]),
+            extensionDeclaration('StringListExtensions', 'List<String>', [
+                createFunctionDeclaration('keepWhere', 'Number', { updates: derivedUpdates, parameters: [createPredicateParameterDeclaration()], impl: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
+                createFunctionDeclaration('keepBy', 'Number', { updates: derivedUpdates, parameters: [createExpressionParameterDeclaration('Number')], impl: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
+                createFunctionDeclaration('keepWhereAndFail', 'Number', {
+                    updates: derivedUpdates,
+                    parameters: [createPredicateParameterDeclaration()],
+                    impl: ({ args }) => {
+                        held.expression = args.expression;
+                        throw new Error('The pantry is closed');
+                    },
+                }),
+                createFunctionDeclaration('weighPair', 'Number', { updates: derivedUpdates, parameters: [createExpressionParameterDeclaration('Number')], impl: ({ args }) => args.expression('oat', 'rye') }),
+                createFunctionDeclaration('weighNumber', 'Number', { updates: derivedUpdates, parameters: [createExpressionParameterDeclaration('Number')], impl: ({ args }) => args.expression(42) }),
+                createFunctionDeclaration('pick', 'Number', {
+                    updates: derivedUpdates,
+                    arguments: 'options',
+                    parameters: [{ ...createExpressionParameterDeclaration('Number'), name: 'by' }, { ...createPredicateParameterDeclaration(), name: 'keep' }],
+                    impl: ({ receiver, args }) => receiver.filter(word => args.keep(word)).reduce((sum, word) => sum + args.by(word), 0),
+                }),
+            ]),
+        ],
+        // A word's weight and whether it is vegan as module members of the word, which a script names by reference, and a test of a word its function gives.
         members: [
-            property('size', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
-            lexica.declarations.function('weight', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length * 10 }),
-            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => receiver.startsWith('oat') }),
-            lexica.declarations.function('keepWhere', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [predicateParameter()], impl: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
-            lexica.declarations.function('keepBy', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], impl: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
-            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: derivedUpdates, impl: ({ receiver }) => kept(receiver) }),
-            lexica.declarations.function('keepWhereAndFail', 'List<String>', 'Number', {
+            createFunctionDeclaration('weight', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('word', 'String')], impl: ({ args }) => args.word.length * 10 }),
+            createFunctionDeclaration('vegan', 'Boolean', { updates: constantUpdates, parameters: [createValueParameterDeclaration('word', 'String')], impl: ({ args }) => args.word.startsWith('oat') }),
+            createFunctionDeclaration('passes', 'Boolean', {
                 updates: derivedUpdates,
-                parameters: [predicateParameter()],
-                impl: ({ args }) => {
-                    held.expression = args.expression;
-                    throw new Error('The pantry is closed');
-                },
-            }),
-            lexica.declarations.function('weighPair', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], impl: ({ args }) => args.expression('oat', 'rye') }),
-            lexica.declarations.function('weighNumber', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], impl: ({ args }) => args.expression(42) }),
-            lexica.declarations.function('passes', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], impl: ({ receiver, args }) => args.test(receiver) }),
-            lexica.declarations.function('check', 'String', 'Boolean', {
-                updates: derivedUpdates,
-                arguments: 'options',
-                parameters: [functionParameter('test', 'Boolean', ['String']), valueParameter('note', 'Boolean?', { default: null })],
-                impl: ({ receiver, args }) => args.test(receiver),
-            }),
-            lexica.declarations.function('pick', 'List<String>', 'Number', {
-                updates: derivedUpdates,
-                arguments: 'options',
-                parameters: [{ ...expressionParameter('Number'), name: 'by' }, { ...predicateParameter(), name: 'keep' }],
-                impl: ({ receiver, args }) => receiver.filter(word => args.keep(word)).reduce((sum, word) => sum + args.by(word), 0),
+                parameters: [createValueParameterDeclaration('word', 'String'), createFunctionParameterDeclaration('test', 'Boolean', ['String'])],
+                impl: ({ args }) => args.test(args.word),
             }),
         ],
     });

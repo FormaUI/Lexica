@@ -13,7 +13,7 @@ describe('Vocabulary', () => {
     const read = (name, receiver, args = {}) => [...list.members, ...verbs.members].find(member => member.name === name).impl({ receiver, args, env: {} });
 
     /** How the registry writes each receiver the member is read on, and the member, as a message names it. */
-    const writtenOf = member => `${registry.getTargetTypes(member).join(' or ')}${member.name === undefined ? '[]' : `.${member.name}`}`;
+    const writtenOf = member => `${registry.getReceiverTypes(member).join(' or ')}${member.name === undefined ? '[]' : `.${member.name}`}`;
 
     /** What the implementation of a conversion gives the value, or the reason it rejects it. */
     const convert = (from, to, value) => {

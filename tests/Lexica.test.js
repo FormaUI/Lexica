@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LexicaError, lexica } from '#lexica/lexica.js';
 import { Versions } from '#lexica/language/Versions.mjs';
 import { errorThrownBy } from './support/errors.mjs';
-import { dataPropertyDeclarations } from './support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration } from './support/declarations.mjs';
 
 describe('lexica', () => {
     it('runs where no browser global exists', () => {
@@ -94,8 +94,7 @@ describe('lexica', () => {
     it('carries out each declaration that runs code by its impl: a member and a conversion when evaluated, and an observation type as its host starts it', () => {
         const tick = ({ request }) => ({ stop: () => request.type });
         const module = lexica.createModule('cups', {
-            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
-            members: [{ name: 'zoom', kind: 'property', target: 'String', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length * 2 }],
+            types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [{ name: 'zoom', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length * 2 }])],
             conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
             observationTypes: [{ name: 'tick', contract: 'invalidation', impl: tick }],
         });
@@ -136,7 +135,7 @@ describe('lexica', () => {
 
     it('creates a module from the vocabulary it declares', () => {
         const module = lexica.createModule('price', {
-            members: [{ name: 'price', kind: 'property', target: 'String', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: () => 1 }],
+            types: [extensionDeclaration('StringExtensions', 'String', [{ name: 'price', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: () => 1 }])],
         });
 
         expect(module.name).toBe('price');
@@ -145,8 +144,7 @@ describe('lexica', () => {
 
     it('resolves an expression against a registry of its built-in vocabulary and the modules a host registers, each registry its own', () => {
         const prices = lexica.createModule('price', {
-            types: [{ name: 'Item', kind: 'structured', members: dataPropertyDeclarations({ price: 'Number', quantity: 'Number' }) }],
-            members: [{ name: 'price', kind: 'property', target: 'String', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }],
+            types: [{ name: 'Item', kind: 'structured', members: dataPropertyDeclarations({ price: 'Number', quantity: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [{ name: 'price', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }])],
         });
         const registry = lexica.createRegistry([prices]);
         const items = [{ price: 2, quantity: 3 }];
@@ -176,7 +174,7 @@ describe('lexica', () => {
         const registry = lexica.createRegistry();
 
         registry.registerModule(lexica.createModule('double', {
-            members: [{ name: 'double', kind: 'property', target: 'Number', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }],
+            types: [extensionDeclaration('NumberExtensions', 'Number', [{ name: 'double', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }])],
         }));
 
         expect(registry.resolve('(2).double')).toMatchObject({ hostCall: null, type: 'Number' });

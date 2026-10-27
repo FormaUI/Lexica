@@ -273,15 +273,15 @@ const createRegistry = modules => {
     });
 };
 
-/** The declaration helpers, each giving a declaration as a module declares it; `function` declares a member a script calls. */
+/** The declaration helpers, each creating a declaration as a module declares it, a member with no receiver of its own, since where it stands gives it one. */
 const declarations = Object.freeze({
-    property: Declarations.property,
-    function: Declarations.function,
-    indexer: Declarations.indexer,
-    valueParameter: Declarations.valueParameter,
-    expressionParameter: Declarations.expressionParameter,
-    predicateParameter: Declarations.predicateParameter,
-    functionParameter: Declarations.functionParameter,
+    createPropertyDeclaration: Declarations.createPropertyDeclaration,
+    createFunctionDeclaration: Declarations.createFunctionDeclaration,
+    createIndexerDeclaration: Declarations.createIndexerDeclaration,
+    createValueParameterDeclaration: Declarations.createValueParameterDeclaration,
+    createExpressionParameterDeclaration: Declarations.createExpressionParameterDeclaration,
+    createPredicateParameterDeclaration: Declarations.createPredicateParameterDeclaration,
+    createFunctionParameterDeclaration: Declarations.createFunctionParameterDeclaration,
 });
 
 /** Result paths: a path's shape validated, and the value it reaches in a result. */

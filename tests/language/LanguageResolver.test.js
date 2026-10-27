@@ -7,32 +7,42 @@ import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, extensionDeclaration } from '../support/declarations.mjs';
 
-const padding = (target, countType) => Declarations.function('pad', target, 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', countType)], impl: ({ receiver }) => receiver });
+/** A word the shop sells, a value with identity the shop recognizes. */
+class Word {
+    constructor(text) {
+        this.text = text;
+    }
+}
+
+const padding = countType => Declarations.createFunctionDeclaration('pad', 'String', { updates: constantUpdates, parameters: [Declarations.createValueParameterDeclaration('count', countType)], impl: ({ receiver }) => receiver });
+const trimming = impl => Declarations.createFunctionDeclaration('trim', 'String', { updates: constantUpdates, parameters: [Declarations.createValueParameterDeclaration('count', 'Number')], impl });
 
 /**
- * A shop whose `pad` is a module member taking a text and a count written as a string, a member of a string taking a count, and a member of a Boolean taking a count written as a string; and whose `trim` is a member of a string
- * and of a Boolean, each taking a count.
+ * A shop whose `pad` is a module member taking a word and a count written as a string, a member of its own word taking a count, which its namespace reaches too, and a member of a Boolean taking a count written as a
+ * string; and whose `trim` is a member of a string and of a Boolean, each taking a count.
  */
 const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+    typeOf: value => (value instanceof Word ? 'Word' : null),
+    types: [
+        { name: 'Word', kind: 'reference', isInstance: value => value instanceof Word, members: [padding('Number')] },
+        extensionDeclaration('Booleans', 'Boolean', [padding('String'), trimming(() => 'trimmed')]),
+        extensionDeclaration('Strings', 'String', [trimming(({ receiver }) => receiver)]),
+    ],
     members: [
-        Declarations.function('pad', null, 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('text', 'String'), Declarations.valueParameter('count', 'String')], impl: ({ args }) => args.text }),
-        padding('String', 'Number'),
-        padding('Boolean', 'String'),
-        Declarations.function('trim', 'String', 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', 'Number')], impl: ({ receiver }) => receiver }),
-        Declarations.function('trim', 'Boolean', 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', 'Number')], impl: () => 'trimmed' }),
+        Declarations.createFunctionDeclaration('pad', 'String', { updates: constantUpdates, parameters: [Declarations.createValueParameterDeclaration('text', 'Word'), Declarations.createValueParameterDeclaration('count', 'String')], impl: ({ args }) => args.text }),
     ],
 })]);
 
 /** Local functions a script's arguments call, each call resolving a copy of its body: one answering a number and one a string. */
 const LOCALS = 'let next = function(x) return x + 1 end\nlet same = function(s) return s end';
 
-/** The script resolved against the shop, with `missing` bound to null and `word` to a string. */
+/** The script resolved against the shop, with `missing` bound to null and `word` to one of its words. */
 const resolve = result => {
     const definition = ParsedTexts.parse(`${LOCALS}\nreturn ${result}`, new Set(registry.namespaceNames));
 
-    return new LanguageResolver(registry, new ParameterBindings(registry, { missing: null, word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
+    return new LanguageResolver(registry, new ParameterBindings(registry, { missing: null, word: new Word('oat') }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
 };
 
 /** What a resolution kept of the three stores a speculative resolution restores: each use by its name and pointer, the pointer of each body copy, and whether the pointer was resolved. */
@@ -47,7 +57,7 @@ describe('LanguageResolver', () => {
         it('keeps nothing of a refused reading: no resolution, no use and no body copy', () => {
             // The module member's count is a string, so its reading is refused after it resolved `next(1)`; the qualified form's count is a number.
             expect(keptOf(resolve('shop.pad(word, next(1))'), '/expression/result/arguments/1')).toEqual({
-                uses: ['String.pad@/expression/result'],
+                uses: ['Word.pad@/expression/result'],
                 copies: ['/expression/result/arguments/1/body'],
                 isResolved: true,
             });
@@ -65,13 +75,13 @@ describe('LanguageResolver', () => {
 
             const { kind, declaration } = resolved.getResolution('/expression/result');
 
-            expect({ kind, name: declaration.name, takesReceiver: registry.hasReceiver(declaration) }).toEqual({ kind: 'invocation', name: 'pad', takesReceiver: false });
+            expect({ kind, name: declaration.name, takesReceiver: registry.takesReceiver(declaration) }).toEqual({ kind: 'invocation', name: 'pad', takesReceiver: false });
         });
     });
 
     describe('the candidates of a receiver of unknown type', () => {
         it('keeps nothing of a refused candidate\'s arguments', () => {
-            // Of the two `pad`s, the string's takes `next(1)` and the Boolean's refuses it, each after resolving it.
+            // Of the two `pad`s of a receiver, the word's takes `next(1)` and the Boolean's refuses it, each after resolving it.
             expect(keptOf(resolve('missing?.pad(next(1))'), '/expression/result/target/arguments/0')).toEqual({ uses: [], copies: [], isResolved: false });
         });
 
@@ -86,8 +96,8 @@ describe('LanguageResolver', () => {
 
     describe('a computed property access', () => {
         it('keeps each name\'s resolution by its name and records each use as its name is resolved, its own pointer holding its own resolution', () => {
-            const property = (name, result = 'Number') => Declarations.property(name, 'String', result, { updates: constantUpdates, impl: () => 1 });
-            const lit = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', { members: [property('glow'), property('dim'), property('long', 'Boolean')] })]);
+            const property = (name, result = 'Number') => Declarations.createPropertyDeclaration(name, result, { updates: constantUpdates, impl: () => 1 });
+            const lit = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', { types: [extensionDeclaration('Words', 'String', [property('glow'), property('dim'), property('long', 'Boolean')])] })]);
             const definition = ParsedTexts.parse('return word.[if word.long then "glow" else "dim" end]', new Set(lit.namespaceNames));
             const resolved = new LanguageResolver(lit, new ParameterBindings(lit, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
             const { kind, resolutionsByName } = resolved.getResolution('/expression/result');
@@ -158,20 +168,19 @@ describe('LanguageResolver', () => {
     });
 
     describe('the name a use is qualified by', () => {
-        /** The qualified names `word.fade` uses, where `fade` is a property of the receiver types given, in order. */
+        /** The qualified names `word.fade` uses, where `fade` is a property of an extension of the target given. */
         const usesOf = target => {
             const fading = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
-                members: [Declarations.property('fade', target, 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver })],
+                types: [extensionDeclaration(target === 'T' ? 'Fades<T>' : 'Fades', target, [Declarations.createPropertyDeclaration('fade', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver })])],
             })]);
             const definition = ParsedTexts.parse('return word.fade', new Set(fading.namespaceNames));
 
             return new LanguageResolver(fading, new ParameterBindings(fading, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition).usedDeclarations.map(use => use.qualifiedName);
         };
 
-        it('is the type of the first receiver type the receiver applies to it by, and the name alone where that one is any receiver or a type parameter, though a later one is the receiver\'s type', () => {
-            expect(usesOf(['String', 'any'])).toEqual(['String.fade']);
-            expect(usesOf(['any', 'String'])).toEqual(['fade']);
-            expect(usesOf(['T', 'String'])).toEqual(['fade']);
+        it('is the type the receiver applies to it by, and the name alone where that is a type parameter, which takes a receiver of any type', () => {
+            expect(usesOf('String')).toEqual(['String.fade']);
+            expect(usesOf('T')).toEqual(['fade']);
         });
     });
 });
