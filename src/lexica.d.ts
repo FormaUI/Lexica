@@ -77,7 +77,7 @@ export interface LexicaBindingsOptions {
     types?: Record<string, string>;
 }
 
-/** A reference type a module declares: its name, the supertype it names, whether it is abstract, the modules whose types it names unqualified, and the membership a value of it passes. */
+/** A reference type a module declares: its name, the supertype it names, whether it is abstract, the modules whose types its declaration names unqualified, its own members included, the membership a value of it passes, and its own members. */
 export interface LexicaReferenceTypeDeclaration {
     name: string;
     kind: 'reference';
@@ -86,6 +86,8 @@ export interface LexicaReferenceTypeDeclaration {
     supertype?: string;
     abstract?: boolean;
     import?: string[];
+    /** The members it declares within it, each taking it as its receiver, so none names a `target`. */
+    members?: LexicaMemberDeclaration[];
 }
 
 /** A structured type a module declares: its name, its fields' types and the modules whose types its fields name unqualified. */
@@ -100,7 +102,7 @@ export type LexicaProjectionSource = { readonly kind: 'reference'; readonly valu
 
 /**
  * Where something stands, by one group of attributes, never two: in a script, `pointer`, a JSON Pointer into its definition, with `offset`, `line` and `column` where the definition was read from text, and those three
- * alone for a syntax error, which stands in text no definition holds yet; in a module, `module`, with `declaration` where it concerns a declaration, and `declarationKey`, the key it concerns, a declaration's or, with no
+ * alone for a syntax error, which stands in text no definition holds yet; in a module, `module`, with `type` where it concerns a declaration nested in a type, `declaration` where it concerns a declaration, and `declarationKey`, the key it concerns, a declaration's or, with no
  * declaration, the module's own; or in the bindings, `binding`. A failure of the API's use that stands nowhere, as bindings another registry made, holds none. `getLocation` answers the script group; an error, any one.
  */
 export interface LexicaLocation {
@@ -111,6 +113,8 @@ export interface LexicaLocation {
     column?: number;
     binding?: string;
     module?: string;
+    /** The type a declaration nested in it stands in, a member a type declares within it. */
+    type?: string;
     declaration?: string;
     /** The key it concerns, a declaration's, as `updates.misses`, or the module's own. */
     declarationKey?: string;
@@ -287,7 +291,7 @@ export interface LexicaMemberDeclaration {
     kind: 'property' | 'function';
     /** Who invokes a function: the evaluator, the default, or the host, which a script ending in a call of it is prepared for; a function the host invokes takes value parameters alone, and neither updates nor an implementation. */
     invokedBy?: 'evaluator' | 'host';
-    /** The types it applies to, in Lexica's notation, `any`, or a type parameter `T` that binds the receiver's type; none for a module member. */
+    /** The types it applies to, in Lexica's notation, `any`, or a type parameter `T` that binds the receiver's type; none for a module member, and none for a member a type declares within it, whose receiver the type is. */
     target?: string | string[];
     /** How a member that is no property is written: a function call, `it.device("lamp")`, the default, or a named indexer, `it.setting["mode"]`, a function whose one required value parameter is its key. A property takes none. */
     syntax?: 'function-call' | 'indexer';

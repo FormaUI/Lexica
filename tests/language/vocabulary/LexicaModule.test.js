@@ -24,6 +24,17 @@ describe('LexicaModule', () => {
         expect(Object.isFrozen(implementation)).toBe(false);
     });
 
+    it('keeps a reference type\'s own members as frozen copies within it, each validated where it stands and located at its type', () => {
+        const lamp = members => ({ name: 'Lamp', kind: 'reference', isInstance: () => true, members });
+        const [type] = new LexicaModule('charts', { types: [lamp([propertyDeclaration({ target: undefined })])] }).types;
+
+        expect(type.members).toEqual([expect.objectContaining({ name: 'zoom', kind: 'property', result: 'Number', parameters: [] })]);
+        expect(Object.isFrozen(type.members[0]) && Object.isFrozen(type.members)).toBe(true);
+        expect(expectModuleError(() => new LexicaModule('charts', { types: [lamp([propertyDeclaration()])] }))).toMatchObject({ module: 'charts', type: 'Lamp', declaration: 'zoom', declarationKey: 'target' });
+        expect(expectModuleError(() => new LexicaModule('charts', { types: [lamp([propertyDeclaration({ target: undefined, result: undefined })])] }))).toMatchObject({ module: 'charts', type: 'Lamp', declaration: 'zoom', declarationKey: 'result' });
+        expect(expectModuleError(() => new LexicaModule('charts', { types: [lamp({})] }))).toEqual({ message: expect.stringContaining('members are a list'), module: 'charts', declaration: 'Lamp', declarationKey: 'members' });
+    });
+
     it('refuses the key implementation on a member, an observation type and a conversion, each carrying its code as its impl', () => {
         const implementation = () => 1;
         const refused = contents => {

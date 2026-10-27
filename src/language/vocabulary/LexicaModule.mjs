@@ -62,7 +62,7 @@ const MEMBER_KEYS_BY_KIND = {
 const UPDATES_KEYS = ['changes', 'reads', 'misses', 'tolerance', 'observations'];
 const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameters'];
 const TYPE_KEYS = ['name', 'fields', 'import'];
-const REFERENCE_TYPE_KEYS = ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import'];
+const REFERENCE_TYPE_KEYS = ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import', 'members'];
 const TYPE_SELECTOR_KEYS = ['name'];
 const SELECTABLE_TYPE_KEYS = ['name', 'selector', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'impl'];
@@ -86,7 +86,7 @@ export class LexicaModule {
     /**
      * @param {string} name The module's name.
      * @param {object} contents What the module declares, each declaration that runs code carrying its implementation.
-     * @param {object[]} [contents.types] The structured types it declares, each with its fields.
+     * @param {object[]} [contents.types] The types it declares: its structured types, each with its fields, and its reference types, each with its own members, which take it as their receiver.
      * @param {object[]} [contents.members] The properties and functions it adds, a function its host invokes among them, a member without a target a module member.
      * @param {object[]} [contents.typeSelectors] The type selectors it declares, each by its name alone, through which a function's fixed argument selects the type of its result.
      * @param {object[]} [contents.selectableTypes] The keys it declares for type selectors, its own or another module's, each with the selector it belongs to and the type it maps to.
@@ -99,9 +99,16 @@ export class LexicaModule {
             throw LexicaErrors.module('LEXICA4500', 'A module is named as a name is', { module: String(name) });
         }
 
-        const fail = (code, message, declarationName, declarationKey) => {
-            throw LexicaErrors.module(code, message, { module: name, ...(declarationName === undefined ? {} : { declaration: declarationName }), ...(declarationKey === undefined ? {} : { declarationKey }) });
+        // A declaration nested in a type is located at the type it stands in, as well as at its module.
+        const failWithin = typeName => (code, message, declarationName, declarationKey) => {
+            throw LexicaErrors.module(code, message, {
+                module: name,
+                ...(typeName === undefined ? {} : { type: typeName }),
+                ...(declarationName === undefined ? {} : { declaration: declarationName }),
+                ...(declarationKey === undefined ? {} : { declarationKey }),
+            });
         };
+        const fail = failWithin(undefined);
 
         if (!ObjectUtils.isNonArrayObject(contents)) {
             fail('LEXICA4501', `A module's contents are an object declaring ${MODULE_KEYS.join(', ')}`);
@@ -142,7 +149,7 @@ export class LexicaModule {
         const observationTargetDeclarations = normalized(observationTargets);
         const conversionDeclarations = normalized(conversions);
 
-        LexicaModule.#validateTypeDeclarations(types, fail);
+        LexicaModule.#validateTypeDeclarations(types, fail, failWithin);
         LexicaModule.#validateMembers(memberDeclarations, fail);
         LexicaModule.#validateTypeSelectors(typeSelectorDeclarations, fail);
         LexicaModule.#validateSelectableTypes(selectableTypeDeclarations, name, fail);
@@ -150,7 +157,7 @@ export class LexicaModule {
         LexicaModule.#validateObservationTargets(observationTargetDeclarations, fail);
         conversionDeclarations.forEach(conversion => LexicaModule.#validateConversion(conversion, fail));
 
-        this.#types = LexicaModule.#freezeItems(types.map(type => LexicaModule.#copyOf(type)));
+        this.#types = LexicaModule.#freezeItems(types.map(type => LexicaModule.#createTypeCopy(type)));
         this.#members = LexicaModule.#freezeItems(memberDeclarations.map(member => LexicaModule.#createMemberCopy(member)));
         this.#typeSelectors = LexicaModule.#freezeItems(typeSelectorDeclarations.map(selector => LexicaModule.#copyOf(selector)));
         this.#selectableTypes = LexicaModule.#freezeItems(selectableTypeDeclarations.map(selectable => LexicaModule.#copyOf(selectable)));
@@ -342,12 +349,12 @@ export class LexicaModule {
         }
     }
 
-    /** Validates the types a module declares, each named once in the module, since a type is identified by its module and its name. */
-    static #validateTypeDeclarations(types, fail) {
+    /** Validates the types a module declares, each named once in the module, since a type is identified by its module and its name, and each one's own members, located at it. */
+    static #validateTypeDeclarations(types, fail, failWithin) {
         const names = new Set();
 
         for (const type of types) {
-            LexicaModule.#validateTypeDeclaration(type, fail);
+            LexicaModule.#validateTypeDeclaration(type, fail, failWithin);
 
             if (names.has(type.name)) {
                 fail('LEXICA4033', `The type '${type.name}' is declared already`, type.name);
@@ -357,7 +364,7 @@ export class LexicaModule {
         }
     }
 
-    static #validateTypeDeclaration(type, fail) {
+    static #validateTypeDeclaration(type, fail, failWithin) {
         const isReferenceType = type?.kind === 'reference';
 
         if (ObjectUtils.isNonArrayObject(type) && DECLARATION_MODEL_TYPE_KINDS.includes(type.kind)) {
@@ -393,6 +400,7 @@ export class LexicaModule {
 
         if (isReferenceType) {
             LexicaModule.#validateReferenceType(type, fail);
+            LexicaModule.#validateOwnMembers(type, fail, failWithin(type.name));
 
             return;
         }
@@ -428,6 +436,26 @@ export class LexicaModule {
         if (type.abstract !== undefined && typeof type.abstract !== 'boolean') {
             fail('LEXICA4555', 'Whether a reference type is abstract is a Boolean', type.name, 'abstract');
         }
+    }
+
+    /** Validates the members a type declares within it, a list of members each taking the type as its receiver, so none names a target; each is located at the type. */
+    static #validateOwnMembers(type, fail, failWithinType) {
+        if (type.members === undefined) {
+            return;
+        }
+
+        if (!Array.isArray(type.members)) {
+            fail('LEXICA4503', "A type's members are a list", type.name, 'members');
+        }
+
+        type.members.forEach(member => LexicaModule.#validateMember(LexicaModule.#withoutUndefinedValues(member), failWithinType, true));
+    }
+
+    /** Creates the stored copy of a valid type: its data, and each of its own members as a member's stored copy is created. */
+    static #createTypeCopy(type) {
+        const copy = LexicaModule.#copyOf(type);
+
+        return type.members === undefined ? copy : { ...copy, members: type.members.map(member => LexicaModule.#createMemberCopy(LexicaModule.#withoutUndefinedValues(member))) };
     }
 
     /** Validates the type selectors a module declares, each named as a name is, once in the module. */
@@ -741,9 +769,13 @@ export class LexicaModule {
         }
     }
 
-    static #validateMember(member, fail) {
+    /** Validates a member: a flat one, which names its target where it has a receiver, or one declared within a type, whose receiver its type is, so it names none. */
+    static #validateMember(member, fail, isWithinType = false) {
+        // A member within a type takes the type as its receiver, so it takes no target.
+        const memberKeys = isWithinType ? MEMBER_KEYS.filter(key => key !== 'target') : MEMBER_KEYS;
+
         if (!ObjectUtils.isNonArrayObject(member)) {
-            fail('LEXICA4504', `A member is an object declaring ${MEMBER_KEYS.join(', ')} and what its kind takes`);
+            fail('LEXICA4504', `A member is an object declaring ${memberKeys.join(', ')} and what its kind takes`);
         }
 
         const name = member.name;
@@ -762,11 +794,11 @@ export class LexicaModule {
             fail('LEXICA4524', `A member is one of ${MEMBER_KINDS.join(', ')}`, name, 'kind');
         }
 
-        LexicaModule.#validateKeys(member, [...MEMBER_KEYS, ...MEMBER_KEYS_BY_KIND[member.kind]], `A member of kind '${member.kind}'`, fail);
+        LexicaModule.#validateKeys(member, [...memberKeys, ...MEMBER_KEYS_BY_KIND[member.kind]], `A member of kind '${member.kind}'`, fail);
 
-        const hasReceiver = member.target !== undefined;
+        const hasReceiver = isWithinType || member.target !== undefined;
 
-        if (hasReceiver) {
+        if (!isWithinType && hasReceiver) {
             LexicaModule.#validateTarget(member, name, fail);
         }
 

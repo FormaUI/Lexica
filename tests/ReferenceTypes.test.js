@@ -154,3 +154,39 @@ describe('reference types', () => {
         expect(errorThrownBy(() => registry.resolve('(word.lamp as Light) == null', { word: 'a' }).createEvaluator({ word: 'a' }).evaluate())).toMatchObject({ code: 'LEXICA5006' });
     });
 });
+
+describe('members declared within their reference type', () => {
+    const glow = property('glow', null, 'String', { updates: constantUpdates, impl: ({ receiver }) => `${receiver.name} glows` });
+
+    /** A module of lamps, a reference type holding the members given, beside the flat members given. */
+    const lamps = (members, flat = [], type = {}) => lexica.createModule('lamps', {
+        typeOf: value => (value instanceof Light ? 'Lamp' : null),
+        types: [{ name: 'Lamp', kind: 'reference', isInstance: value => value instanceof Light, members, ...type }],
+        members: flat,
+    });
+
+    it('take their type as their receiver, beside its flat members, and are reached through their module\'s qualified form', () => {
+        const dim = property('dim', 'Lamp', 'Number', { updates: constantUpdates, impl: () => 30 });
+        const registry = lexica.createRegistry([lamps([glow], [dim])]);
+        const resolution = registry.resolve('{ glow = lamp.glow, dim = lamp.dim, qualified = lamps.glow(lamp) }', { lamp });
+
+        expect(resolution.createEvaluator({ lamp }).evaluate().value).toEqual({ glow: 'lamp glows', dim: 30, qualified: 'lamp glows' });
+        expect(resolution.usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Lamp.glow', 'Lamp.dim', 'Lamp.glow']);
+        expect(registry.getDeclaringModuleName(resolution.usedDeclarations[0].declaration)).toBe('lamps');
+    });
+
+    it('collide with a flat member of their name on their type, the one declared within it refused at its name', () => {
+        const flatGlow = property('glow', 'Lamp', 'String', { updates: constantUpdates, impl: () => 'flat' });
+
+        expect(errorThrownBy(() => lexica.createRegistry([lamps([glow], [flatGlow])]))).toMatchObject({ code: 'LEXICA4029', location: { module: 'lamps', type: 'Lamp', declaration: 'glow', declarationKey: 'name' } });
+    });
+
+    it('read their notations through their type\'s import, a notation naming no type refused at their type', () => {
+        const room = property('room', null, 'Room?', { updates: constantUpdates, impl: () => null });
+        // A home declaring rooms, which recognizes no value, so the lamp is the lamps' alone.
+        const rooms = () => lexica.createModule('home', { types: [{ name: 'Room', kind: 'reference', isInstance: value => value instanceof Room }] });
+
+        expect(lexica.createRegistry([rooms(), lamps([room], [], { import: ['home'] })]).resolve('lamp.room == null', { lamp }).usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Lamp.room']);
+        expect(errorThrownBy(() => lexica.createRegistry([rooms(), lamps([room])]))).toMatchObject({ code: 'LEXICA4049', location: { module: 'lamps', type: 'Lamp', declaration: 'room' } });
+    });
+});

@@ -40,6 +40,12 @@ export class LexicaRegistry {
      */
     #declaringModules = new WeakMap();
 
+    /**
+     * The type each member a type declares within it stands in, by the member: its receiver, which it names no target for. Written for every such member as its module's registration starts, beside its declaring module, and
+     * removed for each where the module is refused. @type {WeakMap<object, object>}
+     */
+    #containingTypes = new WeakMap();
+
     /** The type each notation of a declaration writes, every name in it resolved to its identity, by the declaration and then the notation. @type {WeakMap<object, Map<string, Type>>} */
     #declaredTypeCache = new WeakMap();
 
@@ -90,9 +96,16 @@ export class LexicaRegistry {
             throw LexicaErrors.module('LEXICA4546', 'A module is registered as createModule makes it', { module: String(module?.name) });
         }
 
-        const fail = (code, message, declarationName, declarationKey) => {
-            throw LexicaErrors.module(code, message, { module: module.name, ...(declarationName === undefined ? {} : { declaration: declarationName }), ...(declarationKey === undefined ? {} : { declarationKey }) });
+        const fail = (code, message, declarationName, declarationKey, typeName) => {
+            throw LexicaErrors.module(code, message, {
+                module: module.name,
+                ...(typeName === undefined ? {} : { type: typeName }),
+                ...(declarationName === undefined ? {} : { declaration: declarationName }),
+                ...(declarationKey === undefined ? {} : { declarationKey }),
+            });
         };
+        // A member declared within a type is located at its type as well.
+        const failAt = declaration => (code, message, declarationName, declarationKey) => fail(code, message, declarationName, declarationKey, this.#containingTypes.get(declaration)?.name);
 
         // Module names are compared case-insensitively for uniqueness, each keeping its own spelling.
         const taken = [...this.#modules.keys()].find(name => name.toLowerCase() === module.name.toLowerCase());
@@ -118,7 +131,11 @@ export class LexicaRegistry {
             }
         }
 
-        LexicaRegistry.#validateTypeSelections(module, this.#typeSelectors, this.#selectableTypes, declaration => this.getDeclaringModuleName(declaration), fail);
+        // A module's members are those it declares flat, module members among them, and those each of its types declares within it.
+        const typesOfMembers = new Map(module.types.flatMap(type => (type.members ?? []).map(member => [member, type])));
+        const members = [...module.members, ...typesOfMembers.keys()];
+
+        LexicaRegistry.#validateTypeSelections(module, members, this.#typeSelectors, this.#selectableTypes, declaration => this.getDeclaringModuleName(declaration), fail, failAt);
 
         for (const type of module.observationTypes) {
             if (this.#observationTypes.has(type.name)) {
@@ -132,28 +149,34 @@ export class LexicaRegistry {
         const ownObservationTypes = new Set(module.observationTypes);
         const getDeclaringModule = type => (ownObservationTypes.has(type) ? module : this.#modules.get(this.getDeclaringModuleName(type)));
 
-        // Every declaration's notations are read in its module: its own types, Lexica's, and those of a module a structured type imports, unqualified, and any other qualified by its module.
-        const declarations = [...module.types, ...module.members, ...module.typeSelectors, ...module.selectableTypes, ...module.observationTypes, ...module.conversions];
+        // Every declaration's notations are read in its module: its own types, Lexica's, and those of a module a type imports, unqualified, and any other qualified by its module; a member a type declares within it reads
+        // its type's imports, which cover the type's whole declaration.
+        const declarations = [...module.types, ...members, ...module.typeSelectors, ...module.selectableTypes, ...module.observationTypes, ...module.conversions];
 
         for (const declaration of declarations) {
-            this.#declaringModules.set(declaration, { moduleName: module.name, imports: module.types.includes(declaration) ? (declaration.import ?? []) : [] });
+            const type = module.types.includes(declaration) ? declaration : typesOfMembers.get(declaration);
+
+            this.#declaringModules.set(declaration, { moduleName: module.name, imports: type?.import ?? [] });
         }
+
+        typesOfMembers.forEach((type, member) => this.#containingTypes.set(member, type));
 
         this.#pending = { module, typeNames: ownTypes, types: new Map(module.types.map(type => [`${module.name}.${type.name}`, type])) };
 
         try {
-            this.#resolveDeclaredTypes(module);
-            this.#validateDeclaredTypes(module, fail);
+            this.#resolveDeclaredTypes(module, members);
+            this.#validateDeclaredTypes(module, members, fail, failAt);
 
-            for (const declaration of module.members) {
-                LexicaRegistry.#validateObservations(declaration, observationTypes, getDeclaringModule, fail);
+            for (const declaration of members) {
+                LexicaRegistry.#validateObservations(declaration, this.hasReceiver(declaration), observationTypes, getDeclaringModule, failAt(declaration));
             }
 
-            this.#validateMemberCollisions(module, fail);
+            this.#validateMemberCollisions(members, failAt);
             this.#validateConversions(module, fail);
         } catch (error) {
-            // A refused module's declarations belong to no module of the registry.
+            // A refused module's declarations belong to no module of the registry, and its members to none of its types.
             declarations.forEach(declaration => this.#declaringModules.delete(declaration));
+            typesOfMembers.forEach((type, member) => this.#containingTypes.delete(member));
 
             throw error;
         } finally {
@@ -180,8 +203,8 @@ export class LexicaRegistry {
         }
 
         // A module member has no receiver, so no receiver's member of its name finds it.
-        for (const declaration of module.members) {
-            if (declaration.target !== undefined) {
+        for (const declaration of members) {
+            if (this.hasReceiver(declaration)) {
                 this.#receiverMembers.set(declaration.name, [...this.getReceiverMembers(declaration.name), declaration]);
             }
         }
@@ -204,14 +227,30 @@ export class LexicaRegistry {
         return this.#receiverMembers.get(name) ?? [];
     }
 
-    /** The members named so that the module declares, its module members among them, in the order it declares them. */
+    /** The members named so that the module declares, its module members among them, those it declares flat first and then those its types declare within them, each in the order it declares them. */
     getMembersDeclaredBy(moduleName, name) {
-        return this.#modules.get(moduleName)?.members.filter(declaration => declaration.name === name) ?? [];
+        const module = this.#modules.get(moduleName);
+
+        return module === undefined ? [] : [...module.members, ...module.types.flatMap(type => type.members ?? [])].filter(declaration => declaration.name === name);
     }
 
-    /** Whether the member has a receiver, which a module member does not. */
+    /** Whether the member has a receiver: one a type declares within it, whose receiver the type is, or one that names its target; a module member has none. */
     hasReceiver(declaration) {
-        return declaration.target !== undefined;
+        return this.#containingTypes.has(declaration) || declaration.target !== undefined;
+    }
+
+    /**
+     * The notations of the types the member applies to, in the order it declares them: its type's local name for a member declared within it, which resolves to that type in its module as any notation does, and its target
+     * otherwise, a type, a list of them or 'any'; none for a module member.
+     */
+    #receiverNotationsOf(declaration) {
+        const type = this.#containingTypes.get(declaration);
+
+        if (type !== undefined) {
+            return [type.name];
+        }
+
+        return declaration.target === undefined ? [] : [declaration.target].flat();
     }
 
     /** How a script writes the member: `access` for a property, `function-call` for a function called with arguments in parentheses, and `indexer` for one given its key in brackets. */
@@ -248,8 +287,9 @@ export class LexicaRegistry {
         }
 
         if (!types.has(notation)) {
+            const typeName = this.#containingTypes.get(declaration)?.name;
             const fail = (code, message) => {
-                throw LexicaErrors.module(code, message, { module: this.getDeclaringModuleName(declaration), declaration: declaration.name ?? LexicaModule.conversionNameOf(declaration) });
+                throw LexicaErrors.module(code, message, { module: this.getDeclaringModuleName(declaration), ...(typeName === undefined ? {} : { type: typeName }), declaration: declaration.name ?? LexicaModule.conversionNameOf(declaration) });
             };
 
             types.set(notation, this.#resolveNotation(notation, this.#declaringModules.get(declaration), fail));
@@ -260,7 +300,7 @@ export class LexicaRegistry {
 
     /** The types the member applies to, in the order it declares them: each a type, a type parameter for a receiver of any type, or 'any'. */
     getTargetTypes(declaration) {
-        return [declaration.target].flat().map(notation => (notation === 'any' ? notation : this.getDeclaredType(declaration, notation)));
+        return this.#receiverNotationsOf(declaration).map(notation => (notation === 'any' ? notation : this.getDeclaredType(declaration, notation)));
     }
 
     /** The structured type the named type is, or undefined for a type no module declares as one. */
@@ -543,7 +583,7 @@ export class LexicaRegistry {
      * Refuses a type selector named already, by this module or one registered before it; a key of a selector neither declares; a key its selector maps already, which is never replaced; and a parameter that selects a type
      * through a selector neither declares.
      */
-    static #validateTypeSelections(module, typeSelectors, selectableTypes, getDeclaringModuleName, fail) {
+    static #validateTypeSelections(module, members, typeSelectors, selectableTypes, getDeclaringModuleName, fail, failAt) {
         for (const selector of module.typeSelectors) {
             if (typeSelectors.has(selector.name)) {
                 fail('LEXICA4007', `The type selector '${selector.name}' is declared already, by the module '${getDeclaringModuleName(typeSelectors.get(selector.name))}'`, selector.name, 'name');
@@ -565,10 +605,10 @@ export class LexicaRegistry {
             }
         });
 
-        for (const declaration of module.members) {
+        for (const declaration of members) {
             for (const parameter of declaration.parameters.filter(candidate => candidate.selects === 'type')) {
                 if (!isDeclared(parameter.selector)) {
-                    fail('LEXICA4547', `The parameter '${parameter.name}' selects a type through '${parameter.selector}', which no module registered declares`, declaration.name, 'parameters');
+                    failAt(declaration)('LEXICA4547', `The parameter '${parameter.name}' selects a type through '${parameter.selector}', which no module registered declares`, declaration.name, 'parameters');
                 }
             }
         }
@@ -578,7 +618,7 @@ export class LexicaRegistry {
      * Resolves each notation in the module's declarations through the declared-type cache, in the order the module declares them, refusing one that names no type the declaration's module can reach. Type resolution
      * precedes resolved-type validation, so a module whose notations name no type reports that before any rule that reads a resolved type, whichever declaration breaks it.
      */
-    #resolveDeclaredTypes(module) {
+    #resolveDeclaredTypes(module, members) {
         for (const type of module.types) {
             Object.values(type.fields ?? {}).forEach(notation => this.getDeclaredType(type, notation));
 
@@ -589,8 +629,8 @@ export class LexicaRegistry {
 
         module.selectableTypes.forEach(selectable => this.getDeclaredType(selectable, selectable.type));
 
-        for (const declaration of module.members) {
-            [declaration.target ?? []].flat().filter(notation => notation !== 'any').forEach(notation => this.getDeclaredType(declaration, notation));
+        for (const declaration of members) {
+            this.#receiverNotationsOf(declaration).filter(notation => notation !== 'any').forEach(notation => this.getDeclaredType(declaration, notation));
 
             if (declaration.result !== undefined) {
                 this.getDeclaredType(declaration, declaration.result);
@@ -605,7 +645,7 @@ export class LexicaRegistry {
     }
 
     /** Refuses, every notation resolved, a supertype that is no reference type, a cycle of supertypes, a tolerance on a result that holds no number, and a default its parameter's type does not admit. */
-    #validateDeclaredTypes(module, fail) {
+    #validateDeclaredTypes(module, members, fail, failAt) {
         for (const type of module.types) {
             // A supertype is a reference type, one the module declares or one a module registered before it declares.
             if (type.supertype !== undefined && !this.isReferenceType(this.getDeclaredType(type, type.supertype))) {
@@ -626,20 +666,20 @@ export class LexicaRegistry {
             }
         }
 
-        for (const declaration of module.members) {
+        for (const declaration of members) {
             // A host call that supplies nothing declares no result.
             const resultType = declaration.result === undefined ? null : this.getDeclaredType(declaration, declaration.result);
 
             // A tolerance applies to a numeric result, or to the numbers a structured result holds, which only now, every type known, is told apart from a reference type; a member with updates always declares a result.
             if (declaration.updates?.tolerance !== undefined && !(resultType.kind === 'named' && ((resultType.moduleName === null && resultType.name === 'Number') || this.getStructure(resultType) !== undefined))) {
-                fail('LEXICA4026', 'A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', declaration.name, 'updates.tolerance');
+                failAt(declaration)('LEXICA4026', 'A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', declaration.name, 'updates.tolerance');
             }
 
             for (const parameter of declaration.parameters) {
                 const type = this.getDeclaredType(declaration, parameter.type);
 
                 if (Object.hasOwn(parameter, 'default') && !this.#admits(parameter.default, type)) {
-                    fail('LEXICA4548', `The default of '${parameter.name}' is no ${parameter.type}`, declaration.name);
+                    failAt(declaration)('LEXICA4548', `The default of '${parameter.name}' is no ${parameter.type}`, declaration.name);
                 }
             }
         }
@@ -649,13 +689,14 @@ export class LexicaRegistry {
      * Refuses a member a registered one of its name already answers on one of the same receivers, and a second default indexer of a receiver; a module member of a name its module declares already is refused when the module
      * is created, and one beside a member of its name on a receiver registers, as the namespace reaches both.
      */
-    #validateMemberCollisions(module, fail) {
+    #validateMemberCollisions(members, failAt) {
         // A module declares members on any type, its own or another module's, by any name, a module member beside a member of its name among them: a declaration is refused where it duplicates another in its own namespace,
         // and an access or a qualified call two of them take is refused where it is resolved.
-        module.members.forEach((declaration, index) => {
-            const earlier = module.members.slice(0, index).filter(other => other.name === declaration.name);
+        members.forEach((declaration, index) => {
+            const earlier = members.slice(0, index).filter(other => other.name === declaration.name);
+            const fail = failAt(declaration);
 
-            if (declaration.target === undefined) {
+            if (!this.hasReceiver(declaration)) {
                 return;
             }
 
@@ -671,7 +712,7 @@ export class LexicaRegistry {
                     }
                 }
 
-                for (const other of module.members.slice(0, index).filter(member => member.default === true)) {
+                for (const other of members.slice(0, index).filter(member => member.default === true)) {
                     const shared = this.#getSharedReceiver(declaration, other);
 
                     if (shared !== undefined) {
@@ -808,7 +849,7 @@ export class LexicaRegistry {
      * Refuses an observation of a type no module declares; one of a target its observation type's module declares none of, one of a target found from the receiver for a member without one,
      * and a maintained one of a target of several; and a member that reads maintained values without a maintained observation, or any other that has one.
      */
-    static #validateObservations(declaration, observationTypes, getDeclaringModule, fail) {
+    static #validateObservations(declaration, hasReceiver, observationTypes, getDeclaringModule, fail) {
         const { updates } = declaration;
 
         if (updates === undefined) {
@@ -825,7 +866,7 @@ export class LexicaRegistry {
             }
 
             if (typeof observationDeclaration.of === 'string' && observationDeclaration.of !== 'receiver') {
-                LexicaRegistry.#validateObservedTarget(declaration, observationDeclaration, type, getDeclaringModule(type), fail);
+                LexicaRegistry.#validateObservedTarget(declaration, hasReceiver, observationDeclaration, type, getDeclaringModule(type), fail);
             }
 
             hasMaintained ||= type.contract === 'maintained';
@@ -837,14 +878,14 @@ export class LexicaRegistry {
     }
 
     /** Validates an observation's reference to a target, not the target's own declaration, which creating its module validates: refuses a target its observation type's module does not declare, one found from the receiver for a member without one, and one of several for a maintained observation, which gives its member one sample. */
-    static #validateObservedTarget(declaration, observationDeclaration, type, declaringModule, fail) {
+    static #validateObservedTarget(declaration, hasReceiver, observationDeclaration, type, declaringModule, fail) {
         const target = declaringModule.observationTargets.find(candidate => candidate.name === observationDeclaration.of);
 
         if (target === undefined) {
             fail('LEXICA4024', `The observation '${type.name}' observes '${observationDeclaration.of}', and the module '${declaringModule.name}', which declares '${type.name}', declares no target of that name`, declaration.name, 'updates.observations');
         }
 
-        if (target.from === 'receiver' && declaration.target === undefined) {
+        if (target.from === 'receiver' && !hasReceiver) {
             fail('LEXICA4057', `The observation '${type.name}' observes '${target.name}', a target found from the receiver, and a member without a target has no receiver`, declaration.name, 'updates.observations');
         }
 
@@ -858,13 +899,16 @@ export class LexicaRegistry {
      * answers on none. Two of one module's members on overlapping receivers, as a type and the type beneath it, both register, an access both take refused where it is resolved.
      */
     #validateReceiverCollisions(declaration, others, fail) {
-        for (const other of others.filter(candidate => candidate.target !== undefined)) {
+        // A member declared within a type collides by its name there, and a flat one by the target it names.
+        const collidingKey = this.#containingTypes.has(declaration) ? 'name' : 'target';
+
+        for (const other of others.filter(candidate => this.hasReceiver(candidate))) {
             // A member of another module is registered already, since its module is not the one being registered.
             if (this.getDeclaringModuleName(other) !== this.getDeclaringModuleName(declaration)) {
                 const overlapping = this.#getOverlappingReceiver(other, declaration);
 
                 if (overlapping !== undefined) {
-                    fail('LEXICA4551', `'${declaration.name}' is declared already for ${overlapping}`, declaration.name, 'target');
+                    fail('LEXICA4551', `'${declaration.name}' is declared already for ${overlapping}`, declaration.name, collidingKey);
                 }
 
                 continue;
@@ -873,7 +917,7 @@ export class LexicaRegistry {
             const shared = this.#getSharedReceiver(other, declaration);
 
             if (shared !== undefined) {
-                fail('LEXICA4029', `'${declaration.name}' is declared already for ${shared}`, declaration.name, 'target');
+                fail('LEXICA4029', `'${declaration.name}' is declared already for ${shared}`, declaration.name, collidingKey);
             }
         }
     }
@@ -883,13 +927,13 @@ export class LexicaRegistry {
         const theirs = this.getTargetTypes(other);
         const mine = this.getTargetTypes(one);
 
-        return [one.target].flat().find((notation, index) => theirs.some(type => (mine[index] === 'any' || type === 'any' ? mine[index] === type : mine[index].equals(type))));
+        return this.#receiverNotationsOf(one).find((notation, index) => theirs.some(type => (mine[index] === 'any' || type === 'any' ? mine[index] === type : mine[index].equals(type))));
     }
 
     /** The first type the one member applies to that the other member applies to as well, as the one declares it, or undefined where they share no receiver. */
     #getOverlappingReceiver(one, other) {
         const theirs = this.getTargetTypes(other);
-        const notations = [one.target].flat();
+        const notations = this.#receiverNotationsOf(one);
 
         return notations.find((notation, index) => {
             const mine = this.getTargetTypes(one)[index];
