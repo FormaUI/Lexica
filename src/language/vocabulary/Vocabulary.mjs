@@ -1,5 +1,5 @@
 /**
- * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the members of lists, the conversions between strings, numbers and Booleans,
+ * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the language's value types, the members of lists, the conversions between strings, numbers and Booleans,
  * and the verbs that test a receiver, each carrying its implementation
  */
 
@@ -12,16 +12,39 @@ const VALID_FLOATING_POINT_NUMBER = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][
 /** The ASCII whitespace a text converted to a number is trimmed of at either end: tab, line feed, form feed, carriage return and space. */
 const SURROUNDING_ASCII_WHITESPACE = /^[\t\n\f\r ]+|[\t\n\f\r ]+$/g;
 
-/** The generic value types Lexica declares, by name, each with its parameters in order and the variance of each: `List<T>`, covariant in its items, since a list is immutable. */
-const GENERIC_TYPES = new Map([['List', Object.freeze({ name: 'List', parameters: Object.freeze([Object.freeze({ name: 'T', variance: 'covariant' })]) })]]);
+/** The updates of a member that reads and changes as what it selects and evaluates does. */
+const DERIVED_UPDATES = Object.freeze({ changes: 'derived', reads: 'derived' });
 
 export class Vocabulary {
     /** The name of Lexica's own module, spelled as the specification spells it. */
     static moduleName = 'Lexica';
 
-    /** The declaration of the generic value type the type is one of, or undefined for a type of none; Lexica alone declares one. */
-    static getGenericType(type) {
-        return type.kind === 'named' && type.moduleName === null ? GENERIC_TYPES.get(type.name) : undefined;
+    /** @type {readonly object[] | undefined} */
+    static #valueTypes;
+
+    /**
+     * The value types Lexica's own module owns, each declared through a form internal to Lexica, which no other module declares through: its scalar types, of kind `scalar`, and `List<T>`, of kind `generic`, its type
+     * parameters under `typeParameters` and the variance of each, in order, under `variances`, covariant in its items, since a list is immutable, and the members of lists within it, whose receiver gives them its `T`.
+     * Created once, frozen, and read by identity: the registry registers their members with Lexica's own module.
+     */
+    static get valueTypes() {
+        return Vocabulary.#valueTypes ??= Object.freeze([
+            ...LexicaModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar' })),
+            Object.freeze({ name: 'List', kind: 'generic', typeParameters: Object.freeze(['T']), variances: Object.freeze(['covariant']), members: Vocabulary.#createListMembers() }),
+        ]);
+    }
+
+    /** @type {readonly string[] | undefined} */
+    static #builtInTypeNames;
+
+    /** The names of the value types Lexica's own module owns, which a declaration or a script names unqualified with no module declaring them, derived from those types: `Number`, `String`, `Boolean` and `List`. */
+    static get builtInTypeNames() {
+        return Vocabulary.#builtInTypeNames ??= Object.freeze(Vocabulary.valueTypes.map(type => type.name));
+    }
+
+    /** The declaration of the value type Lexica's own module owns under the name, or undefined for a name it owns none of. */
+    static getTypeDeclaration(name) {
+        return Vocabulary.valueTypes.find(type => type.name === name);
     }
 
     /** @type {LexicaModule | undefined} */
@@ -29,30 +52,15 @@ export class Vocabulary {
 
     /**
      * Lexica's own module, each member and conversion carrying its implementation: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's types no other module may declare.
-     * A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
+     * It declares the verbs in `VerbExtensions<T>`, an extension targeting its parameter, so on any type, and owns the value types, whose members the registry registers with it. A module of its name made elsewhere
+     * is an ordinary module, so the exception belongs to this one alone.
      */
     static get module() {
-        const derivedUpdates = { changes: 'derived', reads: 'derived' };
+        // The verbs, each answering what its test answers of its receiver, a function of the receiver's own type that answers a Boolean, so each reads and changes as its test does.
+        const verb = name => Declarations.function(name, null, 'Boolean', { updates: DERIVED_UPDATES, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) });
 
         return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
-            members: [
-                Declarations.property('count', 'List<T>', 'Number', { updates: derivedUpdates, impl: ({ receiver }) => receiver.length }),
-                Declarations.property('first', 'List<T>', 'T?', { updates: derivedUpdates, impl: ({ receiver }) => receiver.at(0) ?? null }),
-                Declarations.property('last', 'List<T>', 'T?', { updates: derivedUpdates, impl: ({ receiver }) => receiver.at(-1) ?? null }),
-                // The item at a whole index from zero, null for any other index, a negative one included, which never counts from the end.
-                Declarations.indexer(null, 'List<T>', 'T?', {
-                    updates: derivedUpdates, parameters: [Declarations.valueParameter('index', 'Number')],
-                    impl: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
-                }),
-                // The verbs, each answering what its test answers of its receiver, a function of the receiver's own type that answers a Boolean, so each reads and changes as its test does.
-                Declarations.function('is', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) }),
-                Declarations.function('has', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) }),
-                Declarations.function('supports', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) }),
-                Declarations.function('max', 'List<T>', 'Number?', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
-                Declarations.function('min', 'List<T>', 'Number?', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
-                Declarations.function('sum', 'List<T>', 'Number', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
-                Declarations.function('where', 'List<T>', 'List<T>', { updates: derivedUpdates, parameters: [Declarations.predicateParameter()], impl: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
-            ],
+            types: [{ name: 'VerbExtensions<T>', kind: 'extension', target: 'T', members: ['is', 'has', 'supports'].map(verb) }],
 
             // Each conversion takes the value, never null, and `reject`, which stops it for a value it does not convert.
             conversions: [
@@ -91,6 +99,29 @@ export class Vocabulary {
                 },
             ],
         });
+    }
+
+    /**
+     * The members of lists, validated, copied and frozen as a module's are, by a module created for that alone and never registered: an extension of `List<T>` gives them the scope a list's members read, its `T`,
+     * and no module declares a generic type, whose form is Lexica's alone.
+     */
+    static #createListMembers() {
+        const members = [
+            Declarations.property('count', null, 'Number', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.length }),
+            Declarations.property('first', null, 'T?', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.at(0) ?? null }),
+            Declarations.property('last', null, 'T?', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.at(-1) ?? null }),
+            // The item at a whole index from zero, null for any other index, a negative one included, which never counts from the end.
+            Declarations.indexer(null, null, 'T?', {
+                updates: DERIVED_UPDATES, parameters: [Declarations.valueParameter('index', 'Number')],
+                impl: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
+            }),
+            Declarations.function('max', null, 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
+            Declarations.function('min', null, 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
+            Declarations.function('sum', null, 'Number', { updates: DERIVED_UPDATES, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
+            Declarations.function('where', null, 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.predicateParameter()], impl: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
+        ];
+
+        return new LexicaModule(Vocabulary.moduleName, { types: [{ name: 'List<T>', kind: 'extension', target: 'List<T>', members }] }).types[0].members;
     }
 
     /** The greatest or the least of the numbers an expression produces for the items, or null where it produces none. */

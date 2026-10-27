@@ -9,6 +9,7 @@ import { Names } from './Names.mjs';
 import { ResolvedDefinition } from './ResolvedDefinition.mjs';
 import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
+import { Vocabulary } from './vocabulary/Vocabulary.mjs';
 
 /** How each form of a declaration is written, and the node that writes it. */
 const FORM_NODE_KINDS = { property: 'member', function: 'call', indexer: 'indexer' };
@@ -581,7 +582,7 @@ export class LanguageResolver {
         }
 
         // One of Lexica's own types is found before a module's of its name, which its module's name qualifies.
-        if (LexicaModule.builtInTypeNames.includes(name)) {
+        if (Vocabulary.builtInTypeNames.includes(name)) {
             return Type.createNamedType(name);
         }
 
@@ -596,7 +597,7 @@ export class LanguageResolver {
 
     /** Whether a type of the name a cast or a conversion writes is declared: a qualified one, which its module was found to declare, one of Lexica's own, or one a registered module declares. */
     #declaresTypeNamed(name) {
-        return name.includes('.') || LexicaModule.builtInTypeNames.includes(name) || this.#registry.getModuleNamesDeclaringType(name).length > 0;
+        return name.includes('.') || Vocabulary.builtInTypeNames.includes(name) || this.#registry.getModuleNamesDeclaringType(name).length > 0;
     }
 
     /** Resolves an attempt: the conversion or the cast it attempts, as it resolves strictly, its result made nullable, since a rejection answers null. */

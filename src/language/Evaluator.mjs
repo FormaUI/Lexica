@@ -1329,9 +1329,9 @@ export class Evaluator {
 
         switch (type.kind) {
             case 'named': {
-                const structure = registry.getStructure(type);
+                const isStructured = registry.getTypeDeclaration(type)?.kind === 'structured';
 
-                if (structure === undefined) {
+                if (!isStructured) {
                     return null;
                 }
 
@@ -1417,7 +1417,7 @@ export class Evaluator {
             }
             default: {
                 const { name } = type;
-                const structure = registry.getStructure(type);
+                const isStructured = registry.getTypeDeclaration(type)?.kind === 'structured';
 
                 if (registry.isReferenceType(type)) {
                     return value => registry.belongsTo(value, type, asked);
@@ -1427,7 +1427,7 @@ export class Evaluator {
                     return value => Evaluator.#belongsToBuiltIn(value, name);
                 }
 
-                if (structure === undefined) {
+                if (!isStructured) {
                     return () => false;
                 }
 
@@ -1760,9 +1760,9 @@ export class Evaluator {
             fail(path, value, type);
         }
 
-        const structure = this.#registry.getStructure(type);
+        const isStructured = this.#registry.getTypeDeclaration(type)?.kind === 'structured';
 
-        if (structure === undefined || !ObjectUtils.isNonArrayObject(value)) {
+        if (!isStructured || !ObjectUtils.isNonArrayObject(value)) {
             fail(path, value, type);
         }
 

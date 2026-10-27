@@ -1,13 +1,19 @@
 import { describe, it, expect } from 'vitest';
+import { Type } from '#lexica/language/Type.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 
 describe('Vocabulary', () => {
     const registry = new LexicaRegistry([Vocabulary.module]);
     const { module } = Vocabulary;
+    const list = Vocabulary.getTypeDeclaration('List');
+    const [verbs] = module.types;
 
-    /** What the implementation of a member answers for its receiver and its arguments. */
-    const read = (name, receiver, args = {}) => module.members.find(member => member.name === name).impl({ receiver, args, env: {} });
+    /** What the implementation of a list's member or a verb answers for its receiver and its arguments. */
+    const read = (name, receiver, args = {}) => [...list.members, ...verbs.members].find(member => member.name === name).impl({ receiver, args, env: {} });
+
+    /** How the registry writes each receiver the member is read on, and the member, as a message names it. */
+    const writtenOf = member => `${registry.getTargetTypes(member).join(' or ')}${member.name === undefined ? '[]' : `.${member.name}`}`;
 
     /** What the implementation of a conversion gives the value, or the reason it rejects it. */
     const convert = (from, to, value) => {
@@ -22,16 +28,30 @@ describe('Vocabulary', () => {
         expect(module.name).toBe('Lexica');
         expect(module).toBe(Vocabulary.module);
         expect(module.conversions.every(conversion => typeof conversion.impl === 'function')).toBe(true);
-        expect(module.members.every(member => typeof member.impl === 'function')).toBe(true);
+        expect([...list.members, ...verbs.members].every(member => typeof member.impl === 'function')).toBe(true);
+    });
+
+    it('owns the language\'s value types, declared through its internal form: the scalars, and List<T>, covariant in its items, whose names are the ones written unqualified', () => {
+        expect(Vocabulary.valueTypes.map(({ name, kind }) => `${kind} ${name}`)).toEqual(['scalar Number', 'scalar String', 'scalar Boolean', 'generic List']);
+        expect(list).toMatchObject({ typeParameters: ['T'], variances: ['covariant'] });
+        expect(Vocabulary.builtInTypeNames).toEqual(['Number', 'String', 'Boolean', 'List']);
+        expect([Vocabulary.getTypeDeclaration('Any'), Vocabulary.getTypeDeclaration('VerbExtensions')]).toEqual([undefined, undefined]);
+        expect(Object.isFrozen(list) && Object.isFrozen(list.members[0])).toBe(true);
+    });
+
+    it('answers its own value types\' declarations through the registry\'s one lookup, whatever a type\'s arguments and nullability, and none for an extension', () => {
+        expect(registry.getTypeDeclaration(Type.createListType(Type.createNamedType('Number'), true))).toBe(list);
+        expect(registry.getTypeDeclaration(Type.createNamedType('String', true))).toBe(Vocabulary.getTypeDeclaration('String'));
+        expect(registry.getTypeDeclaration(Type.createNamedType('VerbExtensions', false, 'Lexica'))).toBeUndefined();
     });
 
     it('declares the members of lists, the verbs that test a receiver, and the conversions between strings, numbers and Booleans, and nothing of any domain', () => {
-        // The unnamed indexer has no name, and is written as its access is, brackets after the list.
-        expect(module.members.map(member => (member.name === undefined ? `${member.target}[]` : `${member.target}.${member.name}`))).toEqual([
-            'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'T.is', 'T.has', 'T.supports', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where',
-        ]);
+        // The unnamed indexer has no name, and is written as its access is, brackets after the list; the members of lists read the list's T, and the verbs their extension's, the receiver's own type.
+        expect(list.members.map(writtenOf)).toEqual(['List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where']);
+        expect(verbs).toMatchObject({ name: 'VerbExtensions', kind: 'extension', typeParameters: ['T'], target: 'T' });
+        expect(verbs.members.map(writtenOf)).toEqual(['T.is', 'T.has', 'T.supports']);
         expect(module.conversions.map(conversion => `${conversion.from} to ${conversion.to}`)).toEqual(['String to Number', 'Number to String', 'Boolean to String', 'String to Boolean']);
-        expect(module.types).toEqual([]);
+        expect([module.types.length, module.members]).toEqual([1, []]);
         expect(module.observationTypes).toEqual([]);
         expect([module.typeSelectors, module.mappings]).toEqual([[], []]);
     });
@@ -40,7 +60,8 @@ describe('Vocabulary', () => {
         const [declaration] = registry.getReceiverMembers(verb);
 
         expect(registry.getReceiverMembers(verb)).toHaveLength(1);
-        expect(declaration).toMatchObject({ kind: 'function', target: 'T', result: 'Boolean', updates: { changes: 'derived', reads: 'derived' } });
+        expect(declaration).toBe(verbs.members.find(member => member.name === verb));
+        expect(declaration).toMatchObject({ kind: 'function', result: 'Boolean', updates: { changes: 'derived', reads: 'derived' } });
         expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'Boolean', parameterTypes: ['T'], required: true }]);
         expect([read(verb, 'oat', { test: receiver => receiver === 'oat' }), read(verb, 'milk', { test: receiver => receiver === 'oat' })]).toEqual([true, false]);
     });
@@ -50,7 +71,8 @@ describe('Vocabulary', () => {
 
         expect(read('count', [1, 2, 3])).toBe(3);
         expect([read('first', [1, 2]), read('last', [1, 2]), read('first', [])]).toEqual([1, 2, null]);
-        expect(unnamedIndexer).toMatchObject({ kind: 'indexer', target: 'List<T>', result: 'T?', parameters: [{ name: 'index', kind: 'value', type: 'Number' }] });
+        expect(unnamedIndexer).toBe(list.members[3]);
+        expect(unnamedIndexer).toMatchObject({ kind: 'indexer', result: 'T?', parameters: [{ name: 'index', kind: 'value', type: 'Number' }] });
         expect([0, 2, -1, 1.5].map(index => unnamedIndexer.impl({ receiver: ['a', 'b'], args: { index }, env: {} }))).toEqual(['a', null, null, null]);
     });
 

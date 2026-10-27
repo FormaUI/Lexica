@@ -212,6 +212,24 @@ describe('LexicaRegistry', () => {
             expect(registry.getDataPropertyTypes('area').map(String)).toEqual(['Number']);
             expect(registry.getDataPropertyTypes('width')).toEqual([]);
         });
+
+        it('answer every value type\'s declaration through one lookup, its kind an attribute, Lexica\'s own among them, and none for an extension, which no value is of', () => {
+            const words = new LexicaModule('words', { types: [{ name: 'Shouting', kind: 'extension', target: 'String', members: [] }] });
+            const registry = new LexicaRegistry([Vocabulary.module, declaring(), words]);
+            const kindOf = type => registry.getTypeDeclaration(type)?.kind;
+
+            expect([Type.createNamedType('Room', false, 'home'), Type.createNamedType('Number', true), Type.createListType(Type.createNamedType('Room', false, 'home'))].map(kindOf)).toEqual(['structured', 'scalar', 'generic']);
+            expect([Type.createNamedType('Shouting', false, 'words'), Type.createNamedType('Room', false, 'words'), Type.null].map(kindOf)).toEqual([undefined, undefined, undefined]);
+            expect(registry.getTypeDeclaration(Type.createListType(Type.createNamedType('Number')))).toBe(Vocabulary.getTypeDeclaration('List'));
+            expect([registry.isReferenceType(Type.createNamedType('Room', false, 'home')), registry.getSupertype(Type.createNamedType('Room', false, 'home'))]).toEqual([false, null]);
+        });
+
+        it('name List among Lexica\'s own types, written unqualified with no module declaring it, as a declared binding type names it', () => {
+            const registry = new LexicaRegistry([Vocabulary.module]);
+
+            expect(registry.getTypesNamed('List')).toEqual([Type.createNamedType('List')]);
+            expect(registry.getTypesNamed('Shouting')).toEqual([]);
+        });
     });
 
     it('resolves every notation before the rules that read a resolved type, so a later name no type has is reported before an earlier default its type does not admit', () => {
@@ -248,7 +266,7 @@ describe('LexicaRegistry', () => {
 
         const registry = new LexicaRegistry([pings('first'), pings('second', [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ on: 'Boolean' }) }])]);
 
-        expect(['first', 'second'].map(module => registry.getStructure(Type.createNamedType('Ping', false, module)).members.map(member => member.name))).toEqual([['at'], ['on']]);
+        expect(['first', 'second'].map(module => registry.getTypeDeclaration(Type.createNamedType('Ping', false, module)).members.map(member => member.name))).toEqual([['at'], ['on']]);
     });
 
     describe('observation types', () => {

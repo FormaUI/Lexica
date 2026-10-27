@@ -34,12 +34,6 @@ const OBSERVED_CHANGE_CATEGORIES = ['observable', 'partly-observable'];
 /** The scalar types Lexica defines, each a value of data alone: what conversions convert between, what data and equality read as scalars, and what a default of one is. */
 const SCALAR_TYPE_NAMES = Object.freeze(['Number', 'String', 'Boolean']);
 
-/**
- * The names of the types Lexica defines that a declaration or a script names unqualified with no module declaring them, which resolving a name reads: its scalar types today, and from S2 every type Lexica's own module
- * declares, `List` among them, from which they are derived there.
- */
-const BUILT_IN_TYPE_NAMES = Object.freeze([...SCALAR_TYPE_NAMES]);
-
 /** The names of the scalar types whose values hold no number, so a tolerance means nothing for them. */
 const UNTOLERATED_TYPE_NAMES = new Set(SCALAR_TYPE_NAMES.filter(name => name !== 'Number'));
 
@@ -216,11 +210,6 @@ export class LexicaModule {
     /** The conversions the module declares. */
     get conversions() {
         return this.#conversions;
-    }
-
-    /** The names of the types Lexica defines, which a declaration names without any module declaring them. */
-    static get builtInTypeNames() {
-        return BUILT_IN_TYPE_NAMES;
     }
 
     /** The names of the scalar types Lexica defines, each a value of data alone, which conversions, data, equality and defaults read. */

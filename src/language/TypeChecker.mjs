@@ -17,8 +17,9 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
 export class TypeChecker {
     /**
-     * The registry that declares the types the checker relates, of which it reads these four methods: a generic type's parameters and their variance, a reference type's supertype, whether a type is a reference type, and a member's receiver types.
-     * @type {{ getGenericType(type: Type): { parameters: readonly { variance: 'covariant' | 'invariant' }[] } | undefined, getSupertype(type: Type): Type | null, isReferenceType(type: Type): boolean, getTargetTypes(declaration: object): (Type | 'any')[] }}
+     * The registry that declares the types the checker relates, of which it reads these four methods: a value type's declaration, a generic one's variances among it, a reference type's supertype, whether a type is a
+     * reference type, and a member's receiver types.
+     * @type {{ getTypeDeclaration(type: Type): { kind: string, variances?: readonly ('covariant' | 'invariant')[] } | undefined, getSupertype(type: Type): Type | null, isReferenceType(type: Type): boolean, getTargetTypes(declaration: object): (Type | 'any')[] }}
      */
     #registry;
 
@@ -312,12 +313,12 @@ export class TypeChecker {
             return 'assignable';
         }
 
-        const { parameters } = this.#registry.getGenericType(declaredType);
+        const { variances } = this.#registry.getTypeDeclaration(declaredType);
 
         return TypeChecker.#combineAssignabilities(type.typeArguments.map((typeArgument, index) => {
             const declaredArgument = declaredType.typeArguments[index];
 
-            if (parameters[index].variance === 'covariant') {
+            if (variances[index] === 'covariant') {
                 return this.assignabilityOf(typeArgument, declaredArgument);
             }
 
@@ -327,12 +328,12 @@ export class TypeChecker {
 
     /** The type arguments two types of one generic declaration merge to, each a covariant one's merge and an invariant one's where they are equal; null where one doesn't merge. */
     #mergeTypeArguments(firstType, secondType) {
-        const { parameters } = this.#registry.getGenericType(firstType);
+        const { variances } = this.#registry.getTypeDeclaration(firstType);
         const typeArguments = [];
 
         for (const [index, typeArgument] of firstType.typeArguments.entries()) {
             const other = secondType.typeArguments[index];
-            const merged = parameters[index].variance === 'covariant' ? this.merge(typeArgument, other) : typeArgument.equals(other) ? typeArgument : null;
+            const merged = variances[index] === 'covariant' ? this.merge(typeArgument, other) : typeArgument.equals(other) ? typeArgument : null;
 
             if (merged === null) {
                 return null;

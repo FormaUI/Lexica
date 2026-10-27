@@ -97,7 +97,7 @@ describe('TypeChecker', () => {
         });
 
         it('relates a generic type\'s type arguments by the variance its declaration gives each', () => {
-            const invariant = new TypeChecker({ getGenericType: () => ({ parameters: [{ variance: 'invariant' }] }), getSupertype: () => null, isReferenceType: () => false });
+            const invariant = new TypeChecker({ getTypeDeclaration: () => ({ kind: 'generic', variances: ['invariant'] }), getSupertype: () => null, isReferenceType: () => false });
 
             expect(invariant.assignabilityOf(typeOf('List<Number>'), typeOf('List<Number?>'))).toBe('refused');
             expect(invariant.assignabilityOf(typeOf('List<Number>'), typeOf('List<Number>'))).toBe('assignable');
