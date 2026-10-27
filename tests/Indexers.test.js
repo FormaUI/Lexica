@@ -10,7 +10,7 @@ const { property, valueParameter } = lexica.declarations;
 /** A plain host's module of text: a word's letter by its index, a named indexer, and its words, a list, which a word without any has none of. */
 const createText = () => lexica.createModule('text', {
     members: [
-        lexica.declarations.function('letter', 'String', 'String?', { syntax: 'indexer', updates: constantUpdates, parameters: [valueParameter('index', 'Number')], impl: ({ receiver, args }) => receiver[args.index] ?? null }),
+        lexica.declarations.indexer('letter', 'String', 'String?', { updates: constantUpdates, parameters: [valueParameter('index', 'Number')], impl: ({ receiver, args }) => receiver[args.index] ?? null }),
         property('words', 'String', 'List<String>', { updates: constantUpdates, impl: ({ receiver }) => receiver.split(' ') }),
         property('someWords', 'String', 'List<String>?', { updates: constantUpdates, impl: ({ receiver }) => (receiver === '' ? null : receiver.split(' ')) }),
     ],

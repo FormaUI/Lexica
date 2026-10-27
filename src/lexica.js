@@ -139,7 +139,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
     const resolved = new LanguageResolver(registry, parameterBindings, locations).resolveDefinition(definition);
     const { resolutionKey } = parameterBindings;
     const { revision } = registry;
-    const usedDeclarations = Object.freeze(resolved.usedDeclarations.map(({ declaration, qualifiedName, pointer }) => Object.freeze({ declaration, name: declaration.name, qualifiedName, pointer })));
+    const usedDeclarations = Object.freeze(resolved.usedDeclarations.map(({ declaration, qualifiedName, pointer }) => Object.freeze({ declaration, name: declaration.name ?? null, qualifiedName, pointer })));
 
     const requireCurrent = () => {
         if (registry.revision !== revision) {
@@ -277,6 +277,7 @@ const createRegistry = modules => {
 const declarations = Object.freeze({
     property: Declarations.property,
     function: Declarations.function,
+    indexer: Declarations.indexer,
     valueParameter: Declarations.valueParameter,
     expressionParameter: Declarations.expressionParameter,
     predicateParameter: Declarations.predicateParameter,

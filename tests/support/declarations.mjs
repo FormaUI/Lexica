@@ -24,3 +24,6 @@ export const hostFunctionDeclaration = (name, target, result, options = {}) => l
 
 /** The data properties of a structured type's data shape, in the declaration shape, from the type of each property by its name: each a property without updates, which Lexica reads from the data. */
 export const dataPropertyDeclarations = shape => Object.entries(shape).map(([name, result]) => ({ name, kind: 'property', result }));
+
+/** An indexer, by default the unnamed indexer of a string, taking its key, a string, in the declaration shape, with what a test changes: a name makes it a named one. */
+export const indexerDeclaration = (overrides = {}) => propertyDeclaration({ kind: 'indexer', name: undefined, result: 'String?', parameters: [parameterDeclaration({ name: 'key', type: 'String' })], ...overrides });

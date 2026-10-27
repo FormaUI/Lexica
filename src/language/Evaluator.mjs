@@ -1643,7 +1643,8 @@ export class Evaluator {
 
     /** What a message names as carrying a member out. */
     #subjectOf(declaration) {
-        return `The member '${declaration.name}'`;
+        // An unnamed indexer has no name, and is named by its kind and its module.
+        return declaration.name === undefined ? `The unnamed indexer of the module '${this.#registry.getDeclaringModuleName(declaration)}'` : `The member '${declaration.name}'`;
     }
 
     /**

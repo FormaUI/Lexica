@@ -11,7 +11,7 @@ import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
 /** How each form of a declaration is written, and the node that writes it. */
-const FORM_NODE_KINDS = { access: 'member', 'function-call': 'call', indexer: 'indexer' };
+const FORM_NODE_KINDS = { property: 'member', function: 'call', indexer: 'indexer' };
 
 /** No facts, the set a scope starts with: what narrows a stable reference on a path. */
 const NO_FACTS = new Map();
@@ -278,7 +278,7 @@ export class LanguageResolver {
         }
 
         const receiverType = left.type.toNonNullable();
-        const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isInvokedByHost(candidate) && (this.#registry.formOf(candidate) === 'access' || (this.#registry.formOf(candidate) === 'function-call' && candidate.parameters.every(parameter => !parameter.required)));
+        const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isInvokedByHost(candidate) && (candidate.kind === 'property' || (candidate.kind === 'function' && candidate.parameters.every(parameter => !parameter.required)));
         const [declaration] = this.#typeChecker.mostSpecificOf(this.#registry.getReceiverMembers(right.value).filter(isTest), receiverType);
 
         if (declaration === undefined) {
@@ -1042,7 +1042,7 @@ export class LanguageResolver {
             return `${receiver}.${name}`;
         }
 
-        return this.#registry.formOf(declaration) === 'indexer' ? `${receiver}.${name}[…]` : `${receiver}.${name}(…)`;
+        return declaration.kind === 'indexer' ? `${receiver}.${name}[…]` : `${receiver}.${name}(…)`;
     }
 
     #resolveLiteral(node) {
@@ -1126,14 +1126,14 @@ export class LanguageResolver {
         // The access's receiver is resolved once, and given to whichever reading applies, so a chain of indexers resolves each part once.
         const accessPointer = `${pointer}/target`;
         const receiver = this.#resolveNode(target.target, `${accessPointer}/target`, scope);
-        const syntax = this.#syntaxNamedBy(target, receiver);
+        const kind = this.#memberKindNamedBy(target, receiver);
 
         // A function's arguments are written in parentheses, so brackets after its name are a call written as an indexer.
-        if (syntax === 'function-call') {
+        if (kind === 'function') {
             this.#fail('LEXICA3054', `'${target.name}' uses call syntax: write '${DefinitionWriter.quote({ kind: 'call', target: target.target, name: target.name, arguments: [node.argument], ...(target.optional === true ? { optional: true } : {}) }, this.#namespaceNames)}'`, pointer);
         }
 
-        if (syntax !== 'indexer') {
+        if (kind !== 'indexer') {
             const accessResult = this.#resolveMemberAccess(target, accessPointer, scope, { receiver });
 
             return this.#resolveMemberAccess(node, pointer, scope, { receiver: accessResult });
@@ -1145,10 +1145,10 @@ export class LanguageResolver {
     }
 
     /**
-     * The syntax of the member the access names on its receiver's type, `indexer` for a named indexer and `function-call` for a function, among the declarations of its name for that type, or, on a receiver of unknown type,
-     * `indexer` where any declaration of its name is a named indexer; null where none is either, as a property's or a field's name is, given the access's receiver as it resolved.
+     * The kind of the member the access names on its receiver's type, `indexer` for a named indexer and `function` for a function, among the declarations of its name for that type, or, on a receiver of unknown type,
+     * `indexer` where any declaration of its name is a named indexer; null where none is either, as a property's or a field's name is, given the access's receiver as it resolved. It decides how brackets after the access read.
      */
-    #syntaxNamedBy(access, receiver) {
+    #memberKindNamedBy(access, receiver) {
         const declarations = this.#registry.getReceiverMembers(access.name).filter(declaration => declaration.kind !== 'property');
 
         if (declarations.length === 0 || receiver.kind !== 'value') {
@@ -1158,7 +1158,7 @@ export class LanguageResolver {
         const receiverType = access.optional === true ? receiver.type.toNonNullable() : receiver.type;
 
         if (LanguageResolver.#isNullOrNever(receiverType)) {
-            return declarations.some(declaration => this.#registry.formOf(declaration) === 'indexer') ? 'indexer' : null;
+            return declarations.some(declaration => declaration.kind === 'indexer') ? 'indexer' : null;
         }
 
         if (receiverType.kind === 'objectRoot' || (receiverType.kind === 'object' ? receiverType.getObjectFieldType(access.name) : (this.#registry.getDataShape(receiverType)?.get(access.name) ?? null)) !== null) {
@@ -1168,25 +1168,25 @@ export class LanguageResolver {
         // The most specific member of the name decides, a property among them, which hides an indexer of its name above it.
         const [declaration] = this.#typeChecker.mostSpecificOf(this.#registry.getReceiverMembers(access.name), receiverType);
 
-        return declaration === undefined || declaration.kind === 'property' ? null : this.#registry.formOf(declaration);
+        return declaration === undefined || declaration.kind === 'property' ? null : declaration.kind;
     }
 
     /**
-     * Resolves an unnamed indexer: the one indexer the vocabulary declares the default for the receiver's type, resolved as the indexer it names would be.
+     * Resolves an unnamed indexer: the one indexer declared without a name for the receiver's type, resolved as an invocation of it given its key.
      * A receiver of unknown type chooses none, and takes the key every unnamed indexer could; a receiver whose type has none is refused, with the computed property access its key may mean.
      */
     #resolveUnnamedIndexerAccess(node, pointer, scope, receiverType) {
-        const defaults = this.#registry.getDefaultIndexers();
+        const unnamedIndexers = this.#registry.getUnnamedIndexers();
 
         if (LanguageResolver.#isNullOrNever(receiverType)) {
-            return this.#storeResolution(pointer, this.#resolveOnUnknownType(node, pointer, scope, receiverType, defaults));
+            return this.#storeResolution(pointer, this.#resolveOnUnknownType(node, pointer, scope, receiverType, unnamedIndexers));
         }
 
         if (receiverType.kind === 'objectRoot') {
             return this.#storeResolution(pointer, this.#resolveObjectRootField(node, pointer, receiverType));
         }
 
-        const matching = this.#typeChecker.mostSpecificOf(defaults, receiverType);
+        const matching = this.#typeChecker.mostSpecificOf(unnamedIndexers, receiverType);
 
         if (matching.length === 0) {
             // A string key may name a property of the receiver, which a computed property access reads.
@@ -1202,7 +1202,10 @@ export class LanguageResolver {
             this.#fail('LEXICA3024', `The unnamed indexers ${this.#formatCompetingDeclarations(matching, receiverType)}`, pointer);
         }
 
-        return this.#storeResolution(pointer, this.#resolveMemberOnReceiverType({ ...node, name: matching[0].name }, pointer, scope, receiverType));
+        const [declaration] = matching;
+        const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
+
+        return this.#storeResolution(pointer, this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType)));
     }
 
     /**
@@ -1511,7 +1514,7 @@ export class LanguageResolver {
         }
 
         const namedDeclarations = this.#registry.getMembersDeclaredBy(moduleName, node.name);
-        const declarations = namedDeclarations.filter(declaration => this.#registry.formOf(declaration) !== 'indexer');
+        const declarations = namedDeclarations.filter(declaration => declaration.kind !== 'indexer');
 
         if (declarations.length === 0) {
             this.#fail(namedDeclarations.length > 0 ? 'LEXICA3011' : 'LEXICA3001', namedDeclarations.length > 0 ? `'${node.name}' is an indexer, which no namespace qualifies: write its receiver and ':${node.name}[…]'` : `The module '${moduleName}' declares no member '${node.name}'`, pointer);
@@ -1798,7 +1801,7 @@ export class LanguageResolver {
     #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#registry.getReceiverMembers(node.name), offset = 0) {
         const isAccess = node.kind === 'member';
         // A qualified call, a qualified form's or a function reference's, calls a property and a function alike, its receiver its first argument.
-        const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[this.#registry.formOf(candidate)] === node.kind);
+        const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[candidate.kind] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
             this.#fail('LEXICA3001', `'${node.name}' is no member of the vocabulary`, pointer);
@@ -1860,35 +1863,35 @@ export class LanguageResolver {
 
     /** Refuses a member written in a form its declaration does not take, with the form it does: a property is accessed, and a function called or named as its declaration says. */
     #requireDeclaredForm(declaration, node, pointer, isComputed = false) {
-        const form = this.#registry.formOf(declaration);
+        const { kind } = declaration;
 
-        if (FORM_NODE_KINDS[form] === node.kind) {
+        if (FORM_NODE_KINDS[kind] === node.kind) {
             return;
         }
 
-        const described = { access: 'is a property', 'function-call': 'uses call syntax', indexer: 'is an indexer' }[form];
+        const described = { property: 'is a property', function: 'uses call syntax', indexer: 'is an indexer' }[kind];
         // A computed property's name that settles to an indexer's names it rather than a property, and one that settles to a function's names no property at all.
-        const code = form === 'indexer'
+        const code = kind === 'indexer'
             ? (isComputed ? 'LEXICA3016' : 'LEXICA3011')
-            : isComputed ? 'LEXICA3056' : form === 'function-call' && node.kind === 'indexer' ? 'LEXICA3054' : 'LEXICA3017';
+            : isComputed ? 'LEXICA3056' : kind === 'function' && node.kind === 'indexer' ? 'LEXICA3054' : 'LEXICA3017';
 
         // An indexer takes one key in brackets, which a node written another way may not give.
-        if (form === 'indexer' && node.arguments?.length !== 1) {
+        if (kind === 'indexer' && node.arguments?.length !== 1) {
             this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.quote(node.target, this.#namespaceNames)}${node.optional === true ? '?.' : '.'}${node.name}[…]'`, pointer);
         }
 
-        this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.quote(LanguageResolver.#writtenAs(node, form), this.#namespaceNames)}'`, pointer);
+        this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.quote(LanguageResolver.#writtenAs(node, kind), this.#namespaceNames)}'`, pointer);
     }
 
-    /** The node written in the form: an access of its name, a call of its arguments, an indexer's one, or an indexer of its key, a call's one argument. */
-    static #writtenAs(node, form) {
+    /** The node written as a member of the kind is: an access of its name, a call of its arguments, an indexer's one, or an indexer of its key, a call's one argument. */
+    static #writtenAs(node, kind) {
         const { target, name } = node;
         const optional = node.optional === true ? { optional: true } : {};
 
-        switch (form) {
-            case 'access':
+        switch (kind) {
+            case 'property':
                 return LanguageResolver.#createPropertyAccess(node);
-            case 'function-call':
+            case 'function':
                 return { kind: 'call', target, name, arguments: node.kind === 'indexer' ? [node.argument] : [], ...optional };
             default:
                 return { kind: 'indexer', target: { kind: 'member', target, name, ...optional }, argument: node.arguments[0] };
@@ -2489,12 +2492,16 @@ export class LanguageResolver {
      */
     #qualifiedNameOf(declaration, receiverType) {
         const type = this.#typeChecker.resolveApplyingReceiverType(declaration, receiverType);
+        // An unnamed indexer is named as its access is written, brackets after its receiver.
+        const isUnnamedIndexer = declaration.kind === 'indexer' && declaration.name === undefined;
 
         if (type === undefined || type === 'any' || type.kind === 'typeParameter') {
-            return declaration.name;
+            return isUnnamedIndexer ? '[]' : declaration.name;
         }
 
-        return `${type.kind === 'named' ? type.name : type.kind}.${declaration.name}`;
+        const typeName = type.kind === 'named' ? type.name : type.kind;
+
+        return isUnnamedIndexer ? `${typeName}[]` : `${typeName}.${declaration.name}`;
     }
 
 }

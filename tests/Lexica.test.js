@@ -127,6 +127,13 @@ describe('lexica', () => {
         expect(told).toEqual(['doubled']);
     });
 
+    it('names a used unnamed indexer, which declares no name, by its receiver type and the brackets its access is written with', () => {
+        const resolution = lexica.createRegistry().resolve('items[0]', { items: [1, 2] });
+
+        expect(resolution.usedDeclarations.map(({ name, qualifiedName, pointer }) => ({ name, qualifiedName, pointer }))).toEqual([{ name: null, qualifiedName: 'List[]', pointer: '/expression' }]);
+        expect(resolution.createEvaluator({ items: [1, 2] }).evaluate().value).toBe(1);
+    });
+
     it('creates a module from the vocabulary it declares', () => {
         const module = lexica.createModule('price', {
             members: [{ name: 'price', kind: 'property', target: 'String', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: () => 1 }],

@@ -31,23 +31,18 @@ export class Declarations {
     }
 
     /**
-     * A member of the kind: a property, or a member written with arguments, a function call unless it says it is an indexer, whose arguments are positional unless it says they are options.
+     * A member of the kind: a property; a function, whose arguments are positional unless it says they are options; or an indexer, whose one key is positional, named unless its name is null.
      * Its updates are those it is given, which every member the evaluator invokes declares, and a member without a target, which a null target gives, is a module member. A function the host invokes, `invokedBy: 'host'`, has no updates.
      */
-    static member(kind, name, target, result, { impl, parameters = [], updates, syntax, arguments: argumentForm, isDefault = false, invokedBy } = {}) {
-        const declaration = { name, kind, ...(invokedBy === undefined ? {} : { invokedBy }), ...(target === null ? {} : { target }), result };
+    static member(kind, name, target, result, { impl, parameters = [], updates, arguments: argumentForm, invokedBy } = {}) {
+        const declaration = { ...(name === null ? {} : { name }), kind, ...(invokedBy === undefined ? {} : { invokedBy }), ...(target === null ? {} : { target }), result };
 
         if (kind !== 'property') {
-            declaration.syntax = syntax ?? 'function-call';
             declaration.parameters = parameters;
 
-            if (parameters.length > 0) {
+            if (kind === 'function' && parameters.length > 0) {
                 declaration.arguments = argumentForm ?? 'positional';
             }
-        }
-
-        if (isDefault) {
-            declaration.default = true;
         }
 
         if (invokedBy !== 'host' && updates !== undefined) {
@@ -66,8 +61,13 @@ export class Declarations {
         return Declarations.member('property', name, target, result, options);
     }
 
-    /** A function, a member called or named as an indexer with its arguments. */
+    /** A function, a member called with its arguments. */
     static function(name, target, result, options) {
         return Declarations.member('function', name, target, result, options);
+    }
+
+    /** An indexer, given its key in brackets: a named one, `x.name[key]`, or, where its name is null, the unnamed one of its receivers, `x[key]`. */
+    static indexer(name, target, result, options) {
+        return Declarations.member('indexer', name, target, result, options);
     }
 }

@@ -26,8 +26,9 @@ describe('Vocabulary', () => {
     });
 
     it('declares the members of lists, the verbs that test a receiver, and the conversions between strings, numbers and Booleans, and nothing of any domain', () => {
-        expect(module.members.map(member => `${member.target}.${member.name}`)).toEqual([
-            'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>.item', 'T.is', 'T.has', 'T.supports', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where',
+        // The unnamed indexer has no name, and is written as its access is, brackets after the list.
+        expect(module.members.map(member => (member.name === undefined ? `${member.target}[]` : `${member.target}.${member.name}`))).toEqual([
+            'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'T.is', 'T.has', 'T.supports', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where',
         ]);
         expect(module.conversions.map(conversion => `${conversion.from} to ${conversion.to}`)).toEqual(['String to Number', 'Number to String', 'Boolean to String', 'String to Boolean']);
         expect(module.types).toEqual([]);
@@ -39,15 +40,18 @@ describe('Vocabulary', () => {
         const [declaration] = registry.getReceiverMembers(verb);
 
         expect(registry.getReceiverMembers(verb)).toHaveLength(1);
-        expect(declaration).toMatchObject({ kind: 'function', syntax: 'function-call', target: 'T', result: 'Boolean', updates: { changes: 'derived', reads: 'derived' } });
+        expect(declaration).toMatchObject({ kind: 'function', target: 'T', result: 'Boolean', updates: { changes: 'derived', reads: 'derived' } });
         expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'Boolean', parameters: ['T'], required: true }]);
         expect([read(verb, 'oat', { test: receiver => receiver === 'oat' }), read(verb, 'milk', { test: receiver => receiver === 'oat' })]).toEqual([true, false]);
     });
 
-    it('reads a list\'s count, its first and last item, and the item at a whole index from zero, null where there is none', () => {
+    it('reads a list\'s count, its first and last item, and, through its unnamed indexer, the item at a whole index from zero, null where there is none', () => {
+        const [unnamedIndexer] = registry.getUnnamedIndexers();
+
         expect(read('count', [1, 2, 3])).toBe(3);
         expect([read('first', [1, 2]), read('last', [1, 2]), read('first', [])]).toEqual([1, 2, null]);
-        expect([0, 2, -1, 1.5].map(index => read('item', ['a', 'b'], { index }))).toEqual(['a', null, null, null]);
+        expect(unnamedIndexer).toMatchObject({ kind: 'indexer', target: 'List<T>', result: 'T?', parameters: [{ name: 'index', kind: 'value', type: 'Number' }] });
+        expect([0, 2, -1, 1.5].map(index => unnamedIndexer.impl({ receiver: ['a', 'b'], args: { index }, env: {} }))).toEqual(['a', null, null, null]);
     });
 
     it('gives the greatest, the least and the sum of the numbers an expression gives the items, skipping the items it gives null, and keeps the items a predicate holds for', () => {

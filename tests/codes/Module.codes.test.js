@@ -3,7 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { withHome } from '../support/home.mjs';
 import { errorThrownBy, expectLexicaError, expectModuleError } from '../support/errors.mjs';
 import { constantUpdates } from '../support/updates.mjs';
-import { dataPropertyDeclarations, functionDeclaration, parameterDeclaration, propertyDeclaration } from '../support/declarations.mjs';
+import { dataPropertyDeclarations, functionDeclaration, indexerDeclaration, parameterDeclaration, propertyDeclaration } from '../support/declarations.mjs';
 
 const observable = observations => ({ changes: 'observable', reads: 'fresh', observations });
 
@@ -53,6 +53,9 @@ describe('the module error codes', () => {
         it('LEXICA4030: a field a declaration does not take', () => {
             expectModuleCode(creating({ members: [propertyDeclaration({ on: 'String' })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [propertyDeclaration({ syntax: 'function-call' })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer' })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [functionDeclaration({ default: true })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [indexerDeclaration({ arguments: 'positional' })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [propertyDeclaration({ updates: { ...constantUpdates, tolerence: 1 } })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ fixd: true })] })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [hostCall({ updates: constantUpdates })] }), 'LEXICA4030');
@@ -234,11 +237,7 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4053: a host call written as an indexer', () => {
-            expectModuleCode(creating({ members: [hostCall({ syntax: 'indexer', arguments: undefined, parameters: [parameterDeclaration({ type: 'String' })] })] }), 'LEXICA4053');
-        });
-
-        it('LEXICA4528: an indexer declared without a name', () => {
-            expectModuleCode(creating({ members: [functionDeclaration({ name: undefined, syntax: 'indexer', arguments: undefined, parameters: [parameterDeclaration({ type: 'String' })] })] }), 'LEXICA4528');
+            expectModuleCode(creating({ members: [indexerDeclaration({ invokedBy: 'host', updates: undefined })] }), 'LEXICA4053');
         });
 
         it('LEXICA4056: a host call taking a parameter other than a value parameter', () => {
@@ -259,31 +258,13 @@ describe('the module error codes', () => {
     });
 
     describe('of how a member is written', () => {
-        const key = [parameterDeclaration({ name: 'key', type: 'String' })];
-
-        it('LEXICA4530: a default on a member that is not an indexer', () => {
-            expectModuleCode(creating({ members: [functionDeclaration({ default: true })] }), 'LEXICA4530');
-            expect(expectModuleError(creating({ members: [functionDeclaration({ default: true })] })).message).toContain('which `[…]` invokes');
-        });
-
-        it('LEXICA4531: a function written as neither a function call nor an indexer', () => {
-            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'call' })] }), 'LEXICA4531');
-        });
-
         it('LEXICA4020: an indexer without exactly one required value parameter as its key', () => {
-            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer', parameters: [parameterDeclaration(), parameterDeclaration({ name: 'more' })] })] }), 'LEXICA4020');
+            expectModuleCode(creating({ members: [indexerDeclaration({ parameters: [parameterDeclaration(), parameterDeclaration({ name: 'more' })] })] }), 'LEXICA4020');
+            expectModuleCode(creating({ members: [indexerDeclaration({ name: 'setting', parameters: [parameterDeclaration({ required: false, default: 1 })] })] }), 'LEXICA4020');
         });
 
         it('LEXICA4022: a module member that is an indexer', () => {
-            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer', target: undefined, parameters: key })] }), 'LEXICA4022');
-        });
-
-        it('LEXICA4532: an indexer whose arguments are not positional', () => {
-            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer', arguments: 'options', parameters: key })] }), 'LEXICA4532');
-        });
-
-        it('LEXICA4533: an indexer declaring whether it is the default by what is not a Boolean', () => {
-            expectModuleCode(creating({ members: [functionDeclaration({ syntax: 'indexer', default: 'yes', parameters: key })] }), 'LEXICA4533');
+            expectModuleCode(creating({ members: [indexerDeclaration({ target: undefined })] }), 'LEXICA4022');
         });
 
         it('LEXICA4534: a function without parameters declaring the form of its arguments', () => {
@@ -565,16 +546,14 @@ describe('the module error codes', () => {
             expectModuleCode(registering(module('charts', { members: [propertyDeclaration()] }), module('graphs', { members: [propertyDeclaration()] })), 'LEXICA4551');
         });
 
-        const indexer = (name, target = 'String') => functionDeclaration({ name, target, syntax: 'indexer', default: true, parameters: [parameterDeclaration({ name: 'key', type: 'String' })] });
-
         it('LEXICA4068: two unnamed indexers for one receiver type of one module', () => {
-            expectModuleCode(registering(module('charts', { members: [indexer('setting'), indexer('option')] })), 'LEXICA4068');
-            expect(expectModuleError(registering(module('charts', { members: [indexer('setting'), indexer('option')] }))).message).toContain("'setting' is the default indexer of String already");
-            expect(registering(module('charts', withHome({ members: [indexer('setting', 'Light'), indexer('option', 'Device')] })))).not.toThrow();
+            expectModuleCode(registering(module('charts', { members: [indexerDeclaration(), indexerDeclaration()] })), 'LEXICA4068');
+            expect(expectModuleError(registering(module('charts', { members: [indexerDeclaration(), indexerDeclaration()] })))).toEqual({ message: expect.stringContaining('An unnamed indexer of String is declared already'), module: 'charts', declaration: '[]', declarationKey: 'kind' });
+            expect(registering(module('charts', withHome({ members: [indexerDeclaration({ target: 'Light' }), indexerDeclaration({ target: 'Device' })] })))).not.toThrow();
         });
 
-        it('LEXICA4550: another module\'s default indexer of an overlapping receiver', () => {
-            expectModuleCode(registering(module('charts', { members: [indexer('setting')] }), module('graphs', { members: [indexer('option')] })), 'LEXICA4550');
+        it('LEXICA4550: another module\'s unnamed indexer of an overlapping receiver', () => {
+            expectModuleCode(registering(module('charts', { members: [indexerDeclaration()] }), module('graphs', { members: [indexerDeclaration()] })), 'LEXICA4550');
         });
     });
 });

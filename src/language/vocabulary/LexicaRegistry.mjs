@@ -18,6 +18,9 @@ export class LexicaRegistry {
     /** @type {Map<string, object[]>} */
     #receiverMembers = new Map();
 
+    /** Every unnamed indexer registered, across every module, in the order registered: an indexer declared without a name, which no name finds. @type {object[]} */
+    #unnamedIndexers = [];
+
     /** Each structured type, by its identity, its module's name and its local name. @type {Map<string, object>} */
     #types = new Map();
 
@@ -104,8 +107,8 @@ export class LexicaRegistry {
                 ...(declarationKey === undefined ? {} : { declarationKey }),
             });
         };
-        // A member declared within a type is located at its type as well.
-        const failAt = declaration => (code, message, declarationName, declarationKey) => fail(code, message, declarationName, declarationKey, this.#containingTypes.get(declaration)?.name);
+        // A member declared within a type is located at its type as well, and an unnamed indexer as its access is written.
+        const failAt = declaration => (code, message, declarationName, declarationKey) => fail(code, message, declarationName ?? LexicaRegistry.#locatedNameOf(declaration), declarationKey, this.#containingTypes.get(declaration)?.name);
 
         // Module names are compared case-insensitively for uniqueness, each keeping its own spelling.
         const taken = [...this.#modules.keys()].find(name => name.toLowerCase() === module.name.toLowerCase());
@@ -202,9 +205,11 @@ export class LexicaRegistry {
             this.#observationTypes.set(type.name, type);
         }
 
-        // A module member has no receiver, so no receiver's member of its name finds it.
+        // A module member has no receiver, so no receiver's member of its name finds it, and an unnamed indexer has no name.
         for (const declaration of members) {
-            if (this.hasReceiver(declaration)) {
+            if (LexicaRegistry.#isUnnamedIndexer(declaration)) {
+                this.#unnamedIndexers.push(declaration);
+            } else if (this.hasReceiver(declaration)) {
                 this.#receiverMembers.set(declaration.name, [...this.getReceiverMembers(declaration.name), declaration]);
             }
         }
@@ -253,11 +258,6 @@ export class LexicaRegistry {
         return declaration.target === undefined ? [] : [declaration.target].flat();
     }
 
-    /** How a script writes the member: `access` for a property, `function-call` for a function called with arguments in parentheses, and `indexer` for one given its key in brackets. */
-    formOf(declaration) {
-        return declaration.kind === 'property' ? 'access' : declaration.syntax;
-    }
-
     /** The names of every receiver member declared, across every module; a module member, read through its namespace, is none of them. */
     get receiverMemberNames() {
         return [...this.#receiverMembers.keys()];
@@ -268,9 +268,19 @@ export class LexicaRegistry {
         return this.#modules.get(name);
     }
 
-    /** The indexers declared the default of their receivers, across every module. */
-    getDefaultIndexers() {
-        return [...this.#receiverMembers.values()].flat().filter(declaration => declaration.default === true);
+    /** The unnamed indexers, each declared without a name for its receivers, across every module. */
+    getUnnamedIndexers() {
+        return this.#unnamedIndexers;
+    }
+
+    /** Whether the member is an unnamed indexer: an indexer declared without a name, which brackets after its receiver invoke. */
+    static #isUnnamedIndexer(declaration) {
+        return declaration.kind === 'indexer' && declaration.name === undefined;
+    }
+
+    /** How a location names the declaration where it is given no name: an unnamed indexer as its access is written, and a conversion by its source and destination. */
+    static #locatedNameOf(declaration) {
+        return LexicaRegistry.#isUnnamedIndexer(declaration) ? '[]' : declaration.name;
     }
 
     /**
@@ -288,8 +298,9 @@ export class LexicaRegistry {
 
         if (!types.has(notation)) {
             const typeName = this.#containingTypes.get(declaration)?.name;
+            const declarationName = LexicaRegistry.#locatedNameOf(declaration) ?? LexicaModule.conversionNameOf(declaration);
             const fail = (code, message) => {
-                throw LexicaErrors.module(code, message, { module: this.getDeclaringModuleName(declaration), ...(typeName === undefined ? {} : { type: typeName }), declaration: declaration.name ?? LexicaModule.conversionNameOf(declaration) });
+                throw LexicaErrors.module(code, message, { module: this.getDeclaringModuleName(declaration), ...(typeName === undefined ? {} : { type: typeName }), declaration: declarationName });
             };
 
             types.set(notation, this.#resolveNotation(notation, this.#declaringModules.get(declaration), fail));
@@ -705,7 +716,7 @@ export class LexicaRegistry {
     }
 
     /**
-     * Refuses a member a registered one of its name already answers on one of the same receivers, and a second default indexer of a receiver; a module member of a name its module declares already is refused when the module
+     * Refuses a member a registered one of its name already answers on one of the same receivers, and a second unnamed indexer of a receiver; a module member of a name its module declares already is refused when the module
      * is created, and one beside a member of its name on a receiver registers, as the namespace reaches both.
      */
     #validateMemberCollisions(members, failAt) {
@@ -719,26 +730,28 @@ export class LexicaRegistry {
                 return;
             }
 
-            this.#validateReceiverCollisions(declaration, [...this.getReceiverMembers(declaration.name), ...earlier], fail);
-
-            // A receiver type has one unnamed indexer of a module at most, and another module's default indexer of an overlapping receiver is refused in alpha.33, which has no owner to select one.
-            if (declaration.default === true) {
-                for (const other of this.getDefaultIndexers()) {
+            // A receiver type has one unnamed indexer of a module at most, and another module's unnamed indexer of an overlapping receiver is refused in alpha.33, which has no owner to select one.
+            if (LexicaRegistry.#isUnnamedIndexer(declaration)) {
+                for (const other of this.getUnnamedIndexers()) {
                     const overlapping = this.#getOverlappingReceiver(declaration, other);
 
                     if (overlapping !== undefined) {
-                        fail('LEXICA4550', `'${other.name}' is the default indexer of ${overlapping} already`, declaration.name, 'default');
+                        fail('LEXICA4550', `An unnamed indexer of ${overlapping} is declared already, by the module '${this.getDeclaringModuleName(other)}'`, undefined, 'kind');
                     }
                 }
 
-                for (const other of members.slice(0, index).filter(member => member.default === true)) {
+                for (const other of members.slice(0, index).filter(member => LexicaRegistry.#isUnnamedIndexer(member))) {
                     const shared = this.#getSharedReceiver(declaration, other);
 
                     if (shared !== undefined) {
-                        fail('LEXICA4068', `'${other.name}' is the default indexer of ${shared} already`, declaration.name, 'default');
+                        fail('LEXICA4068', `An unnamed indexer of ${shared} is declared already`, undefined, 'kind');
                     }
                 }
+
+                return;
             }
+
+            this.#validateReceiverCollisions(declaration, [...this.getReceiverMembers(declaration.name), ...earlier], fail);
         });
     }
 

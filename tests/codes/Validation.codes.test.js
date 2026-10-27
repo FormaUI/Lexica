@@ -9,6 +9,7 @@ const { property, valueParameter, expressionParameter, functionParameter } = lex
 
 /** A member a script calls, of a receiver of the target or of none for a module member, unevaluated by these tests. */
 const call = (name, target, result, options = {}) => lexica.declarations.function(name, target, result, { updates: constantUpdates, ...options });
+const indexer = (name, target, result, options = {}) => lexica.declarations.indexer(name, target, result, { updates: constantUpdates, ...options });
 
 /** A member its host invokes. */
 
@@ -26,7 +27,7 @@ const createShop = () => lexica.createModule('shop', withHome({
         property('partner', 'String', 'String?', { updates: constantUpdates }),
         property('device', 'String', 'Device', { updates: constantUpdates }),
         property('open', null, 'Boolean', { updates: constantUpdates }),
-        call('letter', 'String', 'String?', { syntax: 'indexer', parameters: [valueParameter('index', 'Number')] }),
+        indexer('letter', 'String', 'String?', { parameters: [valueParameter('index', 'Number')] }),
         call('pad', 'String', 'String', { parameters: [valueParameter('width', 'Number')] }),
         call('wipe', 'String', 'String'),
         call('brew', 'String', 'Number', { arguments: 'options', parameters: [valueParameter('strength', 'Number'), valueParameter('milk', 'Boolean', { default: false })] }),
@@ -133,7 +134,7 @@ describe('the codes of resolution', () => {
         it('LEXICA3042, a qualified form given a function as its receiver', () => expectResolutionCode('let g = x => x\nreturn shop.wipe(g)', 'LEXICA3042'));
         it('LEXICA3042, an expression argument of the wrong type', () => expectResolutionCode('xs.max("a")', 'LEXICA3042'));
         it('LEXICA3011, a named indexer called through its namespace', () => {
-            const words = lexica.createModule('words', { members: [call('glyph', 'String', 'String?', { syntax: 'indexer', parameters: [valueParameter('index', 'Number')] })] });
+            const words = lexica.createModule('words', { members: [indexer('glyph', 'String', 'String?', { parameters: [valueParameter('index', 'Number')] })] });
 
             expectResolutionCode('words.glyph(s, 1)', 'LEXICA3011', 'validation', values, [words]);
         });

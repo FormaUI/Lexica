@@ -86,8 +86,8 @@ describe('reference types', () => {
             members: [
                 property('active', 'Device', 'Boolean', { updates: constantUpdates, impl: () => false }),
                 property('active', 'Light', 'Boolean', { updates: constantUpdates, impl: () => true }),
-                fn('setting', 'Device', 'String?', { syntax: 'indexer', isDefault: true, updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'device' }),
-                fn('lightSetting', 'Light', 'String?', { syntax: 'indexer', isDefault: true, updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'light' }),
+                lexica.declarations.indexer(null, 'Device', 'String?', { updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'device' }),
+                lexica.declarations.indexer(null, 'Light', 'String?', { updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'light' }),
             ],
         }));
         const registry = lexica.createRegistry([active]);
@@ -106,7 +106,7 @@ describe('reference types', () => {
         const settings = (propertyTarget, indexerTarget) => lexica.createRegistry([lexica.createModule('home', withHome({
             members: [
                 property('setting', propertyTarget, 'String', { updates: constantUpdates, impl: () => 'property' }),
-                fn('setting', indexerTarget, 'String?', { syntax: 'indexer', updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'indexer' }),
+                lexica.declarations.indexer('setting', indexerTarget, 'String?', { updates: constantUpdates, parameters: [valueParameter('key', 'String')], impl: () => 'indexer' }),
             ],
         }))]);
         const evaluateWith = (registry, text, values) => registry.resolve(text, values).createEvaluator(values).evaluate().value;

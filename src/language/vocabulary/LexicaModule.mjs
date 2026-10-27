@@ -7,13 +7,11 @@ import { LexicaErrors } from '../LexicaError.mjs';
 import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 
-const MEMBER_KINDS = ['property', 'function'];
+/** The kinds of member a module declares: a property, read by its name; a function, called; and an indexer, given its key in brackets, after its name or, an unnamed one, after its receiver. */
+const MEMBER_KINDS = ['property', 'function', 'indexer'];
 
 /** Who invokes a function: the evaluator, as it evaluates the script, or the host, which the script's host call is prepared for. */
 const INVOKERS = ['evaluator', 'host'];
-
-/** How a member that is no property is written: a function call, `it.device("lamp")`, or a named indexer, `it.setting["mode"]`. */
-const SYNTAXES = ['function-call', 'indexer'];
 
 /** The form a member's arguments take: one for each parameter in order, or one object whose fields supply them. */
 const ARGUMENT_FORMS = ['positional', 'options'];
@@ -55,8 +53,13 @@ const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'selectableT
 const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'impl'];
 const MEMBER_KEYS_BY_KIND = {
     property: ['updates'],
-    function: ['invokedBy', 'syntax', 'arguments', 'default', 'parameters', 'updates'],
+    function: ['invokedBy', 'arguments', 'parameters', 'updates'],
+    // An indexer's arguments are its one key, positional, so it takes no argument form; who invokes it is read to refuse the host.
+    indexer: ['invokedBy', 'parameters', 'updates'],
 };
+
+/** How a location names an unnamed indexer, which declares no name: as a script writes its access after the receiver. */
+const UNNAMED_INDEXER_NAME = '[]';
 const UPDATES_KEYS = ['changes', 'reads', 'misses', 'tolerance', 'observations'];
 const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameters'];
 /** The keys each kind of type takes, so a key its kind does not take, a structured type's `fields` among them, is refused rather than ignored. */
@@ -783,15 +786,12 @@ export class LexicaModule {
             fail('LEXICA4504', `A member is an object declaring ${memberKeys.join(', ')} and what its kind takes`);
         }
 
-        const name = member.name;
+        // An unnamed indexer declares no name, and is located as its access is written.
+        const isUnnamedIndexer = member.kind === 'indexer' && member.name === undefined;
+        const name = isUnnamedIndexer ? UNNAMED_INDEXER_NAME : member.name;
 
         // A member is read after a dot or, an indexer, after a colon, where only a member's name stands, so a keyword names one.
-        // An indexer is named in alpha.33, where `[…]` reads a default one by its name.
-        if (name === undefined && member.syntax === 'indexer') {
-            fail('LEXICA4528', 'An indexer is named as a member is', String(name), 'name');
-        }
-
-        if (!Names.isIdentifier(name)) {
+        if (!isUnnamedIndexer && !Names.isIdentifier(name)) {
             fail(name === undefined ? 'LEXICA4002' : 'LEXICA4523', 'A member is named as a name is, a keyword among them', String(name), 'name');
         }
 
@@ -799,7 +799,7 @@ export class LexicaModule {
             fail('LEXICA4524', `A member is one of ${MEMBER_KINDS.join(', ')}`, name, 'kind');
         }
 
-        LexicaModule.#validateKeys(member, [...memberKeys, ...kindKeys], isDataProperty ? "A property of a structured type's data" : `A member of kind '${member.kind}'`, fail);
+        LexicaModule.#validateKeys(member, [...memberKeys, ...kindKeys], isDataProperty ? "A property of a structured type's data" : `A member of kind '${member.kind}'`, fail, isUnnamedIndexer ? UNNAMED_INDEXER_NAME : undefined);
 
         const hasReceiver = isWithinType || member.target !== undefined;
 
@@ -841,7 +841,7 @@ export class LexicaModule {
         }
 
         LexicaModule.#validateSelections(member, parameters, name, fail);
-        LexicaModule.#validateSyntax(member, parameters, hasReceiver, name, fail);
+        LexicaModule.#validateForm(member, parameters, hasReceiver, name, fail);
 
         if (kindKeys.includes('updates') && !isInvokedByHost) {
             // A property declared directly in a structured type without updates is its data, which Lexica reads; any other property declares how it changes and how it reads, as a function does.
@@ -859,19 +859,17 @@ export class LexicaModule {
         LexicaModule.#validateImplementation(member, name, fail);
     }
 
-    /** Creates the stored copy of a valid member: its syntax a function call where it is no property and says none, an indexer's arguments positional, its updates' observations none where it names none, and its parameters each without its keys that hold undefined. */
+    /** Creates the stored copy of a valid member: its updates' observations none where it names none, and its parameters each without its keys that hold undefined. */
     static #createMemberCopy(member) {
         const parameters = (member.parameters ?? []).map(parameter => LexicaModule.#withoutUndefinedValues(parameter));
-        const syntax = member.kind === 'property' ? {} : { syntax: 'function-call' };
-        const argumentForm = member.syntax === 'indexer' ? { arguments: 'positional' } : {};
         const updates = member.updates === undefined ? {} : { updates: { observations: [], ...LexicaModule.#withoutUndefinedValues(member.updates) } };
 
         // A property is read with no arguments, so it keeps an empty list of parameters, which every member then has.
-        return LexicaModule.#copyOf({ ...syntax, ...argumentForm, ...member, parameters, ...updates });
+        return LexicaModule.#copyOf({ ...member, parameters, ...updates });
     }
 
     /**
-     * Refuses what a host call cannot take: updates, since it is never evaluated; an implementation, since its host invokes it; the indexer syntax; and a parameter other than a value parameter, whose argument is prepared as a value its host keeps.
+     * Refuses what a host call cannot take: updates, since it is never evaluated; an implementation, since its host invokes it; an indexer's kind, since it is a function; and a parameter other than a value parameter, whose argument is prepared as a value its host keeps.
      */
     static #validateHostInvokedFunction(member, parameters, name, fail) {
         if (member.updates !== undefined) {
@@ -882,8 +880,8 @@ export class LexicaModule {
             fail('LEXICA4030', 'Its host invokes it, so its module gives Lexica no implementation of it', name, 'impl');
         }
 
-        if (member.syntax === 'indexer') {
-            fail('LEXICA4053', 'A function the host invokes is written as a function call, never as an indexer', name, 'syntax');
+        if (member.kind === 'indexer') {
+            fail('LEXICA4053', 'A function the host invokes is written as a function call, never as an indexer', name, 'invokedBy');
         }
 
         const unprepared = parameters.find(parameter => parameter.kind !== 'value');
@@ -913,50 +911,29 @@ export class LexicaModule {
     }
 
     /**
-     * Checks how the member is written, then the form its arguments take: a property is accessed and takes none, and any other member is a function call by default, whose arguments are positional, one for each parameter in order,
-     * so none that is required follows one that is optional, or an options object; or an indexer, a function whose one key is its one parameter, a required value parameter, so its argument is positional. A member without a target has no receiver to index.
+     * Checks how the member is written, by its kind, then the form its arguments take: a property is accessed and takes none; a function is called, its arguments positional, one for each parameter in order, so none that
+     * is required follows one that is optional, or an options object; and an indexer is given its one key in brackets.
      */
-    static #validateSyntax(member, parameters, hasReceiver, name, fail) {
-        if (member.default !== undefined && member.syntax !== 'indexer') {
-            fail('LEXICA4530', 'Only an indexer is the default of its receivers, which `[…]` invokes', name, 'default');
+    static #validateForm(member, parameters, hasReceiver, name, fail) {
+        if (member.kind === 'indexer') {
+            LexicaModule.#validateIndexer(parameters, hasReceiver, name, fail);
         }
 
-        if (member.kind === 'property') {
-            return;
+        if (member.kind === 'function') {
+            LexicaModule.#validateArgumentForm(member, parameters, name, fail);
         }
-
-        if (member.syntax !== undefined && !SYNTAXES.includes(member.syntax)) {
-            fail('LEXICA4531', `It is written as ${SYNTAXES.join(' or ')}`, name, 'syntax');
-        }
-
-        // An indexer's checks are its own, and its arguments are its one key, so a function's argument form is never asked of it.
-        if (member.syntax === 'indexer') {
-            LexicaModule.#validateIndexer(member, parameters, hasReceiver, name, fail);
-
-            return;
-        }
-
-        LexicaModule.#validateArgumentForm(member, parameters, name, fail);
     }
 
-    /** Checks an indexer: a function whose key is its one parameter, a required value parameter, written after its receiver, so its arguments are positional, and whose `default` is a Boolean. */
-    static #validateIndexer(member, parameters, hasReceiver, name, fail) {
+    /** Checks an indexer, named or unnamed: its key is its one parameter, a required value parameter, given positionally in brackets after its receiver, so a member without a receiver is none. */
+    static #validateIndexer(parameters, hasReceiver, name, fail) {
         const [parameter] = parameters;
 
         if (parameters.length !== 1 || parameter.kind !== 'value' || !parameter.required) {
-            fail('LEXICA4020', 'An indexer is a function whose key is its one parameter, a required value parameter', name, 'syntax');
+            fail('LEXICA4020', 'An indexer takes its key as its one parameter, a required value parameter', name, 'parameters');
         }
 
         if (!hasReceiver) {
-            fail('LEXICA4022', 'An indexer is written after its receiver, and a member without a target has none', name, 'syntax');
-        }
-
-        if (member.arguments !== undefined && member.arguments !== 'positional') {
-            fail('LEXICA4532', "An indexer's key is its one argument, so its arguments are positional", name, 'arguments');
-        }
-
-        if (member.default !== undefined && typeof member.default !== 'boolean') {
-            fail('LEXICA4533', 'It declares whether it is the default indexer of its receivers as a Boolean', name, 'default');
+            fail('LEXICA4022', 'An indexer is written after its receiver, and a member without a target has none', name, 'kind');
         }
     }
 

@@ -5,7 +5,7 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../../support/home.mjs';
 import { expectModuleError } from '../../support/errors.mjs';
-import { dataPropertyDeclarations, functionDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
+import { dataPropertyDeclarations, functionDeclaration, indexerDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
 
 describe('LexicaRegistry', () => {
     const own = () => new LexicaModule('charts', {
@@ -166,7 +166,7 @@ describe('LexicaRegistry', () => {
     });
 
     describe('the queries a declaration is read through', () => {
-        const indexer = functionDeclaration({ name: 'letter', syntax: 'indexer', target: 'String', result: 'String?' });
+        const indexer = indexerDeclaration({ name: 'letter' });
         const declaring = () => new LexicaModule('home', {
             types: [{ name: 'Room', kind: 'structured', members: dataPropertyDeclarations({ area: 'Number' }) }],
             members: [propertyDeclaration({ name: 'now', target: undefined }), propertyDeclaration({ name: 'size', target: 'Room' }), functionDeclaration({ name: 'size', target: 'String' }), indexer],
@@ -179,11 +179,14 @@ describe('LexicaRegistry', () => {
             expect(home.members.map(member => registry.hasReceiver(member))).toEqual([false, true, true, true]);
         });
 
-        it('give the form a script writes each member in', () => {
-            const home = declaring();
-            const registry = new LexicaRegistry([home]);
+        it('answer the unnamed indexers, which no name finds, apart from the named ones, which their names do', () => {
+            const unnamed = indexerDeclaration();
+            const registry = new LexicaRegistry([new LexicaModule('home', { members: [indexerDeclaration({ name: 'letter' }), unnamed] })]);
 
-            expect(home.members.map(member => registry.formOf(member))).toEqual(['access', 'access', 'function-call', 'indexer']);
+            expect(registry.getUnnamedIndexers()).toEqual([expect.objectContaining({ kind: 'indexer', parameters: unnamed.parameters })]);
+            expect(registry.getUnnamedIndexers()[0]).not.toHaveProperty('name');
+            expect(registry.getReceiverMembers('letter')).toEqual([expect.objectContaining({ kind: 'indexer', name: 'letter' })]);
+            expect(registry.receiverMemberNames).toEqual(['letter']);
         });
 
         it('find the members of one name a module declares, its module members among them, and none of another module\'s', () => {

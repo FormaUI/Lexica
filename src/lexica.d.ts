@@ -294,19 +294,16 @@ export interface LexicaImplementationInput {
  * A property answers a value, and a function the evaluator invokes its result; a script ending in a call of a function the host invokes ends in a host call, and the function has no implementation Lexica calls.
  */
 export interface LexicaMemberDeclaration {
-    /** The Lexica name. */
-    name: string;
-    kind: 'property' | 'function';
+    /** The Lexica name; left out for an unnamed indexer, which brackets after its receiver invoke. */
+    name?: string;
+    /** A property, read by its name; a function, called; or an indexer, given its one key in brackets, after its name, `it.setting["mode"]`, or, unnamed, after its receiver, `rooms[0]`. */
+    kind: 'property' | 'function' | 'indexer';
     /** Who invokes a function: the evaluator, the default, or the host, which a script ending in a call of it is prepared for; a function the host invokes takes value parameters alone, and neither updates nor an implementation. */
     invokedBy?: 'evaluator' | 'host';
     /** The types it applies to, in Lexica's notation, `any`, or a type parameter `T` that binds the receiver's type; none for a module member, and none for a member a type declares within it, whose receiver the type is. */
     target?: string | string[];
-    /** How a member that is no property is written: a function call, `it.device("lamp")`, the default, or a named indexer, `it.setting["mode"]`, a function whose one required value parameter is its key. A property takes none. */
-    syntax?: 'function-call' | 'indexer';
-    /** The form its arguments take where it has parameters, an optional one included: one for each parameter, in order, the required ones before the optional ones, or one options object whose fields supply them; an indexer's is positional. */
+    /** The form its arguments take where it has parameters, an optional one included: one for each parameter, in order, the required ones before the optional ones, or one options object whose fields supply them; a function alone takes it, since an indexer's one key is positional. */
     arguments?: 'positional' | 'options';
-    /** Whether an indexer is the default of its receivers, which `[…]` invokes, as `item` is a list's; a module designates one at most for a receiver type. */
-    default?: boolean;
     /** Its parameters; a property takes none. */
     parameters?: LexicaParameterDeclaration[];
     /** The type of its result, in Lexica's notation; a function the host invokes declares the type of each value its host supplies, left out where it supplies none. */
@@ -498,6 +495,8 @@ export interface LexicaDeclarations {
     property(name: string, target: string | readonly string[] | null, result: string, options?: object): LexicaMemberDeclaration;
     /** A member a script calls with arguments, or, with `invokedBy: 'host'`, that its host invokes, its result left out where its host supplies nothing. */
     function(name: string, target: string | readonly string[] | null, result: string | undefined, options?: object): LexicaMemberDeclaration;
+    /** An indexer, given its key in brackets: a named one, `x.name[key]`, or, where its name is null, the unnamed one of its receivers, `x[key]`. */
+    indexer(name: string | null, target: string | readonly string[] | null, result: string, options?: object): LexicaMemberDeclaration;
     valueParameter(name: string, type: string, options?: object): LexicaParameterDeclaration;
     expressionParameter(type: string, options?: object): LexicaParameterDeclaration;
     predicateParameter(options?: object): LexicaParameterDeclaration;

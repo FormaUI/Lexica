@@ -40,8 +40,8 @@ export class Vocabulary {
                 Declarations.property('first', 'List<T>', 'T?', { updates: derivedUpdates, impl: ({ receiver }) => receiver.at(0) ?? null }),
                 Declarations.property('last', 'List<T>', 'T?', { updates: derivedUpdates, impl: ({ receiver }) => receiver.at(-1) ?? null }),
                 // The item at a whole index from zero, null for any other index, a negative one included, which never counts from the end.
-                Declarations.function('item', 'List<T>', 'T?', {
-                    syntax: 'indexer', isDefault: true, updates: derivedUpdates, parameters: [Declarations.valueParameter('index', 'Number')],
+                Declarations.indexer(null, 'List<T>', 'T?', {
+                    updates: derivedUpdates, parameters: [Declarations.valueParameter('index', 'Number')],
                     impl: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
                 }),
                 // The verbs, each answering what its test answers of its receiver, a function of the receiver's own type that answers a Boolean, so each reads and changes as its test does.
