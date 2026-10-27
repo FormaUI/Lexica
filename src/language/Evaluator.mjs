@@ -140,6 +140,9 @@ export class Evaluator {
     /** The compiled invocations of this evaluator's declarations, by each declaration, one for each result type it answers. @type {Map<object, object[]>} */
     #compiledInvocations;
 
+    /** Whether the result's type holds a value of Any, which is data or not as it is evaluated, so each result is checked to be data. */
+    #checksResultData;
+
     #registry;
     #resolvedDefinition;
     #parameterBindings;
@@ -183,6 +186,12 @@ export class Evaluator {
     #projectionContext = null;
 
     /**
+     * The deferred access whose member last answered null, which a deferred access it is the receiver of reads, and clears, to tell that null from one an optional access before it met; null where none is to be read.
+     * @type {object | null}
+     */
+    #nullAnswer = null;
+
+    /**
      * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry The vocabulary the request was resolved against.
      * @param {import('./ResolvedDefinition.mjs').ResolvedDefinition} resolvedDefinition The resolved definition to read.
      * @param {import('./ParameterBindings.mjs').ParameterBindings} parameterBindings What the request's parameters are bound to.
@@ -199,13 +208,16 @@ export class Evaluator {
         let compilation = Evaluator.#compilationCache.get(resolvedDefinition);
 
         if (compilation === undefined || compilation.registry !== registry) {
-            compilation = { registry, functions: new Map(), arguments: new Map(), invocations: new Map() };
+            const { type } = resolvedDefinition;
+
+            compilation = { registry, functions: new Map(), arguments: new Map(), invocations: new Map(), checksResultData: type !== null && !registry.isData(type) };
             Evaluator.#compilationCache.set(resolvedDefinition, compilation);
         }
 
         this.#compiledFunctions = compilation.functions;
         this.#compiledArguments = compilation.arguments;
         this.#compiledInvocations = compilation.invocations;
+        this.#checksResultData = compilation.checksResultData;
     }
 
     /**
@@ -222,7 +234,7 @@ export class Evaluator {
      * It answers a prepared call, with its declaration, its receiver, its arguments by parameter name and its definition pointer, as an invocation request names its call, whose `project` projects each value its host supplies where the call declares a result; or a skipped call where the
      * receiver, or an argument whose parameter propagates null, is null, or the call has no declaration yet, its receiver's type unknown, so there is nothing to invoke. Each prepared call keeps the locals it was prepared with, so the prepared
      * calls of one evaluator stay apart.
-     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, pointer: string, project?: (value: unknown, hooks?: EvaluationHooks | null) => Evaluation } | { kind: 'skipped', pointer: string }}
+     * @returns {{ kind: 'prepared', declaration: object, receiver: unknown, args: Record<string, unknown>, pointer: string, isDeferred: false, project?: (value: unknown, hooks?: EvaluationHooks | null) => Evaluation } | { kind: 'skipped', pointer: string }}
      */
     prepareHostCall() {
         const { hostCall } = this.#resolvedDefinition;
@@ -255,7 +267,8 @@ export class Evaluator {
             return Object.freeze({ kind: 'skipped', pointer });
         }
 
-        const call = takesReceiver ? { kind: 'prepared', declaration, receiver, args, pointer } : { kind: 'prepared', declaration, args, pointer };
+        // Resolution selects every host call, so none is deferred.
+        const call = takesReceiver ? { kind: 'prepared', declaration, receiver, args, pointer, isDeferred: false } : { kind: 'prepared', declaration, args, pointer, isDeferred: false };
 
         // A call whose host supplies nothing has nothing to project.
         if (declaration.result !== undefined) {
@@ -437,6 +450,17 @@ export class Evaluator {
             case 'equality': {
                 const left = this.#getCompiledFunction(node.left);
                 const right = this.#getCompiledFunction(node.right);
+
+                if (this.#resolvedDefinition.resolutionOf(node)?.isChecked === true) {
+                    return (evaluator, context) => {
+                        const leftValue = left(evaluator, context);
+                        const rightValue = right(evaluator, context);
+
+                        evaluator.#requireComparable(node, leftValue, rightValue);
+
+                        return leftValue === rightValue;
+                    };
+                }
 
                 return (evaluator, context) => {
                     const value = left(evaluator, context);
@@ -843,6 +867,10 @@ export class Evaluator {
             return () => delegate;
         }
 
+        if (resolution?.kind === 'deferred') {
+            return this.#compileDeferredAccess(node, resolution);
+        }
+
         if (resolution === undefined || resolution.kind === 'computedPropertyAccess' || (resolution.kind === 'invocation' && resolution.candidates !== undefined)) {
             return (evaluator, context) => evaluator.#evaluateMember(node, context);
         }
@@ -929,6 +957,311 @@ export class Evaluator {
         return invocation;
     }
 
+    /**
+     * An access on a value of Any, its member selected as it is evaluated, by the actual type of its receiver's value, as deferred member selection sets out. A null receiver answers null where the access is optional, or where an
+     * optional access before it in its chain met null, which ends the chain, and fails the access otherwise (LEXICA5022), its arguments never evaluated. A plain object's own object field is read by its name; any other access
+     * is selected among the candidates its resolution kept, and is read or invoked as its selection says, its arguments evaluated after its receiver in the order they are written.
+     */
+    #compileDeferredAccess(node, resolution) {
+        const { receiverNode } = resolution;
+        const evaluateReceiver = this.#getCompiledFunction(receiverNode);
+        const evaluateArguments = resolution.arguments.map(argument => this.#getCompiledFunction(argument.node));
+        const followsOptionalAccess = Evaluator.#followsOptionalAccess(receiverNode);
+        const written = Evaluator.#writtenNameOf(node);
+        // The selection made for each actual type the access meets, by the type's qualified text. It is kept with the compilation, which its resolved definition and its registry hold, so a registry whose contents changed,
+        // which resolves anew, never reads it, and it is released with the resolved definition. It saves selecting, binding the type parameters the receiver writes and compiling the parameters' checks at every evaluation.
+        const selections = new Map();
+
+        return (evaluator, context) => {
+            const receiver = evaluateReceiver(evaluator, context);
+
+            if (receiver === null) {
+                // A deferred access that answered null itself met no null before it, so no optional access ended its chain.
+                const isAnswered = evaluator.#nullAnswer === receiverNode;
+
+                evaluator.#nullAnswer = null;
+
+                if (node.optional === true || (followsOptionalAccess && !isAnswered)) {
+                    return null;
+                }
+
+                evaluator.#fail('LEXICA5022', `'${written}' is read on a value of Any, and its receiver is null: write '?.' before it to read it where its receiver is not null`, evaluator.#pointerOf(node));
+            }
+
+            const receiverType = evaluator.#getActualType(receiver, `the access '${written}'`, evaluator.#failSelectionOf(node));
+            // A plain object's object fields are its data, found on each object, since objects of one type need not hold the same fields.
+            const isObjectField = node.kind === 'member' && receiverType.kind === 'object' && Object.hasOwn(receiver, node.name);
+            const value = isObjectField ? evaluator.#readStoredValue(receiver, node.name) : evaluator.#evaluateDeferredSelection(node, resolution.candidates, receiver, receiverType, selections, evaluateArguments, context);
+
+            if (value === null) {
+                evaluator.#nullAnswer = node;
+            }
+
+            return value;
+        };
+    }
+
+    /**
+     * Carries out a deferred access on a receiver of its actual type, as the selection made at the access's first meeting of that type says, the selection kept for every later one: a property of a structured type's data is
+     * read from the data, and any other member is invoked with the values its arguments give, its request marked deferred. A selection that fails, fails each evaluation that meets it.
+     */
+    #evaluateDeferredSelection(node, candidates, receiver, receiverType, selections, evaluateArguments, context) {
+        const key = receiverType.toString(true);
+        let selection = selections.get(key);
+
+        if (selection === undefined) {
+            selection = this.#selectDeferred(node, candidates, receiverType);
+            selections.set(key, selection);
+        }
+
+        if (selection.kind === 'failure') {
+            this.#fail(selection.code, selection.message, this.#pointerOf(node));
+        }
+
+        if (selection.kind === 'dataProperty') {
+            return this.#readStoredValue(receiver, selection.name);
+        }
+
+        const args = this.#bindDeferredArguments(node, selection, receiverType, evaluateArguments.map(evaluate => evaluate(this, context)));
+
+        if (args === null) {
+            return null;
+        }
+
+        return this.#invokeImplementation(args.invocation, receiver, args.values, node, true);
+    }
+
+    /**
+     * The selection a deferred access makes on a receiver of the type, through the selector, as an access its receiver's type selects during resolution: a property of a structured type's data, by its name; a member to
+     * invoke, with the type arguments its receiver binds, each parameter's declared type, the check of each a type parameter of its own leaves unwritten, and its invocation where it declares none; or the failure of a type
+     * that has no applicable candidate, or several none is more specific than, LEXICA5012, and of a host call, LEXICA5013, which resolution alone selects.
+     */
+    #selectDeferred(node, candidates, receiverType) {
+        const written = Evaluator.#writtenNameOf(node);
+        const outcome = this.#registry.memberSelector.select(candidates, receiverType);
+
+        if (outcome.kind === 'ambiguous') {
+            const modules = outcome.declarations.map(declaration => `'${this.#registry.getDeclaringModuleName(declaration)}'`);
+
+            return { kind: 'failure', code: 'LEXICA5012', message: `'${written}' on ${receiverType}, the type its receiver's value is of, is declared by ${modules.join(' and ')}, none of them its owner and none more specific than the others` };
+        }
+
+        if (outcome.kind !== 'selected') {
+            return { kind: 'failure', code: 'LEXICA5012', message: `'${written}' is not available on ${receiverType}, the type its receiver's value is of` };
+        }
+
+        const { declaration } = outcome;
+
+        if (LexicaModule.isInvokedByHost(declaration)) {
+            return {
+                kind: 'failure',
+                code: 'LEXICA5013',
+                message: `'${written}' on ${receiverType} is a host call, which its host invokes and resolution alone selects: make its receiver known, as a cast does, or select its extension explicitly`,
+            };
+        }
+
+        if (this.#registry.isDataProperty(declaration)) {
+            return { kind: 'dataProperty', name: declaration.name };
+        }
+
+        const typeArguments = this.#registry.typeChecker.inferReceiverTypeArguments(declaration, receiverType) ?? new Map();
+        const hasOwnTypeParameters = (declaration.typeParameters ?? []).length > 0;
+        const parameters = (declaration.parameters ?? []).map(parameter => {
+            const declaredType = this.#registry.getDeclaredType(declaration, parameter.type).resolveTypeParameters(typeArguments);
+            const isOfType = hasOwnTypeParameters ? null : Evaluator.#compileTypeCheck(declaredType, this.#registry, `the argument '${parameter.name}' of '${written}'`);
+
+            return { parameter, declaredType, isOfType };
+        });
+        const resultType = this.#registry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(typeArguments);
+
+        return { kind: 'invocation', declaration, written, typeArguments, parameters, invocation: hasOwnTypeParameters ? null : this.#getCompiledInvocation(declaration, resultType) };
+    }
+
+    /**
+     * The arguments a deferred call gives the member its selection invokes, by parameter name, with the invocation of the result type they bind: the values written in order, or the object fields of the one plain object a
+     * member taking options is given, each parameter left out taking its default. It answers null where a null value's parameter propagates null. A value whose parameter it doesn't satisfy fails the call (LEXICA5021), and
+     * so do too many values, a parameter none supplies that requires one, and a parameter a value never satisfies, a function's, an expression's or a fixed one's (LEXICA5012).
+     */
+    #bindDeferredArguments(node, selection, receiverType, values) {
+        const { declaration, written, parameters } = selection;
+        const pointer = this.#pointerOf(node);
+        const on = `'${written}' on ${receiverType}`;
+        const supplied = new Map();
+
+        if (declaration.arguments === 'options' && values.length > 0) {
+            const [options] = values;
+
+            if (values.length > 1 || !ObjectUtils.isPlainObject(options)) {
+                this.#fail('LEXICA5012', `${on} takes its arguments as the object fields of one object`, pointer);
+            }
+
+            for (const [name, value] of Object.entries(options)) {
+                if (!parameters.some(({ parameter }) => parameter.name === name)) {
+                    this.#fail('LEXICA5012', `${on} has no parameter '${name}'; it takes ${parameters.map(({ parameter }) => parameter.name).join(', ')}`, pointer);
+                }
+
+                supplied.set(name, value);
+            }
+        } else {
+            if (values.length > parameters.length) {
+                this.#fail('LEXICA5012', `${on} takes ${parameters.some(({ parameter }) => !parameter.required) ? 'at most ' : ''}${parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`}, and is given ${values.length}`, pointer);
+            }
+
+            values.forEach((value, index) => supplied.set(parameters[index].parameter.name, value));
+        }
+
+        const args = {};
+        const typeArguments = new Map(selection.typeArguments);
+
+        for (const { parameter, declaredType } of parameters) {
+            if (!supplied.has(parameter.name)) {
+                if (parameter.required) {
+                    this.#fail('LEXICA5012', `${on} requires the argument '${parameter.name}'`, pointer);
+                }
+
+                args[parameter.name] = parameter.default;
+                continue;
+            }
+
+            if (parameter.kind === 'expression' || parameter.kind === 'predicate' || parameter.kind === 'function' || parameter.fixed === true) {
+                const taken = parameter.fixed === true ? 'a fixed value, which selects its result type' : parameter.kind === 'function' ? 'a function' : `an ${parameter.kind}`;
+
+                this.#fail('LEXICA5012', `${on} takes ${taken} as '${parameter.name}', and a call selected as it is evaluated gives values alone`, pointer);
+            }
+
+            const value = supplied.get(parameter.name);
+
+            if (value === null && parameter.nulls === 'propagate') {
+                return null;
+            }
+
+            // A type parameter of the member's own is bound by the values it is given, as resolution binds it by their types.
+            if (selection.invocation === null && value !== null) {
+                const bound = this.#registry.typeChecker.inferTypeArguments(declaredType, this.#getActualType(value, `the access '${written}'`, this.#failSelectionOf(node)), typeArguments);
+
+                bound?.forEach((type, name) => typeArguments.set(name, type));
+            }
+
+            args[parameter.name] = value;
+        }
+
+        for (const { parameter, declaredType, isOfType } of parameters) {
+            if (!supplied.has(parameter.name)) {
+                continue;
+            }
+
+            const parameterType = isOfType === null ? declaredType.resolveTypeParameters(typeArguments) : declaredType;
+            const isAdmitted = isOfType ?? Evaluator.#compileTypeCheck(parameterType, this.#registry, `the argument '${parameter.name}' of '${written}'`);
+
+            if (!isAdmitted(args[parameter.name])) {
+                this.#fail('LEXICA5021', `The argument '${parameter.name}' of ${on} is declared ${parameterType}, and is given ${Evaluator.#describe(args[parameter.name])}`, pointer);
+            }
+        }
+
+        const invocation = selection.invocation ?? this.#getCompiledInvocation(declaration, this.#registry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(typeArguments));
+
+        return { invocation, values: args };
+    }
+
+    /**
+     * The actual type of a value a deferred access meets, as binding types a value, without copying it: a string, a finite number and a Boolean their scalar type; a reference the type its modules recognize it as, the one
+     * beneath every other; a structured value the type whose answer gave it; a list the type its items share, Any where they share none, the empty list's being never; and an object the object type of its fields' types.
+     * A value of no type, a function, an instance no module recognizes, a list with a hole and data that reaches itself among them, is given to `fail` with the reason it has none, as is a reference several modules recognize
+     * as types none of which is beneath the others.
+     * @param {unknown} value
+     * @param {string} asked What asked for the value's type, as a message names it.
+     * @param {(reason: string) => never} fail
+     */
+    #getActualType(value, asked, fail, ancestors = new Set()) {
+        if (value === null) {
+            return Type.null;
+        }
+
+        if (typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) {
+            return Type.createPrimitiveType(value);
+        }
+
+        if (value === undefined || typeof value !== 'object') {
+            fail(`${Evaluator.#describe(value)} has none the vocabulary knows`);
+        }
+
+        const recognized = this.#registry.recognize(value, asked);
+
+        if (recognized.length > 0) {
+            const { typeChecker } = this.#registry;
+            const specific = recognized.find(type => recognized.every(other => typeChecker.isAssignable(type, other)));
+
+            if (specific === undefined) {
+                fail(`it is recognized as ${recognized.map(type => type.toString(true)).join(' and ')}, of which none is beneath the others`);
+            }
+
+            return specific;
+        }
+
+        const structured = Evaluator.#structuredTypes.get(value);
+
+        if (structured?.registry === this.#registry) {
+            return structured.type;
+        }
+
+        if (ancestors.has(value)) {
+            fail('it reaches itself, which data never does');
+        }
+
+        ancestors.add(value);
+
+        try {
+            if (Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1) {
+                let itemType = Type.never;
+
+                for (const item of value) {
+                    const actual = this.#getActualType(item, asked, fail, ancestors);
+                    const isNullable = itemType.isNullable || actual.isNullable;
+
+                    itemType = this.#registry.typeChecker.merge(itemType, actual) ?? (isNullable ? Type.any.toNullable() : Type.any);
+                }
+
+                return Type.createListType(itemType);
+            }
+
+            if (ObjectUtils.isPlainObject(value)) {
+                return Type.createObjectType(new Map(Object.entries(value).map(([name, field]) => [name, this.#getActualType(field, asked, fail, ancestors)])));
+            }
+        } finally {
+            ancestors.delete(value);
+        }
+
+        return fail(`${Evaluator.#describe(value)} has none the vocabulary knows`);
+    }
+
+    /** How a deferred access fails where its receiver's value, or an argument's, has no actual type, which it is selected by (LEXICA5012). */
+    #failSelectionOf(node) {
+        return reason => this.#fail('LEXICA5012', `'${Evaluator.#writtenNameOf(node)}' is selected by the types of the values it is given, and ${reason}`, this.#pointerOf(node));
+    }
+
+    /** The name a message gives an access, its member's name, or `[…]` for an unnamed indexer. */
+    static #writtenNameOf(node) {
+        return node.kind === 'indexer' && node.name === undefined ? '[…]' : node.name;
+    }
+
+    /** Whether an access of the chain the node ends, the node among them, is optional, so a null the node answers can be one an optional access met, which ends the chain. */
+    static #followsOptionalAccess(node) {
+        for (let current = node; current?.kind === 'member' || current?.kind === 'call' || current?.kind === 'indexer'; current = current.target) {
+            if (current.optional === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The type of each structured value an answer gave, by the value, the copy made of it or the answer itself where it is its declared shape already, with the registry whose declaration typed it, so a value of Any keeps
+     * the identity its declared result gave it. An entry is held as long as its value is, and is replaced where another answer gives that value as another type, which only an answer of its declared shape already can.
+     * @type {WeakMap<object, { registry: object, type: Type }>}
+     */
+    static #structuredTypes = new WeakMap();
+
     /** The module delegate each function reference produces, by its declaration: the same for every evaluation, since it holds nothing an evaluation bound. @type {WeakMap<object, { reference: object }>} */
     static #moduleDelegateCache = new WeakMap();
 
@@ -967,7 +1300,9 @@ export class Evaluator {
                 return { name: parameter.name, kind: 'constant', value: argument.isDefault ? parameter.default : argument.value, isReadLater, isField };
             }
 
-            const plan = { name: parameter.name, kind: parameter.kind, evaluate: this.#getCompiledFunction(argument.node), propagatesNull: parameter.nulls === 'propagate', isOption, isReadLater, isField };
+            // A value of Any is checked against its parameter's type as it is evaluated.
+            const isOfCheckedType = argument.checkedType === undefined ? null : Evaluator.#compileTypeCheck(argument.checkedType, this.#registry, `the argument '${parameter.name}' of '${resolution.declaration.name}'`);
+            const plan = { name: parameter.name, kind: parameter.kind, evaluate: this.#getCompiledFunction(argument.node), propagatesNull: parameter.nulls === 'propagate', isOption, isReadLater, isField, checkedType: argument.checkedType ?? null, isOfCheckedType, pointer: argument.pointer };
 
             if (argument.callback === undefined) {
                 return plan;
@@ -1034,6 +1369,10 @@ export class Evaluator {
 
                         if (value === null && plan.propagatesNull) {
                             return null;
+                        }
+
+                        if (plan.isOfCheckedType !== null && !plan.isOfCheckedType(value)) {
+                            evaluator.#fail('LEXICA5021', `The argument '${plan.name}' of '${resolution.declaration.name}' is declared ${plan.checkedType}, and is given ${Evaluator.#describe(value)}`, plan.pointer);
                         }
 
                         // A delegate is evaluated where it is written, once, and goes to the member as a callback it calls, while the expression's own names and fields hold the value itself.
@@ -1364,6 +1703,8 @@ export class Evaluator {
                 let fields = null;
                 let fieldNames = null;
                 let isFlat = false;
+                // The type each copy keeps through a value of Any.
+                const structured = { registry, type: type.toNonNullable() };
 
                 return value => {
                     if (value === null) {
@@ -1378,6 +1719,8 @@ export class Evaluator {
 
                     // An answer that is a plain object of its declared fields alone, none of them a structure, is its declared shape already, as a built-in member's is.
                     if (isFlat && Evaluator.#holdsExactly(value, fieldNames)) {
+                        Evaluator.#structuredTypes.set(value, structured);
+
                         return value;
                     }
 
@@ -1389,6 +1732,8 @@ export class Evaluator {
                         // A field's name is a name, so it is assigned as it is.
                         copy[name] = copyField === null || field === null ? field : copyField(field);
                     }
+
+                    Evaluator.#structuredTypes.set(copy, structured);
 
                     return copy;
                 };
@@ -1433,6 +1778,8 @@ export class Evaluator {
         }
 
         switch (type.kind) {
+            // A value of Any is of any type, and is checked where a type is declared for it.
+            case 'any':
             case 'typeParameter':
                 return () => true;
             case 'object': {
@@ -1573,6 +1920,33 @@ export class Evaluator {
     }
 
     /**
+     * Refuses an equality whose operands, one of Any among them, are found as they are evaluated to be of types it never compares, as resolution refuses where it knows them: a structured value, a list or an object
+     * compared with a value that isn't null (LEXICA5025), and values of two types that fit neither way (LEXICA5024). A null operand is compared with any value.
+     */
+    #requireComparable(node, leftValue, rightValue) {
+        if (leftValue === null || rightValue === null) {
+            return;
+        }
+
+        const { operator } = this.#resolvedDefinition.resolutionOf(node);
+        const pointer = this.#pointerOf(node);
+        const typeOf = value => this.#getActualType(value, `'${operator}'`, reason => this.#fail('LEXICA5025', `'${operator}' compares strings, numbers, Booleans and references, and ${reason}`, pointer));
+        const leftType = typeOf(leftValue);
+        const rightType = typeOf(rightValue);
+        const { typeChecker } = this.#registry;
+
+        for (const type of [leftType, rightType]) {
+            if (!typeChecker.isComparable(type)) {
+                this.#fail('LEXICA5025', `'${operator}' compares a value of ${type} with null alone, since only strings, numbers, Booleans and references are compared with each other`, pointer);
+            }
+        }
+
+        if (!typeChecker.fitsEitherWay(leftType, rightType)) {
+            this.#fail('LEXICA5024', `'${operator}' compares values whose types fit one way or the other, and its operands were found to be of ${leftType} and ${rightType}, which fit neither way`, pointer);
+        }
+    }
+
+    /**
      * The result of an arithmetic operation, refused where an operand is no number, which a binding of no number can still give, where `/` or `%` divides by zero,
      * and where the result is no finite number, so neither infinity nor NaN reaches a result; each is an evaluation error at the operation.
      */
@@ -1609,9 +1983,10 @@ export class Evaluator {
     /**
      * Carries out a compiled invocation with its receiver and its arguments by parameter name, the one protocol every invocation of an implementation follows: it fails a declaration without an implementation, asks the host's
      * `beforeInvoke` for the samples a maintained member reads, answering null where one is pending, gives the implementation one object it reads by name, closes the functions it was given once it returns, checks its answer
-     * against the invocation's result type, tells the host's `afterInvoke`, and answers a copy of the structures the answer holds. Its failures are located at the node that invoked it.
+     * against the invocation's result type, tells the host's `afterInvoke`, and answers a copy of the structures the answer holds. Its failures are located at the node that invoked it. Its request says whether the member was
+     * selected as it is evaluated.
      */
-    #invokeImplementation(invocation, receiver, args, node) {
+    #invokeImplementation(invocation, receiver, args, node, isDeferred = false) {
         const { declaration, implementation, takesReceiver, resultType, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
@@ -1621,7 +1996,7 @@ export class Evaluator {
         // A module member is read and called through its namespace, and has no receiver.
         const received = takesReceiver ? { receiver } : {};
         // A request names its call by where it stands in the definition, so a call within a script function's body names the part of the body it is, whichever call of the function reached it.
-        const request = this.#hooks === null ? null : { declaration, ...received, args, pointer: this.#resolvedDefinition.resolveDefinitionPointer(this.#pointerOf(node)) };
+        const request = this.#hooks === null ? null : { declaration, ...received, args, pointer: this.#resolvedDefinition.resolveDefinitionPointer(this.#pointerOf(node)), isDeferred };
         const samples = this.#beforeInvoke(request, declaration, node);
 
         if (samples === null) {
@@ -1879,13 +2254,37 @@ export class Evaluator {
         this.#selections = null;
 
         try {
-            const { value, copiedIdentities } = this.#copyResult(this.#evaluateNode(node, null));
+            const result = this.#evaluateNode(node, null);
+
+            // Resolution proved every other part of the result data.
+            if (this.#checksResultData && !this.#isData(result)) {
+                this.#fail('LEXICA5028', 'The result holds a value of Any that is no data, as a reference or a function is; read the facts it needs through an object expression', this.#pointerOf(node));
+            }
+
+            const { value, copiedIdentities } = this.#copyResult(result);
 
             // The metadata is described where it is first read, from identities no later evaluation changes, so a caller that reads the value alone pays nothing for it.
             return { node, value, identities: Evaluator.#withSelections(copiedIdentities, this.#selections) };
         } finally {
             this.#selections = null;
         }
+    }
+
+    /** Whether the value is data at any depth: null, a string, a Boolean, a finite number, a list holding data at every index, or a plain object of data no module recognizes as a reference. */
+    #isData(value) {
+        if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+            return true;
+        }
+
+        if (typeof value === 'number') {
+            return Number.isFinite(value);
+        }
+
+        if (Array.isArray(value)) {
+            return ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#isData(item));
+        }
+
+        return ObjectUtils.isPlainObject(value) && this.#registry.recognize(value, 'the result').length === 0 && Object.values(value).every(field => this.#isData(field));
     }
 
     /**

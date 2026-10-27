@@ -11,20 +11,8 @@ import { withHome } from '../support/home.mjs';
 /** The checker of a registry of the home's types: a light and a thermostat beneath a device, and a room of a hierarchy of its own. */
 const checker = new LexicaRegistry([Vocabulary.module, new LexicaModule('home', withHome())]).typeChecker;
 
-/** The type the notation writes, `Any` and `Any?` among them, which no notation a module writes reads yet, and an object type of the fields given. */
-const typeOf = text => {
-    if (typeof text !== 'string') {
-        return Type.createObjectType(new Map(Object.entries(text).map(([name, fieldText]) => [name, typeOf(fieldText)])));
-    }
-
-    const list = /^List<(.*)>(\?)?$/.exec(text);
-
-    if (list !== null) {
-        return Type.createListType(typeOf(list[1]), list[2] === '?');
-    }
-
-    return text === 'Any' ? Type.any : text === 'Any?' ? Type.any.toNullable() : Type.parse(text);
-};
+/** The type the notation writes, or an object type of the fields given. */
+const typeOf = text => (typeof text === 'string' ? Type.parse(text) : Type.createObjectType(new Map(Object.entries(text).map(([name, fieldText]) => [name, typeOf(fieldText)]))));
 
 describe('TypeChecker', () => {
     describe('assignabilityOf', () => {

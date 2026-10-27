@@ -378,6 +378,8 @@ export interface LexicaInvocationRequest {
     readonly args: Readonly<Record<string, unknown>>;
     /** Where the call stands in the definition, a JSON Pointer `getLocation` expands; a call within a script function's body names the part of the body it is, whichever call of the function reached it. */
     readonly pointer: string;
+    /** Whether the member was selected as it was evaluated, its receiver a value of `Any`, rather than by resolution; a prepared host call never is. */
+    readonly isDeferred: boolean;
 }
 
 /** How an evaluation ended: completed, pending where a sample a member read was pending, or failed. */

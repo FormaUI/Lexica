@@ -456,7 +456,7 @@ export class LexicaModule {
 
         const target = Type.parse(extension.target);
 
-        if (target.isNullable || (target.kind === 'named' && target.name === 'Any' && target.moduleName === null)) {
+        if (target.isNullable || target.kind === 'any') {
             fail('LEXICA4559', `An extension's target is never Any, since a parameter it declares extends every type, and never nullable, since a member is read on a value, and ${extension.target} is ${target.isNullable ? 'nullable' : 'Any'}`, name, 'target');
         }
     }

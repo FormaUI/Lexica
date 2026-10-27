@@ -106,6 +106,12 @@ describe('Type', () => {
         expect(Type.any.toNullable().toNonNullable().equals(Type.any)).toBe(true);
     });
 
+    it('reads Any in the notation, nullable and within a list', () => {
+        expect(Type.parse('Any')).toBe(Type.any);
+        expect(Type.parse('Any?').equals(Type.any.toNullable())).toBe(true);
+        expect(Type.parse('List<Any?>').toString()).toBe('List<Any?>');
+    });
+
     it('holds a list as Lexica\'s generic List, its item type its one type argument', () => {
         const list = Type.createListType(Type.parse('Number'));
 

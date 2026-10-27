@@ -63,7 +63,8 @@ export class LanguageResolver {
             this.#fail('LEXICA3035', 'The result would hold a function, which is used within the expression and never part of its result: call it, as name(…)', '/expression');
         }
 
-        if (type !== null && !this.#registry.isData(type)) {
+        // A value of Any in it is data or not as it is evaluated, which checks it then.
+        if (type !== null && !this.#registry.isDataOnceChecked(type)) {
             this.#fail('LEXICA3043', `The result would hold ${type}, which is no data; read the facts it needs through an object expression`, '/expression');
         }
 
@@ -258,14 +259,17 @@ export class LanguageResolver {
         if (!LanguageResolver.#isNullOrNever(left.type) && !LanguageResolver.#isNullOrNever(right.type)) {
             const leftType = left.type.toNonNullable();
             const rightType = right.type.toNonNullable();
+            const isChecked = leftType.kind === 'any' || rightType.kind === 'any';
 
             for (const [side, type] of [['left', leftType], ['right', rightType]]) {
-                if (!this.#typeChecker.isComparable(type)) {
+                if (type.kind !== 'any' && !this.#typeChecker.isComparable(type)) {
                     this.#fail('LEXICA3066', `'${operator}' compares a value of ${type} with null alone, since only strings, numbers, Booleans and references are compared with each other`, `${pointer}/${side}`);
                 }
             }
 
-            if (!this.#typeChecker.fitsEitherWay(leftType, rightType)) {
+            if (isChecked) {
+                this.#resolutions.set(pointer, { kind: 'equality', isChecked, operator });
+            } else if (!this.#typeChecker.fitsEitherWay(leftType, rightType)) {
                 this.#fail('LEXICA3030', `'${operator}' compares values whose types fit one way or the other, and ${leftType} and ${rightType} fit neither way${this.#formatTestHint(node, left, right, isNegated)}`, pointer);
             }
         }
@@ -553,7 +557,7 @@ export class LanguageResolver {
 
         const from = target.type;
         const base = from.toNonNullable();
-        const isWithinHierarchy = from.kind === 'null' || from.kind === 'never' || (this.#registry.isReferenceType(base) && (this.#typeChecker.isAssignable(targetType, base) || this.#typeChecker.isAssignable(base, targetType)));
+        const isWithinHierarchy = from.kind === 'null' || from.kind === 'never' || base.kind === 'any' || (this.#registry.isReferenceType(base) && (this.#typeChecker.isAssignable(targetType, base) || this.#typeChecker.isAssignable(base, targetType)));
         // A cast across hierarchies is the one a cast operator of its target's type declares to its type.
         const declaration = isWithinHierarchy ? null : this.#selectOperator('cast', base, targetType, `The cast from ${base} to ${targetType}`, pointer);
 
@@ -724,6 +728,11 @@ export class LanguageResolver {
             this.#fail(operation === 'arithmetic' ? 'LEXICA3032' : 'LEXICA3039', `${what} can be null, and ${operation} takes numbers alone: give it a fallback, as in (… ?? 0), or test it first`, pointer);
         }
 
+        // A value of Any is a number or not as it is evaluated, which checks it then.
+        if (type.kind === 'any') {
+            return;
+        }
+
         if (type.kind !== 'named' || type.name !== 'Number') {
             this.#fail(operation === 'arithmetic' ? 'LEXICA3067' : 'LEXICA3078', `${what} is a number, and this one is ${type}; a conversion makes a number of text, as in … to Number`, pointer);
         }
@@ -743,6 +752,10 @@ export class LanguageResolver {
 
         if (type.isNullable || type.kind === 'null') {
             this.#fail('LEXICA3038', `${what} can be null: give it a fallback, as in (… ?? "…"), or test it first`, pointer);
+        }
+
+        if (type.kind === 'any') {
+            return;
         }
 
         if (type.kind !== 'named' || (type.name !== 'String' && type.name !== 'Number')) {
@@ -1211,7 +1224,7 @@ export class LanguageResolver {
 
         const receiverType = access.optional === true ? receiver.type.toNonNullable() : receiver.type;
 
-        if (LanguageResolver.#isNullOrNever(receiverType)) {
+        if (LanguageResolver.#isNullOrNever(receiverType) || receiverType.kind === 'any') {
             return declarations.some(declaration => declaration.kind === 'indexer') ? 'indexer' : null;
         }
 
@@ -1234,6 +1247,10 @@ export class LanguageResolver {
 
         if (LanguageResolver.#isNullOrNever(receiverType)) {
             return this.#storeResolution(pointer, this.#resolveOnUnknownType(node, pointer, scope, receiverType, unnamedIndexers));
+        }
+
+        if (receiverType.kind === 'any') {
+            return this.#storeResolution(pointer, this.#resolveDeferredAccess(node, pointer, scope));
         }
 
         if (receiverType.kind === 'objectRoot') {
@@ -1448,6 +1465,10 @@ export class LanguageResolver {
             return this.#resolveOnUnknownType(node, pointer, scope, receiverType);
         }
 
+        if (receiverType.kind === 'any') {
+            return this.#resolveDeferredAccess(node, pointer, scope);
+        }
+
         if (receiverType.kind === 'objectRoot') {
             return this.#resolveObjectRootField(node, pointer, receiverType);
         }
@@ -1501,6 +1522,54 @@ export class LanguageResolver {
         const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
 
         return this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType));
+    }
+
+    /**
+     * Resolves an access on a value of Any, whose member is selected when that value is evaluated, by its actual type, through the selector, as an access its receiver's type selects during resolution is: a property read
+     * whatever its name, since a plain object's fields are named by its data, and a call or an indexer of a member some accessible declaration of its name, or an unnamed indexer, takes in that form. Its arguments are read
+     * without the declaration, each a value, never an implicit body or a function, whose reading would depend on the declaration (LEXICA3029). It answers a value of Any, and records no use, since it chooses no declaration
+     * before it is evaluated.
+     */
+    #resolveDeferredAccess(node, pointer, scope) {
+        const isUnnamedIndexer = node.kind === 'indexer' && node.name === undefined;
+        const written = isUnnamedIndexer ? '[…]' : node.name;
+        const declared = isUnnamedIndexer ? this.#registry.getUnnamedIndexers() : this.#registry.getReceiverMembers(node.name);
+        const accessible = this.#memberSelector.getAccessible(declared);
+        const candidates = isUnnamedIndexer ? accessible : accessible.filter(candidate => FORM_NODE_KINDS[candidate.kind] === node.kind);
+
+        if (node.kind !== 'member' && candidates.length === 0) {
+            if (declared.length === 0) {
+                this.#fail('LEXICA3001', `'${written}' is no member of the vocabulary`, pointer);
+            }
+
+            if (accessible.length === 0) {
+                this.#failInternal(`'${written}'`, this.#registry.getDeclaringModuleName(declared[0]), pointer);
+            }
+
+            this.#requireDeclaredForm(accessible[0], node, pointer);
+        }
+
+        const argumentNodes = node.kind === 'call' ? node.arguments : node.kind === 'indexer' ? [node.argument] : [];
+        const args = argumentNodes.map((argument, index) => this.#resolveDeferredArgument(argument, node.kind === 'indexer' ? `${pointer}/argument` : `${pointer}/arguments/${index}`, scope, written));
+
+        return { result: { type: Type.any, kind: 'value', isFixed: false }, resolution: { kind: 'deferred', candidates, receiverNode: node.target, arguments: args }, use: null };
+    }
+
+    /** Resolves an argument of a deferred access, read without the declaration it will select: a value, refused where it reads an implicit parameter of its own or gives a function (LEXICA3029). */
+    #resolveDeferredArgument(argument, pointer, scope, written) {
+        // Whether the argument reads its own implicit parameter, which its own context key identifies, as a body would.
+        const argumentBody = { key: {}, isRead: false };
+        const result = this.#resolveNode(argument, pointer, { ...scope, contextType: Type.any, contextKey: argumentBody.key, argumentBody });
+
+        if (result.kind !== 'value') {
+            this.#fail('LEXICA3048', `An argument of '${written}' is ${LanguageResolver.#descriptionOf(result.kind)}, and an argument is a value`, pointer);
+        }
+
+        if (argumentBody.isRead || LanguageResolver.#heldReferenceOf(result.type) === 'function') {
+            this.#fail('LEXICA3029', `'${written}' is selected when its receiver, a value of Any, is evaluated, so its arguments are read without its declaration, each a value, and this one is ${argumentBody.isRead ? 'an implicit body' : 'a function'}, which only a declaration gives a reading: make its receiver known, as a cast does, to give it one`, pointer);
+        }
+
+        return { node: argument, pointer };
     }
 
     /** Refuses a call or an indexer of what is read by its name alone, an object field or a property of a structured type's data, which the description names, giving the access to write. */
@@ -2192,6 +2261,8 @@ export class LanguageResolver {
 
         for (const parameter of ordered) {
             const given = supplied.get(parameter.name);
+            // The type a value of Any it is given is checked against when it is evaluated.
+            let checkedType;
 
             if (given === undefined) {
                 if (parameter.required) {
@@ -2249,7 +2320,9 @@ export class LanguageResolver {
                 result = this.#resolveNode(given.node, valuePointer, argumentScope);
                 this.#requireValueArgument(result, parameter, declaration, valuePointer);
 
-                this.#requireArgumentType(result, expected, parameter, declaration, valuePointer);
+                if (this.#requireArgumentType(result, expected, parameter, declaration, valuePointer, { allowsCheck: true }) === 'checked') {
+                    checkedType = expected;
+                }
 
                 if (LanguageResolver.#propagatesNull(result, parameter)) {
                     isNullable = true;
@@ -2275,27 +2348,34 @@ export class LanguageResolver {
                 selected = selection.selected ?? selected;
             }
 
-            resolved.push({ parameter, isDefault: false, pointer: valuePointer, node: given.node, value: parameter.fixed === true ? result.value : undefined, ...(callback === undefined ? {} : { callback }) });
+            resolved.push({ parameter, isDefault: false, pointer: valuePointer, node: given.node, value: parameter.fixed === true ? result.value : undefined, ...(callback === undefined ? {} : { callback }), ...(checkedType === undefined ? {} : { checkedType }) });
         }
 
         return { arguments: resolved, isNullable, selected, buildsObjectRoot: objectExpression !== null, callbackEvidence };
     }
 
-    /** Refuses a value argument its parameter can't take: a function, or a value of a type it doesn't admit, the null of a parameter that propagates null aside, which answers for the call. */
-    #requireArgumentType(result, expected, parameter, declaration, pointer) {
+    /**
+     * Refuses a value argument its parameter can't take: a function, or a value of a type it doesn't admit, the null of a parameter that propagates null aside, which answers for the call. It answers whether the argument is
+     * assignable, or a value of Any checked when it is evaluated, which a caller that records the check allows, and any other refuses.
+     * @returns {'assignable' | 'checked'}
+     */
+    #requireArgumentType(result, expected, parameter, declaration, pointer, { allowsCheck = false } = {}) {
         const actual = result.type;
 
         if (LanguageResolver.#heldReferenceOf(actual) === 'function') {
             this.#fail('LEXICA3071', `The argument '${parameter.name}' of '${declaration.name}' takes a value, and a function is none: a function is passed to a local function, or to a parameter its member declares to take one`, pointer);
         }
 
-        const isAdmitted = parameter.nulls === 'propagate' ? actual.kind === 'null' || this.#typeChecker.isAssignable(actual.toNonNullable(), expected.toNonNullable()) : this.#typeChecker.isAssignable(actual, expected);
+        const assignability = parameter.nulls === 'propagate' ? (actual.kind === 'null' ? 'assignable' : this.#typeChecker.assignabilityOf(actual.toNonNullable(), expected.toNonNullable())) : this.#typeChecker.assignabilityOf(actual, expected);
+        const isAdmitted = assignability === 'assignable' || (assignability === 'checked' && allowsCheck);
 
         if (!isAdmitted) {
             const [expectedName, actualName] = Type.namesOf(expected, actual);
 
             this.#fail('LEXICA3042', `The argument '${parameter.name}' of '${declaration.name}' expects ${expectedName} and finds ${actualName}`, pointer);
         }
+
+        return assignability;
     }
 
     /** Whether the argument's null makes the call answer null: its parameter propagates null, and the argument may be null, whatever the parameter's own type admits, as evaluation answers null without invoking. */
@@ -2405,7 +2485,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3035', `The field '${name}' would hold a function, which is used within the expression and never part of its result: call it, as name(…)`, `${fieldPointer}/value`);
             }
 
-            if (!this.#registry.isData(result.type)) {
+            if (!this.#registry.isDataOnceChecked(result.type)) {
                 this.#fail('LEXICA3043', `The field '${name}' would hold ${result.type}, which is no data; read the facts it needs through an object expression`, `${fieldPointer}/value`);
             }
 

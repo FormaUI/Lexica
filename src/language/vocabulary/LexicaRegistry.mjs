@@ -979,21 +979,31 @@ export class LexicaRegistry {
      * which module creation and `isConvertible` decide apart.
      */
     isData(type) {
-        return this.#isData(type, new Set());
+        return this.#isData(type, new Set(), false);
     }
 
-    /** Whether values of the type are data, as `isData` says, a structure already being checked counting as data where it holds itself, since its other properties are checked where it is first met. */
-    #isData(type, checking) {
+    /** Whether values of the type are data, as `isData` says, or are once each value of `Any` among them is checked as it is evaluated, which a result holding one asks for. */
+    isDataOnceChecked(type) {
+        return this.#isData(type, new Set(), true);
+    }
+
+    /**
+     * Whether values of the type are data, as `isData` says, a structure already being checked counting as data where it holds itself, since its other properties are checked where it is first met, and a value of `Any`
+     * where its check is to come.
+     */
+    #isData(type, checking, isAnyChecked) {
         switch (type.kind) {
             case 'null':
             case 'never':
                 return true;
+            case 'any':
+                return isAnyChecked;
             case 'object':
-                return [...type.fieldTypes.values()].every(fieldType => this.#isData(fieldType, checking));
+                return [...type.fieldTypes.values()].every(fieldType => this.#isData(fieldType, checking, isAnyChecked));
             case 'named': {
                 // A generic value type holds data where each of its type arguments does, as a list of data does.
                 if (type.typeArguments.length > 0) {
-                    return type.typeArguments.every(typeArgument => this.#isData(typeArgument, checking));
+                    return type.typeArguments.every(typeArgument => this.#isData(typeArgument, checking, isAnyChecked));
                 }
 
                 if ((type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) || checking.has(type.identity)) {
@@ -1006,7 +1016,7 @@ export class LexicaRegistry {
 
                 checking.add(type.identity);
 
-                return [...this.getDataShape(type).values()].every(propertyType => this.#isData(propertyType, checking));
+                return [...this.getDataShape(type).values()].every(propertyType => this.#isData(propertyType, checking, isAnyChecked));
             }
             default:
                 return false;
@@ -1023,8 +1033,9 @@ export class LexicaRegistry {
         }
 
         switch (type.kind) {
-            // A type parameter's default is data, whatever the parameter binds to; whether it fits that binding is checked nowhere yet.
+            // A type parameter's default is data, whatever the parameter binds to; whether it fits that binding is checked nowhere yet. A default of Any is any data.
             case 'typeParameter':
+            case 'any':
                 return LexicaRegistry.#isDataValue(value);
             case 'named': {
                 if (type.isList) {

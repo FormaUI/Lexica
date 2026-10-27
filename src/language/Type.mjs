@@ -305,6 +305,8 @@ class TypeReader {
             type = Type.null;
         } else if (match[0] === 'Never') {
             type = Type.never;
+        } else if (match[0] === 'Any') {
+            type = Type.any;
         } else if (TYPE_PARAMETER.test(match[0])) {
             type = Type.createTypeParameter(match[0]);
         } else if (match[0] === 'List') {

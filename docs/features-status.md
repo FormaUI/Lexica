@@ -2,14 +2,14 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; in [unit 2](#unit-2--member-selection-and-deferred-evaluation), the selector and operators are done, and `Any` and deferred selection are next.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; in [unit 2](#unit-2--member-selection-and-deferred-evaluation), the selector, operators, `Any` and deferred selection are done, and reporting is next.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
 | Language | `1.0.0-alpha.33` | `1.0.0-alpha.34` |
 | Definition format | 33 | 34 |
 
-The implementation reads definition version 33, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module. It declares reference types, with their hierarchy, membership and recognition, beside structured types of fields, and still uses flat member declarations, module-level conversions, and implicit type parameters, which read every single capital letter as one and refuse a type named by one letter; an internal bridge reads a named indexer as a flat member of indexer syntax and an unnamed one as a flat default indexer. The specification describes their replacement, which the plan's units deliver.
+The implementation reads definition version 33, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module. Its declarations take the specification's shape: reference types, with their hierarchy, membership and recognition, and structured types, each holding its members; extensions; operators; declared type parameters; and `Any`. One selector chooses every member, indexer and operator, at resolution and, for a value of `Any`, as it is evaluated. Scripts don't yet write imports or extension access, which unit 3 brings with definition version 34, and collections arrive in unit 4.
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Six specification examples resolve and evaluate; 28 remain.
 
@@ -29,7 +29,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | ✅ Done |
-| 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | In progress: steps 1 and 2 done; step 3 next |
+| 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | In progress: steps 1 to 3 done; step 4 next |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
 | 5 | [Specification examples](#unit-5--specification-examples) | Planned |
@@ -45,7 +45,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 Every declaration takes its final shape, and the types those declarations make relate as the specification sets out. Resolution keeps selecting members as it does today, through registry queries whose answers the new declarations give; unit 2 replaces the selection itself.
 
 1. ✅ **Registry queries.** The resolver, the evaluator, result paths and the entry point read declarations only through registry queries, never a declaration's `target`, `syntax` or `fields` directly, so the declarations' storage can change behind them. Nothing a script sees changes.
-2. ✅ **One type relation.** A registry-aware checker replaces the static assignability, merging, comparability and node checks of `Type`, and the resolver's receiver matching, at every call site. It brings `Any`, distinct from a result left out, into the type model and the checker, registration refusing it in a declaration until [unit 2](#unit-2--member-selection-and-deferred-evaluation) selects and checks its values end to end; the rules of `null` and `Never`; [assignability, equal types and merging](../spec/types.md#types-assignability-and-merging), object types by their fields; and takes a generic value type by its declaration, never `List` by name, so [collections](proposals/collections.md)' `Dictionary` and `Pair` join it in unit 4 without replacing it; neither is public before then.
+2. ✅ **One type relation.** A registry-aware checker replaces the static assignability, merging, comparability and node checks of `Type`, and the resolver's receiver matching, at every call site. It brings `Any`, distinct from a result left out, into the type model and the checker, which [unit 2](#unit-2--member-selection-and-deferred-evaluation) lets a declaration write, selecting and checking its values end to end; the rules of `null` and `Never`; [assignability, equal types and merging](../spec/types.md#types-assignability-and-merging), object types by their fields; and takes a generic value type by its declaration, never `List` by name, so [collections](proposals/collections.md)' `Dictionary` and `Pair` join it in unit 4 without replacing it; neither is public before then.
 3. ✅ **Reference types and binding,** in the current flat member shape:
    - `typeOf`, `isInstance`, `abstract` and `supertype`, a hierarchy refused where it cycles; the hierarchy in assignability, list covariance, merging to the nearest shared supertype, and identity equality of references.
    - `registry.createBindings`, recognizing values by every module's `typeOf`, with declared binding types resolved against the registry, a binding set captured once and belonging to its registry, and a cycle refused with its own error. Binding and repeated evaluation are measured at scale before any membership answer is cached, and any cache has defined validity rules.
@@ -86,13 +86,13 @@ Contracts: [Types](../spec/types.md), [Modules](../spec/modules.md), [declaring 
 
 ### Unit 2 — Member selection and deferred evaluation
 
-One selector chooses every member, indexer and operator, at resolution and during evaluation alike. *Next: step 3, `Any` and deferred selection.*
+One selector chooses every member, indexer and operator, at resolution and during evaluation alike. *Next: step 4, reporting.*
 
 1. ✅ **The selector,** [I20](proposals/implementation-decisions.md)'s `MemberSelector`, the registry's, replaces the three selection paths and the path for receivers of unknown type: owner precedence through inheritance; competing extensions registering, in place of the registration's refusal, and selected by the most specific target; ambiguity refused at resolution, giving the extension accesses to write; internal declarations excluded at resolution; and an empty list or a null receiver selecting as [the types](../spec/types.md) set out.
 2. ✅ **Operators,** as [I21](proposals/implementation-decisions.md) sets out: casts and conversions declared on types and in extensions, in place of module-level conversions, competing as operators do, an applicable owner's winning and otherwise the most specific extension's; Lexica's own conversions moved onto its types; declared casts, an `impl` optional, `reject` making an attempt null; and operators chosen by the selector.
-3. **`Any` and deferred selection:** a member selected when its receiver is evaluated, through the same selector; the selection cached by node and actual type within one registry, plain objects read by their own fields; identity kept through `Any`; a selection that would be a host call refused before anything is invoked; `beforeInvoke` told the selection was deferred; an `Any` argument checked against its parameter, and an operand of `Any` by its operation's rules; and a deferred access failing with the access and the actual type named.
+3. ✅ **`Any` and deferred selection,** as [I22](proposals/implementation-decisions.md) sets out: `Any` written in a declaration's result, its parameters and its defaults; a member selected when its receiver is evaluated, through the same selector, by its value's actual type, the selection kept by node and actual type within one compilation, plain objects read by their own fields; a structured value's identity kept through `Any`; a selection that would be a host call refused before anything is invoked, LEXICA5013; `beforeInvoke` told the selection was deferred, [C11](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `request.isDeferred`; an `Any` argument checked against its parameter, LEXICA5021, an equality of `Any` by its rules, LEXICA5024 and LEXICA5025, and a result holding `Any` checked to be data, LEXICA5028; and a deferred access failing with the access and the actual type named, LEXICA5012, and on null, LEXICA5022. A deferred call takes values alone: the specification also accepts an explicitly written function, which waits, as I22 records.
 4. **Reporting:** used declarations including operators, in place of the separate used conversions; deferred accesses; and candidate declarations, reported as an overestimate.
-5. **From the ledger:** [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidate handling; [U10](proposals/responsibilities-and-terminology-ledger.md#5-unifications), conversions as operators; [U11](proposals/responsibilities-and-terminology-ledger.md#5-unifications), used declarations and used conversions unified; [U40](proposals/responsibilities-and-terminology-ledger.md#5-unifications), an implementation's input; [U41](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s conversion and member declaration types; and [C11](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner), `request.isDeferred`.
+5. **From the ledger:** [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidate handling, and [U11](proposals/responsibilities-and-terminology-ledger.md#5-unifications), used declarations and used conversions unified. U10, U40, U41 and C11 are done, with operators and deferred selection.
 
 **Completion:** the gate passes, and a host can move its declarations and its runtime use in one migration.
 
@@ -129,6 +129,7 @@ One selector chooses every member, indexer and operator, at resolution and durin
 | `LexicaError` | `structure(message, location)`, `validation(…)`, `evaluation(…)`; `location.field` | `structure(code, message, location)`, and so on, with `error.code`; `location.declarationKey`, a message ending "at 'x'" | Give every error DOMQL builds a code of its own prefix: `domql.js:160`, `:167`, `:347`, `:486`, `:494`, `:538`, `:549`, `ExecutionHandle.mjs:83`, `:104`, `Observations.mjs:445` |
 | `lexica.info` | `versions.runtime` | `versions.implementation` | Rename where read; DOMQL reads `versions.language` alone |
 | Types | `LexicaErrorLocation`, `LexicaBindOptions`, `LexicaObservationValue`, a `source` parameter | `LexicaLocation`, `LexicaBindingsOptions`, `LexicaObservationArgument`, `LexicaScript` | Rename in `domql.d.ts`: `:270`, `:274`, `:292` |
+| `Any` | Refused in a declaration | A declaration's result, a parameter and a default of `Any` or `Any?`, a member on a value of `Any` selected as it is evaluated; an invocation request's `isDeferred`, and a prepared call's, always false | None: DOMQL declares no `Any`, and reads no request's `isDeferred` |
 | Module creation and registration | Duplicate types, module members and mapping keys refused at registration; any default accepted for a type parameter, and `Infinity`, `NaN` or a list with a hole for a number or a list | Refused when the module is created, as a declaration holding a value that reaches itself is; a default is data, finite, and a list holding a value at every index | Correct any declaration these now refuse |
 
 Contracts: [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions), [operators](../spec/modules.md#modules-operators), [internal declarations](../spec/modules.md#modules-internal-declarations), [values of `Any`](../spec/types.md#types-any), [resolution](../spec/runtime.md#runtime-bindings-and-resolution).
@@ -223,17 +224,17 @@ These capabilities work in the current implementation. The planned replacements 
 | --- | --- | --- |
 | Scripts | Parameters, bindings, names, bodies, and locals | [Scripts](../spec/scripts.md) |
 | Lexical structure | Tokens, names, strings, and comments | [Lexical structure](../spec/lexical-structure.md) |
-| Values | Objects, the object root, lists, null, results, and existing conversions | [Values](../spec/values.md) |
+| Values | Objects, the object root, lists, null, results, conversions, and values of `Any` | [Values](../spec/values.md) |
 | Expressions | Operators, conditionals, coalescing, attempts, and interpolated strings | [Expressions](../spec/expressions.md) |
 | Functions | Regular and arrow functions, delegates, references, and implicit bodies | [Functions](../spec/functions.md) |
-| Member access | Member forms, bracket property access, and arguments | [Members](../spec/members.md) |
+| Member access | Member forms, bracket property access, arguments, and one selector, at resolution and for a value of `Any` as it is evaluated | [Members](../spec/members.md) |
 | Module registration | Unified declarations with implementations; whole-registration checks, revisions, and module-local collision checks | [Declarations](../spec/modules.md#modules-declarations), [registries](../spec/modules.md#modules-registries), [collisions](../spec/modules.md#namespaces-a-modules-own-collisions) |
-| Vocabulary | List members, verbs, existing conversions, and Boolean functions | [Lexica's vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own), [Boolean functions](../spec/vocabulary.md#vocabulary-boolean-functions) |
+| Vocabulary | List members, verbs, Lexica's own conversions, and Boolean functions | [Lexica's vocabulary](../spec/vocabulary.md#vocabulary-lexicas-own), [Boolean functions](../spec/vocabulary.md#vocabulary-boolean-functions) |
 | Observations | Observation types and module-declared observation targets | [Observations](../spec/vocabulary.md#observations), [targets](../spec/vocabulary.md#observations-targets) |
-| Type selection | Type selectors and selectable types | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
+| Type selection | Type selectors and mappings | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
 | Namespaces | Module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
 | Text and definitions | Parse, validate, format, quote, and get a location; canonical text for definition version 33 | [Definition](../spec/definition.md) |
-| Types | Reference types with their hierarchy, membership and recognition, structured types, one type relation, and casts within a hierarchy | [Types](../spec/types.md) |
+| Types | Reference types with their hierarchy, membership and recognition, structured types, extensions, declared type parameters, `Any`, one type relation, and casts, a declared cast across hierarchies among them | [Types](../spec/types.md) |
 | Runtime | Bindings a registry makes, recognizing references, resolution, reuse by resolution key, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
 | Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/diagnostics-and-errors.md) |
 | Build | Bundle and type declarations | [Build](../README.md#build) |
@@ -290,4 +291,5 @@ Unit 0's decisions are taken, and unit 4 settles the collections proposal's open
 | Selecting a module's operator when several compete | No syntax selects an operator by module; qualified calls cannot reach operators. | Competing operators in real use |
 | Structured-data casts, reference/data conversions, and operators beyond `cast` and `convert` | Each needs rules for checking and copying. | A use the two operators do not serve |
 | Object-typed parameter defaults, under the ordinary compatibility rules ([R13](proposals/responsibilities-and-terminology-ledger.md#6-combined-responsibilities-dispositions)) | No parameter can be object-typed while an object type has no notation a declaration writes. | An object type's notation in declarations |
+| A function given to a deferred call, as [deferred member selection](../spec/types.md#types-any-deferred-selection) accepts one | A function's reading is the declaration's, chosen only as the call is evaluated, so a deferred call takes values alone, as [I22](proposals/implementation-decisions.md) records. | A host whose deferred call needs one |
 | Calling a module's internal declarations through Lexica | JavaScript implementations can reach their own values directly. | An internal-call API with a defined module context |

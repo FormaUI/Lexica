@@ -127,7 +127,7 @@ The name restrictions apply to declarations in a script. Supplied data keeps all
 
 ## Results
 
-A **result** is data: numbers, strings, Booleans, null, lists and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A delegate is never part of a result either, as [delegates](functions.md#functions-delegates) set out.
+A **result** is data: numbers, strings, Booleans, null, lists and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`LEXICA5028`). A delegate is never part of a result either, as [delegates](functions.md#functions-delegates) set out.
 
 Each evaluation produces a new result, immutable throughout: its lists and objects, and every structured value in them, never change once produced, whatever the host's state does afterwards.
 

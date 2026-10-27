@@ -20,8 +20,8 @@ let behaviors = {};
 let kept = null;
 
 /**
- * A pantry's module on words: a word's size, the device it names, a value it answers as the test says, a maintained quote, a check that calls the test it is given, a member that keeps it and one that calls it later, and a cup a word converts to,
- * through the conversion the test gives.
+ * A pantry's module on words: a word's size, the device it names, a value it answers as the test says, a value of Any the test gives, a word repeated a number of times, a maintained quote, a check that calls the test it is given, a member
+ * that keeps it and one that calls it later, and a cup a word converts to, through the conversion the test gives.
  */
 const createPantry = () => lexica.createModule('pantry', withHome({
     types: [
@@ -29,6 +29,8 @@ const createPantry = () => lexica.createModule('pantry', withHome({
         extensionDeclaration('StringExtensions', 'String', [
             createPropertyDeclaration('size', 'Number', { updates: constantUpdates, impl: input => (behaviors.size ?? (({ receiver }) => receiver.length))(input) }),
             createPropertyDeclaration('device', 'Device', { updates: constantUpdates, impl: () => new Thermostat('heater') }),
+            createPropertyDeclaration('held', 'Any', { updates: constantUpdates, impl: () => behaviors.held }),
+            createFunctionDeclaration('repeat', 'String', { updates: derivedUpdates, parameters: [createValueParameterDeclaration('times', 'Number')], impl: ({ receiver, args }) => receiver.repeat(args.times) }),
             createPropertyDeclaration('quoted', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, impl: ({ samples: [quote] }) => quote }),
             createFunctionDeclaration('check', 'Boolean', { updates: derivedUpdates, parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['String'])], impl: input => (behaviors.check ?? (({ receiver, args }) => args.test(receiver)))(input) }),
             createFunctionDeclaration('keep', 'Boolean', { updates: derivedUpdates, parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['String'])], impl: ({ args }) => ((kept = args.test), true) }),
@@ -415,6 +417,43 @@ describe('the runtime codes', () => {
             expectLexicaError(conversion, 'LEXICA4001', 'module');
             expect(member.location).toEqual({ pointer: '/expression', offset: 0, line: 1, column: 1 });
             expect(conversion.location).toEqual({ pointer: '/expression/target', offset: 1, line: 1, column: 2 });
+        });
+    });
+
+    describe('of values of Any', () => {
+        /** The error evaluating the text throws, where the pantry's word holds the value given. */
+        const holding = (value, text) => {
+            behaviors = { held: value };
+
+            return failureOf(text);
+        };
+
+        it('LEXICA5012: a deferred access whose receiver\'s actual type lacks the member', () => {
+            expectLexicaError(holding(1, 'word.held.device'), 'LEXICA5012', 'evaluation');
+        });
+
+        it('LEXICA5013: a deferred access whose selection would be a host call', () => {
+            expectLexicaError(holding('oat', '{ count = word.held.order(1) }'), 'LEXICA5013', 'evaluation');
+        });
+
+        it('LEXICA5021: a value of Any its parameter does not admit', () => {
+            expectLexicaError(holding('twice', 'word.repeat(word.held)'), 'LEXICA5021', 'evaluation');
+        });
+
+        it('LEXICA5022: a direct access on null at a deferred access', () => {
+            expectLexicaError(holding({ inner: null }, 'word.held.inner.size'), 'LEXICA5022', 'evaluation');
+        });
+
+        it('LEXICA5024: an equality of values of types that fit neither way', () => {
+            expectLexicaError(holding(1, 'word.held == "oat"'), 'LEXICA5024', 'evaluation');
+        });
+
+        it('LEXICA5025: an equality of a list with a value that is not null', () => {
+            expectLexicaError(holding([1], 'word.held == word.held'), 'LEXICA5025', 'evaluation');
+        });
+
+        it('LEXICA5028: a result holding a value of Any that is no data', () => {
+            expectLexicaError(holding(new Thermostat('heater'), 'word.held'), 'LEXICA5028', 'evaluation');
         });
     });
 

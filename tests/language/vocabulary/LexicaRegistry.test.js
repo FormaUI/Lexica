@@ -41,10 +41,14 @@ describe('LexicaRegistry', () => {
         expect(failing({ members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'range', type: 'Range' })] })] })).toContain("names the type 'Range'");
     });
 
-    it('refuses Any in a declaration, which deferred selection and its checks admit', () => {
+    it('takes Any in a declaration\'s result and its parameters, a value of any type, and any data as its default', () => {
         for (const notation of ['Any', 'Any?', 'List<Any>']) {
-            expect(expectModuleError(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [propertyDeclaration({ name: 'charts', result: notation })] })]))).toMatchObject({ declaration: 'charts' });
+            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [propertyDeclaration({ name: 'charts', result: notation })] })]);
+
+            expect(registry.getDeclaredType(registry.getModule('charts').members[0], notation).toString(), notation).toBe(notation);
         }
+
+        expect(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', type: 'Any?', required: false, default: { a: [1] } })] })] })])).not.toThrow();
     });
 
     it('takes a type the module declares wherever it declares it, and one an earlier module declares, qualified, whatever the order of the declarations', () => {
