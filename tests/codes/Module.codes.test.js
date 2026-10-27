@@ -57,15 +57,15 @@ describe('the module error codes', () => {
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ fixd: true })] })] }), 'LEXICA4030');
             expectModuleCode(creating({ types: [{ name: 'Chart', fields: { points: 'Number' }, members: [] }] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [hostCall({ updates: constantUpdates })] }), 'LEXICA4030');
-            expectModuleCode(creating({ members: [hostCall({ implementation: () => 1 })] }), 'LEXICA4030');
+            expectModuleCode(creating({ members: [hostCall({ impl: () => 1 })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ fixed: false })] })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ context: 'item' })] })] }), 'LEXICA4030');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ parameters: ['Number'] })] })] }), 'LEXICA4030');
         });
 
         it('LEXICA4505: an implementation that is not a function', () => {
-            expectModuleCode(creating({ members: [propertyDeclaration({ implementation: 5 })] }), 'LEXICA4505');
-            expectModuleCode(creating({ observationTypes: [{ name: 'state', contract: 'invalidation', implementation: 'run' }] }), 'LEXICA4505');
+            expectModuleCode(creating({ members: [propertyDeclaration({ impl: 5 })] }), 'LEXICA4505');
+            expectModuleCode(creating({ observationTypes: [{ name: 'state', contract: 'invalidation', impl: 'run' }] }), 'LEXICA4505');
         });
     });
 

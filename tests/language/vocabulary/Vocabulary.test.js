@@ -7,12 +7,12 @@ describe('Vocabulary', () => {
     const { module } = Vocabulary;
 
     /** What the implementation of a member answers for its receiver and its arguments. */
-    const read = (name, receiver, args = {}) => module.members.find(member => member.name === name).implementation({ receiver, args, env: {} });
+    const read = (name, receiver, args = {}) => module.members.find(member => member.name === name).impl({ receiver, args, env: {} });
 
     /** What the implementation of a conversion gives the value, or the reason it rejects it. */
     const convert = (from, to, value) => {
         try {
-            return module.conversions.find(conversion => conversion.from === from && conversion.to === to).implementation({ value, reject: reason => { throw new Error(reason); } });
+            return module.conversions.find(conversion => conversion.from === from && conversion.to === to).impl({ value, reject: reason => { throw new Error(reason); } });
         } catch (error) {
             return `rejected: ${error.message}`;
         }
@@ -21,8 +21,8 @@ describe('Vocabulary', () => {
     it('is Lexica\'s own module, one module of its own name, each of its members and conversions carrying its implementation', () => {
         expect(module.name).toBe('Lexica');
         expect(module).toBe(Vocabulary.module);
-        expect(module.conversions.every(conversion => typeof conversion.implementation === 'function')).toBe(true);
-        expect(module.members.every(member => typeof member.implementation === 'function')).toBe(true);
+        expect(module.conversions.every(conversion => typeof conversion.impl === 'function')).toBe(true);
+        expect(module.members.every(member => typeof member.impl === 'function')).toBe(true);
     });
 
     it('declares the members of lists, the verbs that test a receiver, and the conversions between strings, numbers and Booleans, and nothing of any domain', () => {

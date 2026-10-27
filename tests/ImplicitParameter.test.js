@@ -16,34 +16,34 @@ const createPantry = (held = {}) => {
 
     return lexica.createModule('pantry', {
         members: [
-            property('size', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => receiver.length }),
-            lexica.declarations.function('weight', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => receiver.length * 10 }),
-            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => receiver.startsWith('oat') }),
-            lexica.declarations.function('keepWhere', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [predicateParameter()], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
-            lexica.declarations.function('keepBy', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], implementation: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
-            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: derivedUpdates, implementation: ({ receiver }) => kept(receiver) }),
+            property('size', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
+            lexica.declarations.function('weight', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length * 10 }),
+            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => receiver.startsWith('oat') }),
+            lexica.declarations.function('keepWhere', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [predicateParameter()], impl: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
+            lexica.declarations.function('keepBy', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], impl: ({ receiver, args }) => ((kept = args.expression), receiver.length) }),
+            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: derivedUpdates, impl: ({ receiver }) => kept(receiver) }),
             lexica.declarations.function('keepWhereAndFail', 'List<String>', 'Number', {
                 updates: derivedUpdates,
                 parameters: [predicateParameter()],
-                implementation: ({ args }) => {
+                impl: ({ args }) => {
                     held.expression = args.expression;
                     throw new Error('The pantry is closed');
                 },
             }),
-            lexica.declarations.function('weighPair', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], implementation: ({ args }) => args.expression('oat', 'rye') }),
-            lexica.declarations.function('weighNumber', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], implementation: ({ args }) => args.expression(42) }),
-            lexica.declarations.function('passes', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ receiver, args }) => args.test(receiver) }),
+            lexica.declarations.function('weighPair', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], impl: ({ args }) => args.expression('oat', 'rye') }),
+            lexica.declarations.function('weighNumber', 'List<String>', 'Number', { updates: derivedUpdates, parameters: [expressionParameter('Number')], impl: ({ args }) => args.expression(42) }),
+            lexica.declarations.function('passes', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], impl: ({ receiver, args }) => args.test(receiver) }),
             lexica.declarations.function('check', 'String', 'Boolean', {
                 updates: derivedUpdates,
                 arguments: 'options',
                 parameters: [functionParameter('test', 'Boolean', ['String']), valueParameter('note', 'Boolean?', { default: null })],
-                implementation: ({ receiver, args }) => args.test(receiver),
+                impl: ({ receiver, args }) => args.test(receiver),
             }),
             lexica.declarations.function('pick', 'List<String>', 'Number', {
                 updates: derivedUpdates,
                 arguments: 'options',
                 parameters: [{ ...expressionParameter('Number'), name: 'by' }, { ...predicateParameter(), name: 'keep' }],
-                implementation: ({ receiver, args }) => receiver.filter(word => args.keep(word)).reduce((sum, word) => sum + args.by(word), 0),
+                impl: ({ receiver, args }) => receiver.filter(word => args.keep(word)).reduce((sum, word) => sum + args.by(word), 0),
             }),
         ],
     });

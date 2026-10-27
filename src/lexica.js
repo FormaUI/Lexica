@@ -161,7 +161,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         const unimplemented = usedDeclarations.find(use => registry.getImplementation(use.declaration) === undefined && !LexicaModule.isInvokedByHost(use.declaration));
 
         if (unimplemented !== undefined) {
-            throw LexicaErrors.module('LEXICA4001', `'${unimplemented.qualifiedName}' has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplemented.declaration), declaration: unimplemented.declaration.name, declarationKey: 'implementation' });
+            throw LexicaErrors.module('LEXICA4001', `'${unimplemented.qualifiedName}' has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplemented.declaration), declaration: unimplemented.declaration.name, declarationKey: 'impl' });
         }
 
         const unimplementedConversion = resolved.usedConversions.find(conversion => registry.getImplementation(conversion) === undefined);
@@ -169,7 +169,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         if (unimplementedConversion !== undefined) {
             const name = LexicaModule.conversionNameOf(unimplementedConversion);
 
-            throw LexicaErrors.module('LEXICA4001', `The conversion from ${name} has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplementedConversion), declaration: name, declarationKey: 'implementation' });
+            throw LexicaErrors.module('LEXICA4001', `The conversion from ${name} has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplementedConversion), declaration: name, declarationKey: 'impl' });
         }
 
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);

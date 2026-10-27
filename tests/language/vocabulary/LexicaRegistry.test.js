@@ -250,7 +250,7 @@ describe('LexicaRegistry', () => {
 
     describe('observation types', () => {
         const startTicks = () => ({ stop() {} });
-        const types = [{ name: 'ticks', contract: 'invalidation', implementation: startTicks }, { name: 'sampled', contract: 'maintained' }];
+        const types = [{ name: 'ticks', contract: 'invalidation', impl: startTicks }, { name: 'sampled', contract: 'maintained' }];
         const targets = [{ name: 'page' }, { name: 'frame', from: 'receiver' }, { name: 'frames', from: 'receiver', count: 'many' }];
         const watching = (updates = {}, moduleTypes = types) => new LexicaModule('charts', {
             observationTypes: moduleTypes,
@@ -354,9 +354,9 @@ describe('conversions', () => {
 
     it('are found by their source type and their target, and listed by their source', () => {
         const parse = ({ value }) => ({ points: value.length });
-        const registry = registering(charts([{ from: 'String', to: 'Chart', implementation: parse }, { from: 'Chart', to: 'String' }]))();
+        const registry = registering(charts([{ from: 'String', to: 'Chart', impl: parse }, { from: 'Chart', to: 'String' }]))();
 
-        expect(registry.getConversion(STRING, CHART)).toEqual({ from: 'String', to: 'Chart', implementation: parse });
+        expect(registry.getConversion(STRING, CHART)).toEqual({ from: 'String', to: 'Chart', impl: parse });
         expect(registry.getConversion(CHART, Type.createNamedType('Number'))).toBeUndefined();
         expect(registry.getConversionTargets(STRING).map(type => type.identity)).toEqual(['Number', 'Boolean', 'charts.Chart']);
         expect(registry.getDeclaringModuleName(registry.getConversion(STRING, CHART))).toBe('charts');

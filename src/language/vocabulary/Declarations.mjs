@@ -34,7 +34,7 @@ export class Declarations {
      * A member of the kind: a property, or a member written with arguments, a function call unless it says it is an indexer, whose arguments are positional unless it says they are options.
      * Its updates are those it is given, which every member the evaluator invokes declares, and a member without a target, which a null target gives, is a module member. A function the host invokes, `invokedBy: 'host'`, has no updates.
      */
-    static member(kind, name, target, result, { implementation, parameters = [], updates, syntax, arguments: argumentForm, isDefault = false, invokedBy } = {}) {
+    static member(kind, name, target, result, { impl, parameters = [], updates, syntax, arguments: argumentForm, isDefault = false, invokedBy } = {}) {
         const declaration = { name, kind, ...(invokedBy === undefined ? {} : { invokedBy }), ...(target === null ? {} : { target }), result };
 
         if (kind !== 'property') {
@@ -54,8 +54,8 @@ export class Declarations {
             declaration.updates = updates;
         }
 
-        if (implementation !== undefined) {
-            declaration.implementation = implementation;
+        if (impl !== undefined) {
+            declaration.impl = impl;
         }
 
         return declaration;

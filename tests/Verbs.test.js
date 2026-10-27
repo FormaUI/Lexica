@@ -15,17 +15,17 @@ const createPantry = (invoked = [], held = {}) => {
 
     return lexica.createModule('pantry', {
         members: [
-            property('size', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
-            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
-            lexica.declarations.function('fresh', 'String', 'Boolean', { updates: constantUpdates, implementation: () => 'yes' }),
-            lexica.declarations.function('even', 'Number', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => receiver % 2 === 0 }),
-            lexica.declarations.function('ignore', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: () => true }),
-            lexica.declarations.function('keep', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ args }) => ((kept = args.test), true) }),
-            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, implementation: ({ receiver }) => kept(receiver) }),
+            property('size', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
+            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
+            lexica.declarations.function('fresh', 'String', 'Boolean', { updates: constantUpdates, impl: () => 'yes' }),
+            lexica.declarations.function('even', 'Number', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => receiver % 2 === 0 }),
+            lexica.declarations.function('ignore', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], impl: () => true }),
+            lexica.declarations.function('keep', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, parameters: [functionParameter('test', 'Boolean', ['String'])], impl: ({ args }) => ((kept = args.test), true) }),
+            lexica.declarations.function('callKept', 'String', 'Boolean', { updates: { changes: 'derived', reads: 'derived' }, impl: ({ receiver }) => kept(receiver) }),
             lexica.declarations.function('keepAndFail', 'String', 'Boolean', {
                 updates: { changes: 'derived', reads: 'derived' },
                 parameters: [functionParameter('test', 'Boolean', ['String'])],
-                implementation: ({ args }) => {
+                impl: ({ args }) => {
                     held.test = args.test;
                     throw new Error('The pantry is closed');
                 },

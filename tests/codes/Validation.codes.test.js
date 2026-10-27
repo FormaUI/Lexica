@@ -20,7 +20,7 @@ const createShop = () => lexica.createModule('shop', withHome({
     types: [{ name: 'Cup', fields: { size: 'Number' } }],
     typeSelectors: [{ name: 'flavor' }],
     selectableTypes: [{ name: 'size', selector: 'flavor', type: 'Number' }],
-    conversions: [{ from: 'String', to: 'Cup', implementation: ({ value }) => ({ size: value.length }) }],
+    conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
     members: [
         property('size', 'String', 'Number', { updates: constantUpdates }),
         property('partner', 'String', 'String?', { updates: constantUpdates }),

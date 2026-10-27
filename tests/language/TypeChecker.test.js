@@ -213,7 +213,7 @@ describe('TypeChecker', () => {
 
     describe('resolveApplyingReceiverType, matchesReceiver and inferReceiverTypeArguments', () => {
         it('resolves the first receiver type the receiver applies to a member by, in the order it declares them, any receiver and a type parameter alone among them, which a never takes neither of', () => {
-            const property = (name, target) => Declarations.property(name, target, 'String', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver });
+            const property = (name, target) => Declarations.property(name, target, 'String', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver });
             const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [property('fade', ['any', 'String']), property('dim', ['T', 'String']), property('glow', ['String', 'any'])] })]);
             const [[anyFirst], [parameterFirst], [stringFirst]] = ['fade', 'dim', 'glow'].map(name => registry.getReceiverMembers(name));
             const { typeChecker } = registry;

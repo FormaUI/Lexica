@@ -191,7 +191,7 @@ export interface LexicaObservationTypeDeclaration {
     /** Whether equivalent requests share one observation; one that is not shared is kept for each of its host's evaluations alone. */
     shared?: boolean;
     /** Starts an observation, and answers an object whose `stop` ends it and, for a maintained one, whose `sample` answers its latest sample as `{ pending, value }`, pending until the first arrives. */
-    implementation?: (input: LexicaObservationImplementationInput) => { stop(): void; sample?(): { pending: boolean; value?: unknown } };
+    impl?: (input: LexicaObservationImplementationInput) => { stop(): void; sample?(): { pending: boolean; value?: unknown } };
 }
 
 /** A type selector, through which a function's fixed argument selects the type of its result: declared by its name alone. */
@@ -236,7 +236,7 @@ export interface LexicaConversionDeclaration {
     /** The type it converts to: `Number`, `String`, `Boolean` or a structured type. */
     to: string;
     /** Converts the value, reading nothing else, and answers the converted value, of the type it converts to, or calls `reject` where the value has none. */
-    implementation?: (input: LexicaConversionImplementationInput) => unknown;
+    impl?: (input: LexicaConversionImplementationInput) => unknown;
 }
 
 /** A parameter of a member. */
@@ -302,7 +302,7 @@ export interface LexicaMemberDeclaration {
     /** How it changes and reads; a property and a function the evaluator invokes take it, and a function the host invokes refuses it. */
     updates?: LexicaUpdates;
     /** What carries it out, given one object it reads by name; a member without one is resolved against and never invoked. */
-    implementation?: (input: LexicaImplementationInput) => unknown;
+    impl?: (input: LexicaImplementationInput) => unknown;
 }
 
 /** What a module declares. */

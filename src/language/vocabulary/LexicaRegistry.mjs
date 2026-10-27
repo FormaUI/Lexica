@@ -464,9 +464,9 @@ export class LexicaRegistry {
         return this.#declaringModules.get(declaration)?.moduleName;
     }
 
-    /** The implementation that carries the declaration out, or undefined where its module gives it none. */
+    /** The implementation that carries the declaration out, its `impl`, or undefined where its module gives it none. */
     getImplementation(declaration) {
-        return declaration.implementation;
+        return declaration.impl;
     }
 
     /** Whether the module, registered or being registered, declares a type of the local name. */

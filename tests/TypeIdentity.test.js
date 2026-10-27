@@ -9,13 +9,13 @@ const { property, valueParameter } = lexica.declarations;
 /** A module declaring a structured type `Sensor` of the field given, a module member answering one, and a conversion from a string to it. */
 const sensors = (name, field) => lexica.createModule(name, {
     types: [{ name: 'Sensor', fields: { [field]: 'Number' } }],
-    members: [property('sensor', null, 'Sensor', { updates: constantUpdates, implementation: () => ({ [field]: 1 }) })],
-    conversions: [{ from: 'String', to: 'Sensor', implementation: ({ value }) => ({ [field]: value.length }) }],
+    members: [property('sensor', null, 'Sensor', { updates: constantUpdates, impl: () => ({ [field]: 1 }) })],
+    conversions: [{ from: 'String', to: 'Sensor', impl: ({ value }) => ({ [field]: value.length }) }],
 });
 
 /** A module whose module member takes a home sensor and answers its level. */
 const checks = () => lexica.createModule('checks', {
-    members: [lexica.declarations.function('level', null, 'Number', { updates: constantUpdates, parameters: [valueParameter('sensor', 'home.Sensor')], implementation: ({ args }) => args.sensor.level })],
+    members: [lexica.declarations.function('level', null, 'Number', { updates: constantUpdates, parameters: [valueParameter('sensor', 'home.Sensor')], impl: ({ args }) => args.sensor.level })],
 });
 
 describe('type identity', () => {
@@ -47,7 +47,7 @@ describe('type identity', () => {
         it("leaves an unqualified name Lexica's own, the module's named qualified, and a declaration of the module naming its own", () => {
             const measures = lexica.createModule('measures', {
                 types: [{ name: 'Number', fields: { amount: 'String' } }],
-                conversions: [{ from: 'String', to: 'Number', implementation: ({ value }) => ({ amount: value }) }],
+                conversions: [{ from: 'String', to: 'Number', impl: ({ value }) => ({ amount: value }) }],
             });
 
             expect(evaluateWith([measures], '"12" to Number')).toBe(12);
@@ -58,7 +58,7 @@ describe('type identity', () => {
     describe('of a reference in a declaration', () => {
         it('resolves a foreign type written qualified, and refuses one written unqualified, giving its qualified name', () => {
             const axes = lexica.createModule('axes', { types: [{ name: 'Axis', fields: { length: 'Number' } }] });
-            const charting = result => lexica.createModule('charts', { members: [property('axis', null, result, { updates: constantUpdates, implementation: () => ({ length: 2 }) })] });
+            const charting = result => lexica.createModule('charts', { members: [property('axis', null, result, { updates: constantUpdates, impl: () => ({ length: 2 }) })] });
 
             expect(evaluateWith([axes, charting('axes.Axis')], 'charts.axis.length')).toBe(2);
             expect(messageThrownBy(() => lexica.createRegistry([axes, charting('Axis')]))).toContain("names the type 'Axis', which only another module declares, so it is named qualified: axes.Axis");
@@ -69,7 +69,7 @@ describe('type identity', () => {
             const declaring = (name, fields) => lexica.createModule(name, { types: [{ name: 'Axis', fields }] });
             const charting = (type, ownTypes = []) => lexica.createModule('charts', {
                 types: [type, ...ownTypes],
-                members: [property('chart', null, 'Chart', { updates: constantUpdates, implementation: () => ({ axis: { length: 2, step: 1 } }) })],
+                members: [property('chart', null, 'Chart', { updates: constantUpdates, impl: () => ({ axis: { length: 2, step: 1 } }) })],
             });
             const chart = imports => ({ name: 'Chart', fields: { axis: 'Axis' }, import: imports });
 
@@ -92,7 +92,7 @@ describe('type identity', () => {
         it('takes a type named as a node of Lexica\'s in its own module, where it names that type, and leaves Lexica\'s node to every other', () => {
             const shapes = lexica.createModule('shapes', {
                 types: [{ name: 'Element', fields: { width: 'Number' } }],
-                members: [property('element', null, 'Element', { updates: constantUpdates, implementation: () => ({ width: 3 }) })],
+                members: [property('element', null, 'Element', { updates: constantUpdates, impl: () => ({ width: 3 }) })],
             });
 
             expect(evaluateWith([shapes], 'shapes.element.width')).toBe(3);

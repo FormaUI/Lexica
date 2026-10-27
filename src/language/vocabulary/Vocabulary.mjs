@@ -36,22 +36,22 @@ export class Vocabulary {
 
         return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
             members: [
-                Declarations.property('count', 'List<T>', 'Number', { updates: derivedUpdates, implementation: ({ receiver }) => receiver.length }),
-                Declarations.property('first', 'List<T>', 'T?', { updates: derivedUpdates, implementation: ({ receiver }) => receiver.at(0) ?? null }),
-                Declarations.property('last', 'List<T>', 'T?', { updates: derivedUpdates, implementation: ({ receiver }) => receiver.at(-1) ?? null }),
+                Declarations.property('count', 'List<T>', 'Number', { updates: derivedUpdates, impl: ({ receiver }) => receiver.length }),
+                Declarations.property('first', 'List<T>', 'T?', { updates: derivedUpdates, impl: ({ receiver }) => receiver.at(0) ?? null }),
+                Declarations.property('last', 'List<T>', 'T?', { updates: derivedUpdates, impl: ({ receiver }) => receiver.at(-1) ?? null }),
                 // The item at a whole index from zero, null for any other index, a negative one included, which never counts from the end.
                 Declarations.function('item', 'List<T>', 'T?', {
                     syntax: 'indexer', isDefault: true, updates: derivedUpdates, parameters: [Declarations.valueParameter('index', 'Number')],
-                    implementation: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
+                    impl: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
                 }),
                 // The verbs, each answering what its test answers of its receiver, a function of the receiver's own type that answers a Boolean, so each reads and changes as its test does.
-                Declarations.function('is', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], implementation: ({ receiver, args }) => args.test(receiver) }),
-                Declarations.function('has', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], implementation: ({ receiver, args }) => args.test(receiver) }),
-                Declarations.function('supports', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], implementation: ({ receiver, args }) => args.test(receiver) }),
-                Declarations.function('max', 'List<T>', 'Number?', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
-                Declarations.function('min', 'List<T>', 'Number?', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], implementation: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
-                Declarations.function('sum', 'List<T>', 'Number', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], implementation: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
-                Declarations.function('where', 'List<T>', 'List<T>', { updates: derivedUpdates, parameters: [Declarations.predicateParameter()], implementation: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
+                Declarations.function('is', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) }),
+                Declarations.function('has', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) }),
+                Declarations.function('supports', 'T', 'Boolean', { updates: derivedUpdates, parameters: [Declarations.functionParameter('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) }),
+                Declarations.function('max', 'List<T>', 'Number?', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
+                Declarations.function('min', 'List<T>', 'Number?', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
+                Declarations.function('sum', 'List<T>', 'Number', { updates: derivedUpdates, parameters: [Declarations.expressionParameter('Number?')], impl: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
+                Declarations.function('where', 'List<T>', 'List<T>', { updates: derivedUpdates, parameters: [Declarations.predicateParameter()], impl: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
             ],
 
             // Each conversion takes the value, never null, and `reject`, which stops it for a value it does not convert.
@@ -59,7 +59,7 @@ export class Vocabulary {
                 {
                     from: 'String',
                     to: 'Number',
-                    implementation: ({ value, reject }) => {
+                    impl: ({ value, reject }) => {
                         const trimmed = value.replace(SURROUNDING_ASCII_WHITESPACE, '');
 
                         if (!VALID_FLOATING_POINT_NUMBER.test(trimmed)) {
@@ -76,12 +76,12 @@ export class Vocabulary {
                     },
                 },
                 // The shortest text that reads back as the same number, as ECMAScript writes it, and negative zero as "0".
-                { from: 'Number', to: 'String', implementation: ({ value }) => String(value) },
-                { from: 'Boolean', to: 'String', implementation: ({ value }) => String(value) },
+                { from: 'Number', to: 'String', impl: ({ value }) => String(value) },
+                { from: 'Boolean', to: 'String', impl: ({ value }) => String(value) },
                 {
                     from: 'String',
                     to: 'Boolean',
-                    implementation: ({ value, reject }) => {
+                    impl: ({ value, reject }) => {
                         if (value !== 'true' && value !== 'false') {
                             reject(`${JSON.stringify(value)} is no Boolean, which is written "true" or "false"`);
                         }

@@ -15,13 +15,27 @@ const refusal = (contents, declarationName, declarationKey, fragment) => {
 describe('LexicaModule', () => {
     it('keeps its declarations as frozen data, each implementation the function its module gave', () => {
         const implementation = () => 2;
-        const module = new LexicaModule('charts', { members: [propertyDeclaration({ name: 'charts', implementation })] });
+        const module = new LexicaModule('charts', { members: [propertyDeclaration({ name: 'charts', impl: implementation })] });
 
         expect(module.members[0]).toMatchObject({ name: 'charts', target: 'String', parameters: [], updates: { changes: 'constant', reads: 'fresh', observations: [] } });
-        expect(module.members[0].implementation).toBe(implementation);
+        expect(module.members[0].impl).toBe(implementation);
         expect(Object.isFrozen(module.members[0])).toBe(true);
         expect(Object.isFrozen(module.members[0].updates)).toBe(true);
         expect(Object.isFrozen(implementation)).toBe(false);
+    });
+
+    it('refuses the key implementation on a member, an observation type and a conversion, each carrying its code as its impl', () => {
+        const implementation = () => 1;
+        const refused = contents => {
+            const { module, declaration, declarationKey } = expectModuleError(() => new LexicaModule('charts', contents));
+
+            return { module, declaration, declarationKey };
+        };
+
+        expect(refused({ members: [propertyDeclaration({ implementation })] })).toEqual({ module: 'charts', declaration: 'zoom', declarationKey: 'implementation' });
+        expect(refused({ observationTypes: [{ name: 'tick', contract: 'invalidation', implementation }] })).toEqual({ module: 'charts', declaration: 'tick', declarationKey: 'implementation' });
+        expect(refused({ types: [{ name: 'Cup', fields: { size: 'Number' } }], conversions: [{ from: 'String', to: 'Cup', implementation }] })).toEqual({ module: 'charts', declaration: 'String to Cup', declarationKey: 'implementation' });
+        expect(expectModuleError(() => new LexicaModule('charts', { members: [propertyDeclaration({ impl: 'size' })] }))).toEqual({ message: expect.stringContaining('Its `impl` is a function'), module: 'charts', declaration: 'zoom', declarationKey: 'impl' });
     });
 
     it('refuses a declaration whose data reaches itself, at its declaration key, and takes data two parts share and a function that holds itself', () => {
@@ -47,7 +61,7 @@ describe('LexicaModule', () => {
 
         expect(() => new LexicaModule('charts', {
             members: [
-                functionDeclaration({ name: 'pan', implementation, parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
+                functionDeclaration({ name: 'pan', impl: implementation, parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
                 functionDeclaration({ name: 'zoom', parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
             ],
         })).not.toThrow();
@@ -193,7 +207,7 @@ describe('LexicaModule', () => {
         });
 
         it('carry an implementation that is a function', () => {
-            refusal({ members: [propertyDeclaration({ implementation: 'zoom' })] }, 'zoom', 'implementation', 'Its implementation is a function');
+            refusal({ members: [propertyDeclaration({ impl: 'zoom' })] }, 'zoom', 'impl', 'Its `impl` is a function');
         });
     });
 
@@ -216,7 +230,7 @@ describe('LexicaModule', () => {
 
         it('declare neither updates, since they are never evaluated, nor an implementation, since their host invokes them', () => {
             refusal({ members: [hostCall({ updates: { changes: 'constant', reads: 'fresh' } })] }, 'dim', 'updates', 'the evaluator never evaluates it, so it declares no updates');
-            refusal({ members: [hostCall({ implementation: () => 1 })] }, 'dim', 'implementation', 'its module gives Lexica no implementation of it');
+            refusal({ members: [hostCall({ impl: () => 1 })] }, 'dim', 'impl', 'its module gives Lexica no implementation of it');
         });
 
         it('are written as a function call and take value parameters alone', () => {
@@ -256,14 +270,14 @@ describe('LexicaModule', () => {
         it('name a selector once in its module, as a name is, and declare nothing else of it', () => {
             expect(fails({ typeSelectors: [{ name: 'report-kind' }] })).toMatchObject({ declaration: 'report-kind', declarationKey: 'name' });
             expect(fails({ typeSelectors: [{ name: 'report' }, { name: 'report' }] }).message).toContain("The type selector 'report' is declared twice");
-            expect(fails({ typeSelectors: [{ name: 'report', implementation: () => 1 }] })).toMatchObject({ declaration: 'report', declarationKey: 'implementation' });
+            expect(fails({ typeSelectors: [{ name: 'report', impl: () => 1 }] })).toMatchObject({ declaration: 'report', declarationKey: 'impl' });
         });
 
         it('name a key as an event is named, with the selector it belongs to and the type it maps to, and declare nothing else of it', () => {
             expect(fails({ selectableTypes: [{ name: '1st', selector: 'report', type: 'Number' }] })).toMatchObject({ declaration: '1st', declarationKey: 'name' });
             expect(fails({ selectableTypes: [{ name: 'motion', type: 'Number' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'selector' });
             expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'List<' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'type' });
-            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number', implementation: () => 1 }] })).toMatchObject({ declaration: 'motion', declarationKey: 'implementation' });
+            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number', impl: () => 1 }] })).toMatchObject({ declaration: 'motion', declarationKey: 'impl' });
         });
 
         it('are selected through by a function\'s one fixed parameter that names its selector, whose result writes @selected', () => {
@@ -440,10 +454,10 @@ describe('LexicaModule', () => {
 
         it('are members as any other, each a function whose result is a boolean, with its updates and its implementation', () => {
             const implementation = () => true;
-            const [kept] = new LexicaModule('lit', { members: [test({ implementation })] }).members;
+            const [kept] = new LexicaModule('lit', { members: [test({ impl: implementation })] }).members;
 
             expect(kept).toMatchObject({ name: 'lit', kind: 'function', target: 'String', result: 'Boolean', parameters: [] });
-            expect(kept.implementation).toBe(implementation);
+            expect(kept.impl).toBe(implementation);
         });
 
         it('are named as every member is, so a name joined by a hyphen is refused, and is written as one name', () => {
@@ -462,7 +476,7 @@ describe('LexicaModule', () => {
 
     describe('types, which run nothing', () => {
         it('refuse an implementation, which would mean nothing for them', () => {
-            refusal({ types: [{ name: 'Chart', fields: { size: 'Number' }, implementation: () => 1 }] }, 'Chart', 'implementation', "'implementation' is none of them");
+            refusal({ types: [{ name: 'Chart', fields: { size: 'Number' }, impl: () => 1 }] }, 'Chart', 'impl', "'impl' is none of them");
         });
 
         it.each(['Number', 'List', 'Null', 'Never', 'chart', 'null', 'number'])('take a structured type named %s, a casing that is a convention and a name another declaration may share', name => {
@@ -494,10 +508,10 @@ describe('LexicaModule', () => {
 
         it('are kept as data, with the arguments of their identity, whether they are shared, and their implementation', () => {
             const implementation = () => ({ stop() {} });
-            const module = new LexicaModule('charts', { observationTypes: [type(), type({ name: 'sampled', contract: 'maintained', identity: ['root'], shared: false, implementation })] });
+            const module = new LexicaModule('charts', { observationTypes: [type(), type({ name: 'sampled', contract: 'maintained', identity: ['root'], shared: false, impl: implementation })] });
 
             expect(module.observationTypes.map(declared => [declared.name, declared.identity, declared.shared])).toEqual([['ticks', [], true], ['sampled', ['root'], false]]);
-            expect(module.observationTypes[1].implementation).toBe(implementation);
+            expect(module.observationTypes[1].impl).toBe(implementation);
             expect(Object.isFrozen(module.observationTypes[0])).toBe(true);
         });
 
@@ -507,7 +521,7 @@ describe('LexicaModule', () => {
             refused({ identity: 'root' }, 'identity', 'identity');
             refused({ shared: 'yes' }, 'shared', 'whether observations are shared');
             refused({ function: 'startTicks' }, 'function', "'function' is none of them");
-            refused({ implementation: 'startTicks' }, 'implementation', 'Its implementation is a function');
+            refused({ impl: 'startTicks' }, 'impl', 'Its `impl` is a function');
         });
     });
 });
@@ -519,7 +533,7 @@ describe('conversions', () => {
     it('are kept as data, each from a type to another with its implementation', () => {
         const implementation = ({ value }) => ({ points: value.length });
 
-        expect(declaring([conversion({ implementation })]).conversions[0]).toMatchObject({ from: 'String', to: 'Chart', implementation });
+        expect(declaring([conversion({ impl: implementation })]).conversions[0]).toMatchObject({ from: 'String', to: 'Chart', impl: implementation });
     });
 
     it.each([
@@ -539,7 +553,7 @@ describe('conversions', () => {
 
     it('take from, to and implementation alone, the implementation a function', () => {
         expect(expectModuleError(() => declaring([conversion({ function: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'function' });
-        expect(expectModuleError(() => declaring([conversion({ implementation: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'implementation' });
+        expect(expectModuleError(() => declaring([conversion({ impl: 'parse' })]))).toMatchObject({ declaration: 'String to Chart', declarationKey: 'impl' });
     });
 
     it('take to as a member name, a property, a function call or an indexer, since it converts only after a value', () => {

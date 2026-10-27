@@ -16,11 +16,11 @@ const { property } = Declarations;
  * Every implementation records its receiver, so a test sees which invocations ran.
  */
 const createPrices = invoked => new LexicaModule('prices', {
-    observationTypes: [{ name: 'quote', contract: 'maintained', implementation: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
+    observationTypes: [{ name: 'quote', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
     members: [
-        property('price', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`price:${receiver}`), receiver.length) }),
-        property('rate', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ env }) => env.rate }),
-        property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, implementation: ({ samples: [quote] }) => quote }),
+        property('price', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => (invoked.push(`price:${receiver}`), receiver.length) }),
+        property('rate', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ env }) => env.rate }),
+        property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, impl: ({ samples: [quote] }) => quote }),
     ],
 });
 

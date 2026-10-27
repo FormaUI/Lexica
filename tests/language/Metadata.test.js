@@ -19,11 +19,11 @@ const parts = [new Light('a'), new Light('b')];
 const shapes = new LexicaModule('shapes', withHome({
     types: [{ name: 'Size', fields: { width: 'Number', height: 'Number' } }],
     members: [
-        property('size', 'String', 'Size', { updates: { ...constantUpdates, tolerance: 0.5 }, implementation: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
-        property('length', 'String', 'Number', { updates: constantUpdates, implementation: ({ receiver }) => receiver.length }),
-        property('parts', 'String', 'List<Light?>', { updates: constantUpdates, implementation: () => parts }),
-        property('label', 'Light', 'String', { updates: constantUpdates, implementation: ({ receiver }) => receiver.name }),
-        property('sizes', 'String', 'List<Size?>', { updates: constantUpdates, implementation: () => [{ width: 1, height: 2 }, null] }),
+        property('size', 'String', 'Size', { updates: { ...constantUpdates, tolerance: 0.5 }, impl: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
+        property('length', 'String', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
+        property('parts', 'String', 'List<Light?>', { updates: constantUpdates, impl: () => parts }),
+        property('label', 'Light', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name }),
+        property('sizes', 'String', 'List<Size?>', { updates: constantUpdates, impl: () => [{ width: 1, height: 2 }, null] }),
     ],
 }));
 

@@ -8,11 +8,11 @@ const { property, valueParameter } = lexica.declarations;
 /** A plain host's module, of no domain: an order's total within a cent, a discount by code, and a product's stock, maintained by an observation the host samples. */
 const createShop = () => lexica.createModule('shop', {
     types: [{ name: 'Price', fields: { amount: 'Number', currency: 'String' } }],
-    observationTypes: [{ name: 'stock', contract: 'maintained', implementation: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 0 }) }) }],
+    observationTypes: [{ name: 'stock', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 0 }) }) }],
     members: [
-        property('total', 'String', 'Price', { updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 }, implementation: ({ receiver, env }) => ({ amount: env.prices[receiver], currency: 'EUR' }) }),
-        lexica.declarations.function('discount', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('code', 'String')], implementation: ({ args }) => (args.code === 'TEN' ? 10 : 0) }),
-        property('stock', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'stock', of: 'receiver' }] }, implementation: ({ samples: [count] }) => count }),
+        property('total', 'String', 'Price', { updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 }, impl: ({ receiver, env }) => ({ amount: env.prices[receiver], currency: 'EUR' }) }),
+        lexica.declarations.function('discount', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('code', 'String')], impl: ({ args }) => (args.code === 'TEN' ? 10 : 0) }),
+        property('stock', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'stock', of: 'receiver' }] }, impl: ({ samples: [count] }) => count }),
     ],
 });
 
@@ -112,8 +112,8 @@ describe('a host of plain data', () => {
 
     it('types a call nullable where an argument that may be null meets a parameter propagating null, its own type nullable or not, as the call answers null without invoking the implementation', () => {
         const invoked = [];
-        const add = type => lexica.declarations.function('add', 'Number', 'Number', { updates: constantUpdates, parameters: [valueParameter('amount', type)], implementation: ({ receiver, args }) => (invoked.push(args.amount), receiver + args.amount) });
-        const sums = type => lexica.createRegistry([lexica.createModule('sums', { members: [add(type), property('none', 'Number', 'Number?', { updates: constantUpdates, implementation: () => null })] })]);
+        const add = type => lexica.declarations.function('add', 'Number', 'Number', { updates: constantUpdates, parameters: [valueParameter('amount', type)], impl: ({ receiver, args }) => (invoked.push(args.amount), receiver + args.amount) });
+        const sums = type => lexica.createRegistry([lexica.createModule('sums', { members: [add(type), property('none', 'Number', 'Number?', { updates: constantUpdates, impl: () => null })] })]);
         const resolve = (type, text) => sums(type).resolve(text, { n: 1 });
 
         for (const type of ['Number', 'Number?']) {
@@ -159,13 +159,13 @@ describe('the declaration shape', () => {
     /** A module of a cafe's menu, each implementation recording the one object it was given. */
     const createMenu = (received = []) => lexica.createModule('menu', {
         members: [
-            property('price', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: input => (received.push(input), input.receiver.length) }),
+            property('price', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: input => (received.push(input), input.receiver.length) }),
             lexica.declarations.function('discounted', 'String', 'Number', {
                 updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('percent', 'Number')],
-                implementation: ({ receiver, args, env }) => receiver.length * (1 - args.percent / 100) * env.rate,
+                impl: ({ receiver, args, env }) => receiver.length * (1 - args.percent / 100) * env.rate,
             }),
             property('special', 'String', 'String', { updates: { changes: 'constant', reads: 'fresh' } }),
-            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver, args }) => (received.push(args), receiver.startsWith('oat')) }),
+            lexica.declarations.function('vegan', 'String', 'Boolean', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver, args }) => (received.push(args), receiver.startsWith('oat')) }),
         ],
     });
 
@@ -191,7 +191,7 @@ describe('the declaration shape', () => {
         const resolution = lexica.createRegistry([createMenu()]).resolve('item.special', { item: 'latte' });
 
         expect(resolution.type).toBe('String');
-        expect(errorThrownBy(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', message: expect.stringContaining('so a script that uses it is resolved and never evaluated'), location: { module: 'menu', declaration: 'special', declarationKey: 'implementation' } });
+        expect(errorThrownBy(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', message: expect.stringContaining('so a script that uses it is resolved and never evaluated'), location: { module: 'menu', declaration: 'special', declarationKey: 'impl' } });
     });
 
     it('decides before anything is evaluated, so a branch evaluation would not take refuses its script too', () => {
@@ -203,7 +203,7 @@ describe('the declaration shape', () => {
     it('reads a required parameter whose default holds undefined as one that declares none, so its argument is still required', () => {
         const percent = { ...valueParameter('percent', 'Number'), default: undefined };
         const registry = lexica.createRegistry([lexica.createModule('cut', {
-            members: [lexica.declarations.function('cut', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [percent], implementation: ({ args }) => args.percent })],
+            members: [lexica.declarations.function('cut', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [percent], impl: ({ args }) => args.percent })],
         })]);
 
         expect(registry.resolve('item.cut(5)', { item: 'latte' }).createEvaluator({ item: 'latte' }).evaluate().value).toBe(5);
@@ -224,15 +224,15 @@ describe('the declaration shape', () => {
         const cups = lexica.createModule('cups', { types: [{ name: 'Cup', fields: { size: 'Number' } }], conversions: [{ from: 'String', to: 'Cup' }] });
         const resolution = lexica.createRegistry([cups]).resolve('if large then (order to Cup).size else 0 end', { order: 'tall', large: false });
 
-        expect(errorThrownBy(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'String to Cup', declarationKey: 'implementation' } });
+        expect(errorThrownBy(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', location: { module: 'cups', declaration: 'String to Cup', declarationKey: 'impl' } });
     });
 
     it('registers a module member, which has no target, beside the members of a type, read through its namespace and answered by no receiver, its implementation given no receiver', () => {
         const received = [];
         const registry = lexica.createRegistry([lexica.createModule('clock', {
             members: [
-                property('length', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver.length }),
-                property('zone', null, 'String', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: input => (received.push(input), 'UTC') }),
+                property('length', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length }),
+                property('zone', null, 'String', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: input => (received.push(input), 'UTC') }),
             ],
         })]);
 
@@ -244,8 +244,8 @@ describe('the declaration shape', () => {
 
     it('registers a module member and a member on a receiver of one name in one module, the namespace reading each where resolution takes one alone', () => {
         const members = [
-            property('now', null, 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: () => 0 }),
-            property('now', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => receiver.length }),
+            property('now', null, 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: () => 0 }),
+            property('now', 'String', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length }),
         ];
 
         for (const declared of [members, [...members].reverse()]) {

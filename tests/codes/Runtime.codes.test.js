@@ -24,15 +24,15 @@ let kept = null;
  */
 const createPantry = () => lexica.createModule('pantry', withHome({
     types: [{ name: 'Cup', fields: { size: 'Number' } }],
-    observationTypes: [{ name: 'quote', contract: 'maintained', implementation: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
-    conversions: [{ from: 'String', to: 'Cup', implementation: input => behaviors.convert(input) }],
+    observationTypes: [{ name: 'quote', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
+    conversions: [{ from: 'String', to: 'Cup', impl: input => behaviors.convert(input) }],
     members: [
-        property('size', 'String', 'Number', { updates: constantUpdates, implementation: input => (behaviors.size ?? (({ receiver }) => receiver.length))(input) }),
-        property('device', 'String', 'Device', { updates: constantUpdates, implementation: () => new Thermostat('heater') }),
-        property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, implementation: ({ samples: [quote] }) => quote }),
-        lexica.declarations.function('check', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: input => (behaviors.check ?? (({ receiver, args }) => args.test(receiver)))(input) }),
-        lexica.declarations.function('keep', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], implementation: ({ args }) => ((kept = args.test), true) }),
-        lexica.declarations.function('callKept', 'String', 'Boolean', { updates: constantUpdates, implementation: ({ receiver }) => kept(receiver) }),
+        property('size', 'String', 'Number', { updates: constantUpdates, impl: input => (behaviors.size ?? (({ receiver }) => receiver.length))(input) }),
+        property('device', 'String', 'Device', { updates: constantUpdates, impl: () => new Thermostat('heater') }),
+        property('quoted', 'String', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'quote', of: 'receiver' }] }, impl: ({ samples: [quote] }) => quote }),
+        lexica.declarations.function('check', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], impl: input => (behaviors.check ?? (({ receiver, args }) => args.test(receiver)))(input) }),
+        lexica.declarations.function('keep', 'String', 'Boolean', { updates: derivedUpdates, parameters: [functionParameter('test', 'Boolean', ['String'])], impl: ({ args }) => ((kept = args.test), true) }),
+        lexica.declarations.function('callKept', 'String', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => kept(receiver) }),
         lexica.declarations.function('order', 'String', 'Number', { invokedBy: 'host', parameters: [valueParameter('count', 'Number')] }),
         lexica.declarations.function('drop', 'String', undefined, { invokedBy: 'host' }),
     ],

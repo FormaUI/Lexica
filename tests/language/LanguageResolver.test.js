@@ -8,7 +8,7 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { constantUpdates } from '../support/updates.mjs';
 
-const padding = (target, countType) => Declarations.function('pad', target, 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', countType)], implementation: ({ receiver }) => receiver });
+const padding = (target, countType) => Declarations.function('pad', target, 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', countType)], impl: ({ receiver }) => receiver });
 
 /**
  * A shop whose `pad` is a module member taking a text and a count written as a string, a member of a string taking a count, and a member of a Boolean taking a count written as a string; and whose `trim` is a member of a string
@@ -16,11 +16,11 @@ const padding = (target, countType) => Declarations.function('pad', target, 'Str
  */
 const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
     members: [
-        Declarations.function('pad', null, 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('text', 'String'), Declarations.valueParameter('count', 'String')], implementation: ({ args }) => args.text }),
+        Declarations.function('pad', null, 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('text', 'String'), Declarations.valueParameter('count', 'String')], impl: ({ args }) => args.text }),
         padding('String', 'Number'),
         padding('Boolean', 'String'),
-        Declarations.function('trim', 'String', 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', 'Number')], implementation: ({ receiver }) => receiver }),
-        Declarations.function('trim', 'Boolean', 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', 'Number')], implementation: () => 'trimmed' }),
+        Declarations.function('trim', 'String', 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', 'Number')], impl: ({ receiver }) => receiver }),
+        Declarations.function('trim', 'Boolean', 'String', { updates: constantUpdates, parameters: [Declarations.valueParameter('count', 'Number')], impl: () => 'trimmed' }),
     ],
 })]);
 
@@ -85,7 +85,7 @@ describe('LanguageResolver', () => {
 
     describe('a computed property access', () => {
         it('keeps each name\'s resolution by its name and records each use as its name is resolved, its own pointer holding its own resolution', () => {
-            const property = (name, result = 'Number') => Declarations.property(name, 'String', result, { updates: constantUpdates, implementation: () => 1 });
+            const property = (name, result = 'Number') => Declarations.property(name, 'String', result, { updates: constantUpdates, impl: () => 1 });
             const lit = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', { members: [property('glow'), property('dim'), property('long', 'Boolean')] })]);
             const definition = ParsedTexts.parse('return word.[if word.long then "glow" else "dim" end]', new Set(lit.namespaceNames));
             const resolved = new LanguageResolver(lit, new ParameterBindings(lit, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
@@ -101,7 +101,7 @@ describe('LanguageResolver', () => {
         /** A registry whose `Cup` is a structured type of a size, converted from a string. */
         const cups = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
             types: [{ name: 'Cup', fields: { size: 'Number' } }],
-            conversions: [{ from: 'String', to: 'Cup', implementation: ({ value }) => ({ size: value.length }) }],
+            conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
         })]);
         const values = { word: 'oat', pair: { a: 1, b: null }, missing: null };
         const resolveCups = text => {
@@ -156,7 +156,7 @@ describe('LanguageResolver', () => {
         /** The qualified names `word.fade` uses, where `fade` is a property of the receiver types given, in order. */
         const usesOf = target => {
             const fading = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
-                members: [Declarations.property('fade', target, 'String', { updates: constantUpdates, implementation: ({ receiver }) => receiver })],
+                members: [Declarations.property('fade', target, 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver })],
             })]);
             const definition = ParsedTexts.parse('return word.fade', new Set(fading.namespaceNames));
 

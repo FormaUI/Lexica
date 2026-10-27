@@ -36,12 +36,12 @@ const shop = lexica.createModule('Shop', {
     members: [
         property('price', 'String', 'Price', {
             updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 },
-            implementation: ({ receiver, env }) => ({ amount: env.catalog[receiver], currency: 'EUR' }),
+            impl: ({ receiver, env }) => ({ amount: env.catalog[receiver], currency: 'EUR' }),
         }),
         fn('discount', 'String', 'Number', {
             updates: { changes: 'constant', reads: 'fresh' },
             parameters: [valueParameter('code', 'String')],
-            implementation: ({ args }) => (args.code === 'TEN' ? 10 : 0),
+            impl: ({ args }) => (args.code === 'TEN' ? 10 : 0),
         }),
     ],
 });

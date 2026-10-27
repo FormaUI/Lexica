@@ -54,7 +54,7 @@ const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'selectableTypes', 'observationTypes', 'observationTargets', 'conversions'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
-const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'implementation'];
+const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'impl'];
 const MEMBER_KEYS_BY_KIND = {
     property: ['updates'],
     function: ['invokedBy', 'syntax', 'arguments', 'default', 'parameters', 'updates'],
@@ -65,9 +65,9 @@ const TYPE_KEYS = ['name', 'fields', 'import'];
 const REFERENCE_TYPE_KEYS = ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import'];
 const TYPE_SELECTOR_KEYS = ['name'];
 const SELECTABLE_TYPE_KEYS = ['name', 'selector', 'type'];
-const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'implementation'];
+const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'impl'];
 const OBSERVATION_TARGET_KEYS = ['name', 'from', 'count'];
-const CONVERSION_KEYS = ['from', 'to', 'implementation'];
+const CONVERSION_KEYS = ['from', 'to', 'impl'];
 
 /** How a selectable type's key is written: a letter, then letters, digits, colons and hyphens, as `motion` and `door:open` are. */
 const SELECTABLE_KEY = /^[A-Za-z][A-Za-z0-9:-]*$/;
@@ -335,10 +335,10 @@ export class LexicaModule {
         return notation !== undefined && writes(Type.parse(notation));
     }
 
-    /** Refuses an implementation that is given and is no function. */
+    /** Refuses an `impl`, the implementation a declaration carries, that is given and is no function. */
     static #validateImplementation(declaration, name, fail) {
-        if (declaration.implementation !== undefined && typeof declaration.implementation !== 'function') {
-            fail('LEXICA4505', 'Its implementation is a function', name, 'implementation');
+        if (declaration.impl !== undefined && typeof declaration.impl !== 'function') {
+            fail('LEXICA4505', 'Its `impl` is a function', name, 'impl');
         }
     }
 
@@ -836,8 +836,8 @@ export class LexicaModule {
             fail('LEXICA4030', 'Its host invokes it, and the evaluator never evaluates it, so it declares no updates', name, 'updates');
         }
 
-        if (member.implementation !== undefined) {
-            fail('LEXICA4030', 'Its host invokes it, so its module gives Lexica no implementation of it', name, 'implementation');
+        if (member.impl !== undefined) {
+            fail('LEXICA4030', 'Its host invokes it, so its module gives Lexica no implementation of it', name, 'impl');
         }
 
         if (member.syntax === 'indexer') {

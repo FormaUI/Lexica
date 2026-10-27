@@ -28,11 +28,11 @@ const createHome = (invoked = []) => lexica.createModule('home', {
         hostFunctionDeclaration('hold', 'String', undefined, { arguments: 'options', parameters: [valueParameter('target', 'Number')] }),
         hostFunctionDeclaration('watch', 'String', 'Motion'),
         hostFunctionDeclaration('on', 'String', '@selected', { parameters: [valueParameter('type', 'String', { fixed: true, selects: 'type', selector: 'event' })] }),
-        lexica.declarations.function('reading', 'String', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('name', 'String', { fixed: true, selects: 'type', selector: 'reading' })], implementation: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
-        property('room', 'String', 'String', { updates: { changes: 'constant', reads: 'fresh' }, implementation: ({ receiver }) => (invoked.push(`room:${receiver}`), `${receiver}'s room`) }),
-        property('level', 'String', 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => (invoked.push(`level:${receiver}`), env.levels[receiver]) }),
-        property('occupied', 'String', 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, implementation: ({ receiver, env }) => env.occupied.includes(receiver) }),
-        property('partner', 'String', 'String?', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => null }),
+        lexica.declarations.function('reading', 'String', '@selected', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [valueParameter('name', 'String', { fixed: true, selects: 'type', selector: 'reading' })], impl: ({ args }) => (args.name === 'level' ? 3 : 'warm') }),
+        property('room', 'String', 'String', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => (invoked.push(`room:${receiver}`), `${receiver}'s room`) }),
+        property('level', 'String', 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: ({ receiver, env }) => (invoked.push(`level:${receiver}`), env.levels[receiver]) }),
+        property('occupied', 'String', 'Boolean', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: ({ receiver, env }) => env.occupied.includes(receiver) }),
+        property('partner', 'String', 'String?', { updates: { changes: 'constant', reads: 'fresh' }, impl: () => null }),
     ],
 });
 
@@ -105,7 +105,7 @@ describe('host calls', () => {
 
     it('on a receiver of unknown type, keep their name and have no declaration yet, and are refused where the declarations disagree on who invokes them', () => {
         const dimmer = lexica.createModule('dimmer', {
-            members: [lexica.declarations.function('dim', 'Number', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, arguments: 'options', parameters: [valueParameter('to', 'Number')], implementation: ({ args }) => args.to })],
+            members: [lexica.declarations.function('dim', 'Number', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, arguments: 'options', parameters: [valueParameter('to', 'Number')], impl: ({ args }) => args.to })],
         });
 
         expect(resolve('thing?.dim({ to = 40 })', { thing: null })).toMatchObject({ type: 'Number?', hostCall: { name: 'dim', declaration: null } });
@@ -174,8 +174,8 @@ describe('prepared calls', () => {
         const tolerant = tolerance => ({ updates: { changes: 'constant', reads: 'fresh', tolerance } });
         const module = lexica.createModule('home', {
             members: [
-                property('fine', 'String', 'Number', { ...tolerant(0.1), implementation: () => 1 }),
-                property('coarse', 'String', 'Number', { ...tolerant(5), implementation: () => 2 }),
+                property('fine', 'String', 'Number', { ...tolerant(0.1), impl: () => 1 }),
+                property('coarse', 'String', 'Number', { ...tolerant(5), impl: () => 2 }),
                 hostFunctionDeclaration('dim', 'String', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),
             ],
         });
@@ -324,7 +324,7 @@ describe('values a host supplies', () => {
         members: [
             lexica.declarations.function('report', 'String', 'Report', { invokedBy: 'host' }),
             lexica.declarations.function('maybe', 'String', 'Spot?', { invokedBy: 'host' }),
-            property('spotted', 'String', 'Spot', { updates: { changes: 'constant', reads: 'fresh' }, implementation: () => ({ x: 1 }) }),
+            property('spotted', 'String', 'Spot', { updates: { changes: 'constant', reads: 'fresh' }, impl: () => ({ x: 1 }) }),
         ],
     }));
 
