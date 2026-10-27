@@ -526,6 +526,25 @@ describe('the module error codes', () => {
             expectModuleCode(creating({ types: [extension({ name: 'Middles<T>', target: 'List<T>', members: [propertyDeclaration({ name: 'middle<T>', target: undefined, result: 'T?' })] })] }), 'LEXICA4043');
         });
 
+        it('LEXICA4042: a type parameter named as a type its declaration reaches unqualified, Lexica\'s own, its module\'s or an imported one', () => {
+            expectModuleCode(registering(module('words', { types: [extension({ name: 'Usage<String>', target: 'List<String>' })] })), 'LEXICA4042');
+            expectModuleCode(registering(module('words', { types: [extension({ name: 'Usage<Never>', target: 'List<Never>' })] })), 'LEXICA4042');
+            expectModuleCode(registering(module('words', { types: [{ name: 'Word', kind: 'structured', members: [] }], members: [functionDeclaration({ name: 'pick<Word>', target: undefined, parameters: [parameterDeclaration({ type: 'Word' })], result: 'Word' })] })), 'LEXICA4042');
+            expect(() => lexica.createRegistry([module('words', { members: [functionDeclaration({ name: 'pick<Item>', target: undefined, parameters: [parameterDeclaration({ type: 'Item' })], result: 'Item' })] })])).not.toThrow();
+        });
+
+        it('LEXICA4011: a member whose result writes a type parameter nothing binds', () => {
+            expectModuleCode(registering(module('words', { members: [functionDeclaration({ name: 'make<T>', target: undefined, parameters: [], arguments: undefined, result: 'T' })] })), 'LEXICA4011');
+            expectModuleCode(registering(module('words', { types: [extension({ name: 'Usage<T>', members: [propertyDeclaration({ name: 'usage', target: undefined, result: 'T' })] })] })), 'LEXICA4011');
+            expect(() => lexica.createRegistry([module('words', { types: [extension({ name: 'Usage<T>', target: 'List<T>', members: [propertyDeclaration({ name: 'usage', target: undefined, result: 'T?' })] })] })])).not.toThrow();
+        });
+
+        it('LEXICA4044: a member whose callback\'s input writes a type parameter only another callback\'s result binds', () => {
+            const callbacks = [callback({ name: 'make', type: 'U', parameterTypes: [] }), callback({ name: 'use', type: 'Boolean', parameterTypes: ['U'] })];
+
+            expectModuleCode(registering(module('words', { members: [functionDeclaration({ name: 'chain<U>', target: undefined, parameters: callbacks, result: 'Boolean' })] })), 'LEXICA4044');
+        });
+
         it('LEXICA4558: a reference or structured type declaring type parameters', () => {
             expectModuleCode(creating({ types: [{ name: 'Box<T>', kind: 'structured', members: [] }] }), 'LEXICA4558');
             expectModuleCode(creating({ types: [{ name: 'Lamp<T>', kind: 'reference', isInstance: () => true }] }), 'LEXICA4558');

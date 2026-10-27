@@ -40,7 +40,8 @@ const createShop = () => lexica.createModule('shop', withHome({
         call('total', 'List<String>', 'Number'),
         call('scan', 'String', 'Number', { parameters: [expressionParameter('Number')] }),
         call('sweep', null, 'Number', { parameters: [expressionParameter('Number')] }),
-        call('make<T>', null, 'T'),
+        // A parameter its one optional argument binds, which a call that leaves the argument out leaves unbound.
+        call('make<T>', null, 'T', { parameters: [valueParameter('seed', 'T?', { default: null })] }),
         call('greet', null, 'String', { parameters: [valueParameter('name', 'String')] }),
         hostFunctionDeclaration('order', 'String', 'Number', { parameters: [valueParameter('count', 'Number')] }),
         hostFunctionDeclaration('hold', 'String', undefined),

@@ -181,6 +181,7 @@ export class LexicaRegistry {
 
             this.#validateMemberCollisions(members, failAt);
             this.#validateAccessibility(module, members, fail, failAt);
+            this.#validateTypeParameters(module, members, fail, failAt);
             this.#validateConversions(module, fail);
         } catch (error) {
             // A refused module's declarations belong to no module of the registry, and its members to none of its types.
@@ -870,6 +871,67 @@ export class LexicaRegistry {
                 }
             }
         }
+    }
+
+    /**
+     * Refuses a type parameter named as a type its declaration reaches unqualified, one of Lexica's own, `Any` and `Never` among them, one of its module's, or one of a module its type imports (LEXICA4042); a member whose
+     * result writes a parameter with no supported source to bind it from, its extension's target, its value parameters' types or its callbacks' results (LEXICA4011); and a member whose callback's input writes a
+     * parameter whose only source is another callback's result, since callback results do not chain (LEXICA4044). A member declared flat with its target, which reads every single capital letter as a parameter, is
+     * checked by none of them.
+     */
+    #validateTypeParameters(module, members, fail, failAt) {
+        const parametersOf = (declaration, notation) => LexicaRegistry.#typeParametersWrittenBy(this.getDeclaredType(declaration, notation));
+        const isReachable = (declaration, name) => {
+            const { moduleName, imports } = this.#declaringModules.get(declaration);
+
+            return LexicaModule.builtInTypeNames.includes(name) || ['List', 'Any', 'Never'].includes(name) || this.#declaresType(moduleName, name) || imports.some(imported => this.#declaresType(imported, name));
+        };
+
+        for (const declaration of [...module.types.filter(type => type.kind === 'extension'), ...members]) {
+            const reached = (declaration.typeParameters ?? []).find(name => isReachable(declaration, name));
+
+            if (reached !== undefined) {
+                (members.includes(declaration) ? failAt(declaration) : fail)('LEXICA4042', `The type parameter '${reached}' is named as a type its declaration reaches unqualified, so a parameter of its name would hide it`, declaration.name, 'name');
+            }
+        }
+
+        for (const declaration of members) {
+            // A member declared flat with its target reads its parameters implicitly, so nothing it writes is declared to check.
+            if (this.#declaringModules.get(declaration).typeParameters === undefined) {
+                continue;
+            }
+
+            const extension = this.#containingTypes.get(declaration);
+            const fromTarget = extension?.kind === 'extension' ? parametersOf(extension, extension.target) : new Set();
+            const fromValues = new Set(declaration.parameters.filter(parameter => parameter.kind === 'value').flatMap(parameter => [...parametersOf(declaration, parameter.type)]));
+            const callbacks = declaration.parameters.filter(parameter => parameter.kind === 'function' || parameter.kind === 'expression');
+            const fromCallbacks = new Set(callbacks.flatMap(parameter => [...parametersOf(declaration, parameter.type)]));
+            const unbound = declaration.result === undefined ? undefined : [...parametersOf(declaration, declaration.result)].find(name => name !== '@selected' && !fromTarget.has(name) && !fromValues.has(name) && !fromCallbacks.has(name));
+            const fail = failAt(declaration);
+
+            if (unbound !== undefined) {
+                fail('LEXICA4011', `Its result writes the type parameter '${unbound}', which nothing binds: neither its extension's target, its value parameters' types nor its callbacks' results write it`, declaration.name, 'result');
+            }
+
+            for (const callback of callbacks.filter(parameter => parameter.kind === 'function')) {
+                const chained = callback.parameterTypes.flatMap(notation => [...parametersOf(declaration, notation)]).find(name => !fromTarget.has(name) && !fromValues.has(name));
+
+                if (chained !== undefined) {
+                    fail('LEXICA4044', `The callback '${callback.name}' is called with the type parameter '${chained}', which only another callback's result binds, and callback results do not chain`, declaration.name, 'parameters');
+                }
+            }
+        }
+    }
+
+    /** The names of the type parameters the type writes, anywhere in it: its own, its type arguments' and its object fields'. */
+    static #typeParametersWrittenBy(type) {
+        if (type.kind === 'typeParameter') {
+            return new Set([type.name]);
+        }
+
+        const parts = [...type.typeArguments, ...(type.fieldTypes === null ? [] : type.fieldTypes.values())];
+
+        return new Set(parts.flatMap(part => [...LexicaRegistry.#typeParametersWrittenBy(part)]));
     }
 
     /** Refuses a conversion between types that are not data, one between types none of which its module owns, and one declared already. */
