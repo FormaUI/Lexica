@@ -485,6 +485,39 @@ describe('the module error codes', () => {
         });
     });
 
+    describe('of internal declarations', () => {
+        const state = { name: 'ReadingState', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }), internal: true };
+        const reading = (members = [], overrides = {}) => ({ name: 'Reading', kind: 'reference', isInstance: () => true, members, ...overrides });
+        const readings = contents => module('readings', contents);
+
+        it('LEXICA4031: an internal that is no Boolean', () => {
+            expectModuleCode(creating({ types: [{ ...state, internal: 'yes' }] }), 'LEXICA4031');
+            expectModuleCode(creating({ members: [propertyDeclaration({ internal: 1 })] }), 'LEXICA4031');
+        });
+
+        it('LEXICA4052: a public declaration exposing an internal type of its module, as the specification\'s cases set out', () => {
+            expectModuleCode(registering(readings({ types: [state], members: [propertyDeclaration({ result: 'ReadingState' })] })), 'LEXICA4052');
+            expectModuleCode(registering(readings({ types: [state], members: [functionDeclaration({ parameters: [parameterDeclaration({ type: 'List<ReadingState>' })] })] })), 'LEXICA4052');
+            expectModuleCode(registering(readings({ types: [{ ...reading(), name: 'Inner', internal: true }, reading([], { supertype: 'Inner' })] })), 'LEXICA4052');
+            expectModuleCode(registering(readings({ types: [state], typeSelectors: [{ name: 'report' }], mappings: [{ selector: 'report', key: 'state', type: 'ReadingState' }] })), 'LEXICA4052');
+            expect(() => lexica.createRegistry([readings({ types: [state], members: [propertyDeclaration({ result: 'ReadingState', internal: true })] })])).not.toThrow();
+            expect(() => lexica.createRegistry([readings({ types: [state, reading([propertyDeclaration({ name: 'state', target: undefined, result: 'ReadingState', internal: true })])] })])).not.toThrow();
+        });
+
+        it('takes a member within an internal type as internal, whatever its own flag says, so it exposes the type\'s internal types freely', () => {
+            const inner = { ...reading([propertyDeclaration({ name: 'state', target: undefined, result: 'ReadingState', internal: false })]), internal: true };
+
+            expect(() => lexica.createRegistry([readings({ types: [state, inner] })])).not.toThrow();
+        });
+
+        it('LEXICA4018: a declaration naming another module\'s internal type', () => {
+            const refused = expectModuleError(registering(readings({ types: [state] }), module('charts', { members: [propertyDeclaration({ result: 'readings.ReadingState' })] })));
+
+            expect(refused).toEqual({ message: expect.stringContaining("readings.ReadingState, an internal type of the module 'readings'"), module: 'charts', declaration: 'zoom' });
+            expectModuleCode(registering(readings({ types: [state] }), module('charts', { typeSelectors: [{ name: 'report' }], mappings: [{ selector: 'report', key: 'state', type: 'readings.ReadingState' }] })), 'LEXICA4018');
+        });
+    });
+
     describe('of registering a module', () => {
         const chart = { name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) };
 

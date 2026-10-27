@@ -50,7 +50,7 @@ const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'mappings', 'observationTypes', 'observationTargets', 'conversions'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
-const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'impl'];
+const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'impl', 'internal'];
 const MEMBER_KEYS_BY_KIND = {
     property: ['updates'],
     function: ['invokedBy', 'arguments', 'parameters', 'updates'],
@@ -64,12 +64,12 @@ const UPDATES_KEYS = ['changes', 'reads', 'misses', 'tolerance', 'observations']
 const PARAMETER_KEYS = ['name', 'kind', 'type', 'required', 'default', 'fixed', 'selects', 'selector', 'nulls', 'context', 'omitted', 'parameterTypes'];
 /** The keys each kind of type takes, so a key its kind does not take, a structured type's `fields` among them, is refused rather than ignored. */
 const TYPE_KEYS_BY_KIND = {
-    reference: ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import', 'members'],
-    structured: ['name', 'kind', 'import', 'members'],
+    reference: ['name', 'kind', 'isInstance', 'supertype', 'abstract', 'import', 'members', 'internal'],
+    structured: ['name', 'kind', 'import', 'members', 'internal'],
 };
 
 /** The keys a property of a structured type's data shape takes: its name, its kind and the type of its value, which Lexica reads from the data, so it takes no `impl`. */
-const DATA_PROPERTY_KEYS = ['name', 'kind', 'result'];
+const DATA_PROPERTY_KEYS = ['name', 'kind', 'result', 'internal'];
 const TYPE_SELECTOR_KEYS = ['name'];
 const MAPPING_KEYS = ['selector', 'key', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'impl'];
@@ -413,6 +413,8 @@ export class LexicaModule {
         if (repeated !== undefined) {
             fail('LEXICA4508', `The type imports the module '${repeated}' twice`, type.name, 'import');
         }
+
+        LexicaModule.#validateInternal(type, type.name, fail);
 
         if (type.kind === 'reference') {
             LexicaModule.#validateReferenceType(type, fail);
@@ -859,7 +861,15 @@ export class LexicaModule {
             LexicaModule.#validateUpdates(member, new Map(parameters.map(parameter => [parameter.name, parameter])), hasReceiver, name, fail);
         }
 
+        LexicaModule.#validateInternal(member, name, fail);
         LexicaModule.#validateImplementation(member, name, fail);
+    }
+
+    /** Refuses an `internal` that is given and is no Boolean: `false` where it is left out, and any other value, a string among them, refused. */
+    static #validateInternal(declaration, name, fail) {
+        if (declaration.internal !== undefined && typeof declaration.internal !== 'boolean') {
+            fail('LEXICA4031', 'Whether it is internal, available within its declaring module alone, is a Boolean', name, 'internal');
+        }
     }
 
     /** Creates the stored copy of a valid member: its updates' observations none where it names none, and its parameters each without its keys that hold undefined. */

@@ -175,6 +175,7 @@ export class LexicaRegistry {
             }
 
             this.#validateMemberCollisions(members, failAt);
+            this.#validateAccessibility(module, members, fail, failAt);
             this.#validateConversions(module, fail);
         } catch (error) {
             // A refused module's declarations belong to no module of the registry, and its members to none of its types.
@@ -327,6 +328,11 @@ export class LexicaRegistry {
         return declared?.kind === 'structured' ? declared : undefined;
     }
 
+    /** Whether the declaration is internal, available within its declaring module alone: a type or a member that says so, and a member within an internal type, whatever its own flag says, since its type bounds it. */
+    isInternal(declaration) {
+        return declaration.internal === true || this.#containingTypes.get(declaration)?.internal === true;
+    }
+
     /** Whether the member is a property of a structured type's data shape: a property the structured type declares directly without updates, which Lexica reads from the data and never invokes. */
     isDataProperty(declaration) {
         return declaration.kind === 'property' && declaration.updates === undefined && this.#containingTypes.get(declaration)?.kind === 'structured';
@@ -423,8 +429,8 @@ export class LexicaRegistry {
             const type = typeof name === 'string' ? Type.createNamedType(name, false, module.name) : null;
             const declared = type === null ? undefined : this.getReferenceType(type);
 
-            if (declared === undefined || declared.abstract === true || !this.belongsTo(value, type, asked)) {
-                const wrong = declared === undefined ? `${JSON.stringify(name) ?? String(name)}, which is no reference type of its own` : declared.abstract === true ? `the abstract type ${name}` : `${name}, which the value doesn't belong to`;
+            if (declared === undefined || declared.abstract === true || declared.internal === true || !this.belongsTo(value, type, asked)) {
+                const wrong = declared === undefined ? `${JSON.stringify(name) ?? String(name)}, which is no reference type of its own` : declared.abstract === true ? `the abstract type ${name}` : declared.internal === true ? `the internal type ${name}, which no script names` : `${name}, which the value doesn't belong to`;
 
                 throw LexicaErrors.evaluation('LEXICA5002', `The typeOf of the module '${module.name}' named ${wrong}, as ${asked} asked for a value's type`, { module: module.name });
             }
@@ -753,6 +759,61 @@ export class LexicaRegistry {
 
             this.#validateReceiverCollisions(declaration, [...this.getReceiverMembers(declaration.name), ...earlier], fail);
         });
+    }
+
+    /**
+     * Refuses a declaration that names another module's internal type, as a supertype, a target, a parameter's, a callback's, a result's, a mapping's or a conversion's type (LEXICA4018), and a public declaration that exposes
+     * an internal type of its own module through what it writes of them (LEXICA4052): a type's supertype, a member's target, its parameters', its callbacks' and its result's types, a mapping's type and a conversion's
+     * types, through list items and nullable types. A member within an internal type, and an internal one, is no public declaration; within one module, declarations name each other's internal declarations freely.
+     */
+    #validateAccessibility(module, members, fail, failAt) {
+        const writtenTypesOf = declaration => {
+            if (module.types.includes(declaration)) {
+                return declaration.supertype === undefined ? [] : [declaration.supertype];
+            }
+
+            if (module.mappings.includes(declaration)) {
+                return [declaration.type];
+            }
+
+            if (module.conversions.includes(declaration)) {
+                return [declaration.from, declaration.to];
+            }
+
+            const targets = this.#containingTypes.has(declaration) ? [] : this.#receiverNotationsOf(declaration).filter(notation => notation !== 'any');
+
+            return [...targets, ...(declaration.result === undefined ? [] : [declaration.result]), ...declaration.parameters.flatMap(parameter => [parameter.type, ...(parameter.parameterTypes ?? [])])];
+        };
+        const namedTypesOf = type => {
+            if (type.kind === 'object') {
+                return [...type.fieldTypes.values()].flatMap(namedTypesOf);
+            }
+
+            if (type.kind !== 'named') {
+                return [];
+            }
+
+            return [...(type.moduleName === null ? [] : [type]), ...type.typeArguments.flatMap(namedTypesOf)];
+        };
+
+        for (const declaration of [...module.types, ...members, ...module.mappings, ...module.conversions]) {
+            const failHere = members.includes(declaration) ? failAt(declaration) : fail;
+            const name = module.conversions.includes(declaration) ? LexicaModule.conversionNameOf(declaration) : module.mappings.includes(declaration) ? declaration.key : declaration.name;
+
+            for (const type of writtenTypesOf(declaration).flatMap(notation => namedTypesOf(this.getDeclaredType(declaration, notation)))) {
+                if (this.#typeDeclarationOf(type)?.internal !== true) {
+                    continue;
+                }
+
+                if (type.moduleName !== module.name) {
+                    failHere('LEXICA4018', `It names ${type.identity}, an internal type of the module '${type.moduleName}', which its own module's declarations alone name`, name);
+                }
+
+                if (!this.isInternal(declaration)) {
+                    failHere('LEXICA4052', `It is public, and exposes ${type.name}, an internal type of its module: a public declaration writes public types alone`, name);
+                }
+            }
+        }
     }
 
     /** Refuses a conversion between types that are not data, one between types none of which its module owns, and one declared already. */

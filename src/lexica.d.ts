@@ -88,6 +88,8 @@ export interface LexicaReferenceTypeDeclaration {
     import?: string[];
     /** The members it declares within it, each taking it as its receiver, so none names a `target`. */
     members?: LexicaMemberDeclaration[];
+    /** Whether it is available within its declaring module alone, `false` where left out: no other module's declaration names it, and no script reaches it; its members are internal with it. */
+    internal?: boolean;
 }
 
 /** A structured type a module declares, a type of immutable data: its name, the modules whose types its declaration names unqualified, its own members included, and its own members, its data shape among them. */
@@ -100,6 +102,8 @@ export interface LexicaStructuredTypeDeclaration {
      * Lexica reads from the data and never invokes, so each takes no `impl`.
      */
     members?: LexicaMemberDeclaration[];
+    /** Whether it is available within its declaring module alone, `false` where left out: no other module's declaration names it, and no script reaches it; its members are internal with it. */
+    internal?: boolean;
 }
 
 /** A type a module declares, of the kind it says. */
@@ -312,6 +316,8 @@ export interface LexicaMemberDeclaration {
     updates?: LexicaUpdates;
     /** What carries it out, given one object it reads by name; a member without one is resolved against and never invoked. */
     impl?: (input: LexicaImplementationInput) => unknown;
+    /** Whether it is available within its declaring module alone, `false` where left out: no other module's declaration names it, and no script reaches it; a member within an internal type is internal whatever it says. */
+    internal?: boolean;
 }
 
 /** What a module declares. */

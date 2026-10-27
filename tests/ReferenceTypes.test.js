@@ -155,6 +155,14 @@ describe('reference types', () => {
     });
 });
 
+describe('an internal reference type', () => {
+    it('is no type a typeOf names, which exposes a value to scripts as a public type alone: naming one is a fault of its module', () => {
+        const lamps = lexica.createModule('lamps', { typeOf: () => 'Lamp', types: [{ name: 'Lamp', kind: 'reference', isInstance: () => true, internal: true }] });
+
+        expect(errorThrownBy(() => lexica.createRegistry([lamps]).createBindings({ lamp }))).toMatchObject({ code: 'LEXICA5002', kind: 'evaluation', message: expect.stringContaining('the internal type Lamp, which no script names') });
+    });
+});
+
 describe('members declared within their reference type', () => {
     const glow = property('glow', null, 'String', { updates: constantUpdates, impl: ({ receiver }) => `${receiver.name} glows` });
 
