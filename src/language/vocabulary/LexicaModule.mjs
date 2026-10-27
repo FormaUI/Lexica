@@ -34,9 +34,6 @@ const OBSERVED_CHANGE_CATEGORIES = ['observable', 'partly-observable'];
 /** The scalar types Lexica defines, each a value of data alone: what conversions convert between, what data and equality read as scalars, and what a default of one is. */
 const SCALAR_TYPE_NAMES = Object.freeze(['Number', 'String', 'Boolean']);
 
-/** The names of the scalar types whose values hold no number, so a tolerance means nothing for them. */
-const UNTOLERATED_TYPE_NAMES = new Set(SCALAR_TYPE_NAMES.filter(name => name !== 'Number'));
-
 /** The kinds of type a module declares: a reference type, whose values have identity; a structured type, of data; and an extension, the members it adds to a type another module owns, which is never a value's type. */
 const TYPE_KINDS = ['reference', 'structured', 'extension'];
 
@@ -326,10 +323,6 @@ export class LexicaModule {
         }
 
         return value;
-    }
-
-    static #isIdentifier(text) {
-        return typeof text === 'string' && /^[A-Za-z][A-Za-z0-9]*$/.test(text);
     }
 
     static #isTypeNotation(notation) {
@@ -625,14 +618,9 @@ export class LexicaModule {
             fail('LEXICA4058', `It changes as ${updates.changes}, so it misses no changes`, name, 'updates.misses');
         }
 
-        if (updates.tolerance !== undefined) {
-            if (!(Number.isFinite(updates.tolerance) && updates.tolerance >= 0)) {
-                fail('LEXICA4515', 'Its tolerance is a number that is not negative', name, 'updates.tolerance');
-            }
-
-            if (!LexicaModule.#takesTolerance(member.result)) {
-                fail('LEXICA4026', 'A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', name, 'updates.tolerance');
-            }
+        // Whether its result holds a number is checked where the member is registered, which knows every type.
+        if (updates.tolerance !== undefined && !(Number.isFinite(updates.tolerance) && updates.tolerance >= 0)) {
+            fail('LEXICA4515', 'Its tolerance is a number that is not negative', name, 'updates.tolerance');
         }
 
         const observations = updates.observations ?? [];
@@ -652,13 +640,6 @@ export class LexicaModule {
         for (const observationDeclaration of observations) {
             LexicaModule.#validateObservation(observationDeclaration, parameters, hasReceiver, name, fail);
         }
-    }
-
-    /** Whether a tolerance means something for the result: a number, a nullable one, or a named type that may be a structure holding numbers, which the registry checks once every type is known; never a generic value type, as a list is. */
-    static #takesTolerance(notation) {
-        const type = Type.parse(notation);
-
-        return type?.kind === 'named' && type.typeArguments.length === 0 && !UNTOLERATED_TYPE_NAMES.has(type.name);
     }
 
     /** Validates one observation a declaration names: its type, what it observes, which a module member's never a receiver is, and the arguments its type takes. */
@@ -789,7 +770,7 @@ export class LexicaModule {
             fail(Names.isIdentifier(type?.name) ? 'LEXICA4520' : 'LEXICA4006', `An observation type is named as a name is and is one of ${OBSERVATION_CONTRACTS.join(', ')}`, String(type?.name), Names.isIdentifier(type?.name) ? 'contract' : 'name');
         }
 
-        if (!Array.isArray(identity) || !identity.every(argument => LexicaModule.#isIdentifier(argument))) {
+        if (!Array.isArray(identity) || !identity.every(argument => Names.isIdentifier(argument))) {
             fail('LEXICA4521', 'It names the arguments that belong to the identity of an observation, as identifiers', type.name, 'identity');
         }
 

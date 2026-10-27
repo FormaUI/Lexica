@@ -352,7 +352,7 @@ describe('LexicaModule', () => {
             refusal(updating({ changes: 'derived', reads: 'derived', observations: [attributes] }), 'zoom', 'updates.observations', 'names no observations');
         });
 
-        it('take a tolerance that is not negative, for a numeric or a structured result alone', () => {
+        it('take a tolerance that is not negative, leaving whether its result holds a number to registration, which knows every type', () => {
             expect(() => new LexicaModule('charts', updating({ changes: 'unobserved', reads: 'fresh', tolerance: 0.5 }))).not.toThrow();
             expect(() => new LexicaModule('charts', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }], members: [propertyDeclaration({ result: 'Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
 
@@ -360,9 +360,7 @@ describe('LexicaModule', () => {
                 refusal(updating({ changes: 'unobserved', reads: 'fresh', tolerance }), 'zoom', 'updates.tolerance', 'tolerance');
             }
 
-            for (const result of ['String', 'Boolean?', 'List<Number>']) {
-                refusal({ members: [propertyDeclaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] }, 'zoom', 'updates.tolerance', 'A tolerance applies to a numeric result');
-            }
+            expect(() => new LexicaModule('charts', { members: [propertyDeclaration({ result: 'String', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
         });
     });
 

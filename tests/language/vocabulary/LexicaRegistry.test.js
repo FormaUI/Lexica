@@ -4,7 +4,7 @@ import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../../support/home.mjs';
-import { expectModuleError } from '../../support/errors.mjs';
+import { errorThrownBy, expectModuleError } from '../../support/errors.mjs';
 import { dataPropertyDeclarations, functionDeclaration, indexerDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
 
 describe('LexicaRegistry', () => {
@@ -106,6 +106,14 @@ describe('LexicaRegistry', () => {
         const sized = new LexicaModule('sized', { members: [propertyDeclaration({ name: 'bounds', result: 'boxes.Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });
 
         expect(() => new LexicaRegistry([Vocabulary.module, boxes, sized])).not.toThrow();
+    });
+
+    it('refuses a tolerance on a result that holds no number, a scalar of no number, a list and a reference type among them, at its member and the tolerance', () => {
+        for (const result of ['String', 'Boolean?', 'List<Number>']) {
+            const tolerant = new LexicaModule('charts', { members: [propertyDeclaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });
+
+            expect(errorThrownBy(() => new LexicaRegistry([Vocabulary.module, tolerant])), result).toMatchObject({ code: 'LEXICA4026', location: { module: 'charts', declaration: 'zoom', declarationKey: 'updates.tolerance' } });
+        }
     });
 
     it('lets a module declare a member of any name on a type another module or the language declares', () => {

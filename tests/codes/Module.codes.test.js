@@ -372,7 +372,7 @@ describe('the module error codes', () => {
         });
 
         it('LEXICA4026: a tolerance on a result that holds no number', () => {
-            expectModuleCode(observing({ ...constantUpdates, tolerance: 1 }, { result: 'String' }), 'LEXICA4026');
+            expectModuleCode(registering(module('charts', { members: [propertyDeclaration({ result: 'String', updates: { ...constantUpdates, tolerance: 1 } })] })), 'LEXICA4026');
             expectModuleCode(registering(module('charts', withHome({ members: [propertyDeclaration({ result: 'Light', updates: { ...constantUpdates, tolerance: 1 } })] }))), 'LEXICA4026');
         });
 
