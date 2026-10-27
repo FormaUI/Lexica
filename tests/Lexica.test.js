@@ -107,10 +107,10 @@ describe('lexica', () => {
         const registry = lexica.createRegistry([prices]);
         const items = [{ price: 2, quantity: 3 }];
 
-        expect(registry.moduleNames).toEqual(['lexica', 'price']);
+        expect(registry.moduleNames).toEqual(['Lexica', 'price']);
         expect(registry.resolve('items { total = it.price * it.quantity }.count', { items })).toMatchObject({ hostCall: null, type: 'Number' });
         expect(registry.resolve('"10".price + 1')).toMatchObject({ hostCall: null, type: 'Number' });
-        expect(lexica.createRegistry().moduleNames).toEqual(['lexica']);
+        expect(lexica.createRegistry().moduleNames).toEqual(['Lexica']);
         expect(errorThrownBy(() => lexica.createRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
 

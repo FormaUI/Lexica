@@ -105,7 +105,7 @@ describe('LexicaModule', () => {
 
     it('offers no way to make a module exempt from the registry\'s rules, whatever its name', () => {
         expect(LexicaModule.createBuiltIn).toBeUndefined();
-        expect('isBuiltIn' in new LexicaModule('lexica', {})).toBe(false);
+        expect('isBuiltIn' in new LexicaModule('Lexica', {})).toBe(false);
         expect(Vocabulary.module).toBe(Vocabulary.module);
     });
 

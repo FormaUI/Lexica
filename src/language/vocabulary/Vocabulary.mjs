@@ -16,8 +16,8 @@ const SURROUNDING_ASCII_WHITESPACE = /^[\t\n\f\r ]+|[\t\n\f\r ]+$/g;
 const GENERIC_TYPES = new Map([['List', Object.freeze({ name: 'List', parameters: Object.freeze([Object.freeze({ name: 'T', variance: 'covariant' })]) })]]);
 
 export class Vocabulary {
-    /** The name of Lexica's own module. */
-    static moduleName = 'lexica';
+    /** The name of Lexica's own module, spelled as the specification spells it. */
+    static moduleName = 'Lexica';
 
     /** The declaration of the generic value type the type is one of, or undefined for a type of none; Lexica alone declares one. */
     static getGenericType(type) {

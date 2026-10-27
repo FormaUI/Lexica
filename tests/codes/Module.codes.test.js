@@ -508,6 +508,8 @@ describe('the module error codes', () => {
             expectModuleCode(registering(module('charts', {}), module('charts', {})), 'LEXICA4035');
             expectModuleCode(registering(module('Charts', {}), module('CHARTS', {})), 'LEXICA4035');
             expectModuleCode(registering(module('LEXICA', {})), 'LEXICA4035');
+            // Lexica's own module is spelled as the specification spells it, which another spelling of its name collides with.
+            expect(expectModuleError(registering(module('lexica', {}))).message).toContain("'Lexica' is registered already");
             expect(lexica.createRegistry([module('Charts', {})]).moduleNames).toContain('Charts');
         });
 

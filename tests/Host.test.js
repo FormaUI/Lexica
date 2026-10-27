@@ -236,7 +236,7 @@ describe('the declaration shape', () => {
             ],
         })]);
 
-        expect(registry.moduleNames).toEqual(['lexica', 'clock']);
+        expect(registry.moduleNames).toEqual(['Lexica', 'clock']);
         expect(registry.resolve('{ length = item.length, zone = clock.zone }', { item: 'latte' }).createEvaluator({ item: 'latte' }, { rate: 1 }).evaluate().value).toEqual({ length: 5, zone: 'UTC' });
         expect(received).toEqual([{ args: {}, env: { rate: 1 } }]);
         expect(errorThrownBy(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);

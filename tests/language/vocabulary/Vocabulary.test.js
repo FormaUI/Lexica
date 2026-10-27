@@ -19,7 +19,7 @@ describe('Vocabulary', () => {
     };
 
     it('is Lexica\'s own module, one module of its own name, each of its members and conversions carrying its implementation', () => {
-        expect(module.name).toBe('lexica');
+        expect(module.name).toBe('Lexica');
         expect(module).toBe(Vocabulary.module);
         expect(module.conversions.every(conversion => typeof conversion.implementation === 'function')).toBe(true);
         expect(module.members.every(member => typeof member.implementation === 'function')).toBe(true);

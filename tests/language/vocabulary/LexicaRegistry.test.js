@@ -14,7 +14,7 @@ describe('LexicaRegistry', () => {
     });
 
     it('registers Lexica\'s own module and a module beside it', () => {
-        expect(new LexicaRegistry([Vocabulary.module, own()]).moduleNames).toEqual(['lexica', 'charts']);
+        expect(new LexicaRegistry([Vocabulary.module, own()]).moduleNames).toEqual(['Lexica', 'charts']);
     });
 
     it('refuses a module registered twice', () => {
@@ -374,7 +374,7 @@ describe('conversions', () => {
 
     it('convert to or from a type of their own module, Lexica\'s own module alone converting between the language\'s types', () => {
         expect(expectModuleError(registering(charts([{ from: 'String', to: 'Number' }]))).message).toContain("A conversion converts to or from one of its module's own types");
-        expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('lexica', { conversions: [{ from: 'String', to: 'Number' }] })])).message).toContain("converts to or from one of its module's own types");
+        expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('Lexica', { conversions: [{ from: 'String', to: 'Number' }] })])).message).toContain("converts to or from one of its module's own types");
         expect(new LexicaRegistry([Vocabulary.module]).getConversion(STRING, Type.createNamedType('Number'))).toMatchObject({ from: 'String', to: 'Number' });
         expect(expectModuleError(registering(charts([{ from: 'Number', to: 'Boolean' }]))).message).toContain("converts to or from one of its module's own types");
     });
@@ -444,6 +444,6 @@ describe("a module's own collisions", () => {
 
         expect(registry.getModule('views')).toBe(views);
         expect(registry.namespaceNames).toEqual(['views']);
-        expect(registry.moduleNames).toEqual(['lexica', 'views']);
+        expect(registry.moduleNames).toEqual(['Lexica', 'views']);
     });
 });
