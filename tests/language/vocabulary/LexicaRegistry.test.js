@@ -130,19 +130,19 @@ describe('LexicaRegistry', () => {
         expect(registry.getReceiverMembers('level').flatMap(member => registry.getReceiverTypes(member)).map(String)).toEqual(['String']);
     });
 
-    it('refuses a member the registry already answers on the same receiver, at its name', () => {
+    it('refuses a member its module declares already on the same receiver, at its name, and registers one of its name another module declares, which an access selects among', () => {
         const module = new LexicaModule('charts', onStrings([propertyDeclaration({ name: 'charts' }), propertyDeclaration({ name: 'charts' })]));
 
         expect(expectModuleError(() => new LexicaRegistry([module]))).toMatchObject({ type: 'Words', declaration: 'charts', declarationKey: 'name' });
-        expect(expectModuleError(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('count', { types: [extensionDeclaration('Numbers', 'List<Number>', [propertyDeclaration({ name: 'count' })])] })])).message).toContain('declared already');
+        expect(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('count', { types: [extensionDeclaration('Numbers', 'List<Number>', [propertyDeclaration({ name: 'count' })])] })])).not.toThrow();
     });
 
-    it('refuses a member on a type beneath one that the same name on that type already answers', () => {
+    it('registers members of one name that different modules declare on overlapping receivers, a type and the type beneath it', () => {
         const home = new LexicaModule('home', withHome());
         const owners = new LexicaModule('owner', { types: [extensionDeclaration('Devices', 'home.Device', [propertyDeclaration({ name: 'owner' })])] });
         const others = new LexicaModule('other', { types: [extensionDeclaration('Lights', 'home.Light', [propertyDeclaration({ name: 'other' })]), extensionDeclaration('Thermostats', 'home.Thermostat', [propertyDeclaration({ name: 'owner' })])] });
 
-        expect(expectModuleError(() => new LexicaRegistry([Vocabulary.module, home, owners, others])).message).toContain('declared already');
+        expect(new LexicaRegistry([Vocabulary.module, home, owners, others]).getReceiverMembers('owner')).toHaveLength(2);
     });
 
     it('lets one name answer on different receivers', () => {

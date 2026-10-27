@@ -5,6 +5,7 @@
 import { ArrayUtils } from '../../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
 import { LexicaErrors } from '../LexicaError.mjs';
+import { MemberSelector } from '../MemberSelector.mjs';
 import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 import { TypeChecker } from '../TypeChecker.mjs';
@@ -73,6 +74,13 @@ export class LexicaRegistry {
     }
 
     #typeChecker = new TypeChecker(this);
+
+    /** The selection of a declaration among those of a name for a receiver, by the owner of its type and the specificity of its extensions. */
+    get memberSelector() {
+        return this.#memberSelector;
+    }
+
+    #memberSelector = new MemberSelector(this, this.#typeChecker);
 
     /** The number of modules registered, which changes whenever the vocabulary does. */
     get revision() {
@@ -245,6 +253,11 @@ export class LexicaRegistry {
         const ownTypes = module?.types.filter(type => type.kind !== 'extension') ?? [];
 
         return module === undefined ? [] : [...module.members, ...ownTypes.flatMap(type => type.members ?? [])].filter(declaration => declaration.name === name);
+    }
+
+    /** The type, Lexica's own value type or the extension the member is declared within, which gives its receiver and decides whether its module owns it; undefined for a module member. */
+    getContainingType(declaration) {
+        return this.#containingTypes.get(declaration);
     }
 
     /** Whether the member takes a receiver: one declared within a type or an extension, whose receiver the type or the extension's target is; a module member takes none. */
@@ -772,12 +785,12 @@ export class LexicaRegistry {
     }
 
     /**
-     * Refuses a member a registered one of its name already answers on one of the same receivers, and a second unnamed indexer of a receiver; a module member of a name its module declares already is refused when the module
-     * is created, and one beside a member of its name on a receiver registers, as the namespace reaches both.
+     * Refuses a member its module declares already on the same receiver type, an exact duplicate, and a second unnamed indexer of one module for a receiver type; a module member of a name its module declares already is
+     * refused when the module is created, and one beside a member of its name on a receiver registers, as the namespace reaches both. Declarations of different modules never collide here, competing extensions among them:
+     * each registers, and an access is resolved by the owner of its receiver's type and the specificity of its extensions, refused where it can't choose.
      */
     #validateMemberCollisions(members, failAt) {
-        // A module declares members on any type, its own or another module's, by any name, a module member beside a member of its name among them: a declaration is refused where it duplicates another in its own namespace,
-        // and an access or a qualified call two of them take is refused where it is resolved.
+        // Two of one module's members on overlapping receivers, as a type and the type beneath it, both register, an access both take refused where it is resolved.
         members.forEach((declaration, index) => {
             const earlier = members.slice(0, index).filter(other => other.name === declaration.name);
             const fail = failAt(declaration);
@@ -786,16 +799,7 @@ export class LexicaRegistry {
                 return;
             }
 
-            // A receiver type has one unnamed indexer of a module at most, and another module's unnamed indexer of an overlapping receiver is refused in alpha.33, which has no owner to select one.
             if (LexicaRegistry.#isUnnamedIndexer(declaration)) {
-                for (const other of this.getUnnamedIndexers()) {
-                    const overlapping = this.#getOverlappingReceiver(declaration, other);
-
-                    if (overlapping !== undefined) {
-                        fail('LEXICA4550', `An unnamed indexer of ${overlapping} is declared already, by the module '${this.getDeclaringModuleName(other)}'`, undefined, 'kind');
-                    }
-                }
-
                 for (const other of members.slice(0, index).filter(member => LexicaRegistry.#isUnnamedIndexer(member))) {
                     const shared = this.#getSharedReceiver(declaration, other);
 
@@ -807,7 +811,11 @@ export class LexicaRegistry {
                 return;
             }
 
-            this.#validateReceiverCollisions(declaration, [...this.getReceiverMembers(declaration.name), ...earlier], fail);
+            const shared = earlier.filter(other => this.takesReceiver(other)).map(other => this.#getSharedReceiver(other, declaration)).find(notation => notation !== undefined);
+
+            if (shared !== undefined) {
+                fail('LEXICA4029', `'${declaration.name}' is declared already for ${shared}`, declaration.name, 'name');
+            }
         });
     }
 
@@ -1088,43 +1096,10 @@ export class LexicaRegistry {
         }
     }
 
-    /**
-     * Refuses a member its module declares already on the same receiver type, an exact duplicate, and, in alpha.33, one another registered module declares on an overlapping receiver; a module member, which takes no
-     * receiver, answers on none. Two of one module's members on overlapping receivers, as a type and the type beneath it, both register, an access both take refused where it is resolved. A member collides by its name.
-     */
-    #validateReceiverCollisions(declaration, others, fail) {
-        for (const other of others.filter(candidate => this.takesReceiver(candidate))) {
-            // A member of another module is registered already, since its module is not the one being registered.
-            if (this.getDeclaringModuleName(other) !== this.getDeclaringModuleName(declaration)) {
-                const overlapping = this.#getOverlappingReceiver(other, declaration);
-
-                if (overlapping !== undefined) {
-                    fail('LEXICA4551', `'${declaration.name}' is declared already for ${overlapping}`, declaration.name, 'name');
-                }
-
-                continue;
-            }
-
-            const shared = this.#getSharedReceiver(other, declaration);
-
-            if (shared !== undefined) {
-                fail('LEXICA4029', `'${declaration.name}' is declared already for ${shared}`, declaration.name, 'name');
-            }
-        }
-    }
-
     /** The receiver type the one member is read on, as it is written, where the other is read on the same type, or undefined where they are read on different ones; a type and the type beneath it are two receiver types. */
     #getSharedReceiver(one, other) {
         const [mine] = this.getReceiverTypes(one);
 
         return this.getReceiverTypes(other).some(type => mine.equals(type)) ? this.#receiverNotationsOf(one)[0] : undefined;
-    }
-
-    /** The receiver type the one member is read on, as it is written, where the other member is read on a type overlapping it, either matching the other, or undefined where they share no receiver. */
-    #getOverlappingReceiver(one, other) {
-        const [mine] = this.getReceiverTypes(one);
-        const overlaps = this.getReceiverTypes(other).some(type => this.#typeChecker.matchesType(mine, type) || this.#typeChecker.matchesType(type, mine));
-
-        return overlaps ? this.#receiverNotationsOf(one)[0] : undefined;
     }
 }

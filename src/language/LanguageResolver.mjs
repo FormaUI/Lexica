@@ -40,9 +40,13 @@ export class LanguageResolver {
      * @param {import('./ParameterBindings.mjs').ParameterBindings} bindings What the request's parameters are bound to.
      * @param {import('./TextLocations.mjs').TextLocations | null} locations Where in a text each part of the definition came from.
      */
+    /** The selection of a declaration among those of a name for a receiver, the one every access, indexer and qualified call reads. */
+    #memberSelector;
+
     constructor(registry, bindings, locations) {
         this.#registry = registry;
         this.#typeChecker = registry.typeChecker;
+        this.#memberSelector = registry.memberSelector;
         this.#bindings = bindings;
         this.#locations = locations;
         this.#namespaceNames = new Set(registry.namespaceNames);
@@ -280,11 +284,13 @@ export class LanguageResolver {
 
         const receiverType = left.type.toNonNullable();
         const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isInvokedByHost(candidate) && (candidate.kind === 'property' || (candidate.kind === 'function' && candidate.parameters.every(parameter => !parameter.required)));
-        const [declaration] = this.#typeChecker.mostSpecificOf(this.#registry.getReceiverMembers(right.value).filter(isTest), receiverType);
+        const selection = this.#memberSelector.select(this.#registry.getReceiverMembers(right.value).filter(isTest), receiverType);
 
-        if (declaration === undefined) {
+        if (selection.kind !== 'selected') {
             return '';
         }
+
+        const { declaration } = selection;
 
         const optional = left.type.isNullable ? { optional: true } : {};
         const name = node.right.kind === 'literal' ? right.value : node.right;
@@ -578,7 +584,13 @@ export class LanguageResolver {
                 this.#fail('LEXICA3019', `The module '${moduleName}' does not declare a type named '${localName}'`, pointer);
             }
 
-            return Type.createNamedType(localName, false, moduleName);
+            const type = Type.createNamedType(localName, false, moduleName);
+
+            if (this.#registry.isInternal(this.#registry.getTypeDeclaration(type))) {
+                this.#failInternal(`The type '${name}'`, moduleName, pointer);
+            }
+
+            return type;
         }
 
         // One of Lexica's own types is found before a module's of its name, which its module's name qualifies.
@@ -586,13 +598,19 @@ export class LanguageResolver {
             return Type.createNamedType(name);
         }
 
+        // An internal type is no candidate, so a name only internal types have names none a script reaches.
         const modules = this.#registry.getModuleNamesDeclaringType(name);
+        const reached = modules.filter(moduleName => !this.#registry.isInternal(this.#registry.getTypeDeclaration(Type.createNamedType(name, false, moduleName))));
 
-        if (modules.length > 1) {
-            this.#fail('LEXICA3059', `'${name}' names a type several modules declare, so it is named qualified by its module: ${modules.map(moduleName => `${moduleName}.${name}`).join(' or ')}`, pointer);
+        if (reached.length > 1) {
+            this.#fail('LEXICA3059', `'${name}' names a type several modules declare, so it is named qualified by its module: ${reached.map(moduleName => `${moduleName}.${name}`).join(' or ')}`, pointer);
         }
 
-        return Type.createNamedType(name, false, modules[0] ?? null);
+        if (reached.length === 0 && modules.length > 0) {
+            this.#failInternal(`The type '${name}'`, modules[0], pointer);
+        }
+
+        return Type.createNamedType(name, false, reached[0] ?? null);
     }
 
     /** Whether a type of the name a cast or a conversion writes is declared: a qualified one, which its module was found to declare, one of Lexica's own, or one a registered module declares. */
@@ -1043,11 +1061,13 @@ export class LanguageResolver {
             return `${receiver}.${name}`;
         }
 
-        const [declaration] = this.#typeChecker.mostSpecificOf(this.#registry.getReceiverMembers(name), type);
+        const selection = this.#memberSelector.select(this.#registry.getReceiverMembers(name), type);
 
-        if (declaration === undefined) {
+        if (selection.kind !== 'selected') {
             return null;
         }
+
+        const { declaration } = selection;
 
         if (declaration.kind === 'property') {
             return `${receiver}.${name}`;
@@ -1176,10 +1196,10 @@ export class LanguageResolver {
             return null;
         }
 
-        // The most specific member of the name decides, a property among them, which hides an indexer of its name above it.
-        const [declaration] = this.#typeChecker.mostSpecificOf(this.#registry.getReceiverMembers(access.name), receiverType);
+        // The member of the name the receiver selects decides, a property among them, which hides an indexer of its name above it.
+        const selection = this.#memberSelector.select(this.#registry.getReceiverMembers(access.name), receiverType);
 
-        return declaration === undefined || declaration.kind === 'property' ? null : declaration.kind;
+        return selection.kind !== 'selected' || selection.declaration.kind === 'property' ? null : selection.declaration.kind;
     }
 
     /**
@@ -1197,9 +1217,13 @@ export class LanguageResolver {
             return this.#storeResolution(pointer, this.#resolveObjectRootField(node, pointer, receiverType));
         }
 
-        const matching = this.#typeChecker.mostSpecificOf(unnamedIndexers, receiverType);
+        const selection = this.#memberSelector.select(unnamedIndexers, receiverType);
 
-        if (matching.length === 0) {
+        if (selection.kind === 'internal') {
+            this.#failInternal(`The unnamed indexer of ${receiverType.toNonNullable()}`, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
+        }
+
+        if (selection.kind === 'none') {
             // A string key may name a property of the receiver, which a computed property access reads.
             const key = node.argument.kind === 'literal' ? node.argument.value : null;
             const isNamed = typeof key === 'string' && ((receiverType.kind === 'object' ? receiverType.getObjectFieldType(key) : (this.#registry.getDataShape(receiverType)?.get(key) ?? null)) !== null || this.#registry.getReceiverMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
@@ -1208,12 +1232,11 @@ export class LanguageResolver {
             this.#fail('LEXICA3012', `${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
         }
 
-        // The most specific receiver type's unnamed indexer is selected, so several remain only where none is more specific than every other.
-        if (matching.length > 1) {
-            this.#fail('LEXICA3024', `The unnamed indexers ${this.#formatCompetingDeclarations(matching, receiverType)}`, pointer);
+        if (selection.kind === 'ambiguous') {
+            this.#fail('LEXICA3024', `The unnamed indexers ${this.#formatCompetingDeclarations(selection.declarations, receiverType, node.target)}`, pointer);
         }
 
-        const [declaration] = matching;
+        const { declaration } = selection;
         const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
 
         return this.#storeResolution(pointer, this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType)));
@@ -1421,18 +1444,24 @@ export class LanguageResolver {
             this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is no member of the vocabulary${this.#joinedNameHintOf(node, receiverType)}`, pointer);
         }
 
-        const matching = this.#typeChecker.mostSpecificOf(candidates, receiverType);
+        const selection = this.#memberSelector.select(candidates, receiverType);
 
-        if (matching.length === 0) {
-            this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is not available on ${receiverType.toNonNullable()}; it is available on ${candidates.flatMap(candidate => this.#registry.getReceiverTypes(candidate)).join(', ')}`, pointer);
+        if (selection.kind === 'internal') {
+            this.#failInternal(`'${node.name}' on ${receiverType.toNonNullable()}`, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
         }
 
-        // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
-        if (matching.length > 1) {
-            this.#fail('LEXICA3024', `'${node.name}' ${this.#formatCompetingDeclarations(matching, receiverType)}`, pointer);
+        if (selection.kind === 'none') {
+            const reached = this.#memberSelector.getAccessible(candidates);
+            const types = reached.flatMap(candidate => this.#registry.getReceiverTypes(candidate));
+
+            this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is not available on ${receiverType.toNonNullable()}${types.length === 0 ? '' : `; it is available on ${types.join(', ')}`}`, pointer);
         }
 
-        const [declaration] = matching;
+        if (selection.kind === 'ambiguous') {
+            this.#fail('LEXICA3024', `'${node.name}' ${this.#formatCompetingDeclarations(selection.declarations, receiverType, node.target)}`, pointer);
+        }
+
+        const { declaration } = selection;
 
         // A property of a structured type's data shape is read from the data, never invoked, and is used as every declaration selected is.
         if (this.#registry.isDataProperty(declaration)) {
@@ -1604,7 +1633,13 @@ export class LanguageResolver {
             this.#fail('LEXICA2642', `No module named '${moduleName}' is registered, so '${written}' reads through no namespace`, `${pointer}/target`);
         }
 
-        const namedDeclarations = this.#registry.getMembersDeclaredBy(moduleName, node.name);
+        const declared = this.#registry.getMembersDeclaredBy(moduleName, node.name);
+        const namedDeclarations = this.#memberSelector.getAccessible(declared);
+
+        if (declared.length > 0 && namedDeclarations.length === 0) {
+            this.#failInternal(`'${written}'`, moduleName, pointer);
+        }
+
         const declarations = namedDeclarations.filter(declaration => declaration.kind !== 'indexer');
 
         if (declarations.length === 0) {
@@ -1637,11 +1672,31 @@ export class LanguageResolver {
         return accepted[0].result;
     }
 
-    /** How a message names the competing declarations an access can't choose among: their receiver types, none more specific than another, which the receiver satisfies. */
-    #formatCompetingDeclarations(declarations, receiverType) {
+    /**
+     * How a message names the competing declarations an access can't choose among, after the access: their receiver types, none more specific than another, which the receiver satisfies, where one module declares them;
+     * and the modules that declare them where several do, with the extension access that selects each, its receiver as the access writes it, where every one of them is an extension's.
+     */
+    #formatCompetingDeclarations(declarations, receiverType, receiverNode) {
+        const modules = [...new Set(declarations.map(declaration => this.#registry.getDeclaringModuleName(declaration)))];
+
+        if (modules.length > 1) {
+            const extensions = declarations.map(declaration => this.#registry.getContainingType(declaration));
+            const receiver = DefinitionWriter.quote(receiverNode, this.#namespaceNames);
+            const accesses = extensions.every(extension => extension?.kind === 'extension')
+                ? declarations.map((declaration, index) => `'${receiver}:${this.#registry.getDeclaringModuleName(declaration)}.${extensions[index].name}${declaration.name === undefined ? '[…]' : `.${declaration.name}`}'`)
+                : [];
+
+            return `on ${receiverType.toNonNullable()} is ambiguous between the modules ${modules.map(name => `'${name}'`).join(' and ')}${accesses.length === 0 ? '' : `: write ${accesses.join(' or ')} to select one`}`;
+        }
+
         const types = declarations.flatMap(declaration => this.#registry.getReceiverTypes(declaration));
 
         return `is declared for ${types.join(' and ')}, which ${receiverType.toNonNullable()} satisfies, and none of them is more specific than ${types.length === 2 ? 'the other' : 'every other'}, so which applies is ambiguous`;
+    }
+
+    /** Refuses what a script reaches of an internal declaration, which its declaring module's own declarations alone name, as if no declaration of its name were accessible (LEXICA3023). */
+    #failInternal(subject, moduleName, pointer) {
+        this.#fail('LEXICA3023', `${subject} is internal to the module '${moduleName}', which no script reaches`, pointer);
     }
 
     /**
@@ -1731,18 +1786,18 @@ export class LanguageResolver {
             return this.#resolveOnUnknownType(node, pointer, scope, receiver.type.kind === 'null' ? Type.null : receiverType, declarations, 1);
         }
 
-        const matching = this.#typeChecker.mostSpecificOf(declarations, receiverType);
+        const selection = this.#memberSelector.select(declarations, receiverType);
 
-        if (matching.length === 0) {
+        if (selection.kind === 'none') {
             this.#fail('LEXICA3042', `${wording.receiverOf} ${declarations.flatMap(declaration => this.#registry.getReceiverTypes(declaration)).join(', ')}, and is given ${receiverType}`, `${pointer}/arguments/0`);
         }
 
-        // The most specific receiver type's member is selected, so several remain only where none is more specific than every other.
-        if (matching.length > 1) {
-            this.#fail('LEXICA3024', `${wording.subject} ${this.#formatCompetingDeclarations(matching, receiverType)}`, pointer);
+        // A reference's declaration or a module's, reached through its namespace, is internal to none of them, so no other selection is left.
+        if (selection.kind === 'ambiguous') {
+            this.#fail('LEXICA3024', `${wording.subject} ${this.#formatCompetingDeclarations(selection.declarations, receiverType, node.arguments[0])}`, pointer);
         }
 
-        const [declaration] = matching;
+        const { declaration } = selection;
 
         const receiverArgument = { node: node.arguments[0], type: receiverType, isNullable: isReceiverNullable };
 
@@ -1917,8 +1972,14 @@ export class LanguageResolver {
      * Its type is the result type they share, made nullable, or left to the optional chain an optional access of null ends, and null where they share none or the name is no member's. Nothing applied to such a receiver is evaluated, so its arguments leave no resolution behind.
      * It answers its result and its resolution, with no use, since it chooses no declaration, and records neither.
      */
-    #resolveOnUnknownType(node, pointer, scope, receiverType, candidates = this.#registry.getReceiverMembers(node.name), offset = 0) {
+    #resolveOnUnknownType(node, pointer, scope, receiverType, declared = this.#registry.getReceiverMembers(node.name), offset = 0) {
         const isAccess = node.kind === 'member';
+        const candidates = this.#memberSelector.getAccessible(declared);
+
+        if (!isAccess && declared.length > 0 && candidates.length === 0) {
+            this.#failInternal(`'${node.name}'`, this.#registry.getDeclaringModuleName(declared[0]), pointer);
+        }
+
         // A qualified call, a qualified form's or a function reference's, calls a property and a function alike, its receiver its first argument.
         const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[candidate.kind] === node.kind);
 

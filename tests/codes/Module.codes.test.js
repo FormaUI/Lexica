@@ -636,18 +636,10 @@ describe('the module error codes', () => {
             expect(registering(module('charts', withHome({}, { Light: [propertyDeclaration()], Device: [propertyDeclaration()] })))).not.toThrow();
         });
 
-        it('LEXICA4551: a member of a name another module declares on an overlapping receiver', () => {
-            expectModuleCode(registering(module('charts', onStrings([propertyDeclaration()])), module('graphs', onStrings([propertyDeclaration()]))), 'LEXICA4551');
-        });
-
         it('LEXICA4068: two unnamed indexers for one receiver type of one module', () => {
             expectModuleCode(registering(module('charts', onStrings([indexerDeclaration(), indexerDeclaration()]))), 'LEXICA4068');
             expect(expectModuleError(registering(module('charts', onStrings([indexerDeclaration(), indexerDeclaration()]))))).toEqual({ message: expect.stringContaining('An unnamed indexer of String is declared already'), module: 'charts', type: 'Words', declaration: '[]', declarationKey: 'kind' });
             expect(registering(module('charts', withHome({}, { Light: [indexerDeclaration()], Device: [indexerDeclaration()] })))).not.toThrow();
-        });
-
-        it('LEXICA4550: another module\'s unnamed indexer of an overlapping receiver', () => {
-            expectModuleCode(registering(module('charts', onStrings([indexerDeclaration()])), module('graphs', onStrings([indexerDeclaration()]))), 'LEXICA4550');
         });
     });
 });
