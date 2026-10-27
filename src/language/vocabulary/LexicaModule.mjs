@@ -47,7 +47,7 @@ const DECLARATION_MODEL_TYPE_KINDS = ['extension'];
 const DATA_TYPE_NAMES = ['Number', 'String', 'Boolean'];
 
 /** What a module can declare. */
-const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'selectableTypes', 'observationTypes', 'observationTargets', 'conversions'];
+const MODULE_KEYS = ['typeOf', 'types', 'members', 'typeSelectors', 'mappings', 'observationTypes', 'observationTargets', 'conversions'];
 
 /** The fields each member kind takes, beside those every member takes, so a field one does not take is refused rather than ignored. */
 const MEMBER_KEYS = ['name', 'kind', 'target', 'result', 'impl'];
@@ -71,13 +71,10 @@ const TYPE_KEYS_BY_KIND = {
 /** The keys a property of a structured type's data shape takes: its name, its kind and the type of its value, which Lexica reads from the data, so it takes no `impl`. */
 const DATA_PROPERTY_KEYS = ['name', 'kind', 'result'];
 const TYPE_SELECTOR_KEYS = ['name'];
-const SELECTABLE_TYPE_KEYS = ['name', 'selector', 'type'];
+const MAPPING_KEYS = ['selector', 'key', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'impl'];
 const OBSERVATION_TARGET_KEYS = ['name', 'from', 'count'];
 const CONVERSION_KEYS = ['from', 'to', 'impl'];
-
-/** How a selectable type's key is written: a letter, then letters, digits, colons and hyphens, as `motion` and `door:open` are. */
-const SELECTABLE_KEY = /^[A-Za-z][A-Za-z0-9:-]*$/;
 
 export class LexicaModule {
     #name;
@@ -85,7 +82,7 @@ export class LexicaModule {
     #types;
     #members;
     #typeSelectors;
-    #selectableTypes;
+    #mappings;
     #observationTypes;
     #observationTargets;
     #conversions;
@@ -96,7 +93,7 @@ export class LexicaModule {
      * @param {object[]} [contents.types] The types it declares, reference and structured, each with its own members, which take it as their receiver; a structured type's data shape is the properties it declares directly without updates.
      * @param {object[]} [contents.members] The properties and functions it adds, a function its host invokes among them, a member without a target a module member.
      * @param {object[]} [contents.typeSelectors] The type selectors it declares, each by its name alone, through which a function's fixed argument selects the type of its result.
-     * @param {object[]} [contents.selectableTypes] The keys it declares for type selectors, its own or another module's, each with the selector it belongs to and the type it maps to.
+     * @param {object[]} [contents.mappings] The keys it maps for type selectors, its own or another module's, each with the selector it belongs to, the key, any string, and the type it maps to.
      * @param {object[]} [contents.observationTypes] The types of observation it declares.
      * @param {object[]} [contents.observationTargets] The targets its observation types observe besides a receiver and an argument, each found from the receiver or independent of it, one target or several.
      * @param {object[]} [contents.conversions] The conversions it declares, each from a type of data to another.
@@ -125,20 +122,20 @@ export class LexicaModule {
             hintOf: key => (key === 'predicates' ? '; a test of a receiver is one of its members, a function whose result is a boolean' : ''),
         });
 
-        const { typeOf, types = [], members = [], typeSelectors = [], selectableTypes = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
+        const { typeOf, types = [], members = [], typeSelectors = [], mappings = [], observationTypes = [], observationTargets = [], conversions = [] } = contents;
 
         if (typeOf !== undefined && typeof typeOf !== 'function') {
             fail('LEXICA4051', "A module's typeOf is a function, which names the type of a value it recognizes", undefined, 'typeOf');
         }
 
-        for (const [key, list] of Object.entries({ types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions })) {
+        for (const [key, list] of Object.entries({ types, members, typeSelectors, mappings, observationTypes, observationTargets, conversions })) {
             if (!Array.isArray(list)) {
                 fail('LEXICA4503', `A module's ${key} are a list`, undefined, key);
             }
         }
 
         // Data that reaches itself is refused before anything reads into it, since validating, copying and freezing a declaration each walk its data.
-        for (const [key, list] of Object.entries({ types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions })) {
+        for (const [key, list] of Object.entries({ types, members, typeSelectors, mappings, observationTypes, observationTargets, conversions })) {
             list.forEach(declared => LexicaModule.#refuseCycles(declared, LexicaModule.#declarationNameOf(declared, key), fail));
         }
 
@@ -149,7 +146,7 @@ export class LexicaModule {
         const normalized = declarations => declarations.map(declared => LexicaModule.#withoutUndefinedValues(declared));
         const memberDeclarations = normalized(members);
         const typeSelectorDeclarations = normalized(typeSelectors);
-        const selectableTypeDeclarations = normalized(selectableTypes);
+        const mappingDeclarations = normalized(mappings);
         const observationTypeDeclarations = normalized(observationTypes);
         const observationTargetDeclarations = normalized(observationTargets);
         const conversionDeclarations = normalized(conversions);
@@ -157,7 +154,7 @@ export class LexicaModule {
         LexicaModule.#validateTypeDeclarations(types, fail, failWithin);
         LexicaModule.#validateMembers(memberDeclarations, fail);
         LexicaModule.#validateTypeSelectors(typeSelectorDeclarations, fail);
-        LexicaModule.#validateSelectableTypes(selectableTypeDeclarations, name, fail);
+        LexicaModule.#validateMappings(mappingDeclarations, name, fail);
         LexicaModule.#validateObservationTypes(observationTypeDeclarations, fail);
         LexicaModule.#validateObservationTargets(observationTargetDeclarations, fail);
         conversionDeclarations.forEach(conversion => LexicaModule.#validateConversion(conversion, fail));
@@ -165,7 +162,7 @@ export class LexicaModule {
         this.#types = LexicaModule.#freezeItems(types.map(type => LexicaModule.#createTypeCopy(type)));
         this.#members = LexicaModule.#freezeItems(memberDeclarations.map(member => LexicaModule.#createMemberCopy(member)));
         this.#typeSelectors = LexicaModule.#freezeItems(typeSelectorDeclarations.map(selector => LexicaModule.#copyOf(selector)));
-        this.#selectableTypes = LexicaModule.#freezeItems(selectableTypeDeclarations.map(selectable => LexicaModule.#copyOf(selectable)));
+        this.#mappings = LexicaModule.#freezeItems(mappingDeclarations.map(mapping => LexicaModule.#copyOf(mapping)));
         this.#observationTypes = LexicaModule.#freezeItems(observationTypeDeclarations.map(type => LexicaModule.#createObservationTypeCopy(type)));
         this.#observationTargets = LexicaModule.#freezeItems(observationTargetDeclarations.map(target => LexicaModule.#copyOf(target)));
         this.#conversions = LexicaModule.#freezeItems(conversionDeclarations.map(conversion => LexicaModule.#copyOf(conversion)));
@@ -196,9 +193,9 @@ export class LexicaModule {
         return this.#typeSelectors;
     }
 
-    /** The keys the module declares for type selectors, each mapping to a type. */
-    get selectableTypes() {
-        return this.#selectableTypes;
+    /** The keys the module maps for type selectors, each to a type. */
+    get mappings() {
+        return this.#mappings;
     }
 
     /** The types of observation the module declares. */
@@ -309,13 +306,19 @@ export class LexicaModule {
         visit(declaration, new Set(), undefined);
     }
 
-    /** The name a declaration's diagnostics give it before it is validated: a conversion's source and destination, and any other declaration's own name where it is a string. */
+    /** The name a declaration's diagnostics give it before it is validated: a conversion's source and destination, a mapping's key, and any other declaration's own name, each where it is a string. */
     static #declarationNameOf(declared, key) {
         if (!ObjectUtils.isNonArrayObject(declared)) {
             return undefined;
         }
 
-        return key === 'conversions' ? LexicaModule.conversionNameOf(declared) : typeof declared.name === 'string' ? declared.name : undefined;
+        if (key === 'conversions') {
+            return LexicaModule.conversionNameOf(declared);
+        }
+
+        const name = key === 'mappings' ? declared.key : declared.name;
+
+        return typeof name === 'string' ? name : undefined;
     }
 
     /** A copy of a declaration's data, through its lists and objects, each function in it kept as it is. */
@@ -479,38 +482,38 @@ export class LexicaModule {
         }
     }
 
-    /** Validates the selectable types a module declares, each key once in its selector within the module, since a key is never replaced. */
-    static #validateSelectableTypes(selectables, moduleName, fail) {
+    /** Validates the mappings a module declares, each key once in its selector within the module, since a key is never replaced. */
+    static #validateMappings(mappings, moduleName, fail) {
         const keys = new Set();
 
-        for (const selectable of selectables) {
-            LexicaModule.#validateSelectableType(selectable, fail);
+        for (const mapping of mappings) {
+            LexicaModule.#validateMapping(mapping, fail);
 
-            const key = JSON.stringify([selectable.selector, selectable.name]);
+            const key = JSON.stringify([mapping.selector, mapping.key]);
 
             if (keys.has(key)) {
-                fail('LEXICA4038', `The type selector '${selectable.selector}' maps the key '${selectable.name}' already, as the module '${moduleName}' declared it, and a key is never replaced`, selectable.name, 'name');
+                fail('LEXICA4038', `The type selector '${mapping.selector}' maps the key '${mapping.key}' already, as the module '${moduleName}' declared it, and a key is never replaced`, mapping.key, 'key');
             }
 
             keys.add(key);
         }
     }
 
-    /** Validates a selectable type: its key, the selector it belongs to, and the type it maps to. */
-    static #validateSelectableType(selectable, fail) {
-        LexicaModule.#validateKeys(selectable, SELECTABLE_TYPE_KEYS, 'A selectable type', fail);
+    /** Validates a mapping: the selector it belongs to, its key, any string, as a fixed argument may give any, and the type it maps the key to. A mapping is located by its key, as its selector's keys are told apart. */
+    static #validateMapping(mapping, fail) {
+        LexicaModule.#validateKeys(mapping, MAPPING_KEYS, 'A mapping', fail, ObjectUtils.isNonArrayObject(mapping) && typeof mapping.key === 'string' ? mapping.key : null);
 
-        if (typeof selectable.name !== 'string' || !SELECTABLE_KEY.test(selectable.name)) {
-            fail(selectable.name === undefined ? 'LEXICA4008' : 'LEXICA4511', 'A selectable type is named by its key, a letter followed by letters, digits, colons and hyphens', String(selectable.name), 'name');
+        if (typeof mapping.key !== 'string') {
+            fail('LEXICA4008', 'A mapping declares its key, a string, as a fixed argument gives it', undefined, 'key');
         }
 
         // A selector that isn't a name can't be one a module declares.
-        if (!Names.isIdentifier(selectable.selector)) {
-            fail(selectable.selector === undefined ? 'LEXICA4008' : 'LEXICA4039', 'A selectable type names the type selector it belongs to', selectable.name, 'selector');
+        if (!Names.isIdentifier(mapping.selector)) {
+            fail(mapping.selector === undefined ? 'LEXICA4008' : 'LEXICA4039', 'A mapping names the type selector it belongs to', mapping.key, 'selector');
         }
 
-        if (!LexicaModule.#isTypeNotation(selectable.type)) {
-            fail(selectable.type === undefined ? 'LEXICA4008' : 'LEXICA4512', 'A selectable type declares the type its key maps to', selectable.name, 'type');
+        if (!LexicaModule.#isTypeNotation(mapping.type)) {
+            fail(mapping.type === undefined ? 'LEXICA4008' : 'LEXICA4512', 'A mapping declares the type its key maps to', mapping.key, 'type');
         }
     }
 

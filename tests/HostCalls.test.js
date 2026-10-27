@@ -17,11 +17,11 @@ const { property, valueParameter } = lexica.declarations;
 const createHome = (invoked = []) => lexica.createModule('home', {
     types: [{ name: 'Motion', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number', strength: 'Number' }) }, { name: 'Change', kind: 'structured', members: dataPropertyDeclarations({ setting: 'String', value: 'String?' }) }],
     typeSelectors: [{ name: 'event' }, { name: 'reading' }],
-    selectableTypes: [
-        { name: 'motion', selector: 'event', type: 'Motion' },
-        { name: 'change', selector: 'event', type: 'Change' },
-        { name: 'level', selector: 'reading', type: 'Number' },
-        { name: 'tone', selector: 'reading', type: 'String' },
+    mappings: [
+        { key: 'motion', selector: 'event', type: 'Motion' },
+        { key: 'change', selector: 'event', type: 'Change' },
+        { key: 'level', selector: 'reading', type: 'Number' },
+        { key: 'tone', selector: 'reading', type: 'String' },
     ],
     members: [
         hostFunctionDeclaration('dim', 'String', 'Number', { arguments: 'options', parameters: [valueParameter('to', 'Number')] }),

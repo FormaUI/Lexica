@@ -20,7 +20,7 @@ const indexer = (name, target, result, options = {}) => lexica.declarations.inde
 const createShop = () => lexica.createModule('shop', withHome({
     types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }],
     typeSelectors: [{ name: 'flavor' }],
-    selectableTypes: [{ name: 'size', selector: 'flavor', type: 'Number' }],
+    mappings: [{ key: 'size', selector: 'flavor', type: 'Number' }],
     conversions: [{ from: 'String', to: 'Cup', impl: ({ value }) => ({ size: value.length }) }],
     members: [
         property('size', 'String', 'Number', { updates: constantUpdates }),

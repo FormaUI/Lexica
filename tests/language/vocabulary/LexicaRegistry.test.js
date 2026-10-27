@@ -32,7 +32,7 @@ describe('LexicaRegistry', () => {
         expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'Chart' })] })).toContain("'Chart' names the type 'Chart', which neither Lexica nor a module registered with it declares");
         expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'List<Chart?>' })] })).toContain("'List<Chart?>' names the type 'Chart'");
         expect(failing({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'Axis' }) }] })).toContain("names the type 'Axis'");
-        expect(failing({ typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'chartclick', selector: 'report', type: 'ChartEvent' }] })).toContain("names the type 'ChartEvent'");
+        expect(failing({ typeSelectors: [{ name: 'report' }], mappings: [{ key: 'chartclick', selector: 'report', type: 'ChartEvent' }] })).toContain("names the type 'ChartEvent'");
         expect(failing({ members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'range', type: 'Range' })] })] })).toContain("names the type 'Range'");
     });
 
@@ -311,17 +311,17 @@ describe('LexicaRegistry', () => {
 });
 
 describe('type selectors', () => {
-    const reports = () => new LexicaModule('reports', { typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number' }] });
-    const keys = (name, selectableTypes, contents = {}) => new LexicaModule(name, { selectableTypes, ...contents });
+    const reports = () => new LexicaModule('reports', { typeSelectors: [{ name: 'report' }], mappings: [{ key: 'motion', selector: 'report', type: 'Number' }] });
+    const keys = (name, mappings, contents = {}) => new LexicaModule(name, { mappings, ...contents });
     const selecting = selector => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector })] });
 
     it('map each key to its type, a selector and its keys owned by the modules that declare them', () => {
-        const registry = new LexicaRegistry([reports(), keys('doors', [{ name: 'door:open', selector: 'report', type: 'Boolean' }])]);
+        const registry = new LexicaRegistry([reports(), keys('doors', [{ key: 'door:open', selector: 'report', type: 'Boolean' }])]);
 
-        expect(registry.getSelectableType('report', 'motion')).toEqual({ name: 'motion', selector: 'report', type: 'Number' });
-        expect(registry.getSelectableType('report', 'smoke')).toBeUndefined();
+        expect(registry.getMapping('report', 'motion')).toEqual({ key: 'motion', selector: 'report', type: 'Number' });
+        expect(registry.getMapping('report', 'smoke')).toBeUndefined();
         expect(registry.getDeclaringModuleName(registry.getTypeSelector('report'))).toBe('reports');
-        expect(registry.getDeclaringModuleName(registry.getSelectableType('report', 'door:open'))).toBe('doors');
+        expect(registry.getDeclaringModuleName(registry.getMapping('report', 'door:open'))).toBe('doors');
         expect(registry.revision).toBe(2);
     });
 
@@ -332,19 +332,19 @@ describe('type selectors', () => {
     it('take each key once, from the module that declares it first, and never replace it', () => {
         const message = "The type selector 'report' maps the key 'motion' already, as the module 'reports' declared it, and a key is never replaced";
 
-        expect(expectModuleError(() => new LexicaRegistry([reports(), keys('sensors', [{ name: 'motion', selector: 'report', type: 'String' }])]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'name', message: expect.stringContaining(message) });
-        expect(expectModuleError(() => keys('reports', [{ name: 'motion', selector: 'report', type: 'Number' }, { name: 'motion', selector: 'report', type: 'String' }], { typeSelectors: [{ name: 'report' }] })).message).toContain(message);
+        expect(expectModuleError(() => new LexicaRegistry([reports(), keys('sensors', [{ key: 'motion', selector: 'report', type: 'String' }])]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'key', message: expect.stringContaining(message) });
+        expect(expectModuleError(() => keys('reports', [{ key: 'motion', selector: 'report', type: 'Number' }, { key: 'motion', selector: 'report', type: 'String' }], { typeSelectors: [{ name: 'report' }] })).message).toContain(message);
     });
 
     it('take keys of a selector its own module or one registered before it declares, and of no other', () => {
-        expect(() => new LexicaRegistry([keys('reports', [{ name: 'motion', selector: 'report', type: 'Number' }], { typeSelectors: [{ name: 'report' }] })])).not.toThrow();
-        expect(expectModuleError(() => new LexicaRegistry([keys('sensors', [{ name: 'motion', selector: 'report', type: 'Number' }]), reports()]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'selector', message: expect.stringContaining("The key 'motion' belongs to the type selector 'report', which no module registered declares") });
+        expect(() => new LexicaRegistry([keys('reports', [{ key: 'motion', selector: 'report', type: 'Number' }], { typeSelectors: [{ name: 'report' }] })])).not.toThrow();
+        expect(expectModuleError(() => new LexicaRegistry([keys('sensors', [{ key: 'motion', selector: 'report', type: 'Number' }]), reports()]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'selector', message: expect.stringContaining("The key 'motion' belongs to the type selector 'report', which no module registered declares") });
     });
 
     it('are selected through by a parameter only once a module declares them, and map keys to types a module declares', () => {
         expect(() => new LexicaRegistry([reports(), new LexicaModule('charts', { members: [selecting('report')] })])).not.toThrow();
         expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('charts', { members: [selecting('report')] })]))).toMatchObject({ declaration: 'report', declarationKey: 'parameters', message: expect.stringContaining("The parameter 'kind' selects a type through 'report', which no module registered declares") });
-        expect(expectModuleError(() => new LexicaRegistry([reports(), keys('doors', [{ name: 'door:open', selector: 'report', type: 'door' }])])).message).toContain("'door' names the type 'door', which neither Lexica nor a module registered with it declares");
+        expect(expectModuleError(() => new LexicaRegistry([reports(), keys('doors', [{ key: 'door:open', selector: 'report', type: 'door' }])])).message).toContain("'door' names the type 'door', which neither Lexica nor a module registered with it declares");
     });
 });
 

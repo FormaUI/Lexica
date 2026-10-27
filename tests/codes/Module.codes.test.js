@@ -170,30 +170,31 @@ describe('the module error codes', () => {
             expectModuleCode(registering(module('charts', { observationTypes: [{ name: 'state', contract: 'invalidation' }] }), module('graphs', { observationTypes: [{ name: 'state', contract: 'invalidation' }] })), 'LEXICA4007');
         });
 
-        it('LEXICA4008: a selectable type without its key, selector or type', () => {
-            expectModuleCode(creating({ selectableTypes: [{ selector: 'report', type: 'Number' }] }), 'LEXICA4008');
-            expectModuleCode(creating({ selectableTypes: [{ name: 'click', type: 'Number' }] }), 'LEXICA4008');
-            expectModuleCode(creating({ selectableTypes: [{ name: 'click', selector: 'report' }] }), 'LEXICA4008');
+        it('LEXICA4008: a mapping without its selector, its key, a string, or its type', () => {
+            expectModuleCode(creating({ mappings: [{ selector: 'report', type: 'Number' }] }), 'LEXICA4008');
+            expectModuleCode(creating({ mappings: [{ selector: 'report', key: 1, type: 'Number' }] }), 'LEXICA4008');
+            expectModuleCode(creating({ mappings: [{ key: 'click', type: 'Number' }] }), 'LEXICA4008');
+            expectModuleCode(creating({ mappings: [{ key: 'click', selector: 'report' }] }), 'LEXICA4008');
         });
 
-        it('LEXICA4511: a selectable type whose key is not written as a key is', () => {
-            expectModuleCode(creating({ selectableTypes: [{ name: 'chart click', selector: 'report', type: 'Number' }] }), 'LEXICA4511');
+        it('takes a mapping\'s key of any string, as a fixed argument may give any', () => {
+            expect(() => lexica.createRegistry([module('charts', { typeSelectors: [{ name: 'report' }], mappings: [{ selector: 'report', key: 'chart click', type: 'Number' }, { selector: 'report', key: '', type: 'String' }] })])).not.toThrow();
         });
 
-        it('LEXICA4039: a selectable type of a selector no module declares', () => {
-            expectModuleCode(creating({ selectableTypes: [{ name: 'click', selector: 'chart-report', type: 'Number' }] }), 'LEXICA4039');
-            expectModuleCode(registering(module('charts', { selectableTypes: [{ name: 'click', selector: 'report', type: 'Number' }] })), 'LEXICA4039');
+        it('LEXICA4039: a mapping of a selector no module declares', () => {
+            expectModuleCode(creating({ mappings: [{ key: 'click', selector: 'chart-report', type: 'Number' }] }), 'LEXICA4039');
+            expectModuleCode(registering(module('charts', { mappings: [{ key: 'click', selector: 'report', type: 'Number' }] })), 'LEXICA4039');
         });
 
-        it('LEXICA4038: a selectable type whose key its selector maps already', () => {
-            const selectable = { name: 'click', selector: 'report', type: 'Number' };
+        it('LEXICA4038: a mapping whose key its selector maps already', () => {
+            const selectable = { key: 'click', selector: 'report', type: 'Number' };
 
-            expectModuleCode(creating({ typeSelectors: [{ name: 'report' }], selectableTypes: [selectable, selectable] }), 'LEXICA4038');
-            expectModuleCode(registering(module('charts', { typeSelectors: [{ name: 'report' }], selectableTypes: [selectable] }), module('graphs', { selectableTypes: [selectable] })), 'LEXICA4038');
+            expectModuleCode(creating({ typeSelectors: [{ name: 'report' }], mappings: [selectable, selectable] }), 'LEXICA4038');
+            expectModuleCode(registering(module('charts', { typeSelectors: [{ name: 'report' }], mappings: [selectable] }), module('graphs', { mappings: [selectable] })), 'LEXICA4038');
         });
 
         it('LEXICA4512: a type notation that does not parse', () => {
-            expectModuleCode(creating({ selectableTypes: [{ name: 'click', selector: 'report', type: 'List<' }] }), 'LEXICA4512');
+            expectModuleCode(creating({ mappings: [{ key: 'click', selector: 'report', type: 'List<' }] }), 'LEXICA4512');
             expectModuleCode(creating({ members: [propertyDeclaration({ result: 'List<' })] }), 'LEXICA4512');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [parameterDeclaration({ type: 'List<' })] })] }), 'LEXICA4512');
             expectModuleCode(creating({ members: [functionDeclaration({ parameters: [callback({ parameters: ['List<'] })] })] }), 'LEXICA4512');

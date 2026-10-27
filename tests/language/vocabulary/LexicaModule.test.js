@@ -138,7 +138,7 @@ describe('LexicaModule', () => {
 
         expect(predicates).toMatchObject({ module: 'charts', declarationKey: 'predicates' });
         expect(predicates.message).toContain('a test of a receiver is one of its members, a function whose result is a boolean');
-        expect(expectModuleError(() => new LexicaModule('charts', { member: [] })).message).toContain("A module declares typeOf, types, members, typeSelectors, selectableTypes, observationTypes, observationTargets, conversions, and 'member' is none of them");
+        expect(expectModuleError(() => new LexicaModule('charts', { member: [] })).message).toContain("A module declares typeOf, types, members, typeSelectors, mappings, observationTypes, observationTargets, conversions, and 'member' is none of them");
         expect(expectModuleError(() => new LexicaModule('charts', null)).message).toContain("A module's contents are an object declaring typeOf, types, members, typeSelectors");
         expect(expectModuleError(() => new LexicaModule('charts', { members: {} })).message).toContain("A module's members are a list");
         expect(expectModuleError(() => new LexicaModule('charts', { members: [null] })).message).toContain('A member is an object declaring');
@@ -266,11 +266,11 @@ describe('LexicaModule', () => {
         const selecting = (overrides = {}) => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report' })], ...overrides });
 
         it('are kept as frozen data, a selector by its name alone and a key with the selector it belongs to and the type it maps to', () => {
-            const module = new LexicaModule('charts', { typeSelectors: [{ name: 'report' }], selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number' }, { name: 'door:open', selector: 'report', type: 'List<String>' }] });
+            const module = new LexicaModule('charts', { typeSelectors: [{ name: 'report' }], mappings: [{ key: 'motion', selector: 'report', type: 'Number' }, { key: 'door:open', selector: 'report', type: 'List<String>' }] });
 
             expect(module.typeSelectors).toEqual([{ name: 'report' }]);
-            expect(module.selectableTypes).toEqual([{ name: 'motion', selector: 'report', type: 'Number' }, { name: 'door:open', selector: 'report', type: 'List<String>' }]);
-            expect([...module.typeSelectors, ...module.selectableTypes].every(Object.isFrozen)).toBe(true);
+            expect(module.mappings).toEqual([{ key: 'motion', selector: 'report', type: 'Number' }, { key: 'door:open', selector: 'report', type: 'List<String>' }]);
+            expect([...module.typeSelectors, ...module.mappings].every(Object.isFrozen)).toBe(true);
         });
 
         it('name a selector once in its module, as a name is, and declare nothing else of it', () => {
@@ -279,11 +279,12 @@ describe('LexicaModule', () => {
             expect(fails({ typeSelectors: [{ name: 'report', impl: () => 1 }] })).toMatchObject({ declaration: 'report', declarationKey: 'impl' });
         });
 
-        it('name a key as an event is named, with the selector it belongs to and the type it maps to, and declare nothing else of it', () => {
-            expect(fails({ selectableTypes: [{ name: '1st', selector: 'report', type: 'Number' }] })).toMatchObject({ declaration: '1st', declarationKey: 'name' });
-            expect(fails({ selectableTypes: [{ name: 'motion', type: 'Number' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'selector' });
-            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'List<' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'type' });
-            expect(fails({ selectableTypes: [{ name: 'motion', selector: 'report', type: 'Number', impl: () => 1 }] })).toMatchObject({ declaration: 'motion', declarationKey: 'impl' });
+        it('map a key, any string, of the selector it belongs to, to the type it maps to, and declare nothing else of it', () => {
+            expect(() => new LexicaModule('charts', { mappings: [{ selector: 'report', key: '1st report', type: 'Number' }] })).not.toThrow();
+            expect(fails({ mappings: [{ selector: 'report', key: null, type: 'Number' }] })).toMatchObject({ declarationKey: 'key' });
+            expect(fails({ mappings: [{ key: 'motion', type: 'Number' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'selector' });
+            expect(fails({ mappings: [{ key: 'motion', selector: 'report', type: 'List<' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'type' });
+            expect(fails({ mappings: [{ key: 'motion', selector: 'report', type: 'Number', impl: () => 1 }] })).toMatchObject({ declaration: 'motion', declarationKey: 'impl' });
         });
 
         it('are selected through by a function\'s one fixed parameter that names its selector, whose result writes @selected', () => {

@@ -27,8 +27,8 @@ export class LexicaRegistry {
     /** Each type selector, by its name. @type {Map<string, object>} */
     #typeSelectors = new Map();
 
-    /** Each selector's keys, by the selector's name and then the key, each the selectable type a module declared. @type {Map<string, Map<string, object>>} */
-    #selectableTypes = new Map();
+    /** Each selector's keys, by the selector's name and then the key, each the mapping a module declared. @type {Map<string, Map<string, object>>} */
+    #mappings = new Map();
 
     /** @type {Map<string, object>} */
     #observationTypes = new Map();
@@ -138,7 +138,7 @@ export class LexicaRegistry {
         const typesOfMembers = new Map(module.types.flatMap(type => (type.members ?? []).map(member => [member, type])));
         const members = [...module.members, ...typesOfMembers.keys()];
 
-        LexicaRegistry.#validateTypeSelections(module, members, this.#typeSelectors, this.#selectableTypes, declaration => this.getDeclaringModuleName(declaration), fail, failAt);
+        LexicaRegistry.#validateTypeSelections(module, members, this.#typeSelectors, this.#mappings, declaration => this.getDeclaringModuleName(declaration), fail, failAt);
 
         for (const type of module.observationTypes) {
             if (this.#observationTypes.has(type.name)) {
@@ -154,7 +154,7 @@ export class LexicaRegistry {
 
         // Every declaration's notations are read in its module: its own types, Lexica's, and those of a module a type imports, unqualified, and any other qualified by its module; a member a type declares within it reads
         // its type's imports, which cover the type's whole declaration.
-        const declarations = [...module.types, ...members, ...module.typeSelectors, ...module.selectableTypes, ...module.observationTypes, ...module.conversions];
+        const declarations = [...module.types, ...members, ...module.typeSelectors, ...module.mappings, ...module.observationTypes, ...module.conversions];
 
         for (const declaration of declarations) {
             const type = module.types.includes(declaration) ? declaration : typesOfMembers.get(declaration);
@@ -194,11 +194,11 @@ export class LexicaRegistry {
 
         for (const selector of module.typeSelectors) {
             this.#typeSelectors.set(selector.name, selector);
-            this.#selectableTypes.set(selector.name, new Map());
+            this.#mappings.set(selector.name, new Map());
         }
 
-        for (const selectable of module.selectableTypes) {
-            this.#selectableTypes.get(selectable.selector).set(selectable.name, selectable);
+        for (const mapping of module.mappings) {
+            this.#mappings.get(mapping.selector).set(mapping.key, mapping);
         }
 
         for (const type of module.observationTypes) {
@@ -284,7 +284,7 @@ export class LexicaRegistry {
     }
 
     /**
-     * The type the notation writes in the declaration, a member, one of its parameters' notations among them, a structured type, a selectable type or a conversion: each name resolved to its identity in the module
+     * The type the notation writes in the declaration, a member, one of its parameters' notations among them, a structured type, a mapping or a conversion: each name resolved to its identity in the module
      * that declares it. It is resolved once and kept by the declaration for good, since a registered module is never removed and its declarations are frozen, and it is released with the declaration; a notation that
      * names no type the declaration's module can reach is refused at that module and the declaration's name, a conversion's being its source and destination, and kept by none. It calls no host code.
      */
@@ -503,9 +503,9 @@ export class LexicaRegistry {
         return this.#typeSelectors.get(name);
     }
 
-    /** The selectable type the selector maps the key to, or undefined. */
-    getSelectableType(selector, key) {
-        return this.#selectableTypes.get(selector)?.get(key);
+    /** The mapping of the key in the selector, or undefined where the selector maps none. */
+    getMapping(selector, key) {
+        return this.#mappings.get(selector)?.get(key);
     }
 
     /** The type of observation declared so, or undefined. */
@@ -528,7 +528,7 @@ export class LexicaRegistry {
         return type.kind === 'named' && type.typeArguments.length === 0 && !type.isNullable && this.isData(type);
     }
 
-    /** The name of the module that declares the declaration: a member, a type, a type selector, a selectable type or a conversion. */
+    /** The name of the module that declares the declaration: a member, a type, a type selector, a mapping or a conversion. */
     getDeclaringModuleName(declaration) {
         return this.#declaringModules.get(declaration)?.moduleName;
     }
@@ -612,7 +612,7 @@ export class LexicaRegistry {
      * Refuses a type selector named already, by this module or one registered before it; a key of a selector neither declares; a key its selector maps already, which is never replaced; and a parameter that selects a type
      * through a selector neither declares.
      */
-    static #validateTypeSelections(module, members, typeSelectors, selectableTypes, getDeclaringModuleName, fail, failAt) {
+    static #validateTypeSelections(module, members, typeSelectors, mappings, getDeclaringModuleName, fail, failAt) {
         for (const selector of module.typeSelectors) {
             if (typeSelectors.has(selector.name)) {
                 fail('LEXICA4007', `The type selector '${selector.name}' is declared already, by the module '${getDeclaringModuleName(typeSelectors.get(selector.name))}'`, selector.name, 'name');
@@ -621,16 +621,16 @@ export class LexicaRegistry {
 
         const isDeclared = name => typeSelectors.has(name) || module.typeSelectors.some(selector => selector.name === name);
 
-        module.selectableTypes.forEach(selectable => {
-            if (!isDeclared(selectable.selector)) {
-                fail('LEXICA4039', `The key '${selectable.name}' belongs to the type selector '${selectable.selector}', which no module registered declares`, selectable.name, 'selector');
+        module.mappings.forEach(mapping => {
+            if (!isDeclared(mapping.selector)) {
+                fail('LEXICA4039', `The key '${mapping.key}' belongs to the type selector '${mapping.selector}', which no module registered declares`, mapping.key, 'selector');
             }
 
             // A key its own module maps twice is refused when the module is created.
-            const registered = selectableTypes.get(selectable.selector)?.get(selectable.name);
+            const registered = mappings.get(mapping.selector)?.get(mapping.key);
 
             if (registered !== undefined) {
-                fail('LEXICA4038', `The type selector '${selectable.selector}' maps the key '${selectable.name}' already, as the module '${getDeclaringModuleName(registered)}' declared it, and a key is never replaced`, selectable.name, 'name');
+                fail('LEXICA4038', `The type selector '${mapping.selector}' maps the key '${mapping.key}' already, as the module '${getDeclaringModuleName(registered)}' declared it, and a key is never replaced`, mapping.key, 'key');
             }
         });
 
@@ -654,7 +654,7 @@ export class LexicaRegistry {
             }
         }
 
-        module.selectableTypes.forEach(selectable => this.getDeclaredType(selectable, selectable.type));
+        module.mappings.forEach(mapping => this.getDeclaredType(mapping, mapping.type));
 
         for (const declaration of members) {
             // A member declared within a type has that type for its receiver, written by no notation.

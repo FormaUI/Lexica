@@ -2099,13 +2099,13 @@ export class LanguageResolver {
         }
 
         const name = result.value;
-        const selectable = this.#registry.getSelectableType(parameter.selector, name);
+        const mapping = this.#registry.getMapping(parameter.selector, name);
 
-        if (selectable === undefined) {
+        if (mapping === undefined) {
             this.#fail('LEXICA3050', `The type selector '${parameter.selector}' maps no type to the key '${name}'`, pointer);
         }
 
-        return { selected: { name, type: this.#registry.getDeclaredType(selectable, selectable.type) } };
+        return { selected: { name, type: this.#registry.getDeclaredType(mapping, mapping.type) } };
     }
 
     /**

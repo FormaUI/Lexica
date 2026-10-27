@@ -211,12 +211,12 @@ export interface LexicaTypeSelectorDeclaration {
     name: string;
 }
 
-/** One key of a type selector, named by the key, and the type it maps to. */
-export interface LexicaSelectableTypeDeclaration {
-    /** The key, which a fixed argument gives. */
-    name: string;
+/** A mapping of one key of a type selector to the type it maps to, its selector and its key its identity. */
+export interface LexicaMappingDeclaration {
     /** The type selector the key belongs to. */
     selector: string;
+    /** The key, any string, as a fixed argument gives it. */
+    key: string;
     /** The type the key maps to, in Lexica's notation. */
     type: string;
 }
@@ -324,8 +324,8 @@ export interface LexicaModuleContents {
     members?: LexicaMemberDeclaration[];
     /** The type selectors it declares, each by its name alone, named once across every module. */
     typeSelectors?: LexicaTypeSelectorDeclaration[];
-    /** The keys it declares for type selectors, its own or a module's registered before it, each once in its selector. */
-    selectableTypes?: LexicaSelectableTypeDeclaration[];
+    /** The keys it maps for type selectors, its own or a module's registered before it, each once in its selector. */
+    mappings?: LexicaMappingDeclaration[];
     /** The types of observation it declares. */
     observationTypes?: LexicaObservationTypeDeclaration[];
     /** The targets its observation types observe besides the receiver and an argument of the member, each named once. */
@@ -341,7 +341,7 @@ export interface LexicaModule {
     readonly types: readonly Readonly<LexicaTypeDeclaration>[];
     readonly members: readonly LexicaMemberDeclaration[];
     readonly typeSelectors: readonly LexicaTypeSelectorDeclaration[];
-    readonly selectableTypes: readonly LexicaSelectableTypeDeclaration[];
+    readonly mappings: readonly LexicaMappingDeclaration[];
     readonly observationTypes: readonly LexicaObservationTypeDeclaration[];
     readonly observationTargets: readonly LexicaObservationTargetDeclaration[];
     readonly conversions: readonly LexicaConversionDeclaration[];

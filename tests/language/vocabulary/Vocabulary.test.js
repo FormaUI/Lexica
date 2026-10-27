@@ -33,7 +33,7 @@ describe('Vocabulary', () => {
         expect(module.conversions.map(conversion => `${conversion.from} to ${conversion.to}`)).toEqual(['String to Number', 'Number to String', 'Boolean to String', 'String to Boolean']);
         expect(module.types).toEqual([]);
         expect(module.observationTypes).toEqual([]);
-        expect([module.typeSelectors, module.selectableTypes]).toEqual([[], []]);
+        expect([module.typeSelectors, module.mappings]).toEqual([[], []]);
     });
 
     it.each(['is', 'has', 'supports'])('declares %s as the one function of any receiver, answering what its test, a function of the receiver\'s own type, answers of it', verb => {
