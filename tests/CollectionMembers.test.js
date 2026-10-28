@@ -79,6 +79,13 @@ describe('the members of collections', () => {
             expect(valueOf('words.distinct')).toEqual(['tea', 'coffee']);
             expect(valueOf('people.distinctBy(it.team).select(it.name)')).toEqual(['ann', 'bob']);
         });
+
+        it("evaluates a filter's predicate and a key once for each item, in order", () => {
+            expect(valueOf('xs.where(it.seen > 1)')).toEqual([3, 2]);
+            expect(seen).toEqual([3, 1, 2]);
+            expect(valueOf('xs.distinctBy(it.seen)')).toEqual([3, 1, 2]);
+            expect(seen).toEqual([3, 1, 2]);
+        });
     });
 
     describe('tests and aggregates', () => {

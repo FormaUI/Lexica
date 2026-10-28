@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Type } from '#lexica/language/Type.mjs';
+import { ItemPositions } from '#lexica/language/vocabulary/ItemPositions.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 
@@ -79,6 +80,31 @@ describe('Vocabulary', () => {
         expect([module.types.length, module.members]).toEqual([2, []]);
         expect(module.observationTypes).toEqual([]);
         expect([module.typeSelectors, module.mappings]).toEqual([[], []]);
+    });
+
+    it("answers each member keeping its receiver's items with the position each stood at, so an item keeps its own occurrence apart from an equal one", () => {
+        const receiver = ['a', 'a', 'b'];
+        const isA = item => item === 'a';
+        const itself = item => item;
+        const positionsOf = (name, args, on = receiver) => ItemPositions.getPositions(read(name, on, args));
+
+        expect({
+            where: positionsOf('where', { expression: isA }),
+            take: positionsOf('take', { count: 2 }),
+            drop: positionsOf('drop', { count: 1 }),
+            takeWhile: positionsOf('takeWhile', { expression: isA }),
+            dropWhile: positionsOf('dropWhile', { expression: isA }),
+            distinct: positionsOf('distinct'),
+            distinctBy: positionsOf('distinctBy', { expression: isA }),
+            reverse: positionsOf('reverse'),
+            orderBy: positionsOf('orderBy', { expression: itself }),
+            orderByDescending: positionsOf('orderByDescending', { expression: itself }),
+            thenBy: positionsOf('thenBy', { expression: itself }, read('orderBy', receiver, { expression: () => 0 })),
+            thenByDescending: positionsOf('thenByDescending', { expression: itself }, read('orderBy', receiver, { expression: () => 0 })),
+        }).toEqual({
+            where: [0, 1], take: [0, 1], drop: [1, 2], takeWhile: [0, 1], dropWhile: [2], distinct: [0, 2], distinctBy: [0, 2], reverse: [2, 1, 0],
+            orderBy: [0, 1, 2], orderByDescending: [2, 0, 1], thenBy: [0, 1, 2], thenByDescending: [2, 0, 1],
+        });
     });
 
     it.each(['is', 'has', 'supports'])('declares %s as the one function of any receiver, answering what its test, a function of the receiver\'s own type, answers of it', verb => {

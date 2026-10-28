@@ -7,6 +7,7 @@ import { Dictionary } from '../Dictionary.mjs';
 import { Names } from '../Names.mjs';
 import { Pair } from '../Pair.mjs';
 import { Declarations } from './Declarations.mjs';
+import { ItemPositions } from './ItemPositions.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
 import { ListOrdering } from './ListOrdering.mjs';
 import { MemberFailure } from './MemberFailure.mjs';
@@ -67,8 +68,9 @@ export class Vocabulary {
     static #projectingMembers;
 
     /**
-     * Whether the member is one of Lexica's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered or taken once each, so its answer carries each answered item's lineage:
-     * `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, and the members that order, `orderBy`, `orderByDescending`, `thenBy` and `thenByDescending`.
+     * Whether the member is one of Lexica's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered or taken once each, so its answer carries each answered item's lineage, which
+     * the position it stood at, kept by `ItemPositions` with the answer, says: `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, and the members that order, `orderBy`,
+     * `orderByDescending`, `thenBy` and `thenByDescending`.
      */
     static answersReceiverItems(declaration) {
         Vocabulary.#itemKeepingMembers ??= Vocabulary.#listMembersNamed(['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'distinct', 'distinctBy', 'reverse', 'orderBy', 'orderByDescending', 'thenBy', 'thenByDescending']);
@@ -225,7 +227,7 @@ export class Vocabulary {
             Declarations.createFunctionDeclaration('max', 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
             Declarations.createFunctionDeclaration('min', 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
             Declarations.createFunctionDeclaration('sum', 'Number', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
-            Declarations.createFunctionDeclaration('where', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => receiver.filter(item => args.expression(item) === true) }),
+            Declarations.createFunctionDeclaration('where', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => ItemPositions.createAnswer(receiver, Vocabulary.#positionsWhere(receiver, item => args.expression(item) === true)) }),
             // Every item's value, null items included, its expression's `it` of the item's type, so `select(it)` keeps the list and `select(it ?? 0)` replaces its nulls.
             Declarations.createFunctionDeclaration('select<U>', 'List<U>', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('U', { nulls: 'accept' })], impl: ({ receiver, args }) => receiver.map(item => args.expression(item)) }),
             // Each item's list, in order, joined; a null item's, whose body answers null, and a null list are refused, never treated as empty.
@@ -243,11 +245,14 @@ export class Vocabulary {
             }),
             Declarations.createFunctionDeclaration('concat', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('other', 'List<T>')], impl: ({ receiver, args }) => [...receiver, ...args.other] }),
             // The items at an index less than the count, or at one the count or past it, whatever the count: a count past the end takes or leaves every item, and one of zero or less none.
-            Declarations.createFunctionDeclaration('take', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('count', 'Number')], impl: ({ receiver, args }) => receiver.filter((_, index) => index < args.count) }),
-            Declarations.createFunctionDeclaration('drop', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('count', 'Number')], impl: ({ receiver, args }) => receiver.filter((_, index) => index >= args.count) }),
+            Declarations.createFunctionDeclaration('take', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('count', 'Number')], impl: ({ receiver, args }) => ItemPositions.createAnswer(receiver, Vocabulary.#positionsWhere(receiver, (_, position) => position < args.count)) }),
+            Declarations.createFunctionDeclaration('drop', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('count', 'Number')], impl: ({ receiver, args }) => ItemPositions.createAnswer(receiver, Vocabulary.#positionsWhere(receiver, (_, position) => position >= args.count)) }),
             // The items before the first its predicate is falsy for, which it is evaluated against last, or the items from it on, the predicate evaluated against none after it.
-            Declarations.createFunctionDeclaration('takeWhile', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => receiver.slice(0, Vocabulary.#firstIndex(receiver, item => args.expression(item) !== true)) }),
-            Declarations.createFunctionDeclaration('dropWhile', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => receiver.slice(Vocabulary.#firstIndex(receiver, item => args.expression(item) !== true)) }),
+            Declarations.createFunctionDeclaration('takeWhile', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => ItemPositions.createAnswer(receiver, ItemPositions.createSpan(0, Vocabulary.#firstIndex(receiver, item => args.expression(item) !== true))) }),
+            Declarations.createFunctionDeclaration('dropWhile', 'List<T>', {
+                updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()],
+                impl: ({ receiver, args }) => ItemPositions.createAnswer(receiver, ItemPositions.createSpan(Vocabulary.#firstIndex(receiver, item => args.expression(item) !== true), receiver.length)),
+            }),
             // Whether some item's predicate is truthy, stopping at the first that is, false for no items; whether every item's is, stopping at the first that is not, true for no items.
             Declarations.createFunctionDeclaration('any', 'Boolean', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => receiver.some(item => args.expression(item) === true) }),
             Declarations.createFunctionDeclaration('all', 'Boolean', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => receiver.every(item => args.expression(item) === true) }),
@@ -283,9 +288,9 @@ export class Vocabulary {
                 updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')], impl: ({ receiver, args }) => ListOrdering.thenBy(receiver, args.expression, isDescending, name),
             })),
             // Each value's first occurrence, in order, values compared by the language's key equality; and each key's first item, its key the expression's value, keys compared alike.
-            Declarations.createPropertyDeclaration('distinct', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => [...new Set(receiver)] }),
-            Declarations.createFunctionDeclaration('distinctBy<K>', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')], impl: ({ receiver, args }) => [...Vocabulary.#groupsOf(receiver, args.expression).values()].map(group => group[0]) }),
-            Declarations.createPropertyDeclaration('reverse', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => [...receiver].reverse() }),
+            Declarations.createPropertyDeclaration('distinct', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => ItemPositions.createAnswer(receiver, Vocabulary.#firstPositions(receiver, item => item)) }),
+            Declarations.createFunctionDeclaration('distinctBy<K>', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')], impl: ({ receiver, args }) => ItemPositions.createAnswer(receiver, Vocabulary.#firstPositions(receiver, item => args.expression(item))) }),
+            Declarations.createPropertyDeclaration('reverse', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => ItemPositions.createAnswer(receiver, ItemPositions.createSpan(0, receiver.length).reverse()) }),
             // A dictionary of the items by the key each gives, in the items' order, two items of one key refused, which grouping collects instead.
             Declarations.createFunctionDeclaration('toDictionary<K>', 'Dictionary<K, T>', {
                 updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')],
@@ -363,6 +368,34 @@ export class Vocabulary {
         const index = items.findIndex(test);
 
         return index === -1 ? items.length : index;
+    }
+
+    /** The position of each item the test holds for, in order, the test given each item and its position once. */
+    static #positionsWhere(items, test) {
+        const positions = [];
+
+        items.forEach((item, position) => {
+            if (test(item, position)) {
+                positions.push(position);
+            }
+        });
+
+        return positions;
+    }
+
+    /** The position of each key's first item, in the items' order, the key the expression gives each item, evaluated once for each, keys compared by the language's key equality. */
+    static #firstPositions(items, keyOf) {
+        const firsts = new Map();
+
+        items.forEach((item, position) => {
+            const key = keyOf(item);
+
+            if (!firsts.has(key)) {
+                firsts.set(key, position);
+            }
+        });
+
+        return [...firsts.values()];
     }
 
     /** The items grouped by the key the expression gives each, keys compared by the language's key equality, each group in the items' order, the groups in the order their first items stand. */

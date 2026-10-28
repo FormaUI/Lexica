@@ -2,6 +2,7 @@
  * ListOrdering — the order `orderBy` and `thenBy` give a list: each item's keys, one for each criterion, kept with the list they ordered, so a later `thenBy` refines its ties without evaluating them again
  */
 
+import { ItemPositions } from './ItemPositions.mjs';
 import { MemberFailure } from './MemberFailure.mjs';
 
 /** The domains an ordering key is of, each compared within itself alone: numbers numerically, strings by code unit, without a locale, and Booleans, false before true. */
@@ -31,7 +32,7 @@ export class ListOrdering {
         const keys = ListOrdering.#evaluateKeys(list, keyOf, memberName);
         const order = list.map((_, index) => index).sort((one, other) => ListOrdering.compareKeys(keys[one], keys[other], isDescending));
 
-        return ListOrdering.#createOrdered(order.map(index => list[index]), order.map(index => Object.freeze([keys[index]])));
+        return ListOrdering.#createOrdered(list, order, order.map(index => Object.freeze([keys[index]])));
     }
 
     /**
@@ -62,7 +63,7 @@ export class ListOrdering {
             start = end;
         }
 
-        return ListOrdering.#createOrdered(order.map(index => list[index]), order.map(index => Object.freeze([...ordering.#keys[index], keys[index]])));
+        return ListOrdering.#createOrdered(list, order, order.map(index => Object.freeze([...ordering.#keys[index], keys[index]])));
     }
 
     /** The first item whose key is the least, or the greatest, items whose key is null skipped, and null where none gives one; a key of no domain, or keys of two, are refused (LEXICA5036). */
@@ -128,9 +129,9 @@ export class ListOrdering {
         return one.every((key, index) => key === other[index]);
     }
 
-    /** The items, frozen, holding each item's keys as their ordering. */
-    static #createOrdered(items, keys) {
-        const ordered = Object.freeze(items);
+    /** The list's items in the order of their positions, frozen, holding each item's keys as their ordering and, through `ItemPositions`, the position each stood at in the list. */
+    static #createOrdered(list, order, keys) {
+        const ordered = ItemPositions.createAnswer(list, order);
 
         ListOrdering.#orderings.set(ordered, new ListOrdering(Object.freeze(keys)));
 

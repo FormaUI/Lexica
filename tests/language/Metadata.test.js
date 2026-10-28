@@ -17,7 +17,10 @@ const { createPropertyDeclaration } = Declarations;
 /** The references a plain host's member answers, lights of the home. */
 const parts = [new Light('a'), new Light('b')];
 
-/** A plain host's module on names: a size measured within half a unit, a length, a list of references, a crowd holding one of them twice, and each reference's label. */
+/** Three references, the first two labelled alike, so a projection of their labels gives equal values that stand for different references. */
+const twins = [new Light('a'), new Light('a'), new Light('b')];
+
+/** A plain host's module on names: a size measured within half a unit, a length, a list of references, a crowd holding one of them twice, twins labelled alike, and each reference's label. */
 const shapes = new LexicaModule('shapes', withHome({
     types: [
         { name: 'Size', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number', height: 'Number' }) },
@@ -26,6 +29,7 @@ const shapes = new LexicaModule('shapes', withHome({
             createPropertyDeclaration('length', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
             createPropertyDeclaration('parts', 'List<Light?>', { updates: constantUpdates, impl: () => parts }),
             createPropertyDeclaration('crowd', 'List<Light>', { updates: constantUpdates, impl: () => [parts[0], parts[1], parts[0]] }),
+            createPropertyDeclaration('twins', 'List<Light>', { updates: constantUpdates, impl: () => twins }),
             createPropertyDeclaration('sizes', 'List<Size?>', { updates: constantUpdates, impl: () => [{ width: 1, height: 2 }, null] }),
         ]),
     ],
@@ -202,6 +206,23 @@ describe('result metadata', () => {
             expect(lineageOf(`${projected}.takeWhile(it.name == "a")`).provenance).toEqual(references([parts[0]]));
             expect(lineageOf(`${projected}.distinctBy(it.name)`).provenance).toEqual(references([parts[0], parts[1]]));
             expect(lineageOf(`${projected}.concat(${projected})`).provenance).toBeUndefined();
+        });
+
+        it("carries each occurrence's own lineage by its position, never an equal item's, so inputs projected to equal values keep their own references through a partition and a reordering", () => {
+            // The twins are equal as objects, so each entry is told by the identity of the reference it names, the twin at that index.
+            const twinsOf = entries => entries.map(entry => (entry.kind === 'reference' ? twins.indexOf(entry.value) : entry));
+            const labels = values => values.map(value => ({ kind: 'data', value }));
+
+            expect(metadataOf('name.twins.select(it.label).drop(1).select(it)').sources).toEqual(labels(['a', 'b']));
+            expect(twinsOf(metadataOf('name.twins.select(it.label).drop(1).select(it)').provenance)).toEqual([1, 2]);
+            expect(metadataOf('name.twins.select(it.label).reverse.select(it)').sources).toEqual(labels(['b', 'a', 'a']));
+            expect(twinsOf(metadataOf('name.twins.select(it.label).reverse.select(it)').provenance)).toEqual([2, 1, 0]);
+            expect(twinsOf(metadataOf('name.twins.select(it.label).orderByDescending(it).select(it)').provenance)).toEqual([2, 0, 1]);
+            expect(twinsOf(metadataOf('name.twins.select(it.label).distinct.select(it)').provenance)).toEqual([0, 2]);
+            expect(metadataOf('name.twins.select(it.label).where(it == "c").select(it)')).toMatchObject({ sources: [], provenance: [] });
+            // An object projection's reversal, of a sequence that is no palindrome, and a list of lists, whose answer its capture maps to another list.
+            expect([twinsOf(metadataOf('name.twins { n = it.label }.reverse').sources), twinsOf(metadataOf('name.twins { n = it.label }.reverse').provenance)]).toEqual([[2, 1, 0], [2, 1, 0]]);
+            expect(twinsOf(metadataOf('name.twins.select([it.label]).reverse.select(it)').provenance)).toEqual([2, 1, 0]);
         });
 
         it("realigns each item's lineage through an ordering and its refinement, and records nothing of the keys that ordered it", () => {

@@ -10,6 +10,7 @@ import { LexicaErrors } from './LexicaError.mjs';
 import { Pair } from './Pair.mjs';
 import { Range } from './Range.mjs';
 import { Type } from './Type.mjs';
+import { ItemPositions } from './vocabulary/ItemPositions.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 import { ListOrdering } from './vocabulary/ListOrdering.mjs';
 import { MemberFailure } from './vocabulary/MemberFailure.mjs';
@@ -2270,6 +2271,10 @@ export class Evaluator {
             }
         }
 
+        // A member answering its receiver's items keeps the position each stood at there with the list it answered, which a capture can replace with another, so the positions are read from that list.
+        const answersReceiverItems = takesReceiver && Vocabulary.answersReceiverItems(declaration);
+        const positions = answersReceiverItems ? ItemPositions.getPositions(value) : undefined;
+
         // A collection a host gives in a form of its own, a set, a map or a pair's object, is the language's where the member declares one.
         if (captureCollections !== null) {
             value = captureCollections(value);
@@ -2294,9 +2299,9 @@ export class Evaluator {
             ListOrdering.carry(value, answered);
         }
 
-        // A member answering its receiver's items keeps the lineage each had there, as each item's own record already follows it; one answering a value for each item, as a projection does, records each item as its source.
-        if (takesReceiver && Vocabulary.answersReceiverItems(declaration)) {
-            this.#realignLineage(receiver, value, answered);
+        // A member answering its receiver's items keeps the lineage each occurrence had there, as each item's own record already follows it; one answering a value for each item, as a projection does, records each item as its source.
+        if (answersReceiverItems) {
+            this.#realignLineage(receiver, positions, answered);
         } else if (takesReceiver && Vocabulary.projectsItems(declaration)) {
             const itemType = this.#resolvedDefinition.resolutionOf(node)?.receiverType?.itemType ?? null;
 
@@ -2307,40 +2312,19 @@ export class Evaluator {
     }
 
     /**
-     * Gives the list a member answered of its receiver's items, its copy where its items were copied, the sources and the provenance its receiver's items had, realigned in its order: each answered item is the first
-     * occurrence of it in the receiver no item before it took, so a filter, a partition, a reordering and a taking of distinct items alike realign, equal items standing for each other. A receiver without either records
-     * nothing, and an answer holding an item its receiver does not, or more often than it does, is left without them.
+     * Gives the list a member answered of its receiver's items, its copy where its items were copied, the source and the provenance of each occurrence it answered, by the position the occurrence stood at in the
+     * receiver, so a filter, a partition, a reordering and a taking of distinct items alike realign, and items equal to each other keep their own occurrences' lineage. A receiver without either records nothing.
      */
-    #realignLineage(receiver, kept, answered) {
+    #realignLineage(receiver, positions, answered) {
         const sources = this.#sourcesByList.get(receiver) ?? null;
         const provenance = this.#provenanceByList.get(receiver) ?? null;
 
-        if (sources === null && provenance === null) {
-            return;
-        }
-
-        const unused = new Map();
-
-        receiver.forEach((item, index) => (unused.has(item) ? unused.get(item).push(index) : unused.set(item, [index])));
-
-        const indexes = [];
-
-        for (const item of kept) {
-            const index = unused.get(item)?.shift();
-
-            if (index === undefined) {
-                return;
-            }
-
-            indexes.push(index);
-        }
-
         if (sources !== null) {
-            this.#sourcesByList.set(answered, Object.freeze(indexes.map(at => sources[at])));
+            this.#sourcesByList.set(answered, Object.freeze(positions.map(at => sources[at])));
         }
 
         if (provenance !== null) {
-            this.#provenanceByList.set(answered, Object.freeze(indexes.map(at => provenance[at])));
+            this.#provenanceByList.set(answered, Object.freeze(positions.map(at => provenance[at])));
         }
     }
 

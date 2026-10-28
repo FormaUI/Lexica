@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ItemPositions } from '#lexica/language/vocabulary/ItemPositions.mjs';
 import { ListOrdering } from '#lexica/language/vocabulary/ListOrdering.mjs';
 import { MemberFailure } from '#lexica/language/vocabulary/MemberFailure.mjs';
 
@@ -21,6 +22,8 @@ describe('ListOrdering', () => {
         expect(Object.isFrozen(ordered)).toBe(true);
         expect(items.map(byName)).toEqual(['a', 'c', 'b']);
         expect(ListOrdering.thenBy(ordered, byName, false, 'thenBy').map(byName)).toEqual(['b', 'c', 'a']);
+        // Each answer keeps the position its items stood at in its own receiver.
+        expect([ItemPositions.getPositions(ordered), ItemPositions.getPositions(ListOrdering.thenBy(ordered, byName, false, 'thenBy'))]).toEqual([[1, 2, 0], [1, 0, 2]]);
 
         ListOrdering.carry(ordered, copy);
 
