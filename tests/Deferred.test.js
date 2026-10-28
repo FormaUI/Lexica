@@ -98,7 +98,7 @@ describe('values of Any', () => {
                 { name: null, pointer: '/expression/objectFields/2/value' },
             ]);
             expect(Object.isFrozen(resolution.deferredAccesses) && resolution.deferredAccesses.every(Object.isFrozen)).toBe(true);
-            expect(resolve('let f = function(x) return x.glow end\nreturn { a = f(shelf.item("light")), b = f(shelf.item("light")) }').deferredAccesses).toEqual([{ name: 'glow', pointer: '/expression/locals/0/value/body/result' }]);
+            expect(resolve('let f = function(x)\n    return x.glow\nend\nreturn { a = f(shelf.item("light")), b = f(shelf.item("light")) }').deferredAccesses).toEqual([{ name: 'glow', pointer: '/expression/locals/0/value/body/result' }]);
             expect(resolve('shelf.cup().size').deferredAccesses).toEqual([]);
         });
 

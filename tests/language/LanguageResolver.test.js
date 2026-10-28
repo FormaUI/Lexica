@@ -37,7 +37,7 @@ const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop',
 })]);
 
 /** Local functions a script's arguments call, each call resolving a copy of its body: one answering a number and one a string. */
-const LOCALS = 'let next = function(x) return x + 1 end\nlet same = function(s) return s end';
+const LOCALS = 'let next = function(x)\n    return x + 1\nend\nlet same = function(s)\n    return s\nend';
 
 /** The script resolved against the shop, with `missing` bound to null and `word` to one of its words. */
 const resolve = result => {

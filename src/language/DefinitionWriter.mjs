@@ -322,7 +322,8 @@ export class DefinitionWriter {
 
     /**
      * A conditional's clauses, each a condition or a conditional binding, and the `end` that closes them: a conditional of its own style nested in its alternative is written as an `elseif`, and one in its condition or consequent in parentheses; every branch gives its result with `return` where the branches are bodies.
-     * On one line where the level is null, or where it has no `elseif` and its branches are expressions; otherwise each clause begins a line, its branch after it where the branches are expressions and on the lines a level within it where they are bodies.
+     * On one line where the level is null, or where it has no `elseif`, its branches are expressions and none of its text spans lines; otherwise in block form, each clause on a line of its own ending in `then` or `else`,
+     * its branch on the lines a level within it, and `end` on a line of its own.
      */
     static #conditional(node, level) {
         const clauses = [];
@@ -354,15 +355,18 @@ export class DefinitionWriter {
         };
         const hasBody = clauses.some(clause => clause.branch.kind === 'body');
 
-        if (level === null || (clauses.length === 2 && !hasBody)) {
+        if (level === null) {
             return `${clauses.map(clause => `${clause.header} ${branchText(clause, level)}`).join(' ')} end`;
         }
 
-        const lineBreak = `\n${INDENTATION.repeat(level)}`;
+        // A conditional that spans lines at all, one of its branches' or tests' texts among them, is in block form, as line structure requires.
+        const oneLine = `${clauses.map(clause => `${clause.header} ${branchText(clause, level)}`).join(' ')} end`;
 
-        if (!hasBody) {
-            return [...clauses.map(clause => `${clause.header} ${branchText(clause, level)}`), 'end'].join(lineBreak);
+        if (clauses.length === 2 && !hasBody && !oneLine.includes('\n')) {
+            return oneLine;
         }
+
+        const lineBreak = `\n${INDENTATION.repeat(level)}`;
 
         return [...clauses.map(clause => `${clause.header}\n${INDENTATION.repeat(level + 1)}${branchText(clause, level + 1)}`), 'end'].join(lineBreak);
     }
@@ -371,6 +375,11 @@ export class DefinitionWriter {
     static #within(node, precedence, level) {
         const text = DefinitionWriter.#write(node, level);
 
-        return DefinitionWriter.#precedenceOf(node) < precedence ? `(${text})` : text;
+        if (DefinitionWriter.#precedenceOf(node) >= precedence) {
+            return text;
+        }
+
+        // A block's `end` ends its line, so the group around a block that spans lines closes on the line after it, where what follows continues.
+        return level !== null && text.includes('\n') && text.endsWith('end') ? `(${text}\n${INDENTATION.repeat(level)})` : `(${text})`;
     }
 }

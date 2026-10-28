@@ -52,10 +52,10 @@ describe('a host of plain data', () => {
 
     it('tells where a declaration a script function\'s body uses stands in the definition, once for every call that reaches it', () => {
         const registry = createImportingRegistry([createShop()]);
-        const resolution = registry.resolve('let f = function(x) return x.count end\nreturn f(items) + f(items)', registry.createBindings({ items: [1, 2] }));
+        const resolution = registry.resolve('let f = function(x)\n    return x.count\nend\nreturn f(items) + f(items)', registry.createBindings({ items: [1, 2] }));
 
         expect(resolution.usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['List.count', '/expression/locals/0/value/body/result']]);
-        expect(resolution.getLocation(resolution.usedDeclarations[0].pointer)).toMatchObject({ line: 1, column: 28 });
+        expect(resolution.getLocation(resolution.usedDeclarations[0].pointer)).toMatchObject({ line: 2, column: 12 });
     });
 
     it('names a used member of a list by its type, Lexica\'s List, as any member is named by the type it matched', () => {

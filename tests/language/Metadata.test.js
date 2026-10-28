@@ -56,7 +56,7 @@ describe('result metadata', () => {
     });
 
     it('keeps the metadata of the part an access selects: a field of a member\'s result, and one of an object a local holds', () => {
-        const { objectFields } = metadataOf('let dimensions = { width = name.size.width } return { direct = name.size.width, held = dimensions.width, measured = name.size { width = it.width } }');
+        const { objectFields } = metadataOf('let dimensions = { width = name.size.width }\nreturn { direct = name.size.width, held = dimensions.width, measured = name.size { width = it.width } }');
 
         expect(objectFields.direct.tolerance).toBe(0.5);
         expect(objectFields.held.tolerance).toBe(0.5);

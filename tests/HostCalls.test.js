@@ -70,9 +70,9 @@ describe('host calls', () => {
     });
 
     it('stand at the end of a body, its locals before them, and in a do block there, as the script\'s terminal position', () => {
-        expect(resolve('let target = 21 return thermostat.hold({ target = target })').hostCall.name).toBe('hold');
-        expect(resolve('do let level = 40 return light.dim({ to = level }) end').hostCall.name).toBe('dim');
-        expect(resolve('let room = sensor.room return sensor.watch() { at = it.at, room = room }').type).toBe('{ at: Number, room: String }');
+        expect(resolve('let target = 21\nreturn thermostat.hold({ target = target })').hostCall.name).toBe('hold');
+        expect(resolve('do\n    let level = 40\n    return light.dim({ to = level })\nend').hostCall.name).toBe('dim');
+        expect(resolve('let room = sensor.room\nreturn sensor.watch() { at = it.at, room = room }').type).toBe('{ at: Number, room: String }');
         expect(resolve('light?.dim({ to = 40 })').hostCall.name).toBe('dim');
     });
 
@@ -83,9 +83,9 @@ describe('host calls', () => {
             ['if light.dim({ to = 40 }) then 1 else 2 end', '/expression/condition', "The condition of 'if' is a value, and this one is a host call"],
             ['light.dim({ to = 40 }) + 1', '/expression/left', "The left operand of '+' is a value, and this one is a host call"],
             ['if lit then light.dim({ to = 40 }) else light.dim({ to = 0 }) end', '/expression/consequent', "A branch of 'if' is a value, and this one is a host call"],
-            ['let level = light.dim({ to = 40 }) return level', '/expression/locals/0/value', "The local 'level' is a host call, and a local is a value"],
-            ['let level = do return light.dim({ to = 40 }) end return level', '/expression/locals/0/value/body/result', 'A host call ends the script, and this body gives its result to the expression around it, which takes a value'],
-            ['let reach = () => light.dim({ to = 40 }) return reach()', '/expression/locals/0/value/body', "'reach' gives a host call, and a function gives a value"],
+            ['let level = light.dim({ to = 40 })\nreturn level', '/expression/locals/0/value', "The local 'level' is a host call, and a local is a value"],
+            ['let level = do\n    return light.dim({ to = 40 })\nend\nreturn level', '/expression/locals/0/value/body/result', 'A host call ends the script, and this body gives its result to the expression around it, which takes a value'],
+            ['let reach = () => light.dim({ to = 40 })\nreturn reach()', '/expression/locals/0/value/body', "'reach' gives a host call, and a function gives a value"],
             ['sensor.watch() { level = light.dim({ to = 40 }) }', '/expression/objectFields/0/value', "The field 'level' is a host call, and a field is a value"],
             ['sensor.watch().at', '/expression', "'at' follows a host call, which takes no members"],
         ];
@@ -147,7 +147,7 @@ describe('host calls', () => {
     });
 
     it('leave the definition as version 31 writes any call, validated and formatted as one', () => {
-        const definition = lexica.parse('let target = 21 return thermostat.hold({ target = target })');
+        const definition = lexica.parse('let target = 21\nreturn thermostat.hold({ target = target })');
 
         expect(lexica.validate(definition)).toEqual(definition);
         expect(lexica.format(definition)).toBe('let target = 21\nreturn thermostat.hold({ target = target })');
@@ -250,7 +250,7 @@ describe('prepared calls', () => {
 
     it('evaluate the locals before the call once, and read them as prepared in every projection, never running their initializers again', () => {
         const invoked = [];
-        const call = evaluatorOf('let room = sensor.room return sensor.watch() { at = it.at, room = room }', { invoked }).evaluator.prepareHostCall();
+        const call = evaluatorOf('let room = sensor.room\nreturn sensor.watch() { at = it.at, room = room }', { invoked }).evaluator.prepareHostCall();
 
         expect(invoked).toEqual(['room:porch']);
         expect([1, 2, 3].map(at => call.project({ at, strength: 1 }).value)).toEqual([1, 2, 3].map(at => ({ at, room: "porch's room" })));
@@ -259,7 +259,7 @@ describe('prepared calls', () => {
 
     it('read a member through a local as the projection reads it, and keep a value a local holds as it was prepared', () => {
         const env = { levels: {}, occupied: [] };
-        const call = evaluatorOf('let room = sensor.room let occupied = room.occupied return sensor.watch() { isOccupied = room.occupied, wasOccupied = occupied }', { env }).evaluator.prepareHostCall();
+        const call = evaluatorOf('let room = sensor.room\nlet occupied = room.occupied\nreturn sensor.watch() { isOccupied = room.occupied, wasOccupied = occupied }', { env }).evaluator.prepareHostCall();
 
         env.occupied.push("porch's room");
 
@@ -267,7 +267,7 @@ describe('prepared calls', () => {
     });
 
     it('call a function a local before the call holds in any projection', () => {
-        const call = evaluatorOf('let label = level => $"{level} lux" return light.dim({ to = 40 }) { reached = label(it) }').evaluator.prepareHostCall();
+        const call = evaluatorOf('let label = level => $"{level} lux"\nreturn light.dim({ to = 40 }) { reached = label(it) }').evaluator.prepareHostCall();
 
         expect(call.project(35).value).toEqual({ reached: '35 lux' });
         expect(call.project(38).value).toEqual({ reached: '38 lux' });
@@ -276,7 +276,7 @@ describe('prepared calls', () => {
     it('of one evaluator stay apart, each projecting against the locals it was prepared with, interleaved, none evaluated again', () => {
         const invoked = [];
         const env = { levels: { hall: 40 }, occupied: [] };
-        const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = it, asked = level }', { env, invoked });
+        const { evaluator } = evaluatorOf('let level = light.level\nreturn light.dim({ to = level }) { reached = it, asked = level }', { env, invoked });
         const first = evaluator.prepareHostCall();
 
         env.levels.hall = 60;
@@ -293,7 +293,7 @@ describe('prepared calls', () => {
 
     it('of one evaluator are prepared anew after a preparation fails in a local, the failed one leaving nothing in scope', () => {
         const env = { levels: {}, occupied: [] };
-        const { evaluator } = evaluatorOf('let level = light.level return light.dim({ to = level }) { reached = it, asked = level }', { env });
+        const { evaluator } = evaluatorOf('let level = light.level\nreturn light.dim({ to = level }) { reached = it, asked = level }', { env });
 
         expect(errorThrownBy(() => evaluator.prepareHostCall())).toMatchObject({ code: 'LEXICA5006', location: { pointer: '/expression/locals/0/value' } });
 

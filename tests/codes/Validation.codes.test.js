@@ -130,8 +130,8 @@ describe('the codes of resolution', () => {
 
     describe('names and scope', () => {
         it('LEXICA3009, a name no local, field or script parameter has', () => expectResolutionCode('nobody', 'LEXICA3009'));
-        it('LEXICA3009, a name no local, field or script parameter has, within a function', () => expectResolutionCode('let f = function(y) return nobody end\nreturn f(1)', 'LEXICA3009'));
-        it('LEXICA3051, a script parameter the host did not bind, written with ~ within a function', () => expectResolutionCode('let f = function(y) return ~nobody end\nreturn f(1)', 'LEXICA3051'));
+        it('LEXICA3009, a name no local, field or script parameter has, within a function', () => expectResolutionCode('let f = function(y)\n    return nobody\nend\nreturn f(1)', 'LEXICA3009'));
+        it('LEXICA3051, a script parameter the host did not bind, written with ~ within a function', () => expectResolutionCode('let f = function(y)\n    return ~nobody\nend\nreturn f(1)', 'LEXICA3051'));
         it('LEXICA3051, a script parameter the host did not bind, selected with ~', () => {
             expectResolutionCode('let q = 1\nreturn ~q', 'LEXICA3051');
             expect(refusalOf('let q = 1\nreturn ~q', values).message).toContain("and '~q' reads a script parameter alone: write 'q' for the local, object field, conditional binding or function parameter of that name");

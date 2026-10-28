@@ -72,7 +72,7 @@ describe('Evaluator', () => {
     });
 
     it('names a member invoked within a script function\'s body by the part of the body it is, which the definition holds, whichever call reached it', () => {
-        const text = 'let f = function(n) return n.price end\nreturn { a = f(name), b = f(other) }';
+        const text = 'let f = function(n)\n    return n.price\nend\nreturn { a = f(name), b = f(other) }';
         const requests = [];
 
         createEvaluator(text, { name: 'tea', other: 'milk' }).evaluate({ beforeInvoke: request => void requests.push(request) });
@@ -81,7 +81,7 @@ describe('Evaluator', () => {
             { receiver: 'tea', pointer: '/expression/locals/0/value/body/result' },
             { receiver: 'milk', pointer: '/expression/locals/0/value/body/result' },
         ]);
-        expect(ParsedTexts.locationsOf(ParsedTexts.parse(text)).locate(requests[0].pointer)).toMatchObject({ line: 1, column: 28 });
+        expect(ParsedTexts.locationsOf(ParsedTexts.parse(text)).locate(requests[0].pointer)).toMatchObject({ line: 2, column: 12 });
     });
 
     it('calls the hooks for the invocations an evaluation reaches alone', () => {
@@ -162,24 +162,36 @@ describe('Evaluator', () => {
     });
 
     it('keeps a conditional binding in the scope of a function made within its consequent, called after the consequent ends, the nearest binding of a name read', () => {
-        const held = `let f = if let x = a then do
-    let g = y => x + y
-    return g
-end else do
-    let h = y => 0
-    return h
-end end
+        const held = `let f = if let x = a then
+    do
+        let g = y => x + y
+        return g
+    end
+else
+    do
+        let h = y => 0
+        return h
+    end
+end
 return f(1)`;
-        const nested = `let f = if let x = a then if let x = b then do
-    let g = y => x + y
-    return g
-end else do
-    let h = y => x
-    return h
-end end else do
-    let h = y => 0
-    return h
-end end
+        const nested = `let f = if let x = a then
+    if let x = b then
+        do
+            let g = y => x + y
+            return g
+        end
+    else
+        do
+            let h = y => x
+            return h
+        end
+    end
+else
+    do
+        let h = y => 0
+        return h
+    end
+end
 return f(1)`;
 
         expect(createEvaluator(held, { a: 5 }).evaluate().value).toBe(6);
@@ -207,6 +219,6 @@ return f(1)`;
         expect(valueOf('let a = 1\nlet f = a => a * 10\nreturn { called = f(2), outer = a }')).toEqual({ called: 20, outer: 1 });
         expect(valueOf('let a = 1\nreturn { let a = 2, inner = a }')).toEqual({ inner: 2 });
         expect(valueOf('let a = 1\nreturn { outer = a, a = 2, later = a }')).toEqual({ outer: 1, a: 2, later: 2 });
-        expect(valueOf('let a = 1\nreturn { let b = a + 1, c = do let a = 5 return a + b end }')).toEqual({ c: 7 });
+        expect(valueOf('let a = 1\nreturn { let b = a + 1, c = do\n    let a = 5\n    return a + b\nend }')).toEqual({ c: 7 });
     });
 });

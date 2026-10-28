@@ -286,7 +286,7 @@ export class Tokenizer {
                     return this.#readSeparator(this.#offset, commentEnd + 2, this.#offset + separator);
                 }
 
-                if (isInInterpolation && /[\n\r]/.test(this.#text.slice(this.#offset, commentEnd))) {
+                if (isInInterpolation && Tokenizer.holdsLineBreak(this.#text, this.#offset, commentEnd)) {
                     return this.#readInvalidToken(this.#offset, commentEnd + 2, 'LEXICA1040', oneLine, this.#offset);
                 }
 
@@ -617,6 +617,17 @@ export class Tokenizer {
         }
 
         return end;
+    }
+
+    /** Whether the text holds a line break between the offsets, LF, CRLF or a lone CR, in its trivia or a token alike, as the gap between two tokens does where a line breaks there. */
+    static holdsLineBreak(text, start, end) {
+        for (let offset = start; offset < end; offset++) {
+            if (Tokenizer.#isLineBreak(text[offset])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Whether the character breaks a line: a line feed, or a carriage return, alone or before a line feed. */

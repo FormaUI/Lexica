@@ -4,6 +4,7 @@
 
 import { Imports } from './Imports.mjs';
 import { LexicaErrors } from './LexicaError.mjs';
+import { LineStructure } from './LineStructure.mjs';
 import { Names } from './Names.mjs';
 import { SyntaxTree } from './SyntaxTree.mjs';
 import { Tokenizer } from './Tokenizer.mjs';
@@ -85,30 +86,29 @@ export class Parser {
 
         this.#namespaceNames = Imports.namespaceNamesOf([...imports, ...this.#suppliedImports]);
 
-        // The body after the imports begins a line of its own, as each import does; a script of imports alone lacks its body, which reading it says.
-        if (declarations.length > 0 && this.#token.type !== 'end') {
-            this.#requireLineStart('The body after the imports');
-        }
-
         const body = this.#parseBody();
 
         if (this.#token.type !== 'end') {
             throw this.#createAfterBodyError('LEXICA1000', TOKEN_DESCRIPTIONS.end);
         }
 
-        return { kind: 'script', text: this.#text, children: [...declarations, body, this.#take()] };
+        const script = { kind: 'script', text: this.#text, children: [...declarations, body, this.#take()] };
+
+        // Its layout is checked once it is read, which it never changes: each failure passes through the parser's one error path.
+        new LineStructure(this.#text, this.#tokens).validate(script, (code, message, offset) => {
+            throw this.#createSyntaxError(code, message, offset);
+        });
+
+        return script;
     }
 
     /**
-     * Reads an import declaration at the script's start: `import`, an alias and `=` where it gives one, and its source, a module's name and, where it imports one type, a dot and the type's local name, each any word. It begins
-     * a line of its own (LEXICA1044), imports nothing of Lexica's own (LEXICA1046), and gives no local name another import, written or supplied, gives a different declaration (LEXICA1048). It adds the import, in a
-     * definition's shape, to those read before it.
+     * Reads an import declaration at the script's start: `import`, an alias and `=` where it gives one, and its source, a module's name and, where it imports one type, a dot and the type's local name, each any word. It imports
+     * nothing of Lexica's own (LEXICA1046), and gives no local name another import, written or supplied, gives a different declaration (LEXICA1048); line structure places it on a line of its own. It adds the import, in
+     * a definition's shape, to those read before it.
      */
     #parseImportDeclaration(imports) {
-        const keyword = this.#token;
-
-        this.#requireLineStart('An import');
-        this.#advance();
+        const keyword = this.#take();
 
         const first = this.#takeImportWord("a module's name, or an alias and '='");
         const children = [keyword, first];
@@ -150,17 +150,6 @@ export class Parser {
         }
 
         return this.#take();
-    }
-
-    /** Refuses the token here where earlier code shares its line, as an import and the body after the imports never do (LEXICA1044). */
-    #requireLineStart(subject) {
-        if (this.#index === 0) {
-            return;
-        }
-
-        if (!/[\n\r]/.test(this.#text.slice(this.#tokens[this.#index - 1].end, this.#token.start))) {
-            throw this.#createSyntaxError('LEXICA1044', `${subject} starts on a line of its own`, this.#token.start);
-        }
     }
 
     /** Reads an expression: a conditional, a do block, or a simple value expression; a function stands as a local's initializer alone. */
@@ -777,7 +766,7 @@ export class Parser {
             return;
         }
 
-        if (this.#bodyLocalsBeingRead > 0 && /[\n\r]/.test(this.#text.slice(this.#tokens[this.#index - 1].end, this.#token.start))) {
+        if (this.#bodyLocalsBeingRead > 0 && Tokenizer.holdsLineBreak(this.#text, this.#tokens[this.#index - 1].end, this.#token.start)) {
             return;
         }
 

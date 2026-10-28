@@ -212,8 +212,8 @@ describe('qualified forms', () => {
             ['Word.pad', '/expression/objectFields/1/value'],
             ['Word.size', '/expression/objectFields/2/value'],
         ]);
-        expect(usesOf('let pad = shop.pad return pad(word, 4)')).toEqual([['shop.pad', '/expression/locals/0/value'], ['shop.pad', '/expression/result']]);
-        expect(usesOf('let pad = shop.pad return pad(missing, 4)')).toEqual([['shop.pad', '/expression/locals/0/value']]);
+        expect(usesOf('let pad = shop.pad\nreturn pad(word, 4)')).toEqual([['shop.pad', '/expression/locals/0/value'], ['shop.pad', '/expression/result']]);
+        expect(usesOf('let pad = shop.pad\nreturn pad(missing, 4)')).toEqual([['shop.pad', '/expression/locals/0/value']]);
     });
 });
 
@@ -227,40 +227,40 @@ describe('function references', () => {
     });
 
     it('produce module delegates of a module\'s functions, a call of one its qualified form\'s call, held, passed and called as any function is', () => {
-        expect(evaluate('let pad = shop.pad return pad(word, 4)').value).toBe('oat.');
-        expect(evaluate('let greet = shop.greet return greet("bo")').value).toBe('hi bo');
-        expect(evaluate('let test = shop.vegan return { word = word.is(test), other = other.is(shop.vegan) }').value).toEqual({ word: true, other: false });
+        expect(evaluate('let pad = shop.pad\nreturn pad(word, 4)').value).toBe('oat.');
+        expect(evaluate('let greet = shop.greet\nreturn greet("bo")').value).toBe('hi bo');
+        expect(evaluate('let test = shop.vegan\nreturn { word = word.is(test), other = other.is(shop.vegan) }').value).toEqual({ word: true, other: false });
     });
 
     it('keep their qualified form\'s null rule wherever they are held, passed or chosen, a null receiver skipping the arguments after it', () => {
         const choosing = 'let keep = (w, n) => w\nlet pad = if flag then shop.pad else keep end\nreturn pad(missing, other.size)';
-        const held = evaluate('let pad = shop.pad return pad(missing, other.size)');
+        const held = evaluate('let pad = shop.pad\nreturn pad(missing, other.size)');
         const chosen = evaluate(choosing, { ...values, flag: true });
         const arrow = evaluate(choosing, { ...values, flag: false });
 
         expect([held.value, chosen.value, arrow.value]).toEqual([null, null, null]);
         expect([held.invoked, chosen.invoked]).toEqual([[], []]);
         expect(arrow.invoked).toEqual([['size', 'milk']]);
-        expect(resolve('let pad = shop.pad return pad(missing, 2)').type).toBe('String?');
+        expect(resolve('let pad = shop.pad\nreturn pad(missing, 2)').type).toBe('String?');
     });
 
     it('name a declaration where they are written: the one a callback contract takes where they are passed, and the module\'s one function of the name anywhere else', () => {
         expect(evaluate('{ word = word.is(shop.fits), bag = bag.is(shop.fits) }').value).toEqual({ word: true, bag: false });
-        expect(errorThrownBy(() => resolve('let test = shop.fits return word.is(test)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.fits' names 2 functions, so which it references is ambiguous") });
+        expect(errorThrownBy(() => resolve('let test = shop.fits\nreturn word.is(test)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.fits' names 2 functions, so which it references is ambiguous") });
     });
 
     it('refuse a property and a host call, which have none, and a declaration a callback contract does not take', () => {
-        expect(errorThrownBy(() => resolve('let size = shop.size return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.size' is a property, read with its receiver as shop.size(receiver), and only a function has a reference") });
-        expect(errorThrownBy(() => resolve('let order = shop.order return 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.order' is a host call, which its host invokes, so it has no reference") });
+        expect(errorThrownBy(() => resolve('let size = shop.size\nreturn 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.size' is a property, read with its receiver as shop.size(receiver), and only a function has a reference") });
+        expect(errorThrownBy(() => resolve('let order = shop.order\nreturn 1'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.order' is a host call, which its host invokes, so it has no reference") });
         expect(errorThrownBy(() => resolve('word.is(shop.pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("and 'shop.pad' names no function that takes those or answers that") });
-        expect(errorThrownBy(() => resolve('let pad = shop.pad return word.is(pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' is (Word, Number) => String") });
+        expect(errorThrownBy(() => resolve('let pad = shop.pad\nreturn word.is(pad)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.pad' is (Word, Number) => String") });
     });
 
     it('read and invoke nothing as they are created, each call reading what its declaration does, and are used declarations of the script', () => {
-        const created = evaluate('let pad = shop.pad return 1');
+        const created = evaluate('let pad = shop.pad\nreturn 1');
 
         expect(created).toEqual({ value: 1, invoked: [] });
-        expect(resolve('let test = shop.vegan return word.is(test)').usedDeclarations.map(use => use.qualifiedName)).toEqual(expect.arrayContaining(['shop.vegan', 'is']));
+        expect(resolve('let test = shop.vegan\nreturn word.is(test)').usedDeclarations.map(use => use.qualifiedName)).toEqual(expect.arrayContaining(['shop.vegan', 'is']));
     });
 
     it('are never reached by a bare name, which reads a local, a field, a function parameter or a script parameter', () => {
@@ -338,7 +338,7 @@ describe('the answer of a held reference', () => {
         const refusal = { code: 'LEXICA5006', message: expect.stringContaining('and it declares Number') };
 
         expect(errorThrownBy(() => evaluateLists('lists.head(numbers)', wrong))).toMatchObject(refusal);
-        expect(errorThrownBy(() => evaluateLists('let head = lists.head return head(numbers)', wrong))).toMatchObject(refusal);
+        expect(errorThrownBy(() => evaluateLists('let head = lists.head\nreturn head(numbers)', wrong))).toMatchObject(refusal);
         expect(errorThrownBy(() => evaluateLists(`${choosing}pick(numbers)`, wrong))).toMatchObject(refusal);
         expect(errorThrownBy(() => evaluateLists('numbers.apply(lists.head)', wrong))).toMatchObject(refusal);
     });

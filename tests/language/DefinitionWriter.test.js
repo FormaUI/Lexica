@@ -35,6 +35,18 @@ describe('DefinitionWriter', () => {
         expect(DefinitionWriter.quote(DefinitionValidator.copyOf(expression.result))).toBe('~a.size');
     });
 
+    it("lays out a conditional that spans lines in block form, and closes a group after a block's end on the line after it, as line structure reads them", () => {
+        const condition = parameter('lit');
+        const elseif = canonicalOf({ kind: 'conditional', condition, consequent: literal(1), alternative: { kind: 'conditional', condition: parameter('dim'), consequent: literal(2), alternative: literal(3) } });
+        const spanning = canonicalOf({ kind: 'object', objectFields: [{ name: 'a', value: { kind: 'conditional', condition, consequent: { kind: 'do', body: { kind: 'body', locals: [], result: literal(1) } }, alternative: literal(2) } }] });
+        const sum = canonicalOf({ kind: 'arithmetic', operator: '+', left: { kind: 'do', body: { kind: 'body', locals: [], result: literal(1) } }, right: literal(2) });
+
+        expect(DefinitionWriter.format(elseif)).toBe('if lit then\n    1\nelseif dim then\n    2\nelse\n    3\nend');
+        expect(DefinitionWriter.format(spanning)).toBe('{\n    a = if lit then\n        do\n            return 1\n        end\n    else\n        2\n    end\n}');
+        expect(DefinitionWriter.format(sum)).toBe('(do\n    return 1\nend\n) + 2');
+        expect(DefinitionWriter.format(canonicalOf({ kind: 'conditional', condition, consequent: literal(1), alternative: literal(2) }))).toBe('if lit then 1 else 2 end');
+    });
+
     it("writes a script's imports before its body, each on a line of its own in the definition's order, an alias and = before its source, leaving out those its destination supplies", () => {
         const imports = [{ module: 'Home' }, { module: 'Home', type: 'Sensor', alias: 'HomeSensor' }, { module: 'Measurements', alias: 'Measures' }];
         const definition = new DefinitionValidator().validate({ version: Versions.definition, imports, expression: { kind: 'object', objectFields: [{ name: 'a', value: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'Measures' }, name: 'rooms' } }, { name: 'b', value: literal(1) }] } });

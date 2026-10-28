@@ -60,7 +60,7 @@ const resolve = (text, bound = values) => resolveWith([createPantry()], text, bo
 
 describe('the verbs', () => {
     it('take a test in any form a function argument takes: an arrow function, a function a name holds, a module\'s function by reference, or an implicit body', () => {
-        const forms = ['word.is(w => w.size > 2)', 'let long = w => w.size > 2 return word.is(long)', 'word.is(pantry.vegan)', 'word.has(it.size > 2)'];
+        const forms = ['word.is(w => w.size > 2)', 'let long = w => w.size > 2\nreturn word.is(long)', 'word.is(pantry.vegan)', 'word.has(it.size > 2)'];
 
         expect(forms.map(text => evaluate(text).value)).toEqual([true, true, true, true]);
         expect(forms.map(text => evaluate(text, { ...values, word: 'ry' }).value)).toEqual([false, false, false, false]);
@@ -95,7 +95,7 @@ describe('the verbs', () => {
         expect(evaluate('word.is(pantry.vegan)').asked).toEqual(['is', 'vegan']);
         expect(evaluate('word.is(w => w.size > 2)').asked).toEqual(['is', 'size']);
         expect(evaluate('word.has(it.size > 2)').asked).toEqual(['has', 'size']);
-        expect(evaluate('let test = pantry.vegan return 1').asked).toEqual([]);
+        expect(evaluate('let test = pantry.vegan\nreturn 1').asked).toEqual([]);
     });
 });
 
@@ -111,7 +111,7 @@ describe('implicit bodies', () => {
     });
 
     it('read every other name where they are written, a local and a script parameter among them, and their it alone as the argument the member calls them with', () => {
-        expect(evaluate('let limit = 2 return { long = word.is(it.size > limit), longer = word.is(it.size > ~limit) }', { ...values, limit: 5 }).value).toEqual({ long: true, longer: false });
+        expect(evaluate('let limit = 2\nreturn { long = word.is(it.size > limit), longer = word.is(it.size > ~limit) }', { ...values, limit: 5 }).value).toEqual({ long: true, longer: false });
         expect(evaluate('words { longer = it.is(it.size > other.size) }').value).toEqual([{ longer: false }, { longer: false }, { longer: false }]);
     });
 
