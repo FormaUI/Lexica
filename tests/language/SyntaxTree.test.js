@@ -26,6 +26,11 @@ describe('SyntaxTree', () => {
         }
     });
 
+    it("tells the tokens that make an access optional, a property access's or a call's ?., an indexer's ?[ and an extension access's ?:, from those that don't", () => {
+        expect(['?.', '?[', '?:'].map(type => SyntaxTree.isOptionalAccess(type))).toEqual([true, true, true]);
+        expect(['.', '[', ':', '??', '(?'].map(type => SyntaxTree.isOptionalAccess(type))).toEqual([false, false, false, false, false]);
+    });
+
     it('names the kind of each node a grammar construct is, frozen', () => {
         expect(SYNTAX_NODE_KINDS).toEqual(expect.arrayContaining(['script', 'conditional-binding', 'arithmetic-negation', 'import-declaration', 'extension-access']));
         expect(Object.isFrozen(SYNTAX_NODE_KINDS)).toBe(true);

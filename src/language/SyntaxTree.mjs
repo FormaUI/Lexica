@@ -52,7 +52,15 @@ export const SYNTAX_NODE_KINDS = Object.freeze([
     'field',
 ]);
 
+/** The tokens that make an access optional: a property access's or a call's `?.`, an indexer's `?[` and an extension access's `?:`. */
+const OPTIONAL_ACCESSES = new Set(['?.', '?[', '?:']);
+
 export class SyntaxTree {
+    /** Whether a token of the type makes the access it begins optional, so it answers null for a null receiver and ends its chain there. */
+    static isOptionalAccess(tokenType) {
+        return OPTIONAL_ACCESSES.has(tokenType);
+    }
+
     /**
      * The import an import declaration writes, in a definition's shape: its module, its type where it imports one, and its alias where it gives a local name other than its own, each the word the text spells.
      * @param {SyntaxNode} declaration

@@ -10,9 +10,6 @@ import { SyntaxTree } from './SyntaxTree.mjs';
 /** @typedef {import('./Parser.mjs').Span} Span */
 /** @typedef {import('./SyntaxTree.mjs').SyntaxNode} SyntaxNode */
 
-/** The tokens that make an access optional. */
-const OPTIONAL_ACCESSES = new Set(['?.', '?[', '?:']);
-
 export class Lowering {
     /** @type {WeakMap<object, Span>} */
     #spans = new WeakMap();
@@ -274,7 +271,7 @@ export class Lowering {
             if (part.kind === 'object') {
                 value = this.#lowerObject(part, value, start);
             } else {
-                isOptional ||= OPTIONAL_ACCESSES.has(part.children[0].type);
+                isOptional ||= SyntaxTree.isOptionalAccess(part.children[0].type);
                 value = this.#lowerMemberExpression(part, value, start, false);
             }
         }
@@ -288,7 +285,7 @@ export class Lowering {
      */
     #lowerMemberExpression(part, receiver, start, isEveryOptional) {
         const [first, second] = part.children;
-        const optional = isEveryOptional || OPTIONAL_ACCESSES.has(first.type);
+        const optional = isEveryOptional || SyntaxTree.isOptionalAccess(first.type);
         const optionalProperty = optional ? { optional } : {};
         let node;
 

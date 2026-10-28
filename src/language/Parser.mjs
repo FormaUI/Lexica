@@ -31,9 +31,6 @@ const BODY_ENCLOSURE_CLOSINGS = new Set([')', ']', '}', ',']);
 /** The keywords that close or divide a construct, whose own messages say what it lacks where a value would stand. */
 const STRUCTURAL_KEYWORDS = new Set(['then', 'elseif', 'else', 'end']);
 
-/** The tokens that make an access optional. */
-const OPTIONAL_ACCESSES = new Set(['?.', '?[', '?:']);
-
 /** The direction each comparison operator points, which every operator of a chain shares. */
 const COMPARISON_DIRECTIONS = Object.freeze({ '<': 'ascending', '<=': 'ascending', '>': 'descending', '>=': 'descending' });
 
@@ -1554,7 +1551,7 @@ export class Parser {
             case 'parenthesized-expression':
                 return Parser.#lowersToOptionalChain(child.children[1]);
             case 'chain':
-                return child.children.some(part => MEMBER_EXPRESSION_KINDS.has(part.kind) && OPTIONAL_ACCESSES.has(part.children[0].type));
+                return child.children.some(part => MEMBER_EXPRESSION_KINDS.has(part.kind) && SyntaxTree.isOptionalAccess(part.children[0].type));
             default:
                 return child.kind === 'optional-enclosed-access';
         }
