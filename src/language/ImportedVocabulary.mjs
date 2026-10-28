@@ -4,6 +4,7 @@
 
 import { Imports } from './Imports.mjs';
 import { Type } from './Type.mjs';
+import { TypeNameScope } from './vocabulary/TypeNameScope.mjs';
 import { Vocabulary } from './vocabulary/Vocabulary.mjs';
 
 export class ImportedVocabulary {
@@ -16,8 +17,8 @@ export class ImportedVocabulary {
     /** The names of the modules the script imports whole, under whichever local names. @type {Set<string>} */
     #importedModules = new Set();
 
-    /** The type each local name a type import of an ordinary type gives names, by that local name; an extension's local name names no type. @type {Map<string, Type>} */
-    #importedTypes = new Map();
+    /** The scope the script's type names are read in, which its imports give. @type {TypeNameScope} */
+    #typeNameScope;
 
     /** The types and the extensions the script imports by name, each a declaration whose members the import makes available. @type {Set<object>} */
     #importedDeclarations = new Set();
@@ -37,6 +38,7 @@ export class ImportedVocabulary {
      */
     constructor(registry, imports) {
         this.#registry = registry;
+        this.#typeNameScope = TypeNameScope.createScriptScope(imports);
 
         for (const entry of imports) {
             const localName = Imports.localNameOf(entry);
@@ -61,11 +63,7 @@ export class ImportedVocabulary {
             }
 
             if (declaration.kind !== 'extension') {
-                const type = Type.createNamedType(entry.type, false, entry.module);
-
-                this.#importedTypes.set(localName, type);
-
-                for (let reached = type; reached !== null; reached = registry.getSupertype(reached)) {
+                for (let reached = Type.createNamedType(entry.type, false, entry.module); reached !== null; reached = registry.getSupertype(reached)) {
                     this.#typeLineages.add(registry.getTypeDeclaration(reached));
                 }
             }
@@ -107,9 +105,9 @@ export class ImportedVocabulary {
         return this.#importedModules.has(moduleName);
     }
 
-    /** The type the local name a type import gives names, its first tier; undefined where no type import gives it, an extension's import naming no type. */
-    getImportedType(localName) {
-        return this.#importedTypes.get(localName);
+    /** The scope the script's type names are read in: its type imports' names first, then Lexica's own types, then its imported modules', qualified by the local names its module imports give. */
+    get typeNameScope() {
+        return this.#typeNameScope;
     }
 
     /**

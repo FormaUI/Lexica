@@ -7,6 +7,7 @@ import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { Type } from './Type.mjs';
+import { TypeNameScope } from './vocabulary/TypeNameScope.mjs';
 
 export class ParameterBindings {
     /** @type {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} */
@@ -92,7 +93,7 @@ export class ParameterBindings {
 
     /** A top-level binding of a declared type: a reference type the registry resolves by the name, qualified or not, which a reference the binding holds belongs to; no `typeOf` is asked of it. */
     #bindDeclared(name, value, typeName) {
-        const types = typeof typeName === 'string' ? this.#registry.getTypesNamed(typeName) : [];
+        const types = typeof typeName === 'string' ? this.#registry.resolveTypeName(typeName, TypeNameScope.bindingScope).types : [];
 
         if (types.length === 0) {
             throw LexicaErrors.structure('LEXICA2036', `The type declared for '${name}', ${String(typeName)}, is no public type`, { binding: name });

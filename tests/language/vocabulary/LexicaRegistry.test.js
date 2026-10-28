@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Type } from '#lexica/language/Type.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
+import { TypeNameScope } from '#lexica/language/vocabulary/TypeNameScope.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../../support/home.mjs';
 import { errorThrownBy, expectModuleError } from '../../support/errors.mjs';
@@ -255,8 +256,50 @@ describe('LexicaRegistry', () => {
         it('name List among Lexica\'s own types, written unqualified with no module declaring it, as a declared binding type names it', () => {
             const registry = new LexicaRegistry([Vocabulary.module]);
 
-            expect(registry.getTypesNamed('List')).toEqual([Type.createNamedType('List')]);
-            expect(registry.getTypesNamed('Shouting')).toEqual([]);
+            expect(registry.resolveTypeName('List', TypeNameScope.bindingScope)).toEqual({ types: [Type.createNamedType('List')] });
+            expect(registry.resolveTypeName('Shouting', TypeNameScope.bindingScope)).toEqual({ types: [] });
+        });
+    });
+
+    describe('a type name, read through one path in each scope', () => {
+        const structured = name => ({ name, kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) });
+        const registry = new LexicaRegistry([
+            Vocabulary.module,
+            new LexicaModule('home', { types: [structured('Room'), structured('Number'), { ...structured('Vault'), internal: true }, extensionDeclaration('Words', 'String', [])] }),
+            new LexicaModule('office', { types: [structured('Room'), structured('Desk')] }),
+        ]);
+        const named = (name, moduleName = null) => Type.createNamedType(name, false, moduleName);
+
+        it('in a declaration\'s scope, its module\'s own type first, then Lexica\'s own, then the modules it imports\', in their registration order, qualified by any registered module\'s name', () => {
+            const scope = TypeNameScope.createDeclarationScope('office', ['home']);
+
+            expect(registry.resolveTypeName('Room', scope)).toEqual({ types: [named('Room', 'office')] });
+            expect(registry.resolveTypeName('Number', TypeNameScope.createDeclarationScope('office', ['home']))).toEqual({ types: [named('Number')] });
+            expect(registry.resolveTypeName('Number', TypeNameScope.createDeclarationScope('home', []))).toEqual({ types: [named('Number', 'home')] });
+            expect(registry.resolveTypeName('Room', TypeNameScope.createDeclarationScope('charts', ['office', 'home']))).toEqual({ types: [named('Room', 'home'), named('Room', 'office')] });
+            expect(registry.resolveTypeName('Desk', TypeNameScope.createDeclarationScope('charts', ['home']))).toEqual({ types: [] });
+            expect(registry.resolveTypeName('office.Desk', scope)).toEqual({ moduleName: 'office', types: [named('Desk', 'office')] });
+            expect(registry.resolveTypeName('garden.Desk', scope)).toEqual({ moduleName: undefined, types: [] });
+            expect(registry.resolveTypeName('home.Words', scope)).toEqual({ moduleName: 'home', types: [] });
+        });
+
+        it('in a declared binding\'s scope, Lexica\'s own and every module\'s types alike, internal ones among them, qualified by any registered module\'s name', () => {
+            expect(registry.resolveTypeName('Number', TypeNameScope.bindingScope)).toEqual({ types: [named('Number'), named('Number', 'home')] });
+            expect(registry.resolveTypeName('Room', TypeNameScope.bindingScope)).toEqual({ types: [named('Room', 'home'), named('Room', 'office')] });
+            expect(registry.resolveTypeName('Vault', TypeNameScope.bindingScope)).toEqual({ types: [named('Vault', 'home')] });
+            expect(registry.resolveTypeName('office.Room', TypeNameScope.bindingScope)).toEqual({ moduleName: 'office', types: [named('Room', 'office')] });
+        });
+
+        it('in a script\'s scope, a type import\'s name first, then Lexica\'s own, then the imported modules\', qualified by an import\'s local name alone, an extension\'s import naming no type', () => {
+            const scope = TypeNameScope.createScriptScope([{ module: 'home' }, { module: 'office', type: 'Desk', alias: 'Number' }, { module: 'home', type: 'Words' }, { module: 'office', alias: 'Work' }]);
+
+            expect(registry.resolveTypeName('Number', scope)).toEqual({ types: [named('Desk', 'office')] });
+            expect(registry.resolveTypeName('Room', scope)).toEqual({ types: [named('Room', 'home'), named('Room', 'office')] });
+            expect(registry.resolveTypeName('String', scope)).toEqual({ types: [named('String')] });
+            expect(registry.resolveTypeName('Words', scope)).toEqual({ types: [] });
+            expect(registry.resolveTypeName('Vault', scope)).toEqual({ types: [named('Vault', 'home')] });
+            expect(registry.resolveTypeName('Work.Desk', scope)).toEqual({ moduleName: 'office', types: [named('Desk', 'office')] });
+            expect(registry.resolveTypeName('office.Desk', scope)).toEqual({ moduleName: undefined, types: [] });
         });
     });
 

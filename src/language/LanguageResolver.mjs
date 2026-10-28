@@ -650,12 +650,11 @@ export class LanguageResolver {
      * several share it (LEXICA3059), extensions taking no part, and a name none of them declares left to the cast or the conversion to refuse.
      */
     #typeNamed(name, pointer) {
+        const { moduleName, types } = this.#registry.resolveTypeName(name, this.#imported.typeNameScope);
         const dot = name.indexOf('.');
 
         if (dot >= 0) {
             const qualifier = name.slice(0, dot);
-            const localName = name.slice(dot + 1);
-            const moduleName = this.#imported.getNamespaceModule(qualifier);
 
             if (moduleName === undefined) {
                 const isRegistered = this.#registry.getModule(qualifier) !== undefined;
@@ -663,49 +662,34 @@ export class LanguageResolver {
                 this.#fail('LEXICA3004', `'${name}' is qualified by '${qualifier}', which no import of the script gives a module${isRegistered ? `: write 'import ${qualifier}' at the script's start` : ''}`, pointer);
             }
 
-            if (!this.#registry.getModuleNamesDeclaringType(localName).includes(moduleName)) {
-                this.#fail('LEXICA3019', `The module '${moduleName}' does not declare a type named '${localName}'`, pointer);
+            if (types.length === 0) {
+                this.#fail('LEXICA3019', `The module '${moduleName}' does not declare a type named '${name.slice(dot + 1)}'`, pointer);
             }
 
-            const type = Type.createNamedType(localName, false, moduleName);
-
-            if (this.#registry.isInternal(this.#registry.getTypeDeclaration(type))) {
+            if (this.#registry.isInternal(this.#registry.getTypeDeclaration(types[0]))) {
                 this.#failInternal(`The type '${name}'`, moduleName, pointer);
             }
 
-            return type;
+            return types[0];
         }
 
-        // A name a type import gives is that type, found before Lexica's own of its name, as the script's own declaration of it.
-        const imported = this.#imported.getImportedType(name);
-
-        if (imported !== undefined) {
-            return imported;
-        }
-
-        // One of Lexica's own types is found before a module's of its name, which its module's name qualifies.
-        if (Vocabulary.builtInTypeNames.includes(name)) {
-            return Type.createNamedType(name);
-        }
-
-        // A module the script does not import declares no type it names, and an internal type is no candidate, so a name only internal types have names none a script reaches.
-        const modules = this.#registry.getModuleNamesDeclaringType(name).filter(moduleName => this.#imported.importsModule(moduleName));
-        const reached = modules.filter(moduleName => !this.#registry.isInternal(this.#registry.getTypeDeclaration(Type.createNamedType(name, false, moduleName))));
+        // A type import's type and Lexica's own are never internal; among the imported modules' an internal type is no candidate, so a name only internal types have names none a script reaches.
+        const reached = types.filter(type => type.moduleName === null || !this.#registry.isInternal(this.#registry.getTypeDeclaration(type)));
 
         if (reached.length > 1) {
-            this.#fail('LEXICA3059', `'${name}' names a type several modules declare, so it is named qualified by its module: ${reached.map(moduleName => `${moduleName}.${name}`).join(' or ')}`, pointer);
+            this.#fail('LEXICA3059', `'${name}' names a type several modules declare, so it is named qualified by its module: ${reached.map(type => `${type.moduleName}.${name}`).join(' or ')}`, pointer);
         }
 
-        if (reached.length === 0 && modules.length > 0) {
-            this.#failInternal(`The type '${name}'`, modules[0], pointer);
+        if (reached.length === 0 && types.length > 0) {
+            this.#failInternal(`The type '${name}'`, types[0].moduleName, pointer);
         }
 
-        return Type.createNamedType(name, false, reached[0] ?? null);
+        return reached[0] ?? Type.createNamedType(name, false, null);
     }
 
     /** Whether a type of the name a cast or a conversion writes is one the script names: a qualified one, which its module was found to declare, one a type import gives, one of Lexica's own, or one an imported module declares. */
     #declaresTypeNamed(name) {
-        return name.includes('.') || this.#imported.getImportedType(name) !== undefined || Vocabulary.builtInTypeNames.includes(name) || this.#registry.getModuleNamesDeclaringType(name).some(moduleName => this.#imported.importsModule(moduleName));
+        return name.includes('.') || this.#registry.resolveTypeName(name, this.#imported.typeNameScope).types.length > 0;
     }
 
     /** The import to write for a type name no import gives, where registered modules the script does not import declare a public type of that name, as a message ends; empty otherwise. */
@@ -1410,7 +1394,7 @@ export class LanguageResolver {
             this.#fail('LEXICA3005', `The extension '${written}' is declared only by ${unimported.map(module => `'${module}'`).join(' and ')}, which the script does not import: write ${unimported.map(module => `'import ${module}'`).join(' or ')} at the script's start`, pointer);
         }
 
-        const isOrdinaryType = this.#imported.getImportedType(selection.name) !== undefined || Vocabulary.ownTypeNames.includes(selection.name) || this.#imported.importedModuleNames.some(moduleName => this.#registry.getModuleType(moduleName, selection.name) !== undefined);
+        const isOrdinaryType = Vocabulary.ownTypeNames.includes(selection.name) || this.#registry.resolveTypeName(selection.name, this.#imported.typeNameScope).types.length > 0;
 
         this.#fail('LEXICA3026', `'${written}' names no extension the script reaches${isOrdinaryType ? ordinaryType : ''}${hint}`, pointer);
     }

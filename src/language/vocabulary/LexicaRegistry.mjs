@@ -4,11 +4,13 @@
 
 import { ArrayUtils } from '../../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
+import { Imports } from '../Imports.mjs';
 import { LexicaErrors } from '../LexicaError.mjs';
 import { MemberSelector } from '../MemberSelector.mjs';
 import { Type } from '../Type.mjs';
 import { TypeChecker } from '../TypeChecker.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
+import { TypeNameScope } from './TypeNameScope.mjs';
 import { Vocabulary } from './Vocabulary.mjs';
 
 export class LexicaRegistry {
@@ -480,19 +482,65 @@ export class LexicaRegistry {
         return recognized;
     }
 
-    /** The public types of the local name, Lexica's own among them, or the one type a qualified name names, as a host's declared binding type names one; none where no type is named so. */
-    getTypesNamed(name) {
+    /**
+     * The types a type name names in its scope, a declaration's, a declared binding's or a script's, the one path each reads, its own refusals its caller's. A qualified name, `Q.Name`, names the type of its local name
+     * the module `Q` names declares, `Q` the local name an import of the scope gives a module or, in a scope naming modules by their own names, a registered module's, and its answer holds that module, undefined where
+     * `Q` names none. An unqualified name names the types of the first of the scope's tiers that holds any: a type import's of that local name, then the declaring module's own type, then Lexica's own, then those the
+     * modules the scope imports declare, in the order they were registered; in a scope reaching every module, Lexica's own and every module's alike. Internal types are among them, and an extension, which no type name
+     * names, is none.
+     * @param {string} name
+     * @param {import('./TypeNameScope.mjs').TypeNameScope} scope
+     * @returns {{ moduleName?: string, types: Type[] }}
+     */
+    resolveTypeName(name, scope) {
         const dot = name.indexOf('.');
 
         if (dot !== -1) {
-            const type = Type.createNamedType(name.slice(dot + 1), false, name.slice(0, dot));
+            const localName = name.slice(dot + 1);
+            const moduleName = this.#moduleQualifiedBy(name.slice(0, dot), scope);
 
-            return this.getTypeDeclaration(type) === undefined ? [] : [type];
+            return { moduleName, types: moduleName !== undefined && this.#declaresType(moduleName, localName) ? [Type.createNamedType(localName, false, moduleName)] : [] };
         }
 
+        return { types: this.#typesNamedIn(name, scope) };
+    }
+
+    /** The module a type name's qualifier names in the scope: the one an import of it gives the qualifier as its local name, else, in a scope naming modules by their own names, the registered module of that name. */
+    #moduleQualifiedBy(qualifier, scope) {
+        const imported = scope.imports.find(entry => Imports.isModuleImport(entry) && Imports.localNameOf(entry) === qualifier);
+
+        if (imported !== undefined) {
+            return imported.module;
+        }
+
+        return scope.namesModulesByOwnName && (this.#modules.has(qualifier) || this.#pending?.module.name === qualifier) ? qualifier : undefined;
+    }
+
+    /** The types an unqualified name names in the scope, its first tier that holds any. */
+    #typesNamedIn(name, scope) {
         const own = Vocabulary.builtInTypeNames.includes(name) ? [Type.createNamedType(name)] : [];
 
-        return [...own, ...this.getModuleNamesDeclaringType(name).map(moduleName => Type.createNamedType(name, false, moduleName))];
+        if (scope.reachesEveryModule) {
+            return [...own, ...this.getModuleNamesDeclaringType(name).map(moduleName => Type.createNamedType(name, false, moduleName))];
+        }
+
+        const typeImports = scope.imports.filter(entry => !Imports.isModuleImport(entry) && Imports.localNameOf(entry) === name && this.getModuleType(entry.module, entry.type)?.kind !== 'extension');
+
+        if (typeImports.length > 0) {
+            return typeImports.map(entry => Type.createNamedType(entry.type, false, entry.module));
+        }
+
+        if (scope.declaringModule !== null && this.#declaresType(scope.declaringModule, name)) {
+            return [Type.createNamedType(name, false, scope.declaringModule)];
+        }
+
+        if (own.length > 0) {
+            return own;
+        }
+
+        const imported = new Set(scope.imports.filter(entry => Imports.isModuleImport(entry)).map(entry => entry.module));
+
+        return this.getModuleNamesDeclaringType(name).filter(moduleName => imported.has(moduleName)).map(moduleName => Type.createNamedType(name, false, moduleName));
     }
 
     /**
@@ -621,38 +669,30 @@ export class LexicaRegistry {
         return resolve(Type.parse(notation));
     }
 
-    /** The name of the module that declares the named type, null for one of Lexica's own types, as its context resolves it. */
+    /** The name of the module that declares the named type, null for one of Lexica's own types, as its declaration's scope resolves it. */
     #moduleOfType(type, notation, context, fail) {
         const { name } = type;
+        const { moduleName, types } = this.resolveTypeName(type.moduleName === null ? name : `${type.moduleName}.${name}`, TypeNameScope.createDeclarationScope(context.moduleName, context.imports));
 
         if (type.moduleName !== null) {
-            if (!this.#modules.has(type.moduleName) && this.#pending?.module.name !== type.moduleName) {
+            if (moduleName === undefined) {
                 fail('LEXICA4047', `'${notation}' names the type '${type.identity}', and no module named '${type.moduleName}' is registered`);
             }
 
-            if (!this.#declaresType(type.moduleName, name)) {
+            if (types.length === 0) {
                 fail('LEXICA4047', `'${notation}' names the type '${type.identity}', which the module '${type.moduleName}' does not declare`);
             }
 
             return type.moduleName;
         }
 
-        if (this.#declaresType(context.moduleName, name)) {
-            return context.moduleName;
+        // Only the imported modules' tier holds several types, Lexica's own and the declaring module's one each.
+        if (types.length > 1) {
+            fail('LEXICA4048', `'${notation}' names the type '${name}', which the modules it imports each declare, so it is named qualified: ${types.map(found => `${found.moduleName}.${name}`).join(' or ')}`);
         }
 
-        if (Vocabulary.builtInTypeNames.includes(name)) {
-            return null;
-        }
-
-        const imported = context.imports.filter(moduleName => this.#declaresType(moduleName, name));
-
-        if (imported.length > 1) {
-            fail('LEXICA4048', `'${notation}' names the type '${name}', which the modules it imports each declare, so it is named qualified: ${imported.map(moduleName => `${moduleName}.${name}`).join(' or ')}`);
-        }
-
-        if (imported.length === 1) {
-            return imported[0];
+        if (types.length === 1) {
+            return types[0].moduleName;
         }
 
         const foreign = this.getModuleNamesDeclaringType(name);

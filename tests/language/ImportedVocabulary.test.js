@@ -42,11 +42,14 @@ describe('ImportedVocabulary', () => {
         expect([imported.getLocalNameOf(devices), imported.getLocalNameOf(registry.getModuleType('Home', 'Light'))]).toEqual(['Power', undefined]);
     });
 
-    it('names the type an ordinary type import gives, and none for an extension\'s, which names no type', () => {
-        const imported = new ImportedVocabulary(registry, [{ module: 'Home', type: 'Light', alias: 'Lamp' }, { module: 'Energy', type: 'Devices' }]);
+    it('reads the script\'s type names in the scope its imports give, through which an ordinary type import names its type, and an extension\'s none', () => {
+        const imports = [{ module: 'Energy', type: 'Devices' }, { module: 'Home', type: 'Light', alias: 'Lamp' }];
+        const imported = new ImportedVocabulary(registry, imports);
+        const scope = imported.typeNameScope;
 
-        expect(imported.getImportedType('Lamp')).toEqual(Type.createNamedType('Light', false, 'Home'));
-        expect([imported.getImportedType('Light'), imported.getImportedType('Devices')]).toEqual([undefined, undefined]);
+        expect({ declaringModule: scope.declaringModule, imports: scope.imports, reachesEveryModule: scope.reachesEveryModule }).toEqual({ declaringModule: null, imports, reachesEveryModule: false });
+        expect(registry.resolveTypeName('Lamp', scope)).toEqual({ types: [Type.createNamedType('Light', false, 'Home')] });
+        expect([registry.resolveTypeName('Light', scope), registry.resolveTypeName('Devices', scope)]).toEqual([{ types: [] }, { types: [] }]);
     });
 
     it('makes available Lexica\'s own declarations always, a module\'s through its import, a type\'s own and inherited members through its type\'s, and an extension\'s through its own', () => {
