@@ -175,7 +175,7 @@ describe('TypeChecker', () => {
 
         it('compare strings, numbers, Booleans and references with each other, and any other type with null alone', () => {
             expect(['String', 'Number', 'Boolean', 'home.Light', 'home.Room'].map(text => checker.isComparable(typeOf(text)))).toEqual([true, true, true, true, true]);
-            expect(['List<Number>', 'home.Sensor'].map(text => checker.isComparable(typeOf(text)))).toEqual([false, false]);
+            expect(['List<Number>', 'home.Gadget'].map(text => checker.isComparable(typeOf(text)))).toEqual([false, false]);
         });
     });
 

@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
 import { repositoryRoot } from './support/paths.mjs';
+import { createExamplesEnergy, createExamplesFixtures, createExamplesHome } from './support/examples.mjs';
 
 /** The `lexica` blocks of a document, in order, each with the line its fence opens on. */
 const blocksOf = file => {
@@ -36,18 +37,29 @@ const textsOf = (block, entry) => {
 // An example a context holds, written in its place, as one testing a value is compared with null.
 const COMPARED = '(%) != null';
 
-/** The examples' registry, of the examples' two modules, which resolves the examples that evaluate or are refused; `lexica` reads and writes their text, as it does for every registry. */
-const examples = lexica.createRegistry([lexica.createModule('home', {}), lexica.createModule('energy', {})]);
+/** The examples' home, its modules written once, the registry they are registered with, and the bindings its host gives every example, each of the type the examples' vocabulary gives its name. */
+const { home, values, types } = createExamplesFixtures();
+const examples = lexica.createRegistry([createExamplesHome(home), createExamplesEnergy()]);
+const bindings = examples.createBindings(values, { types });
+
+/** The imports the examples' host supplies every script, so no example writes them. */
+const IMPORTS = Object.freeze(['Home', 'Energy']);
+
+/** The hooks the examples' host gives each evaluation: a maintained member's sample, a sensor's temperature as it reported it. */
+const HOOKS = Object.freeze({ beforeInvoke: request => (request.declaration.updates?.reads === 'maintained' ? [request.receiver.temperature] : undefined) });
+
+/** The value the examples' host supplies for each host call by its name, which a prepared call projects: the brightness a light reached, and a motion a sensor reported; a held thermostat supplies none. */
+const SUPPLIED = Object.freeze({ dim: 40, on: Object.freeze({ at: 12, strength: 0.9 }) });
 
 /**
- * Each document's examples, in order: what each is about, whether each of its lines is an example of its own, the context it is written in, and, for an example that reads none of the home's reference values,
- * what resolving and evaluating it gives: its value, or the kind of error that refuses it. Every example reads as a definition and gives its canonical text again, read and written with the examples' module names;
- * those that read the home's rooms, devices, lights, thermostats or sensors are resolved once reference types and declared binding types give their bindings a type.
+ * Each document's examples, in order: what each is about, whether each of its lines is an example of its own, the context it is written in, and what resolving and evaluating it against the examples' home gives where its
+ * document states it: its value, the kind of error that refuses it, or, for a host call, what its projection gives for the value its host supplies. Every example reads as a definition and gives its canonical text again,
+ * and every one resolves against the examples' vocabulary with the host's imports and evaluates, a host call prepared and, where its host supplies values, projected.
  */
 const DOCUMENTS = {
     'spec/README.md': [],
     'spec/scripts.md': [
-        { about: 'a script reading its parameter' },
+        { about: 'a script reading its parameter', evaluates: { name: 'living', active: 3, total: 3 } },
         { about: 'an object expression' },
         { about: 'a body' },
         { about: 'locals' },
@@ -59,7 +71,7 @@ const DOCUMENTS = {
         { about: 'a block the source continues after', evaluates: { label: 'Ready', count: 3 } },
         { about: 'a layout breaking at its break points' },
         { about: 'a chain breaking inside an operand' },
-        { about: 'an expression continuing after a block\'s end' },
+        { about: 'an expression continuing after a block\'s end', evaluates: 3 },
         { about: 'a body that uses return, each local on its own line' },
     ],
     'spec/values.md': [
@@ -85,7 +97,7 @@ const DOCUMENTS = {
         { about: 'conditionals', each: true, context: COMPARED },
         { about: 'coalescing operators', each: true },
         { about: 'attempts', each: true },
-        { about: 'a result that tells missing from malformed' },
+        { about: 'a result that tells missing from malformed', evaluates: { level: { status: 'valid', value: 40 } } },
         { about: 'interpolated strings' },
         { about: 'a simple expression' },
     ],
@@ -97,14 +109,14 @@ const DOCUMENTS = {
     ],
     'spec/members.md': [
         { about: 'a member of each kind', each: true },
-        { about: 'the forms of a member', each: true, context: 'cell { value = % }' },
+        { about: 'the forms of a member', each: true, context: COMPARED },
         { about: 'computed property access' },
         { about: 'host calls', each: true },
     ],
     'spec/modules.md': [],
     'spec/vocabulary.md': [],
     'spec/runtime.md': [
-        { about: 'a result projection reading a local before its host call' },
+        { about: 'a result projection reading a local before its host call', projects: { at: 12, isOccupied: true, wasOccupied: true } },
     ],
     'spec/definition.md': [],
     'spec/diagnostics-and-errors.md': [],
@@ -115,8 +127,24 @@ const DOCUMENTS = {
     'docs/embedding-guide.md': [],
     'docs/features-status.md': [],
     'README.md': [
-        { about: 'a body that counts the rows shown' },
+        { about: 'a body that counts the rows shown', evaluates: { count: 2, label: '2 of 3 shown' } },
     ],
+};
+
+/** What the example gives against the examples' home: its value, or, for a host call, its prepared call and the projection of the value its host supplies, where it supplies values. */
+const outcomeOf = written => {
+    const resolution = examples.resolve(written, bindings, { imports: IMPORTS });
+    const evaluator = resolution.createEvaluator(bindings);
+
+    if (resolution.hostCall === null) {
+        return { value: evaluator.evaluate(HOOKS).value };
+    }
+
+    const call = evaluator.prepareHostCall();
+
+    expect(call.kind, written).toBe('prepared');
+
+    return { call, projection: call.project === undefined ? undefined : call.project(SUPPLIED[resolution.hostCall.name], HOOKS).value };
 };
 
 describe('the examples of the documents', () => {
@@ -135,14 +163,30 @@ describe('the examples of the documents', () => {
                 expect(lexica.format(formatted), text).toBe(formatted);
                 expect(lexica.parse(formatted), text).toEqual(lexica.parse(written));
 
-                if (entry.evaluates !== undefined) {
-                    expect(examples.resolve(written).createEvaluator({}).evaluate().value, text).toEqual(entry.evaluates);
+                if (entry.refused !== undefined) {
+                    expect(() => examples.resolve(written, bindings, { imports: IMPORTS }), text).toThrow(expect.objectContaining({ kind: entry.refused }));
+
+                    return;
                 }
 
-                if (entry.refused !== undefined) {
-                    expect(() => examples.resolve(written), text).toThrow(expect.objectContaining({ kind: entry.refused }));
+                const outcome = outcomeOf(written);
+
+                if (entry.evaluates !== undefined) {
+                    expect(outcome.value, text).toEqual(entry.evaluates);
+                }
+
+                if (entry.projects !== undefined) {
+                    expect(outcome.projection, text).toEqual(entry.projects);
                 }
             });
         });
+    });
+
+    it('resolve against the examples\' vocabulary, its home bound as its document sets out, every example evaluating or, a host call, prepared', () => {
+        expect(examples.moduleNames).toEqual(['Lexica', 'Home', 'Energy']);
+        expect(bindings.getType('device')).toBe('Device');
+        expect(examples.resolve('device["level"] to Number', bindings, { imports: IMPORTS }).createEvaluator(bindings).evaluate(HOOKS).value).toBe(40);
+        expect(examples.resolve('device:Device.power', bindings, { imports: IMPORTS }).createEvaluator(bindings).evaluate(HOOKS).value).toBe(60);
+        expect(() => examples.resolve('device as Meter', bindings, { imports: IMPORTS })).toThrow(expect.objectContaining({ code: 'LEXICA3060' }));
     });
 });

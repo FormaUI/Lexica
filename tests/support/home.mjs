@@ -23,12 +23,16 @@ export class Light extends Device {}
 /** A thermostat, a device that keeps a temperature. */
 export class Thermostat extends Device {}
 
-/** The home's reference types, a light and a thermostat each beneath a device, as a module declares them. */
+/** A sensor, a device that reports temperature and motion. */
+export class Sensor extends Device {}
+
+/** The home's reference types, a light, a thermostat and a sensor each beneath a device, as a module declares them. */
 export const homeTypes = Object.freeze([
     { name: 'Room', kind: 'reference', isInstance: value => value instanceof Room },
     { name: 'Device', kind: 'reference', isInstance: value => value instanceof Device },
     { name: 'Light', kind: 'reference', supertype: 'Device', isInstance: value => value instanceof Light },
     { name: 'Thermostat', kind: 'reference', supertype: 'Device', isInstance: value => value instanceof Thermostat },
+    { name: 'Sensor', kind: 'reference', supertype: 'Device', isInstance: value => value instanceof Sensor },
 ]);
 
 /** The home's recognition of a value: the most specific of its types the value is of, or null. */
@@ -39,6 +43,10 @@ export const homeTypeOf = value => {
 
     if (value instanceof Thermostat) {
         return 'Thermostat';
+    }
+
+    if (value instanceof Sensor) {
+        return 'Sensor';
     }
 
     if (value instanceof Device) {

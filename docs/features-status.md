@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 35 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is done, the implementation following language `1.0.0-alpha.35`, its host checkpoint awaiting DOMQL's migration; [unit 5](#unit-5--specification-examples), the specification examples, is next.**
+**The core language, host calls, definition version 35 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is done, the implementation following language `1.0.0-alpha.35`, its host checkpoint awaiting DOMQL's migration; [unit 5](#unit-5--specification-examples), the specification examples, is done, every example the documents give resolving and evaluating in the gate; [unit 6](#unit-6--tooling), tooling, is next, once the decisions recorded since unit 1's step 5 are reviewed.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -11,7 +11,7 @@
 
 The implementation reads definition version 35, its node names, its imports and its collection expressions, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module. Its declarations take the specification's shape: reference types, with their hierarchy, membership and recognition, and structured types, each holding its members; extensions; operators; declared type parameters; and `Any`. One selector chooses every member, indexer and operator, at resolution and, for a value of `Any`, as it is evaluated. A script imports the modules and the types whose vocabulary it uses, a host supplying imports beside its own, and resolution reaches only what they make available, Lexica's own always among it. An extension access, `device:Energy.Device.usage`, selects among one extension's members, its function read without a call a reference bound to its receiver. Scripts follow line structure, and their canonical text reads back as the same definition. Collections are lists, dictionaries and pairs, a script writing them as collection expressions; their construction from members, their operations, positions and ordering follow in unit 4.
 
-The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Six specification examples resolve and evaluate; 28 remain.
+The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Every example the specification and the README give resolves against [the examples' vocabulary](../spec/examples-vocabulary.md) and evaluates in the gate: 40 blocks, 75 examples with each line of a block of single forms its own, a host call prepared and projected, and the one the specification documents as refused refused.
 
 The [specification](../spec/README.md) defines the contract; the [design](lexica-design.md) explains the architecture. This file tracks implementation and the remaining work. "Implemented" means built and tested in the gate for the current implementation version; it does not imply that later specification changes are implemented.
 
@@ -32,8 +32,8 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 4 | [Collections](#unit-4--collections) | ✅ Done; its host checkpoint awaits DOMQL's migration |
-| 5 | [Specification examples](#unit-5--specification-examples) | Next |
-| 6 | [Tooling](#unit-6--tooling) | Planned |
+| 5 | [Specification examples](#unit-5--specification-examples) | ✅ Done |
+| 6 | [Tooling](#unit-6--tooling) | Next, once the implementation decisions are reviewed |
 | 7 | [Release](#unit-7--release) | Planned |
 
 ### Unit 0 — Decisions and the specification
@@ -201,7 +201,7 @@ Contract: [Collections](proposals/collections.md).
 
 ### Unit 5 — Specification examples
 
-A module implementing [the examples' vocabulary](../spec/examples-vocabulary.md), written once, and a harness giving each example its fixtures, a host, and prepared calls with their projections. Every example the specification gives resolves and evaluates in the gate.
+✅ Done, as [I40](proposals/implementation-decisions.md) sets out: the modules `Home` and `Energy` implementing [the examples' vocabulary](../spec/examples-vocabulary.md), written once in `tests/support/examples.mjs` on the home's reference types, and the home they read, its rooms, devices and settings, bound as the vocabulary types each name; and `tests/DocumentExamples.test.js`, giving each example the home, the host's imports of `Home` and `Energy`, a maintained member's sample, and for a host call its prepared call and the projection of the value its host supplies. Every example the specification and the README give resolves and evaluates in the gate, its documented value or refusal asserted where its document states one. Three examples were corrected to the specification, and the vocabulary gained the room's `reserved` test an example reads.
 
 ### Unit 6 — Tooling
 

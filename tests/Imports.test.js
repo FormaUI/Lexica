@@ -1,24 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
-import { Device, Light, Room, homeTypeOf, withHome } from './support/home.mjs';
+import { Device, Light, Room, Sensor as HomeSensor, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 
 const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
 
-/** A sensor of the home's, and one of the garden's, two types of one local name. */
-class HomeSensor {}
+/** A sensor of the garden's, a type of the local name the home's sensor has too. */
 class GardenSensor {}
 
-/** The home: a device's name, a light's dimming, a room's devices by index, and a sensor of its own. */
+/** The home: a device's name, a light's dimming, a room's devices by index, and its own sensor, among its types. */
 const createHome = () => lexica.createModule('Home', {
-    ...withHome({ types: [{ name: 'Sensor', kind: 'reference', isInstance: value => value instanceof HomeSensor }] }, {
+    ...withHome({}, {
         Room: [createIndexerDeclaration(null, 'Device?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('index', 'Number')], impl: ({ receiver, args }) => receiver.devices[args.index] ?? null })],
         Device: [createPropertyDeclaration('name', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name })],
         Light: [createFunctionDeclaration('dim', 'String', { updates: constantUpdates, parameters: [createValueParameterDeclaration('level', 'Number')], impl: ({ receiver, args }) => `${receiver.name} at ${args.level}` })],
     }),
-    typeOf: value => (value instanceof HomeSensor ? 'Sensor' : homeTypeOf(value)),
 });
 
 /** The garden: a reading of degrees, written as text by its own conversion, and a sensor of its own. */

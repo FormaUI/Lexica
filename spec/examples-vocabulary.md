@@ -28,8 +28,8 @@ An example's bindings are supplied parameters, each bound by the host to a value
 | `room.name` | `String` | Constant | Fresh | |
 | `room.devices` | `List<Device>` | Observable: `placement` | Fresh | |
 | `room.floorArea` | `Number`, in square meters | Constant | Fresh | |
-| `room.climate` | `Climate?`, null where the room has no sensor | Observable: `Climate` | Fresh | |
-| `room.highestTemperature` | `Number?`, in degrees, the highest temperature the room has reported since its host began to hold the evaluation, null where the room has no sensor | Observable: `Climate` | Captured | `0.5` |
+| `room.climate` | `Climate?`, null where the room has no sensor | Observable: `climate` | Fresh | |
+| `room.highestTemperature` | `Number?`, in degrees, the highest temperature the room has reported since its host began to hold the evaluation, null where the room has no sensor | Observable: `climate` | Captured | `0.5` |
 | `room.device(name)` | `name`: `String` → `Device?` | Observable: `placement` | Fresh | |
 | `device.name` | `String` | Constant | Fresh | |
 | `device.room` | `Room` | Observable: `placement` | Fresh | |
@@ -51,6 +51,7 @@ A setting is a string, so an example that needs a number converts it, as `device
 | `device.batteryPowered()` | Whether the device runs on a battery | Constant |
 | `device.dimmable()` | Whether the device can be dimmed | Constant |
 | `room.occupied()` | Whether someone is in the room | Observable: `presence` |
+| `room.reserved()` | Whether the room is reserved for someone expected | Observable: `presence` |
 
 **Observation types.** What a member names to learn that its result may have changed:
 

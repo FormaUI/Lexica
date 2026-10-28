@@ -322,7 +322,7 @@ room {
     lit = it.devices
         .where(it.active())
         .count,
-    gap = (it.climate?.temperature
+    gap = ((it.climate?.temperature ?? 0)
         - outside),
     label = if it.occupied()
         and not it.reserved() then
@@ -350,9 +350,9 @@ return count
 An expression is **enclosed** where it stands directly in a parenthesized group, a call's argument, an indexer's key, a computed property's expression, or a condition, from `if` or `elseif` to its `then`. Enclosure belongs to that one position: an object's entry, a collection expression's item or value, a conditional's branch, and a body's locals and result, a `do` block's, a function's or an arrow's, start unenclosed again, whatever encloses them, so a line breaks before an operator there only inside parentheses of its own.
 
 ```text
-gap = it.climate?.temperature
+gap = (it.climate?.temperature ?? 0)
     - outside                    refused: nothing encloses the expression
-gap = (it.climate?.temperature -
+gap = ((it.climate?.temperature ?? 0) -
     outside)                     refused: the line ends with its operator
 call({
     value = a
