@@ -225,6 +225,22 @@ describe('result metadata', () => {
             expect(twinsOf(metadataOf('name.twins.select([it.label]).reverse.select(it)').provenance)).toEqual([2, 1, 0]);
         });
 
+        it("describes a filter or a reordering of a selection's answer by its own origin and tolerance, with the sources and provenance of the occurrences it kept, though no item has a record", () => {
+            const twinsOf = entries => entries.map(entry => twins.indexOf(entry.value));
+            const { objectFields } = metadataOf('{ selected = name.twins.select(it.label), kept = name.twins.select(it.label).where(it == "a"), reversed = name.twins.select(it.label).reverse, none = name.twins.select(it.label).where(false) }');
+
+            expect(objectFields.kept).toEqual({ origin: expect.any(Object), tolerance: null, sources: twins.slice(0, 2).map(twin => ({ kind: 'reference', value: twin })), provenance: expect.any(Array) });
+            expect([twinsOf(objectFields.kept.sources), twinsOf(objectFields.kept.provenance)]).toEqual([[0, 1], [0, 1]]);
+            expect([twinsOf(objectFields.reversed.sources), twinsOf(objectFields.reversed.provenance)]).toEqual([[2, 1, 0], [2, 1, 0]]);
+            expect(objectFields.none).toMatchObject({ sources: [], provenance: [] });
+            expect(new Set([objectFields.selected.origin, objectFields.kept.origin, objectFields.reversed.origin]).size).toBe(3);
+            // A projection after the filter records its actual immediate sources, the labels, and keeps the original references as its provenance.
+            const projected = metadataOf('name.twins.select(it.label).drop(1) { n = it }');
+
+            expect(projected.sources).toEqual([{ kind: 'data', value: 'a' }, { kind: 'data', value: 'b' }]);
+            expect(twinsOf(projected.provenance)).toEqual([1, 2]);
+        });
+
         it("realigns each item's lineage through an ordering and its refinement, and records nothing of the keys that ordered it", () => {
             const lineageOf = text => resolve(text).evaluate().metadata;
             const projected = 'name.crowd { name = it.label }';

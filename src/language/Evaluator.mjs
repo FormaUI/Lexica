@@ -2780,11 +2780,12 @@ export class Evaluator {
 
         const record = this.#getExpressionRecord(node, candidate, selected?.declaration?.updates?.tolerance ?? null);
 
-        // A filter's answer describes each item it kept as its receiver describes it, its items' records, sources and provenance realigned in its order, under the filter's own origin.
+        // A filter's answer describes each item it kept as its receiver describes it, its items' records, where they have any, and their sources and provenance realigned in its order, under the filter's own origin and
+        // tolerance; a receiver no projection built gives it neither.
         if (Array.isArray(value) && selected?.declaration !== undefined && Vocabulary.answersReceiverItems(selected.declaration)) {
-            const kept = this.#resolveRecord(Evaluator.#accessOf(node).receiver, value, identities, contextRecord);
+            const { items, sources, provenance } = this.#resolveRecord(Evaluator.#accessOf(node).receiver, value, identities, contextRecord);
 
-            return kept.items === undefined ? record : Object.freeze({ ...kept, origin: record.origin, tolerance: record.tolerance });
+            return Object.freeze({ ...record, ...(items === undefined ? {} : { items }), ...(sources === undefined ? {} : { sources }), ...(provenance === undefined ? {} : { provenance }) });
         }
 
         // A selection's answer records each item it read as its source and the provenance that item carried, as a projection's does, its items described by the selection's own record.
