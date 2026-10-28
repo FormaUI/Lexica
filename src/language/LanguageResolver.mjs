@@ -2024,7 +2024,8 @@ export class LanguageResolver {
         const fitsParameters = own.every((type, index) => LanguageResolver.#fitsAny(type) || this.#typeChecker.isAssignable(type, this.#registry.getDeclaredType(declaration, parameters[index].type).resolveTypeParameters(typeArguments)));
         const declared = this.#registry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(typeArguments);
 
-        return fitsParameters && (resultType === null || LanguageResolver.#fitsAny(resultType) || this.#typeChecker.isAssignable(declared, resultType));
+        // A declared result of Any is checked as the callback answers it; a parameter is never, since nothing checks what a reference is called with.
+        return fitsParameters && (resultType === null || LanguageResolver.#fitsAny(resultType) || this.#typeChecker.assignabilityOf(declared, resultType) !== 'refused');
     }
 
     /**
@@ -2693,9 +2694,12 @@ export class LanguageResolver {
         return { result, callback: { isBody: true, parameterTypes: contract.parameterTypes, resultType: contract.resultType } };
     }
 
-    /** Whether a function's result of the type is one its callback contract takes: a value of the contract's result type, or, where the contract takes any value, as a predicate's does, one of a type a receiver gives. */
+    /**
+     * Whether a function's result of the type is one its callback contract takes: a value of the contract's result type, a value of Any among them, which the callback checks against it as it is evaluated, or, where the
+     * contract takes any value, as a predicate's does, one of a type a receiver gives.
+     */
     #fitsResult(type, resultType) {
-        return resultType === null ? type.kind !== 'function' && !LanguageResolver.#holdsTypeParameter(type) : this.#typeChecker.isAssignable(type, resultType);
+        return resultType === null ? type.kind !== 'function' && !LanguageResolver.#holdsTypeParameter(type) : this.#typeChecker.assignabilityOf(type, resultType) !== 'refused';
     }
 
     /**

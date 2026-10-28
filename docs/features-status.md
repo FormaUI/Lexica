@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; in [unit 2](#unit-2--member-selection-and-deferred-evaluation), the selector, operators, `Any`, deferred selection, reporting and U1's candidates are done, and a function's result of `Any` is next.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is next.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -29,8 +29,8 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | ✅ Done |
-| 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | In progress: steps 1 to 4 done; step 5 under way |
-| 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
+| 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | ✅ Done; its host checkpoint awaits DOMQL's migration |
+| 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Next: step 1, line endings |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
 | 5 | [Specification examples](#unit-5--specification-examples) | Planned |
 | 6 | [Tooling](#unit-6--tooling) | Planned |
@@ -86,13 +86,13 @@ Contracts: [Types](../spec/types.md), [Modules](../spec/modules.md), [declaring 
 
 ### Unit 2 — Member selection and deferred evaluation
 
-One selector chooses every member, indexer and operator, at resolution and during evaluation alike. *Next: step 5's last item, a function's result of `Any`.*
+One selector chooses every member, indexer and operator, at resolution and during evaluation alike. ✅ *Done: DOMQL adopts the checkpoint below.*
 
 1. ✅ **The selector,** [I20](proposals/implementation-decisions.md)'s `MemberSelector`, the registry's, replaces the three selection paths and the path for receivers of unknown type: owner precedence through inheritance; competing extensions registering, in place of the registration's refusal, and selected by the most specific target; ambiguity refused at resolution, giving the extension accesses to write; internal declarations excluded at resolution; and an empty list or a null receiver selecting as [the types](../spec/types.md) set out.
 2. ✅ **Operators,** as [I21](proposals/implementation-decisions.md) sets out: casts and conversions declared on types and in extensions, in place of module-level conversions, competing as operators do, an applicable owner's winning and otherwise the most specific extension's; Lexica's own conversions moved onto its types; declared casts, an `impl` optional, `reject` making an attempt null; and operators chosen by the selector.
 3. ✅ **`Any` and deferred selection,** as [I22](proposals/implementation-decisions.md) sets out: `Any` written in a declaration's result, its parameters and its defaults; a member selected when its receiver is evaluated, through the same selector, by its value's actual type, the selection kept by node and actual type within one compilation, plain objects read by their own fields; a structured value's identity kept through `Any`; a selection that would be a host call refused before anything is invoked, LEXICA5013; `beforeInvoke` told the selection was deferred, [C11](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `request.isDeferred`; an `Any` argument checked against its parameter, LEXICA5021, an equality of `Any` by its rules, LEXICA5024 and LEXICA5025, and a result holding `Any` checked to be data, LEXICA5028; and a deferred access failing with the access and the actual type named, LEXICA5012, and on null, LEXICA5022. A deferred call takes values alone: the specification also accepts an explicitly written function, which waits, as I22 records.
 4. ✅ **Reporting,** as [I23](proposals/implementation-decisions.md) sets out: used declarations including operators, in place of the separate used conversions, one check of their implementations, LEXICA4001, located at the type a member stands in; deferred accesses, by their pointer and the name they access; and candidate declarations, asked for, reported as an overestimate while a deferred access remains.
-5. **From the ledger:** ✅ [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidates, as [I24](proposals/implementation-decisions.md) sets out: a member of a receiver of unknown type compiled as its own evaluation, which evaluates its receiver and answers null, and LEXICA5502, a node no evaluation exists for, retired; U10, U40, U41 and C11 are done, with operators and deferred selection, and U11 with reporting. Next: a function's result of `Any` checked against its callback contract, LEXICA5504 joining the specification's catalog.
+5. ✅ **From the ledger:** [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidates, as [I24](proposals/implementation-decisions.md) sets out: a member of a receiver of unknown type compiled as its own evaluation, which evaluates its receiver and answers null, and LEXICA5502, a node no evaluation exists for, retired; U10, U40, U41 and C11 are done, with operators and deferred selection, and U11 with reporting. With them, as [I25](proposals/implementation-decisions.md) sets out, a function's or a body's answer of `Any` accepted where its callback contract declares a result, and checked as it is evaluated, LEXICA5504 joining the specification's catalog.
 
 **Completion:** the gate passes, and a host can move its declarations and its runtime use in one migration.
 
@@ -138,7 +138,7 @@ Contracts: [Owners and extensions](../spec/modules.md#namespaces-owners-and-exte
 
 ### Unit 3 — Script text, imports and definition version 34
 
-Scripts write imports and extension access, and the definition records both; a script's lines follow line structure. Collection syntax, collection expressions `[…]`, ranges `..` and from-end indices `^`, is built in unit 4, as [its proposal](proposals/collections.md) designs it: unit 3 builds no placeholder for it, and leaves its tokenizer and chain parser to extend cleanly.
+Scripts write imports and extension access, and the definition records both; a script's lines follow line structure. Collection syntax, collection expressions `[…]`, ranges `..` and from-end indices `^`, is built in unit 4, as [its proposal](proposals/collections.md) designs it: unit 3 builds no placeholder for it, and leaves its tokenizer and chain parser to extend cleanly. *Next: step 1, line endings.*
 
 1. **Line endings:** one definition of a line break, LF, CRLF or a lone CR, for comments, block strings, diagnostics and locations; line comments ending at CR and CRLF; and U+2028 and U+2029 refused outside literal string text. It repairs today's comment handling on its own, before any layout rule.
 2. **The definition's contract:** `import` a keyword; one shared list of Lexica's own names; version 34, structured imports and the `extension` property, validated, with a namespace or an extension's module checked against the imports.
@@ -215,7 +215,6 @@ Conditions the implementation reports that only language `1.0.0-alpha.33` has, c
 | `LEXICA2641` | structure | A definition read without a registry's module names that writes one of them alone | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
 | `LEXICA2642` | structure | A namespace naming no module the registry holds, which imports replace | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
 | `LEXICA4557` | module | A module named by a reserved word, which text reaches only through an import binding read with `@` | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
-| `LEXICA5504` | evaluation | A function's result its callback contract does not declare, when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 
 ## Implemented capabilities
 
@@ -292,5 +291,6 @@ Unit 0's decisions are taken, and unit 4 settles the collections proposal's open
 | Selecting a module's operator when several compete | No syntax selects an operator by module; qualified calls cannot reach operators. | Competing operators in real use |
 | Structured-data casts, reference/data conversions, and operators beyond `cast` and `convert` | Each needs rules for checking and copying. | A use the two operators do not serve |
 | Object-typed parameter defaults, under the ordinary compatibility rules ([R13](proposals/responsibilities-and-terminology-ledger.md#6-combined-responsibilities-dispositions)) | No parameter can be object-typed while an object type has no notation a declaration writes. | An object type's notation in declarations |
+| A value of `Any` a callback contract passes to a function reference whose parameter declares a concrete type, which [assignability](../spec/types.md#types-assignability) accepts and checks | Nothing stands between a callback and the reference's implementation to check what it is called with, so such a reference is refused with LEXICA3036, as [I25](proposals/implementation-decisions.md) records. | A host whose callback contract passes `Any` to a typed reference |
 | A function given to a deferred call, as [deferred member selection](../spec/types.md#types-any-deferred-selection) accepts one | A function's reading is the declaration's, chosen only as the call is evaluated, so a deferred call takes values alone, as [I22](proposals/implementation-decisions.md) records. | A host whose deferred call needs one |
 | Calling a module's internal declarations through Lexica | JavaScript implementations can reach their own values directly. | An internal-call API with a defined module context |

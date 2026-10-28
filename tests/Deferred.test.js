@@ -206,6 +206,18 @@ describe('values of Any', () => {
             expect(failure('shelf.double(shelf.item("word"))')).toMatchObject({ code: 'LEXICA5021', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The argument 'value' of 'double' is declared Number, and is given \"oat\"") });
         });
 
+        it('checks a function\'s or an expression\'s answer of Any against the result its callback contract declares', () => {
+            const values = { numbers: [1, 2] };
+            const evaluateOver = text => lexica.createRegistry([createShelf()]).resolve(text, values).createEvaluator(values).evaluate().value;
+
+            expect(evaluateOver('numbers.sum(n => shelf.item("number"))')).toBe(4);
+            expect(evaluateOver('numbers.sum(shelf.item("number"))')).toBe(4);
+            expect(evaluateOver('numbers.max(n => shelf.maybe("none"))')).toBeNull();
+            expect(evaluateOver('numbers.sum(shelf.wrap)')).toBe(3);
+            expect(errorThrownBy(() => evaluateOver('numbers.sum(n => shelf.item("word"))'))).toMatchObject({ code: 'LEXICA5504', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The function given as 'expression' of 'sum' gave \"oat\", and its contract declares Number?") });
+            expect(errorThrownBy(() => evaluateOver('numbers.sum(shelf.item("word"))'))).toMatchObject({ code: 'LEXICA5504', location: { pointer: '/expression/arguments/0' } });
+        });
+
         it('compares a value of Any with a value of a type it fits one way or the other, and with null, and fails other equalities', () => {
             expect(evaluate('shelf.item("word") == "oat"')).toBe(true);
             expect(evaluate('shelf.item("light") != shelf.item("device")')).toBe(true);

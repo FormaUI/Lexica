@@ -449,6 +449,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5023` | Evaluating a script that ends in a host call | An evaluation error, as [host calls](runtime.md#runtime-host-calls) set out |
 | `LEXICA5015` | A value a host supplies, or a part of it, that its host call's declared result does not admit, as [capturing a supplied value](runtime.md#runtime-host-calls-capturing) sets out | An evaluation error naming the call and the part |
 | `LEXICA5503` | A function a member calls with arguments other than its callback contract declares, in number or in type | An evaluation error naming the function and the member |
+| `LEXICA5504` | A function or a body given to a member that answers, when it is evaluated, a value its callback contract's result type does not admit, as an answer of `Any` can be | An evaluation error naming the function, the member and the value |
 
 A script is validated before any evaluation, as [what resolution checks](runtime.md#validation-vocabulary-and-types) sets out. An evaluation error fails the whole result, and the host receives the error in its place.
 
