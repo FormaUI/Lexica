@@ -14,10 +14,10 @@ describe('DefinitionWriter', () => {
     it.each([
         ['a local of its object expression', { kind: 'object', locals: [{ name: 'a', value: literal(1) }], objectFields: [{ name: 'b', value: parameter('a') }] }, '{ let a = 1, b = ~a }'],
         ['an object field before it', { kind: 'object', objectFields: [{ name: 'a', value: literal(1) }, { name: 'b', value: parameter('a') }] }, '{ a = 1, b = ~a }'],
-        ['a local of its body', { kind: 'body', locals: [{ name: 'a', value: literal(1) }], result: parameter('a') }, 'let a = 1 return ~a'],
-        ['a local its body declares later', { kind: 'body', locals: [{ name: 'b', value: parameter('a') }, { name: 'a', value: literal(1) }], result: literal(0) }, 'let b = ~a let a = 1 return 0'],
+        ['a local of its body', { kind: 'body', locals: [{ name: 'a', value: literal(1) }], result: parameter('a') }, 'let a = 1\nreturn ~a'],
+        ['a local its body declares later', { kind: 'body', locals: [{ name: 'b', value: parameter('a') }, { name: 'a', value: literal(1) }], result: literal(0) }, 'let b = ~a\nlet a = 1\nreturn 0'],
         ['a local its object expression declares later', { kind: 'object', locals: [{ name: 'b', value: parameter('a') }, { name: 'a', value: literal(1) }], objectFields: [{ name: 'c', value: literal(0) }] }, '{ let b = ~a, let a = 1, c = 0 }'],
-        ['a function parameter', { kind: 'body', locals: [{ name: 'f', value: { kind: 'function', parameters: ['a'], body: parameter('a') } }], result: { kind: 'call', callee: { kind: 'local', name: 'f' }, arguments: [literal(1)] } }, 'let f = function(a) ~a end return f(1)'],
+        ['a function parameter', { kind: 'body', locals: [{ name: 'f', value: { kind: 'function', parameters: ['a'], body: parameter('a') } }], result: { kind: 'call', callee: { kind: 'local', name: 'f' }, arguments: [literal(1)] } }, 'let f = function(a) ~a end\nreturn f(1)'],
         ['a conditional binding, in its consequent alone', { kind: 'conditional', binding: { name: 'a', value: literal(1) }, consequent: parameter('a'), alternative: parameter('a') }, 'if let a = 1 then ~a else a end'],
         ['a conditional binding, in its own value', { kind: 'conditional', binding: { name: 'a', value: parameter('a') }, consequent: literal(1), alternative: literal(0) }, 'if let a = ~a then 1 else 0 end'],
     ])('writes a script parameter that %s hides with ~', (_, expression, text) => {

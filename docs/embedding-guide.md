@@ -29,7 +29,10 @@ lexica.parse('import Shop\nShop.open').imports;      // [{ module: 'Shop' }]
 lexica.parse('Shop.open', { imports: ['Shop'] });    // the same definition
 lexica.format('Shop.open', { imports: ['Shop'] });   // 'Shop.open'
 lexica.format('import Store = Shop\nStore.open');   // 'import Store = Shop\n\nStore.open'
+lexica.quote('{\n    open = Shop.open\n}', { imports: ['Shop'] }); // '{ open = Shop.open }'
 ```
+
+`lexica.quote` writes the compact text a diagnostic quotes, which reads back as the same definition: on one line, but where a body that uses `return` puts each local and its `return` on a line of its own.
 
 A registry reads and writes text exactly so, through `registry.parse`, `registry.format` and `registry.quote`, and `registry.resolve(script, bindings, { imports })` reads a text as `registry.parse` does; registering a module changes how no text reads.
 

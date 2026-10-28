@@ -1,5 +1,5 @@
 /**
- * DefinitionWriter — a definition's node as the Lexica text that writes it, parenthesized where its grouping needs it: on one line, as a diagnostic quotes it, or laid out on lines, as formatting gives its canonical text
+ * DefinitionWriter — a definition's node as the Lexica text that writes it, parenthesized where its grouping needs it: compact, as a diagnostic quotes it, or laid out on lines, as formatting gives its canonical text
  */
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
@@ -23,12 +23,13 @@ const INDENTATION = '    ';
 
 export class DefinitionWriter {
     /**
-     * Quotes the node: the text that writes it on one line, as a diagnostic quotes it.
+     * Quotes the node: its compact text, as a diagnostic quotes it, which parses: on one line but where a boundary or a keyword block requires a line break, a body that uses `return` its locals and its result each on a
+     * line of its own and every keyword block around it in block form, and what follows a block's `end` that is no closing punctuation on the line after it.
      * @param {object} node A node of a definition.
      * @param {ReadonlySet<string>} [namespaceNames] The local names the script's imports give modules, each beginning its namespace, as the language's words keep their meaning; none where its imports give none.
      */
     static quote(node, namespaceNames = Names.noNamespaceNames) {
-        return DefinitionWriter.#writing(namespaceNames, () => DefinitionWriter.#write(node, null));
+        return DefinitionWriter.#writing(namespaceNames, true, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
     }
 
     /**
@@ -38,7 +39,7 @@ export class DefinitionWriter {
      */
     static format(node, namespaceNames = Names.noNamespaceNames) {
         // An expression that is a body writes its locals and its return alone, which a do block elsewhere encloses.
-        return DefinitionWriter.#writing(namespaceNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
+        return DefinitionWriter.#writing(namespaceNames, false, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
     }
 
     /**
@@ -55,8 +56,8 @@ export class DefinitionWriter {
     }
 
     /**
-     * The compact text of a script's definition, as `lexica.quote` gives it: each import it records but those its destination supplies, on a line of its own, since each begins one, and its body on the next line, as a
-     * diagnostic quotes it.
+     * The compact text of a script's definition, as `lexica.quote` gives it: each import it records but those its destination supplies, on a line of its own, since each begins one, and its compact body on the next line,
+     * as a diagnostic quotes it.
      * @param {object} definition A validated definition.
      * @param {readonly object[]} [suppliedImports] The imports the text's destination supplies, which it leaves out.
      */
@@ -74,26 +75,32 @@ export class DefinitionWriter {
     /** The namespace names the text being written is written with. @type {ReadonlySet<string>} */
     static #namespaceNames = Names.noNamespaceNames;
 
+    /** Whether the text being written is compact, breaking lines only where line structure requires, rather than laid out on lines. */
+    static #isCompact = false;
+
     /**
-     * What the writing gives with the namespace names in effect, in the writer's static state, which holds one writing at a time; the namespace names of any writing around it are restored in `finally`, whether the writing
-     * completes or throws.
+     * What the writing gives with the namespace names and the layout in effect, in the writer's static state, which holds one writing at a time; those of any writing around it are restored in `finally`, whether the
+     * writing completes or throws.
      */
-    static #writing(namespaceNames, write) {
+    static #writing(namespaceNames, isCompact, write) {
         const enclosingNamespaceNames = DefinitionWriter.#namespaceNames;
+        const enclosingIsCompact = DefinitionWriter.#isCompact;
 
         try {
             DefinitionWriter.#namespaceNames = namespaceNames;
+            DefinitionWriter.#isCompact = isCompact;
 
             return write();
         } finally {
             DefinitionWriter.#namespaceNames = enclosingNamespaceNames;
+            DefinitionWriter.#isCompact = enclosingIsCompact;
         }
     }
 
     /**
-     * The text that writes the node: on one line where the level is null, and otherwise laid out on lines, its line beginning at the level's indentation.
+     * The text that writes the node, compact or laid out on lines as the writing is, each line it breaks beginning at the level's indentation.
      * @param {object} node
-     * @param {number | null} level
+     * @param {number} level
      */
     static #write(node, level) {
         switch (node.kind) {
@@ -127,7 +134,7 @@ export class DefinitionWriter {
             case 'equality':
                 return DefinitionWriter.#equality(node, '==', level);
             case 'interpolatedString':
-                return DefinitionWriter.#interpolatedString(node);
+                return DefinitionWriter.#interpolatedString(node, level);
             case 'comparison':
                 // A chain is written as one, an operator between each two of its operands.
                 return node.operands.map((operand, index) => `${index === 0 ? '' : ` ${node.operators[index - 1]} `}${DefinitionWriter.#within(operand, PRECEDENCE.additive, level)}`).join('');
@@ -210,16 +217,16 @@ export class DefinitionWriter {
     }
 
     /**
-     * An interpolated string: its text as a string's, each brace doubled, and each interpolation's expression on one line, as a diagnostic quotes it, so no layout breaks the string,
-     * the expression grouped where it begins with an object expression, whose `{` an interpolation never begins with.
+     * An interpolated string: its text as a string's, each brace doubled, and each interpolation's expression compact, as a diagnostic quotes it, which an interpolation's simple expression writes on its one line, so no layout
+     * breaks the string, the expression grouped where it begins with an object expression, whose `{` an interpolation never begins with.
      */
-    static #interpolatedString(node) {
+    static #interpolatedString(node, level) {
         const parts = node.parts.map(part => {
             if (part.kind === 'text') {
                 return DefinitionWriter.#stringText(part.value.replaceAll(/[{}]/g, '$&$&'));
             }
 
-            const expression = DefinitionWriter.#write(part.expression, null);
+            const expression = DefinitionWriter.#writing(DefinitionWriter.#namespaceNames, true, () => DefinitionWriter.#write(part.expression, level));
 
             return `{${expression.startsWith('{') ? `(${expression})` : expression}}`;
         });
@@ -227,15 +234,18 @@ export class DefinitionWriter {
         return `$"${parts.join('')}"`;
     }
 
-    /** An object expression's braces and entries, its locals first: on one line, or with a line for each entry where it is laid out on lines and is more than one field on one line. */
+    /**
+     * An object expression's braces and entries, its locals first: on one line, or with a line for each entry, indented a level, where it is laid out on lines and is more than one field on one line, or where an entry
+     * spans lines, compact or not, since what follows a block's `end` on its line is closing punctuation alone.
+     */
     static #object(node, level) {
-        const inner = level === null ? null : level + 1;
         const entries = [
-            ...(node.locals ?? []).map(local => `let ${local.name} = ${DefinitionWriter.#write(local.value, inner)}`),
-            ...node.objectFields.map(field => `${field.name} = ${DefinitionWriter.#write(field.value, inner)}`),
+            ...(node.locals ?? []).map(local => `let ${local.name} = ${DefinitionWriter.#write(local.value, level + 1)}`),
+            ...node.objectFields.map(field => `${field.name} = ${DefinitionWriter.#write(field.value, level + 1)}`),
         ];
+        const isOneLine = DefinitionWriter.#isCompact || (node.locals === undefined && entries.length === 1);
 
-        if (level === null || (node.locals === undefined && entries.length === 1 && !entries[0].includes('\n'))) {
+        if (isOneLine && !entries.some(entry => entry.includes('\n'))) {
             return `{ ${entries.join(', ')} }`;
         }
 
@@ -281,12 +291,16 @@ export class DefinitionWriter {
         return Names.needsPrefix(name, DefinitionWriter.#namespaceNames) ? `@${name}` : name;
     }
 
-    /** A call's arguments, separated by commas. */
+    /** A call's arguments, separated by commas, the one after an argument that ends with a block's `end` on the next line, since only closing punctuation follows `end` on its line. */
     static #arguments(node, level) {
         const written = node.arguments.map(argument => DefinitionWriter.#write(argument, level));
 
-        // Only closing punctuation follows a block's `end` on its line, so the argument after one that ends with it starts the next line.
-        return written.map((argument, index) => (index === 0 ? argument : `${level !== null && /\n\s*end$/.test(written[index - 1]) ? `\n${INDENTATION.repeat(level)}` : ' '}${argument}`)).join(',');
+        return written.map((argument, index) => (index === 0 ? argument : `${DefinitionWriter.#endsWithBlock(written[index - 1]) ? `\n${INDENTATION.repeat(level)}` : ' '}${argument}`)).join(',');
+    }
+
+    /** Whether the text ends with a block's `end` on a line of its own, which only closing punctuation may follow on that line. */
+    static #endsWithBlock(text) {
+        return /\n\s*end$/.test(text);
     }
 
     /** A function: its parameters, and its body as a block writes it; an arrow function its parameters, one alone or several in parentheses, `=>` and the expression that is its body. */
@@ -301,32 +315,30 @@ export class DefinitionWriter {
     }
 
     /**
-     * A block, a function or a do block, after its header: a body of one expression on its line, or a body that returns its result on the lines a level within it, its `end` back at the block's own; on one line where the level is null.
-     * A body of one expression laid out on lines of its own goes a level within the block, as one that returns does.
+     * A block, a function or a do block, after its header: a body of one expression on its line, or a body that returns its result, or one expression that spans lines, in block form, on the lines a level within it, its
+     * `end` back at the block's own, compact or not, since a keyword block that spans lines at all is in block form.
      */
     static #block(header, body, level) {
         if (body.kind !== 'body') {
-            const written = level === null ? null : DefinitionWriter.#write(body, level + 1);
+            const written = DefinitionWriter.#write(body, level + 1);
 
-            return written === null || !written.includes('\n') ? `${header} ${DefinitionWriter.#write(body, level)} end` : `${header}\n${INDENTATION.repeat(level + 1)}${written}\n${INDENTATION.repeat(level)}end`;
+            return written.includes('\n') ? `${header}\n${INDENTATION.repeat(level + 1)}${written}\n${INDENTATION.repeat(level)}end` : `${header} ${written} end`;
         }
 
-        return level === null
-            ? `${header} ${DefinitionWriter.#bodyText(body, null)} end`
-            : `${header}\n${INDENTATION.repeat(level + 1)}${DefinitionWriter.#bodyText(body, level + 1)}\n${INDENTATION.repeat(level)}end`;
+        return `${header}\n${INDENTATION.repeat(level + 1)}${DefinitionWriter.#bodyText(body, level + 1)}\n${INDENTATION.repeat(level)}end`;
     }
 
-    /** A body's locals and the `return` that gives its result, each on a line of the level's indentation, or on one line where the level is null. */
+    /** A body's locals and the `return` that gives its result, each on a line of the level's indentation, as each starts a line of its own. */
     static #bodyText(node, level) {
         const entries = [...node.locals.map(local => `let ${local.name} = ${DefinitionWriter.#write(local.value, level)}`), `return ${DefinitionWriter.#write(node.result, level)}`];
 
-        return entries.join(level === null ? ' ' : `\n${INDENTATION.repeat(level)}`);
+        return entries.join(`\n${INDENTATION.repeat(level)}`);
     }
 
     /**
      * A conditional's clauses, each a condition or a conditional binding, and the `end` that closes them: a conditional of its own style nested in its alternative is written as an `elseif`, and one in its condition or consequent in parentheses; every branch gives its result with `return` where the branches are bodies.
-     * On one line where the level is null, or where it has no `elseif`, its branches are expressions and none of its text spans lines; otherwise in block form, each clause on a line of its own ending in `then` or `else`,
-     * its branch on the lines a level within it, and `end` on a line of its own.
+     * On one line where none of its branches is a body and none of its text spans lines, compact, or laid out where it has no `elseif` too; otherwise in block form, each clause on a line of its own ending in `then` or
+     * `else`, its branch on the lines a level within it, and `end` on a line of its own.
      */
     static #conditional(node, level) {
         const clauses = [];
@@ -358,14 +370,10 @@ export class DefinitionWriter {
         };
         const hasBody = clauses.some(clause => clause.branch.kind === 'body');
 
-        if (level === null) {
-            return `${clauses.map(clause => `${clause.header} ${branchText(clause, level)}`).join(' ')} end`;
-        }
-
-        // A conditional that spans lines at all, one of its branches' or tests' texts among them, is in block form, as line structure requires.
+        // A conditional that spans lines at all, one of its branches' or tests' texts among them, is in block form, as line structure requires, and a body's locals and its `return` each start a line.
         const oneLine = `${clauses.map(clause => `${clause.header} ${branchText(clause, level)}`).join(' ')} end`;
 
-        if (clauses.length === 2 && !hasBody && !oneLine.includes('\n')) {
+        if ((DefinitionWriter.#isCompact || clauses.length === 2) && !hasBody && !oneLine.includes('\n')) {
             return oneLine;
         }
 
@@ -383,6 +391,6 @@ export class DefinitionWriter {
         }
 
         // A block's `end` ends its line, so the group around a block that spans lines closes on the line after it, where what follows continues.
-        return level !== null && text.includes('\n') && text.endsWith('end') ? `(${text}\n${INDENTATION.repeat(level)})` : `(${text})`;
+        return DefinitionWriter.#endsWithBlock(text) ? `(${text}\n${INDENTATION.repeat(level)})` : `(${text})`;
     }
 }
