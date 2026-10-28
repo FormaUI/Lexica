@@ -4,6 +4,7 @@
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
 import { DefinitionWriter } from './DefinitionWriter.mjs';
+import { ImportedVocabulary } from './ImportedVocabulary.mjs';
 import { Imports } from './Imports.mjs';
 import { LexicaError, LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
@@ -27,11 +28,8 @@ export class LanguageResolver {
     /** The local names the definition's imports give modules, each beginning its module's namespace, which a message's text writes as the script does. @type {ReadonlySet<string>} */
     #namespaceNames = Names.noNamespaceNames;
 
-    /** The module each local name the definition's imports give a module names, by that local name. @type {Map<string, string>} */
-    #importedModules = new Map();
-
-    /** The type each local name the definition's imports give a type names, its module and its name, by that local name. @type {Map<string, { module: string, type: string }>} */
-    #importedTypes = new Map();
+    /** What the definition's imports make available: its namespaces, the types it names, and the declarations it may select, Lexica's own among them. @type {ImportedVocabulary} */
+    #imported;
 
     /** @type {Map<string, object>} */
     #resolutions = new Map();
@@ -56,6 +54,7 @@ export class LanguageResolver {
         this.#memberSelector = registry.memberSelector;
         this.#bindings = bindings;
         this.#locations = locations;
+        this.#imported = new ImportedVocabulary(registry, []);
     }
 
     /** Resolves and types the definition, answering what it resolved to or throwing where it cannot. */
@@ -92,21 +91,18 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves the definition's imports against the registry: each names a module it holds (LEXICA3002), and a type import a public type or extension its module declares (LEXICA3052, LEXICA3053); each local name then
-     * names its module or its type, an extension's naming none.
+     * Resolves the definition's imports against the registry: each names a module it holds (LEXICA3002), and a type import a public type or extension its module declares (LEXICA3052, LEXICA3053); what they make available
+     * is then the vocabulary the script resolves against.
      */
     #resolveImports(imports) {
         imports.forEach((entry, index) => {
             const pointer = `/imports/${index}`;
-            const localName = Imports.localNameOf(entry);
 
             if (this.#registry.getModule(entry.module) === undefined) {
                 this.#fail('LEXICA3002', `'${Imports.quote(entry)}' imports the module '${entry.module}', which the registry does not hold`, pointer);
             }
 
             if (Imports.isModuleImport(entry)) {
-                this.#importedModules.set(localName, entry.module);
-
                 return;
             }
 
@@ -119,13 +115,30 @@ export class LanguageResolver {
             if (this.#registry.isInternal(declaration)) {
                 this.#fail('LEXICA3053', `'${Imports.quote(entry)}' imports '${entry.module}.${entry.type}', which is internal to its module`, pointer);
             }
-
-            // An extension's import gives its members alone, so its local name names no type a cast or a conversion reads.
-            if (declaration.kind !== 'extension') {
-                this.#importedTypes.set(localName, { module: entry.module, type: entry.type });
-            }
         });
-        this.#namespaceNames = Imports.namespaceNamesOf(imports);
+        this.#imported = new ImportedVocabulary(this.#registry, imports);
+        this.#namespaceNames = this.#imported.namespaceNames;
+    }
+
+    /** The receiver members of the name the script's imports make available, Lexica's own among them. */
+    #receiverMembersNamed(name) {
+        return this.#imported.getAvailable(this.#registry.getReceiverMembers(name));
+    }
+
+    /**
+     * Refuses an access none of whose declarations the script's imports make available applies to its receiver, where one they leave out does (LEXICA3005), naming the modules that declare those and giving the import to
+     * write; on a receiver of unknown type, null, any declaration counts. An internal declaration is none, as it is no candidate.
+     */
+    #refuseUnimported(declared, receiverType, subject, pointer) {
+        const unimported = this.#memberSelector.getAccessible(declared).filter(declaration => !this.#imported.makesAvailable(declaration) && (receiverType === null || this.#typeChecker.resolveApplyingReceiverType(declaration, receiverType) !== undefined));
+
+        if (unimported.length === 0) {
+            return;
+        }
+
+        const modules = [...new Set(unimported.map(declaration => this.#registry.getDeclaringModuleName(declaration)))];
+
+        this.#fail('LEXICA3005', `${subject} is declared only by ${modules.map(module => `'${module}'`).join(' and ')}, which the script does not import: write ${modules.map(module => `'import ${module}'`).join(' or ')} at the script's start`, pointer);
     }
 
     /** Resolves the node in the script's terminal position, where a host call may stand: the script's expression, the result a body there returns and the body a `do` there holds. */
@@ -344,7 +357,7 @@ export class LanguageResolver {
 
         const receiverType = left.type.toNonNullable();
         const isTest = candidate => candidate.result === 'Boolean' && !LexicaModule.isInvokedByHost(candidate) && (candidate.kind === 'property' || (candidate.kind === 'function' && candidate.parameters.every(parameter => !parameter.required)));
-        const selection = this.#memberSelector.select(this.#registry.getReceiverMembers(right.value).filter(isTest), receiverType);
+        const selection = this.#memberSelector.select(this.#receiverMembersNamed(right.value).filter(isTest), receiverType);
 
         if (selection.kind !== 'selected') {
             return '';
@@ -608,7 +621,7 @@ export class LanguageResolver {
         }
 
         if (!this.#registry.isReferenceType(targetType)) {
-            this.#fail(this.#declaresTypeNamed(node.type) ? 'LEXICA3020' : 'LEXICA3019', `'as' casts to a reference type, and '${node.type}' is none`, pointer);
+            this.#fail(this.#declaresTypeNamed(node.type) ? 'LEXICA3020' : 'LEXICA3019', `'as' casts to a reference type, and '${node.type}' is none${this.#typeImportHintOf(node.type)}`, pointer);
         }
 
         const from = target.type;
@@ -633,8 +646,8 @@ export class LanguageResolver {
 
     /**
      * The type a cast or a conversion names: where the local name an import gives its module qualifies it, the type that module declares, refused where no import gives that local name (LEXICA3004) or the module does not
-     * declare a type of that name; where a type import gives the name, the type it imports; otherwise the one type of its name among Lexica's own and the registry's modules', refused where several share it, and a name none
-     * declares left to the cast or the conversion to refuse.
+     * declare a type of that name; otherwise, by the script's tiers, the type a type import gives the name, then one of Lexica's own, then the one public type of its name among the modules the script imports, refused where
+     * several share it (LEXICA3059), extensions taking no part, and a name none of them declares left to the cast or the conversion to refuse.
      */
     #typeNamed(name, pointer) {
         const dot = name.indexOf('.');
@@ -642,7 +655,7 @@ export class LanguageResolver {
         if (dot >= 0) {
             const qualifier = name.slice(0, dot);
             const localName = name.slice(dot + 1);
-            const moduleName = this.#importedModules.get(qualifier);
+            const moduleName = this.#imported.getNamespaceModule(qualifier);
 
             if (moduleName === undefined) {
                 const isRegistered = this.#registry.getModule(qualifier) !== undefined;
@@ -664,10 +677,10 @@ export class LanguageResolver {
         }
 
         // A name a type import gives is that type, found before Lexica's own of its name, as the script's own declaration of it.
-        const imported = this.#importedTypes.get(name);
+        const imported = this.#imported.getImportedType(name);
 
         if (imported !== undefined) {
-            return Type.createNamedType(imported.type, false, imported.module);
+            return imported;
         }
 
         // One of Lexica's own types is found before a module's of its name, which its module's name qualifies.
@@ -675,8 +688,8 @@ export class LanguageResolver {
             return Type.createNamedType(name);
         }
 
-        // An internal type is no candidate, so a name only internal types have names none a script reaches.
-        const modules = this.#registry.getModuleNamesDeclaringType(name);
+        // A module the script does not import declares no type it names, and an internal type is no candidate, so a name only internal types have names none a script reaches.
+        const modules = this.#registry.getModuleNamesDeclaringType(name).filter(moduleName => this.#imported.importsModule(moduleName));
         const reached = modules.filter(moduleName => !this.#registry.isInternal(this.#registry.getTypeDeclaration(Type.createNamedType(name, false, moduleName))));
 
         if (reached.length > 1) {
@@ -690,9 +703,20 @@ export class LanguageResolver {
         return Type.createNamedType(name, false, reached[0] ?? null);
     }
 
-    /** Whether a type of the name a cast or a conversion writes is declared: a qualified one, which its module was found to declare, one of Lexica's own, or one a registered module declares. */
+    /** Whether a type of the name a cast or a conversion writes is one the script names: a qualified one, which its module was found to declare, one a type import gives, one of Lexica's own, or one an imported module declares. */
     #declaresTypeNamed(name) {
-        return name.includes('.') || this.#importedTypes.has(name) || Vocabulary.builtInTypeNames.includes(name) || this.#registry.getModuleNamesDeclaringType(name).length > 0;
+        return name.includes('.') || this.#imported.getImportedType(name) !== undefined || Vocabulary.builtInTypeNames.includes(name) || this.#registry.getModuleNamesDeclaringType(name).some(moduleName => this.#imported.importsModule(moduleName));
+    }
+
+    /** The import to write for a type name no import gives, where registered modules the script does not import declare a public type of that name, as a message ends; empty otherwise. */
+    #typeImportHintOf(name) {
+        if (name.includes('.') || this.#declaresTypeNamed(name)) {
+            return '';
+        }
+
+        const modules = this.#registry.getModuleNamesDeclaringType(name).filter(moduleName => !this.#registry.isInternal(this.#registry.getTypeDeclaration(Type.createNamedType(name, false, moduleName))));
+
+        return modules.length === 0 ? '' : `; ${modules.map(module => `'${module}'`).join(' and ')} declare${modules.length === 1 ? 's' : ''} it: write ${modules.map(module => `'import ${module}'`).join(' or ')} at the script's start`;
     }
 
     /**
@@ -700,8 +724,12 @@ export class LanguageResolver {
      * receiver is more specific than every other's; undefined where none applies, refusing an internal one (LEXICA3023) and several none of which is more specific (LEXICA3024), since no syntax selects one module's.
      */
     #selectOperator(name, source, destination, subject, pointer) {
-        const candidates = this.#registry.getOperators(name).filter(operator => this.#registry.getOperatorDestination(operator).equals(destination));
-        const selection = this.#memberSelector.select(candidates, source);
+        const declared = this.#registry.getOperators(name).filter(operator => this.#registry.getOperatorDestination(operator).equals(destination));
+        const selection = this.#memberSelector.select(this.#imported.getAvailable(declared), source);
+
+        if (selection.kind === 'none') {
+            this.#refuseUnimported(declared, source, subject, pointer);
+        }
 
         if (selection.kind === 'internal') {
             this.#failInternal(subject, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
@@ -740,7 +768,7 @@ export class LanguageResolver {
         if (!this.#registry.isConvertible(to)) {
             const cast = to?.kind === 'named' && this.#registry.isReferenceType(to) ? `; a reference is cast to a type of its hierarchy with 'as', as in … as ${node.type}` : '';
 
-            this.#fail(this.#declaresTypeNamed(node.type) ? 'LEXICA3021' : 'LEXICA3019', `'to' converts to a type of data named as it is declared, Number, String, Boolean or a structured type the vocabulary declares, and '${node.type}' is none of them${cast}`, pointer);
+            this.#fail(this.#declaresTypeNamed(node.type) ? 'LEXICA3021' : 'LEXICA3019', `'to' converts to a type of data named as it is declared, Number, String, Boolean or a structured type the vocabulary declares, and '${node.type}' is none of them${cast}${this.#typeImportHintOf(node.type)}`, pointer);
         }
 
         const from = target.type;
@@ -756,7 +784,7 @@ export class LanguageResolver {
         const declaration = isIdentity ? undefined : this.#selectOperator('convert', source, to, `The conversion from ${source} to ${to}`, pointer);
 
         if (!isIdentity && declaration === undefined) {
-            const targets = [...new Set(this.#memberSelector.getAccessible(this.#registry.getOperators('convert')).filter(operator => this.#typeChecker.resolveApplyingReceiverType(operator, source) !== undefined).map(operator => String(this.#registry.getOperatorDestination(operator))))];
+            const targets = [...new Set(this.#memberSelector.getAccessible(this.#imported.getAvailable(this.#registry.getOperators('convert'))).filter(operator => this.#typeChecker.resolveApplyingReceiverType(operator, source) !== undefined).map(operator => String(this.#registry.getOperatorDestination(operator))))];
             const available = targets.length === 0 ? `${source} converts to nothing` : `${source} converts to ${targets.join(', ')}`;
 
             this.#fail('LEXICA3022', `No conversion from ${source} to ${to.name} is declared, and ${available}`, pointer);
@@ -1172,7 +1200,7 @@ export class LanguageResolver {
             return `${receiver}.${name}`;
         }
 
-        const selection = this.#memberSelector.select(this.#registry.getReceiverMembers(name), type);
+        const selection = this.#memberSelector.select(this.#receiverMembersNamed(name), type);
 
         if (selection.kind !== 'selected') {
             return null;
@@ -1301,7 +1329,7 @@ export class LanguageResolver {
      * `indexer` where any declaration of its name is a named indexer; null where none is either, as a property's or a field's name is, given the access's receiver as it resolved. It decides how brackets after the access read.
      */
     #memberKindNamedBy(access, receiver) {
-        const declarations = this.#registry.getReceiverMembers(access.name).filter(declaration => declaration.kind !== 'property');
+        const declarations = this.#receiverMembersNamed(access.name).filter(declaration => declaration.kind !== 'property');
 
         if (declarations.length === 0 || receiver.kind !== 'value') {
             return null;
@@ -1318,7 +1346,7 @@ export class LanguageResolver {
         }
 
         // The member of the name the receiver selects decides, a property among them, which hides an indexer of its name above it.
-        const selection = this.#memberSelector.select(this.#registry.getReceiverMembers(access.name), receiverType);
+        const selection = this.#memberSelector.select(this.#receiverMembersNamed(access.name), receiverType);
 
         return selection.kind !== 'selected' || selection.declaration.kind === 'property' ? null : selection.declaration.kind;
     }
@@ -1342,7 +1370,11 @@ export class LanguageResolver {
             return this.#storeResolution(pointer, this.#resolveObjectRootField(node, pointer, receiverType));
         }
 
-        const selection = this.#memberSelector.select(unnamedIndexers, receiverType);
+        const selection = this.#memberSelector.select(this.#imported.getAvailable(unnamedIndexers), receiverType);
+
+        if (selection.kind === 'none') {
+            this.#refuseUnimported(unnamedIndexers, receiverType, `The unnamed indexer of ${receiverType.toNonNullable()}`, pointer);
+        }
 
         if (selection.kind === 'internal') {
             this.#failInternal(`The unnamed indexer of ${receiverType.toNonNullable()}`, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
@@ -1351,7 +1383,7 @@ export class LanguageResolver {
         if (selection.kind === 'none') {
             // A string key may name a property of the receiver, which a computed property access reads.
             const key = node.argument.kind === 'literal' ? node.argument.value : null;
-            const isNamed = typeof key === 'string' && ((receiverType.kind === 'object' ? receiverType.getObjectFieldType(key) : (this.#registry.getDataShape(receiverType)?.get(key) ?? null)) !== null || this.#registry.getReceiverMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
+            const isNamed = typeof key === 'string' && ((receiverType.kind === 'object' ? receiverType.getObjectFieldType(key) : (this.#registry.getDataShape(receiverType)?.get(key) ?? null)) !== null || this.#receiverMembersNamed(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
             const computed = isNamed ? DefinitionWriter.quote({ kind: 'memberAccess', receiver: node.receiver, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
 
             this.#fail('LEXICA3012', `${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
@@ -1569,13 +1601,18 @@ export class LanguageResolver {
             return { result: { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false }, resolution: { kind: 'objectField', name: access.name }, use: null };
         }
 
-        const candidates = this.#registry.getReceiverMembers(access.name);
+        const declared = this.#registry.getReceiverMembers(access.name);
 
-        if (candidates.length === 0) {
+        if (declared.length === 0) {
             this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${access.name}' is no member of the vocabulary${this.#joinedNameHintOf(node, receiverType)}`, pointer);
         }
 
+        const candidates = this.#imported.getAvailable(declared);
         const selection = this.#memberSelector.select(candidates, receiverType);
+
+        if (selection.kind === 'none') {
+            this.#refuseUnimported(declared, receiverType, `'${access.name}' on ${receiverType.toNonNullable()}`, pointer);
+        }
 
         if (selection.kind === 'internal') {
             this.#failInternal(`'${access.name}' on ${receiverType.toNonNullable()}`, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
@@ -1622,12 +1659,16 @@ export class LanguageResolver {
         const isUnnamedIndexer = node.kind === 'indexerAccess' && access.name === undefined;
         const written = isUnnamedIndexer ? '[…]' : access.name;
         const declared = isUnnamedIndexer ? this.#registry.getUnnamedIndexers() : this.#registry.getReceiverMembers(access.name);
-        const accessible = this.#memberSelector.getAccessible(declared);
+        const accessible = this.#memberSelector.getAccessible(this.#imported.getAvailable(declared));
         const candidates = isUnnamedIndexer ? accessible : accessible.filter(candidate => FORM_NODE_KINDS[candidate.kind] === node.kind);
 
         if (node.kind !== 'memberAccess' && candidates.length === 0) {
             if (declared.length === 0) {
                 this.#fail('LEXICA3001', `'${written}' is no member of the vocabulary`, pointer);
+            }
+
+            if (accessible.length === 0) {
+                this.#refuseUnimported(declared, null, `'${written}'`, pointer);
             }
 
             if (accessible.length === 0) {
@@ -1807,7 +1848,7 @@ export class LanguageResolver {
      */
     #resolveThroughNamespace(node, pointer, scope, contract = null) {
         const access = LanguageResolver.#accessOf(node);
-        const moduleName = this.#importedModules.get(access.receiver.name);
+        const moduleName = this.#imported.getNamespaceModule(access.receiver.name);
         const written = `${access.receiver.name}.${access.name}`;
         const declared = this.#registry.getMembersDeclaredBy(moduleName, access.name);
         const namedDeclarations = this.#memberSelector.getAccessible(declared);
@@ -2152,7 +2193,11 @@ export class LanguageResolver {
     #resolveOnUnknownType(node, pointer, scope, receiverType, declared = this.#registry.getReceiverMembers(LanguageResolver.#accessOf(node).name), offset = 0) {
         const access = LanguageResolver.#accessOf(node);
         const isAccess = node.kind === 'memberAccess';
-        const candidates = this.#memberSelector.getAccessible(declared);
+        const candidates = this.#memberSelector.getAccessible(this.#imported.getAvailable(declared));
+
+        if (!isAccess && candidates.length === 0) {
+            this.#refuseUnimported(declared, null, `'${access.name ?? '[…]'}'`, pointer);
+        }
 
         if (!isAccess && declared.length > 0 && candidates.length === 0) {
             this.#failInternal(`'${access.name}'`, this.#registry.getDeclaringModuleName(declared[0]), pointer);

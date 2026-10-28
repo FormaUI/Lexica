@@ -10,6 +10,7 @@ import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../support/home.mjs';
 import { constantUpdates } from '../support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration } from '../support/declarations.mjs';
+import { parseImporting } from '../support/pipeline.mjs';
 
 const { createPropertyDeclaration } = Declarations;
 
@@ -34,7 +35,7 @@ const shapes = new LexicaModule('shapes', withHome({
 /** The resolution of the text against a registry of Lexica's own module and the shapes, and an evaluation of it with the bindings given. */
 const resolve = (text, values = { name: 'tea' }) => {
     const registry = new LexicaRegistry([Vocabulary.module, shapes]);
-    const definition = ParsedTexts.parse(text);
+    const definition = parseImporting(registry, text);
     const bindings = new ParameterBindings(registry, values);
     const locations = ParsedTexts.locationsOf(definition);
     const resolved = new LanguageResolver(registry, bindings, locations).resolveDefinition(definition);

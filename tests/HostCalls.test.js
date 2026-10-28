@@ -3,7 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, hostFunctionDeclaration } from './support/declarations.mjs';
-import { resolveWith } from './support/pipeline.mjs';
+import { resolveWith, createImportingRegistry } from './support/pipeline.mjs';
 
 const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
@@ -47,7 +47,7 @@ const resolve = (text, values = bindings, modules = [createHome()]) => resolveWi
 describe('host calls', () => {
     it('end a script, whose resolution answers the call by its name and the declaration it resolved to', () => {
         const home = createHome();
-        const registry = lexica.createRegistry([home]);
+        const registry = createImportingRegistry([home]);
         const resolution = registry.resolve('light.dim({ to = 40 })', bindings);
 
         expect(resolution.hostCall).toEqual({ name: 'dim', declaration: home.types[2].members[0] });
@@ -158,7 +158,7 @@ describe('prepared calls', () => {
     /** An evaluator of the text against a registry holding the home's module, with the home's bindings and the environment given, and the registry itself. */
     const evaluatorOf = (text, { values = bindings, env = { levels: {}, occupied: [] }, invoked = [] } = {}) => {
         const home = createHome(invoked);
-        const registry = lexica.createRegistry([home]);
+        const registry = createImportingRegistry([home]);
 
         return { evaluator: registry.resolve(text, values).createEvaluator(values, env), home, registry };
     };
@@ -334,7 +334,7 @@ describe('values a host supplies', () => {
     }));
 
     /** The call the text ends in, prepared against a registry holding the desk's module. */
-    const prepared = text => lexica.createRegistry([createReports()]).resolve(text, { desk: 'desk' }).createEvaluator({ desk: 'desk' }).prepareHostCall();
+    const prepared = text => createImportingRegistry([createReports()]).resolve(text, { desk: 'desk' }).createEvaluator({ desk: 'desk' }).prepareHostCall();
     const reporting = () => prepared('desk.report() { hasTarget = it.target != null, note = it.note, count = it.count, spot = it.spot, spots = it.spots }');
     const report = overrides => ({ target: lamp, owner: lamp, note: 'filed', count: 1, spot: { x: 1, label: 'a' }, spots: [{ x: 2, label: null }], ...overrides });
 
@@ -384,7 +384,7 @@ describe('values a host supplies', () => {
     });
 
     it('are captured where a member\'s answer never is, its implementation answering what it declares', () => {
-        const refused = errorThrownBy(() => lexica.createRegistry([createReports()]).resolve('desk.spotted', { desk: 'desk' }).createEvaluator({ desk: 'desk' }).evaluate());
+        const refused = errorThrownBy(() => createImportingRegistry([createReports()]).resolve('desk.spotted', { desk: 'desk' }).createEvaluator({ desk: 'desk' }).evaluate());
 
         expect(refused).toMatchObject({ kind: 'evaluation' });
         expect(prepared('desk.maybe()').project({ x: 1 }).value).toEqual({ x: 1, label: null });

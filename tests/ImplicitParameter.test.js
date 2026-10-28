@@ -3,7 +3,7 @@ import { lexica } from '#lexica/lexica.js';
 import { extensionDeclaration } from './support/declarations.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
-import { evaluateWithCreatedBindings, resolveWith } from './support/pipeline.mjs';
+import { evaluateWithCreatedBindings, resolveWith, createImportingRegistry } from './support/pipeline.mjs';
 
 const { createPropertyDeclaration, createFunctionParameterDeclaration, createValueParameterDeclaration, createExpressionParameterDeclaration, createPredicateParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
@@ -130,7 +130,7 @@ describe('the implicit parameter', () => {
         it('refuses a function the member calls after it returned or failed, whether a body or an arrow function gives it', () => {
             for (const predicate of ['it.vegan()', 'w => w.vegan()']) {
                 const held = {};
-                const registry = lexica.createRegistry([createPantry(held)]);
+                const registry = createImportingRegistry([createPantry(held)]);
                 const bindings = registry.createBindings(values);
                 const evaluator = registry.resolve(`words.keepWhereAndFail(${predicate})`, bindings).createEvaluator(bindings);
 

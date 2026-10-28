@@ -8,6 +8,7 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { constantUpdates } from '../support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from '../support/declarations.mjs';
+import { parseImporting } from '../support/pipeline.mjs';
 
 /** A word the shop sells, a value with identity the shop recognizes. */
 class Word {
@@ -98,7 +99,7 @@ describe('LanguageResolver', () => {
         it('keeps each name\'s resolution by its name and records each use as its name is resolved, its own pointer holding its own resolution', () => {
             const property = (name, result = 'Number') => Declarations.createPropertyDeclaration(name, result, { updates: constantUpdates, impl: () => 1 });
             const lit = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', { types: [extensionDeclaration('Words', 'String', [property('glow'), property('dim'), property('long', 'Boolean')])] })]);
-            const definition = ParsedTexts.parse('return word.[if word.long then "glow" else "dim" end]');
+            const definition = parseImporting(lit, 'return word.[if word.long then "glow" else "dim" end]');
             const resolved = new LanguageResolver(lit, new ParameterBindings(lit, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
             const { kind, resolutionsByName } = resolved.getResolution('/expression/result');
 
@@ -115,7 +116,7 @@ describe('LanguageResolver', () => {
         })]);
         const values = { word: 'oat', pair: { a: 1, b: null }, missing: null };
         const resolveCups = text => {
-            const definition = ParsedTexts.parse(`return ${text}`);
+            const definition = parseImporting(cups, `return ${text}`);
 
             return new LanguageResolver(cups, new ParameterBindings(cups, values), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
         };
@@ -172,7 +173,7 @@ describe('LanguageResolver', () => {
             const fading = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
                 types: [extensionDeclaration(target === 'T' ? 'Fades<T>' : 'Fades', target, [Declarations.createPropertyDeclaration('fade', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver })])],
             })]);
-            const definition = ParsedTexts.parse('return word.fade');
+            const definition = parseImporting(fading, 'return word.fade');
 
             return new LanguageResolver(fading, new ParameterBindings(fading, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition).usedDeclarations.map(use => use.qualifiedName);
         };

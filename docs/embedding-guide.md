@@ -67,12 +67,12 @@ An implementation receives one object and reads what it needs by name: its `rece
 
 ## Resolve a script
 
-A registry holds the modules a host registers. Resolving a script against it checks every member, argument and type before anything runs:
+A registry holds the modules a host registers. Resolving a script against it checks every member, argument and type before anything runs, among what the script's imports make available, a module's members through its import and Lexica's own always, so a member of a module no import names is refused, giving the import to write:
 
 ```js
 const registry = lexica.createRegistry([shop]);
 const bindings = registry.createBindings({ product: 'tea', code: 'TEN' });
-const resolution = registry.resolve('{ price = product.price, cut = product.discount(code) }', bindings);
+const resolution = registry.resolve('{ price = product.price, cut = product.discount(code) }', bindings, { imports: ['Shop'] });
 
 resolution.type;                       // '{ price: Price, cut: Number }'
 resolution.typeAt(['price', 'amount']); // 'Number'

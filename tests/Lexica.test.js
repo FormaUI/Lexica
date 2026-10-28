@@ -3,6 +3,7 @@ import { LexicaError, lexica } from '#lexica/lexica.js';
 import { Versions } from '#lexica/language/Versions.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
+import { createImportingRegistry } from './support/pipeline.mjs';
 
 describe('lexica', () => {
     it('runs where no browser global exists', () => {
@@ -40,7 +41,7 @@ describe('lexica', () => {
         const thirtyOne = { version: 31, expression: { kind: 'context' } };
 
         expect(errorThrownBy(() => lexica.validate(thirtyOne))).toMatchObject({ kind: 'structure', location: { pointer: '/version' }, message: expect.stringContaining(`A definition is of version ${Versions.definition}, the one this implementation reads, and this one is of version 31`) });
-        expect(errorThrownBy(() => lexica.createRegistry().resolve(thirtyOne))).toMatchObject({ kind: 'structure' });
+        expect(errorThrownBy(() => createImportingRegistry().resolve(thirtyOne))).toMatchObject({ kind: 'structure' });
     });
 
     it('reads the implicit parameter as it and the object root as root, nodes of their own, and context as an ordinary name', () => {
@@ -50,7 +51,7 @@ describe('lexica', () => {
         ] });
         expect(lexica.parse('context.size').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'context' }, name: 'size' });
         expect(lexica.format('{ let context = 1, value = context + 1 }')).toBe('{\n    let context = 1,\n    value = context + 1\n}');
-        expect(lexica.createRegistry().resolve('{ context = context }', { context: 2 }).createEvaluator({ context: 2 }).evaluate().value).toEqual({ context: 2 });
+        expect(createImportingRegistry().resolve('{ context = context }', { context: 2 }).createEvaluator({ context: 2 }).evaluate().value).toEqual({ context: 2 });
     });
 
     it('refuses a ~ that names no script parameter, since ~ alone reads nothing', () => {
@@ -59,7 +60,7 @@ describe('lexica', () => {
     });
 
     it('reads a lexical reference before any identifier, the local or the field of its name, and writes one only where the identifier alone means something else', () => {
-        expect(lexica.createRegistry().resolve('let total = 2\nreturn @total + total', {}).createEvaluator({}).evaluate().value).toBe(4);
+        expect(createImportingRegistry().resolve('let total = 2\nreturn @total + total', {}).createEvaluator({}).evaluate().value).toBe(4);
         expect(lexica.format('let total = 2\nreturn @total')).toBe('let total = 2\nreturn total');
         expect(lexica.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn home');
         expect(lexica.format('import home\nlet home = 2\nreturn @home')).toBe('import home\n\nlet home = 2\nreturn @home');
@@ -69,7 +70,7 @@ describe('lexica', () => {
     });
 
     it('reads a word as the role its position gives it where the position expects a name, a module\'s name among them, and as the language\'s own meaning where a value stands', () => {
-        const registry = lexica.createRegistry([lexica.createModule('home', {})]);
+        const registry = createImportingRegistry([lexica.createModule('home', {})]);
 
         expect(registry.parse('import home\nnode.root + node.home').expression).toEqual({ kind: 'arithmetic', operator: '+', left: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'node' }, name: 'root' }, right: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'node' }, name: 'home' } });
         expect(registry.format('import home\n{ home = 1, root = 2, b = @home + @root }')).toBe('import home\n\n{\n    home = 1,\n    root = 2,\n    b = @home + @root\n}');
@@ -97,7 +98,7 @@ describe('lexica', () => {
             types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [{ name: 'zoom', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length * 2 }, operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length }))])],
             observationTypes: [{ name: 'tick', contract: 'invalidation', impl: tick }],
         });
-        const registry = lexica.createRegistry([module]);
+        const registry = createImportingRegistry([module]);
         const evaluate = text => registry.resolve(text, { word: 'oat' }).createEvaluator({ word: 'oat' }).evaluate().value;
 
         expect(evaluate('{ zoom = word.zoom, size = (word to Cup).size }')).toEqual({ zoom: 6, size: 3 });
@@ -116,7 +117,7 @@ describe('lexica', () => {
                 ],
             }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length }))])],
         });
-        const resolution = lexica.createRegistry([cups]).resolve('{ size = (word to Cup).size, doubled = (word to Cup).doubled }', { word: 'oat' });
+        const resolution = createImportingRegistry([cups]).resolve('{ size = (word to Cup).size, doubled = (word to Cup).doubled }', { word: 'oat' });
         const told = [];
 
         expect(resolution.usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['String to Cup', 'Cup.size', 'String to Cup', 'Cup.doubled']);
@@ -125,7 +126,7 @@ describe('lexica', () => {
     });
 
     it('names a used unnamed indexer, which declares no name, by its receiver type and the brackets its access is written with', () => {
-        const resolution = lexica.createRegistry().resolve('items[0]', { items: [1, 2] });
+        const resolution = createImportingRegistry().resolve('items[0]', { items: [1, 2] });
 
         expect(resolution.usedDeclarations.map(({ name, qualifiedName, pointer }) => ({ name, qualifiedName, pointer }))).toEqual([{ name: null, qualifiedName: 'List[]', pointer: '/expression' }]);
         expect(resolution.createEvaluator({ items: [1, 2] }).evaluate().value).toBe(1);
@@ -144,19 +145,19 @@ describe('lexica', () => {
         const prices = lexica.createModule('price', {
             types: [{ name: 'Item', kind: 'structured', members: dataPropertyDeclarations({ price: 'Number', quantity: 'Number' }) }, extensionDeclaration('StringExtensions', 'String', [{ name: 'price', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }])],
         });
-        const registry = lexica.createRegistry([prices]);
+        const registry = createImportingRegistry([prices]);
         const items = [{ price: 2, quantity: 3 }];
 
         expect(registry.moduleNames).toEqual(['Lexica', 'price']);
         expect(registry.resolve('items { total = it.price * it.quantity }.count', { items })).toMatchObject({ hostCall: null, type: 'Number' });
         expect(registry.resolve('"10".price + 1')).toMatchObject({ hostCall: null, type: 'Number' });
-        expect(lexica.createRegistry().moduleNames).toEqual(['Lexica']);
-        expect(errorThrownBy(() => lexica.createRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
+        expect(createImportingRegistry().moduleNames).toEqual(['Lexica']);
+        expect(errorThrownBy(() => createImportingRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
 
     it('binds plain values each time it is given them and reuses the bindings its registry created, asking no module\'s typeOf of a script it refuses', () => {
         const asked = [];
-        const registry = lexica.createRegistry([lexica.createModule('counting', { typeOf: value => (asked.push(value.label), null) })]);
+        const registry = createImportingRegistry([lexica.createModule('counting', { typeOf: value => (asked.push(value.label), null) })]);
         const bindings = registry.createBindings({ word: { label: 'oat' } });
 
         expect(asked).toEqual(['oat']);
@@ -169,7 +170,7 @@ describe('lexica', () => {
     });
 
     it('registers a module with a registry, whose expressions resolved afterwards may use its vocabulary', () => {
-        const registry = lexica.createRegistry();
+        const registry = createImportingRegistry();
 
         registry.registerModule(lexica.createModule('double', {
             types: [extensionDeclaration('NumberExtensions', 'Number', [{ name: 'double', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }])],

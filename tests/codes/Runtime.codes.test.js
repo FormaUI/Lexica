@@ -10,6 +10,7 @@ import { Device, Light, Room, Thermostat, homeTypeOf, homeTypes, withHome } from
 import { errorThrownBy, expectLexicaError } from '../support/errors.mjs';
 import { constantUpdates, derivedUpdates } from '../support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from '../support/declarations.mjs';
+import { createImportingRegistry, parseImporting } from '../support/pipeline.mjs';
 
 const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration, createFunctionDeclaration, createIndexerDeclaration } = lexica.declarations;
 
@@ -49,7 +50,7 @@ const createBare = () => lexica.createModule('bare', {
 });
 
 /** The evaluator of the text against a registry of the pantry, bound to the values given. */
-const evaluatorOf = (text, values = { word: 'oat' }, env = {}) => lexica.createRegistry([createPantry()]).resolve(text, values).createEvaluator(values, env);
+const evaluatorOf = (text, values = { word: 'oat' }, env = {}) => createImportingRegistry([createPantry()]).resolve(text, values).createEvaluator(values, env);
 
 /** The error evaluating the text throws, for the host given. */
 const failureOf = (text, values = { word: 'oat' }, host = null) => errorThrownBy(() => evaluatorOf(text, values).evaluate(host));
@@ -59,7 +60,7 @@ const failureOf = (text, values = { word: 'oat' }, host = null) => errorThrownBy
  */
 const directEvaluatorOf = (modules, text, resolvedWith, evaluatedWith = resolvedWith) => {
     const registry = new LexicaRegistry([Vocabulary.module, ...modules]);
-    const definition = ParsedTexts.parse(text);
+    const definition = parseImporting(registry, text);
     const locations = ParsedTexts.locationsOf(definition);
     const resolved = new LanguageResolver(registry, new ParameterBindings(registry, resolvedWith), locations).resolveDefinition(definition);
 
@@ -69,16 +70,16 @@ const directEvaluatorOf = (modules, text, resolvedWith, evaluatedWith = resolved
 describe('the runtime codes', () => {
     describe('of bindings', () => {
         it('LEXICA2020: bindings that are not a plain object', () => {
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry().createBindings([1])), 'LEXICA2020', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings([1])), 'LEXICA2020', 'structure');
         });
 
         it('LEXICA2033: a binding not named by a letter followed by letters and digits', () => {
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry().createBindings({ 'floor-area': 1 })), 'LEXICA2033', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ 'floor-area': 1 })), 'LEXICA2033', 'structure');
         });
 
         it('LEXICA2034: a binding that is not data and that nothing recognizes', () => {
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry().createBindings({ shelf: new Map() })), 'LEXICA2034', 'structure');
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry().createBindings({ weight: Number.NaN })), 'LEXICA2034', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf: new Map() })), 'LEXICA2034', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ weight: Number.NaN })), 'LEXICA2034', 'structure');
         });
 
         it('LEXICA2022: a bound value holding a cycle', () => {
@@ -86,28 +87,28 @@ describe('the runtime codes', () => {
 
             shelf.self = shelf;
 
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry().createBindings({ shelf })), 'LEXICA2022', 'structure');
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry().createBindings({ shelves: [shelf] })), 'LEXICA2022', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf })), 'LEXICA2022', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelves: [shelf] })), 'LEXICA2022', 'structure');
         });
 
         it('LEXICA2021: a bound list whose items share no type', () => {
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry().createBindings({ items: [1, 'two'] })), 'LEXICA2021', 'structure');
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry([lexica.createModule('home', withHome())]).createBindings({ items: [new Room('hall'), new Light('lamp')] })), 'LEXICA2021', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ items: [1, 'two'] })), 'LEXICA2021', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome())]).createBindings({ items: [new Room('hall'), new Light('lamp')] })), 'LEXICA2021', 'structure');
         });
     });
 
     describe('of reference bindings', () => {
-        const home = () => lexica.createRegistry([lexica.createModule('home', withHome())]);
-        const recognizing = (typeOf, types = homeTypes) => lexica.createRegistry([lexica.createModule('home', { typeOf, types })]);
+        const home = () => createImportingRegistry([lexica.createModule('home', withHome())]);
+        const recognizing = (typeOf, types = homeTypes) => createImportingRegistry([lexica.createModule('home', { typeOf, types })]);
 
         it('LEXICA2034: a value no module recognizes that is no data', () => {
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry().createBindings({ lamp: new Light('lamp') })), 'LEXICA2034', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ lamp: new Light('lamp') })), 'LEXICA2034', 'structure');
         });
 
         it('LEXICA2035: a value modules recognize as unrelated types', () => {
             const garden = lexica.createModule('garden', { typeOf: value => (value instanceof Light ? 'Lamp' : null), types: [{ name: 'Lamp', kind: 'reference', isInstance: value => value instanceof Light }] });
 
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry([lexica.createModule('home', withHome()), garden]).createBindings({ lamp: new Light('lamp') })), 'LEXICA2035', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome()), garden]).createBindings({ lamp: new Light('lamp') })), 'LEXICA2035', 'structure');
         });
 
         it('LEXICA2036: a declared type that no public type is, or that the value does not belong to', () => {
@@ -118,7 +119,7 @@ describe('the runtime codes', () => {
         it('LEXICA2037: a declared type several types share unqualified', () => {
             const office = lexica.createModule('office', { types: [{ name: 'Device', kind: 'reference', isInstance: () => true }] });
 
-            expectLexicaError(errorThrownBy(() => lexica.createRegistry([lexica.createModule('home', withHome()), office]).createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Device' } })), 'LEXICA2037', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome()), office]).createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Device' } })), 'LEXICA2037', 'structure');
         });
 
         it('LEXICA2023: a declared type that is not a reference type', () => {
@@ -179,7 +180,7 @@ describe('the runtime codes', () => {
     });
 
     describe('of the entry point', () => {
-        const registry = lexica.createRegistry([createPantry()]);
+        const registry = createImportingRegistry([createPantry()]);
 
         it('LEXICA2643: a pointer that is not a JSON Pointer', () => {
             expectLexicaError(errorThrownBy(() => lexica.getLocation(lexica.parse('1 + 2'), 'expression')), 'LEXICA2643', 'structure');
@@ -197,7 +198,7 @@ describe('the runtime codes', () => {
         });
 
         it('LEXICA2040: creating or entering an evaluator after its registry\'s revision has moved', () => {
-            const growing = lexica.createRegistry([createPantry()]);
+            const growing = createImportingRegistry([createPantry()]);
             const resolution = growing.resolve('word.size', { word: 'oat' });
             const evaluator = resolution.createEvaluator({ word: 'oat' });
 
@@ -214,7 +215,7 @@ describe('the runtime codes', () => {
         });
 
         it('LEXICA4001: creating an evaluator for a resolution whose used member or conversion has no implementation', () => {
-            const bare = lexica.createRegistry([createBare()]);
+            const bare = createImportingRegistry([createBare()]);
 
             const member = errorThrownBy(() => bare.resolve('word.weight', { word: 'oat' }).createEvaluator({ word: 'oat' }));
             const conversion = errorThrownBy(() => bare.resolve('(word to Mug).size', { word: 'oat' }).createEvaluator({ word: 'oat' }));
@@ -236,7 +237,7 @@ describe('the runtime codes', () => {
     });
 
     describe('of result paths', () => {
-        const registry = lexica.createRegistry([createPantry()]);
+        const registry = createImportingRegistry([createPantry()]);
 
         it('LEXICA2646: a path item that is neither a name nor a list index', () => {
             expectLexicaError(errorThrownBy(() => lexica.paths.validate(['total', -1])), 'LEXICA2646', 'structure');

@@ -9,6 +9,7 @@ import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
 import { extensionDeclaration } from '../support/declarations.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
+import { parseImporting } from '../support/pipeline.mjs';
 
 const { createPropertyDeclaration } = Declarations;
 
@@ -30,7 +31,7 @@ const createPrices = invoked => new LexicaModule('prices', {
 /** An evaluator of the text against a registry holding Lexica's own module and the prices module, with the bindings and the environment given. */
 const createEvaluator = (text, values, { env = {}, invoked = [] } = {}) => {
     const registry = new LexicaRegistry([Vocabulary.module, createPrices(invoked)]);
-    const definition = ParsedTexts.parse(text);
+    const definition = parseImporting(registry, text);
     const bindings = new ParameterBindings(registry, values);
     const locations = ParsedTexts.locationsOf(definition);
     const resolved = new LanguageResolver(registry, bindings, locations).resolveDefinition(definition);

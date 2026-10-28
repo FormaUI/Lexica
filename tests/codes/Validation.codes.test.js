@@ -102,9 +102,13 @@ describe('the codes of resolution', () => {
         });
         it("LEXICA3003, a registered module's name read where a value stands, which no import gives and no binding has", () => {
             expect(refusalWithoutImportsOf('shop.open')).toMatchObject({ code: 'LEXICA3003', location: { pointer: '/expression/receiver' }, message: expect.stringContaining("write 'import shop' at the script's start") });
-            expect(lexica.createRegistry([createShop()]).resolve('shop.size', { shop: 'oat' }).type).toBe('Number');
+            expect(lexica.createRegistry([createShop()]).resolve('shop == "oat"', { shop: 'oat' }).type).toBe('Boolean');
             expect(refusalWithoutImportsOf('import Store = shop\nshop.open').code).toBe('LEXICA3003');
             expect(lexica.createRegistry([createShop()]).resolve('import Store = shop\nStore.open').type).toBe('Boolean');
+        });
+        it('LEXICA3005, a member declared on its receiver only by modules, types or extensions the script does not import', () => {
+            expect(refusalWithoutImportsOf('word.size', { word: 'oat' })).toMatchObject({ code: 'LEXICA3005', location: { pointer: '/expression' }, message: expect.stringContaining("'size' on String is declared only by 'shop', which the script does not import: write 'import shop'") });
+            expect(lexica.createRegistry([createShop()]).resolve('word.size', { word: 'oat' }, { imports: ['shop'] }).type).toBe('Number');
         });
         it('LEXICA3501, an extension selected explicitly, which this implementation resolves once text writes one', () => {
             const definition = { version: 34, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 's' }, name: 'size', extension: { name: 'Words', module: 'shop' } } };

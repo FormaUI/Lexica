@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
-import { evaluateWith, resolveWith } from './support/pipeline.mjs';
+import { evaluateWith, resolveWith, createImportingRegistry } from './support/pipeline.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 
 const { createPropertyDeclaration, createValueParameterDeclaration, createIndexerDeclaration, createFunctionDeclaration } = lexica.declarations;
@@ -102,7 +102,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses a receiver that can be null where only its brackets are optional, which protect nothing before its name', () => {
-            const registry = lexica.createRegistry([createText(), lexica.createModule('maybe', {
+            const registry = createImportingRegistry([createText(), lexica.createModule('maybe', {
                 types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('maybe', 'String?', { updates: constantUpdates, impl: ({ receiver }) => (receiver === '' ? null : receiver) })])],
             })]);
 
@@ -112,7 +112,7 @@ describe('indexers and computed properties', () => {
 
         it('answers null for a null receiver written optionally, its key unevaluated', () => {
             const keys = [];
-            const registry = lexica.createRegistry([createText(), lexica.createModule('keys', {
+            const registry = createImportingRegistry([createText(), lexica.createModule('keys', {
                 types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('key', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (keys.push(receiver), 1) })])],
             })]);
 
@@ -123,7 +123,7 @@ describe('indexers and computed properties', () => {
 
         it('evaluates the receiver before its name once, before its key, a member\'s answer among them', () => {
             const invoked = [];
-            const registry = lexica.createRegistry([createText(), lexica.createModule('steps', {
+            const registry = createImportingRegistry([createText(), lexica.createModule('steps', {
                 types: [
                     extensionDeclaration('StringExtensions', 'String', [
                         createPropertyDeclaration('trimmed', 'String', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push('trimmed'), receiver.trim()) }),
@@ -147,7 +147,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses a function written with brackets, giving its call', () => {
-            const registry = lexica.createRegistry([lexica.createModule('cut', {
+            const registry = createImportingRegistry([lexica.createModule('cut', {
                 types: [extensionDeclaration('StringExtensions', 'String', [createFunctionDeclaration('cut', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('percent', 'Number')], impl: ({ args }) => args.percent })])],
             })]);
 
@@ -196,7 +196,7 @@ describe('indexers and computed properties', () => {
                 ]),
             ],
         });
-        const valueOf = (text, size, bound) => lexica.createRegistry([createCups(size)]).resolve(text, bound).createEvaluator(bound).evaluate().value;
+        const valueOf = (text, size, bound) => createImportingRegistry([createCups(size)]).resolve(text, bound).createEvaluator(bound).evaluate().value;
 
         it('is invoked, checked and copied as the property read by its name is', () => {
             const bound = { item: 'latte', name: 'size', other: 'cup' };
@@ -220,13 +220,13 @@ describe('indexers and computed properties', () => {
         });
 
         it('names the type its registered module declares', () => {
-            const resolution = lexica.createRegistry([createCups()]).resolve('import cups\n(order to cups.Cup).size', { order: 'tall' });
+            const resolution = createImportingRegistry([createCups()]).resolve('import cups\n(order to cups.Cup).size', { order: 'tall' });
 
             expect(resolution.createEvaluator({ order: 'tall' }).evaluate().value).toBe(4);
         });
 
         it('refuses a module no registry holds, and a type its module does not declare', () => {
-            const registry = lexica.createRegistry([createCups()]);
+            const registry = createImportingRegistry([createCups()]);
 
             expect(errorThrownBy(() => registry.resolve('order to mugs.Cup', { order: 'tall' })).message).toContain("'mugs.Cup' is qualified by 'mugs', which no import of the script gives a module");
             expect(errorThrownBy(() => registry.resolve('import mugs\norder to mugs.Cup', { order: 'tall' })).message).toContain("'import mugs' imports the module 'mugs', which the registry does not hold");

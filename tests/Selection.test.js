@@ -4,7 +4,7 @@ import { Device, Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { extensionDeclaration } from './support/declarations.mjs';
-import { importsOf } from './support/pipeline.mjs';
+import { importsOf, createImportingRegistry } from './support/pipeline.mjs';
 
 const { createPropertyDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
 
@@ -30,14 +30,14 @@ const values = { device: new Device('fan'), light: new Light('lamp'), thermostat
 
 /** What the text evaluates to against a registry of the modules given, in the order given, with the values given bound. */
 const evaluateWith = (modules, text, bound = values) => {
-    const registry = lexica.createRegistry(modules);
+    const registry = createImportingRegistry(modules);
     const bindings = registry.createBindings(bound);
 
     return registry.resolve(text, bindings, { imports: importsOf(modules) }).createEvaluator(bindings).evaluate().value;
 };
 
 /** The error resolving the text against a registry of the modules given throws, with the values given bound. */
-const refusalWith = (modules, text, bound = values) => errorThrownBy(() => lexica.createRegistry(modules).resolve(text, bound, { imports: importsOf(modules) }));
+const refusalWith = (modules, text, bound = values) => errorThrownBy(() => createImportingRegistry(modules).resolve(text, bound, { imports: importsOf(modules) }));
 
 describe('the selection of a member', () => {
     it('takes the owner\'s applicable member over every extension, whatever order the modules registered in', () => {
@@ -87,7 +87,7 @@ describe('the selection of a member', () => {
         const gear = lexica.createModule('Gear', { types: [{ name: 'Gadget', kind: 'reference', isInstance: value => value instanceof Gadget, members: [answering('tag', 'gear')] }] });
         const lamps = lexica.createModule('Lamps', { typeOf: value => (value instanceof Lamp ? 'Lamp' : null), types: [{ name: 'Lamp', kind: 'reference', supertype: 'Gear.Gadget', isInstance: value => value instanceof Lamp }] });
         const shine = lexica.createModule('Shine', { types: [extensionDeclaration('Lamps', 'Lamps.Lamp', [answering('tag', 'shine')])] });
-        const registry = lexica.createRegistry([gear, lamps, shine]);
+        const registry = createImportingRegistry([gear, lamps, shine]);
         const bindings = registry.createBindings({ lamp: new Lamp() });
 
         expect(registry.resolve('lamp.tag', bindings).createEvaluator(bindings).evaluate().value).toBe('shine');

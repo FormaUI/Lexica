@@ -3,6 +3,7 @@ import { lexica } from '#lexica/lexica.js';
 import { Device, Light, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
+import { createImportingRegistry } from './support/pipeline.mjs';
 
 /** A meter, a value of the energy module's own hierarchy, outside the home's. */
 class Meter {
@@ -34,7 +35,7 @@ const values = { meter: new Meter('m'), deviceMeter: new DeviceMeter('d'), word:
 
 /** What the text evaluates to against a registry of the home and energy, its meters cast by the cast operator given. */
 const evaluateWith = (cast, text) => {
-    const registry = lexica.createRegistry([createHome(), createEnergy(cast)]);
+    const registry = createImportingRegistry([createHome(), createEnergy(cast)]);
     const bindings = registry.createBindings(values, { types: { deviceMeter: 'Energy.Meter' } });
 
     return registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
@@ -79,14 +80,14 @@ describe('a cast operator', () => {
     });
 
     it('is reached by no cast its destination does not name, a cast within a hierarchy needing none', () => {
-        const registry = lexica.createRegistry([createHome(), createEnergy(operatorDeclaration('cast', 'Home.Device'))]);
+        const registry = createImportingRegistry([createHome(), createEnergy(operatorDeclaration('cast', 'Home.Device'))]);
 
         expect(errorThrownBy(() => registry.resolve('(meter as Light) == null', { meter: values.meter }))).toMatchObject({ code: 'LEXICA3060' });
         expect(registry.resolve('(lamp as Device) == null', { lamp: new Light('lamp') }).type).toBe('Boolean');
     });
 
     it('is no candidate where it is internal, which no script reaches', () => {
-        const registry = lexica.createRegistry([createHome(), createEnergy({ ...operatorDeclaration('cast', 'Home.Device'), internal: true })]);
+        const registry = createImportingRegistry([createHome(), createEnergy({ ...operatorDeclaration('cast', 'Home.Device'), internal: true })]);
 
         expect(errorThrownBy(() => registry.resolve('(meter as Device) == null', { meter: values.meter }))).toMatchObject({ code: 'LEXICA3023', message: expect.stringContaining('is internal to the module \'Energy\'') });
     });
@@ -94,7 +95,7 @@ describe('a cast operator', () => {
 
 describe('an operator a script uses', () => {
     it('is one of the declarations it uses, named by the syntax that invokes it, and a cast operator without an implementation needs none to evaluate', () => {
-        const registry = lexica.createRegistry([createHome(), createEnergy(operatorDeclaration('cast', 'Home.Device'))]);
+        const registry = createImportingRegistry([createHome(), createEnergy(operatorDeclaration('cast', 'Home.Device'))]);
         const bindings = registry.createBindings(values, { types: { deviceMeter: 'Energy.Meter' } });
         const resolution = registry.resolve('{ text = (word to Temperature) to String, device = (deviceMeter as Device) != null, number = "12" to Number }', bindings);
 

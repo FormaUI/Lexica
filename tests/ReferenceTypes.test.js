@@ -4,7 +4,7 @@ import { extensionDeclaration } from './support/declarations.mjs';
 import { Device, Light, Room, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
-import { evaluateWithCreatedBindings } from './support/pipeline.mjs';
+import { evaluateWithCreatedBindings, createImportingRegistry } from './support/pipeline.mjs';
 
 const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
 
@@ -23,7 +23,7 @@ const heater = new Thermostat('heater');
 const kitchen = new Room('kitchen', [lamp, heater]);
 
 /** A registry of the home. */
-const home = () => lexica.createRegistry([createHome()]);
+const home = () => createImportingRegistry([createHome()]);
 
 /** What the text evaluates to, bound to the values given against a registry of the home. */
 const evaluate = (text, values) => evaluateWithCreatedBindings([createHome()], text, values);
@@ -77,9 +77,9 @@ describe('reference types', () => {
         const office = lexica.createModule('office', { typeOf: value => (value instanceof Device ? 'Device' : null), types: [{ name: 'Device', kind: 'reference', isInstance: value => value instanceof Device }] });
 
         expect(home().createBindings({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:home.Device');
-        expect(lexica.createRegistry([office]).createBindings({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:office.Device');
+        expect(createImportingRegistry([office]).createBindings({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:office.Device');
         expect(home().createBindings({ hall: { lamp: new Device('lamp') } }).resolutionKey).toBe('hall:{ lamp: home.Device }');
-        expect(lexica.createRegistry([office]).createBindings({ hall: { lamp: new Device('lamp') } }).resolutionKey).toBe('hall:{ lamp: office.Device }');
+        expect(createImportingRegistry([office]).createBindings({ hall: { lamp: new Device('lamp') } }).resolutionKey).toBe('hall:{ lamp: office.Device }');
     });
 
     it('register one module\'s members of one name on related receivers, an access resolving through its receiver\'s type, the most specific declaration hiding one above it', () => {
@@ -94,7 +94,7 @@ describe('reference types', () => {
                 createIndexerDeclaration(null, 'String?', { updates: constantUpdates, parameters: [key], impl: () => 'light' }),
             ],
         }));
-        const registry = lexica.createRegistry([active]);
+        const registry = createImportingRegistry([active]);
         const evaluateHere = (text, values) => registry.resolve(text, values).createEvaluator(values).evaluate().value;
 
         expect(evaluateHere('heater.active', { heater })).toBe(false);
@@ -107,7 +107,7 @@ describe('reference types', () => {
     });
 
     it('read brackets after a name by the most specific member of it, a property hiding a named indexer above it and an indexer one', () => {
-        const settings = (propertyType, indexerType) => lexica.createRegistry([lexica.createModule('home', withHome({}, {
+        const settings = (propertyType, indexerType) => createImportingRegistry([lexica.createModule('home', withHome({}, {
             [propertyType]: [createPropertyDeclaration('setting', 'String', { updates: constantUpdates, impl: () => 'property' })],
             [indexerType]: [createIndexerDeclaration('setting', 'String?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')], impl: () => 'indexer' })],
         }))]);
@@ -121,7 +121,7 @@ describe('reference types', () => {
 
     it('resolve an empty list by the most specific applicable declaration, and refuse it, naming the competing ones, where none is', () => {
         // One extension for each target, its name declaring the parameter a target writes.
-        const totals = (...targets) => lexica.createRegistry([lexica.createModule('shop', {
+        const totals = (...targets) => createImportingRegistry([lexica.createModule('shop', {
             types: targets.map((target, index) => extensionDeclaration(`Totals${index}${target.includes('<T>') ? '<T>' : ''}`, target, [createPropertyDeclaration('total', 'String', { updates: constantUpdates, impl: () => target })])),
         })]);
         const evaluateWith = (registry, values) => registry.resolve('items.total', values).createEvaluator(values).evaluate().value;
@@ -141,17 +141,17 @@ describe('reference types', () => {
         }, {
             Room: [createPropertyDeclaration('label', 'String', { updates: constantUpdates, impl: ({ receiver }) => `room ${receiver.name}` })],
         }));
-        const evaluateWith = (module, text, values) => lexica.createRegistry([module]).resolve(text, values, { imports: ['home'] }).createEvaluator(values).evaluate().value;
+        const evaluateWith = (module, text, values) => createImportingRegistry([module]).resolve(text, values, { imports: ['home'] }).createEvaluator(values).evaluate().value;
 
         expect(evaluateWith(members('String'), 'home.label(room)', { room: kitchen })).toBe('room kitchen');
         expect(evaluateWith(members('String'), 'home.label(word)', { word: 'hall' })).toBe('module hall');
-        expect(errorThrownBy(() => lexica.createRegistry([members('Room')]).resolve('import home\nhome.label(room)', { room: kitchen }))).toMatchObject({ code: 'LEXICA3024' });
+        expect(errorThrownBy(() => createImportingRegistry([members('Room')]).resolve('import home\nhome.label(room)', { room: kitchen }))).toMatchObject({ code: 'LEXICA3024' });
         expect(evaluateWith(members('Room'), 'room.label', { room: kitchen })).toBe('room kitchen');
     });
 
     it('check a member\'s answer by its declared type\'s membership, a reference of another type refused', () => {
         const wrong = lexica.createModule('wrong', withHome({ types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('lamp', 'Light', { updates: constantUpdates, impl: () => heater })])] }));
-        const registry = lexica.createRegistry([wrong]);
+        const registry = createImportingRegistry([wrong]);
 
         expect(errorThrownBy(() => registry.resolve('(word.lamp as Light) == null', { word: 'a' }).createEvaluator({ word: 'a' }).evaluate())).toMatchObject({ code: 'LEXICA5006' });
     });
@@ -161,7 +161,7 @@ describe('an internal reference type', () => {
     it('is no type a typeOf names, which exposes a value to scripts as a public type alone: naming one is a fault of its module', () => {
         const lamps = lexica.createModule('lamps', { typeOf: () => 'Lamp', types: [{ name: 'Lamp', kind: 'reference', isInstance: () => true, internal: true }] });
 
-        expect(errorThrownBy(() => lexica.createRegistry([lamps]).createBindings({ lamp }))).toMatchObject({ code: 'LEXICA5002', kind: 'evaluation', message: expect.stringContaining('the internal type Lamp, which no script names') });
+        expect(errorThrownBy(() => createImportingRegistry([lamps]).createBindings({ lamp }))).toMatchObject({ code: 'LEXICA5002', kind: 'evaluation', message: expect.stringContaining('the internal type Lamp, which no script names') });
     });
 });
 
@@ -176,7 +176,7 @@ describe('members declared within their reference type', () => {
 
     it('take their type as their receiver, and are reached through their module\'s qualified form', () => {
         const dim = createPropertyDeclaration('dim', 'Number', { updates: constantUpdates, impl: () => 30 });
-        const registry = lexica.createRegistry([lamps([glow, dim])]);
+        const registry = createImportingRegistry([lamps([glow, dim])]);
         const resolution = registry.resolve('import lamps\n{ glow = lamp.glow, dim = lamp.dim, qualified = lamps.glow(lamp) }', { lamp });
 
         expect(resolution.createEvaluator({ lamp }).evaluate().value).toEqual({ glow: 'lamp glows', dim: 30, qualified: 'lamp glows' });
@@ -187,7 +187,7 @@ describe('members declared within their reference type', () => {
     it('collide with a member of their name within their type, the later refused at its name', () => {
         const otherGlow = createPropertyDeclaration('glow', 'String', { updates: constantUpdates, impl: () => 'other' });
 
-        expect(errorThrownBy(() => lexica.createRegistry([lamps([glow, otherGlow])]))).toMatchObject({ code: 'LEXICA4029', location: { module: 'lamps', type: 'Lamp', declaration: 'glow', declarationKey: 'name' } });
+        expect(errorThrownBy(() => createImportingRegistry([lamps([glow, otherGlow])]))).toMatchObject({ code: 'LEXICA4029', location: { module: 'lamps', type: 'Lamp', declaration: 'glow', declarationKey: 'name' } });
     });
 
     it('read their notations through their type\'s import, a notation naming no type refused at their type', () => {
@@ -195,7 +195,7 @@ describe('members declared within their reference type', () => {
         // A home declaring rooms, which recognizes no value, so the lamp is the lamps' alone.
         const rooms = () => lexica.createModule('home', { types: [{ name: 'Room', kind: 'reference', isInstance: value => value instanceof Room }] });
 
-        expect(lexica.createRegistry([rooms(), lamps([room], { import: ['home'] })]).resolve('lamp.room == null', { lamp }).usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Lamp.room']);
-        expect(errorThrownBy(() => lexica.createRegistry([rooms(), lamps([room])]))).toMatchObject({ code: 'LEXICA4049', location: { module: 'lamps', type: 'Lamp', declaration: 'room' } });
+        expect(createImportingRegistry([rooms(), lamps([room], { import: ['home'] })]).resolve('lamp.room == null', { lamp }).usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Lamp.room']);
+        expect(errorThrownBy(() => createImportingRegistry([rooms(), lamps([room])]))).toMatchObject({ code: 'LEXICA4049', location: { module: 'lamps', type: 'Lamp', declaration: 'room' } });
     });
 });

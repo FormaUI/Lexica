@@ -96,7 +96,7 @@ describe("a script's imports", () => {
         expect(growing.parse('shop.open')).toBe(before);
         expect(registry.parse('import shop\nshop.open')).toBe(lexica.parse('import shop\nshop.open'));
         expect(registry.format('{ shop = shop.size }')).toBe('{ shop = shop.size }');
-        expect(registry.resolve('shop.size', { shop: new Word('oat') }).type).toBe('Number');
+        expect(registry.resolve('import shop.Word\nshop.size', { shop: new Word('oat') }).type).toBe('Number');
     });
 
     it('give a module a local name of their own with an alias, which replaces its own, and import one type under its name or an alias', () => {
