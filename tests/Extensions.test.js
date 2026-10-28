@@ -25,7 +25,7 @@ const createWords = () => lexica.createModule('words', {
 const values = { word: 'oat', counts: [1, 2, 3] };
 
 /** The resolution of the text against a registry of the words. */
-const resolve = text => lexica.createRegistry([createWords()]).resolve(text, values);
+const resolve = text => lexica.createRegistry([createWords()]).resolve(text, values, { imports: ['words'] });
 
 /** The value the text evaluates to against a registry of the words. */
 const evaluate = text => resolve(text).createEvaluator(values).evaluate().value;

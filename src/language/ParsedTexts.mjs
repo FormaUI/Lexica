@@ -1,31 +1,21 @@
 /**
- * ParsedTexts — the definitions of the source texts parsed most recently, each with the namespace names it was read with
+ * ParsedTexts — the definitions of the source texts parsed most recently, each with the imports a host supplied to it
  */
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
 import { Lowering } from './Lowering.mjs';
-import { Names } from './Names.mjs';
 import { Parser } from './Parser.mjs';
 import { TextLocations } from './TextLocations.mjs';
 
 /** The most texts whose definitions are kept. */
 const CAPACITY = 256;
 
-/**
- * How a definition was read from text: the namespace names it was read with, and the names it writes alone where a value stands, each reading a local, a field or a script parameter, by name, each with the span of the part it
- * first stands in, which its text locations locate where a diagnostic needs it.
- * @typedef {{ namespaceNames: ReadonlySet<string>, namesWrittenAlone: ReadonlyMap<string, import('./Parser.mjs').Span> }} Reading
- */
-
 export class ParsedTexts {
-    /** Each kept text's definition, by the namespace names it was read with and the text, the least recently parsed first. @type {Map<string, object>} */
+    /** Each kept text's definition, by the imports supplied to it and the text, the least recently parsed first. @type {Map<string, object>} */
     static #definitionCache = new Map();
 
     /** @type {WeakMap<object, TextLocations>} */
     static #locations = new WeakMap();
-
-    /** @type {WeakMap<object, Reading>} */
-    static #readings = new WeakMap();
 
     /** Where each part of the definition came from: in its text, for one parsed from text, or in the definition its caller supplied, where validation moved a part; null otherwise. */
     static locationsOf(definition) {
@@ -37,20 +27,15 @@ export class ParsedTexts {
         return ParsedTexts.#locations.get(definition)?.text ?? null;
     }
 
-    /** How the definition was read from text, or null for a definition not parsed from text. */
-    static readingOf(definition) {
-        return ParsedTexts.#readings.get(definition) ?? null;
-    }
-
     /**
-     * The validated, frozen definition the text parses into with the namespace names given, kept for the next parse of the same text with the same names. A definition depends on its text and those names alone, so a kept one
-     * stays valid for good; the 256 asked for most recently are kept, a kept one asked for again counting as the latest, the least recently asked for released as another is kept, and its locations and its reading are released with it. A text that fails to parse is kept by none,
-     * so parsing it again refuses it again.
+     * The validated, frozen definition the text parses into with the imports a host supplies, kept for the next parse of the same text with the same imports. A definition depends on its text and those imports alone, so a
+     * kept one stays valid for good; the 256 asked for most recently are kept, a kept one asked for again counting as the latest, the least recently asked for released as another is kept, and its locations are released
+     * with it. A text that fails to parse is kept by none, so parsing it again refuses it again.
      * @param {string} text
-     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is read with, none for text read without a registry.
+     * @param {readonly object[]} [suppliedImports] The imports a host supplies, in a definition's shape, each once and in order of the local name it gives, checked already.
      */
-    static parse(text, namespaceNames = Names.noNamespaceNames) {
-        const key = `${[...namespaceNames].sort().join(' ')}|${text}`;
+    static parse(text, suppliedImports = []) {
+        const key = `${JSON.stringify(suppliedImports)}|${text}`;
         const kept = ParsedTexts.#definitionCache.get(key);
 
         if (kept) {
@@ -61,13 +46,11 @@ export class ParsedTexts {
         }
 
         // The tree is lowered and let go: a kept definition holds its locations, never its tokens or their trivia.
-        const { definition, spans, scriptParametersWrittenAlone, namesWrittenAlone } = Lowering.lower(new Parser(text, namespaceNames).parse());
+        const { definition, spans, scriptParametersWrittenAlone } = Lowering.lower(new Parser(text, suppliedImports).parse(), suppliedImports);
         const locations = new TextLocations(text, definition, spans);
         const validated = new DefinitionValidator(locations, scriptParametersWrittenAlone).validate(definition);
 
         ParsedTexts.#locations.set(validated, locations);
-        ParsedTexts.#readings.set(validated, Object.freeze({ namespaceNames: new Set(namespaceNames), namesWrittenAlone }));
-
         ParsedTexts.#definitionCache.set(key, validated);
 
         if (ParsedTexts.#definitionCache.size > CAPACITY) {

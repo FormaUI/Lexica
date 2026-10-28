@@ -3,6 +3,7 @@
  * and the verbs that test a receiver, each carrying its implementation
  */
 
+import { Names } from '../Names.mjs';
 import { Declarations } from './Declarations.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
 
@@ -17,7 +18,7 @@ const DERIVED_UPDATES = Object.freeze({ changes: 'derived', reads: 'derived' });
 
 export class Vocabulary {
     /** The name of Lexica's own module, spelled as the specification spells it. */
-    static moduleName = 'Lexica';
+    static moduleName = Names.lexicaModuleName;
 
     /** @type {readonly object[] | undefined} */
     static #valueTypes;

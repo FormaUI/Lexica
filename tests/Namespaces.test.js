@@ -50,82 +50,106 @@ const createShop = (invoked = []) => lexica.createModule('shop', {
 
 const values = { word: new Word('oat'), other: new Word('milk'), bag: new Bag(7), missing: null };
 
-/** What the text evaluates to against a registry of the shop, with what each implementation was given. */
+/** What the text evaluates to against a registry of the shop, which supplies its import, with what each implementation was given. */
 const evaluate = (text, bound = values) => {
     const invoked = [];
     const registry = lexica.createRegistry([createShop(invoked)]);
     const bindings = registry.createBindings(bound);
-    const value = registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
+    const value = registry.resolve(text, bindings, { imports: ['shop'] }).createEvaluator(bindings).evaluate().value;
 
     return { value, invoked };
 };
 
-/** The resolution of the text against a registry of the shop. */
+/** The resolution of the text against a registry of the shop, which supplies its import. */
 const resolve = (text, bound = values) => resolveWith([createShop()], text, bound);
 
-describe("a registry's text", () => {
+describe("a script's imports", () => {
     const registry = lexica.createRegistry([createShop()]);
 
-    it("reads a module's name as its namespace, and writes a local and a script parameter of that name with @ and ~, so its canonical text reads back as the same definition", () => {
-        const text = '{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }';
-        const formatted = registry.format(text);
+    it("read an imported module's local name as its namespace, and write a local and a script parameter of that name with @ and ~, so its canonical text reads back as the same definition", () => {
+        const text = 'import shop\n{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }';
+        const formatted = lexica.format(text);
 
-        expect(registry.parse('shop.open').expression).toEqual({ kind: 'member', target: { kind: 'namespace', name: 'shop' }, name: 'open' });
-        expect(formatted).toBe('{\n    let shop = 2,\n    local = @shop,\n    parameter = ~shop,\n    namespace = shop.open\n}');
-        expect(registry.parse(formatted)).toEqual(registry.parse(text));
-        expect(registry.format(formatted)).toBe(formatted);
-        expect(registry.quote(text)).toBe('{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }');
+        expect(lexica.parse('import shop\nshop.open')).toEqual({ version: 34, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
+        expect(formatted).toBe('import shop\n\n{\n    let shop = 2,\n    local = @shop,\n    parameter = ~shop,\n    namespace = shop.open\n}');
+        expect(lexica.parse(formatted)).toEqual(lexica.parse(text));
+        expect(lexica.format(formatted)).toBe(formatted);
+        expect(lexica.quote(text)).toBe('import shop\n{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }');
     });
 
-    it("writes a definition's script parameter and local named after a module as a registry reads them, a definition created directly among them", () => {
-        const definition = lexica.validate({ version: 33, expression: { kind: 'arithmetic', operator: '+', left: { kind: 'parameter', name: 'shop' }, right: { kind: 'member', target: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
+    it("write a definition's script parameter named after a namespace its imports give as they read it, a definition created directly among them", () => {
+        const definition = lexica.validate({ version: 34, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
 
-        expect(registry.format({ version: 33, expression: { kind: 'parameter', name: 'shop' } })).toBe('~shop');
-        expect(registry.parse(registry.format(definition))).toEqual(definition);
+        expect(lexica.format({ version: 34, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
+        expect(lexica.format({ version: 34, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
+        expect(lexica.parse(lexica.format(definition))).toEqual(definition);
     });
 
-    it('reads text without a registry as the language alone, a module\'s name an identifier there', () => {
-        expect(lexica.parse('shop.open').expression).toEqual({ kind: 'member', target: { kind: 'parameter', name: 'shop' }, name: 'open' });
-        expect(lexica.format('{ let shop = 2, value = shop }')).toBe('{\n    let shop = 2,\n    value = shop\n}');
+    it('are the only thing that makes a name a namespace: every reader reads a text alike, and registering a module changes how no text reads', () => {
+        const growing = lexica.createRegistry([]);
+        const before = growing.parse('shop.open');
+
+        expect(before.expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'shop' }, name: 'open' });
+
+        growing.registerModule(createShop());
+
+        expect(growing.parse('shop.open')).toBe(before);
+        expect(registry.parse('import shop\nshop.open')).toBe(lexica.parse('import shop\nshop.open'));
+        expect(registry.format('{ shop = shop.size }')).toBe('{ shop = shop.size }');
+        expect(registry.resolve('shop.size', { shop: new Word('oat') }).type).toBe('Number');
     });
 
-    it('refuses to write a namespace without the module names, and to read a definition read without them that writes one of them alone', () => {
-        expect(errorThrownBy(() => lexica.format(registry.parse('shop.open')))).toMatchObject({ kind: 'structure', message: expect.stringContaining("reads through the namespace 'shop', which text read without a registry's module names cannot write") });
-        expect(errorThrownBy(() => lexica.quote(registry.parse('shop.open')))).toMatchObject({ kind: 'structure' });
-        expect(errorThrownBy(() => registry.resolve(lexica.parse('shop.open')))).toMatchObject({ kind: 'structure', message: expect.stringContaining("writes 'shop' alone, which this registry reads as the namespace of its module 'shop'") });
-        expect(registry.resolve(lexica.parse('~shop + 1'), { shop: 1 })).toMatchObject({ type: 'Number' });
+    it('give a module a local name of their own with an alias, which replaces its own, and import one type under its name or an alias', () => {
+        const aliased = lexica.parse('import Store = shop\nimport shop.Word\nimport Item = shop.Word\n{ a = Store.open, b = shop }');
+
+        expect(aliased.imports).toEqual([{ module: 'shop', type: 'Word', alias: 'Item' }, { module: 'shop', alias: 'Store' }, { module: 'shop', type: 'Word' }]);
+        expect(aliased.expression.objectFields.map(field => field.value)).toEqual([{ kind: 'memberAccess', receiver: { kind: 'namespace', name: 'Store' }, name: 'open' }, { kind: 'scriptParameter', name: 'shop' }]);
+        expect(lexica.format(aliased)).toBe('import Item = shop.Word\nimport Store = shop\nimport shop.Word\n\n{\n    a = Store.open,\n    b = shop\n}');
+        expect(registry.resolve('import Store = shop\nStore.greet("ann")').type).toBe('String');
+        expect(registry.resolve('import Item = shop.Word\n(word as Item).size', { word: new Word('oat') }).type).toBe('Number');
+        expect(lexica.parse('import shop\nimport shop\nimport Store = shop\n1').imports).toEqual([{ module: 'shop', alias: 'Store' }, { module: 'shop' }]);
     });
 
-    it('locates a name a definition read without the module names writes alone where the text first writes it', () => {
-        expect(errorThrownBy(() => registry.format(lexica.parse('let size = 2\nreturn size + shop.size + shop')))).toMatchObject({ location: { pointer: '/expression/result/left/right/target', line: 2, column: 15 } });
-        expect(errorThrownBy(() => registry.format(lexica.parse('shop(1)'))).location).toMatchObject({ pointer: '/expression', line: 1, column: 1 });
+    it('read an import binding with @ where no local of its name is in scope, the namespace a reserved word names among them, and a local of its name first', () => {
+        const reserved = lexica.createRegistry([lexica.createModule('if', { members: [createPropertyDeclaration('open', 'Boolean', { updates: constantUpdates, impl: () => true })] })]);
+
+        expect(lexica.parse('import if\n@if.open').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'namespace', name: 'if' }, name: 'open' });
+        expect(lexica.parse('import shop\nlet shop = { open = 1 }\nreturn @shop.open').expression.result).toEqual({ kind: 'memberAccess', receiver: { kind: 'local', name: 'shop' }, name: 'open' });
+        expect(lexica.format('import if\n@if.open')).toBe('import if\n\n@if.open');
+        expect(reserved.resolve('import if\n@if.open').createEvaluator({}).evaluate().value).toBe(true);
+        expect(lexica.createRegistry([createShop()]).resolve('import to = shop\n@to.open').type).toBe('Boolean');
     });
 
-    it('refuses a namespace no module the registry holds gives, and a definition a module registered since reads otherwise', () => {
-        const bakery = { version: 33, expression: { kind: 'member', target: { kind: 'namespace', name: 'bakery' }, name: 'open' } };
-        const growing = lexica.createRegistry([createShop()]);
-        const read = growing.parse('bakery + 1');
+    it('take the imports a host supplies beside the script\'s own, which formatting for that host leaves out', () => {
+        const supplied = { imports: ['shop', { module: 'shop', type: 'Word', alias: 'Item' }] };
+        const definition = lexica.parse('shop.open', supplied);
 
-        expect(errorThrownBy(() => registry.resolve(bakery))).toMatchObject({ kind: 'structure', message: expect.stringContaining("reads through the namespace 'bakery', and this registry holds no module of that name"), location: { pointer: '/expression/target' } });
-        expect(growing.resolve(read, { bakery: 1 })).toMatchObject({ type: 'Number' });
-
-        growing.registerModule(lexica.createModule('bakery', {}));
-
-        expect(errorThrownBy(() => growing.resolve(read, { bakery: 1 }))).toMatchObject({ kind: 'structure', message: expect.stringContaining("writes 'bakery' alone") });
-        expect(errorThrownBy(() => growing.parse('bakery + 1'))).toMatchObject({ kind: 'syntax' });
+        expect(definition.imports).toEqual([{ module: 'shop', type: 'Word', alias: 'Item' }, { module: 'shop' }]);
+        expect(lexica.parse('shop.open', supplied)).toBe(definition);
+        expect(lexica.parse('shop.open')).not.toBe(definition);
+        expect(lexica.format('shop.open', supplied)).toBe('shop.open');
+        expect(lexica.format(definition)).toBe('import Item = shop.Word\nimport shop\n\nshop.open');
+        expect(lexica.quote('import shop\nshop.open', { imports: ['shop'] })).toBe('shop.open');
+        expect(registry.parse('shop.open', { imports: ['shop'] })).toBe(lexica.parse('shop.open', { imports: ['shop'] }));
+        expect(registry.resolve('shop.greet("ann")', {}, { imports: ['shop'] }).type).toBe('String');
+        expect(lexica.parse('import shop\nshop.open', { imports: ['shop'] }).imports).toEqual([{ module: 'shop' }]);
     });
 
-    it("never reserves Lexica's own module's name, which has no namespace", () => {
-        expect(registry.parse('lexica.count').expression).toEqual({ kind: 'member', target: { kind: 'parameter', name: 'lexica' }, name: 'count' });
+    it("refuse a host's import that breaks an import's rules, and two of them giving one local name to different declarations", () => {
+        for (const imports of ['shop', [1], [{ module: 'Lexica' }], [{ module: 'shop', alias: 'shop' }], [{ module: 'shop', alias: 'S' }, { module: 'home', alias: 'S' }]]) {
+            expect(errorThrownBy(() => lexica.parse('1', { imports })), JSON.stringify(imports)).toMatchObject({ kind: 'structure', code: 'LEXICA2008' });
+        }
+
+        expect(errorThrownBy(() => lexica.parse('import S = home\n1', { imports: [{ module: 'shop', alias: 'S' }] }))).toMatchObject({ kind: 'syntax', code: 'LEXICA1048', location: { line: 1, column: 1 } });
     });
 
-    it('refuses a module named by a word the language reserves, which its text reaches only through an import binding read with @', () => {
+    it('take a module a reserved word names, which an import binding read with @ reaches', () => {
         for (const name of ['it', 'root', 'true', 'null', 'if', 'to']) {
-            expect(errorThrownBy(() => lexica.createRegistry([lexica.createModule(name, {})]))).toMatchObject({ kind: 'module', code: 'LEXICA4557', message: expect.stringContaining(`'${name}' is a word the language reserves`) });
+            expect(lexica.createRegistry([lexica.createModule(name, {})]).moduleNames).toContain(name);
         }
     });
 
-    it('gives the form to write in a diagnostic as the registry reads it, a script parameter and a local named after a module written with ~ and @', () => {
+    it('give the form to write in a diagnostic as the script reads it, a script parameter and a local named after a namespace written with ~ and @', () => {
         expect(errorThrownBy(() => resolve('~shop.a()', { shop: { a: 1 } })).message).toContain("write '~shop.a'");
         expect(errorThrownBy(() => resolve('let shop = { a = 1 }\nreturn @shop.a()')).message).toContain("write '@shop.a'");
     });
@@ -174,19 +198,19 @@ describe('qualified forms', () => {
 
     it('prepare a host call through its module, its receiver the first argument, and skip it where that receiver is null', () => {
         const registry = lexica.createRegistry([createShop()]);
-        const prepared = registry.resolve('shop.order(word, 2)', values).createEvaluator(values).prepareHostCall();
+        const prepared = registry.resolve('shop.order(word, 2)', values, { imports: ['shop'] }).createEvaluator(values).prepareHostCall();
 
         expect(prepared).toMatchObject({ kind: 'prepared', receiver: values.word, args: { count: 2 } });
-        expect(registry.resolve('shop.order(missing, 2)', values).createEvaluator(values).prepareHostCall()).toMatchObject({ kind: 'skipped' });
+        expect(registry.resolve('shop.order(missing, 2)', values, { imports: ['shop'] }).createEvaluator(values).prepareHostCall()).toMatchObject({ kind: 'skipped' });
     });
 
     it('are used declarations once each, where the call invoking them stands, as a module member, a member of a receiver and a held reference\'s call are, a receiver of unknown type choosing none', () => {
         const usesOf = text => resolve(text).usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer]);
 
         expect(usesOf('{ a = shop.greet("x"), b = shop.pad(word, 4), c = word.size, d = shop.size(missing) }')).toEqual([
-            ['shop.greet', '/expression/fields/0/value'],
-            ['Word.pad', '/expression/fields/1/value'],
-            ['Word.size', '/expression/fields/2/value'],
+            ['shop.greet', '/expression/objectFields/0/value'],
+            ['Word.pad', '/expression/objectFields/1/value'],
+            ['Word.size', '/expression/objectFields/2/value'],
         ]);
         expect(usesOf('let pad = shop.pad return pad(word, 4)')).toEqual([['shop.pad', '/expression/locals/0/value'], ['shop.pad', '/expression/result']]);
         expect(usesOf('let pad = shop.pad return pad(missing, 4)')).toEqual([['shop.pad', '/expression/locals/0/value']]);
@@ -267,7 +291,7 @@ describe('a call of a delegate', () => {
         const invoked = [];
         const registry = lexica.createRegistry([createWords(invoked), createShop()]);
 
-        return { value: registry.resolve(text, bound).createEvaluator(bound).evaluate().value, invoked };
+        return { value: registry.resolve(text, bound, { imports: ['words', 'shop'] }).createEvaluator(bound).evaluate().value, invoked };
     };
 
     it('binds a reference\'s omitted argument to its default, and an explicit null by its parameter\'s null policy, held, chosen or given to a member', () => {
@@ -307,7 +331,7 @@ describe('the answer of a held reference', () => {
     const choosing = 'let none = (list) => null\nlet pick = if flag then lists.head else none end\nreturn ';
 
     /** What the text evaluates to against the lists, `head` answering as given. */
-    const evaluateLists = (text, answer, invoked = []) => lexica.createRegistry([createLists(answer, invoked)]).resolve(text, bound).createEvaluator(bound).evaluate().value;
+    const evaluateLists = (text, answer, invoked = []) => lexica.createRegistry([createLists(answer, invoked)]).resolve(text, bound, { imports: ['lists'] }).createEvaluator(bound).evaluate().value;
 
     it('is checked against its result type resolved for the call, as its qualified form\'s is, held, chosen among functions or given to a member', () => {
         const wrong = () => 'x';

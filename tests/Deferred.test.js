@@ -56,7 +56,7 @@ const createShelf = () => lexica.createModule('shelf', withHome({
 }));
 
 /** The resolution of the text against a registry of the shelf. */
-const resolve = text => lexica.createRegistry([createShelf()]).resolve(text, {});
+const resolve = text => lexica.createRegistry([createShelf()]).resolve(text, {}, { imports: ['shelf'] });
 
 /** What the text evaluates to against a registry of the shelf, with the hooks given. */
 const evaluate = (text, hooks = null) => resolve(text).createEvaluator({}).evaluate(hooks).value;
@@ -93,9 +93,9 @@ describe('values of Any', () => {
             const resolution = resolve('{ glow = shelf.item("light").glow, dim = shelf.item("device").dim(2), key = shelf.item("device")["k"] }');
 
             expect(resolution.deferredAccesses).toEqual([
-                { name: 'glow', pointer: '/expression/fields/0/value' },
-                { name: 'dim', pointer: '/expression/fields/1/value' },
-                { name: null, pointer: '/expression/fields/2/value' },
+                { name: 'glow', pointer: '/expression/objectFields/0/value' },
+                { name: 'dim', pointer: '/expression/objectFields/1/value' },
+                { name: null, pointer: '/expression/objectFields/2/value' },
             ]);
             expect(Object.isFrozen(resolution.deferredAccesses) && resolution.deferredAccesses.every(Object.isFrozen)).toBe(true);
             expect(resolve('let f = function(x) return x.glow end\nreturn { a = f(shelf.item("light")), b = f(shelf.item("light")) }').deferredAccesses).toEqual([{ name: 'glow', pointer: '/expression/locals/0/value/body/result' }]);
@@ -107,13 +107,13 @@ describe('values of Any', () => {
 
             expect(candidates.isOverestimate).toBe(true);
             expect(candidates.declarations.map(({ name, qualifiedName, pointer }) => [name, qualifiedName, pointer])).toEqual([
-                ['item', 'shelf.item', '/expression/fields/0/value/target'],
-                ['item', 'shelf.item', '/expression/fields/1/value/target'],
-                ['item', 'shelf.item', '/expression/fields/2/value/target'],
-                ['glow', 'Light.glow', '/expression/fields/0/value'],
-                ['shout', 'String.shout', '/expression/fields/1/value'],
-                [null, 'List[]', '/expression/fields/2/value'],
-                [null, 'Device[]', '/expression/fields/2/value'],
+                ['item', 'shelf.item', '/expression/objectFields/0/value/receiver'],
+                ['item', 'shelf.item', '/expression/objectFields/1/value/receiver'],
+                ['item', 'shelf.item', '/expression/objectFields/2/value/receiver'],
+                ['glow', 'Light.glow', '/expression/objectFields/0/value'],
+                ['shout', 'String.shout', '/expression/objectFields/1/value'],
+                [null, 'List[]', '/expression/objectFields/2/value'],
+                [null, 'Device[]', '/expression/objectFields/2/value'],
             ]);
             expect(Object.isFrozen(candidates) && Object.isFrozen(candidates.declarations)).toBe(true);
 
@@ -171,7 +171,7 @@ describe('values of Any', () => {
             expect(failure('shelf.item("light").nothing.size')).toMatchObject({ code: 'LEXICA5022', location: { pointer: '/expression' }, message: expect.stringContaining("write '?.'") });
             expect(evaluate('shelf.item("light").nothing?.size')).toBeNull();
             expect(evaluate('shelf.maybe("none")?.power.size')).toBeNull();
-            expect(failure('shelf.maybe("light")?.nothing.size')).toMatchObject({ code: 'LEXICA5022', location: { pointer: '/expression/target' } });
+            expect(failure('shelf.maybe("light")?.nothing.size')).toMatchObject({ code: 'LEXICA5022', location: { pointer: '/expression/chain' } });
             expect(evaluate('shelf.maybe("light")?.nothing?.size')).toBeNull();
         });
 
@@ -208,7 +208,7 @@ describe('values of Any', () => {
 
         it('checks a function\'s or an expression\'s answer of Any against the result its callback contract declares', () => {
             const values = { numbers: [1, 2] };
-            const evaluateOver = text => lexica.createRegistry([createShelf()]).resolve(text, values).createEvaluator(values).evaluate().value;
+            const evaluateOver = text => lexica.createRegistry([createShelf()]).resolve(text, values, { imports: ['shelf'] }).createEvaluator(values).evaluate().value;
 
             expect(evaluateOver('numbers.sum(n => shelf.item("number"))')).toBe(4);
             expect(evaluateOver('numbers.sum(shelf.item("number"))')).toBe(4);

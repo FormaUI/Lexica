@@ -94,7 +94,7 @@ describe('the implicit parameter', () => {
                 expect(errorThrownBy(() => evaluate(`{ kept = words.keepBy(${expression}), late = chosen.callKept() }`)), expression).toMatchObject({
                     code: 'LEXICA5008',
                     message: expect.stringContaining("The function given as 'expression' of 'keepBy' is called after 'keepBy' returned"),
-                    location: { pointer: '/expression/fields/0/value/arguments/0' },
+                    location: { pointer: '/expression/objectFields/0/value/arguments/0' },
                 });
                 expect(errorThrownBy(() => evaluate(`words.weighPair(${expression})`)), expression).toMatchObject({
                     code: 'LEXICA5503',

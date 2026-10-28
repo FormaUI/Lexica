@@ -10,5 +10,5 @@ export class Versions {
     static language = '1.0.0-alpha.33';
 
     /** The definition format version the implementation supports. */
-    static definition = 33;
+    static definition = 34;
 }

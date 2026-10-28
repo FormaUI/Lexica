@@ -4,7 +4,7 @@
 
 /** @typedef {import('./Tokenizer.mjs').Token} Token */
 /** @typedef {{ kind: string, children: (SyntaxNode | Token)[] }} SyntaxNode */
-/** @typedef {{ kind: 'script', text: string, children: [SyntaxNode | Token, Token] }} ScriptNode */
+/** @typedef {{ kind: 'script', text: string, children: (SyntaxNode | Token)[] }} ScriptNode The script's import declarations, its body and the end of its text, with the trivia before it. */
 /** @typedef {{ kind: 'whitespace' | 'line-comment' | 'block-comment', start: number, end: number }} TriviaPiece */
 
 /**
@@ -13,6 +13,7 @@
  */
 export const SYNTAX_NODE_KINDS = Object.freeze([
     'script',
+    'import-declaration',
     'conditional-expression',
     'body',
     'do-expression',
@@ -51,6 +52,31 @@ export const SYNTAX_NODE_KINDS = Object.freeze([
 ]);
 
 export class SyntaxTree {
+    /**
+     * The import an import declaration writes, in a definition's shape: its module, its type where it imports one, and its alias where it gives a local name other than its own, each the word the text spells.
+     * @param {SyntaxNode} declaration
+     * @param {string} text
+     */
+    static importOf(declaration, text) {
+        const words = declaration.children.slice(1);
+        const hasAlias = words[1]?.type === '=';
+        const source = hasAlias ? words.slice(2) : words;
+        const module = SyntaxTree.wordOf(source[0], text);
+        const type = source.length > 1 ? SyntaxTree.wordOf(source[2], text) : undefined;
+        const alias = hasAlias ? SyntaxTree.wordOf(words[0], text) : undefined;
+
+        return {
+            module,
+            ...(type === undefined ? {} : { type }),
+            ...(alias === undefined || alias === (type ?? module) ? {} : { alias }),
+        };
+    }
+
+    /** The body a script holds, after its import declarations. */
+    static bodyOf(script) {
+        return script.children.at(-2);
+    }
+
     /** Whether the child is a token rather than a node. */
     static isToken(child) {
         return child.kind === undefined;

@@ -19,10 +19,19 @@ Lexica is one ES module with its type declarations. Neither package is published
 const definition = lexica.parse('{ total = price  *  quantity }');
 
 lexica.format(definition); // '{ total = price * quantity }'
-lexica.getLocation(definition, '/expression/fields/0/value'); // { pointer: '/expression/fields/0/value', offset: 10, line: 1, column: 11 }
+lexica.getLocation(definition, '/expression/objectFields/0/value'); // { pointer: '/expression/objectFields/0/value', offset: 10, line: 1, column: 11 }
 ```
 
-None of these needs a domain: reading, checking and formatting know the language alone. A registry reads and writes text the same way with its modules' names, each beginning its module's namespace, through `registry.parse`, `registry.format` and `registry.quote`, and `registry.resolve` reads a text as `registry.parse` does.
+None of these needs a domain: reading, checking and formatting know the language and the script's imports alone. A script imports each module whose namespace it reads, at its start, and a host whose scripts all use its module supplies the import instead, which formatting for that host leaves out:
+
+```js
+lexica.parse('import Shop\nShop.open').imports;      // [{ module: 'Shop' }]
+lexica.parse('Shop.open', { imports: ['Shop'] });    // the same definition
+lexica.format('Shop.open', { imports: ['Shop'] });   // 'Shop.open'
+lexica.format('import Store = Shop\nStore.open');   // 'import Store = Shop\n\nStore.open'
+```
+
+A registry reads and writes text exactly so, through `registry.parse`, `registry.format` and `registry.quote`, and `registry.resolve(script, bindings, { imports })` reads a text as `registry.parse` does; registering a module changes how no text reads.
 
 ## Declare a domain
 

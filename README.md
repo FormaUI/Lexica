@@ -30,7 +30,7 @@ return {
 
 The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.33` in part.
 
-- Parse scripts into definitions, validate definitions, and format either as canonical text, with a registry's module names or without
+- Parse scripts into definitions, their imports and those a host supplies deciding their namespaces, validate definitions, and format either as canonical text
 - Locate any part of a definition in the text it was read from
 - Create modules from their declarations, and registries that hold them
 - Bind a host's values to a script's parameters

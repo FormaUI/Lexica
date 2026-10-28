@@ -621,10 +621,6 @@ describe('the module error codes', () => {
             expect(lexica.createRegistry([module('Charts', {})]).moduleNames).toContain('Charts');
         });
 
-        it('LEXICA4557: a module named by a reserved word, which text reaches only through an import binding', () => {
-            expectModuleCode(registering(module('if', {})), 'LEXICA4557');
-        });
-
         it('LEXICA4033: a type of a name its module already declares', () => {
             expectModuleCode(creating({ types: [chart, chart] }), 'LEXICA4033');
         });

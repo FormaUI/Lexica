@@ -27,14 +27,14 @@ describe('type identity', () => {
             const modules = [sensors('home', 'level'), sensors('garden', 'moisture')];
 
             expect(evaluateWith(modules, '{ level = home.sensor.level, moisture = garden.sensor.moisture }')).toEqual({ level: 1, moisture: 1 });
-            expect(lexica.createRegistry(modules).resolve('home.sensor').type).toBe('Sensor');
+            expect(lexica.createRegistry(modules).resolve('import home\nhome.sensor').type).toBe('Sensor');
         });
 
         it('takes one where a declaration names it, refusing the other and writing both by their qualified names', () => {
             const modules = [sensors('home', 'level'), sensors('garden', 'moisture'), checks()];
 
             expect(evaluateWith(modules, 'checks.level(home.sensor)')).toBe(1);
-            expect(messageThrownBy(() => lexica.createRegistry(modules).resolve('checks.level(garden.sensor)'))).toContain("expects home.Sensor and finds garden.Sensor");
+            expect(messageThrownBy(() => lexica.createRegistry(modules).resolve('checks.level(garden.sensor)', {}, { imports: ['checks', 'garden'] }))).toContain("expects home.Sensor and finds garden.Sensor");
         });
 
         it('converts to the one a script names qualified, and refuses an unqualified name both share', () => {
@@ -98,7 +98,7 @@ describe('type identity', () => {
             });
 
             expect(evaluateWith([shapes], 'shapes.element.width')).toBe(3);
-            expect(lexica.createRegistry([shapes]).resolve('shapes.element').type).toBe('Element');
+            expect(lexica.createRegistry([shapes]).resolve('import shapes\nshapes.element').type).toBe('Element');
         });
     });
 });

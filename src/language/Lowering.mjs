@@ -1,7 +1,8 @@
 /**
- * Lowering — a syntax tree turned into the definition it writes, with the span of text each node, field, local and binding of it came from
+ * Lowering — a syntax tree turned into the definition it writes, with the span of text each node, field, local, binding and import of it came from
  */
 
+import { Imports } from './Imports.mjs';
 import { Names } from './Names.mjs';
 import { Versions } from './Versions.mjs';
 import { SyntaxTree } from './SyntaxTree.mjs';
@@ -19,6 +20,9 @@ export class Lowering {
     /** The text the tree was read from, which spells each word a name is. */
     #text;
 
+    /** The local names the script's imports give modules, which a lexical reference reads where no local or field of its name is in scope. @type {ReadonlySet<string>} */
+    #namespaceNames;
+
     /** The names of the locals and the fields in scope where the node being lowered stands, which a name reads; any other name reads the script parameter of its name. @type {Set<string>} */
     #localNames = new Set();
 
@@ -26,26 +30,35 @@ export class Lowering {
     #scriptParametersWrittenAlone = new WeakSet();
 
     /**
-     * The names written alone where a value stands, each reading a local, a field or a script parameter, which text read with a module of its name would have read as the module's namespace, by name, each with the span of the part
-     * it first stands in. @type {Map<string, import('./Parser.mjs').Span>}
-     */
-    #namesWrittenAlone = new Map();
-
-    /**
-     * The definition the tree writes, the span of text each of its nodes, fields, locals and conditional bindings came from, which the tree is no longer needed for, the parameters written alone,
-     * and the names written alone where a value stands.
+     * The definition the tree writes, its imports those the text writes and those a host supplies, each once, in order of the local name it gives; the span of text each of its nodes, fields, locals, conditional bindings
+     * and written imports came from, which the tree is no longer needed for; and the parameters written alone.
      * @param {import('./SyntaxTree.mjs').ScriptNode} tree
+     * @param {readonly object[]} [suppliedImports] The imports a host supplies, in a definition's shape, checked already.
      */
-    static lower(tree) {
-        const lowering = new Lowering(tree.text);
-        const expression = lowering.#lower(tree.children[0]);
+    static lower(tree, suppliedImports = []) {
+        const written = tree.children.filter(child => child.kind === 'import-declaration').map(declaration => {
+            const entry = SyntaxTree.importOf(declaration, tree.text);
 
-        return { definition: { version: Versions.definition, expression }, spans: lowering.#spans, scriptParametersWrittenAlone: lowering.#scriptParametersWrittenAlone, namesWrittenAlone: lowering.#namesWrittenAlone };
+            return { entry, span: { start: SyntaxTree.startOf(declaration), end: SyntaxTree.endOf(declaration) } };
+        });
+        const imports = Imports.mergeImports(written.map(({ entry }) => entry), suppliedImports);
+        const lowering = new Lowering(tree.text, Imports.namespaceNamesOf(imports));
+
+        // A written import keeps the span its declaration has, where a host's of the same declaration and local name merged into it.
+        written.forEach(({ entry, span }) => lowering.#spans.set(entry, span));
+
+        const expression = lowering.#lower(SyntaxTree.bodyOf(tree));
+
+        return { definition: { version: Versions.definition, imports, expression }, spans: lowering.#spans, scriptParametersWrittenAlone: lowering.#scriptParametersWrittenAlone };
     }
 
-    /** @param {string} text The text the tree was read from. */
-    constructor(text) {
+    /**
+     * @param {string} text The text the tree was read from.
+     * @param {ReadonlySet<string>} namespaceNames The local names the script's imports give modules.
+     */
+    constructor(text, namespaceNames) {
         this.#text = text;
+        this.#namespaceNames = namespaceNames;
     }
 
     #lower(child) {
@@ -88,15 +101,9 @@ export class Lowering {
                     this.#localNames = enclosingLocalNames;
                 }
             }
-            case 'function-call': {
-                const call = this.#span({ kind: 'functionCall', name: children[0].value, arguments: this.#argumentsOf(children.slice(2, -1)) }, child);
-
-                if (children[0].type === 'identifier') {
-                    this.#recordNameWrittenAlone(children[0].value, call);
-                }
-
-                return call;
-            }
+            case 'function-call':
+                // A call of the function a name holds calls the local its name reads, a lexical reference's or a bare name's alike.
+                return this.#span({ kind: 'call', callee: this.#span({ kind: 'local', name: children[0].value }, children[0]), arguments: this.#argumentsOf(children.slice(2, -1)) }, child);
             case 'do-expression':
                 // A do block holds its body, an expression alone or locals and the `return` that gives its result.
                 return this.#span({ kind: 'do', body: this.#lower(children[1]) }, child);
@@ -134,19 +141,19 @@ export class Lowering {
                     return this.#span({ kind: 'literal', value: -operand.value }, child);
                 }
 
-                return this.#span({ kind: 'negate', operand: this.#lower(operand) }, child);
+                return this.#span({ kind: 'arithmeticNegation', operand: this.#lower(operand) }, child);
             }
             case 'coalescing':
                 return this.#span({ kind: 'coalescing', value: this.#lower(children[0]), fallback: this.#lower(children[2]) }, child);
             case 'attempt':
-                return this.#span({ kind: 'try', target: this.#lower(children[1]) }, child);
+                return this.#span({ kind: 'try', operand: this.#lower(children[1]) }, child);
             case 'conversion':
-                return this.#span({ kind: 'conversion', type: SyntaxTree.typeNameOf(children[2], this.#text), target: this.#lower(children[0]) }, child);
+                return this.#span({ kind: 'conversion', type: SyntaxTree.typeNameOf(children[2], this.#text), operand: this.#lower(children[0]) }, child);
             case 'cast': {
-                // A cast's target written as a member chain within an optional enclosed access is the optional chain of its accesses.
-                const [target] = children;
+                // A cast's operand written as a member chain within an optional enclosed access is the optional chain of its accesses.
+                const [operand] = children;
 
-                return this.#span({ kind: 'cast', type: SyntaxTree.typeNameOf(children[2], this.#text), target: target.kind === 'member-chain' ? this.#lowerMemberChain(target, target) : this.#lower(target) }, child);
+                return this.#span({ kind: 'cast', type: SyntaxTree.typeNameOf(children[2], this.#text), operand: operand.kind === 'member-chain' ? this.#lowerMemberChain(operand, operand) : this.#lower(operand) }, child);
             }
             case 'namespace-access':
                 return this.#lowerNamespaceAccess(child);
@@ -184,35 +191,37 @@ export class Lowering {
                     return this.#span({ kind: 'root' }, token);
                 }
 
-                const read = this.#span({ kind: this.#localNames.has(token.value) ? 'local' : 'parameter', name: token.value }, token);
+                const read = this.#span({ kind: this.#localNames.has(token.value) ? 'local' : 'scriptParameter', name: token.value }, token);
 
-                if (read.kind === 'parameter') {
+                if (read.kind === 'scriptParameter') {
                     this.#scriptParametersWrittenAlone.add(read);
                 }
 
-                return this.#recordNameWrittenAlone(token.value, read);
+                return read;
             }
             case 'lexical-reference':
-                // An identifier after `@` is the local or the field of its name, which validation finds in scope or refuses.
-                return this.#span({ kind: 'local', name: token.value }, token);
+                // An identifier after `@` is the local or the field of its name in scope, and otherwise the import binding of its name, the namespace of the module an import gives it; validation refuses any other.
+                return this.#span({ kind: !this.#localNames.has(token.value) && this.#namespaceNames.has(token.value) ? 'namespace' : 'local', name: token.value }, token);
             case 'script-parameter':
-                return this.#span({ kind: 'parameter', name: token.value }, token);
+                return this.#span({ kind: 'scriptParameter', name: token.value }, token);
             default:
                 throw new TypeError(`No definition is lowered from the token '${token.type}'`);
         }
     }
 
-    /** A namespace access: a member read through the module's namespace, or a call through it, its arguments as written, each spanning the access. */
+    /** A namespace access: a member read through the module's namespace, or a call of one through it, its arguments as written, the member spanning the namespace's name to its own and the call the access. */
     #lowerNamespaceAccess(access) {
         const [namespaceName, , nameToken, ...rest] = access.children;
-        const target = this.#span({ kind: 'namespace', name: namespaceName.value }, namespaceName);
-        const name = SyntaxTree.wordOf(nameToken, this.#text);
+        const receiver = this.#span({ kind: 'namespace', name: namespaceName.value }, namespaceName);
+        const member = { kind: 'memberAccess', receiver, name: SyntaxTree.wordOf(nameToken, this.#text) };
+
+        this.#spans.set(member, { start: SyntaxTree.startOf(namespaceName), end: SyntaxTree.endOf(nameToken) });
 
         if (rest.length === 0) {
-            return this.#span({ kind: 'member', target, name }, access);
+            return member;
         }
 
-        return this.#span({ kind: 'call', target, name, arguments: this.#argumentsOf(rest.slice(1, -1)) }, access);
+        return this.#span({ kind: 'call', callee: member, arguments: this.#argumentsOf(rest.slice(1, -1)) }, access);
     }
 
     /** A body: its locals in order, each in scope after its value, through the locals after it and the result, which its `return` gives. */
@@ -270,45 +279,40 @@ export class Lowering {
             }
         }
 
-        return isOptional ? this.#span({ kind: 'optionalChain', target: value }, chain) : value;
+        return isOptional ? this.#span({ kind: 'optionalChain', chain: value }, chain) : value;
     }
 
     /**
-     * A member after its receiver: a dot property access, a call, a computed property access, its name the name a string literal is where it is one, or an indexer, spanning from the start given to its own end,
-     * and optional where its token says so or where every access is, as an optional enclosed access makes them.
+     * A member after its receiver: a dot property access, a call of the member it names, a computed property access, its name the name a string literal is where it is one, or an indexer, spanning from the start given to
+     * its own end, a call's member to its name's, and optional where its token says so or where every access is, as an optional enclosed access makes them.
      */
-    #lowerMemberExpression(part, target, start, isEveryOptional) {
+    #lowerMemberExpression(part, receiver, start, isEveryOptional) {
         const [first, second] = part.children;
         const optional = isEveryOptional || OPTIONAL_ACCESSES.has(first.type);
+        const optionalProperty = optional ? { optional } : {};
         let node;
 
         switch (part.kind) {
-            case 'dot-property-access': {
-                const name = SyntaxTree.wordOf(second, this.#text);
-
-                node = optional ? { kind: 'member', target, name, optional } : { kind: 'member', target, name };
+            case 'dot-property-access':
+                node = { kind: 'memberAccess', receiver, name: SyntaxTree.wordOf(second, this.#text), ...optionalProperty };
                 break;
-            }
             case 'member-call': {
-                const name = SyntaxTree.wordOf(second, this.#text);
-                const call = { kind: 'call', target, name, arguments: this.#argumentsOf(part.children.slice(3, -1)) };
+                const callee = { kind: 'memberAccess', receiver, name: SyntaxTree.wordOf(second, this.#text), ...optionalProperty };
 
-                node = optional ? { ...call, optional } : call;
+                this.#spans.set(callee, { start, end: SyntaxTree.endOf(second) });
+                node = { kind: 'call', callee, arguments: this.#argumentsOf(part.children.slice(3, -1)) };
                 break;
             }
             case 'computed-property-access': {
                 const expression = this.#lower(part.children[2]);
                 const name = expression.kind === 'literal' && Names.isIdentifier(expression.value) ? expression.value : expression;
 
-                node = optional ? { kind: 'member', target, name, optional } : { kind: 'member', target, name };
+                node = { kind: 'memberAccess', receiver, name, ...optionalProperty };
                 break;
             }
-            default: {
-                // An indexer's target is what is before its brackets, the member access of a named indexer's name among them, which resolution reads as one.
-                const indexer = { kind: 'indexer', target, argument: this.#lower(second) };
-
-                node = optional ? { ...indexer, optional } : indexer;
-            }
+            default:
+                // An indexer's receiver is what is before its brackets, the member access of a named indexer's name among them, which resolution reads as one.
+                node = { kind: 'indexerAccess', receiver, argument: this.#lower(second), ...optionalProperty };
         }
 
         this.#spans.set(node, { start, end: SyntaxTree.endOf(part) });
@@ -322,23 +326,23 @@ export class Lowering {
     }
 
     /** Lowers a member chain into the optional chain of its accesses, every one of them optional, spanning what the span node does. */
-    #lowerMemberChain(chain, spanned) {
-        const { children } = chain;
-        const start = SyntaxTree.startOf(chain);
+    #lowerMemberChain(memberChain, spanned) {
+        const { children } = memberChain;
+        const start = SyntaxTree.startOf(memberChain);
         let value = this.#lower(children[0]);
 
         for (let index = 1; index < children.length; index++) {
             value = this.#lowerMemberExpression(children[index], value, start, true);
         }
 
-        return this.#span({ kind: 'optionalChain', target: value }, spanned);
+        return this.#span({ kind: 'optionalChain', chain: value }, spanned);
     }
 
-    /** An object expression, of the target it follows where it follows one, spanning from the start given, its locals left out where it has none. */
-    #lowerObject(object, target, start) {
-        const node = target === undefined ? { kind: 'object' } : { kind: 'object', target };
+    /** An object expression, of the context it follows where it follows one, spanning from the start given, its locals left out where it has none. */
+    #lowerObject(object, context, start) {
+        const node = context === undefined ? { kind: 'object' } : { kind: 'object', context };
         const locals = [];
-        const fields = [];
+        const objectFields = [];
         const enclosingLocalNames = this.#localNames;
 
         // Each local is in scope after its value, through the locals and the fields after it, and each field after its value, through the fields after it.
@@ -351,7 +355,7 @@ export class Lowering {
             } else if (child.kind === 'field') {
                 const field = this.#span({ name: SyntaxTree.wordOf(child.children[0], this.#text), value: this.#lower(child.children[2]) }, child);
 
-                fields.push(field);
+                objectFields.push(field);
                 this.#localNames = new Set(this.#localNames).add(field.name);
             }
         }
@@ -362,7 +366,7 @@ export class Lowering {
             node.locals = locals;
         }
 
-        node.fields = fields;
+        node.objectFields = objectFields;
         this.#spans.set(node, { start, end: SyntaxTree.endOf(object) });
 
         return node;
@@ -384,15 +388,6 @@ export class Lowering {
     /** Records the part as spanning the syntax node or token. */
     #span(part, spanned) {
         this.#spans.set(part, { start: SyntaxTree.startOf(spanned), end: SyntaxTree.endOf(spanned) });
-
-        return part;
-    }
-
-    /** Records the name written alone, with the span of the part it first stands in, and answers the part. */
-    #recordNameWrittenAlone(name, part) {
-        if (!this.#namesWrittenAlone.has(name)) {
-            this.#namesWrittenAlone.set(name, this.#spans.get(part));
-        }
 
         return part;
     }

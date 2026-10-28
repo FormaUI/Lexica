@@ -66,8 +66,11 @@ const createShop = () => lexica.createModule('shop', withHome({
 
 const values = { s: 'oat', xs: [1, 2], ys: [3], e: [], nothing: null, no: false, flag: true, p: 'size' };
 
-/** The error resolving the text against a registry of the shop, and of the other modules given, throws, with the script parameters given. */
-const refusalOf = (text, bound = values, modules = []) => errorThrownBy(() => lexica.createRegistry([createShop(), ...modules]).resolve(text, bound));
+/** The error resolving the text against a registry of the shop, and of the other modules given, each imported, throws, with the script parameters given. */
+const refusalOf = (text, bound = values, modules = []) => errorThrownBy(() => lexica.createRegistry([createShop(), ...modules]).resolve(text, bound, { imports: ['shop', ...modules.map(module => module.name)] }));
+
+/** The error resolving the text against a registry of the shop and of the other modules given throws, with the script parameters given and no import a host supplies. */
+const refusalWithoutImportsOf = (text, bound = values, modules = []) => errorThrownBy(() => lexica.createRegistry([createShop(), ...modules]).resolve(text, bound));
 
 /** Expects the text's resolution to fail with the code, of the kind given. */
 const expectResolutionCode = (text, code, kind = 'validation', bound = values, modules = []) => {
@@ -78,6 +81,31 @@ const expectResolutionCode = (text, code, kind = 'validation', bound = values, m
 };
 
 describe('the codes of resolution', () => {
+    describe('imports', () => {
+        it('LEXICA3002, an import of a module the registry does not hold', () => {
+            expect(refusalWithoutImportsOf('import shop\nimport elsewhere\n1')).toMatchObject({ code: 'LEXICA3002', kind: 'validation', location: { pointer: '/imports/0', line: 2, column: 1 }, message: expect.stringContaining("'import elsewhere' imports the module 'elsewhere', which the registry does not hold") });
+            expect(errorThrownBy(() => lexica.createRegistry([]).resolve('1', {}, { imports: ['shop'] }))).toMatchObject({ code: 'LEXICA3002', location: { pointer: '/imports/0' } });
+        });
+        it('LEXICA3052, an import of a type its module does not declare', () => expect(refusalWithoutImportsOf('import shop.Mug\n1')).toMatchObject({ code: 'LEXICA3052', location: { pointer: '/imports/0' }, message: expect.stringContaining("imports 'shop.Mug', which its module does not declare") }));
+        it('LEXICA3053, an import of an internal type', () => {
+            const secret = lexica.createModule('secret', { types: [{ name: 'Vault', kind: 'structured', internal: true, members: dataPropertyDeclarations({ size: 'Number' }) }] });
+
+            expect(refusalWithoutImportsOf('import secret.Vault\n1', values, [secret])).toMatchObject({ code: 'LEXICA3053', location: { pointer: '/imports/0' }, message: expect.stringContaining("imports 'secret.Vault', which is internal to its module") });
+        });
+        it("LEXICA3003, a registered module's name read where a value stands, which no import gives and no binding has", () => {
+            expect(refusalWithoutImportsOf('shop.open')).toMatchObject({ code: 'LEXICA3003', location: { pointer: '/expression/receiver' }, message: expect.stringContaining("write 'import shop' at the script's start") });
+            expect(lexica.createRegistry([createShop()]).resolve('shop.size', { shop: 'oat' }).type).toBe('Number');
+            expect(refusalWithoutImportsOf('import Store = shop\nshop.open').code).toBe('LEXICA3003');
+            expect(lexica.createRegistry([createShop()]).resolve('import Store = shop\nStore.open').type).toBe('Boolean');
+        });
+        it('LEXICA3501, an extension selected explicitly, which this implementation resolves once text writes one', () => {
+            const definition = { version: 34, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 's' }, name: 'size', extension: { name: 'Words', module: 'shop' } } };
+
+            expect(refusalWithoutImportsOf(definition)).toMatchObject({ code: 'LEXICA3501', kind: 'validation', location: { pointer: '/expression/extension' } });
+            expect(refusalWithoutImportsOf({ ...definition, expression: { kind: 'call', callee: { ...definition.expression, name: 'pad' }, arguments: [{ kind: 'literal', value: 1 }] } }).location).toEqual({ pointer: '/expression/callee/extension' });
+        });
+    });
+
     describe('names and scope', () => {
         it('LEXICA3009, a name no local, field or script parameter has', () => expectResolutionCode('nobody', 'LEXICA3009'));
         it('LEXICA3009, a name no local, field or script parameter has, within a function', () => expectResolutionCode('let f = function(y) return nobody end\nreturn f(1)', 'LEXICA3009'));
@@ -87,10 +115,10 @@ describe('the codes of resolution', () => {
             expect(refusalOf('let q = 1\nreturn ~q', values).message).toContain("and '~q' reads a script parameter alone: write 'q' for the local, object field, conditional binding or function parameter of that name");
         });
         it('LEXICA3051, a script parameter the host did not bind, written with ~ where no local has its name', () => expectResolutionCode('~nobody', 'LEXICA3051'));
-        it('LEXICA3051, a definition\'s script parameter the host did not bind', () => expectResolutionCode({ version: 33, expression: { kind: 'parameter', name: 'nobody' } }, 'LEXICA3051'));
+        it('LEXICA3051, a definition\'s script parameter the host did not bind', () => expectResolutionCode({ version: 34, imports: [], expression: { kind: 'scriptParameter', name: 'nobody' } }, 'LEXICA3051'));
         it('LEXICA3010, it within an argument where nothing gives it a value', () => expectResolutionCode('xs.where(x => it)', 'LEXICA3010'));
-        it('LEXICA2012, a definition\'s local no local in scope answers', () => expectResolutionCode({ version: 33, expression: { kind: 'local', name: 'q' } }, 'LEXICA2012', 'structure'));
-        it('LEXICA2018, root outside every object expression', () => expectResolutionCode({ version: 33, expression: { kind: 'root' } }, 'LEXICA2018', 'structure'));
+        it('LEXICA2012, a definition\'s local no local in scope answers', () => expectResolutionCode({ version: 34, imports: [], expression: { kind: 'local', name: 'q' } }, 'LEXICA2012', 'structure'));
+        it('LEXICA2018, root outside every object expression', () => expectResolutionCode({ version: 34, imports: [], expression: { kind: 'root' } }, 'LEXICA2018', 'structure'));
     });
 
     describe('members', () => {
@@ -218,7 +246,11 @@ describe('the codes of resolution', () => {
     describe('casts and conversions', () => {
         it('LEXICA3019, a cast to a type nothing declares', () => expectResolutionCode('s as Foo', 'LEXICA3019'));
         it('LEXICA3019, a conversion to a type nothing declares', () => expectResolutionCode('s to Foo', 'LEXICA3019'));
-        it('LEXICA3019, a type qualified by a module the registry does not hold', () => expectResolutionCode('s to elsewhere.Cup', 'LEXICA3019'));
+        it('LEXICA3004, a type qualified by a local name no import gives a module', () => {
+            expectResolutionCode('s to elsewhere.Cup', 'LEXICA3004');
+            expect(refusalWithoutImportsOf('s to shop.Cup')).toMatchObject({ code: 'LEXICA3004', message: expect.stringContaining("'shop.Cup' is qualified by 'shop', which no import of the script gives a module: write 'import shop' at the script's start") });
+            expect(refusalWithoutImportsOf('import Shop = shop\ns to shop.Cup')).toMatchObject({ code: 'LEXICA3004', location: { pointer: '/expression' } });
+        });
         it('LEXICA3019, a type qualified by a module that does not declare it', () => expectResolutionCode('s to shop.Mug', 'LEXICA3019'));
         it('LEXICA3059, a type several modules share unqualified', () => {
             const mugs = lexica.createModule('mugs', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }] });

@@ -10,15 +10,18 @@ const KEYWORDS = new Set(['it', 'not', 'try', 'as', 'to', 'and', 'or', 'if', 'th
 /** The object root's word, which stands for a reference to the outermost object being built where an expression stands. */
 const ROOT = 'root';
 
-/** The namespace names of text read without a registry, which knows no module's name. */
+/** The namespace names of text whose imports give none. */
 const NO_NAMESPACE_NAMES = Object.freeze(new Set());
 
 export class Names {
     /** The words the language reserves, which keep their meaning where an expression stands and which a reference to a local or a field of their name writes after `@`: those that write a literal, the keywords and `root`. */
     static reservedWords = Object.freeze([...LITERALS.keys(), ...KEYWORDS, ROOT]);
 
-    /** The namespace names of text read without a registry: none. */
+    /** The namespace names of text read without imports: none. */
     static noNamespaceNames = NO_NAMESPACE_NAMES;
+
+    /** The name of Lexica's own module, which every script has and none imports. */
+    static lexicaModuleName = 'Lexica';
 
     /** Whether the text is spelled as an identifier: a letter followed by letters and digits, a reserved word among them, since a position that expects a name tells it from the word. */
     static isIdentifier(text) {

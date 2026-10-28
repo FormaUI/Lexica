@@ -42,9 +42,9 @@ describe('a host of plain data', () => {
         expect(resolution.typeAt(['total', 'amount'])).toBe('Number');
         expect(() => resolution.typeAt(['total', 'weight'])).toThrow("The path names 'weight', which Price does not hold");
         expect(registry.resolve('{ none = null }').typeAt(['none'])).toBe('null');
-        expect(resolution.usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['String.total', '/expression/fields/0/value'], ['String.discount', '/expression/fields/1/value']]);
+        expect(resolution.usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['String.total', '/expression/objectFields/0/value'], ['String.discount', '/expression/objectFields/1/value']]);
         expect(resolution.usedDeclarations.map(({ name }) => name)).toEqual(['total', 'discount']);
-        expect(resolution.getLocation('/expression/fields/1/value')).toMatchObject({ pointer: '/expression/fields/1/value', line: 1 });
+        expect(resolution.getLocation('/expression/objectFields/1/value')).toMatchObject({ pointer: '/expression/objectFields/1/value', line: 1 });
         expect(registry.revision).toBe(2);
         expect(registry.getDeclaringModuleName(resolution.usedDeclarations[0].declaration)).toBe('shop');
     });
@@ -154,9 +154,9 @@ describe('a host of plain data', () => {
         const definition = lexica.parse('{ total = order.total }');
 
         expect(lexica.quote('{\n    total = order.total\n}')).toBe('{ total = order.total }');
-        expect(lexica.getLocation(definition, '/expression/fields/0/value')).toMatchObject({ line: 1, column: 11 });
-        expect(lexica.getLocation(lexica.validate({ version: lexica.info.versions.definition, expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
-        expect(errorThrownBy(() => lexica.getLocation(definition, '/expression/fields/9'))).toMatchObject({ kind: 'structure' });
+        expect(lexica.getLocation(definition, '/expression/objectFields/0/value')).toMatchObject({ line: 1, column: 11 });
+        expect(lexica.getLocation(lexica.validate({ version: lexica.info.versions.definition, imports: [], expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
+        expect(errorThrownBy(() => lexica.getLocation(definition, '/expression/objectFields/9'))).toMatchObject({ kind: 'structure' });
     });
 
     it('checks a result path and reads the value it reaches', () => {
@@ -202,7 +202,7 @@ describe('the declaration shape', () => {
     it('carries a Boolean function out by its own implementation, a receiver\'s called on it, and a module member\'s called through its module or by reference as the test a verb is given', () => {
         const received = [];
         const registry = lexica.createRegistry([createMenu(received)]);
-        const evaluate = (text, item) => registry.resolve(text, { item }).createEvaluator({ item }).evaluate().value;
+        const evaluate = (text, item) => registry.resolve(text, { item }, { imports: ['menu'] }).createEvaluator({ item }).evaluate().value;
 
         expect(['item.vegan()', 'menu.vegan(item)', 'item.is(menu.vegan)'].map(text => [evaluate(text, 'oat latte'), evaluate(text, 'latte')])).toEqual([[true, false], [true, false], [true, false]]);
         expect(received).toEqual([{}, {}, ...Array(2).fill([{ item: 'oat latte' }, { item: 'latte' }]).flat()]);
@@ -262,7 +262,7 @@ describe('the declaration shape', () => {
         })]);
 
         expect(registry.moduleNames).toEqual(['Lexica', 'clock']);
-        expect(registry.resolve('{ length = item.length, zone = clock.zone }', { item: 'latte' }).createEvaluator({ item: 'latte' }, { rate: 1 }).evaluate().value).toEqual({ length: 5, zone: 'UTC' });
+        expect(registry.resolve('import clock\n{ length = item.length, zone = clock.zone }', { item: 'latte' }).createEvaluator({ item: 'latte' }, { rate: 1 }).evaluate().value).toEqual({ length: 5, zone: 'UTC' });
         expect(received).toEqual([{ args: {}, env: { rate: 1 } }]);
         expect(errorThrownBy(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);
     });
@@ -272,7 +272,7 @@ describe('the declaration shape', () => {
             types: [extensionDeclaration('Words', 'String', [createPropertyDeclaration('now', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length })])],
             members: [createPropertyDeclaration('now', 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: () => 0 })],
         })]);
-        const evaluate = text => registry.resolve(text, { word: 'oat' }).createEvaluator({ word: 'oat' }).evaluate().value;
+        const evaluate = text => registry.resolve(text, { word: 'oat' }, { imports: ['clock'] }).createEvaluator({ word: 'oat' }).evaluate().value;
 
         expect(evaluate('clock.now')).toBe(0);
         expect(evaluate('word.now')).toBe(3);

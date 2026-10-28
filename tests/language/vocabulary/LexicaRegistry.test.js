@@ -482,12 +482,11 @@ describe("a module's own collisions", () => {
         expect(registering(views)().getReceiverMembers('lit')).toHaveLength(2);
     });
 
-    it('find a module by its name, which gives its namespace, every module but Lexica\'s own', () => {
+    it('find a module by its name', () => {
         const views = new LexicaModule('views', withHome({}, { Light: [lit()] }));
         const registry = registering(views)();
 
         expect(registry.getModule('views')).toBe(views);
-        expect(registry.namespaceNames).toEqual(['views']);
         expect(registry.moduleNames).toEqual(['Lexica', 'views']);
     });
 });

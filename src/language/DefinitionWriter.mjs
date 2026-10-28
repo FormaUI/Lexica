@@ -3,6 +3,7 @@
  */
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
+import { Imports } from './Imports.mjs';
 import { Names } from './Names.mjs';
 
 /** The escape the canonical text writes for each character it escapes with a letter or the character itself; any other character it escapes it writes as a Unicode escape. */
@@ -12,9 +13,9 @@ const ESCAPED = Object.freeze({ '"': '\\"', '\\': '\\\\', '\n': '\\n', '\r': '\\
 const ESCAPED_CHARACTERS = /["\\\p{Cc}\p{Cf}\p{Zl}\p{Zp}]|(?! )\p{Zs}/gu;
 
 /** How tightly each kind of expression binds, the loosest lowest: one written where a tighter one stands is parenthesized. An optional chain is a cast's target as it is, and is grouped where a chain continues from it, since its short-circuit ends where it does. */
-const PRECEDENCE = { conditional: 0, body: 0, do: 0, function: 0, coalescing: 1, or: 2, and: 3, not: 4, equality: 5, comparison: 5, additive: 6, multiplicative: 7, negate: 8, try: 9, conversion: 10, cast: 11, optionalChain: 12 };
+const PRECEDENCE = { conditional: 0, body: 0, do: 0, function: 0, coalescing: 1, or: 2, and: 3, not: 4, equality: 5, comparison: 5, additive: 6, multiplicative: 7, arithmeticNegation: 8, try: 9, conversion: 10, cast: 11, optionalChain: 12 };
 
-/** How tightly a chain binds that no optional chain holds: a property access, a call, an indexer, an object expression, `it`, `root`, a namespace, a local, a literal or a parameter. */
+/** How tightly a chain binds that no optional chain holds: a property access, a call, an indexer, an object expression, `it`, `root`, a namespace, a local, a literal or a script parameter. */
 const CHAIN_PRECEDENCE = 13;
 
 /** The indentation of one level of an object expression laid out on lines. */
@@ -22,9 +23,9 @@ const INDENTATION = '    ';
 
 export class DefinitionWriter {
     /**
-     * Quotes the node: the text that writes it on one line, as a diagnostic quotes it and `lexica.quote` answers it.
+     * Quotes the node: the text that writes it on one line, as a diagnostic quotes it.
      * @param {object} node A node of a definition.
-     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is written with, each reserved as the language's words are; none for text read without a registry.
+     * @param {ReadonlySet<string>} [namespaceNames] The local names the script's imports give modules, each beginning its namespace, as the language's words keep their meaning; none where its imports give none.
      */
     static quote(node, namespaceNames = Names.noNamespaceNames) {
         return DefinitionWriter.#writing(namespaceNames, () => DefinitionWriter.#write(node, null));
@@ -33,11 +34,41 @@ export class DefinitionWriter {
     /**
      * The canonical text of the node, laid out on lines: an object expression of one field and no locals, whose value is on one line, stays on one line, and any other has a line for each entry, indented a level; a conditional with an `elseif` has a line for each clause.
      * @param {object} node A node of a definition.
-     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is written with, each reserved as the language's words are; none for text read without a registry.
+     * @param {ReadonlySet<string>} [namespaceNames] The local names the script's imports give modules, each beginning its namespace, as the language's words keep their meaning; none where its imports give none.
      */
     static format(node, namespaceNames = Names.noNamespaceNames) {
         // An expression that is a body writes its locals and its return alone, which a do block elsewhere encloses.
         return DefinitionWriter.#writing(namespaceNames, () => (node.kind === 'body' ? DefinitionWriter.#bodyText(node, 0) : DefinitionWriter.#write(node, 0)));
+    }
+
+    /**
+     * The canonical text of a script's definition, as `lexica.format` gives it: each import it records but those its destination supplies, on a line of its own in order of the local name it gives, an empty line, and its
+     * body laid out on lines, its namespaces written by the local names every import gives.
+     * @param {object} definition A validated definition.
+     * @param {readonly object[]} [suppliedImports] The imports the text's destination supplies, which it leaves out.
+     */
+    static formatScript(definition, suppliedImports = []) {
+        const imports = DefinitionWriter.#writtenImports(definition, suppliedImports);
+        const body = DefinitionWriter.format(definition.expression, Imports.namespaceNamesOf(definition.imports));
+
+        return imports.length === 0 ? body : `${imports.join('\n')}\n\n${body}`;
+    }
+
+    /**
+     * The compact text of a script's definition, as `lexica.quote` gives it: each import it records but those its destination supplies, on a line of its own, since each begins one, and its body on the next line, as a
+     * diagnostic quotes it.
+     * @param {object} definition A validated definition.
+     * @param {readonly object[]} [suppliedImports] The imports the text's destination supplies, which it leaves out.
+     */
+    static quoteScript(definition, suppliedImports = []) {
+        const body = DefinitionWriter.quote(definition.expression, Imports.namespaceNamesOf(definition.imports));
+
+        return [...DefinitionWriter.#writtenImports(definition, suppliedImports), body].join('\n');
+    }
+
+    /** The text of each import the definition records that its destination does not supply, in the definition's order. */
+    static #writtenImports(definition, suppliedImports) {
+        return definition.imports.filter(entry => !suppliedImports.some(supplied => Imports.isSameImport(supplied, entry))).map(entry => Imports.quote(entry));
     }
 
     /** The namespace names the text being written is written with. @type {ReadonlySet<string>} */
@@ -68,7 +99,7 @@ export class DefinitionWriter {
         switch (node.kind) {
             case 'literal':
                 return DefinitionWriter.#literal(node.value);
-            case 'parameter':
+            case 'scriptParameter':
                 // A script parameter a reserved word or a namespace name names, or one hidden where it stands, which validation marks on its canonical node, is written with `~`.
                 return Names.needsPrefix(node.name, DefinitionWriter.#namespaceNames) || DefinitionValidator.isHidden(node) ? `~${node.name}` : node.name;
             case 'it':
@@ -76,19 +107,23 @@ export class DefinitionWriter {
             case 'root':
                 return 'root';
             case 'namespace':
-                return node.name;
+                // A namespace a reserved word names is its import binding, which `@` reads where the word alone keeps its meaning.
+                return Names.isReservedWord(node.name) ? `@${node.name}` : node.name;
             case 'local':
                 return DefinitionWriter.#localNameText(node.name);
-            case 'member':
+            case 'memberAccess':
                 return typeof node.name === 'string'
-                    ? `${DefinitionWriter.#within(node.target, CHAIN_PRECEDENCE, level)}${DefinitionWriter.#dot(node)}${node.name}`
-                    : `${DefinitionWriter.#within(node.target, CHAIN_PRECEDENCE, level)}${DefinitionWriter.#dot(node)}[${DefinitionWriter.#write(node.name, level)}]`;
+                    ? `${DefinitionWriter.#within(node.receiver, CHAIN_PRECEDENCE, level)}${DefinitionWriter.#joiner(node)}${node.name}`
+                    : `${DefinitionWriter.#within(node.receiver, CHAIN_PRECEDENCE, level)}${DefinitionWriter.#dot(node)}[${DefinitionWriter.#write(node.name, level)}]`;
             case 'call':
-                return `${DefinitionWriter.#within(node.target, CHAIN_PRECEDENCE, level)}${DefinitionWriter.#dot(node)}${node.name}(${DefinitionWriter.#arguments(node, level)})`;
-            case 'indexer':
-                return `${DefinitionWriter.#within(node.target, CHAIN_PRECEDENCE, level)}${node.optional === true ? '?[' : '['}${DefinitionWriter.#write(node.argument, level)}]`;
+                return `${node.callee.kind === 'local' ? DefinitionWriter.#localNameText(node.callee.name) : DefinitionWriter.#write(node.callee, level)}(${DefinitionWriter.#arguments(node, level)})`;
+            case 'indexerAccess': {
+                const brackets = node.extension === undefined ? (node.optional === true ? '?[' : '[') : `${node.optional === true ? '?:' : ':'}${DefinitionWriter.#extensionText(node.extension)}[`;
+
+                return `${DefinitionWriter.#within(node.receiver, CHAIN_PRECEDENCE, level)}${brackets}${DefinitionWriter.#write(node.argument, level)}]`;
+            }
             case 'optionalChain':
-                return DefinitionWriter.#write(node.target, level);
+                return DefinitionWriter.#write(node.chain, level);
             case 'equality':
                 return DefinitionWriter.#equality(node, '==', level);
             case 'interpolatedString':
@@ -100,8 +135,6 @@ export class DefinitionWriter {
                 return DefinitionWriter.#conditional(node, level);
             case 'function':
                 return DefinitionWriter.#function(node, level);
-            case 'functionCall':
-                return `${DefinitionWriter.#localNameText(node.name)}(${DefinitionWriter.#arguments(node, level)})`;
             case 'do':
                 return DefinitionWriter.#block('do', node.body, level);
             case 'body':
@@ -109,37 +142,37 @@ export class DefinitionWriter {
                 return DefinitionWriter.#bodyText(node, level);
             case 'coalescing':
                 // A coalescing operator associates to the right, so a fallback that is one is written as it is.
-                return `${DefinitionWriter.#within(node.value, PRECEDENCE.negate, level)} ?? ${node.fallback.kind === 'coalescing' ? DefinitionWriter.#write(node.fallback, level) : DefinitionWriter.#within(node.fallback, PRECEDENCE.negate, level)}`;
+                return `${DefinitionWriter.#within(node.value, PRECEDENCE.arithmeticNegation, level)} ?? ${node.fallback.kind === 'coalescing' ? DefinitionWriter.#write(node.fallback, level) : DefinitionWriter.#within(node.fallback, PRECEDENCE.arithmeticNegation, level)}`;
             case 'arithmetic': {
                 // Operators of one level associate to the left, so a right operand of that level is grouped.
                 const precedence = DefinitionWriter.#precedenceOf(node);
 
                 return `${DefinitionWriter.#within(node.left, precedence, level)} ${node.operator} ${DefinitionWriter.#within(node.right, precedence + 1, level)}`;
             }
-            case 'negate': {
+            case 'arithmeticNegation': {
                 // A negated negative number, or an arithmetic negation, is grouped, so the signs never run together.
                 const { operand } = node;
-                const runsTogether = operand.kind === 'negate' || (operand.kind === 'literal' && typeof operand.value === 'number' && (operand.value < 0 || Object.is(operand.value, -0)));
+                const runsTogether = operand.kind === 'arithmeticNegation' || (operand.kind === 'literal' && typeof operand.value === 'number' && (operand.value < 0 || Object.is(operand.value, -0)));
 
-                return `-${runsTogether ? `(${DefinitionWriter.#write(operand, level)})` : DefinitionWriter.#within(operand, PRECEDENCE.negate, level)}`;
+                return `-${runsTogether ? `(${DefinitionWriter.#write(operand, level)})` : DefinitionWriter.#within(operand, PRECEDENCE.arithmeticNegation, level)}`;
             }
             case 'not':
                 // The negation of an equality is written as `!=`, which is its canonical text.
                 return node.operand.kind === 'equality' ? DefinitionWriter.#equality(node.operand, '!=', level) : `not ${DefinitionWriter.#within(node.operand, PRECEDENCE.not, level)}`;
             case 'cast':
-                return `${DefinitionWriter.#within(node.target, PRECEDENCE.optionalChain, level)} as ${node.type}`;
+                return `${DefinitionWriter.#within(node.operand, PRECEDENCE.optionalChain, level)} as ${node.type}`;
             case 'conversion':
                 // A conversion converts what is before it, so one that converts another is written as it is.
-                return `${DefinitionWriter.#within(node.target, PRECEDENCE.conversion, level)} to ${node.type}`;
+                return `${DefinitionWriter.#within(node.operand, PRECEDENCE.conversion, level)} to ${node.type}`;
             case 'try':
-                return `try ${DefinitionWriter.#attempted(node.target, level)}`;
+                return `try ${DefinitionWriter.#attempted(node.operand, level)}`;
             case 'and':
             case 'or':
                 return node.operands.map(operand => DefinitionWriter.#within(operand, PRECEDENCE[node.kind] + 1, level)).join(` ${node.kind} `);
             default: {
                 const objectText = DefinitionWriter.#object(node, level);
 
-                return node.target === undefined ? objectText : `${DefinitionWriter.#within(node.target, CHAIN_PRECEDENCE, level)} ${objectText}`;
+                return node.context === undefined ? objectText : `${DefinitionWriter.#within(node.context, CHAIN_PRECEDENCE, level)} ${objectText}`;
             }
         }
     }
@@ -147,6 +180,16 @@ export class DefinitionWriter {
     /** The dot before an access or a call: `?.` for an optional one, and `.` for one that requires its receiver. */
     static #dot(node) {
         return node.optional === true ? '?.' : '.';
+    }
+
+    /** What joins a named access to its receiver: its dot, or, where it selects an extension explicitly, `:` or `?:`, the extension's name as the definition holds it and a dot. */
+    static #joiner(node) {
+        return node.extension === undefined ? DefinitionWriter.#dot(node) : `${node.optional === true ? '?:' : ':'}${DefinitionWriter.#extensionText(node.extension)}.`;
+    }
+
+    /** An extension's name as an extension access writes it: its name, qualified by its module's local name where the definition qualifies it. */
+    static #extensionText(extension) {
+        return extension.module === undefined ? extension.name : `${extension.module}.${extension.name}`;
     }
 
     /**
@@ -189,7 +232,7 @@ export class DefinitionWriter {
         const inner = level === null ? null : level + 1;
         const entries = [
             ...(node.locals ?? []).map(local => `let ${local.name} = ${DefinitionWriter.#write(local.value, inner)}`),
-            ...node.fields.map(field => `${field.name} = ${DefinitionWriter.#write(field.value, inner)}`),
+            ...node.objectFields.map(field => `${field.name} = ${DefinitionWriter.#write(field.value, inner)}`),
         ];
 
         if (level === null || (node.locals === undefined && entries.length === 1 && !entries[0].includes('\n'))) {
@@ -207,7 +250,7 @@ export class DefinitionWriter {
             return DefinitionWriter.#write(node, level);
         }
 
-        const value = node.target.kind === 'conversion' || node.target.kind === 'cast' ? `(${DefinitionWriter.#write(node.target, level)})` : DefinitionWriter.#within(node.target, PRECEDENCE.conversion, level);
+        const value = node.operand.kind === 'conversion' || node.operand.kind === 'cast' ? `(${DefinitionWriter.#write(node.operand, level)})` : DefinitionWriter.#within(node.operand, PRECEDENCE.conversion, level);
 
         return `${value} to ${node.type}`;
     }
@@ -227,13 +270,13 @@ export class DefinitionWriter {
         }
 
         if (node.kind === 'literal' && typeof node.value === 'number' && (node.value < 0 || Object.is(node.value, -0))) {
-            return PRECEDENCE.negate;
+            return PRECEDENCE.arithmeticNegation;
         }
 
         return PRECEDENCE[node.kind] ?? CHAIN_PRECEDENCE;
     }
 
-    /** The text of a name a lexical reference reads, a local's, an object field's, a conditional binding's or a function parameter's: its name, after `@` where a reserved word names it, a module's name among them where the text is written with it, which written alone keeps its own meaning. */
+    /** The text of a name a lexical reference reads, a local's, an object field's, a conditional binding's or a function parameter's: its name, after `@` where a reserved word or a namespace's local name names it, which written alone keeps its own meaning. */
     static #localNameText(name) {
         return Names.needsPrefix(name, DefinitionWriter.#namespaceNames) ? `@${name}` : name;
     }

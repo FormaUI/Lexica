@@ -2,6 +2,7 @@
  * Parser — a Lexica text read into its lossless syntax tree, which the lowering turns into its definition
  */
 
+import { Imports } from './Imports.mjs';
 import { LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { SyntaxTree } from './SyntaxTree.mjs';
@@ -44,8 +45,11 @@ export class Parser {
     #tokens;
     #index = 0;
 
-    /** The namespace names the text is read with, each beginning its module's namespace where a value stands. @type {ReadonlySet<string>} */
-    #namespaceNames;
+    /** The local names the script's imports give modules, its own and those a host supplies, each beginning its module's namespace where a value stands. @type {ReadonlySet<string>} */
+    #namespaceNames = Names.noNamespaceNames;
+
+    /** The imports a host supplies, in a definition's shape, which the script's own imports share their local names with. @type {readonly object[]} */
+    #suppliedImports;
 
     /** How many bodies' locals are being read, where a name on a new line after a value is a statement no body holds rather than a member written without its dot. */
     #bodyLocalsBeingRead = 0;
@@ -58,26 +62,105 @@ export class Parser {
 
     /**
      * @param {string} text The source text.
-     * @param {ReadonlySet<string>} [namespaceNames] The namespace names the text is read with, none for text read without a registry.
+     * @param {readonly object[]} [suppliedImports] The imports a host supplies, in a definition's shape, checked already.
      */
-    constructor(text, namespaceNames = Names.noNamespaceNames) {
+    constructor(text, suppliedImports = []) {
         this.#text = text;
-        this.#namespaceNames = namespaceNames;
+        this.#suppliedImports = suppliedImports;
         this.#tokens = new Tokenizer(text).tokenize();
     }
 
     /**
-     * Reads the text into its syntax tree, whose script node holds the body, an expression alone or locals and the `return` that gives its result, and the end of the text, with the trivia before it.
+     * Reads the text into its syntax tree, whose script node holds the script's imports, each its own import declaration, then its body, an expression alone or locals and the `return` that gives its result, and the end of
+     * the text, with the trivia before it. The imports decide which names begin namespaces in the body, the host's beside the script's own.
      * @returns {import('./SyntaxTree.mjs').ScriptNode}
      */
     parse() {
+        const declarations = [];
+        const imports = [];
+
+        while (this.#isKeyword('import')) {
+            declarations.push(this.#parseImportDeclaration(imports));
+        }
+
+        this.#namespaceNames = Imports.namespaceNamesOf([...imports, ...this.#suppliedImports]);
+
+        // The body after the imports begins a line of its own, as each import does; a script of imports alone lacks its body, which reading it says.
+        if (declarations.length > 0 && this.#token.type !== 'end') {
+            this.#requireLineStart('The body after the imports');
+        }
+
         const body = this.#parseBody();
 
         if (this.#token.type !== 'end') {
             throw this.#createAfterBodyError('LEXICA1000', TOKEN_DESCRIPTIONS.end);
         }
 
-        return { kind: 'script', text: this.#text, children: [body, this.#take()] };
+        return { kind: 'script', text: this.#text, children: [...declarations, body, this.#take()] };
+    }
+
+    /**
+     * Reads an import declaration at the script's start: `import`, an alias and `=` where it gives one, and its source, a module's name and, where it imports one type, a dot and the type's local name, each any word. It begins
+     * a line of its own (LEXICA1044), imports nothing of Lexica's own (LEXICA1046), and gives no local name another import, written or supplied, gives a different declaration (LEXICA1048). It adds the import, in a
+     * definition's shape, to those read before it.
+     */
+    #parseImportDeclaration(imports) {
+        const keyword = this.#token;
+
+        this.#requireLineStart('An import');
+        this.#advance();
+
+        const first = this.#takeImportWord("a module's name, or an alias and '='");
+        const children = [keyword, first];
+        let moduleToken = first;
+
+        if (this.#token.type === '=') {
+            children.push(this.#take());
+            moduleToken = this.#takeImportWord("the module's name after the alias's '='");
+            children.push(moduleToken);
+        }
+
+        if (this.#token.type === '.') {
+            children.push(this.#take());
+            children.push(this.#takeImportWord("the type's name after its module's dot"));
+        }
+
+        const declaration = { kind: 'import-declaration', children };
+        const entry = SyntaxTree.importOf(declaration, this.#text);
+
+        if (entry.module === Names.lexicaModuleName) {
+            throw this.#createSyntaxError('LEXICA1046', "Lexica's own vocabulary is always available, so no script imports it or one of its types", moduleToken.start);
+        }
+
+        const conflict = [...imports, ...this.#suppliedImports].find(other => Imports.localNameOf(other) === Imports.localNameOf(entry) && !Imports.isSameImport(other, entry));
+
+        if (conflict !== undefined) {
+            throw this.#createSyntaxError('LEXICA1048', Imports.describeConflict([conflict, entry]), keyword.start);
+        }
+
+        imports.push(entry);
+
+        return declaration;
+    }
+
+    /** Takes a word an import names a module, a type or an alias by, any word, a reserved one among them, refusing anything else as the description says what was expected. */
+    #takeImportWord(expected) {
+        if (!this.#isWord(this.#token)) {
+            throw this.#createUnexpectedTokenError('LEXICA1000', expected);
+        }
+
+        return this.#take();
+    }
+
+    /** Refuses the token here where earlier code shares its line, as an import and the body after the imports never do (LEXICA1044). */
+    #requireLineStart(subject) {
+        if (this.#index === 0) {
+            return;
+        }
+
+        if (!/[\n\r]/.test(this.#text.slice(this.#tokens[this.#index - 1].end, this.#token.start))) {
+            throw this.#createSyntaxError('LEXICA1044', `${subject} starts on a line of its own`, this.#token.start);
+        }
     }
 
     /** Reads an expression: a conditional, a do block, or a simple value expression; a function stands as a local's initializer alone. */
@@ -1020,11 +1103,17 @@ export class Parser {
             case 'interpolated-string-start':
                 return this.#parseInterpolatedString();
             case 'keyword':
+                if (token.value === 'import') {
+                    throw this.#createSyntaxError('LEXICA1045', "Imports stand at the start of the script, before the first local or expression of its body", token.start);
+                }
+
                 if (!STRUCTURAL_KEYWORDS.has(token.value)) {
                     // A `return`, or a `let` and the name of the local it declares, where a value stands is a declaration or a result written where only a value may stand.
                     const declares = token.value === 'return' || (token.value === 'let' && this.#isWord(next));
+                    // A keyword an import gives a module as its local name reads that namespace after `@` where no local of its name is in scope.
+                    const binding = this.#namespaceNames.has(token.value) ? `, or, where none is in scope, the namespace the script's import gives that name` : '';
 
-                    throw this.#createSyntaxError(declares ? 'LEXICA1032' : 'LEXICA1010', `Found '${token.value}', a keyword: write '@${token.value}' for the local, object field, conditional binding or function parameter of that name`, token.start);
+                    throw this.#createSyntaxError(declares ? 'LEXICA1032' : 'LEXICA1010', `Found '${token.value}', a keyword: write '@${token.value}' for the local, object field, conditional binding or function parameter of that name${binding}`, token.start);
                 }
 
                 throw this.#createUnexpectedTokenError('LEXICA1010', 'a value');
@@ -1035,7 +1124,7 @@ export class Parser {
 
     /**
      * Reads a namespace access: a module's name, its dot and the name of one of the module's members, and the arguments of a call through it where parentheses follow. A namespace is never null and has no indexer,
-     * so only `.` follows it, and a module's name alone, which reads no value, gives the forms that read the local and the script parameter of its name.
+     * so only `.` follows it, and a module's local name alone, which reads no value, gives the forms that read the local and the script parameter of its name.
      */
     #parseNamespaceAccess() {
         const namespaceName = this.#take();
@@ -1043,7 +1132,7 @@ export class Parser {
 
         if (this.#token.type !== '.') {
             const isOptional = this.#token.type === '?.';
-            const access = isOptional ? `A namespace is never null, so its members are read after '.': write '${name}.…'` : `'${name}' is the namespace of the module of that name, whose members are read after a dot, as ${name}.member`;
+            const access = isOptional ? `A namespace is never null, so its members are read after '.': write '${name}.…'` : `'${name}' is the namespace of the module the script imports under that name, whose members are read after a dot, as ${name}.member`;
 
             throw this.#createSyntaxError('LEXICA1506', `${access}; write '@${name}' for the local, object field, conditional binding or function parameter of that name, or '~${name}' for the script parameter`, isOptional ? this.#token.start : namespaceName.start);
         }
@@ -1422,6 +1511,11 @@ export class Parser {
      * and of anything else written after the result, which ends its body.
      */
     #createAfterBodyError(code, expected) {
+        // An import after a body's result stands where no import does, as one anywhere but the script's start.
+        if (this.#isKeyword('import')) {
+            return this.#createSyntaxError('LEXICA1045', 'Imports stand at the start of the script, before the first local or expression of its body', this.#token.start);
+        }
+
         if (this.#token.type === 'end' || this.#token.type === '=' || BODY_ENCLOSURE_CLOSINGS.has(this.#token.type) || (this.#token.type === 'keyword' && STRUCTURAL_KEYWORDS.has(this.#token.value))) {
             return this.#createUnexpectedTokenError(code, expected);
         }

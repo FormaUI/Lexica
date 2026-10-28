@@ -435,7 +435,7 @@ export class Evaluator {
 
                 return () => value;
             }
-            case 'parameter':
+            case 'scriptParameter':
                 return evaluator => evaluator.#parameterBindings.readValue(node.name);
             case 'root':
                 return evaluator => evaluator.#objectRoot;
@@ -443,9 +443,8 @@ export class Evaluator {
                 return (evaluator, context) => context;
             case 'local':
                 return evaluator => evaluator.#evaluateLocal(node);
-            case 'member':
-            case 'call':
-            case 'indexer':
+            case 'memberAccess':
+            case 'indexerAccess':
                 return this.#compileMember(node);
             case 'equality': {
                 const left = this.#getCompiledFunction(node.left);
@@ -514,7 +513,7 @@ export class Evaluator {
             }
             case 'optionalChain':
                 // An access that meets null answers null, and so does everything after it in its chain, which is evaluated no further.
-                return this.#getCompiledFunction(node.target);
+                return this.#getCompiledFunction(node.chain);
             case 'coalescing': {
                 const value = this.#getCompiledFunction(node.value);
                 const fallback = this.#getCompiledFunction(node.fallback);
@@ -554,7 +553,12 @@ export class Evaluator {
             case 'function':
                 // A function evaluates to a script delegate, which holds its captured scope: all three of the locals' frame, the implicit parameter and the object root where it is declared, which each call evaluates its body in.
                 return (evaluator, context) => ({ function: node, capturedFrame: evaluator.#localsFrame, context, objectRoot: evaluator.#objectRoot });
-            case 'functionCall': {
+            case 'call': {
+                // A call of a member is compiled as any member is; a call of the function a name holds reads the local its callee names.
+                if (node.callee.kind !== 'local') {
+                    return this.#compileMember(node);
+                }
+
                 const resolution = this.#resolvedDefinition.resolutionOf(node);
 
                 // A call of one function reference alone is its qualified form's call, and the reference it is reads nothing; a receiver of unknown type selects no declaration, as the qualified form's selects none.
@@ -682,7 +686,7 @@ export class Evaluator {
                     return evaluator.#arithmeticResult(node, operate(leftValue, rightValue), leftValue, rightValue);
                 };
             }
-            case 'negate': {
+            case 'arithmeticNegation': {
                 const operand = this.#getCompiledFunction(node.operand);
 
                 return (evaluator, context) => {
@@ -696,19 +700,19 @@ export class Evaluator {
             case 'conversion':
                 return this.#compileConversion(node, false);
             case 'try':
-                return node.target.kind === 'cast' ? this.#compileCast(node.target, true) : this.#compileConversion(node.target, true);
+                return node.operand.kind === 'cast' ? this.#compileCast(node.operand, true) : this.#compileConversion(node.operand, true);
             case 'object':
                 return this.#compileObject(node);
         }
     }
 
     /**
-     * A cast, with its target evaluated once: its target itself where it belongs to the type, by the type's membership and its supertypes', and null where it is null, its cast operator, where one casts across
-     * hierarchies, called first where it has an implementation, which answers its target or rejects it. A target that doesn't belong, and one the operator rejects, fails the evaluation of a cast, naming the type its
-     * target is of, which is never asked again, or the operator's reason, and an attempted one answers null instead; an operator failing otherwise is a fault, which an attempt does not catch.
+     * A cast, with its operand evaluated once: its operand itself where it belongs to the type, by the type's membership and its supertypes', and null where it is null, its cast operator, where one casts across
+     * hierarchies, called first where it has an implementation, which answers its operand or rejects it. An operand that doesn't belong, and one the operator rejects, fails the evaluation of a cast, naming the type its
+     * operand is of, which is never asked again, or the operator's reason, and an attempted one answers null instead; an operator failing otherwise is a fault, which an attempt does not catch.
      */
     #compileCast(node, isAttempted) {
-        const evaluateOperand = this.#getCompiledFunction(node.target);
+        const evaluateOperand = this.#getCompiledFunction(node.operand);
         const { type: targetType, sourceType, declaration } = this.#resolvedDefinition.resolutionOf(node);
         const asked = `the cast to ${targetType}`;
         // A value of a type above the cast's is one that isn't of the cast's type, and a value of the cast's own type, or of one beneath it, is one its supertypes refuse.
@@ -745,11 +749,11 @@ export class Evaluator {
     }
 
     /**
-     * A conversion, with its target evaluated once and its conversion carried out once. Null converts to null, and a value already of the type to itself, without a conversion;
-     * a conversion that rejects its value fails the evaluation, and an attempted one answers null instead. A fault fails the evaluation of either, as a failure of its target does.
+     * A conversion, with its operand evaluated once and its conversion carried out once. Null converts to null, and a value already of the type to itself, without a conversion;
+     * a conversion that rejects its value fails the evaluation, and an attempted one answers null instead. A fault fails the evaluation of either, as a failure of its operand does.
      */
     #compileConversion(node, isAttempted) {
-        const evaluateOperand = this.#getCompiledFunction(node.target);
+        const evaluateOperand = this.#getCompiledFunction(node.operand);
         const { declaration, type } = this.#resolvedDefinition.resolutionOf(node);
 
         if (declaration === null) {
@@ -881,7 +885,7 @@ export class Evaluator {
             return this.#compileInvocation(node, resolution);
         }
 
-        const evaluateReceiver = this.#getCompiledFunction(node.target);
+        const evaluateReceiver = this.#getCompiledFunction(node.receiver);
 
         if (resolution.kind === 'objectRootField') {
             const { name } = resolution;
@@ -902,7 +906,7 @@ export class Evaluator {
     }
 
     /**
-     * An invocation of a member's declaration, with its function, its arguments and the check of its result made once: its receiver evaluated first, the node its resolution records, the node's target, the receiver of the access a named
+     * An invocation of a member's declaration, with its function, its arguments and the check of its result made once: its receiver evaluated first, the node its resolution records, the access's receiver, the receiver of the access a named
      * indexer's name is written in, or a qualified call's first argument, a null one answering null before its own arguments are evaluated, and a module member's none; then its arguments, null where one makes the call answer null.
      */
     #compileInvocation(node, resolution) {
@@ -997,7 +1001,7 @@ export class Evaluator {
 
                 evaluator.#nullAnswer = null;
 
-                if (node.optional === true || (followsOptionalAccess && !isAnswered)) {
+                if (Evaluator.#accessOf(node).optional === true || (followsOptionalAccess && !isAnswered)) {
                     return null;
                 }
 
@@ -1006,7 +1010,7 @@ export class Evaluator {
 
             const receiverType = evaluator.#getActualType(receiver, `the access '${written}'`, evaluator.#failSelectionOf(node));
             // A plain object's object fields are its data, found on each object, since objects of one type need not hold the same fields.
-            const isObjectField = node.kind === 'member' && receiverType.kind === 'object' && Object.hasOwn(receiver, node.name);
+            const isObjectField = node.kind === 'memberAccess' && receiverType.kind === 'object' && Object.hasOwn(receiver, node.name);
             const value = isObjectField ? evaluator.#readStoredValue(receiver, node.name) : evaluator.#evaluateDeferredSelection(node, resolution.candidates, receiver, receiverType, selections, evaluateArguments, context);
 
             if (value === null) {
@@ -1255,15 +1259,20 @@ export class Evaluator {
         return reason => this.#fail('LEXICA5012', `'${Evaluator.#writtenNameOf(node)}' is selected by the types of the values it is given, and ${reason}`, this.#pointerOf(node));
     }
 
-    /** The name a message gives an access, its member's name, or `[…]` for an unnamed indexer. */
+    /** The name a message gives an access, its member's name, a call's its callee's, or `[…]` for an unnamed indexer. */
     static #writtenNameOf(node) {
-        return node.kind === 'indexer' && node.name === undefined ? '[…]' : node.name;
+        return node.kind === 'indexerAccess' && node.name === undefined ? '[…]' : Evaluator.#accessOf(node).name;
+    }
+
+    /** The access a node of a member makes: a property access and an indexer are their own, and a call of a member the member access its callee is. */
+    static #accessOf(node) {
+        return node.kind === 'call' ? node.callee : node;
     }
 
     /** Whether an access of the chain the node ends, the node among them, is optional, so a null the node answers can be one an optional access met, which ends the chain. */
     static #followsOptionalAccess(node) {
-        for (let current = node; current?.kind === 'member' || current?.kind === 'call' || current?.kind === 'indexer'; current = current.target) {
-            if (current.optional === true) {
+        for (let current = node; current?.kind === 'memberAccess' || current?.kind === 'indexerAccess' || (current?.kind === 'call' && current.callee.kind === 'memberAccess'); current = Evaluator.#accessOf(current).receiver) {
+            if (Evaluator.#accessOf(current).optional === true) {
                 return true;
             }
         }
@@ -1571,20 +1580,20 @@ export class Evaluator {
         }
     }
 
-    /** An object expression, its target, its fields' names and values and whether it holds locals found once; applied to each item of a list it follows, and to the value it follows otherwise. */
+    /** An object expression, its context, its fields' names and values and whether it holds locals found once; applied to each item of a list it follows, and to the value it follows otherwise. */
     #compileObject(node) {
-        const hasTarget = node.target !== undefined;
-        const evaluateSource = hasTarget ? this.#getCompiledFunction(node.target) : null;
+        const hasTarget = node.context !== undefined;
+        const evaluateSource = hasTarget ? this.#getCompiledFunction(node.context) : null;
         // An item's source is of the kind its established type gives it, a reference where its items are of a reference type, whatever the value itself is.
         const resolution = this.#resolvedDefinition.resolutionOf(node);
         const isOfReferences = resolution?.kind === 'projection' && this.#registry.isReferenceType(resolution.itemType.toNonNullable());
         const names = this.#resolvedDefinition.fieldNamesOf(node);
         const localNames = node.locals === undefined ? null : node.locals.map(local => local.name);
         // A field the entries after it read is in scope for them, by the name the definition gives it.
-        const fields = node.fields.map((field, index) => ({
+        const fields = node.objectFields.map((field, index) => ({
             name: names[index],
             local: field.name,
-            isReadLater: node.fields.slice(index + 1).some(later => Evaluator.#readsLocal(later.value, field.name)),
+            isReadLater: node.objectFields.slice(index + 1).some(later => Evaluator.#readsLocal(later.value, field.name)),
             evaluate: this.#getCompiledFunction(field.value),
         }));
 
@@ -1639,7 +1648,7 @@ export class Evaluator {
             return false;
         }
 
-        return ((node.kind === 'local' || node.kind === 'functionCall') && node.name === name) || Object.values(node).some(value => Evaluator.#readsLocal(value, name));
+        return (node.kind === 'local' && node.name === name) || Object.values(node).some(value => Evaluator.#readsLocal(value, name));
     }
 
     /**
@@ -1882,7 +1891,7 @@ export class Evaluator {
         }
 
         const resolution = this.#resolvedDefinition.resolutionOf(node);
-        const receiver = this.#evaluateNode(node.target, context);
+        const receiver = this.#evaluateNode(node.receiver, context);
 
         if (receiver === null) {
             return null;
@@ -1967,7 +1976,7 @@ export class Evaluator {
      * and where the result is no finite number, so neither infinity nor NaN reaches a result; each is an evaluation error at the operation.
      */
     #arithmeticResult(node, result, left, right) {
-        const operator = node.kind === 'negate' ? '-' : node.operator;
+        const operator = node.kind === 'arithmeticNegation' ? '-' : node.operator;
 
         if (typeof left !== 'number' || typeof right !== 'number') {
             this.#fail('LEXICA5505', `'${operator}' takes numbers, and is given ${typeof left !== 'number' ? Evaluator.#describe(left) : Evaluator.#describe(right)}`, this.#pointerOf(node));
@@ -2372,7 +2381,7 @@ export class Evaluator {
                     node = this.#resolvedDefinition.resolutionOf(node).initializer;
                     continue;
                 case 'optionalChain':
-                    node = node.target;
+                    node = node.chain;
                     continue;
                 case 'body':
                     node = node.result;
@@ -2380,8 +2389,13 @@ export class Evaluator {
                 case 'do':
                     node = node.body;
                     continue;
-                case 'functionCall': {
+                case 'call': {
                     const resolution = this.#resolvedDefinition.resolutionOf(node);
+
+                    // A call of a member describes its value as any member's does.
+                    if (node.callee.kind !== 'local') {
+                        return this.#resolveMemberRecord(node, resolution, identities, contextRecord, selections);
+                    }
 
                     // A call of one function reference alone produces its value itself, as the member it invokes does, the reference's declaration its one candidate where its receiver's type is unknown.
                     if (resolution.functions === undefined) {
@@ -2403,34 +2417,19 @@ export class Evaluator {
                     node = called.body;
                     continue;
                 }
-                case 'member':
-                case 'call':
-                case 'indexer': {
-                    let resolution = this.#resolvedDefinition.resolutionOf(node);
-                    let candidate = null;
+                case 'memberAccess':
+                case 'indexerAccess': {
+                    const resolution = this.#resolvedDefinition.resolutionOf(node);
+                    const candidate = resolution?.kind === 'computedPropertyAccess' ? (selections?.get(node) ?? null) : null;
+                    const selected = resolution?.kind === 'computedPropertyAccess' ? (candidate === null ? null : resolution.resolutionsByName.get(candidate)) : resolution;
 
-                    if (resolution?.kind === 'computedPropertyAccess') {
-                        candidate = selections?.get(node) ?? null;
-
-                        if (candidate === null) {
-                            return this.#getExpressionRecord(node, null, null);
-                        }
-
-                        resolution = resolution.resolutionsByName.get(candidate);
-                    }
-
-                    if (resolution?.kind === 'objectRootField') {
-                        node = resolution.initializer;
+                    // A field read through the object root follows its initializer.
+                    if (selected?.kind === 'objectRootField') {
+                        node = selected.initializer;
                         continue;
                     }
 
-                    if (resolution?.kind === 'objectField' || resolution?.kind === 'dataProperty') {
-                        const whole = this.#resolveRecord(node.target, undefined, identities, contextRecord);
-
-                        return whole.objectFields?.[candidate ?? resolution.name] ?? Evaluator.#getInheritedRecord(whole);
-                    }
-
-                    return this.#getExpressionRecord(node, candidate, resolution?.declaration?.updates?.tolerance ?? null);
+                    return this.#resolveMemberRecord(node, resolution, identities, contextRecord, selections);
                 }
                 case 'it':
                     return contextRecord ?? this.#getExpressionRecord(node, null, null);
@@ -2454,12 +2453,39 @@ export class Evaluator {
     }
 
     /**
+     * Resolves the record of a member's value: a computed property access's by the name its evaluation selected, none where it selected none; a stored value's, an object field's or a data property's, the record of that
+     * field of what it reads it from; and any other the member's own, with its declaration's tolerance. A field read through the object root is its caller's to follow.
+     */
+    #resolveMemberRecord(node, resolution, identities, contextRecord, selections) {
+        let selected = resolution;
+        let candidate = null;
+
+        if (resolution?.kind === 'computedPropertyAccess') {
+            candidate = selections?.get(node) ?? null;
+
+            if (candidate === null) {
+                return this.#getExpressionRecord(node, null, null);
+            }
+
+            selected = resolution.resolutionsByName.get(candidate);
+        }
+
+        if (selected?.kind === 'objectField' || selected?.kind === 'dataProperty') {
+            const whole = this.#resolveRecord(node.receiver, undefined, identities, contextRecord);
+
+            return whole.objectFields?.[candidate ?? selected.name] ?? Evaluator.#getInheritedRecord(whole);
+        }
+
+        return this.#getExpressionRecord(node, candidate, selected?.declaration?.updates?.tolerance ?? null);
+    }
+
+    /**
      * Resolves the record of an object expression's value, whichever result it gave: one object's record of each field, a projected list's record of each item with the reference each came from, or its own record alone where it
      * gave null or is described for a part read from it.
      */
     #resolveObjectExpressionRecord(node, value, identities, contextRecord) {
         // The fields read `it` as the value the expression follows, each item of it where it projects a list, and as the enclosing one where it follows none.
-        const followed = node.target === undefined ? null : this.#resolveRecord(node.target, undefined, identities, contextRecord);
+        const followed = node.context === undefined ? null : this.#resolveRecord(node.context, undefined, identities, contextRecord);
 
         if (Array.isArray(value)) {
             const itemContextRecord = followed === null ? contextRecord : Evaluator.#getInheritedRecord(followed);
@@ -2478,7 +2504,7 @@ export class Evaluator {
      * it is described from the selections of the place it is read.
      */
     #createObjectRecord(node, object, identities, contextRecord) {
-        const { fields } = node;
+        const { objectFields: fields } = node;
         const records = new Array(fields.length);
 
         for (let index = 0; index < fields.length; index++) {

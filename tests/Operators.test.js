@@ -99,10 +99,10 @@ describe('an operator a script uses', () => {
         const resolution = registry.resolve('{ text = (word to Temperature) to String, device = (deviceMeter as Device) != null, number = "12" to Number }', bindings);
 
         expect(resolution.usedDeclarations.map(({ name, qualifiedName, pointer }) => [name, qualifiedName, pointer])).toEqual([
-            ['convert', 'String to Temperature', '/expression/fields/0/value/target'],
-            ['convert', 'Temperature to String', '/expression/fields/0/value'],
-            ['cast', 'Meter as Home.Device', '/expression/fields/1/value/operand/left'],
-            ['convert', 'String to Number', '/expression/fields/2/value'],
+            ['convert', 'String to Temperature', '/expression/objectFields/0/value/operand'],
+            ['convert', 'Temperature to String', '/expression/objectFields/0/value'],
+            ['cast', 'Meter as Home.Device', '/expression/objectFields/1/value/operand/left'],
+            ['convert', 'String to Number', '/expression/objectFields/2/value'],
         ]);
         expect(resolution.createEvaluator(bindings).evaluate().value).toEqual({ text: '21 degrees', device: true, number: 12 });
     });

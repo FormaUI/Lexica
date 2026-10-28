@@ -50,7 +50,7 @@ const evaluate = (text, bound = values) => {
     const asked = [];
     const registry = lexica.createRegistry([createPantry(invoked)]);
     const bindings = registry.createBindings(bound);
-    const value = registry.resolve(text, bindings).createEvaluator(bindings).evaluate({ beforeInvoke: request => void asked.push(request.declaration.name) }).value;
+    const value = registry.resolve(text, bindings, { imports: ['pantry'] }).createEvaluator(bindings).evaluate({ beforeInvoke: request => void asked.push(request.declaration.name) }).value;
 
     return { value, invoked, asked };
 };
@@ -127,7 +127,7 @@ describe('implicit bodies', () => {
     it('are recorded as written, an argument node like any other, the resolution telling them apart', () => {
         const registry = lexica.createRegistry([createPantry()]);
 
-        expect(registry.parse('word.is(it.size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'member', target: { kind: 'it' }, name: 'size' }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
+        expect(registry.parse('word.is(it.size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size' }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
         expect(registry.format('word.is(it.size > 2)')).toBe('word.is(it.size > 2)');
     });
 });
@@ -150,7 +150,7 @@ describe('functions passed to members', () => {
             const held = {};
             const registry = lexica.createRegistry([createPantry([], held)]);
             const bindings = registry.createBindings(values);
-            const evaluator = registry.resolve(`word.keepAndFail(${test})`, bindings).createEvaluator(bindings);
+            const evaluator = registry.resolve(`word.keepAndFail(${test})`, bindings, { imports: ['pantry'] }).createEvaluator(bindings);
 
             expect(errorThrownBy(() => evaluator.evaluate()), test).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
             expect(errorThrownBy(() => held.test('oat')), test).toMatchObject({ code: 'LEXICA5008', kind: 'evaluation' });

@@ -33,16 +33,16 @@ describe('indexers and computed properties', () => {
         });
 
         it('records a named indexer as an indexer of the member access its name is written in, an optional receiver on the access and optional brackets on the indexer', () => {
-            const a = { kind: 'parameter', name: 'a' };
-            const k = { kind: 'parameter', name: 'k' };
+            const a = { kind: 'scriptParameter', name: 'a' };
+            const k = { kind: 'scriptParameter', name: 'k' };
 
-            expect(lexica.parse('a.b[k]').expression).toEqual({ kind: 'indexer', target: { kind: 'member', target: a, name: 'b' }, argument: k });
-            expect(lexica.parse('a?.b[k]').expression).toEqual({ kind: 'optionalChain', target: { kind: 'indexer', target: { kind: 'member', target: a, name: 'b', optional: true }, argument: k } });
-            expect(lexica.parse('a.b?[k]').expression).toEqual({ kind: 'optionalChain', target: { kind: 'indexer', target: { kind: 'member', target: a, name: 'b' }, argument: k, optional: true } });
+            expect(lexica.parse('a.b[k]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b' }, argument: k });
+            expect(lexica.parse('a?.b[k]').expression).toEqual({ kind: 'optionalChain', chain: { kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b', optional: true }, argument: k } });
+            expect(lexica.parse('a.b?[k]').expression).toEqual({ kind: 'optionalChain', chain: { kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b' }, argument: k, optional: true } });
         });
 
         it('records a computed property as a member named by its expression, or by the name a string literal is', () => {
-            expect(lexica.parse('a.[p]').expression).toEqual({ kind: 'member', target: { kind: 'parameter', name: 'a' }, name: { kind: 'parameter', name: 'p' } });
+            expect(lexica.parse('a.[p]').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: { kind: 'scriptParameter', name: 'p' } });
             expect(lexica.parse('a.["b"]').expression).toEqual(lexica.parse('a.b').expression);
             expect(lexica.parse('a.["night-mode"]').expression.name).toEqual({ kind: 'literal', value: 'night-mode' });
         });
@@ -65,7 +65,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses an indexer node holding a name, and a definition of version 32', () => {
-            const named = { version: 33, expression: { kind: 'indexer', target: { kind: 'parameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
+            const named = { version: 34, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
 
             expect(errorThrownBy(() => lexica.validate(named))).toMatchObject({ kind: 'structure' });
             expect(errorThrownBy(() => lexica.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });
@@ -214,13 +214,13 @@ describe('indexers and computed properties', () => {
         });
 
         it('is read and written as it is, in text read without a registry too', () => {
-            expect(lexica.parse('order to cups.Cup').expression).toEqual({ kind: 'conversion', type: 'cups.Cup', target: { kind: 'parameter', name: 'order' } });
+            expect(lexica.parse('order to cups.Cup').expression).toEqual({ kind: 'conversion', type: 'cups.Cup', operand: { kind: 'scriptParameter', name: 'order' } });
             expect(lexica.format('(order to cups.Cup).size')).toBe('(order to cups.Cup).size');
             expect(lexica.format('node as dom.element')).toBe('node as dom.element');
         });
 
         it('names the type its registered module declares', () => {
-            const resolution = lexica.createRegistry([createCups()]).resolve('(order to cups.Cup).size', { order: 'tall' });
+            const resolution = lexica.createRegistry([createCups()]).resolve('import cups\n(order to cups.Cup).size', { order: 'tall' });
 
             expect(resolution.createEvaluator({ order: 'tall' }).evaluate().value).toBe(4);
         });
@@ -228,8 +228,9 @@ describe('indexers and computed properties', () => {
         it('refuses a module no registry holds, and a type its module does not declare', () => {
             const registry = lexica.createRegistry([createCups()]);
 
-            expect(errorThrownBy(() => registry.resolve('order to mugs.Cup', { order: 'tall' })).message).toContain("No module named 'mugs' is registered");
-            expect(errorThrownBy(() => registry.resolve('order to cups.Mug', { order: 'tall' })).message).toContain("The module 'cups' does not declare a type named 'Mug'");
+            expect(errorThrownBy(() => registry.resolve('order to mugs.Cup', { order: 'tall' })).message).toContain("'mugs.Cup' is qualified by 'mugs', which no import of the script gives a module");
+            expect(errorThrownBy(() => registry.resolve('import mugs\norder to mugs.Cup', { order: 'tall' })).message).toContain("'import mugs' imports the module 'mugs', which the registry does not hold");
+            expect(errorThrownBy(() => registry.resolve('import cups\norder to cups.Mug', { order: 'tall' })).message).toContain("The module 'cups' does not declare a type named 'Mug'");
         });
     });
 });

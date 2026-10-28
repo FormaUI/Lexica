@@ -181,19 +181,6 @@ describe('the runtime codes', () => {
     describe('of the entry point', () => {
         const registry = lexica.createRegistry([createPantry()]);
 
-        it('LEXICA2640: a definition reading through a namespace, formatted without a registry', () => {
-            expectLexicaError(errorThrownBy(() => lexica.format(registry.parse('pantry.size'))), 'LEXICA2640', 'structure');
-            expectLexicaError(errorThrownBy(() => lexica.quote(registry.parse('pantry.size'))), 'LEXICA2640', 'structure');
-        });
-
-        it('LEXICA2641: a definition read without the registry\'s module names that writes one of them alone', () => {
-            expectLexicaError(errorThrownBy(() => registry.resolve(lexica.parse('pantry.size'))), 'LEXICA2641', 'structure');
-        });
-
-        it('LEXICA2642: a namespace no module the registry holds gives', () => {
-            expectLexicaError(errorThrownBy(() => registry.resolve({ version: 33, expression: { kind: 'member', target: { kind: 'namespace', name: 'bakery' }, name: 'open' } })), 'LEXICA2642', 'structure');
-        });
-
         it('LEXICA2643: a pointer that is not a JSON Pointer', () => {
             expectLexicaError(errorThrownBy(() => lexica.getLocation(lexica.parse('1 + 2'), 'expression')), 'LEXICA2643', 'structure');
             expectLexicaError(errorThrownBy(() => registry.resolve('1 + 2').getLocation(5)), 'LEXICA2643', 'structure');
@@ -421,7 +408,7 @@ describe('the runtime codes', () => {
             expectLexicaError(member, 'LEXICA4001', 'module');
             expectLexicaError(conversion, 'LEXICA4001', 'module');
             expect(member.location).toEqual({ pointer: '/expression', offset: 0, line: 1, column: 1 });
-            expect(conversion.location).toEqual({ pointer: '/expression/target', offset: 1, line: 1, column: 2 });
+            expect(conversion.location).toEqual({ pointer: '/expression/receiver', offset: 1, line: 1, column: 2 });
 
             const indexers = lexica.createModule('indexers', { types: [extensionDeclaration('Cells', 'String', [createIndexerDeclaration(null, 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')] })])] });
 

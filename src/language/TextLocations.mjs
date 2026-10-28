@@ -14,10 +14,17 @@ export class TextLocations {
     /**
      * @param {string} text The source text.
      * @param {object} definition The definition read from it.
-     * @param {WeakMap<object, Span>} spans The span of text each node, field and argument came from.
+     * @param {WeakMap<object, Span>} spans The span of text each node, field, argument and written import came from.
      */
     constructor(text, definition, spans) {
         this.#text = text;
+        definition.imports.forEach((entry, index) => {
+            const span = spans.get(entry);
+
+            if (span) {
+                this.#spans.set(`/imports/${index}`, span);
+            }
+        });
         this.#collect(definition.expression, '/expression', spans);
     }
 
@@ -55,11 +62,14 @@ export class TextLocations {
             this.#spans.set(pointer, span);
         }
 
-        if (node.target) {
-            this.#collect(node.target, `${pointer}/target`, spans);
+        // A property access, an indexer, a call's member and what an object expression or an optional chain holds, each the node it continues from or ends at.
+        for (const property of ['receiver', 'callee', 'context', 'chain']) {
+            if (node[property]) {
+                this.#collect(node[property], `${pointer}/${property}`, spans);
+            }
         }
 
-        if (node.kind === 'member' && typeof node.name !== 'string') {
+        if (node.kind === 'memberAccess' && typeof node.name !== 'string') {
             this.#collect(node.name, `${pointer}/name`, spans);
         }
 
@@ -95,7 +105,8 @@ export class TextLocations {
             this.#collect(node.right, `${pointer}/right`, spans);
         }
 
-        if (node.kind === 'not' || node.kind === 'negate') {
+        // A negation's, an arithmetic negation's, a cast's, a conversion's and an attempt's operand.
+        if (node.operand) {
             this.#collect(node.operand, `${pointer}/operand`, spans);
         }
 
@@ -122,11 +133,11 @@ export class TextLocations {
             this.#collect(node.body, `${pointer}/body`, spans);
         }
 
-        if (node.kind === 'functionCall' || node.kind === 'call') {
+        if (node.kind === 'call') {
             node.arguments.forEach((argument, index) => this.#collect(argument, `${pointer}/arguments/${index}`, spans));
         }
 
-        for (const entriesProperty of ['locals', 'fields']) {
+        for (const entriesProperty of ['locals', 'objectFields']) {
             node[entriesProperty]?.forEach((entry, index) => {
                 const entryPointer = `${pointer}/${entriesProperty}/${index}`;
                 const entrySpan = spans.get(entry);

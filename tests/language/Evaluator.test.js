@@ -66,8 +66,8 @@ describe('Evaluator', () => {
 
         createEvaluator('{ a = name.price, b = name.rate }', { name: 'tea' }, { env: { rate: 1 } }).evaluate({ ...host, beforeInvoke: request => (requests.push(request), host.beforeInvoke(request)) });
 
-        expect(host.calls).toEqual(['before:price@/expression/fields/0/value', 'after:price=3', 'before:rate@/expression/fields/1/value', 'after:rate=1', 'ended:completed']);
-        expect(requests[0]).toMatchObject({ receiver: 'tea', args: {}, pointer: '/expression/fields/0/value' });
+        expect(host.calls).toEqual(['before:price@/expression/objectFields/0/value', 'after:price=3', 'before:rate@/expression/objectFields/1/value', 'after:rate=1', 'ended:completed']);
+        expect(requests[0]).toMatchObject({ receiver: 'tea', args: {}, pointer: '/expression/objectFields/0/value' });
     });
 
     it('names a member invoked within a script function\'s body by the part of the body it is, which the definition holds, whichever call reached it', () => {
@@ -100,7 +100,7 @@ describe('Evaluator', () => {
 
         expect(evaluation.value).toEqual({ none: null, indexed: null, some: 3 });
         expect(invoked).toEqual(['price:tea']);
-        expect(host.calls.filter(call => call.startsWith('before'))).toEqual(['before:price@/expression/fields/2/value']);
+        expect(host.calls.filter(call => call.startsWith('before'))).toEqual(['before:price@/expression/objectFields/2/value']);
     });
 
     it('reads a maintained member through the samples beforeInvoke answers', () => {
@@ -114,7 +114,7 @@ describe('Evaluator', () => {
         const host = createHost({ beforeInvoke: () => ({ pending: true }), afterEvaluation: outcome => outcomes.push(outcome) });
 
         expect(createEvaluator('{ quote = name.quoted }', { name: 'tea' }).evaluate(host)).toMatchObject({ value: { quote: null }, isPending: true });
-        expect(host.calls).toEqual(['before:quoted@/expression/fields/0/value', 'ended:pending']);
+        expect(host.calls).toEqual(['before:quoted@/expression/objectFields/0/value', 'ended:pending']);
         expect(outcomes).toEqual([{ kind: 'pending', value: { quote: null } }]);
     });
 

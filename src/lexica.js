@@ -6,9 +6,9 @@
 import { DefinitionValidator } from './language/DefinitionValidator.mjs';
 import { DefinitionWriter } from './language/DefinitionWriter.mjs';
 import { Evaluator } from './language/Evaluator.mjs';
+import { Imports } from './language/Imports.mjs';
 import { LanguageResolver } from './language/LanguageResolver.mjs';
 import { LexicaError, LexicaErrors } from './language/LexicaError.mjs';
-import { Names } from './language/Names.mjs';
 import { ParameterBindings } from './language/ParameterBindings.mjs';
 import { ParsedTexts } from './language/ParsedTexts.mjs';
 import { ResultPath } from './language/ResultPath.mjs';
@@ -21,58 +21,30 @@ import { Vocabulary } from './language/vocabulary/Vocabulary.mjs';
 /** The parameter bindings each bindings object a registry's `createBindings` created stands for. @type {WeakMap<object, ParameterBindings>} */
 const PARAMETER_BINDINGS = new WeakMap();
 
-/** The definition a script gives: its source read with the namespace names given and checked, or its definition checked, each the same frozen definition its canonical text would give. */
-const definitionOf = (script, namespaceNames = Names.noNamespaceNames) => (typeof script === 'string' ? ParsedTexts.parse(script, namespaceNames) : new DefinitionValidator().validate(script));
-
-/** Each namespace the node reads through, with where it stands, in the order written. */
-const namespacesOf = (node, pointer, found = []) => {
-    if (node === null || typeof node !== 'object') {
-        return found;
-    }
-
-    if (node.kind === 'namespace') {
-        found.push({ name: node.name, pointer });
-
-        return found;
-    }
-
-    for (const [key, value] of Object.entries(node)) {
-        namespacesOf(value, `${pointer}/${key}`, found);
-    }
-
-    return found;
-};
-
-/** The definition, refused where text read without namespace names cannot write it: a definition reading through a namespace, which only a registry's namespace names write. */
-const withoutNamespaces = definition => {
-    const [namespace] = namespacesOf(definition.expression, '/expression');
-
-    if (namespace !== undefined) {
-        throw LexicaErrors.structure('LEXICA2640', `The definition reads through the namespace '${namespace.name}', which text read without a registry's module names cannot write; write it with the registry, as registry.format does`, locate(definition, namespace.pointer));
-    }
-
-    return definition;
-};
+/** The imports a host supplies in a call's options, as a definition records them, checked as a definition's are; none where it supplies none. */
+const suppliedImportsOf = options => Imports.createSuppliedImports(options?.imports);
 
 /**
- * The definition, refused where the registry would read it otherwise than it was read: one read from text without the registry's namespace names that writes one of them alone, which the registry reads as the module's namespace,
- * and one reading through a namespace no module the registry holds gives. Nothing reads a text otherwise unannounced.
+ * The definition a script gives: its source read with the imports a host supplies and checked, or its definition checked, each the same frozen definition its canonical text would give. A definition records its imports, so
+ * the imports supplied apply to a source alone.
  */
-const readWith = (definition, namespaceNames) => {
-    const reading = ParsedTexts.readingOf(definition);
-    const misread = reading === null ? undefined : [...reading.namesWrittenAlone.keys()].find(name => namespaceNames.has(name) && !reading.namespaceNames.has(name));
+const definitionOf = (script, suppliedImports = []) => (typeof script === 'string' ? ParsedTexts.parse(script, suppliedImports) : new DefinitionValidator().validate(script));
 
-    if (misread !== undefined) {
-        throw LexicaErrors.structure('LEXICA2641', `The definition was read without this registry's module names, and writes '${misread}' alone, which this registry reads as the namespace of its module '${misread}'; read the text with the registry`, ParsedTexts.locationsOf(definition).locateSpan(reading.namesWrittenAlone.get(misread)));
+/** What `parse` reads, a script's source, read with the imports a host supplies. */
+const parse = (source, options) => {
+    if (typeof source !== 'string') {
+        throw LexicaErrors.structure('LEXICA2645', "What parse reads is a script's source", {});
     }
 
-    const lacking = namespacesOf(definition.expression, '/expression').find(namespace => !namespaceNames.has(namespace.name));
+    return ParsedTexts.parse(source, suppliedImportsOf(options));
+};
 
-    if (lacking !== undefined) {
-        throw LexicaErrors.structure('LEXICA2642', `The definition reads through the namespace '${lacking.name}', and this registry holds no module of that name`, locate(definition, lacking.pointer));
-    }
+/** The canonical text of a script, laid out or compact, read with the imports its destination supplies and leaving them out. */
+const write = (script, options, isCompact) => {
+    const supplied = suppliedImportsOf(options);
+    const definition = definitionOf(script, supplied);
 
-    return definition;
+    return isCompact ? DefinitionWriter.quoteScript(definition, supplied) : DefinitionWriter.formatScript(definition, supplied);
 };
 
 /**
@@ -114,7 +86,7 @@ const getParameterBindings = (registry, bindings) => {
 /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
 const locate = (definition, pointer) => {
     if (typeof pointer !== 'string' || !(pointer === '' || pointer.startsWith('/'))) {
-        throw LexicaErrors.structure('LEXICA2643', 'A pointer is a JSON Pointer into the definition, as /expression/fields/0', {});
+        throw LexicaErrors.structure('LEXICA2643', 'A pointer is a JSON Pointer into the definition, as /expression/objectFields/0', {});
     }
 
     let node = definition;
@@ -232,16 +204,10 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
 /**
  * A registry a host resolves scripts against: Lexica's own module and the modules the host registers, each module's vocabulary in effect for every script resolved after it.
- * It reads and writes text with the names of its modules, which begin their namespaces there. No registry is shared, so two hosts never see each other's modules.
+ * It reads and writes text as `lexica` does, the script's imports deciding which of its names are namespaces, so registering a module changes how no text reads. No registry is shared, so two hosts never see each other's modules.
  */
 const createRegistry = modules => {
     const registry = new LexicaRegistry([Vocabulary.module, ...modules]);
-    const namespaceNames = () => new Set(registry.namespaceNames);
-    const definitionWith = script => {
-        const names = namespaceNames();
-
-        return readWith(definitionOf(script, names), names);
-    };
 
     return Object.freeze({
         registerModule: module => {
@@ -256,19 +222,13 @@ const createRegistry = modules => {
         getObservationType: name => registry.getObservationType(name),
         getDeclaringModuleName: declaration => registry.getDeclaringModuleName(declaration),
         getImplementation: declaration => registry.getImplementation(declaration),
-        parse: source => {
-            if (typeof source !== 'string') {
-                throw LexicaErrors.structure('LEXICA2645', "What parse reads is a script's source", {});
-            }
-
-            return definitionWith(source);
-        },
-        format: script => DefinitionWriter.format(definitionWith(script).expression, namespaceNames()),
-        quote: script => DefinitionWriter.quote(definitionWith(script).expression, namespaceNames()),
+        parse: (source, options) => parse(source, options),
+        format: (script, options) => write(script, options, false),
+        quote: (script, options) => write(script, options, true),
         createBindings: (values = {}, options = {}) => createBindings(registry, values, options),
-        resolve: (script, bindings = {}) => {
+        resolve: (script, bindings = {}, options = {}) => {
             // The script is read before its bindings, so one that does not follow the syntax or the structure asks no module's `typeOf`.
-            const definition = definitionWith(script);
+            const definition = definitionOf(script, suppliedImportsOf(options));
 
             return resolutionOf(registry, definition, getParameterBindings(registry, bindings) ?? new ParameterBindings(registry, bindings ?? {}));
         },
@@ -294,16 +254,10 @@ const paths = Object.freeze({
 
 /** Lexica: reads, checks and writes source and definitions, declares and registers vocabulary, binds values, resolves and evaluates, and says which build it is and which specification it follows. */
 export const lexica = Object.freeze({
-    parse: source => {
-        if (typeof source !== 'string') {
-            throw LexicaErrors.structure('LEXICA2645', "What parse reads is a script's source", {});
-        }
-
-        return ParsedTexts.parse(source);
-    },
+    parse: (source, options) => parse(source, options),
     validate: definition => new DefinitionValidator().validate(definition),
-    format: script => DefinitionWriter.format(withoutNamespaces(definitionOf(script)).expression),
-    quote: script => DefinitionWriter.quote(withoutNamespaces(definitionOf(script)).expression),
+    format: (script, options) => write(script, options, false),
+    quote: (script, options) => write(script, options, true),
     getLocation: locate,
     createModule: (name, contents) => new LexicaModule(name, contents),
     declarations,

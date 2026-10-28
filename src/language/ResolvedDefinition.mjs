@@ -170,23 +170,26 @@ export class ResolvedDefinition {
     #index(node, pointer) {
         this.#nodes.set(node, { pointer, resolution: this.#resolutions.get(pointer) });
 
-        if (node.target !== undefined) {
-            this.#index(node.target, `${pointer}/target`);
+        // What a node continues from or ends at: an access's receiver, a call's callee, an object expression's context and an optional chain's chain.
+        for (const property of ['receiver', 'callee', 'context', 'chain']) {
+            if (node[property] !== undefined) {
+                this.#index(node[property], `${pointer}/${property}`);
+            }
         }
 
         switch (node.kind) {
-            case 'member':
+            case 'memberAccess':
                 if (typeof node.name !== 'string') {
                     this.#index(node.name, `${pointer}/name`);
                 }
                 break;
-            case 'indexer':
+            case 'indexerAccess':
                 this.#index(node.argument, `${pointer}/argument`);
                 break;
             case 'object':
                 node.locals?.forEach((local, index) => this.#index(local.value, `${pointer}/locals/${index}/value`));
-                node.fields.forEach((field, index) => this.#index(field.value, `${pointer}/fields/${index}/value`));
-                this.#fieldNames.set(node, node.fields.map(field => field.name));
+                node.objectFields.forEach((field, index) => this.#index(field.value, `${pointer}/objectFields/${index}/value`));
+                this.#fieldNames.set(node, node.objectFields.map(field => field.name));
                 break;
             case 'equality':
                 this.#index(node.left, `${pointer}/left`);
@@ -214,7 +217,6 @@ export class ResolvedDefinition {
                 this.#index(node.body, `${pointer}/body`);
                 break;
             case 'call':
-            case 'functionCall':
                 node.arguments.forEach((argument, index) => this.#index(argument, `${pointer}/arguments/${index}`));
                 break;
             case 'interpolatedString':
@@ -230,7 +232,10 @@ export class ResolvedDefinition {
                 node.operands.forEach((operand, index) => this.#index(operand, `${pointer}/operands/${index}`));
                 break;
             case 'not':
-            case 'negate':
+            case 'arithmeticNegation':
+            case 'cast':
+            case 'conversion':
+            case 'try':
                 this.#index(node.operand, `${pointer}/operand`);
                 break;
             case 'arithmetic':

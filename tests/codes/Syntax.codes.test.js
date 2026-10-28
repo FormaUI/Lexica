@@ -3,9 +3,6 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { Tokenizer } from '#lexica/language/Tokenizer.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
 
-/** A registry of one module, `shop`, whose name begins its namespace in the text it reads. */
-const createShopRegistry = () => lexica.createRegistry([lexica.createModule('shop', { members: [] })]);
-
 /** Expects each text to fail to parse with a syntax error of the code. */
 const expectSyntaxCode = (code, texts, parse = lexica.parse) => {
     for (const text of texts) {
@@ -66,11 +63,9 @@ describe('the codes of syntax errors', () => {
             expectSyntaxCode('LEXICA1013', ['< a']);
         });
 
-        it('gives LEXICA1506 to a module name read with no member after its dot', () => {
-            const registry = createShopRegistry();
-
-            expectSyntaxCode('LEXICA1506', ['shop', 'shop?.open'], text => registry.parse(text));
-            expect(errorThrownBy(() => registry.parse('shop')).message).toContain("write '@shop' for the local, object field, conditional binding or function parameter of that name, or '~shop' for the script parameter");
+        it('gives LEXICA1506 to a namespace read with no member after its dot', () => {
+            expectSyntaxCode('LEXICA1506', ['import shop\nshop', 'import shop\nshop?.open', 'shop'], text => lexica.parse(text, { imports: text.startsWith('import') ? [] : ['shop'] }));
+            expect(errorThrownBy(() => lexica.parse('import shop\nshop')).message).toContain("write '@shop' for the local, object field, conditional binding or function parameter of that name, or '~shop' for the script parameter");
         });
 
         it('gives LEXICA1001 to a comparison operator written with whitespace inside it', () => {
@@ -87,19 +82,44 @@ describe('the codes of syntax errors', () => {
 
         it('gives LEXICA1008 to @ in a declaration or before a member name', () => {
             expectSyntaxCode('LEXICA1008', ['let f = function(@x) x end return f', 'a.@b', 'let @to = 1 return 1', '{ @true = 1 }']);
-            expectSyntaxCode('LEXICA1008', ['shop.@open'], text => createShopRegistry().parse(text));
+            expectSyntaxCode('LEXICA1008', ['shop.@open'], text => lexica.parse(text, { imports: ['shop'] }));
         });
 
         it('gives LEXICA1010 to a keyword where a value stands', () => {
             expectSyntaxCode('LEXICA1010', ['1 + as', '{ a = to }', 'to Number', 'a + then', 'if a then end']);
             expect(errorThrownBy(() => lexica.parse('{ a = to }')).message).toContain("Found 'to', a keyword: write '@to' for the local, object field, conditional binding or function parameter of that name");
+            expect(errorThrownBy(() => lexica.parse('import to = Home\nto.rooms')).message).toContain("write '@to' for the local, object field, conditional binding or function parameter of that name, or, where none is in scope, the namespace the script's import gives that name");
         });
 
         it('reads import as a keyword, refused where a value stands, its parameter read with ~ and a member of its name after a dot', () => {
-            expectSyntaxCode('LEXICA1010', ['import', '1 + import', '{ a = import }']);
-            expect(lexica.parse('~import').expression).toEqual({ kind: 'parameter', name: 'import' });
-            expect(lexica.parse('item.import').expression).toEqual({ kind: 'member', target: { kind: 'parameter', name: 'item' }, name: 'import' });
-            expect(lexica.format({ version: 33, expression: { kind: 'parameter', name: 'import' } })).toBe('~import');
+            expectSyntaxCode('LEXICA1000', ['import', 'import Home.', 'import A =', 'import 1']);
+            expect(lexica.parse('~import').expression).toEqual({ kind: 'scriptParameter', name: 'import' });
+            expect(lexica.parse('item.import').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'item' }, name: 'import' });
+            expect(lexica.format({ version: 34, imports: [], expression: { kind: 'scriptParameter', name: 'import' } })).toBe('~import');
+        });
+
+        it('gives LEXICA1044 to an import, or the body after the imports, sharing its line with earlier code', () => {
+            expectSyntaxCode('LEXICA1044', ['import Home import Energy\n1', 'import Home 1', 'import Home Home.rooms', 'import Home /* */ import Energy\n1']);
+            expect(errorThrownBy(() => lexica.parse('import Home\nimport Energy Energy.usage'))).toMatchObject({ message: expect.stringContaining('The body after the imports starts on a line of its own'), location: { line: 2, column: 15 } });
+            expect(lexica.parse('// the home\nimport Home // its rooms\r\nimport Energy\n\nHome.rooms').imports).toEqual([{ module: 'Energy' }, { module: 'Home' }]);
+            expect(errorThrownBy(() => lexica.parse('import Home'))).toMatchObject({ code: 'LEXICA1000', message: expect.stringContaining('Expected a value, found the end of the source') });
+        });
+
+        it("gives LEXICA1045 to an import anywhere but the script's start, after its first local, within its expression or after its result", () => {
+            expectSyntaxCode('LEXICA1045', ['1 + import', '{ a = import }', 'let a = 1\nimport Home\nreturn a', 'a\nimport Home', 'return a\nimport Home', '{ a = 1 }\nimport Home', 'do 1\nimport Home end']);
+            expect(errorThrownBy(() => lexica.parse('a\nimport Home'))).toMatchObject({ message: expect.stringContaining('Imports stand at the start of the script'), location: { line: 2, column: 1 } });
+        });
+
+        it("gives LEXICA1046 to an import of Lexica's own module or of one of its types", () => {
+            expectSyntaxCode('LEXICA1046', ['import Lexica\n1', 'import Items = Lexica.List\n1', 'import Lexica.Number\n1']);
+            expect(errorThrownBy(() => lexica.parse('import Items = Lexica.List\n1'))).toMatchObject({ message: expect.stringContaining("Lexica's own vocabulary is always available"), location: { column: 16 } });
+        });
+
+        it('gives LEXICA1048 to two imports giving one local name to different declarations, naming both, and takes one declaration under one name twice', () => {
+            expectSyntaxCode('LEXICA1048', ['import Measures = Measurements\nimport Measures = Home.Sensor\n1', 'import Home.Sensor\nimport Sensor = Garden.Sensor\n1', 'import Home\nimport Home = Garden\n1']);
+            expect(errorThrownBy(() => lexica.parse('import Measures = Measurements\nimport Measures = Home.Sensor\n1'))).toMatchObject({ message: expect.stringContaining("'Measures' is the local name both 'import Measures = Measurements' and 'import Measures = Home.Sensor' give"), location: { line: 2, column: 1 } });
+            expect(errorThrownBy(() => lexica.parse('import Home = Garden\n1', { imports: ['Home'] })).code).toBe('LEXICA1048');
+            expect(lexica.parse('import HomeSensor = Home.Sensor\nimport GardenSensor = Garden.Sensor\nimport Home\nimport Home\n1').imports).toEqual([{ module: 'Garden', type: 'Sensor', alias: 'GardenSensor' }, { module: 'Home' }, { module: 'Home', type: 'Sensor', alias: 'HomeSensor' }]);
         });
 
         it('gives LEXICA1011 to a member name after a value without its dot', () => {

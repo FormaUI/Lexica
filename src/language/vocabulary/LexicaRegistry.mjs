@@ -6,7 +6,6 @@ import { ArrayUtils } from '../../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
 import { LexicaErrors } from '../LexicaError.mjs';
 import { MemberSelector } from '../MemberSelector.mjs';
-import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 import { TypeChecker } from '../TypeChecker.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
@@ -92,11 +91,6 @@ export class LexicaRegistry {
         return [...this.#modules.keys()];
     }
 
-    /** The names of the modules whose namespaces text read with the registry reaches: every module registered but Lexica's own, which has no namespace. */
-    get namespaceNames() {
-        return [...this.#modules.values()].filter(module => module !== Vocabulary.module).map(module => module.name);
-    }
-
     /**
      * Registers a module's declarations, refusing a module whose names are taken or whose declarations break the registry's rules, before registering any of them. It calls no host code: a module's `isInstance`, `typeOf`
      * and implementations are called only as values are bound or evaluated.
@@ -122,11 +116,6 @@ export class LexicaRegistry {
 
         if (taken !== undefined) {
             fail('LEXICA4035', `A module is registered once under a name compared case-insensitively, and '${taken}' is registered already`);
-        }
-
-        // A module's name begins its namespace in this implementation's text, which reads a word the language reserves as that word, and has no import binding to read with `@` yet.
-        if (Names.isReservedWord(module.name)) {
-            fail('LEXICA4557', `'${module.name}' is a word the language reserves, whose module this implementation's text can't reach until a script imports it`);
         }
 
         // A type is named once within its module, which creating it checks, and two modules may each declare a type of one name, since its module is part of its identity.

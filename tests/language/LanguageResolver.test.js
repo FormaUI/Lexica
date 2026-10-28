@@ -40,7 +40,7 @@ const LOCALS = 'let next = function(x) return x + 1 end\nlet same = function(s) 
 
 /** The script resolved against the shop, with `missing` bound to null and `word` to one of its words. */
 const resolve = result => {
-    const definition = ParsedTexts.parse(`${LOCALS}\nreturn ${result}`, new Set(registry.namespaceNames));
+    const definition = ParsedTexts.parse(`${LOCALS}\nreturn ${result}`, [{ module: 'shop' }]);
 
     return new LanguageResolver(registry, new ParameterBindings(registry, { missing: null, word: new Word('oat') }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
 };
@@ -82,14 +82,14 @@ describe('LanguageResolver', () => {
     describe('the candidates of a receiver of unknown type', () => {
         it('keeps nothing of a refused candidate\'s arguments', () => {
             // Of the two `pad`s of a receiver, the word's takes `next(1)` and the Boolean's refuses it, each after resolving it.
-            expect(keptOf(resolve('missing?.pad(next(1))'), '/expression/result/target/arguments/0')).toEqual({ uses: [], copies: [], isResolved: false });
+            expect(keptOf(resolve('missing?.pad(next(1))'), '/expression/result/chain/arguments/0')).toEqual({ uses: [], copies: [], isResolved: false });
         });
 
         it('keeps nothing of a fitting candidate\'s arguments, while its fit and its type are kept', () => {
             const resolved = resolve('missing?.trim(next(1))');
 
-            expect(keptOf(resolved, '/expression/result/target/arguments/0')).toEqual({ uses: [], copies: [], isResolved: false });
-            expect(resolved.getResolution('/expression/result/target')).toMatchObject({ kind: 'invocation', candidates: [{ name: 'trim' }, { name: 'trim' }], arguments: [] });
+            expect(keptOf(resolved, '/expression/result/chain/arguments/0')).toEqual({ uses: [], copies: [], isResolved: false });
+            expect(resolved.getResolution('/expression/result/chain')).toMatchObject({ kind: 'invocation', candidates: [{ name: 'trim' }, { name: 'trim' }], arguments: [] });
             expect(String(resolved.type)).toBe('String?');
         });
     });
@@ -98,7 +98,7 @@ describe('LanguageResolver', () => {
         it('keeps each name\'s resolution by its name and records each use as its name is resolved, its own pointer holding its own resolution', () => {
             const property = (name, result = 'Number') => Declarations.createPropertyDeclaration(name, result, { updates: constantUpdates, impl: () => 1 });
             const lit = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', { types: [extensionDeclaration('Words', 'String', [property('glow'), property('dim'), property('long', 'Boolean')])] })]);
-            const definition = ParsedTexts.parse('return word.[if word.long then "glow" else "dim" end]', new Set(lit.namespaceNames));
+            const definition = ParsedTexts.parse('return word.[if word.long then "glow" else "dim" end]');
             const resolved = new LanguageResolver(lit, new ParameterBindings(lit, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
             const { kind, resolutionsByName } = resolved.getResolution('/expression/result');
 
@@ -115,7 +115,7 @@ describe('LanguageResolver', () => {
         })]);
         const values = { word: 'oat', pair: { a: 1, b: null }, missing: null };
         const resolveCups = text => {
-            const definition = ParsedTexts.parse(`return ${text}`, new Set(cups.namespaceNames));
+            const definition = ParsedTexts.parse(`return ${text}`);
 
             return new LanguageResolver(cups, new ParameterBindings(cups, values), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
         };
@@ -142,7 +142,7 @@ describe('LanguageResolver', () => {
         it('is refused where it is called, as an object field, as a property of a structured type\'s data, and as one where the receiver\'s type is unknown', () => {
             expect(refusalOf('pair.a()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'a' is an object field of { a: Number, b: null } and takes no argument: write 'pair.a'"), pointer: '/expression/result' });
             expect(refusalOf('(word to Cup).size()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'size' is a property of Cup's data and takes no argument: write '(word to Cup).size'"), pointer: '/expression/result' });
-            expect(refusalOf('missing?.size()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'size' is a property of a structured type's data and takes no argument: write 'missing?.size'"), pointer: '/expression/result/target' });
+            expect(refusalOf('missing?.size()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'size' is a property of a structured type's data and takes no argument: write 'missing?.size'"), pointer: '/expression/result/chain' });
         });
     });
 
@@ -172,7 +172,7 @@ describe('LanguageResolver', () => {
             const fading = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
                 types: [extensionDeclaration(target === 'T' ? 'Fades<T>' : 'Fades', target, [Declarations.createPropertyDeclaration('fade', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver })])],
             })]);
-            const definition = ParsedTexts.parse('return word.fade', new Set(fading.namespaceNames));
+            const definition = ParsedTexts.parse('return word.fade');
 
             return new LanguageResolver(fading, new ParameterBindings(fading, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition).usedDeclarations.map(use => use.qualifiedName);
         };
@@ -190,7 +190,7 @@ describe('LanguageResolver', () => {
                 types: [extensionDeclaration('Fades', 'String', [fade()]), extensionDeclaration('AllFades<T>', 'T', [fade()])],
                 members: [Declarations.createFunctionDeclaration('held', 'Any', { updates: constantUpdates, impl: () => 'oat' })],
             })]);
-            const definition = ParsedTexts.parse('return shop.held().fade', new Set(fading.namespaceNames));
+            const definition = ParsedTexts.parse('return shop.held().fade', [{ module: 'shop' }]);
             const resolved = new LanguageResolver(fading, new ParameterBindings(fading, {}), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
             const [stringFade, anyFade] = fading.getReceiverMembers('fade');
 

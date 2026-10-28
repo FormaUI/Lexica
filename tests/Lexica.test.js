@@ -14,7 +14,8 @@ describe('lexica', () => {
     it('reads a text into its definition, of the version it writes', () => {
         expect(lexica.parse('{ total = price * quantity }')).toEqual({
             version: Versions.definition,
-            expression: { kind: 'object', fields: [{ name: 'total', value: { kind: 'arithmetic', operator: '*', left: { kind: 'parameter', name: 'price' }, right: { kind: 'parameter', name: 'quantity' } } }] },
+            imports: [],
+            expression: { kind: 'object', objectFields: [{ name: 'total', value: { kind: 'arithmetic', operator: '*', left: { kind: 'scriptParameter', name: 'price' }, right: { kind: 'scriptParameter', name: 'quantity' } } }] },
         });
     });
 
@@ -28,8 +29,8 @@ describe('lexica', () => {
     });
 
     it('checks a definition given directly, refusing one whose structure is wrong', () => {
-        expect(lexica.validate({ version: Versions.definition, expression: { kind: 'literal', value: 1 } })).toEqual({ version: Versions.definition, expression: { kind: 'literal', value: 1 } });
-        const refused = errorThrownBy(() => lexica.validate({ version: Versions.definition, expression: { kind: 'nothing' } }));
+        expect(lexica.validate({ version: Versions.definition, imports: [], expression: { kind: 'literal', value: 1 } })).toEqual({ version: Versions.definition, imports: [], expression: { kind: 'literal', value: 1 } });
+        const refused = errorThrownBy(() => lexica.validate({ version: Versions.definition, imports: [], expression: { kind: 'nothing' } }));
 
         expect(refused).toBeInstanceOf(LexicaError);
         expect(refused).toMatchObject({ code: 'LEXICA2000', kind: 'structure', location: { pointer: '/expression' }, message: expect.stringMatching(/^A node is an object whose kind is literal, /) });
@@ -43,11 +44,11 @@ describe('lexica', () => {
     });
 
     it('reads the implicit parameter as it and the object root as root, nodes of their own, and context as an ordinary name', () => {
-        expect(lexica.parse('room { size = it.size, total = root.size }').expression).toEqual({ kind: 'object', target: { kind: 'parameter', name: 'room' }, fields: [
-            { name: 'size', value: { kind: 'member', target: { kind: 'it' }, name: 'size' } },
-            { name: 'total', value: { kind: 'member', target: { kind: 'root' }, name: 'size' } },
+        expect(lexica.parse('room { size = it.size, total = root.size }').expression).toEqual({ kind: 'object', context: { kind: 'scriptParameter', name: 'room' }, objectFields: [
+            { name: 'size', value: { kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size' } },
+            { name: 'total', value: { kind: 'memberAccess', receiver: { kind: 'root' }, name: 'size' } },
         ] });
-        expect(lexica.parse('context.size').expression).toEqual({ kind: 'member', target: { kind: 'parameter', name: 'context' }, name: 'size' });
+        expect(lexica.parse('context.size').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'context' }, name: 'size' });
         expect(lexica.format('{ let context = 1, value = context + 1 }')).toBe('{\n    let context = 1,\n    value = context + 1\n}');
         expect(lexica.createRegistry().resolve('{ context = context }', { context: 2 }).createEvaluator({ context: 2 }).evaluate().value).toEqual({ context: 2 });
     });
@@ -58,12 +59,11 @@ describe('lexica', () => {
     });
 
     it('reads a lexical reference before any identifier, the local or the field of its name, and writes one only where the identifier alone means something else', () => {
-        const registry = lexica.createRegistry([lexica.createModule('home', {})]);
-
         expect(lexica.createRegistry().resolve('let total = 2\nreturn @total + total', {}).createEvaluator({}).evaluate().value).toBe(4);
         expect(lexica.format('let total = 2\nreturn @total')).toBe('let total = 2\nreturn total');
         expect(lexica.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn home');
-        expect(registry.format('let home = 2\nreturn @home')).toBe('let home = 2\nreturn @home');
+        expect(lexica.format('import home\nlet home = 2\nreturn @home')).toBe('import home\n\nlet home = 2\nreturn @home');
+        expect(lexica.format('let home = 2\nreturn @home', { imports: ['home'] })).toBe('let home = 2\nreturn @home');
         expect(errorThrownBy(() => lexica.parse('@room'))).toMatchObject({ kind: 'structure', message: expect.stringContaining("No local, object field, conditional binding or function parameter named 'room' is in scope. Use '~room' to read the script parameter") });
         expect(errorThrownBy(() => lexica.parse('@ room'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("An identifier follows '@' directly") });
     });
@@ -71,19 +71,19 @@ describe('lexica', () => {
     it('reads a word as the role its position gives it where the position expects a name, a module\'s name among them, and as the language\'s own meaning where a value stands', () => {
         const registry = lexica.createRegistry([lexica.createModule('home', {})]);
 
-        expect(registry.parse('node.root + node.home').expression).toEqual({ kind: 'arithmetic', operator: '+', left: { kind: 'member', target: { kind: 'parameter', name: 'node' }, name: 'root' }, right: { kind: 'member', target: { kind: 'parameter', name: 'node' }, name: 'home' } });
-        expect(registry.format('{ home = 1, root = 2, b = @home + @root }')).toBe('{\n    home = 1,\n    root = 2,\n    b = @home + @root\n}');
-        expect(registry.parse('let f = home => @home + 1\nreturn f(1)').expression.locals[0].value.parameters).toEqual(['home']);
+        expect(registry.parse('import home\nnode.root + node.home').expression).toEqual({ kind: 'arithmetic', operator: '+', left: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'node' }, name: 'root' }, right: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'node' }, name: 'home' } });
+        expect(registry.format('import home\n{ home = 1, root = 2, b = @home + @root }')).toBe('import home\n\n{\n    home = 1,\n    root = 2,\n    b = @home + @root\n}');
+        expect(registry.parse('import home\nlet f = home => @home + 1\nreturn f(1)').expression.locals[0].value.parameters).toEqual(['home']);
     });
 
     it('writes a cast\'s and a conversion\'s type bare, a reserved word among them, and refuses a string in its place with the bare name', () => {
-        expect(lexica.parse('value to Number').expression).toEqual({ kind: 'conversion', type: 'Number', target: { kind: 'parameter', name: 'value' } });
+        expect(lexica.parse('value to Number').expression).toEqual({ kind: 'conversion', type: 'Number', operand: { kind: 'scriptParameter', name: 'value' } });
         expect(lexica.format('(try value to Number) ?? 0')).toBe('try value to Number ?? 0');
         expect(lexica.format('(node as Element)?.size')).toBe('(node as Element)?.size');
         expect(lexica.format('a as end')).toBe('a as end');
         expect(errorThrownBy(() => lexica.parse('value to "Number"'))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("'to' names the type it converts to bare, as a member's name is written: write 'to Number'") });
         expect(errorThrownBy(() => lexica.parse("node as 'Element'"))).toMatchObject({ kind: 'syntax', message: expect.stringContaining("write 'as Element'") });
-        expect(errorThrownBy(() => lexica.validate({ version: Versions.definition, expression: { kind: 'conversion', type: 'List<Number>', target: { kind: 'literal', value: 1 } } }))).toMatchObject({ kind: 'structure', location: { pointer: '/expression/type' } });
+        expect(errorThrownBy(() => lexica.validate({ version: Versions.definition, imports: [], expression: { kind: 'conversion', type: 'List<Number>', operand: { kind: 'literal', value: 1 } } }))).toMatchObject({ kind: 'structure', location: { pointer: '/expression/type' } });
     });
 
     it('refuses a text that is no expression with a syntax error at its place', () => {

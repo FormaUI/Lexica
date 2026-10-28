@@ -78,15 +78,15 @@ describe('host calls', () => {
 
     it('are refused anywhere else, by a validation error where they stand, though they are the last expression of a body or a function there', () => {
         const refusals = [
-            ['{ level = light.dim({ to = 40 }) }', '/expression/fields/0/value', "The field 'level' is a host call, and a field is a value"],
-            ['light.dim({ to = light.dim({ to = 1 }) })', '/expression/arguments/0/fields/0/value', "The argument 'to' of 'dim' is a host call, and an argument is a value"],
+            ['{ level = light.dim({ to = 40 }) }', '/expression/objectFields/0/value', "The field 'level' is a host call, and a field is a value"],
+            ['light.dim({ to = light.dim({ to = 1 }) })', '/expression/arguments/0/objectFields/0/value', "The argument 'to' of 'dim' is a host call, and an argument is a value"],
             ['if light.dim({ to = 40 }) then 1 else 2 end', '/expression/condition', "The condition of 'if' is a value, and this one is a host call"],
             ['light.dim({ to = 40 }) + 1', '/expression/left', "The left operand of '+' is a value, and this one is a host call"],
             ['if lit then light.dim({ to = 40 }) else light.dim({ to = 0 }) end', '/expression/consequent', "A branch of 'if' is a value, and this one is a host call"],
             ['let level = light.dim({ to = 40 }) return level', '/expression/locals/0/value', "The local 'level' is a host call, and a local is a value"],
             ['let level = do return light.dim({ to = 40 }) end return level', '/expression/locals/0/value/body/result', 'A host call ends the script, and this body gives its result to the expression around it, which takes a value'],
             ['let reach = () => light.dim({ to = 40 }) return reach()', '/expression/locals/0/value/body', "'reach' gives a host call, and a function gives a value"],
-            ['sensor.watch() { level = light.dim({ to = 40 }) }', '/expression/fields/0/value', "The field 'level' is a host call, and a field is a value"],
+            ['sensor.watch() { level = light.dim({ to = 40 }) }', '/expression/objectFields/0/value', "The field 'level' is a host call, and a field is a value"],
             ['sensor.watch().at', '/expression', "'at' follows a host call, which takes no members"],
         ];
 
@@ -116,7 +116,7 @@ describe('host calls', () => {
 
         const refused = errorThrownBy(() => resolve('thing?.dim({ to = 40 })', { thing: null }, [createHome(), dimmer]));
 
-        expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression/target' } });
+        expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression/chain' } });
         expect(refused.message).toContain("'dim' follows a value whose type is unknown, and its declarations disagree on who invokes it, the evaluator or the host, so whether the script ends in a host call is ambiguous");
     });
 
@@ -228,9 +228,9 @@ describe('prepared calls', () => {
 
     it('are skipped where the receiver, or an argument whose parameter propagates null, is null, or the call has no declaration yet, so there is nothing to invoke or project', () => {
         const skipped = [
-            ['light.partner?.dim({ to = 40 })', bindings, '/expression/target'],
+            ['light.partner?.dim({ to = 40 })', bindings, '/expression/chain'],
             ['light.dim({ to = level })', { ...bindings, level: null }, '/expression'],
-            ['thing?.dim({ to = 40 })', { thing: null }, '/expression/target'],
+            ['thing?.dim({ to = 40 })', { thing: null }, '/expression/chain'],
         ];
 
         for (const [text, values, pointer] of skipped) {

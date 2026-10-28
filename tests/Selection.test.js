@@ -4,6 +4,7 @@ import { Device, Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { extensionDeclaration } from './support/declarations.mjs';
+import { importsOf } from './support/pipeline.mjs';
 
 const { createPropertyDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
 
@@ -32,11 +33,11 @@ const evaluateWith = (modules, text, bound = values) => {
     const registry = lexica.createRegistry(modules);
     const bindings = registry.createBindings(bound);
 
-    return registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
+    return registry.resolve(text, bindings, { imports: importsOf(modules) }).createEvaluator(bindings).evaluate().value;
 };
 
 /** The error resolving the text against a registry of the modules given throws, with the values given bound. */
-const refusalWith = (modules, text, bound = values) => errorThrownBy(() => lexica.createRegistry(modules).resolve(text, bound));
+const refusalWith = (modules, text, bound = values) => errorThrownBy(() => lexica.createRegistry(modules).resolve(text, bound, { imports: importsOf(modules) }));
 
 describe('the selection of a member', () => {
     it('takes the owner\'s applicable member over every extension, whatever order the modules registered in', () => {

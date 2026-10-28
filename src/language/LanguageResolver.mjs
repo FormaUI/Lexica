@@ -4,6 +4,7 @@
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
 import { DefinitionWriter } from './DefinitionWriter.mjs';
+import { Imports } from './Imports.mjs';
 import { LexicaError, LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { ResolvedDefinition } from './ResolvedDefinition.mjs';
@@ -12,7 +13,7 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 import { Vocabulary } from './vocabulary/Vocabulary.mjs';
 
 /** How each form of a declaration is written, and the node that writes it. */
-const FORM_NODE_KINDS = { property: 'member', function: 'call', indexer: 'indexer' };
+const FORM_NODE_KINDS = { property: 'memberAccess', function: 'call', indexer: 'indexerAccess' };
 
 /** No facts, the set a scope starts with: what narrows a stable reference on a path. */
 const NO_FACTS = new Map();
@@ -23,8 +24,14 @@ export class LanguageResolver {
     #bindings;
     #locations;
 
-    /** The names of the modules whose namespaces the registry gives, every module it holds but Lexica's own. @type {ReadonlySet<string>} */
-    #namespaceNames;
+    /** The local names the definition's imports give modules, each beginning its module's namespace, which a message's text writes as the script does. @type {ReadonlySet<string>} */
+    #namespaceNames = Names.noNamespaceNames;
+
+    /** The module each local name the definition's imports give a module names, by that local name. @type {Map<string, string>} */
+    #importedModules = new Map();
+
+    /** The type each local name the definition's imports give a type names, its module and its name, by that local name. @type {Map<string, { module: string, type: string }>} */
+    #importedTypes = new Map();
 
     /** @type {Map<string, object>} */
     #resolutions = new Map();
@@ -49,11 +56,12 @@ export class LanguageResolver {
         this.#memberSelector = registry.memberSelector;
         this.#bindings = bindings;
         this.#locations = locations;
-        this.#namespaceNames = new Set(registry.namespaceNames);
     }
 
     /** Resolves and types the definition, answering what it resolved to or throwing where it cannot. */
     resolveDefinition(definition) {
+        this.#resolveImports(definition.imports);
+
         const result = this.#resolveTerminal(definition.expression, '/expression', { contextType: null, contextKey: {}, locals: new Map(), facts: NO_FACTS, objectRootType: null });
 
         // A host call that supplies nothing gives no result, and one that supplies values gives, for each, what its result projection makes of it, or the value itself.
@@ -83,6 +91,37 @@ export class LanguageResolver {
         return deferred.map(([pointer, { name, candidates }]) => ({ name, pointer, candidates: candidates.map(declaration => ({ declaration, qualifiedName: LanguageResolver.#formatQualifiedName(declaration, this.#registry.getReceiverTypes(declaration)[0]), pointer })) }));
     }
 
+    /**
+     * Resolves the definition's imports against the registry: each names a module it holds (LEXICA3002), and a type import a public type its module declares (LEXICA3052, LEXICA3053); each local name then names its module or its type.
+     */
+    #resolveImports(imports) {
+        imports.forEach((entry, index) => {
+            const pointer = `/imports/${index}`;
+            const localName = Imports.localNameOf(entry);
+
+            if (this.#registry.getModule(entry.module) === undefined) {
+                this.#fail('LEXICA3002', `'${Imports.quote(entry)}' imports the module '${entry.module}', which the registry does not hold`, pointer);
+            }
+
+            if (Imports.isModuleImport(entry)) {
+                this.#importedModules.set(localName, entry.module);
+
+                return;
+            }
+
+            if (!this.#registry.getModuleNamesDeclaringType(entry.type).includes(entry.module)) {
+                this.#fail('LEXICA3052', `'${Imports.quote(entry)}' imports '${entry.module}.${entry.type}', which its module does not declare`, pointer);
+            }
+
+            if (this.#registry.isInternal(this.#registry.getTypeDeclaration(Type.createNamedType(entry.type, false, entry.module)))) {
+                this.#fail('LEXICA3053', `'${Imports.quote(entry)}' imports '${entry.module}.${entry.type}', which is internal to its module`, pointer);
+            }
+
+            this.#importedTypes.set(localName, { module: entry.module, type: entry.type });
+        });
+        this.#namespaceNames = Imports.namespaceNamesOf(imports);
+    }
+
     /** Resolves the node in the script's terminal position, where a host call may stand: the script's expression, the result a body there returns and the body a `do` there holds. */
     #resolveTerminal(node, pointer, scope) {
         switch (node.kind) {
@@ -103,10 +142,11 @@ export class LanguageResolver {
             case 'do':
                 return this.#hostCallOf(node.body, `${pointer}/body`);
             case 'object':
+                return this.#hostCallOf(node.context, `${pointer}/context`);
             case 'optionalChain':
-                return this.#hostCallOf(node.target, `${pointer}/target`);
+                return this.#hostCallOf(node.chain, `${pointer}/chain`);
             default:
-                return { node, pointer, name: node.name, declaration: this.#resolutions.get(pointer).declaration ?? null };
+                return { node, pointer, name: LanguageResolver.#accessOf(node).name, declaration: this.#resolutions.get(pointer).declaration ?? null };
         }
     }
 
@@ -114,7 +154,7 @@ export class LanguageResolver {
         switch (node.kind) {
             case 'literal':
                 return this.#resolveLiteral(node);
-            case 'parameter':
+            case 'scriptParameter':
                 return this.#resolveParameter(node, pointer, scope);
             case 'root':
                 return this.#resolveObjectRoot(pointer, scope);
@@ -131,18 +171,20 @@ export class LanguageResolver {
                 return { type: scope.facts.get(scope.contextKey) ?? scope.contextType, kind: 'value', isFixed: false };
             case 'local':
                 return this.#resolveLocal(node, pointer, scope);
-            case 'member':
-            case 'call':
+            case 'memberAccess':
                 return this.#resolveMemberAccess(node, pointer, scope);
-            case 'indexer':
+            case 'call':
+                // A call of the function a name holds calls the local, and a call of a member the member its callee names.
+                return node.callee.kind === 'local' ? this.#resolveFunctionCall(node, pointer, scope) : this.#resolveMemberAccess(node, pointer, scope);
+            case 'indexerAccess':
                 return this.#resolveIndexerAccess(node, pointer, scope);
             case 'equality':
                 return this.#resolveEquality(node, pointer, scope, false);
             case 'arithmetic':
                 // A subtraction of a bare name from a property access may be one name written with a hyphen, as `it.client-size` is, which a failure to find the member suggests.
-                const access = node.left.kind === 'optionalChain' ? node.left.target : node.left;
+                const access = node.left.kind === 'optionalChain' ? node.left.chain : node.left;
 
-                if (node.operator === '-' && access.kind === 'member' && typeof access.name === 'string' && (node.right.kind === 'parameter' || node.right.kind === 'local')) {
+                if (node.operator === '-' && access.kind === 'memberAccess' && typeof access.name === 'string' && (node.right.kind === 'scriptParameter' || node.right.kind === 'local')) {
                     this.#joinedNames.set(access, `${access.name}${node.right.name[0].toUpperCase()}${node.right.name.slice(1)}`);
                 }
 
@@ -151,7 +193,7 @@ export class LanguageResolver {
                 }
 
                 return { type: Type.createNamedType('Number'), kind: 'value', isFixed: false };
-            case 'negate':
+            case 'arithmeticNegation':
                 this.#requireNumber(this.#resolveNode(node.operand, `${pointer}/operand`, scope), "What '-' negates", `${pointer}/operand`);
 
                 return { type: Type.createNamedType('Number'), kind: 'value', isFixed: false };
@@ -178,8 +220,6 @@ export class LanguageResolver {
                 return this.#resolveBody(node, pointer, scope);
             case 'do':
                 return this.#resolveNode(node.body, `${pointer}/body`, scope);
-            case 'functionCall':
-                return this.#resolveFunctionCall(node, pointer, scope);
             case 'function':
                 // An arrow function written as an argument is a delegate of its own, which captures the scope it is written in.
                 return { type: Type.createFunctionType([LanguageResolver.#functionLocalOf(node, pointer, scope)]), kind: 'value', isFixed: false };
@@ -241,7 +281,7 @@ export class LanguageResolver {
         this.#optionalChains.push(optionalChain);
 
         try {
-            const result = this.#resolveNode(node.target, `${pointer}/target`, scope);
+            const result = this.#resolveNode(node.chain, `${pointer}/chain`, scope);
 
             return optionalChain.shortCircuits ? { ...result, type: result.type.toNullable(), isFixed: false } : result;
         } finally {
@@ -292,7 +332,7 @@ export class LanguageResolver {
      * with no argument; nothing for any other. The name is read exactly, and the member is one the value's type has.
      */
     #formatTestHint(node, left, right, isNegated) {
-        if (!right.isFixed || typeof right.value !== 'string' || (node.right.kind !== 'literal' && node.right.kind !== 'parameter')) {
+        if (!right.isFixed || typeof right.value !== 'string' || (node.right.kind !== 'literal' && node.right.kind !== 'scriptParameter')) {
             return '';
         }
 
@@ -308,7 +348,7 @@ export class LanguageResolver {
 
         const optional = left.type.isNullable ? { optional: true } : {};
         const name = node.right.kind === 'literal' ? right.value : node.right;
-        const test = declaration.kind === 'property' ? { kind: 'member', target: node.left, name, ...optional } : { kind: 'call', target: node.left, name: right.value, arguments: [], ...optional };
+        const test = declaration.kind === 'property' ? { kind: 'memberAccess', receiver: node.left, name, ...optional } : { kind: 'call', callee: { kind: 'memberAccess', receiver: node.left, name: right.value, ...optional }, arguments: [] };
 
         return `: a test is the member that answers it, so write '${DefinitionWriter.quote(isNegated ? { kind: 'not', operand: test } : test, this.#namespaceNames)}'`;
     }
@@ -456,7 +496,7 @@ export class LanguageResolver {
     #factsOf(node, scope, isTruthy) {
         switch (node.kind) {
             case 'local':
-            case 'parameter':
+            case 'scriptParameter':
             case 'it': {
                 const reference = this.#referenceOf(node, scope);
 
@@ -507,7 +547,7 @@ export class LanguageResolver {
 
                 return local === undefined || local.result === null ? null : { key: local, type: scope.facts.get(local) ?? local.result.type };
             }
-            case 'parameter': {
+            case 'scriptParameter': {
                 if (!this.#bindings.has(node.name)) {
                     return null;
                 }
@@ -550,15 +590,15 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a cast: its target, a value, and the type it casts to, a reference type, its result of that type, nullable where the target is, since null passes through it. A target of the type's hierarchy, beneath it, above it
-     * or of it, is cast, and null too, since a binding typed from its value may be either; a target that can never be of the type is refused. The cast keeps both types, for its evaluation and its message.
+     * Resolves a cast: its operand, a value, and the type it casts to, a reference type, its result of that type, nullable where the operand is, since null passes through it. An operand of the type's hierarchy, beneath it,
+     * above it or of it, is cast, and null too, since a binding typed from its value may be either; one that can never be of the type is refused. The cast keeps both types, for its evaluation and its message.
      */
     #resolveCast(node, pointer, scope) {
-        const target = this.#resolveNode(node.target, `${pointer}/target`, scope);
+        const target = this.#resolveNode(node.operand, `${pointer}/operand`, scope);
         const targetType = this.#typeNamed(node.type, pointer);
 
         if (target.kind !== 'value') {
-            this.#fail('LEXICA3048', `A cast's target is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/target`);
+            this.#fail('LEXICA3048', `A cast's operand is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/operand`);
         }
 
         if (!this.#registry.isReferenceType(targetType)) {
@@ -586,19 +626,22 @@ export class LanguageResolver {
     }
 
     /**
-     * The type a cast or a conversion names: where its module's name qualifies it, the type that registered module declares, refused where no module of that name is registered or the module does not declare a type of
-     * that name; otherwise the one type of its name among Lexica's own and the registry's modules', refused where several share it, and a name none declares left to the cast or the conversion to refuse.
+     * The type a cast or a conversion names: where the local name an import gives its module qualifies it, the type that module declares, refused where no import gives that local name (LEXICA3004) or the module does not
+     * declare a type of that name; where a type import gives the name, the type it imports; otherwise the one type of its name among Lexica's own and the registry's modules', refused where several share it, and a name none
+     * declares left to the cast or the conversion to refuse.
      */
     #typeNamed(name, pointer) {
         const dot = name.indexOf('.');
 
         if (dot >= 0) {
-            const moduleName = name.slice(0, dot);
+            const qualifier = name.slice(0, dot);
             const localName = name.slice(dot + 1);
-            const module = this.#registry.getModule(moduleName);
+            const moduleName = this.#importedModules.get(qualifier);
 
-            if (module === undefined) {
-                this.#fail('LEXICA3019', `No module named '${moduleName}' is registered, so '${name}' does not name a type`, pointer);
+            if (moduleName === undefined) {
+                const isRegistered = this.#registry.getModule(qualifier) !== undefined;
+
+                this.#fail('LEXICA3004', `'${name}' is qualified by '${qualifier}', which no import of the script gives a module${isRegistered ? `: write 'import ${qualifier}' at the script's start` : ''}`, pointer);
             }
 
             if (!this.#registry.getModuleNamesDeclaringType(localName).includes(moduleName)) {
@@ -612,6 +655,13 @@ export class LanguageResolver {
             }
 
             return type;
+        }
+
+        // A name a type import gives is that type, found before Lexica's own of its name, as the script's own declaration of it.
+        const imported = this.#importedTypes.get(name);
+
+        if (imported !== undefined) {
+            return Type.createNamedType(imported.type, false, imported.module);
         }
 
         // One of Lexica's own types is found before a module's of its name, which its module's name qualifies.
@@ -636,7 +686,7 @@ export class LanguageResolver {
 
     /** Whether a type of the name a cast or a conversion writes is declared: a qualified one, which its module was found to declare, one of Lexica's own, or one a registered module declares. */
     #declaresTypeNamed(name) {
-        return name.includes('.') || Vocabulary.builtInTypeNames.includes(name) || this.#registry.getModuleNamesDeclaringType(name).length > 0;
+        return name.includes('.') || this.#importedTypes.has(name) || Vocabulary.builtInTypeNames.includes(name) || this.#registry.getModuleNamesDeclaringType(name).length > 0;
     }
 
     /**
@@ -662,21 +712,21 @@ export class LanguageResolver {
 
     /** Resolves an attempt: the conversion or the cast it attempts, as it resolves strictly, its result made nullable, since a rejection answers null. */
     #resolveTry(node, pointer, scope) {
-        const result = this.#resolveNode(node.target, `${pointer}/target`, scope);
+        const result = this.#resolveNode(node.operand, `${pointer}/operand`, scope);
 
         return { type: result.type.toNullable(), kind: 'value', isFixed: false };
     }
 
     /**
-     * Resolves a conversion: its target, a value, and the type of data it converts to, its result of that type, nullable where the target is.
+     * Resolves a conversion: its operand, a value, and the type of data it converts to, its result of that type, nullable where the operand is.
      * A value already of the type answers itself, which no declaration overrides; any other takes the conversion operator of its type to that one the selector selects, never a chain of them.
-     * A target of unknown type chooses none: null answers null, and a never is never evaluated.
+     * An operand of unknown type chooses none: null answers null, and a never is never evaluated.
      */
     #resolveConversion(node, pointer, scope) {
-        const target = this.#resolveNode(node.target, `${pointer}/target`, scope);
+        const target = this.#resolveNode(node.operand, `${pointer}/operand`, scope);
 
         if (target.kind !== 'value') {
-            this.#fail('LEXICA3048', `What 'to' converts is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/target`);
+            this.#fail('LEXICA3048', `What 'to' converts is a value, and this one is ${LanguageResolver.#descriptionOf(target.kind)}`, `${pointer}/operand`);
         }
 
         const to = this.#typeNamed(node.type, pointer);
@@ -848,22 +898,22 @@ export class LanguageResolver {
      * A local call settles no fixed argument.
      */
     #resolveFunctionCall(node, pointer, scope) {
-        const local = scope.locals.get(node.name);
+        const local = scope.locals.get(node.callee.name);
 
         if (local === undefined) {
-            const form = scope.contextType === null ? null : this.#memberForm(scope.contextType, node.name);
+            const form = scope.contextType === null ? null : this.#memberForm(scope.contextType, node.callee.name);
 
-            this.#fail('LEXICA3033', `No function named '${node.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
+            this.#fail('LEXICA3033', `No function named '${node.callee.name}' is in scope${form === null ? '' : `; write '${form}' for the member of the implicit parameter`}`, pointer);
         }
 
         const functions = local.function !== undefined ? [local] : (local.result?.type?.kind === 'function' ? local.result.type.functions : null);
 
         if (functions === null) {
-            this.#fail('LEXICA3068', `'${node.name}' is a local holding a value, and no function, so it is read without parentheses`, pointer);
+            this.#fail('LEXICA3068', `'${node.callee.name}' is a local holding a value, and no function, so it is read without parentheses`, pointer);
         }
 
         if (local.function === undefined && local.result.type.isNullable) {
-            this.#fail('LEXICA3068', `'${node.name}' may hold null, and only a function is called: bind one to call in its place first, as let call = ${node.name} ?? other`, pointer);
+            this.#fail('LEXICA3068', `'${node.callee.name}' may hold null, and only a function is called: bind one to call in its place first, as let call = ${node.callee.name} ?? other`, pointer);
         }
 
         // A call of one function reference alone is the call its qualified form makes, whatever its arguments' kinds.
@@ -879,7 +929,7 @@ export class LanguageResolver {
             const { parameters } = target.function;
 
             if (node.arguments.length !== parameters.length) {
-                this.#fail('LEXICA3069', `'${node.name}' takes ${parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`}, and is given ${node.arguments.length}`, pointer);
+                this.#fail('LEXICA3069', `'${node.callee.name}' takes ${parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`}, and is given ${node.arguments.length}`, pointer);
             }
         }
 
@@ -888,7 +938,7 @@ export class LanguageResolver {
             const result = this.#resolveNode(argument, argumentPointer, scope);
 
             if (result.kind !== 'value') {
-                this.#fail('LEXICA3048', `An argument of '${node.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and an argument is a value`, argumentPointer);
+                this.#fail('LEXICA3048', `An argument of '${node.callee.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and an argument is a value`, argumentPointer);
             }
 
             return result;
@@ -896,18 +946,18 @@ export class LanguageResolver {
 
         const targets = functions.map((target, index) => (target.reference !== undefined
             ? this.#resolveModuleFunctionCall(target.reference, node, results, pointer)
-            : this.#resolveScriptFunctionCall(target, node.name, results, node.arguments, scope, functions.length === 1 ? `${pointer}/body` : `${pointer}/bodies/${index}`, pointer)));
+            : this.#resolveScriptFunctionCall(target, node.callee.name, results, node.arguments, scope, functions.length === 1 ? `${pointer}/body` : `${pointer}/bodies/${index}`, pointer)));
         const type = targets.reduce((merged, target) => (merged === null ? null : this.#typeChecker.merge(merged, target.type)), Type.never);
 
         if (type === null) {
-            this.#fail('LEXICA3070', `'${node.name}' may be any of ${targets.length} functions, whose results are of no one type: ${targets.map(target => target.type).join(', ')}`, pointer);
+            this.#fail('LEXICA3070', `'${node.callee.name}' may be any of ${targets.length} functions, whose results are of no one type: ${targets.map(target => target.type).join(', ')}`, pointer);
         }
 
         // The callee is the local the call reads its delegate from, which evaluation selects among the functions it may be.
         this.#resolutions.set(pointer, {
             kind: 'invocation',
             functions: targets.map(({ function: declared, body, parameters, reference, argumentMap, resultType }) => (reference === undefined ? { function: declared, body, parameters } : { reference, argumentMap, resultType })),
-            callee: Object.freeze({ kind: 'local', name: node.name }),
+            callee: node.callee,
         });
 
         return { type, kind: 'value', isFixed: false };
@@ -925,9 +975,9 @@ export class LanguageResolver {
         }
 
         return this.#storeResolution(pointer, this.#resolveQualifiedCall(node, pointer, scope, [declaration], {
-            subject: `'${node.name}'`,
-            missingReceiver: `'${node.name}' holds a reference to '${written}', which takes its receiver as its first argument`,
-            receiverOf: `'${node.name}' holds a reference to '${written}', which takes a receiver of`,
+            subject: `'${node.callee.name}'`,
+            missingReceiver: `'${node.callee.name}' holds a reference to '${written}', which takes its receiver as its first argument`,
+            receiverOf: `'${node.callee.name}' holds a reference to '${written}', which takes a receiver of`,
             nameOf: () => written,
         }));
     }
@@ -945,17 +995,17 @@ export class LanguageResolver {
         const required = parameters.filter(parameter => parameter.required).length;
 
         if (parameters.some(parameter => parameter.kind !== 'value') || declaration.arguments === 'options') {
-            this.#fail('LEXICA3079', `'${node.name}' may hold a reference to '${written}', whose arguments are no values alone, and a call of a value that may be one of several functions gives each values; call it through '${written}(…)'`, pointer);
+            this.#fail('LEXICA3079', `'${node.callee.name}' may hold a reference to '${written}', whose arguments are no values alone, and a call of a value that may be one of several functions gives each values; call it through '${written}(…)'`, pointer);
         }
 
         const takes = `${takesReceiver ? 'its receiver and ' : ''}${parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`}`;
 
         if ((takesReceiver && results.length === 0) || own.length < required) {
-            this.#fail('LEXICA3080', `'${node.name}' may hold a reference to '${written}', which takes ${takes}, and is given ${node.arguments.length}`, pointer);
+            this.#fail('LEXICA3080', `'${node.callee.name}' may hold a reference to '${written}', which takes ${takes}, and is given ${node.arguments.length}`, pointer);
         }
 
         if (own.length > parameters.length) {
-            this.#fail('LEXICA3058', `'${node.name}' may hold a reference to '${written}', which takes ${takes}, and is given ${node.arguments.length}`, pointer);
+            this.#fail('LEXICA3058', `'${node.callee.name}' may hold a reference to '${written}', which takes ${takes}, and is given ${node.arguments.length}`, pointer);
         }
 
         let isNullable = false;
@@ -968,7 +1018,7 @@ export class LanguageResolver {
             typeArguments = inferred ?? typeArguments;
 
             if (inferred === null) {
-                this.#fail('LEXICA3042', `'${node.name}' may hold a reference to '${written}', which takes a receiver of ${this.#registry.getReceiverTypes(declaration).join(', ')}, and is given ${receiverType.toNonNullable()}`, `${pointer}/arguments/0`);
+                this.#fail('LEXICA3042', `'${node.callee.name}' may hold a reference to '${written}', which takes a receiver of ${this.#registry.getReceiverTypes(declaration).join(', ')}, and is given ${receiverType.toNonNullable()}`, `${pointer}/arguments/0`);
             }
 
             isNullable = receiverType.isNullable || receiverType.kind === 'null';
@@ -1139,6 +1189,10 @@ export class LanguageResolver {
     }
 
     #resolveParameter(node, pointer, scope) {
+        if (!this.#bindings.has(node.name) && DefinitionValidator.isWrittenAlone(node) && this.#registry.getModule(node.name) !== undefined && node.name !== Vocabulary.moduleName) {
+            this.#fail('LEXICA3003', `'${node.name}' names a registered module, which the script does not import, and no script parameter of that name is bound: write 'import ${node.name}' at the script's start to read its namespace`, pointer);
+        }
+
         // A name a text wrote alone, which no local in scope has, reads the script parameter of its name, and one the host did not bind may be a member written without its receiver; one written with `~`, or a definition's, names a script parameter alone, which reads no local.
         if (!this.#bindings.has(node.name) && !DefinitionValidator.isWrittenAlone(node)) {
             const local = scope.locals.has(node.name) ? `, and '~${node.name}' reads a script parameter alone: write '${Names.needsPrefix(node.name, this.#namespaceNames) ? '@' : ''}${node.name}' for the local, object field, conditional binding or function parameter of that name` : '';
@@ -1156,17 +1210,23 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a property access, a call or an indexer on its receiver, the node's target resolved where it stands unless its resolution is given, as an indexer gives the receiver it has resolved already;
-     * the optional form, which a message gives where the receiver can be null, is the node written with it unless another is given.
+     * Resolves a property access, a call of a member or an indexer on its receiver, the access's receiver resolved where it stands unless its resolution is given, as an indexer gives the receiver it has resolved already;
+     * the optional form, which a message gives where the receiver can be null, is the node written with it unless another is given. An extension an access selects explicitly is refused until text writes one (LEXICA3501).
      */
-    #resolveMemberAccess(node, pointer, scope, { receiver: given, optionalForm = { ...node, optional: true } } = {}) {
-        if (node.target.kind === 'namespace') {
+    #resolveMemberAccess(node, pointer, scope, { receiver: given, optionalForm = LanguageResolver.#asOptional(node) } = {}) {
+        const access = LanguageResolver.#accessOf(node);
+
+        if (access.extension !== undefined) {
+            this.#fail('LEXICA3501', `An access selecting the extension '${access.extension.module === undefined ? '' : `${access.extension.module}.`}${access.extension.name}' explicitly is resolved once text writes extension access, which this implementation reads no '${':'}' of yet`, node.kind === 'call' ? `${pointer}/callee/extension` : `${pointer}/extension`);
+        }
+
+        if (access.receiver.kind === 'namespace') {
             return this.#resolveThroughNamespace(node, pointer, scope);
         }
 
-        const receiver = given ?? this.#resolveNode(node.target, `${pointer}/target`, scope);
-        const isUnnamedIndexer = node.kind === 'indexer' && node.name === undefined;
-        const written = isUnnamedIndexer ? '[…]' : typeof node.name === 'string' ? node.name : `.[${DefinitionWriter.quote(node.name, this.#namespaceNames)}]`;
+        const receiver = given ?? this.#resolveNode(access.receiver, LanguageResolver.#receiverPointerOf(node, pointer), scope);
+        const isUnnamedIndexer = node.kind === 'indexerAccess' && node.name === undefined;
+        const written = isUnnamedIndexer ? '[…]' : typeof access.name === 'string' ? access.name : `.[${DefinitionWriter.quote(access.name, this.#namespaceNames)}]`;
 
         if (receiver.kind !== 'value') {
             this.#fail('LEXICA3048', `'${written}' follows ${LanguageResolver.#descriptionOf(receiver.kind)}, which takes no members`, pointer);
@@ -1174,7 +1234,7 @@ export class LanguageResolver {
 
         // A member requires a receiver that cannot be null, and an optional one reads it where it is not null, ending its chain with null where it is.
         if (receiver.type.isNullable) {
-            if (node.optional !== true) {
+            if (access.optional !== true) {
                 const follows = receiver.type.kind === 'null' ? 'null' : `${receiver.type}, which can be null`;
 
                 this.#fail('LEXICA3008', `'${written}' follows ${follows}: write '${DefinitionWriter.quote(optionalForm, this.#namespaceNames)}' to read it where it is not`, pointer);
@@ -1183,13 +1243,13 @@ export class LanguageResolver {
             this.#optionalChains.at(-1).shortCircuits = true;
         }
 
-        const receiverType = node.optional === true ? receiver.type.toNonNullable() : receiver.type;
+        const receiverType = access.optional === true ? receiver.type.toNonNullable() : receiver.type;
 
         if (isUnnamedIndexer) {
             return this.#resolveUnnamedIndexerAccess(node, pointer, scope, receiverType);
         }
 
-        if (typeof node.name !== 'string') {
+        if (typeof access.name !== 'string') {
             return this.#resolveComputedPropertyAccess(node, pointer, scope, receiverType);
         }
 
@@ -1203,31 +1263,31 @@ export class LanguageResolver {
      * brackets skip where that is null.
      */
     #resolveIndexerAccess(node, pointer, scope) {
-        const { target } = node;
+        const access = node.receiver;
 
-        if (target.kind !== 'member' || typeof target.name !== 'string' || target.target.kind === 'namespace') {
+        if (access.kind !== 'memberAccess' || typeof access.name !== 'string' || access.receiver.kind === 'namespace' || access.extension !== undefined || node.extension !== undefined) {
             return this.#resolveMemberAccess(node, pointer, scope);
         }
 
         // The access's receiver is resolved once, and given to whichever reading applies, so a chain of indexers resolves each part once.
-        const accessPointer = `${pointer}/target`;
-        const receiver = this.#resolveNode(target.target, `${accessPointer}/target`, scope);
-        const kind = this.#memberKindNamedBy(target, receiver);
+        const accessPointer = `${pointer}/receiver`;
+        const receiver = this.#resolveNode(access.receiver, `${accessPointer}/receiver`, scope);
+        const kind = this.#memberKindNamedBy(access, receiver);
 
         // A function's arguments are written in parentheses, so brackets after its name are a call written as an indexer.
         if (kind === 'function') {
-            this.#fail('LEXICA3054', `'${target.name}' uses call syntax: write '${DefinitionWriter.quote({ kind: 'call', target: target.target, name: target.name, arguments: [node.argument], ...(target.optional === true ? { optional: true } : {}) }, this.#namespaceNames)}'`, pointer);
+            this.#fail('LEXICA3054', `'${access.name}' uses call syntax: write '${DefinitionWriter.quote(LanguageResolver.#createCall(access, [node.argument]), this.#namespaceNames)}'`, pointer);
         }
 
         if (kind !== 'indexer') {
-            const accessResult = this.#resolveMemberAccess(target, accessPointer, scope, { receiver });
+            const accessResult = this.#resolveMemberAccess(access, accessPointer, scope, { receiver });
 
             return this.#resolveMemberAccess(node, pointer, scope, { receiver: accessResult });
         }
 
-        // The named indexer's own node, its receiver the access's, optional where the access is.
-        const named = { kind: 'indexer', target: target.target, name: target.name, argument: node.argument, ...(target.optional === true ? { optional: true } : {}) };
-        return this.#resolveMemberAccess(named, pointer, scope, { receiver, optionalForm: { ...node, target: { ...target, optional: true } } });
+        // The named indexer's own node, which no definition holds: its receiver the access's, its name the access's, optional where the access is.
+        const named = { kind: 'indexerAccess', receiver: access.receiver, name: access.name, argument: node.argument, ...(access.optional === true ? { optional: true } : {}) };
+        return this.#resolveMemberAccess(named, pointer, scope, { receiver, optionalForm: { ...node, receiver: { ...access, optional: true } } });
     }
 
     /**
@@ -1286,17 +1346,17 @@ export class LanguageResolver {
             // A string key may name a property of the receiver, which a computed property access reads.
             const key = node.argument.kind === 'literal' ? node.argument.value : null;
             const isNamed = typeof key === 'string' && ((receiverType.kind === 'object' ? receiverType.getObjectFieldType(key) : (this.#registry.getDataShape(receiverType)?.get(key) ?? null)) !== null || this.#registry.getReceiverMembers(key).some(declaration => declaration.kind === 'property' && this.#typeChecker.matchesReceiver(declaration, receiverType)));
-            const computed = isNamed ? DefinitionWriter.quote({ kind: 'member', target: node.target, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
+            const computed = isNamed ? DefinitionWriter.quote({ kind: 'memberAccess', receiver: node.receiver, name: node.argument, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames) : null;
 
             this.#fail('LEXICA3012', `${receiverType.toNonNullable()} has no unnamed indexer${computed === null ? '' : `: write '${computed}' for a property read by a computed name`}`, pointer);
         }
 
         if (selection.kind === 'ambiguous') {
-            this.#fail('LEXICA3024', `The unnamed indexers ${this.#formatCompetingDeclarations(selection.declarations, receiverType, node.target)}`, pointer);
+            this.#fail('LEXICA3024', `The unnamed indexers ${this.#formatCompetingDeclarations(selection.declarations, receiverType, node.receiver)}`, pointer);
         }
 
         const { declaration } = selection;
-        const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
+        const receiver = { node: node.receiver, type: receiverType, isNullable: receiverType.isNullable };
 
         return this.#storeResolution(pointer, this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType)));
     }
@@ -1311,7 +1371,7 @@ export class LanguageResolver {
 
         // A number names no property, and is the key an unnamed indexer takes.
         if (node.name.kind === 'literal' && typeof node.name.value === 'number') {
-            this.#fail('LEXICA3055', `A computed property access reads a property by its name, a string, and a number is an indexer's key: write '${DefinitionWriter.quote({ kind: 'indexer', target: node.target, argument: node.name, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames)}'`, namePointer);
+            this.#fail('LEXICA3055', `A computed property access reads a property by its name, a string, and a number is an indexer's key: write '${DefinitionWriter.quote({ kind: 'indexerAccess', receiver: node.receiver, argument: node.name, ...(node.optional === true ? { optional: true } : {}) }, this.#namespaceNames)}'`, namePointer);
         }
         const name = this.#resolveNode(node.name, namePointer, scope);
         const possible = name.kind === 'value' ? this.#possibleNamesOf(node.name, scope) : null;
@@ -1336,7 +1396,7 @@ export class LanguageResolver {
         const types = [];
 
         for (const candidate of possible.names) {
-            const access = { kind: 'member', target: node.target, name: candidate, ...(node.optional === true ? { optional: true } : {}) };
+            const access = { kind: 'memberAccess', receiver: node.receiver, name: candidate, ...(node.optional === true ? { optional: true } : {}) };
             const { result, resolution, use } = this.#resolveMemberOnReceiverType(access, pointer, scope, receiverType, true);
 
             types.push(result.type);
@@ -1373,7 +1433,7 @@ export class LanguageResolver {
         switch (node.kind) {
             case 'literal':
                 return LanguageResolver.#possibleOf(node.value);
-            case 'parameter':
+            case 'scriptParameter':
                 return LanguageResolver.#possibleOf(this.#bindings.readValue(node.name));
             case 'local': {
                 const local = scope.locals.get(node.name);
@@ -1480,6 +1540,8 @@ export class LanguageResolver {
      * access's result, its resolution and the use of its declaration, none for a stored value or a receiver of unknown type, and records neither; resolving its arguments records theirs, as resolving any node does.
      */
     #resolveMemberOnReceiverType(node, pointer, scope, receiverType, isComputed = false) {
+        const access = LanguageResolver.#accessOf(node);
+
         if (LanguageResolver.#isNullOrNever(receiverType)) {
             return this.#resolveOnUnknownType(node, pointer, scope, receiverType);
         }
@@ -1493,35 +1555,35 @@ export class LanguageResolver {
         }
 
         // An object type's object field is read by its name, as the object expression or the binding that gave the object holds it.
-        const fieldType = receiverType.getObjectFieldType(node.name);
+        const fieldType = receiverType.getObjectFieldType(access.name);
 
         if (fieldType !== null) {
             this.#requireReadWithoutArgument(node, pointer, `an object field of ${receiverType.toNonNullable()}`);
 
-            return { result: { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false }, resolution: { kind: 'objectField', name: node.name }, use: null };
+            return { result: { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false }, resolution: { kind: 'objectField', name: access.name }, use: null };
         }
 
-        const candidates = this.#registry.getReceiverMembers(node.name);
+        const candidates = this.#registry.getReceiverMembers(access.name);
 
         if (candidates.length === 0) {
-            this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is no member of the vocabulary${this.#joinedNameHintOf(node, receiverType)}`, pointer);
+            this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${access.name}' is no member of the vocabulary${this.#joinedNameHintOf(node, receiverType)}`, pointer);
         }
 
         const selection = this.#memberSelector.select(candidates, receiverType);
 
         if (selection.kind === 'internal') {
-            this.#failInternal(`'${node.name}' on ${receiverType.toNonNullable()}`, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
+            this.#failInternal(`'${access.name}' on ${receiverType.toNonNullable()}`, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
         }
 
         if (selection.kind === 'none') {
             const reached = this.#memberSelector.getAccessible(candidates);
             const types = reached.flatMap(candidate => this.#registry.getReceiverTypes(candidate));
 
-            this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${node.name}' is not available on ${receiverType.toNonNullable()}${types.length === 0 ? '' : `; it is available on ${types.join(', ')}`}`, pointer);
+            this.#fail(isComputed ? 'LEXICA3056' : 'LEXICA3001', `'${access.name}' is not available on ${receiverType.toNonNullable()}${types.length === 0 ? '' : `; it is available on ${types.join(', ')}`}`, pointer);
         }
 
         if (selection.kind === 'ambiguous') {
-            this.#fail('LEXICA3024', `'${node.name}' ${this.#formatCompetingDeclarations(selection.declarations, receiverType, node.target)}`, pointer);
+            this.#fail('LEXICA3024', `'${access.name}' ${this.#formatCompetingDeclarations(selection.declarations, receiverType, access.receiver)}`, pointer);
         }
 
         const { declaration } = selection;
@@ -1533,12 +1595,12 @@ export class LanguageResolver {
             const type = this.#registry.getDeclaredType(declaration, declaration.result);
             const result = { type: receiverType.isNullable ? type.toNullable() : type, kind: 'value', isFixed: false };
 
-            return { result, resolution: { kind: 'dataProperty', declaration, name: node.name }, use: { declaration, qualifiedName: this.#qualifiedNameOf(declaration, receiverType), pointer } };
+            return { result, resolution: { kind: 'dataProperty', declaration, name: access.name }, use: { declaration, qualifiedName: this.#qualifiedNameOf(declaration, receiverType), pointer } };
         }
 
         this.#requireDeclaredForm(declaration, node, pointer, isComputed);
 
-        const receiver = { node: node.target, type: receiverType, isNullable: receiverType.isNullable };
+        const receiver = { node: access.receiver, type: receiverType, isNullable: receiverType.isNullable };
 
         return this.#resolveInvocation(declaration, node, pointer, scope, receiver, this.#qualifiedNameOf(declaration, receiverType));
     }
@@ -1550,13 +1612,14 @@ export class LanguageResolver {
      * before it is evaluated; its resolution names the access, null for an unnamed indexer, and keeps its candidates, which the resolution reports.
      */
     #resolveDeferredAccess(node, pointer, scope) {
-        const isUnnamedIndexer = node.kind === 'indexer' && node.name === undefined;
-        const written = isUnnamedIndexer ? '[…]' : node.name;
-        const declared = isUnnamedIndexer ? this.#registry.getUnnamedIndexers() : this.#registry.getReceiverMembers(node.name);
+        const access = LanguageResolver.#accessOf(node);
+        const isUnnamedIndexer = node.kind === 'indexerAccess' && access.name === undefined;
+        const written = isUnnamedIndexer ? '[…]' : access.name;
+        const declared = isUnnamedIndexer ? this.#registry.getUnnamedIndexers() : this.#registry.getReceiverMembers(access.name);
         const accessible = this.#memberSelector.getAccessible(declared);
         const candidates = isUnnamedIndexer ? accessible : accessible.filter(candidate => FORM_NODE_KINDS[candidate.kind] === node.kind);
 
-        if (node.kind !== 'member' && candidates.length === 0) {
+        if (node.kind !== 'memberAccess' && candidates.length === 0) {
             if (declared.length === 0) {
                 this.#fail('LEXICA3001', `'${written}' is no member of the vocabulary`, pointer);
             }
@@ -1568,10 +1631,10 @@ export class LanguageResolver {
             this.#requireDeclaredForm(accessible[0], node, pointer);
         }
 
-        const argumentNodes = node.kind === 'call' ? node.arguments : node.kind === 'indexer' ? [node.argument] : [];
-        const args = argumentNodes.map((argument, index) => this.#resolveDeferredArgument(argument, node.kind === 'indexer' ? `${pointer}/argument` : `${pointer}/arguments/${index}`, scope, written));
+        const argumentNodes = node.kind === 'call' ? node.arguments : node.kind === 'indexerAccess' ? [node.argument] : [];
+        const args = argumentNodes.map((argument, index) => this.#resolveDeferredArgument(argument, node.kind === 'indexerAccess' ? `${pointer}/argument` : `${pointer}/arguments/${index}`, scope, written));
 
-        return { result: { type: Type.any, kind: 'value', isFixed: false }, resolution: { kind: 'deferred', name: isUnnamedIndexer ? null : node.name, candidates, receiverNode: node.target, arguments: args }, use: null };
+        return { result: { type: Type.any, kind: 'value', isFixed: false }, resolution: { kind: 'deferred', name: isUnnamedIndexer ? null : access.name, candidates, receiverNode: access.receiver, arguments: args }, use: null };
     }
 
     /** Resolves an argument of a deferred access, read without the declaration it will select: a value, refused where it reads an implicit parameter of its own or gives a function (LEXICA3029). */
@@ -1593,8 +1656,8 @@ export class LanguageResolver {
 
     /** Refuses a call or an indexer of what is read by its name alone, an object field or a property of a structured type's data, which the description names, giving the access to write. */
     #requireReadWithoutArgument(node, pointer, description) {
-        if (node.kind !== 'member') {
-            this.#fail('LEXICA3017', `'${node.name}' is ${description} and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
+        if (node.kind !== 'memberAccess') {
+            this.#fail('LEXICA3017', `'${LanguageResolver.#accessOf(node).name}' is ${description} and takes no argument: write '${DefinitionWriter.quote(LanguageResolver.#createPropertyAccess(node), this.#namespaceNames)}'`, pointer);
         }
     }
 
@@ -1658,7 +1721,7 @@ export class LanguageResolver {
         }
 
         const supplied = this.#suppliedArguments(declaration, node, pointer, offset);
-        const optionsObject = declaration.arguments === 'options' && supplied.size > 0 ? (node.kind === 'indexer' ? node.argument : node.arguments[offset]) : null;
+        const optionsObject = declaration.arguments === 'options' && supplied.size > 0 ? (node.kind === 'indexerAccess' ? node.argument : node.arguments[offset]) : null;
         const objectExpression = optionsObject !== null && scope.objectRootType === null ? optionsObject : null;
         let argumentScope = scope;
 
@@ -1732,19 +1795,15 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves a member read or a call through a module's namespace: a module member, read or called; a function reference, one of the module's functions read without a call, which the callback contract it is passed to selects
-     * where one is given; or a qualified form, a member the module declares on a type, called with its receiver first and its own arguments after it.
+     * Resolves a member read or a call through a module's namespace, the module the local name its imports give names: a module member, read or called; a function reference, one of the module's functions read without a call,
+     * which the callback contract it is passed to selects where one is given; or a qualified form, a member the module declares on a type, called with its receiver first and its own arguments after it. A message writes the
+     * namespace by its local name, as the script does, and names the module by its own.
      */
     #resolveThroughNamespace(node, pointer, scope, contract = null) {
-        const moduleName = node.target.name;
-        const module = this.#namespaceNames.has(moduleName) ? this.#registry.getModule(moduleName) : undefined;
-        const written = `${moduleName}.${node.name}`;
-
-        if (module === undefined) {
-            this.#fail('LEXICA2642', `No module named '${moduleName}' is registered, so '${written}' reads through no namespace`, `${pointer}/target`);
-        }
-
-        const declared = this.#registry.getMembersDeclaredBy(moduleName, node.name);
+        const access = LanguageResolver.#accessOf(node);
+        const moduleName = this.#importedModules.get(access.receiver.name);
+        const written = `${access.receiver.name}.${access.name}`;
+        const declared = this.#registry.getMembersDeclaredBy(moduleName, access.name);
         const namedDeclarations = this.#memberSelector.getAccessible(declared);
 
         if (declared.length > 0 && namedDeclarations.length === 0) {
@@ -1754,14 +1813,14 @@ export class LanguageResolver {
         const declarations = namedDeclarations.filter(declaration => declaration.kind !== 'indexer');
 
         if (declarations.length === 0) {
-            this.#fail(namedDeclarations.length > 0 ? 'LEXICA3011' : 'LEXICA3001', namedDeclarations.length > 0 ? `'${node.name}' is an indexer, which no namespace qualifies: write its receiver and ':${node.name}[…]'` : `The module '${moduleName}' declares no member '${node.name}'`, pointer);
+            this.#fail(namedDeclarations.length > 0 ? 'LEXICA3011' : 'LEXICA3001', namedDeclarations.length > 0 ? `'${access.name}' is an indexer, which no namespace qualifies: write its receiver and ':${access.name}[…]'` : `The module '${moduleName}' declares no member '${access.name}'`, pointer);
         }
 
         const moduleMemberDeclaration = declarations.find(declaration => !this.#registry.takesReceiver(declaration));
         const receiverMemberDeclarations = declarations.filter(declaration => this.#registry.takesReceiver(declaration));
         const readings = [
             ...(moduleMemberDeclaration === undefined ? [] : [() => this.#resolveModuleMember(node, pointer, scope, moduleMemberDeclaration, written, contract)]),
-            ...(receiverMemberDeclarations.length === 0 ? [] : [() => (node.kind === 'member' ? this.#resolveFunctionReference(node, pointer, receiverMemberDeclarations, contract) : this.#resolveQualifiedForm(node, pointer, scope, receiverMemberDeclarations, written))]),
+            ...(receiverMemberDeclarations.length === 0 ? [] : [() => (node.kind === 'memberAccess' ? this.#resolveFunctionReference(node, pointer, receiverMemberDeclarations, contract) : this.#resolveQualifiedForm(node, pointer, scope, receiverMemberDeclarations, written))]),
         ];
 
         if (readings.length === 1) {
@@ -1773,7 +1832,7 @@ export class LanguageResolver {
         const accepted = outcomes.filter(outcome => outcome.error === undefined);
 
         if (accepted.length > 1) {
-            this.#fail('LEXICA3024', `'${written}' is both the module member and the qualified form of the member '${node.name}' of a receiver, and this access fits both, so which applies is ambiguous; the receiver form, receiver.${node.name}, reaches the member of the receiver`, pointer);
+            this.#fail('LEXICA3024', `'${written}' is both the module member and the qualified form of the member '${access.name}' of a receiver, and this access fits both, so which applies is ambiguous; the receiver form, receiver.${access.name}, reaches the member of the receiver`, pointer);
         }
 
         if (accepted.length === 0) {
@@ -1862,7 +1921,7 @@ export class LanguageResolver {
             return { type, kind: 'value', isFixed: false };
         }
 
-        if (node.kind === 'member') {
+        if (node.kind === 'memberAccess') {
             return this.#resolveFunctionReference(node, pointer, [declaration], contract);
         }
 
@@ -1936,7 +1995,7 @@ export class LanguageResolver {
      * Passed to a function parameter, it names the declaration whose receiver and parameters take the arguments the callback contract declares; anywhere else, the module's one function of its name. Creating it reads nothing and invokes nothing.
      */
     #resolveFunctionReference(node, pointer, declarations, contract) {
-        const written = `${node.target.name}.${node.name}`;
+        const written = `${node.receiver.name}.${node.name}`;
         const functions = declarations.filter(declaration => declaration.kind === 'function' && !LexicaModule.isInvokedByHost(declaration));
 
         if (functions.length === 0) {
@@ -2084,19 +2143,20 @@ export class LanguageResolver {
      * Its type is the result type they share, made nullable, or left to the optional chain an optional access of null ends, and null where they share none or the name is no member's. Nothing applied to such a receiver is evaluated, so its arguments leave no resolution behind.
      * It answers its result and its resolution, with no use, since it chooses no declaration, and records neither.
      */
-    #resolveOnUnknownType(node, pointer, scope, receiverType, declared = this.#registry.getReceiverMembers(node.name), offset = 0) {
-        const isAccess = node.kind === 'member';
+    #resolveOnUnknownType(node, pointer, scope, receiverType, declared = this.#registry.getReceiverMembers(LanguageResolver.#accessOf(node).name), offset = 0) {
+        const access = LanguageResolver.#accessOf(node);
+        const isAccess = node.kind === 'memberAccess';
         const candidates = this.#memberSelector.getAccessible(declared);
 
         if (!isAccess && declared.length > 0 && candidates.length === 0) {
-            this.#failInternal(`'${node.name}'`, this.#registry.getDeclaringModuleName(declared[0]), pointer);
+            this.#failInternal(`'${access.name}'`, this.#registry.getDeclaringModuleName(declared[0]), pointer);
         }
 
         // A qualified call, a qualified form's or a function reference's, calls a property and a function alike, its receiver its first argument.
         const candidatesInForm = offset > 0 ? candidates : candidates.filter(candidate => FORM_NODE_KINDS[candidate.kind] === node.kind);
 
         if (!isAccess && candidates.length === 0) {
-            this.#fail('LEXICA3001', `'${node.name}' is no member of the vocabulary`, pointer);
+            this.#fail('LEXICA3001', `'${access.name}' is no member of the vocabulary`, pointer);
         }
 
         // A structured type's data property among the candidates is read by its name alone, whichever type a receiver will have.
@@ -2130,7 +2190,7 @@ export class LanguageResolver {
         const kinds = new Set([...fitting.map(({ declaration }) => LanguageResolver.#getResultKind(declaration)), ...(isAccess ? ['value'] : [])]);
 
         if (kinds.size > 1) {
-            this.#fail('LEXICA3025', `'${node.name}' follows a value whose type is unknown, and its declarations disagree on who invokes it, the evaluator or the host, so whether the script ends in a host call is ambiguous`, pointer);
+            this.#fail('LEXICA3025', `'${access.name}' follows a value whose type is unknown, and its declarations disagree on who invokes it, the evaluator or the host, so whether the script ends in a host call is ambiguous`, pointer);
         }
 
         const resultTypes = [
@@ -2140,12 +2200,12 @@ export class LanguageResolver {
         // A member of a never is never evaluated, since no value has that type, so it answers what its declarations share as they declare it, and where none says what it would answer, nothing yet: a never, which fits wherever a value of any type is required.
         const isNever = receiverType.kind === 'never';
         // An optional access of null ends its chain, which is nullable for it, so its own type is the one its declarations share.
-        const isShortCircuited = node.optional === true && receiverType.kind === 'null';
+        const isShortCircuited = access.optional === true && receiverType.kind === 'null';
         const unknown = isNever ? Type.never : Type.null;
         const type = shared === null || shared.kind === 'never' || LanguageResolver.#holdsTypeParameter(shared) ? unknown : isNever || isShortCircuited ? shared : shared.toNullable();
 
         // A qualified call's receiver is its first argument, and any other member's the node it targets.
-        const resolution = { kind: 'invocation', candidates: fitting.map(({ declaration }) => declaration), receiverNode: offset > 0 ? node.arguments[0] : node.target, receiverType, type, arguments: [] };
+        const resolution = { kind: 'invocation', candidates: fitting.map(({ declaration }) => declaration), receiverNode: offset > 0 ? node.arguments[0] : access.receiver, receiverType, type, arguments: [] };
 
         // Host calls that agree on their host supplying nothing take no result projection, whichever of them a receiver's type will choose.
         const suppliesNothing = fitting.length > 0 && fitting.every(({ declaration }) => declaration.result === undefined);
@@ -2165,28 +2225,26 @@ export class LanguageResolver {
         // A computed property's name that settles to an indexer's names it rather than a property, and one that settles to a function's names no property at all.
         const code = kind === 'indexer'
             ? (isComputed ? 'LEXICA3016' : 'LEXICA3011')
-            : isComputed ? 'LEXICA3056' : kind === 'function' && node.kind === 'indexer' ? 'LEXICA3054' : 'LEXICA3017';
+            : isComputed ? 'LEXICA3056' : kind === 'function' && node.kind === 'indexerAccess' ? 'LEXICA3054' : 'LEXICA3017';
+        const access = LanguageResolver.#accessOf(node);
 
         // An indexer takes one key in brackets, which a node written another way may not give.
         if (kind === 'indexer' && node.arguments?.length !== 1) {
-            this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.quote(node.target, this.#namespaceNames)}${node.optional === true ? '?.' : '.'}${node.name}[…]'`, pointer);
+            this.#fail(code, `'${access.name}' ${described}: write '${DefinitionWriter.quote(access.receiver, this.#namespaceNames)}${access.optional === true ? '?.' : '.'}${access.name}[…]'`, pointer);
         }
 
-        this.#fail(code, `'${node.name}' ${described}: write '${DefinitionWriter.quote(LanguageResolver.#writtenAs(node, kind), this.#namespaceNames)}'`, pointer);
+        this.#fail(code, `'${access.name}' ${described}: write '${DefinitionWriter.quote(LanguageResolver.#writtenAs(node, kind), this.#namespaceNames)}'`, pointer);
     }
 
     /** The node written as a member of the kind is: an access of its name, a call of its arguments, an indexer's one, or an indexer of its key, a call's one argument. */
     static #writtenAs(node, kind) {
-        const { target, name } = node;
-        const optional = node.optional === true ? { optional: true } : {};
-
         switch (kind) {
             case 'property':
                 return LanguageResolver.#createPropertyAccess(node);
             case 'function':
-                return { kind: 'call', target, name, arguments: node.kind === 'indexer' ? [node.argument] : [], ...optional };
+                return LanguageResolver.#createCall(node, node.kind === 'indexerAccess' ? [node.argument] : []);
             default:
-                return { kind: 'indexer', target: { kind: 'member', target, name, ...optional }, argument: node.arguments[0] };
+                return { kind: 'indexerAccess', receiver: LanguageResolver.#createPropertyAccess(node), argument: node.arguments[0] };
         }
     }
 
@@ -2199,7 +2257,7 @@ export class LanguageResolver {
     #suppliedArguments(declaration, node, pointer, offset = 0) {
         const { parameters } = declaration;
         const supplied = new Map();
-        const given = node.kind === 'indexer'
+        const given = node.kind === 'indexerAccess'
             ? [{ node: node.argument, pointer: `${pointer}/argument` }]
             : (node.arguments ?? []).slice(offset).map((argument, index) => ({ node: argument, pointer: `${pointer}/arguments/${index + offset}` }));
 
@@ -2229,18 +2287,18 @@ export class LanguageResolver {
 
         const [options] = given;
 
-        if (options.node.kind !== 'object' || options.node.target !== undefined) {
+        if (options.node.kind !== 'object' || options.node.context !== undefined) {
             this.#fail('LEXICA3057', `'${LexicaModule.writtenNameOf(declaration)}' takes its arguments as the object fields of an object, as { ${parameters[0].name} = … }`, options.pointer);
         }
 
-        options.node.fields.forEach((field, index) => {
+        options.node.objectFields.forEach((field, index) => {
             const parameter = parameters.find(candidate => candidate.name === field.name);
 
             if (parameter === undefined) {
-                this.#fail('LEXICA3018', `'${LexicaModule.writtenNameOf(declaration)}' has no parameter '${field.name}'; it takes ${parameters.map(candidate => candidate.name).join(', ')}`, `${options.pointer}/fields/${index}`);
+                this.#fail('LEXICA3018', `'${LexicaModule.writtenNameOf(declaration)}' has no parameter '${field.name}'; it takes ${parameters.map(candidate => candidate.name).join(', ')}`, `${options.pointer}/objectFields/${index}`);
             }
 
-            supplied.set(parameter.name, { node: field.value, pointer: `${options.pointer}/fields/${index}/value` });
+            supplied.set(parameter.name, { node: field.value, pointer: `${options.pointer}/objectFields/${index}/value` });
         });
 
         return supplied;
@@ -2267,7 +2325,7 @@ export class LanguageResolver {
         };
 
         // An options object is an object expression: one no other encloses builds the outermost object, whose fields are its options, and any other builds within the one enclosing it; each option is in scope after its value, as a field is.
-        const optionsObject = declaration.arguments === 'options' && supplied.size > 0 ? (node.kind === 'indexer' ? node.argument : node.arguments[offset]) : null;
+        const optionsObject = declaration.arguments === 'options' && supplied.size > 0 ? (node.kind === 'indexerAccess' ? node.argument : node.arguments[offset]) : null;
         const objectExpression = optionsObject !== null && scope.objectRootType === null ? optionsObject : null;
         let argumentScope = scope;
 
@@ -2432,7 +2490,7 @@ export class LanguageResolver {
      * through the object root once completed. It answers the object's type, a list of them for a list it follows, nullable where what it follows is.
      */
     #resolveObjectExpression(node, pointer, scope) {
-        const target = node.target === undefined ? null : this.#resolveNode(node.target, `${pointer}/target`, scope);
+        const target = node.context === undefined ? null : this.#resolveNode(node.context, `${pointer}/context`, scope);
 
         if (target?.suppliesNothing === true) {
             this.#fail('LEXICA3049', 'The host call this object expression follows declares no result, since its host supplies no values, so it takes no result projection', pointer);
@@ -2486,8 +2544,8 @@ export class LanguageResolver {
 
         const fieldTypes = new Map();
 
-        node.fields.forEach((field, index) => {
-            const fieldPointer = `${pointer}/fields/${index}`;
+        node.objectFields.forEach((field, index) => {
+            const fieldPointer = `${pointer}/objectFields/${index}`;
             const { name } = field;
             const result = this.#resolveNode(field.value, `${fieldPointer}/value`, scopeHere());
 
@@ -2551,8 +2609,8 @@ export class LanguageResolver {
      * reuses the branches the field selected and compares it within its tolerance. It answers its result and its resolution, with no use, and records neither.
      */
     #resolveObjectRootField(node, pointer, receiverType) {
-        if (node.kind !== 'member') {
-            this.#fail(node.kind === 'call' ? 'LEXICA3017' : 'LEXICA3012', `'root' is read through its fields, as root.name or root.[name], and '${node.name ?? '[…]'}' ${node.kind === 'call' ? 'is called' : 'is an indexer'}`, pointer);
+        if (node.kind !== 'memberAccess') {
+            this.#fail(node.kind === 'call' ? 'LEXICA3017' : 'LEXICA3012', `'root' is read through its fields, as root.name or root.[name], and '${LanguageResolver.#accessOf(node).name ?? '[…]'}' ${node.kind === 'call' ? 'is called' : 'is an indexer'}`, pointer);
         }
 
         const optionKind = this.#objectRootFields.get(receiverType.objectExpression).get(node.name)?.optionKind;
@@ -2624,7 +2682,7 @@ export class LanguageResolver {
     #resolveFunctionArgument(node, pointer, scope, parameter, declaration, receiverType, typeArguments) {
         const contract = this.#createCallbackContract(parameter, declaration, receiverType, typeArguments);
 
-        if (node.kind === 'member' && node.target.kind === 'namespace') {
+        if (node.kind === 'memberAccess' && node.receiver.kind === 'namespace') {
             const result = this.#resolveThroughNamespace(node, pointer, scope, contract);
 
             return { result, callback: this.#resolveCallback(result, contract, pointer, scope) };
@@ -2668,7 +2726,7 @@ export class LanguageResolver {
 
         if (node.kind === 'function') {
             result = this.#resolveNode(node, pointer, scope);
-        } else if (node.kind === 'member' && node.target.kind === 'namespace') {
+        } else if (node.kind === 'memberAccess' && node.receiver.kind === 'namespace') {
             result = this.#resolveThroughNamespace(node, pointer, scope, contract);
         } else {
             // Whether the argument reads its own implicit parameter, which its own context key identifies; it holds no syntax of the body.
@@ -2777,9 +2835,34 @@ export class LanguageResolver {
         return kind === 'hostCall' ? 'a host call' : `a ${kind}`;
     }
 
+    /** The node written optionally, a call's member access its callee. */
+    static #asOptional(node) {
+        return node.kind === 'call' ? { ...node, callee: { ...node.callee, optional: true } } : { ...node, optional: true };
+    }
+
     /** The property access that writes the node's name after its receiver, optional where the node is. */
     static #createPropertyAccess(node) {
-        return { kind: 'member', target: node.target, name: node.name, ...(node.optional === true ? { optional: true } : {}) };
+        const access = LanguageResolver.#accessOf(node);
+
+        return { kind: 'memberAccess', receiver: access.receiver, name: access.name, ...(access.optional === true ? { optional: true } : {}) };
+    }
+
+    /**
+     * The access a node of a member makes: a property access and an indexer are their own, and a call of a member the member access its callee is, which holds its receiver, its name, whether it is optional and the
+     * extension it selects.
+     */
+    static #accessOf(node) {
+        return node.kind === 'call' ? node.callee : node;
+    }
+
+    /** The pointer of the receiver of a node of a member, which a call holds within its callee. */
+    static #receiverPointerOf(node, pointer) {
+        return node.kind === 'call' ? `${pointer}/callee/receiver` : `${pointer}/receiver`;
+    }
+
+    /** The call of a member a property access writes with its arguments, its receiver's optional mark kept on its callee. */
+    static #createCall(access, args) {
+        return { kind: 'call', callee: LanguageResolver.#createPropertyAccess(access), arguments: args };
     }
 
     /** What a call of the declaration makes: a host call where its host invokes it, and a value otherwise. */

@@ -43,14 +43,14 @@ const heater = new Thermostat('heater');
 const values = { lamp, heater, flag: true, numbers: [1, 2], words: ['oat', 'rye'], empty: [] };
 
 /** The type the text resolves to against a registry of the kit, as a message writes it. */
-const typeOf = text => lexica.createRegistry([createKit()]).resolve(text, values).type;
+const typeOf = text => lexica.createRegistry([createKit()]).resolve(text, values, { imports: ['kit'] }).type;
 
 /** What the text evaluates to against a registry of the kit. */
 const evaluate = text => {
     const registry = lexica.createRegistry([createKit()]);
     const bindings = registry.createBindings(values);
 
-    return registry.resolve(text, bindings).createEvaluator(bindings).evaluate().value;
+    return registry.resolve(text, bindings, { imports: ['kit'] }).createEvaluator(bindings).evaluate().value;
 };
 
 /** A number the text writes that may be null. */

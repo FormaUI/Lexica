@@ -141,11 +141,11 @@ describe('reference types', () => {
         }, {
             Room: [createPropertyDeclaration('label', 'String', { updates: constantUpdates, impl: ({ receiver }) => `room ${receiver.name}` })],
         }));
-        const evaluateWith = (module, text, values) => lexica.createRegistry([module]).resolve(text, values).createEvaluator(values).evaluate().value;
+        const evaluateWith = (module, text, values) => lexica.createRegistry([module]).resolve(text, values, { imports: ['home'] }).createEvaluator(values).evaluate().value;
 
         expect(evaluateWith(members('String'), 'home.label(room)', { room: kitchen })).toBe('room kitchen');
         expect(evaluateWith(members('String'), 'home.label(word)', { word: 'hall' })).toBe('module hall');
-        expect(errorThrownBy(() => lexica.createRegistry([members('Room')]).resolve('home.label(room)', { room: kitchen }))).toMatchObject({ code: 'LEXICA3024' });
+        expect(errorThrownBy(() => lexica.createRegistry([members('Room')]).resolve('import home\nhome.label(room)', { room: kitchen }))).toMatchObject({ code: 'LEXICA3024' });
         expect(evaluateWith(members('Room'), 'room.label', { room: kitchen })).toBe('room kitchen');
     });
 
@@ -177,7 +177,7 @@ describe('members declared within their reference type', () => {
     it('take their type as their receiver, and are reached through their module\'s qualified form', () => {
         const dim = createPropertyDeclaration('dim', 'Number', { updates: constantUpdates, impl: () => 30 });
         const registry = lexica.createRegistry([lamps([glow, dim])]);
-        const resolution = registry.resolve('{ glow = lamp.glow, dim = lamp.dim, qualified = lamps.glow(lamp) }', { lamp });
+        const resolution = registry.resolve('import lamps\n{ glow = lamp.glow, dim = lamp.dim, qualified = lamps.glow(lamp) }', { lamp });
 
         expect(resolution.createEvaluator({ lamp }).evaluate().value).toEqual({ glow: 'lamp glows', dim: 30, qualified: 'lamp glows' });
         expect(resolution.usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Lamp.glow', 'Lamp.dim', 'Lamp.glow']);

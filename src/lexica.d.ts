@@ -6,39 +6,71 @@
 /** A script as a host gives it: its source, the text read into its definition, or the definition itself. */
 export type LexicaScript = string | LexicaDefinition;
 
-/** A Lexica definition: the JSON document that records a script's meaning, its expression tree with the version of its format, without the values its script parameters are bound to. */
+/** A Lexica definition: the JSON document that records a script's meaning, its expression tree with the version of its format and its imports, without the values its script parameters are bound to. */
 export interface LexicaDefinition {
     readonly version: number;
+    /** The script's imports, those its text writes and those its host supplies, each once, in order of the local name it gives. */
+    readonly imports: readonly LexicaImport[];
     readonly expression: LexicaDefinitionNode;
+}
+
+/** An import, as a definition records it: its registered module, the local name of the one type it imports where it imports one, and its alias where it gives a local name other than its own. */
+export interface LexicaImport {
+    readonly module: string;
+    readonly type?: string;
+    readonly alias?: string;
+}
+
+/** An import a host supplies: a module's name, imported under its own, or an import as a definition records it. */
+export type LexicaSuppliedImport = string | LexicaImport;
+
+/** The options of reading or writing a script: the imports the host, or the text's destination, supplies. */
+export interface LexicaScriptOptions {
+    readonly imports?: readonly LexicaSuppliedImport[];
+}
+
+/** The extension an access selects explicitly: its name as written, and its module's local name where the module qualifies it. */
+export interface LexicaDefinitionExtension {
+    readonly name: string;
+    readonly module?: string;
+}
+
+/** A property access, the member a call names, or a named indexer's name: its receiver, its name or a computed property access's expression, whether it is optional, and the extension it selects. */
+export interface LexicaDefinitionMemberAccess {
+    readonly kind: 'memberAccess';
+    readonly receiver: LexicaDefinitionNode;
+    readonly name: string | LexicaDefinitionNode;
+    readonly optional?: true;
+    readonly extension?: LexicaDefinitionExtension;
 }
 
 /** A node of a definition. */
 export type LexicaDefinitionNode =
     | { readonly kind: 'literal'; readonly value: string | number | boolean | null }
-    | { readonly kind: 'parameter'; readonly name: string }
+    | { readonly kind: 'scriptParameter'; readonly name: string }
     | { readonly kind: 'it' }
     | { readonly kind: 'root' }
-    /** A module's namespace, the target of a member read or a call through it alone. */
+    /** A module's namespace, by the local name the script's imports give it, the receiver of a member read or called through it alone. */
     | { readonly kind: 'namespace'; readonly name: string }
     | { readonly kind: 'local'; readonly name: string }
-    | { readonly kind: 'member'; readonly target: LexicaDefinitionNode; readonly name: string | LexicaDefinitionNode; readonly optional?: true }
-    | { readonly kind: 'call'; readonly target: LexicaDefinitionNode; readonly name: string; readonly optional?: true; readonly arguments: readonly LexicaDefinitionNode[] }
-    | { readonly kind: 'indexer'; readonly target: LexicaDefinitionNode; readonly argument: LexicaDefinitionNode; readonly optional?: true }
-    | { readonly kind: 'object'; readonly target?: LexicaDefinitionNode; readonly locals?: readonly LexicaDefinitionLocal[]; readonly fields: readonly LexicaDefinitionField[] }
-    | { readonly kind: 'optionalChain'; readonly target: LexicaDefinitionNode }
+    | LexicaDefinitionMemberAccess
+    /** A call: of the member its callee names, or of the function the local its callee names holds. */
+    | { readonly kind: 'call'; readonly callee: LexicaDefinitionMemberAccess | { readonly kind: 'local'; readonly name: string }; readonly arguments: readonly LexicaDefinitionNode[] }
+    | { readonly kind: 'indexerAccess'; readonly receiver: LexicaDefinitionNode; readonly argument: LexicaDefinitionNode; readonly optional?: true; readonly extension?: LexicaDefinitionExtension }
+    | { readonly kind: 'object'; readonly context?: LexicaDefinitionNode; readonly locals?: readonly LexicaDefinitionLocal[]; readonly objectFields: readonly LexicaDefinitionObjectField[] }
+    | { readonly kind: 'optionalChain'; readonly chain: LexicaDefinitionNode }
     | { readonly kind: 'coalescing'; readonly value: LexicaDefinitionNode; readonly fallback: LexicaDefinitionNode }
     | { readonly kind: 'not'; readonly operand: LexicaDefinitionNode }
     | { readonly kind: 'function'; readonly parameters: readonly string[]; readonly body: LexicaDefinitionNode; readonly arrow?: true }
-    | { readonly kind: 'functionCall'; readonly name: string; readonly arguments: readonly LexicaDefinitionNode[] }
     | { readonly kind: 'body'; readonly locals: readonly LexicaDefinitionLocal[]; readonly result: LexicaDefinitionNode }
     | { readonly kind: 'do'; readonly body: LexicaDefinitionNode }
     | { readonly kind: 'interpolatedString'; readonly parts: readonly ({ readonly kind: 'text'; readonly value: string } | { readonly kind: 'expression'; readonly expression: LexicaDefinitionNode })[] }
     | { readonly kind: 'comparison'; readonly operands: readonly LexicaDefinitionNode[]; readonly operators: readonly ('<' | '<=' | '>' | '>=')[] }
     | { readonly kind: 'arithmetic'; readonly operator: '+' | '-' | '*' | '/' | '%'; readonly left: LexicaDefinitionNode; readonly right: LexicaDefinitionNode }
-    | { readonly kind: 'negate'; readonly operand: LexicaDefinitionNode }
-    | { readonly kind: 'cast'; readonly type: string; readonly target: LexicaDefinitionNode }
-    | { readonly kind: 'conversion'; readonly type: string; readonly target: LexicaDefinitionNode }
-    | { readonly kind: 'try'; readonly target: LexicaDefinitionNode }
+    | { readonly kind: 'arithmeticNegation'; readonly operand: LexicaDefinitionNode }
+    | { readonly kind: 'cast'; readonly type: string; readonly operand: LexicaDefinitionNode }
+    | { readonly kind: 'conversion'; readonly type: string; readonly operand: LexicaDefinitionNode }
+    | { readonly kind: 'try'; readonly operand: LexicaDefinitionNode }
     | { readonly kind: 'equality'; readonly left: LexicaDefinitionNode; readonly right: LexicaDefinitionNode }
     | { readonly kind: 'conditional'; readonly condition?: LexicaDefinitionNode; readonly binding?: { readonly name: string; readonly value: LexicaDefinitionNode }; readonly consequent: LexicaDefinitionNode; readonly alternative: LexicaDefinitionNode }
     | { readonly kind: 'and' | 'or'; readonly operands: readonly LexicaDefinitionNode[] };
@@ -49,8 +81,8 @@ export interface LexicaDefinitionLocal {
     readonly value: LexicaDefinitionNode;
 }
 
-/** A field of an object expression: its name, always written, and its value. */
-export interface LexicaDefinitionField {
+/** An object field of an object expression: its name, always written, and its value. */
+export interface LexicaDefinitionObjectField {
     readonly name: string;
     readonly value: LexicaDefinitionNode;
 }
@@ -510,12 +542,12 @@ export interface LexicaRegistry {
     getDeclaringModuleName(declaration: object): string | undefined;
     /** The implementation that carries the declaration out, as its module gives it. */
     getImplementation(declaration: object): ((input: any) => unknown) | undefined;
-    /** Reads a text into its definition with the registry's module names, refusing a syntax error or a structure the definition cannot have. */
-    parse(source: string): LexicaDefinition;
-    /** The canonical text of a text or a definition, written with the registry's module names, which a registry of the same module names reads back as the same definition. */
-    format(script: LexicaScript): string;
-    /** The canonical text of a text or a definition on one line, written with the registry's module names, as a diagnostic quotes it. */
-    quote(script: LexicaScript): string;
+    /** Reads a text into its definition as `lexica.parse` does, the script's imports and those supplied deciding its namespaces, never the registry's modules. */
+    parse(source: string, options?: LexicaScriptOptions): LexicaDefinition;
+    /** The canonical text of a text or a definition, as `lexica.format` writes it. */
+    format(script: LexicaScript, options?: LexicaScriptOptions): string;
+    /** The compact canonical text of a text or a definition, as `lexica.quote` writes it. */
+    quote(script: LexicaScript, options?: LexicaScriptOptions): string;
     /**
      * Creates bindings of values by name against the registry, its modules recognizing which are references, each module's `typeOf` asked of every object and the `isInstance` of each type it names, or of a top-level
      * binding's declared type: data as a frozen copy, each reference as itself, a top-level binding of a declared type typed by it.
@@ -523,10 +555,10 @@ export interface LexicaRegistry {
     createBindings(values?: LexicaBindingValues, options?: LexicaBindingsOptions): LexicaBindings;
     /**
      * Resolves a script against the registered vocabulary and the bindings, the registry's own or plain values it binds, its source read as `parse` reads it, or throws where it does not resolve. Binding plain values asks
-     * the modules' `typeOf` and `isInstance`, as `createBindings` does; resolving calls no host code. It refuses bindings another registry made (LEXICA2024), a definition this registry would read otherwise than it was read
-     * (LEXICA2641, LEXICA2642), and a script that does not resolve, a validation error locating it.
+     * the modules' `typeOf` and `isInstance`, as `createBindings` does; resolving calls no host code. It reads a source with the imports `options.imports` supplies, a definition recording its own, and refuses
+     * bindings another registry made (LEXICA2024), an import the registry can't give (LEXICA3002, LEXICA3052, LEXICA3053), and a script that does not resolve, a validation error locating it.
      */
-    resolve(script: LexicaScript, bindings?: LexicaBindings | LexicaBindingValues): LexicaResolution;
+    resolve(script: LexicaScript, bindings?: LexicaBindings | LexicaBindingValues, options?: LexicaScriptOptions): LexicaResolution;
 }
 
 /** The declaration helpers, each creating a declaration as a module declares it, constructing a record and registering nothing; a member takes no receiver of its own, since where it stands gives it one. */
@@ -566,17 +598,20 @@ export interface LexicaInfo {
 }
 
 export interface Lexica {
-    /** Reads a text into its definition without a registry, knowing no module's name, refusing a syntax error or a structure the definition cannot have. */
-    parse(source: string): LexicaDefinition;
+    /**
+     * Reads a text into its definition, its imports and those `options.imports` supplies deciding which of its names begin namespaces, refusing a syntax error, a supplied import that breaks an import's rules (LEXICA2008)
+     * or a structure the definition cannot have. A text read with the same imports gives the same definition, whatever registry reads it.
+     */
+    parse(source: string, options?: LexicaScriptOptions): LexicaDefinition;
     /**
      * Validates a definition given directly against the definition format's structural rules, answering it frozen, as a text giving it would; it checks no vocabulary or types, which resolution validates. It calls
      * no host code, answers a definition it answered already as it is, and refuses a definition of another version (LEXICA2007) and any other structure the format does not allow, a structure error at its pointer.
      */
     validate(definition: unknown): LexicaDefinition;
-    /** The canonical text of a text or a definition, written without module names, so a definition reading through a namespace is refused; a registry's `format` writes one. */
-    format(script: LexicaScript): string;
-    /** The canonical text of a text or a definition on one line, as a diagnostic quotes it, written without module names. */
-    quote(script: LexicaScript): string;
+    /** The canonical text of a text or a definition: every import it records, but those `options.imports` says its destination supplies, then its body, laid out on lines. */
+    format(script: LexicaScript, options?: LexicaScriptOptions): string;
+    /** The compact canonical text of a text or a definition, as a diagnostic quotes it: its imports, but those its destination supplies, each on a line of its own, and its body on one line where its layout allows. */
+    quote(script: LexicaScript, options?: LexicaScriptOptions): string;
     /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
     getLocation(definition: LexicaDefinition, pointer: string): LexicaLocation;
     /** Creates a module from the declarations it holds and the implementations that carry them out. */
