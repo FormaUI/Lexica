@@ -2271,9 +2271,11 @@ export class Evaluator {
             }
         }
 
-        // A member answering its receiver's items keeps the position each stood at there with the list it answered, which a capture can replace with another, so the positions are read from that list.
+        // A member answering its receiver's items keeps the position each stood at there, and an ordering the keys that ordered them, with the list it answered, which a capture and a copy can replace with another,
+        // so both are read from that list.
+        const implemented = value;
         const answersReceiverItems = takesReceiver && Vocabulary.answersReceiverItems(declaration);
-        const positions = answersReceiverItems ? ItemPositions.getPositions(value) : undefined;
+        const positions = answersReceiverItems ? ItemPositions.getPositions(implemented) : undefined;
 
         // A collection a host gives in a form of its own, a set, a map or a pair's object, is the language's where the member declares one.
         if (captureCollections !== null) {
@@ -2294,9 +2296,9 @@ export class Evaluator {
 
         const answered = copyStructure === null ? value : copyStructure(value);
 
-        // An ordered list's copy keeps the keys that ordered it, its items in the same places, so a `thenBy` given it refines it.
-        if (answered !== value) {
-            ListOrdering.carry(value, answered);
+        // An ordered list's capture and copy keep the keys that ordered it, its items in the same places, so a `thenBy` given it refines it.
+        if (answered !== implemented) {
+            ListOrdering.carry(implemented, answered);
         }
 
         // A member answering its receiver's items keeps the lineage each occurrence had there, as each item's own record already follows it; one answering a value for each item, as a projection does, records each item as its source.

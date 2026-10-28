@@ -62,6 +62,11 @@ describe('ordering a list', () => {
         expect(weighed).toEqual(['bo', 'al', 'cy', 'al', 'al', 'al', 'bo', 'cy']);
     });
 
+    it('keeps the ordering of a list of collections through the capture that replaces the list an ordering answers', () => {
+        expect(evaluate('xs.orderBy(it.count).thenBy(it.first)', { xs: [[2], [1, 1], [1]] })).toEqual([[1], [2], [1, 1]]);
+        expect(evaluate('let sorted = xs.orderByDescending(it.count)\nreturn sorted.thenBy(it.first)', { xs: [[2], [1, 1], [1]] })).toEqual([[1, 1], [1], [2]]);
+    });
+
     it('takes the least or the greatest item by a key of any ordering domain, the first of equal keys, null keys skipped', () => {
         expect(evaluate('people.minBy(it.age)?.name')).toBe('a');
         expect(evaluate('people.maxBy(it.age)?.name')).toBe('b');
