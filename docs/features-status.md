@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; in [unit 2](#unit-2--member-selection-and-deferred-evaluation), the selector, operators, `Any`, deferred selection and reporting are done, and the ledger's last item, U1's candidates, is next.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; in [unit 2](#unit-2--member-selection-and-deferred-evaluation), the selector, operators, `Any`, deferred selection, reporting and U1's candidates are done, and a function's result of `Any` is next.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | ✅ Done |
-| 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | In progress: steps 1 to 4 done; step 5 next |
+| 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | In progress: steps 1 to 4 done; step 5 under way |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
 | 5 | [Specification examples](#unit-5--specification-examples) | Planned |
@@ -86,13 +86,13 @@ Contracts: [Types](../spec/types.md), [Modules](../spec/modules.md), [declaring 
 
 ### Unit 2 — Member selection and deferred evaluation
 
-One selector chooses every member, indexer and operator, at resolution and during evaluation alike. *Next: step 5, U1's candidates.*
+One selector chooses every member, indexer and operator, at resolution and during evaluation alike. *Next: step 5's last item, a function's result of `Any`.*
 
 1. ✅ **The selector,** [I20](proposals/implementation-decisions.md)'s `MemberSelector`, the registry's, replaces the three selection paths and the path for receivers of unknown type: owner precedence through inheritance; competing extensions registering, in place of the registration's refusal, and selected by the most specific target; ambiguity refused at resolution, giving the extension accesses to write; internal declarations excluded at resolution; and an empty list or a null receiver selecting as [the types](../spec/types.md) set out.
 2. ✅ **Operators,** as [I21](proposals/implementation-decisions.md) sets out: casts and conversions declared on types and in extensions, in place of module-level conversions, competing as operators do, an applicable owner's winning and otherwise the most specific extension's; Lexica's own conversions moved onto its types; declared casts, an `impl` optional, `reject` making an attempt null; and operators chosen by the selector.
 3. ✅ **`Any` and deferred selection,** as [I22](proposals/implementation-decisions.md) sets out: `Any` written in a declaration's result, its parameters and its defaults; a member selected when its receiver is evaluated, through the same selector, by its value's actual type, the selection kept by node and actual type within one compilation, plain objects read by their own fields; a structured value's identity kept through `Any`; a selection that would be a host call refused before anything is invoked, LEXICA5013; `beforeInvoke` told the selection was deferred, [C11](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `request.isDeferred`; an `Any` argument checked against its parameter, LEXICA5021, an equality of `Any` by its rules, LEXICA5024 and LEXICA5025, and a result holding `Any` checked to be data, LEXICA5028; and a deferred access failing with the access and the actual type named, LEXICA5012, and on null, LEXICA5022. A deferred call takes values alone: the specification also accepts an explicitly written function, which waits, as I22 records.
 4. ✅ **Reporting,** as [I23](proposals/implementation-decisions.md) sets out: used declarations including operators, in place of the separate used conversions, one check of their implementations, LEXICA4001, located at the type a member stands in; deferred accesses, by their pointer and the name they access; and candidate declarations, asked for, reported as an overestimate while a deferred access remains.
-5. **From the ledger:** [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidate handling. U10, U40, U41 and C11 are done, with operators and deferred selection, and U11 with reporting.
+5. **From the ledger:** ✅ [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidates, as [I24](proposals/implementation-decisions.md) sets out: a member of a receiver of unknown type compiled as its own evaluation, which evaluates its receiver and answers null, and LEXICA5502, a node no evaluation exists for, retired; U10, U40, U41 and C11 are done, with operators and deferred selection, and U11 with reporting. Next: a function's result of `Any` checked against its callback contract, LEXICA5504 joining the specification's catalog.
 
 **Completion:** the gate passes, and a host can move its declarations and its runtime use in one migration.
 
@@ -215,7 +215,6 @@ Conditions the implementation reports that only language `1.0.0-alpha.33` has, c
 | `LEXICA2641` | structure | A definition read without a registry's module names that writes one of them alone | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
 | `LEXICA2642` | structure | A namespace naming no module the registry holds, which imports replace | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
 | `LEXICA4557` | module | A module named by a reserved word, which text reaches only through an import binding read with `@` | [Unit 3](#unit-3--script-text-imports-and-definition-version-34) |
-| `LEXICA5502` | evaluation | A definition node no evaluation exists for | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 | `LEXICA5504` | evaluation | A function's result its callback contract does not declare, when it is evaluated | [Unit 2](#unit-2--member-selection-and-deferred-evaluation) |
 
 ## Implemented capabilities

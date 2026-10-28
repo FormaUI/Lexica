@@ -559,7 +559,7 @@ export class Evaluator {
 
                 // A call of one function reference alone is its qualified form's call, and the reference it is reads nothing; a receiver of unknown type selects no declaration, as the qualified form's selects none.
                 if (resolution.functions === undefined) {
-                    return resolution.candidates !== undefined ? (evaluator, context) => evaluator.#evaluateMember(node, context) : this.#compileInvocation(node, resolution);
+                    return resolution.candidates !== undefined ? this.#compileOnUnknownType(resolution) : this.#compileInvocation(node, resolution);
                 }
 
                 const functions = this.#compileFunctions(resolution.functions);
@@ -699,8 +699,6 @@ export class Evaluator {
                 return node.target.kind === 'cast' ? this.#compileCast(node.target, true) : this.#compileConversion(node.target, true);
             case 'object':
                 return this.#compileObject(node);
-            default:
-                this.#fail('LEXICA5502', `A '${node.kind}' node has no evaluation`, this.#pointerOf(node));
         }
     }
 
@@ -871,7 +869,11 @@ export class Evaluator {
             return this.#compileDeferredAccess(node, resolution);
         }
 
-        if (resolution === undefined || resolution.kind === 'computedPropertyAccess' || (resolution.kind === 'invocation' && resolution.candidates !== undefined)) {
+        if (resolution?.kind === 'invocation' && resolution.candidates !== undefined) {
+            return this.#compileOnUnknownType(resolution);
+        }
+
+        if (resolution === undefined || resolution.kind === 'computedPropertyAccess') {
             return (evaluator, context) => evaluator.#evaluateMember(node, context);
         }
 
@@ -955,6 +957,20 @@ export class Evaluator {
         }
 
         return invocation;
+    }
+
+    /**
+     * A member of a receiver of unknown type, the type null or a never, which selects no declaration among its candidates: its receiver is evaluated once and is null, so it answers null, invoking nothing and evaluating
+     * none of its arguments, as an access of null does; a never is never evaluated, since no value has that type.
+     */
+    #compileOnUnknownType(resolution) {
+        const receiver = this.#getCompiledFunction(resolution.receiverNode);
+
+        return (evaluator, context) => {
+            receiver(evaluator, context);
+
+            return null;
+        };
     }
 
     /**
@@ -1858,7 +1874,7 @@ export class Evaluator {
         return cachedLocal.value;
     }
 
-    /** Evaluates a member whose resolution is selected as it is evaluated, its receiver the node an invocation records and any other member's the node it targets. */
+    /** Evaluates a member whose resolution is selected as it is evaluated, a computed property access's by the name it computes, its receiver the node it targets. */
     #evaluateMember(node, context) {
         // A projection stands the value its host supplied where the host call is, so the call is never evaluated.
         if (node === this.#projectionContext?.node) {
@@ -1866,7 +1882,7 @@ export class Evaluator {
         }
 
         const resolution = this.#resolvedDefinition.resolutionOf(node);
-        const receiver = this.#evaluateNode(resolution?.kind === 'invocation' ? resolution.receiverNode : node.target, context);
+        const receiver = this.#evaluateNode(node.target, context);
 
         if (receiver === null) {
             return null;

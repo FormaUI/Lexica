@@ -93,6 +93,16 @@ describe('Evaluator', () => {
         expect(invoked).toEqual([]);
     });
 
+    it('answers null for a member of a receiver known to be null, evaluating the receiver once and selecting and invoking nothing', () => {
+        const host = createHost();
+        const invoked = [];
+        const evaluation = createEvaluator('{ none = nothing?.price, indexed = nothing?[0], some = name.price }', { name: 'tea', nothing: null }, { invoked }).evaluate(host);
+
+        expect(evaluation.value).toEqual({ none: null, indexed: null, some: 3 });
+        expect(invoked).toEqual(['price:tea']);
+        expect(host.calls.filter(call => call.startsWith('before'))).toEqual(['before:price@/expression/fields/2/value']);
+    });
+
     it('reads a maintained member through the samples beforeInvoke answers', () => {
         const host = createHost({ beforeInvoke: request => (request.declaration.name === 'quoted' ? [42] : undefined) });
 

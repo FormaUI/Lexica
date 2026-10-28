@@ -486,3 +486,4 @@ A code leaves its table only by being retired here, with the condition it identi
 | `LEXICA4553` | A module member and a member of its name on a type its module does not declare, which alpha.33 refused; a qualified call both take is refused as ambiguous where it is resolved | `1.0.0-alpha.34` |
 | `LEXICA4036` | A module named by a reserved word, `Lexica`, or one of Lexica's own types or extensions, `Lexica` refused as any registered name is and the rest names a module may share | `1.0.0-alpha.34` |
 | `LEXICA4046` | A type named as one of Lexica's own extensions, a name another module's declaration may share, ambiguity checked where a reference resolves | `1.0.0-alpha.34` |
+| `LEXICA5502` | A definition node no evaluation existed for, a code of language `1.0.0-alpha.33` alone: every node a definition holds is evaluated by its kind, a namespace, an interpolation's text and its expressions by the node that holds them | `1.0.0-alpha.34` |
