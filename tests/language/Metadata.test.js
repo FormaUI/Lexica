@@ -241,6 +241,23 @@ describe('result metadata', () => {
             expect(twinsOf(projected.provenance)).toEqual([1, 2]);
         });
 
+        it("carries each occurrence's lineage through a slice and through pick, a position picked twice carrying its occurrence's twice", () => {
+            const twinsOf = entries => entries.map(entry => twins.indexOf(entry.value));
+            const lineageOf = text => {
+                const { items, sources, provenance } = metadataOf(text);
+
+                return { items: items?.length, sources: sources === undefined ? undefined : twinsOf(sources), provenance: twinsOf(provenance) };
+            };
+
+            expect(lineageOf('name.twins { id = it.label }[1..]')).toEqual({ items: 2, sources: [1, 2], provenance: [1, 2] });
+            expect(lineageOf('name.twins { id = it.label }[^2..^0]')).toEqual({ items: 2, sources: [1, 2], provenance: [1, 2] });
+            expect(lineageOf('name.twins { id = it.label }[0..0]')).toEqual({ items: 0, sources: [], provenance: [] });
+            expect(lineageOf('name.twins { id = it.label }.pick([1, 0, 1])')).toEqual({ items: 3, sources: [1, 0, 1], provenance: [1, 0, 1] });
+            expect(lineageOf('name.twins.select(it.label).pick([2, 2])')).toEqual({ items: undefined, sources: [2, 2], provenance: [2, 2] });
+            expect(lineageOf('name.twins.select(it.label)[1..].select(it)')).toMatchObject({ provenance: [1, 2] });
+            expect(lineageOf('name.twins.select(it.label).pick([1, 1]).select(it)')).toMatchObject({ provenance: [1, 1] });
+        });
+
         it("realigns each item's lineage through an ordering and its refinement, and records nothing of the keys that ordered it", () => {
             const lineageOf = text => resolve(text).evaluate().metadata;
             const projected = 'name.crowd { name = it.label }';

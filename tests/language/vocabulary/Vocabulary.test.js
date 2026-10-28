@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { Range } from '#lexica/language/Range.mjs';
 import { Type } from '#lexica/language/Type.mjs';
 import { ItemPositions } from '#lexica/language/vocabulary/ItemPositions.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
@@ -69,10 +70,10 @@ describe('Vocabulary', () => {
         expect(Vocabulary.getTypeDeclaration('Pair').members.map(writtenOf)).toEqual(['Pair<K, V>.key', 'Pair<K, V>.value']);
         // A dictionary's key parameter consumes null, which reads the null key or an absent one.
         expect(Vocabulary.getTypeDeclaration('Dictionary').members[1].parameters[0]).toMatchObject({ name: 'key', type: 'K?', nulls: 'accept' });
-        // The members answering their receiver's items keep each item's lineage, and select records each item as its source, as a projection does.
-        const keeping = ['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'orderBy', 'orderByDescending', 'thenBy', 'thenByDescending', 'distinct', 'distinctBy', 'reverse'];
+        // The members answering their receiver's items keep each item's lineage, the unnamed indexer's signature taking a range among them, and select records each item as its source, as a projection does.
+        const keeping = ['[Range]', 'where', 'take', 'drop', 'takeWhile', 'dropWhile', 'orderBy', 'orderByDescending', 'thenBy', 'thenByDescending', 'distinct', 'distinctBy', 'reverse', 'pick'];
 
-        expect(list.members.filter(member => Vocabulary.answersReceiverItems(member)).map(member => member.name)).toEqual(keeping);
+        expect(list.members.filter(member => Vocabulary.answersReceiverItems(member)).map(member => member.name ?? `[${member.parameters[0].type}]`)).toEqual(keeping);
         expect(list.members.filter(member => Vocabulary.projectsItems(member)).map(member => member.name)).toEqual(['select']);
         expect(verbs).toMatchObject({ name: 'VerbExtensions', kind: 'extension', typeParameters: ['T'], target: 'T' });
         expect(verbs.members.map(writtenOf)).toEqual(['T.is', 'T.has', 'T.supports']);
@@ -101,10 +102,15 @@ describe('Vocabulary', () => {
             orderByDescending: positionsOf('orderByDescending', { expression: itself }),
             thenBy: positionsOf('thenBy', { expression: itself }, read('orderBy', receiver, { expression: () => 0 })),
             thenByDescending: positionsOf('thenByDescending', { expression: itself }, read('orderBy', receiver, { expression: () => 0 })),
+            pick: positionsOf('pick', { positions: [1, 0, 1] }),
         }).toEqual({
             where: [0, 1], take: [0, 1], drop: [1, 2], takeWhile: [0, 1], dropWhile: [2], distinct: [0, 2], distinctBy: [0, 2], reverse: [2, 1, 0],
-            orderBy: [0, 1, 2], orderByDescending: [2, 0, 1], thenBy: [0, 1, 2], thenByDescending: [2, 0, 1],
+            orderBy: [0, 1, 2], orderByDescending: [2, 0, 1], thenBy: [0, 1, 2], thenByDescending: [2, 0, 1], pick: [1, 0, 1],
         });
+
+        const slice = list.members.find(member => member.kind === 'indexer' && member.parameters[0].type === 'Range');
+
+        expect(ItemPositions.getPositions(slice.impl({ receiver, args: { range: new Range(1, null) }, env: {} }))).toEqual([1, 2]);
     });
 
     it.each(['is', 'has', 'supports'])('declares %s as the one function of any receiver, answering what its test, a function of the receiver\'s own type, answers of it', verb => {

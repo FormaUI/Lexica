@@ -68,12 +68,14 @@ export class Vocabulary {
     static #projectingMembers;
 
     /**
-     * Whether the member is one of Lexica's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered or taken once each, so its answer carries each answered item's lineage, which
-     * the position it stood at, kept by `ItemPositions` with the answer, says: `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, and the members that order, `orderBy`,
-     * `orderByDescending`, `thenBy` and `thenByDescending`.
+     * Whether the member is one of Lexica's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered, taken once each or repeated, so its answer carries each answered item's
+     * lineage, which the position it stood at, kept by `ItemPositions` with the answer, says: `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, the members that order,
+     * `orderBy`, `orderByDescending`, `thenBy` and `thenByDescending`, the unnamed indexer's signature that slices by a range, and `pick`.
      */
     static answersReceiverItems(declaration) {
-        Vocabulary.#itemKeepingMembers ??= Vocabulary.#listMembersNamed(['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'distinct', 'distinctBy', 'reverse', 'orderBy', 'orderByDescending', 'thenBy', 'thenByDescending']);
+        Vocabulary.#itemKeepingMembers ??= new Set(Vocabulary.getTypeDeclaration('List').members.filter(member =>
+            ['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'distinct', 'distinctBy', 'reverse', 'orderBy', 'orderByDescending', 'thenBy', 'thenByDescending', 'pick'].includes(member.name)
+            || (member.kind === 'indexer' && member.name === undefined && member.parameters[0].type === 'Range')));
 
         return Vocabulary.#itemKeepingMembers.has(declaration);
     }
@@ -197,16 +199,18 @@ export class Vocabulary {
             throw new MemberFailure('LEXICA5033', `The range ${range} is applied to a list of ${list.length} items, and gives ${start}..${end}, which ${start > end ? 'starts after it ends' : 'stands beyond the list'}; a slice is strict, as take and drop are not`);
         }
 
-        return list.slice(start, end);
+        return ItemPositions.createAnswer(list, ItemPositions.createSpan(start, end));
     }
 
-    /** The item a position `pick` is given stands at, a whole offset from the start of the list, or refused. */
-    static #pickAt(list, position) {
-        if (!Number.isInteger(position) || position < 0 || position >= list.length) {
-            throw new MemberFailure('LEXICA5034', `'pick' is given the position ${position}, and a list of ${list.length} items has no item there`);
+    /** The item at each position `pick` is given, in the positions' order, each a whole offset from the start of the list, the first that is none refused. */
+    static #pick(list, positions) {
+        for (const position of positions) {
+            if (!Number.isInteger(position) || position < 0 || position >= list.length) {
+                throw new MemberFailure('LEXICA5034', `'pick' is given the position ${position}, and a list of ${list.length} items has no item there`);
+            }
         }
 
-        return list[position];
+        return ItemPositions.createAnswer(list, positions);
     }
 
     /** The members of lists, each reading and changing as the items it selects and the expression it evaluates do. */
@@ -330,7 +334,7 @@ export class Vocabulary {
                 },
             }),
             // The item at each position, in the positions' order, one given twice giving its item twice; a position no item stands at is refused.
-            Declarations.createFunctionDeclaration('pick', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('positions', 'List<Number>')], impl: ({ receiver, args }) => args.positions.map(position => Vocabulary.#pickAt(receiver, position)) }),
+            Declarations.createFunctionDeclaration('pick', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('positions', 'List<Number>')], impl: ({ receiver, args }) => Vocabulary.#pick(receiver, args.positions) }),
         ];
     }
 
