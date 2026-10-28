@@ -32,6 +32,16 @@ describe('ImportedVocabulary', () => {
         expect([imported.importsModule('Energy'), imported.importsModule('Home')]).toEqual([true, false]);
     });
 
+    it('answers what an extension access names: an extension a type import gives, the modules imported whole, each module\'s first local name, and the local name a type import gives a declaration', () => {
+        const imported = new ImportedVocabulary(registry, [{ module: 'Energy', type: 'Devices', alias: 'Power' }, { module: 'Home', alias: 'House' }, { module: 'Home', alias: 'Place' }]);
+        const devices = registry.getModuleType('Energy', 'Devices');
+
+        expect([imported.getImportedExtension('Power'), imported.getImportedExtension('Devices')]).toEqual([devices, undefined]);
+        expect(imported.importedModuleNames).toEqual(['Home']);
+        expect([imported.getNamespaceName('Home'), imported.getNamespaceName('Energy')]).toEqual(['House', undefined]);
+        expect([imported.getLocalNameOf(devices), imported.getLocalNameOf(registry.getModuleType('Home', 'Light'))]).toEqual(['Power', undefined]);
+    });
+
     it('names the type an ordinary type import gives, and none for an extension\'s, which names no type', () => {
         const imported = new ImportedVocabulary(registry, [{ module: 'Home', type: 'Light', alias: 'Lamp' }, { module: 'Energy', type: 'Devices' }]);
 

@@ -27,7 +27,7 @@ describe('SyntaxTree', () => {
     });
 
     it('names the kind of each node a grammar construct is, frozen', () => {
-        expect(SYNTAX_NODE_KINDS).toEqual(expect.arrayContaining(['script', 'conditional-binding', 'arithmetic-negation']));
+        expect(SYNTAX_NODE_KINDS).toEqual(expect.arrayContaining(['script', 'conditional-binding', 'arithmetic-negation', 'import-declaration', 'extension-access']));
         expect(Object.isFrozen(SYNTAX_NODE_KINDS)).toBe(true);
     });
 });

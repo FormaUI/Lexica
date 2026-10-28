@@ -870,7 +870,7 @@ export class Parser {
             if (this.#token.type === '[' || this.#token.type === '?[') {
                 children.push(this.#parseIndexer());
             } else if (this.#token.type === ':' || this.#token.type === '?:') {
-                this.#refuseColon(start);
+                children.push(this.#parseExtensionAccess(start));
             } else if (this.#token.type === '.' || this.#token.type === '?.') {
                 children.push(this.#parseAfterDot(this.#take()));
             } else if (this.#token.type === '{') {
@@ -1051,7 +1051,7 @@ export class Parser {
             if (this.#token.type === '[' || this.#token.type === '?[') {
                 children.push(this.#parseIndexer());
             } else if (this.#token.type === ':' || this.#token.type === '?:') {
-                this.#refuseColon(start);
+                children.push(this.#parseExtensionAccess(start));
             } else {
                 children.push(this.#parseAfterDot(this.#take()));
             }
@@ -1227,16 +1227,41 @@ export class Parser {
     }
 
     /**
-     * Refuses a colon in a chain, where no member follows one: a named indexer is written after a dot, as `.name[…]`, and a property read by a computed name after one too, as `.[…]`, each after `?.` where it is optional.
-     * The message gives the chain from its start with the dot in the colon's place.
+     * Reads an extension access: `:`, or `?:` where it is optional, the extension's name, qualified where its first word is a name the script's imports give a module and a dot and a word follow it, and the one member
+     * operation the extension supplies, a dot property access or a member call after its dot, or an indexer's key in brackets. A colon brackets follow directly names no extension, so it gives the unnamed indexer and the
+     * computed property access the brackets may mean (LEXICA1014); an extension's name with no member after it gives what follows a member (LEXICA1000).
      */
-    #refuseColon(start) {
+    #parseExtensionAccess(start) {
         const colon = this.#token;
+        const written = this.#text.slice(start, colon.start);
         const dot = colon.type === '?:' ? '?.' : '.';
-        const next = this.#tokens[this.#index + 1];
-        const name = this.#isWord(next) ? SyntaxTree.wordOf(next, this.#text) : '';
+        const optionalBrackets = colon.type === '?:' ? '?[' : '[';
 
-        throw this.#createSyntaxError(name === '' ? 'LEXICA1014' : 'LEXICA1500', `A member follows its receiver after a dot, never a colon: write '${this.#text.slice(start, colon.start)}${dot}${name}[…]'`, colon.start);
+        if (!this.#isWord(this.#tokens[this.#index + 1])) {
+            throw this.#createSyntaxError('LEXICA1014', `A colon in a chain names the extension its member is selected from: write '${written}${optionalBrackets}…]' for the unnamed indexer, or '${written}${dot}[…]' for a property read by a computed name`, colon.start);
+        }
+
+        const children = [this.#take()];
+        const first = this.#take();
+
+        children.push(first);
+
+        // The text alone decides where the name ends: a namespace's local name and a dot before another word qualify it.
+        if (first.type === 'identifier' && this.#namespaceNames.has(first.value) && this.#token.type === '.' && this.#isWord(this.#tokens[this.#index + 1])) {
+            children.push(this.#take(), this.#take());
+        }
+
+        if (this.#token.type === '.') {
+            children.push(this.#parseDotPropertyAccessOrMemberCall(this.#take()));
+        } else if (this.#token.type === '[') {
+            children.push(this.#parseIndexer());
+        } else {
+            const fallback = colon.type === '?:' ? "; no '?:' chooses between two values, which '??' does" : '';
+
+            throw this.#createUnexpectedTokenError('LEXICA1000', `'.' and the member the extension supplies, or its key in '[…]'${fallback}`);
+        }
+
+        return Parser.#node('extension-access', children);
     }
 
     /** Reads what follows a dot, or the `?.` of an optional access: a property read by a computed name in brackets, a dot property access, or a member call. */
@@ -1292,8 +1317,9 @@ export class Parser {
     }
 
     /**
-     * Whether a word and a colon begin what stands here, as no field, local or conditional binding writes its value, rather than a chain from the word whose colon brackets follow directly, or a name and then brackets,
-     * which the chain refuses; a space after the colon makes it an entry's, as `k: panel["id"]` is.
+     * Whether a word and a colon begin what stands here, as no field, local or conditional binding writes its value, rather than a chain from the word that the colon continues: brackets directly after the colon, which
+     * the chain refuses, or an extension access, a word directly after the colon and then a dot or brackets, as `device:Energy.usage` and `device:Device["mode"]` are. A space after the colon makes it an entry's, as
+     * `k: panel["id"]` is.
      */
     #startsColonEntry() {
         if (!this.#isWord(this.#token) || this.#tokens[this.#index + 1]?.type !== ':') {
@@ -1301,8 +1327,9 @@ export class Parser {
         }
 
         const afterColon = this.#tokens[this.#index + 2];
+        const afterName = this.#tokens[this.#index + 3]?.type;
 
-        return afterColon.spaced || !(afterColon.type === '[' || (this.#isWord(afterColon) && this.#tokens[this.#index + 3]?.type === '['));
+        return afterColon.spaced || !(afterColon.type === '[' || (this.#isWord(afterColon) && (afterName === '[' || afterName === '.')));
     }
 
     /** Whether the token writes a word: a name, a keyword, `it`, or the word of a literal, which a declaration, a member's name and a type's take as they are, whatever the word means where an expression stands. */

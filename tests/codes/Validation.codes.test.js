@@ -110,12 +110,22 @@ describe('the codes of resolution', () => {
             expect(refusalWithoutImportsOf('word.size', { word: 'oat' })).toMatchObject({ code: 'LEXICA3005', location: { pointer: '/expression' }, message: expect.stringContaining("'size' on String is declared only by 'shop', which the script does not import: write 'import shop'") });
             expect(lexica.createRegistry([createShop()]).resolve('word.size', { word: 'oat' }, { imports: ['shop'] }).type).toBe('Number');
         });
-        it('LEXICA3501, an extension selected explicitly, which this implementation resolves once text writes one', () => {
-            const definition = { version: 34, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 's' }, name: 'size', extension: { name: 'Words', module: 'shop' } } };
+    });
 
-            expect(refusalWithoutImportsOf(definition)).toMatchObject({ code: 'LEXICA3501', kind: 'validation', location: { pointer: '/expression/extension' } });
-            expect(refusalWithoutImportsOf({ ...definition, expression: { kind: 'call', callee: { ...definition.expression, name: 'pad' }, arguments: [{ kind: 'literal', value: 1 }] } }).location).toEqual({ pointer: '/expression/callee/extension' });
+    describe('extension access', () => {
+        it('LEXICA3026, an extension access naming no extension, a call\'s located at its callee\'s selection, giving the member of that name where the receiver has one', () => {
+            expect(refusalWithoutImportsOf('import shop\ns:Nothing.size')).toMatchObject({ code: 'LEXICA3026', location: { pointer: '/expression/extension' } });
+            expect(refusalWithoutImportsOf('import shop\ns:Nothing.pad(1)')).toMatchObject({ code: 'LEXICA3026', location: { pointer: '/expression/callee/extension' } });
+            expect(refusalWithoutImportsOf('import shop\ns:letter[0]')).toMatchObject({ code: 'LEXICA3026', message: expect.stringContaining("write 's.letter[0]' for the member 'letter' of the receiver") });
         });
+        it('LEXICA3027, an extension access whose receiver does not satisfy the extension\'s target', () => expect(refusalWithoutImportsOf('import shop\nxs:Words.size')).toMatchObject({ code: 'LEXICA3027', location: { pointer: '/expression' } }));
+        it('LEXICA3061, an extension access naming one several extensions share unqualified', () => {
+            const other = lexica.createModule('other', { types: [extensionDeclaration('Words', 'String', [property('size', 'Number')])] });
+
+            expect(refusalWithoutImportsOf('import shop\nimport other\ns:Words.size', values, [other])).toMatchObject({ code: 'LEXICA3061', message: expect.stringContaining("'other.Words' or 'shop.Words'") });
+        });
+        it('LEXICA3062, an extension access naming a member the extension does not declare', () => expect(refusalWithoutImportsOf('import shop\ns:Words.missing')).toMatchObject({ code: 'LEXICA3062', location: { pointer: '/expression' } }));
+        it('LEXICA3063, an extension access written with : whose receiver can be null', () => expect(refusalWithoutImportsOf('import shop\ns.partner:Words.size')).toMatchObject({ code: 'LEXICA3063', message: expect.stringContaining("write 's.partner?:Words.size'") }));
     });
 
     describe('names and scope', () => {

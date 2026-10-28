@@ -40,6 +40,7 @@ export const SYNTAX_NODE_KINDS = Object.freeze([
     'computed-property-access',
     'member-call',
     'indexer',
+    'extension-access',
     'parenthesized-expression',
     'optional-enclosed-access',
     'member-chain',

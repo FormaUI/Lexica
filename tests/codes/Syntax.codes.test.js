@@ -269,10 +269,6 @@ describe('the codes of syntax errors', () => {
             expectSyntaxCode('LEXICA1057', ['1 + x => x', '{ a = x => x }']);
         });
 
-        it('gives LEXICA1500, temporarily, to a colon naming what would be an extension', () => {
-            expectSyntaxCode('LEXICA1500', ['device:setting["mode"]', 'a.b ?: c']);
-        });
-
         it('gives LEXICA1501 to a chain continuing a conversion without a group', () => {
             expectSyntaxCode('LEXICA1501', ['a to Number[0]', 'a to Number?.b']);
             expect(errorThrownBy(() => lexica.parse('a to Home /* its */ . Reading[0]')).message).toContain("as in '(… to Home.Reading).value'");

@@ -11,7 +11,7 @@ import { SyntaxTree } from './SyntaxTree.mjs';
 /** @typedef {import('./SyntaxTree.mjs').SyntaxNode} SyntaxNode */
 
 /** The tokens that make an access optional. */
-const OPTIONAL_ACCESSES = new Set(['?.', '?[']);
+const OPTIONAL_ACCESSES = new Set(['?.', '?[', '?:']);
 
 export class Lowering {
     /** @type {WeakMap<object, Span>} */
@@ -293,6 +293,8 @@ export class Lowering {
         let node;
 
         switch (part.kind) {
+            case 'extension-access':
+                return this.#lowerExtensionAccess(part, receiver, start, optional);
             case 'dot-property-access':
                 node = { kind: 'memberAccess', receiver, name: SyntaxTree.wordOf(second, this.#text), ...optionalProperty };
                 break;
@@ -315,6 +317,21 @@ export class Lowering {
                 node = { kind: 'indexerAccess', receiver, argument: this.#lower(second), ...optionalProperty };
         }
 
+        this.#spans.set(node, { start, end: SyntaxTree.endOf(part) });
+
+        return node;
+    }
+
+    /**
+     * An extension access: the member operation it holds, lowered on the receiver, optional where its colon or every access is, selecting the extension it names, its module's local name where its name is qualified;
+     * a call's member access holds the selection, as it holds the call's receiver.
+     */
+    #lowerExtensionAccess(part, receiver, start, optional) {
+        const [, first, , qualified] = part.children;
+        const extension = qualified === undefined ? { name: SyntaxTree.wordOf(first, this.#text) } : { name: SyntaxTree.wordOf(qualified, this.#text), module: first.value };
+        const node = this.#lowerMemberExpression(part.children.at(-1), receiver, start, optional);
+
+        (node.kind === 'call' ? node.callee : node).extension = extension;
         this.#spans.set(node, { start, end: SyntaxTree.endOf(part) });
 
         return node;

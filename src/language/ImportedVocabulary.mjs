@@ -25,6 +25,12 @@ export class ImportedVocabulary {
     /** The ordinary types the script imports by name and every supertype above each, whose members an imported type has as its own or inherits. @type {Set<object>} */
     #typeLineages = new Set();
 
+    /** The extension each local name a type import of an extension gives names, by that local name, which an extension access names it by first. @type {Map<string, object>} */
+    #importedExtensions = new Map();
+
+    /** The first local name a type import gives each type or extension it imports, by the declaration. @type {Map<object, string>} */
+    #declarationLocalNames = new Map();
+
     /**
      * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry The registry the imports name declarations of.
      * @param {readonly object[]} imports The script's imports, in a definition's shape, each naming a module the registry holds and, for a type import, a public type or extension it declares.
@@ -46,6 +52,14 @@ export class ImportedVocabulary {
 
             this.#importedDeclarations.add(declaration);
 
+            if (!this.#declarationLocalNames.has(declaration)) {
+                this.#declarationLocalNames.set(declaration, localName);
+            }
+
+            if (declaration.kind === 'extension') {
+                this.#importedExtensions.set(localName, declaration);
+            }
+
             if (declaration.kind !== 'extension') {
                 const type = Type.createNamedType(entry.type, false, entry.module);
 
@@ -66,6 +80,26 @@ export class ImportedVocabulary {
     /** The name of the module the local name a module import gives names, or undefined where no module import gives it. */
     getNamespaceModule(localName) {
         return this.#namespaceModules.get(localName);
+    }
+
+    /** The local name the module imports give the module first, which a name the script writes qualified by it begins with, or undefined where the script imports it under none. */
+    getNamespaceName(moduleName) {
+        return [...this.#namespaceModules].find(([, module]) => module === moduleName)?.[0];
+    }
+
+    /** The names of the modules the script imports whole, whose public extensions an extension access names unqualified beside Lexica's own. */
+    get importedModuleNames() {
+        return [...this.#importedModules];
+    }
+
+    /** The extension the local name a type import gives names, which an extension access names it by before any module's of its name; undefined where no import of an extension gives it. */
+    getImportedExtension(localName) {
+        return this.#importedExtensions.get(localName);
+    }
+
+    /** The local name a type import gives the type or the extension, the first where several do, or undefined where none imports it by name. */
+    getLocalNameOf(declaration) {
+        return this.#declarationLocalNames.get(declaration);
     }
 
     /** Whether the script imports the module whole, which makes its public vocabulary available. */

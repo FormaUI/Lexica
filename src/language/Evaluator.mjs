@@ -869,6 +869,10 @@ export class Evaluator {
             return () => delegate;
         }
 
+        if (resolution?.kind === 'boundFunctionReference') {
+            return this.#compileBoundFunctionReference(node, resolution);
+        }
+
         if (resolution?.kind === 'deferred') {
             return this.#compileDeferredAccess(node, resolution);
         }
@@ -911,6 +915,7 @@ export class Evaluator {
      */
     #compileInvocation(node, resolution) {
         const { type: resultType, declaration, receiverNode } = resolution;
+        const checksReceiver = resolution.checksReceiver === true;
         const evaluateReceiver = receiverNode === undefined ? null : this.#getCompiledFunction(receiverNode);
         const invocation = this.#getCompiledInvocation(declaration, resultType);
         const evaluateArguments = this.#compileArguments(resolution);
@@ -924,7 +929,11 @@ export class Evaluator {
             const receiver = evaluateReceiver === null ? undefined : evaluateReceiver(evaluator, context);
 
             if (receiver === null) {
-                return null;
+                return checksReceiver ? evaluator.#answerNullReceiver(node, receiverNode) : null;
+            }
+
+            if (checksReceiver) {
+                evaluator.#requireReceiverOf(node, declaration, receiver);
             }
 
             const args = evaluateArguments(evaluator, context);
@@ -961,6 +970,56 @@ export class Evaluator {
         }
 
         return invocation;
+    }
+
+    /**
+     * A function an extension access reads without a call: its receiver evaluated once, as the reference is created, and a delegate of the function bound to it, which a call gives the receiver it captured before its own
+     * arguments. A null receiver, which only an optional access admits, answers null, and a value of Any is checked against the extension's target first.
+     */
+    #compileBoundFunctionReference(node, resolution) {
+        const { declaration, receiverNode } = resolution;
+        const evaluateReceiver = this.#getCompiledFunction(receiverNode);
+        const checksReceiver = resolution.checksReceiver === true;
+
+        return (evaluator, context) => {
+            const receiver = evaluateReceiver(evaluator, context);
+
+            if (receiver === null) {
+                return checksReceiver ? evaluator.#answerNullReceiver(node, receiverNode) : null;
+            }
+
+            if (checksReceiver) {
+                evaluator.#requireReceiverOf(node, declaration, receiver);
+            }
+
+            return Object.freeze({ reference: declaration, isBound: true, receiver });
+        };
+    }
+
+    /**
+     * What an extension access on a value of Any answers where that value is null: null where the access is optional or an optional access before it in its chain met null, which ends the chain, and otherwise the
+     * failure of a direct access on null (LEXICA5022), as a deferred access fails.
+     */
+    #answerNullReceiver(node, receiverNode) {
+        const isAnswered = this.#nullAnswer === receiverNode;
+
+        this.#nullAnswer = null;
+
+        if (Evaluator.#accessOf(node).optional === true || (Evaluator.#followsOptionalAccess(receiverNode) && !isAnswered)) {
+            return null;
+        }
+
+        this.#fail('LEXICA5022', `'${Evaluator.#writtenNameOf(node)}' is read through an extension on a value of Any, and its receiver is null: write '?:' before the extension to read it where its receiver is not null`, this.#pointerOf(node));
+    }
+
+    /** Checks a value of Any an extension access is given against the extension's target, before anything is invoked, a value outside it, or of no type the vocabulary knows, failing the access (LEXICA5012). */
+    #requireReceiverOf(node, declaration, receiver) {
+        const written = Evaluator.#writtenNameOf(node);
+        const actualType = this.#getActualType(receiver, `the access '${written}'`, this.#failSelectionOf(node));
+
+        if (!this.#registry.typeChecker.matchesReceiver(declaration, actualType)) {
+            this.#fail('LEXICA5012', `'${written}' is read through an extension of ${this.#registry.getReceiverTypes(declaration).join(', ')}, and its receiver is ${actualType}, which does not satisfy it`, this.#pointerOf(node));
+        }
     }
 
     /**
@@ -1445,11 +1504,13 @@ export class Evaluator {
 
     /**
      * Calls the callee with its arguments' values, which the caller evaluated, as the call's compiled functions say: a function the script declares, its body evaluated in the callee's captured scope, its locals, implicit parameter and object root,
-     * its parameters bound to the values in order; or a function reference, its declaration invoked as its qualified form is, its receiver the first value, a null one answering null without invoking the implementation, and its own
+     * its parameters bound to the values in order; or a function reference, its declaration invoked as its qualified form is, its receiver the first value or, for one bound to its receiver, the receiver it captured, a null one answering null without invoking the implementation, and its own
      * arguments bound by its argument map, a null one whose parameter propagates null answering null without invoking it, each parameter the map leaves out taking its default. Its failures are named at the node that called it.
      */
-    #callFunction(callee, argumentValues, functions, node) {
+    #callFunction(callee, values, functions, node) {
         const compiled = functions.get(Evaluator.#getFunctionKey(callee));
+        // A reference bound to its receiver gives the receiver it captured before the values it is called with.
+        const argumentValues = callee.isBound === true ? [callee.receiver, ...values] : values;
 
         if (compiled.invocation === undefined) {
             const { parameters } = compiled;

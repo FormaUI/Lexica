@@ -51,10 +51,10 @@ describe('indexers and computed properties', () => {
             expect(lexica.format('(a.b)[k]')).toBe('a.b[k]');
         });
 
-        it('refuses a colon in a chain, giving the form with a dot', () => {
-            expect(errorThrownBy(() => lexica.parse('device:setting["mode"]')).message).toContain("write 'device.setting[…]'");
-            expect(errorThrownBy(() => lexica.parse('it:["mode"]')).message).toContain("write 'it.[…]'");
-            expect(errorThrownBy(() => lexica.parse('it?:["mode"]')).message).toContain("write 'it?.[…]'");
+        it('reads a member\'s name after a colon as an extension\'s, and refuses a colon brackets follow, giving the forms with a dot and the brackets', () => {
+            expect(lexica.parse('device:setting["mode"]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'device' }, extension: { name: 'setting' }, argument: { kind: 'literal', value: 'mode' } });
+            expect(errorThrownBy(() => lexica.parse('it:["mode"]')).message).toContain("'it.[…]'");
+            expect(errorThrownBy(() => lexica.parse('it?:["mode"]')).message).toContain("'it?.[…]'");
             expect(errorThrownBy(() => lexica.parse('a.b ?: c'))).toMatchObject({ kind: 'syntax' });
         });
 
