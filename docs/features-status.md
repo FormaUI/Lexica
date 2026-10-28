@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; in [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, line endings are done, and the definition's contract is next.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; in [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, line endings and the keyword `import` are done, and version 34, with the imports text writes, is next.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | ✅ Done |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | ✅ Done; its host checkpoint awaits DOMQL's migration |
-| 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | In progress: step 1 done; step 2 next |
+| 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | In progress: step 1 and step 2's keyword done; version 34, with step 3's imports, next |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
 | 5 | [Specification examples](#unit-5--specification-examples) | Planned |
 | 6 | [Tooling](#unit-6--tooling) | Planned |
@@ -138,10 +138,10 @@ Contracts: [Owners and extensions](../spec/modules.md#namespaces-owners-and-exte
 
 ### Unit 3 — Script text, imports and definition version 34
 
-Scripts write imports and extension access, and the definition records both; a script's lines follow line structure. Collection syntax, collection expressions `[…]`, ranges `..` and from-end indices `^`, is built in unit 4, as [its proposal](proposals/collections.md) designs it: unit 3 builds no placeholder for it, and leaves its tokenizer and chain parser to extend cleanly. *Next: step 2, the definition's contract.*
+Scripts write imports and extension access, and the definition records both; a script's lines follow line structure. Collection syntax, collection expressions `[…]`, ranges `..` and from-end indices `^`, is built in unit 4, as [its proposal](proposals/collections.md) designs it: unit 3 builds no placeholder for it, and leaves its tokenizer and chain parser to extend cleanly. *Next: version 34, step 2's definition and step 3's imports together.*
 
 1. ✅ **Line endings,** as [I26](proposals/implementation-decisions.md) sets out: one definition of a line break, LF, CRLF or a lone CR, for comments, block strings, diagnostics and locations, a lone CR now beginning a line in a location and ending a body local's value; line comments ending at CR and CRLF, in the syntax tree's trivia too; and U+2028 and U+2029 refused outside literal string text, LEXICA1002, in code, comments and an interpolation's expression alike.
-2. **The definition's contract:** `import` a keyword; one shared list of Lexica's own names; version 34, structured imports and the `extension` property, validated, with a namespace or an extension's module checked against the imports.
+2. **The definition's contract:** ✅ `import` a keyword, and ✅ one shared list of Lexica's own names, `Vocabulary.ownTypeNames`, as [I27](proposals/implementation-decisions.md) sets out; version 34, structured imports and the `extension` property, validated, with a namespace or an extension's module checked against the imports, which lands with step 3's imports, since text writes no import before it.
 3. **Imports:** imports, aliases and type imports parsed, a local name of any identifier, and an import binding read with `@`, the diagnostics of a lexical reference nothing in scope answers, LEXICA1010, LEXICA1032, LEXICA1506, LEXICA2012 and LEXICA3051, then naming the import binding it falls back to; namespaces recognized by the script's imports, in place of the registry's module names, so parsing never consults a registry; imports a host supplies to parsing, formatting, quoting and resolution; and parsed texts kept by their text and their imports.
 4. **Resolution by imports:** one lookup context giving the namespaces, the type names, an explicitly imported name first and extensions taking no part, the members the imports make available, and what qualified access reaches; the diagnostics of a missing import; and the imports in the resolution key.
 5. **Extension access:** `:` and `?:` through the chain parser, the lowering and the writer, with the colon diagnostics and named arguments told apart; resolution through the selector, evaluation, bound function references, and host calls reached through an extension.
@@ -159,6 +159,7 @@ Contracts: [Scripts](../spec/scripts.md), [the grammar](../spec/grammar.md), [li
 | Owner | Before | Now | Host change |
 | --- | --- | --- | --- |
 | Script text | U+2028 and U+2029 taken as whitespace in code and in comments; a lone CR beginning no line in a location | Refused outside a string's literal text, LEXICA1002; a lone CR a line break wherever a line is read | None: DOMQL writes either separator only in a string's literal text, `tests/Domql.test.js:4675`, which reads it as before |
+| Reserved words | `import` a name | `import` a keyword, refused where a value stands, LEXICA1010, its parameter read as `~import` and a member of its name after a dot | None: no DOMQL script names anything `import` |
 
 ### Unit 4 — Collections
 

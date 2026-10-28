@@ -881,7 +881,7 @@ export class LexicaRegistry {
         const isReachable = (declaration, name) => {
             const { moduleName, imports } = this.#declaringModules.get(declaration);
 
-            return Vocabulary.builtInTypeNames.includes(name) || ['Any', 'Never'].includes(name) || this.#declaresType(moduleName, name) || imports.some(imported => this.#declaresType(imported, name));
+            return Vocabulary.ownTypeNames.includes(name) || this.#declaresType(moduleName, name) || imports.some(imported => this.#declaresType(imported, name));
         };
 
         for (const declaration of [...module.types.filter(type => type.kind === 'extension'), ...members]) {

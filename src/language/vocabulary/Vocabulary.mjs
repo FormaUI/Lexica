@@ -42,6 +42,14 @@ export class Vocabulary {
         return Vocabulary.#builtInTypeNames ??= Object.freeze(Vocabulary.valueTypes.map(type => type.name));
     }
 
+    /** @type {readonly string[] | undefined} */
+    static #ownTypeNames;
+
+    /** Every type name Lexica's own vocabulary gives, unqualified, wherever a type is named: its value types' and the reserved types', `Any` and `Never`. */
+    static get ownTypeNames() {
+        return Vocabulary.#ownTypeNames ??= Object.freeze([...Vocabulary.builtInTypeNames, 'Any', 'Never']);
+    }
+
     /** The declaration of the value type Lexica's own module owns under the name, or undefined for a name it owns none of. */
     static getTypeDeclaration(name) {
         return Vocabulary.valueTypes.find(type => type.name === name);

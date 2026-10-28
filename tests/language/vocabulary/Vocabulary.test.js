@@ -38,6 +38,8 @@ describe('Vocabulary', () => {
         expect(Vocabulary.valueTypes.map(({ name, kind }) => `${kind} ${name}`)).toEqual(['scalar Number', 'scalar String', 'scalar Boolean', 'generic List']);
         expect(list).toMatchObject({ typeParameters: ['T'], variances: ['covariant'] });
         expect(Vocabulary.builtInTypeNames).toEqual(['Number', 'String', 'Boolean', 'List']);
+        expect(Vocabulary.ownTypeNames).toEqual(['Number', 'String', 'Boolean', 'List', 'Any', 'Never']);
+        expect(Object.isFrozen(Vocabulary.ownTypeNames)).toBe(true);
         expect([Vocabulary.getTypeDeclaration('Any'), Vocabulary.getTypeDeclaration('VerbExtensions')]).toEqual([undefined, undefined]);
         expect(Object.isFrozen(list) && Object.isFrozen(list.members[0])).toBe(true);
     });

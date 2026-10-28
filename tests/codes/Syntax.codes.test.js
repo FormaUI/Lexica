@@ -95,6 +95,13 @@ describe('the codes of syntax errors', () => {
             expect(errorThrownBy(() => lexica.parse('{ a = to }')).message).toContain("Found 'to', a keyword: write '@to' for the local, object field, conditional binding or function parameter of that name");
         });
 
+        it('reads import as a keyword, refused where a value stands, its parameter read with ~ and a member of its name after a dot', () => {
+            expectSyntaxCode('LEXICA1010', ['import', '1 + import', '{ a = import }']);
+            expect(lexica.parse('~import').expression).toEqual({ kind: 'parameter', name: 'import' });
+            expect(lexica.parse('item.import').expression).toEqual({ kind: 'member', target: { kind: 'parameter', name: 'item' }, name: 'import' });
+            expect(lexica.format({ version: 33, expression: { kind: 'parameter', name: 'import' } })).toBe('~import');
+        });
+
         it('gives LEXICA1011 to a member name after a value without its dot', () => {
             expectSyntaxCode('LEXICA1011', ['device active', 'a.b c(1)']);
         });
