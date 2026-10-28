@@ -87,6 +87,14 @@ describe('the codes of resolution', () => {
             expect(errorThrownBy(() => lexica.createRegistry([]).resolve('1', {}, { imports: ['shop'] }))).toMatchObject({ code: 'LEXICA3002', location: { pointer: '/imports/0' } });
         });
         it('LEXICA3052, an import of a type its module does not declare', () => expect(refusalWithoutImportsOf('import shop.Mug\n1')).toMatchObject({ code: 'LEXICA3052', location: { pointer: '/imports/0' }, message: expect.stringContaining("imports 'shop.Mug', which its module does not declare") }));
+        it('takes an import of an extension by its name, which names no type, and refuses an internal one with LEXICA3053', () => {
+            expect(lexica.createRegistry([createShop()]).resolve('import shop.Words\n1', values).type).toBe('Number');
+            expect(refusalWithoutImportsOf('import shop.Words\n"oat" as Words')).toMatchObject({ code: 'LEXICA3019' });
+
+            const secret = lexica.createModule('secret', { types: [{ ...extensionDeclaration('Hidden', 'String', [call('hide', 'String')]), internal: true }] });
+
+            expect(refusalWithoutImportsOf('import secret.Hidden\n1', values, [secret])).toMatchObject({ code: 'LEXICA3053', location: { pointer: '/imports/0' }, message: expect.stringContaining("imports 'secret.Hidden', which is internal to its module") });
+        });
         it('LEXICA3053, an import of an internal type', () => {
             const secret = lexica.createModule('secret', { types: [{ name: 'Vault', kind: 'structured', internal: true, members: dataPropertyDeclarations({ size: 'Number' }) }] });
 

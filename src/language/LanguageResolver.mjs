@@ -92,7 +92,8 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves the definition's imports against the registry: each names a module it holds (LEXICA3002), and a type import a public type its module declares (LEXICA3052, LEXICA3053); each local name then names its module or its type.
+     * Resolves the definition's imports against the registry: each names a module it holds (LEXICA3002), and a type import a public type or extension its module declares (LEXICA3052, LEXICA3053); each local name then
+     * names its module or its type, an extension's naming none.
      */
     #resolveImports(imports) {
         imports.forEach((entry, index) => {
@@ -109,15 +110,20 @@ export class LanguageResolver {
                 return;
             }
 
-            if (!this.#registry.getModuleNamesDeclaringType(entry.type).includes(entry.module)) {
+            const declaration = this.#registry.getModuleType(entry.module, entry.type);
+
+            if (declaration === undefined) {
                 this.#fail('LEXICA3052', `'${Imports.quote(entry)}' imports '${entry.module}.${entry.type}', which its module does not declare`, pointer);
             }
 
-            if (this.#registry.isInternal(this.#registry.getTypeDeclaration(Type.createNamedType(entry.type, false, entry.module)))) {
+            if (this.#registry.isInternal(declaration)) {
                 this.#fail('LEXICA3053', `'${Imports.quote(entry)}' imports '${entry.module}.${entry.type}', which is internal to its module`, pointer);
             }
 
-            this.#importedTypes.set(localName, { module: entry.module, type: entry.type });
+            // An extension's import gives its members alone, so its local name names no type a cast or a conversion reads.
+            if (declaration.kind !== 'extension') {
+                this.#importedTypes.set(localName, { module: entry.module, type: entry.type });
+            }
         });
         this.#namespaceNames = Imports.namespaceNamesOf(imports);
     }

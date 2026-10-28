@@ -529,6 +529,11 @@ export class LexicaRegistry {
         return (structure.members ?? []).filter(member => member.kind === 'property' && member.updates === undefined);
     }
 
+    /** The type or the extension the registered module declares under the local name, as its `types` hold it, or undefined where it declares none. */
+    getModuleType(moduleName, name) {
+        return this.#types.get(`${moduleName}.${name}`) ?? this.#extensions.get(`${moduleName}.${name}`);
+    }
+
     /** The names of the registered modules that declare a type of the local name, in the order they were registered. */
     getModuleNamesDeclaringType(name) {
         return [...this.#modules.keys()].filter(moduleName => this.#types.has(`${moduleName}.${name}`));

@@ -22,6 +22,14 @@ describe('LexicaRegistry', () => {
         expect(new LexicaRegistry([Vocabulary.module, own()]).moduleNames).toEqual(['Lexica', 'charts']);
     });
 
+    it('gives the type or the extension a module declares under a local name, as its types hold it', () => {
+        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Words', 'String', [propertyDeclaration()])] })]);
+
+        expect(registry.getModuleType('charts', 'Chart')).toMatchObject({ name: 'Chart', kind: 'structured' });
+        expect(registry.getModuleType('charts', 'Words')).toMatchObject({ name: 'Words', kind: 'extension' });
+        expect([registry.getModuleType('charts', 'Missing'), registry.getModuleType('other', 'Chart')]).toEqual([undefined, undefined]);
+    });
+
     it('refuses a module registered twice', () => {
         expect(expectModuleError(() => new LexicaRegistry([own(), own()])).message).toContain("'charts' is registered already");
         expect(expectModuleError(() => new LexicaRegistry([own(), new LexicaModule('CHARTS', {})])).message).toContain("'charts' is registered already");
