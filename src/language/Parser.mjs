@@ -32,13 +32,13 @@ const BODY_ENCLOSURE_CLOSINGS = new Set([')', ']', '}', ',']);
 const STRUCTURAL_KEYWORDS = new Set(['then', 'elseif', 'else', 'end']);
 
 /** The tokens that make an access optional. */
-const OPTIONAL_ACCESSES = new Set(['?.', '?[']);
+const OPTIONAL_ACCESSES = new Set(['?.', '?[', '?:']);
 
 /** The direction each comparison operator points, which every operator of a chain shares. */
 const COMPARISON_DIRECTIONS = Object.freeze({ '<': 'ascending', '<=': 'ascending', '>': 'descending', '>=': 'descending' });
 
 /** The kinds of node a member expression is, each beginning with the token that joins it to its receiver. */
-const MEMBER_EXPRESSION_KINDS = new Set(['dot-property-access', 'computed-property-access', 'member-call', 'indexer']);
+const MEMBER_EXPRESSION_KINDS = new Set(['dot-property-access', 'computed-property-access', 'member-call', 'indexer', 'extension-access']);
 
 export class Parser {
     #text;

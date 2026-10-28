@@ -58,6 +58,14 @@ const failure = (text, imports) => errorThrownBy(() => evaluate(text, imports));
 
 describe('extension access', () => {
     describe('in text and definitions', () => {
+        it("makes a grouped chain optional with '?:' as with '?.', so it stands as a cast's target within an optional enclosed access", () => {
+            const extended = lexica.parse('(?((x?:E.y) as Light).w)').expression;
+            const dotted = lexica.parse('(?((x?.y) as Light).w)').expression;
+
+            expect(extended.chain.receiver.operand).toEqual({ kind: 'optionalChain', chain: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'x' }, name: 'y', optional: true, extension: { name: 'E' } } });
+            expect(dotted.chain.receiver.operand).toEqual({ kind: 'optionalChain', chain: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'x' }, name: 'y', optional: true } });
+        });
+
         it('records the extension a property access, a call, a named indexer and an unnamed indexer select, its module where its name is qualified, and writes each as it reads', () => {
             const fan = { kind: 'scriptParameter', name: 'fan' };
             const definitions = {
