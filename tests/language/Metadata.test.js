@@ -204,6 +204,15 @@ describe('result metadata', () => {
             expect(lineageOf(`${projected}.concat(${projected})`).provenance).toBeUndefined();
         });
 
+        it("realigns each item's lineage through an ordering and its refinement, and records nothing of the keys that ordered it", () => {
+            const lineageOf = text => resolve(text).evaluate().metadata;
+            const projected = 'name.crowd { name = it.label }';
+
+            expect(lineageOf(`${projected}.orderByDescending(it.name)`).provenance).toEqual(references([parts[1], parts[0], parts[0]]));
+            expect(lineageOf(`${projected}.orderBy(it.name).thenByDescending(it.name)`).sources).toEqual(references([parts[0], parts[0], parts[1]]));
+            expect(Object.keys(lineageOf(`${projected}.orderBy(it.name)`))).not.toContain('ordering');
+        });
+
         it('carries a null source as a recorded provenance entry, apart from absent provenance, data provenance as its frozen copy', () => {
             const { metadata } = resolve('name.sizes { width = it.width } { w = it.width }').evaluate();
 

@@ -8,6 +8,7 @@ import { Names } from '../Names.mjs';
 import { Pair } from '../Pair.mjs';
 import { Declarations } from './Declarations.mjs';
 import { LexicaModule } from './LexicaModule.mjs';
+import { ListOrdering } from './ListOrdering.mjs';
 import { MemberFailure } from './MemberFailure.mjs';
 
 /** The text a conversion to a number takes: HTML's valid floating-point number, an optional minus, digits with an optional fraction or a fraction alone, and an optional exponent whose sign is optional. */
@@ -67,10 +68,10 @@ export class Vocabulary {
 
     /**
      * Whether the member is one of Lexica's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered or taken once each, so its answer carries each answered item's lineage:
-     * `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy` and `reverse`.
+     * `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, and the members that order, `orderBy`, `orderByDescending`, `thenBy` and `thenByDescending`.
      */
     static answersReceiverItems(declaration) {
-        Vocabulary.#itemKeepingMembers ??= Vocabulary.#listMembersNamed(['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'distinct', 'distinctBy', 'reverse']);
+        Vocabulary.#itemKeepingMembers ??= Vocabulary.#listMembersNamed(['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'distinct', 'distinctBy', 'reverse', 'orderBy', 'orderByDescending', 'thenBy', 'thenByDescending']);
 
         return Vocabulary.#itemKeepingMembers.has(declaration);
     }
@@ -271,9 +272,16 @@ export class Vocabulary {
                     return numbers.length === 0 ? null : numbers.reduce((total, number) => total + number, 0) / numbers.length;
                 },
             }),
-            // The first item whose number is the least or the greatest, items whose number is null skipped, and null where none has one.
-            Declarations.createFunctionDeclaration('minBy', 'T?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#itemBy(receiver, args.expression, (number, best) => number < best) }),
-            Declarations.createFunctionDeclaration('maxBy', 'T?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#itemBy(receiver, args.expression, (number, best) => number > best) }),
+            // The first item whose key is the least or the greatest, ordered as `orderBy` orders, items whose key is null skipped, and null where none has one.
+            Declarations.createFunctionDeclaration('minBy<K>', 'T?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')], impl: ({ receiver, args }) => ListOrdering.findExtreme(receiver, args.expression, false, 'minBy') }),
+            Declarations.createFunctionDeclaration('maxBy<K>', 'T?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')], impl: ({ receiver, args }) => ListOrdering.findExtreme(receiver, args.expression, true, 'maxBy') }),
+            // The items ordered by the key each gives, stable, a null key last in either direction; and each run of items equal so far refined by another key, the list ordered once and never again.
+            ...[['orderBy', false], ['orderByDescending', true]].map(([name, isDescending]) => Declarations.createFunctionDeclaration(`${name}<K>`, 'List<T>', {
+                updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')], impl: ({ receiver, args }) => ListOrdering.orderBy(receiver, args.expression, isDescending, name),
+            })),
+            ...[['thenBy', false], ['thenByDescending', true]].map(([name, isDescending]) => Declarations.createFunctionDeclaration(`${name}<K>`, 'List<T>', {
+                updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')], impl: ({ receiver, args }) => ListOrdering.thenBy(receiver, args.expression, isDescending, name),
+            })),
             // Each value's first occurrence, in order, values compared by the language's key equality; and each key's first item, its key the expression's value, keys compared alike.
             Declarations.createPropertyDeclaration('distinct', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => [...new Set(receiver)] }),
             Declarations.createFunctionDeclaration('distinctBy<K>', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('K')], impl: ({ receiver, args }) => [...Vocabulary.#groupsOf(receiver, args.expression).values()].map(group => group[0]) }),
@@ -355,23 +363,6 @@ export class Vocabulary {
         const index = items.findIndex(test);
 
         return index === -1 ? items.length : index;
-    }
-
-    /** The first item whose number is better than every number before it, the items whose expression gives null skipped, or null where none gives a number. */
-    static #itemBy(items, expression, isBetter) {
-        let best = null;
-        let bestNumber = null;
-
-        for (const item of items) {
-            const number = expression(item);
-
-            if (number !== null && (bestNumber === null || isBetter(number, bestNumber))) {
-                best = item;
-                bestNumber = number;
-            }
-        }
-
-        return best;
     }
 
     /** The items grouped by the key the expression gives each, keys compared by the language's key equality, each group in the items' order, the groups in the order their first items stand. */

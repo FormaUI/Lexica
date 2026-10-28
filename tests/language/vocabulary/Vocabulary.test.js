@@ -58,7 +58,7 @@ describe('Vocabulary', () => {
         // The unnamed indexer has no name, and is written as its access is, brackets after the list; the members of lists read the list's T, and the verbs their extension's, the receiver's own type.
         expect(list.members.map(writtenOf)).toEqual([
             'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>[]', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.select', 'List<T>.selectMany', 'List<T>.concat', 'List<T>.take', 'List<T>.drop',
-            'List<T>.takeWhile', 'List<T>.dropWhile', 'List<T>.any', 'List<T>.all', 'List<T>.contains', 'List<T>.single', 'List<T>.average', 'List<T>.minBy', 'List<T>.maxBy', 'List<T>.distinct', 'List<T>.distinctBy',
+            'List<T>.takeWhile', 'List<T>.dropWhile', 'List<T>.any', 'List<T>.all', 'List<T>.contains', 'List<T>.single', 'List<T>.average', 'List<T>.minBy', 'List<T>.maxBy', 'List<T>.orderBy', 'List<T>.orderByDescending', 'List<T>.thenBy', 'List<T>.thenByDescending', 'List<T>.distinct', 'List<T>.distinctBy',
             'List<T>.reverse', 'List<T>.toDictionary', 'List<T>.groupBy', 'List<T>.entry', 'List<T>.entry', 'List<T>.pick',
         ]);
         expect(Vocabulary.getTypeDeclaration('Dictionary').members.map(writtenOf)).toEqual(['Dictionary<K, V>.count', 'Dictionary<K, V>[]', 'Dictionary<K, V>.entry', 'Dictionary<K, V>.containsKey', 'Dictionary<K, V>.keys', 'Dictionary<K, V>.values', 'Dictionary<K, V>.entries', 'Dictionary<K, V>.where', 'Dictionary<K, V>.select']);
@@ -69,7 +69,7 @@ describe('Vocabulary', () => {
         // A dictionary's key parameter consumes null, which reads the null key or an absent one.
         expect(Vocabulary.getTypeDeclaration('Dictionary').members[1].parameters[0]).toMatchObject({ name: 'key', type: 'K?', nulls: 'accept' });
         // The members answering their receiver's items keep each item's lineage, and select records each item as its source, as a projection does.
-        const keeping = ['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'distinct', 'distinctBy', 'reverse'];
+        const keeping = ['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'orderBy', 'orderByDescending', 'thenBy', 'thenByDescending', 'distinct', 'distinctBy', 'reverse'];
 
         expect(list.members.filter(member => Vocabulary.answersReceiverItems(member)).map(member => member.name)).toEqual(keeping);
         expect(list.members.filter(member => Vocabulary.projectsItems(member)).map(member => member.name)).toEqual(['select']);

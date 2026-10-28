@@ -11,6 +11,7 @@ import { Pair } from './Pair.mjs';
 import { Range } from './Range.mjs';
 import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
+import { ListOrdering } from './vocabulary/ListOrdering.mjs';
 import { MemberFailure } from './vocabulary/MemberFailure.mjs';
 import { Vocabulary } from './vocabulary/Vocabulary.mjs';
 
@@ -2287,6 +2288,11 @@ export class Evaluator {
         }
 
         const answered = copyStructure === null ? value : copyStructure(value);
+
+        // An ordered list's copy keeps the keys that ordered it, its items in the same places, so a `thenBy` given it refines it.
+        if (answered !== value) {
+            ListOrdering.carry(value, answered);
+        }
 
         // A member answering its receiver's items keeps the lineage each had there, as each item's own record already follows it; one answering a value for each item, as a projection does, records each item as its source.
         if (takesReceiver && Vocabulary.answersReceiverItems(declaration)) {

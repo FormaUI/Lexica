@@ -1,6 +1,6 @@
 # Proposal: collections
 
-**State: accepted in part.** The direction and the decisions under [accepted decisions](#accepted-decisions) are accepted; the contracts under [open contracts](#open-contracts) are proposed and not settled, but the lineage representation, the foundation, construction and operations, and positional operations, which are settled, specified and implemented. Nothing else here is specified or implemented yet; [unit 4](../features-status.md#unit-4--collections) of the implementation plan settles the open contracts, specifies each part and implements it.
+**State: accepted in part.** The direction and the decisions under [accepted decisions](#accepted-decisions) are accepted; the contracts under [open contracts](#open-contracts) are proposed and not settled, but the lineage representation, the foundation, construction and operations, positional operations and ordering, which are settled, specified and implemented. Explicit identity, which the foundation does not require, is deferred, as [the status overview](../features-status.md#deferred) records; [unit 4](../features-status.md#unit-4--collections) of the implementation plan settles the open contracts, specifies each part and implements it.
 
 Related proposals: [contract generics](contract-generics.md), whose inference collection members follow, [`Any` and deferred selection](any-and-deferred-selection.md), whose identity rules values in collections keep, and [line structure](line-structure.md), which collection syntax extends.
 
@@ -117,6 +117,8 @@ Each contract below is proposed; the stage that depends on it settles it first.
 - **Syntax:** `[` a collection expression where an input stands and an indexer after a receiver; `..` one token; `^` a from-end index, never exponentiation; a range non-associative; boundary operands simple; and line rules for arrays, `^` and `..`.
 
 ### Ordering
+
+✅ **Settled,** as [ordering](../../spec/vocabulary.md#vocabulary-list-ordering) specifies and [I39](implementation-decisions.md) records: a descending variant of each member states direction, and a script orders nulls first by ordering by whether a key is null first.
 
 `orderBy` and `thenBy`, nonmutating and stable; numbers numerically, strings by code unit without a host's locale, Booleans false before true, nulls last by default with their placement independent of direction, and unsupported key domains refused; each key evaluated once per item and criterion; `thenBy` refining ties without re-sorting; and ordering information that survives a local alias and another `thenBy`, retained as evaluated keys, never as callbacks. String ordering is a collection operation's contract, never making `"a" < "b"` valid in expressions.
 

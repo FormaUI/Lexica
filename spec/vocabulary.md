@@ -45,7 +45,9 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | `any`, `all` | Whether its predicate is truthy for some item, false for none and stopping at the first it is truthy for, and whether for every item, true for none and stopping at the first it is not |
 | `contains(value)` | Whether an item equals the value by [key equality](types.md#types-dictionaries-and-pairs), stopping at the first that does, null equal to a null item |
 | `single` | The one item, null for an empty list, and refused for a list of several (LEXICA5030) |
-| `minBy`, `maxBy` | The first item whose number is the least or the greatest, items whose number is null skipped, null where none gives one |
+| `minBy`, `maxBy` | The first item whose key is the least or the greatest, keys compared as [ordering](#vocabulary-list-ordering) compares them, items whose key is null skipped, null where none gives one |
+| `orderBy(key)`, `orderByDescending(key)` | The items ordered by their keys, ascending or descending, as [ordering](#vocabulary-list-ordering) sets out |
+| `thenBy(key)`, `thenByDescending(key)` | The items of a list `orderBy` ordered, each run of items whose keys so far are equal ordered within itself by another key, as [ordering](#vocabulary-list-ordering) sets out |
 | `distinct`, `distinctBy(expression)` | Each item's first occurrence, in order, items compared by key equality; and each key's first item, its key the expression's value, keys compared alike |
 | `reverse` | The items in the opposite order |
 | `toDictionary(expression)` | A `Dictionary<K, T>` of the items by the key the expression gives each, in the items' order, two items of one key refused (LEXICA5029), which `groupBy` collects instead |
@@ -60,6 +62,19 @@ A number generates numbers apart from any range: `start.sequence(count, step)`, 
 An item's body reads the item as a value that is not null, as an object projection reads it, so a null item answers null and the body is never evaluated against it: `where`, `takeWhile`, `dropWhile`, `any` and `all` find null falsy, the aggregates skip it, and `toDictionary` and `groupBy` key it by null. `select` alone evaluates its body against every item, its `it` the item's type, null included. A function of the item is called with each item as it is, whichever member it is given to.
 
 Aggregates consume null per item rather than propagating it to the entire call. `max`, `min` and `average` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Each member evaluates its expression or its predicate at most once for each item it visits, and a member that stops at a decisive item evaluates none after it. Thus `room.devices.max(it.battery)` and `Home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
+
+<a id="vocabulary-list-ordering"></a>
+
+#### Ordering
+
+`orderBy` and `orderByDescending` order a list's items by the key their expression gives each, and `thenBy` and `thenByDescending` refine that order by another key. Each answers a new `List<T>`, its receiver unchanged.
+
+- **Keys.** A key is a number, a string, a Boolean or null, and every key of one criterion that isn't null is of one of those domains: numbers compare numerically, `-0` equal to `0`; strings by their code units, without any locale; and Booleans false before true. A key of another kind, a list, an object or a reference, and keys of two domains in one criterion, are refused where the call is evaluated (LEXICA5036), as a key of `Any` is checked as it is evaluated. Comparing strings is the members' contract alone, so `"a" < "b"` stays refused in an expression.
+- **Nulls.** A null key, a null item's among them, orders after every other key in either direction. A script orders nulls first by ordering by whether its key is null first, `items.orderBy(it.date != null).thenBy(it.date)`.
+- **Stability.** Items of equal keys keep their order, in either direction.
+- **Each key once.** A criterion evaluates its expression once for each item, whichever direction, and never again.
+- **Refinement.** `thenBy` takes a list `orderBy` or `thenBy` answered, which a local holding it keeps, and orders each run of items whose keys so far are equal by its own key, leaving every run where the order before it put it, so it refines and never sorts again. Its answer keeps the keys of every criterion, so another `thenBy` refines it further. A list no `orderBy` ordered, one another member answered of an ordered list among them, is refused (LEXICA5037), so `items.orderBy(it.a).where(it.b).thenBy(it.c)` orders by `c` within `where`'s answer only after `orderBy` again.
+- **What it keeps.** The keys are the evaluation's, kept with the list they ordered, never as the expressions that gave them, and no result records them: an ordered list's record realigns its items' lineage as any reordering does, as [provenance](runtime.md#runtime-results-provenance) sets out.
 
 An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
 
