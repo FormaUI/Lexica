@@ -333,6 +333,11 @@ describe('the module error codes', () => {
             expectModuleCode(registering(module('charts', { members: [functionDeclaration({ parameters: [parameterDeclaration({ type: 'List<Number>', required: false, default: [1, , 3] })] })] })), 'LEXICA4548');
         });
 
+        it('LEXICA4563: a declared dictionary whose key type is no key type', () => {
+            expectModuleCode(registering(module('charts', { members: [propertyDeclaration({ name: 'table', result: 'Dictionary<List<Number>, String>' })] })), 'LEXICA4563');
+            expectModuleCode(registering(module('charts', { members: [propertyDeclaration({ name: 'table', result: 'Dictionary<Any, String>' })] })), 'LEXICA4563');
+        });
+
         it('LEXICA4562: a declaration holding a value that reaches itself', () => {
             const selfList = [];
 

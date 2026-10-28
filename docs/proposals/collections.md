@@ -1,6 +1,6 @@
 # Proposal: collections
 
-**State: accepted in part.** The direction and the decisions under [accepted decisions](#accepted-decisions) are accepted; the contracts under [open contracts](#open-contracts) are proposed and not settled, but the lineage representation, which is settled, specified and implemented through projections. Nothing else here is specified or implemented yet; [unit 4](../features-status.md#unit-4--collections) of the implementation plan settles the open contracts, specifies each part and implements it.
+**State: accepted in part.** The direction and the decisions under [accepted decisions](#accepted-decisions) are accepted; the contracts under [open contracts](#open-contracts) are proposed and not settled, but the lineage representation and the foundation, which are settled, specified and implemented. Nothing else here is specified or implemented yet; [unit 4](../features-status.md#unit-4--collections) of the implementation plan settles the open contracts, specifies each part and implements it.
 
 Related proposals: [contract generics](contract-generics.md), whose inference collection members follow, [`Any` and deferred selection](any-and-deferred-selection.md), whose identity rules values in collections keep, and [line structure](line-structure.md), which collection syntax extends.
 
@@ -88,6 +88,9 @@ Each contract below is proposed; the stage that depends on it settles it first.
 ✅ **Settled,** as [provenance](../../spec/runtime.md#runtime-results-provenance) specifies and [I34](implementation-decisions.md) reasons out against each requirement: beside `sources`, a projected list's record holds `provenance`, one entry for each item, of a source's kinds, naming the source the earliest projection the item descends from recorded for it. A projection of a list no projection built records its own sources there, one of a list a projection built inherits each input's entry, and an operation that filters, reorders or repeats items carries each occurrence's entries realigned.
 
 ### Foundation
+
+✅ **Settled,** as [dictionaries and pairs](../../spec/types.md#types-dictionaries-and-pairs), [how a binding is typed](../../spec/scripts.md#bindings) and [results](../../spec/values.md#values-results) specify and [I35](implementation-decisions.md) records, with the choices below as proposed; duplicate keys at construction, and a list's typing from a collection expression, land with construction.
+
 
 - **Host capture:** a dense array as a `List<T>`; a `Map` as a `Dictionary<K, V>`; a `Set` as a `List<T>` in its traversal order, its uniqueness not making later projections sets; a plain record as an object; a domain member's collection as its declared native type; and a general iterable only through an explicit finite materialization. Recognition keeps its precedence, a value recognized as a module's reference staying a reference, and a captured binding is never a live view.
 - **Typing:** collection expressions and captured arrays inferring their item type by the common-type relation, `[]` a `List<Never>`, `[null, null]` a `List<null>`, `[1, 2, null]` a `List<Number?>`, and `[1, "two"]` refused, never widened to `List<Any>`; variance as decision 13 sets out; and a receiver's established parameters never widened by a later argument, as `concat` on `List<T>` shows.

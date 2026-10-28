@@ -390,6 +390,23 @@ export class LexicaRegistry {
         return this.getTypeDeclaration(type)?.kind === 'reference';
     }
 
+    /**
+     * Whether a dictionary's keys may be of the type, the types Lexica's key equality compares exactly: a scalar, by its value, a reference type, by its identity, and null, nullable or not, and a type parameter, which a
+     * dictionary binds to its own key type, and a never, an empty dictionary's; a list, an object, a structured value, a dictionary, a pair and a value of Any never are.
+     */
+    isKeyType(type) {
+        switch (type.kind) {
+            case 'null':
+            case 'never':
+            case 'typeParameter':
+                return true;
+            case 'named':
+                return (type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) || this.isReferenceType(type);
+            default:
+                return false;
+        }
+    }
+
     /** The supertype the reference type names, made nullable where the type is, or null where it names none or is no reference type. */
     getSupertype(type) {
         const declared = this.getTypeDeclaration(type);
@@ -656,11 +673,20 @@ export class LexicaRegistry {
             switch (type.kind) {
                 case 'object':
                     return Type.createObjectType(new Map([...type.fieldTypes].map(([name, fieldType]) => [name, resolve(fieldType)])), type.isNullable);
-                // A generic value type is Lexica's own, and its type arguments are resolved in turn.
-                case 'named':
-                    return type.typeArguments.length > 0
-                        ? new Type('named', { name: type.name, typeArguments: type.typeArguments.map(resolve), isNullable: type.isNullable })
-                        : Type.createNamedType(type.name, type.isNullable, this.#moduleOfType(type, notation, context, fail));
+                // A generic value type is Lexica's own, and its type arguments are resolved in turn, a dictionary's key one of a key type.
+                case 'named': {
+                    if (type.typeArguments.length === 0) {
+                        return Type.createNamedType(type.name, type.isNullable, this.#moduleOfType(type, notation, context, fail));
+                    }
+
+                    const typeArguments = type.typeArguments.map(resolve);
+
+                    if (type.isDictionary && !this.isKeyType(typeArguments[0])) {
+                        fail('LEXICA4563', `'${notation}' names a dictionary whose keys are ${typeArguments[0]}, and a key is a number, a string, a Boolean, a reference or null, which Lexica's key equality compares exactly`);
+                    }
+
+                    return new Type('named', { name: type.name, typeArguments, isNullable: type.isNullable });
+                }
                 default:
                     return type;
             }

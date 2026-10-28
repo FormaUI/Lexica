@@ -113,6 +113,7 @@ describe('values of Any', () => {
                 ['glow', 'Light.glow', '/expression/objectFields/0/value'],
                 ['shout', 'String.shout', '/expression/objectFields/1/value'],
                 [null, 'List[]', '/expression/objectFields/2/value'],
+                [null, 'Dictionary[]', '/expression/objectFields/2/value'],
                 [null, 'Device[]', '/expression/objectFields/2/value'],
             ]);
             expect(Object.isFrozen(candidates) && Object.isFrozen(candidates.declarations)).toBe(true);

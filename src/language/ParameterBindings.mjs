@@ -4,8 +4,10 @@
 
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
+import { Dictionary } from './Dictionary.mjs';
 import { LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
+import { Pair } from './Pair.mjs';
 import { Type } from './Type.mjs';
 import { TypeNameScope } from './vocabulary/TypeNameScope.mjs';
 
@@ -122,9 +124,10 @@ export class ParameterBindings {
 
     /**
      * The type and the bound form of a value, at any depth of a binding: a reference the registry's modules recognize, the one type beneath every other where several do, kept as it is; null, a string, a finite number and a Boolean as
-     * they are; a list typed by the type its items share and an object by its fields' types, each copied and frozen. It types and copies in one walk, offering each object it reaches to the registry's modules before
-     * copying it, so every module's `typeOf` is asked of it and a reference nested in data is kept as it is. A value no module recognizes that is no data (LEXICA2034), a list of items of no shared type (LEXICA2021), and data
-     * that reaches itself (LEXICA2022) are refused.
+     * they are; a list typed by the type its items share, a set as the list of its items in its order, a map and a dictionary as a dictionary of the key and value types its entries share, a pair by its key's and value's
+     * types, and an object by its fields' types, each copied and frozen. It types and copies in one walk, offering each object it reaches to the registry's modules before copying it, so every module's `typeOf` is asked
+     * of it and a reference nested in data is kept as it is. A value no module recognizes that is no data (LEXICA2034), a list of items of no shared type (LEXICA2021), a dictionary key of no key type (LEXICA2041), keys or
+     * values of no shared type (LEXICA2042), and data that reaches itself (LEXICA2022) are refused.
      */
     #bind(name, value, ancestors) {
         if (value === null) {
@@ -150,6 +153,19 @@ export class ParameterBindings {
                 return this.#bindList(name, value, ancestors);
             }
 
+            // A set is a list of its items in its order, its uniqueness making no later projection one, and a map a dictionary, each captured as it stands and never a live view.
+            if (value instanceof Set) {
+                return this.#bindList(name, [...value], ancestors, value);
+            }
+
+            if (value instanceof Map || value instanceof Dictionary) {
+                return this.#bindDictionary(name, value instanceof Map ? [...value] : value.entries.map(entry => [entry.key, entry.value]), ancestors, value);
+            }
+
+            if (value instanceof Pair) {
+                return this.#bindPair(name, value, ancestors);
+            }
+
             if (ObjectUtils.isPlainObject(value)) {
                 return this.#bindObject(name, value, ancestors);
             }
@@ -159,8 +175,8 @@ export class ParameterBindings {
     }
 
     /** A list, typed by the type its items share, the nearest supertype references of different types share, made nullable where one of them is null, and the empty list's being never; copied and frozen. Its type merges as each item is bound, so binding stops at the first item whose type shares none with those before it. */
-    #bindList(name, list, ancestors) {
-        ancestors.add(list);
+    #bindList(name, list, ancestors, container = list) {
+        ancestors.add(container);
 
         let itemType = Type.never;
         const items = [];
@@ -177,9 +193,56 @@ export class ParameterBindings {
             items.push(bound.value);
         }
 
-        ancestors.delete(list);
+        ancestors.delete(container);
 
         return { type: Type.createListType(itemType), value: Object.freeze(items) };
+    }
+
+    /**
+     * A dictionary of its entries, in their order, of the key type its keys share and the value type its values share, each merging as a list's items' types do, the empty one's both never: each key a number, a string,
+     * a Boolean, a reference or null, which Lexica's key equality compares exactly, and each key and value bound in turn. A JavaScript map's keys are unique by that equality, so no capture holds a key twice.
+     */
+    #bindDictionary(name, entries, ancestors, container) {
+        ancestors.add(container);
+
+        let keyType = Type.never;
+        let valueType = Type.never;
+        const bound = [];
+
+        for (const [key, value] of entries) {
+            const boundKey = this.#bind(name, key, ancestors);
+
+            if (!this.#registry.isKeyType(boundKey.type)) {
+                throw LexicaErrors.structure('LEXICA2041', `A dictionary's key is a number, a string, a Boolean, a reference or null, which Lexica's key equality compares exactly, and one bound to '${name}' is of ${boundKey.type}`, { binding: name });
+            }
+
+            const boundValue = this.#bind(name, value, ancestors);
+
+            keyType = this.#registry.typeChecker.merge(keyType, boundKey.type);
+            valueType = valueType === null ? null : this.#registry.typeChecker.merge(valueType, boundValue.type);
+
+            if (keyType === null || valueType === null) {
+                throw LexicaErrors.structure('LEXICA2042', `A dictionary whose ${keyType === null ? 'keys' : 'values'} have different types has no type, since Lexica has no union types and a dictionary holds keys of one type and values of one type`, { binding: name });
+            }
+
+            bound.push([boundKey.value, boundValue.value]);
+        }
+
+        ancestors.delete(container);
+
+        return { type: Type.createDictionaryType(keyType, valueType), value: new Dictionary(bound) };
+    }
+
+    /** A pair, of its key's type and its value's, each bound in turn. */
+    #bindPair(name, pair, ancestors) {
+        ancestors.add(pair);
+
+        const key = this.#bind(name, pair.key, ancestors);
+        const value = this.#bind(name, pair.value, ancestors);
+
+        ancestors.delete(pair);
+
+        return { type: Type.createPairType(key.type, value.type), value: new Pair(key.value, value.value) };
     }
 
     /** An object, of the object type of its fields' types, copied and frozen, every own field kept, `__proto__` among them, as an ordinary field. */

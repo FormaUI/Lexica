@@ -37,11 +37,13 @@ In this document:
 | Scalar data | `Number`, `String`, `Boolean` |
 | Reference types | Types a module declares whose values have identity, as `Room`, `Device` and `Light` |
 | Lists | `List<T>`, a list whose items have type `T` |
+| Dictionaries | `Dictionary<K, V>`, a dictionary whose keys have type `K` and whose values have type `V` |
+| Pairs | `Pair<K, V>`, a key of type `K` and its value of type `V`, as a dictionary's entries give them |
 | Structured values | Data a module declares, its data shape the properties its type declares directly without `updates`, as `Climate` |
 | Object types | The object field types inferred from an object expression, as `{ name: String, count: Number }` |
 | `Any` | A value of any type that isn't null, its concrete type known when it is evaluated, as [values of `Any`](#types-any) set out |
 
-The scalar types, lists and object types are the language's own, which Lexica's own module owns; every reference type and structured type comes from a module, which [declares it](modules.md#modules-declaring-a-type) with its members.
+The scalar types, lists, dictionaries, pairs and object types are the language's own, which Lexica's own module owns; every reference type and structured type comes from a module, which [declares it](modules.md#modules-declaring-a-type) with its members.
 
 <a id="types-type-names"></a>
 
@@ -174,9 +176,31 @@ A type parameter must have a supported source from which it can be bound: the re
 
 <a id="types-type-parameters-list-covariance"></a>
 
-### List covariance
+<a id="types-collection-variance"></a>
 
-Lists are immutable values, so a `List<Light>` stands where a `List<Device>` is declared, its items checked by their own types. This is the one variance the language has.
+### Collection variance
+
+Collections are immutable values, so each of Lexica's own generic types declares how its type arguments relate, its **variance**, and no module declares a generic type:
+
+| Type | Variance |
+| --- | --- |
+| `List<T>` | Covariant in `T`: a `List<Light>` stands where a `List<Device>` is declared, its items checked by their own types |
+| `Dictionary<K, V>` | Invariant in `K`, which a lookup takes, and covariant in `V`: a `Dictionary<String, Light>` stands where a `Dictionary<String, Device>` is declared, never where a `Dictionary<String?, Light>` is |
+| `Pair<K, V>` | Covariant in both |
+
+A covariant argument relates by assignability and merges as types merge; an invariant one relates by equality and merges where the two are equal. An invariant argument of `Never` fits any and merges to the other, since the one invariant argument, a dictionary's key, is `Never` only for a dictionary of no entries, which no lookup can mistake.
+
+<a id="types-dictionaries-and-pairs"></a>
+
+## Dictionaries and pairs
+
+A **dictionary** is addressed by key, its keys unique and its values free to repeat, and a **pair** is immutable data of a `key` and its `value`, which a dictionary's entries give: `dictionary.entries` is a `List<Pair<K, V>>`, and `dictionary.entry[key]` a `Pair<K, V>?`. A dictionary becomes neither a list nor an object implicitly, and an object becomes no dictionary.
+
+- **Its keys** are of a **key type**, a type whose values one exact equality compares: `Number`, `String`, `Boolean`, a reference type and `null`, nullable or not, a type parameter, which a dictionary binds to its own key type, and `Never`, an empty dictionary's. A list, an object, a structured value, a dictionary, a pair and a value of `Any` are no key: a declaration naming a dictionary of another key type is a module error (LEXICA4563), and a bound map holding one a structure error (LEXICA2041).
+- **Key equality** is exact: a number by its value, `-0` equal to `0`, a string by its code units, a Boolean by its value, a reference by its established identity, and null as one key of its own, a real key where `K` admits null. No host language's own equality takes part, and a snapshot's tolerance never does.
+- **Insertion order.** A dictionary's entries are ordered by insertion, the order its source gave them; order never addresses one, so `dictionary[2]` reads the key `2`, never the third entry, and a dictionary is not sorted.
+- **Duplicate keys.** A dictionary holds each key once; constructing one from duplicate keys fails with a located evaluation error, never keeping the first or the last.
+- **Lookup and presence.** `dictionary[key]` answers the key's value or null, so a key whose value is null reads as an absent key does; `containsKey(key)` tells them apart, and `entry[key]` answers the pair, null where the key is absent, so a missing pair and a pair whose value is null are told apart too. A lookup's key may be null, which reads the null key where `K` admits one and an absent key otherwise, so a key's parameter consumes null, never propagating it.
 
 <a id="reference-types"></a>
 
@@ -225,7 +249,9 @@ A value stands where a type is declared, a parameter's, a callback's or a result
 | `null` | Every nullable type |
 | A nullable type, `T?` | A nullable type `U?` that `T` is assignable to |
 | A named type | The same type, by its [identity](#types-type-identity), and each supertype above it, as [reference types](#reference-types) set out |
-| `List<T>` | `List<U>`, where `T` is assignable to `U`, by [list covariance](#types-type-parameters-list-covariance) |
+| `List<T>` | `List<U>`, where `T` is assignable to `U`, by [collection variance](#types-collection-variance) |
+| `Dictionary<K, V>` | `Dictionary<K, W>`, where `V` is assignable to `W`, and `Dictionary<J, W>` for any `J` where `K` is `Never` |
+| `Pair<K, V>` | `Pair<J, W>`, where `K` is assignable to `J` and `V` to `W` |
 | An object type | An object type of the same object field names, each object field's type assignable to the type of the object field of its name; an object field more or an object field fewer is refused |
 | A type that isn't nullable | `Any` |
 | Any type | `Any?` |
@@ -238,7 +264,7 @@ A value of `Any` is assignable to another type once its value is known: given wh
 
 ### Equal types
 
-Two types are equal where they are one type: one named type, by its identity, or two lists whose items' types are equal, or two object types of the same object field names whose object fields' types are equal, each of one nullability. Equal types are assignable to each other; assignable types need not be equal, as `String` and `String?` are not.
+Two types are equal where they are one type: one named type, by its identity, or two values of one of Lexica's generic types whose type arguments are equal, or two object types of the same object field names whose object fields' types are equal, each of one nullability. Equal types are assignable to each other; assignable types need not be equal, as `String` and `String?` are not.
 
 <a id="types-merging"></a>
 
@@ -253,6 +279,8 @@ Two types merge to the least type that holds a value of either, made nullable wh
 | A type and itself, either nullable | The type, nullable where either is |
 | Two reference types of one hierarchy | The nearest supertype they share |
 | `List<T>` and `List<U>` | A list of the type `T` and `U` merge to |
+| `Dictionary<K, V>` and `Dictionary<K, W>` | A dictionary of `K` and of the type `V` and `W` merge to, `K` either's where the other's is `Never` |
+| `Pair<K, V>` and `Pair<J, W>` | A pair of the types `K` and `J` and `V` and `W` merge to |
 | Two object types of the same object field names | The object type of those names, each object field of the type the two object fields of its name merge to |
 | `Any` and a type | `Any`, made nullable where either can be null, so `Any` and `Number` merge to `Any`, and `Any` and `Number?`, or `Any` and `null`, to `Any?` |
 

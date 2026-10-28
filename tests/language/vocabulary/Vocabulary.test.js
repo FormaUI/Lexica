@@ -34,11 +34,15 @@ describe('Vocabulary', () => {
         expect([...list.members, ...verbs.members].every(member => typeof member.impl === 'function')).toBe(true);
     });
 
-    it('owns the language\'s value types, declared through its internal form: the scalars, and List<T>, covariant in its items, whose names are the ones written unqualified', () => {
-        expect(Vocabulary.valueTypes.map(({ name, kind }) => `${kind} ${name}`)).toEqual(['scalar Number', 'scalar String', 'scalar Boolean', 'generic List']);
+    it('owns the language\'s value types, declared through its internal form: the scalars, List<T>, covariant in its items, Dictionary<K, V>, invariant in its keys, and Pair<K, V>, whose names are the ones written unqualified', () => {
+        expect(Vocabulary.valueTypes.map(({ name, kind }) => `${kind} ${name}`)).toEqual(['scalar Number', 'scalar String', 'scalar Boolean', 'generic List', 'generic Dictionary', 'generic Pair']);
         expect(list).toMatchObject({ typeParameters: ['T'], variances: ['covariant'] });
-        expect(Vocabulary.builtInTypeNames).toEqual(['Number', 'String', 'Boolean', 'List']);
-        expect(Vocabulary.ownTypeNames).toEqual(['Number', 'String', 'Boolean', 'List', 'Any', 'Never']);
+        expect(Vocabulary.getTypeDeclaration('Dictionary')).toMatchObject({ typeParameters: ['K', 'V'], variances: ['invariant', 'covariant'] });
+        expect(Vocabulary.getTypeDeclaration('Pair')).toMatchObject({ typeParameters: ['K', 'V'], variances: ['covariant', 'covariant'] });
+        expect(Vocabulary.builtInTypeNames).toEqual(['Number', 'String', 'Boolean', 'List', 'Dictionary', 'Pair']);
+        expect(Vocabulary.ownTypeNames).toEqual(['Number', 'String', 'Boolean', 'List', 'Dictionary', 'Pair', 'Any', 'Never']);
+        // Type reads each generic type's arguments by a table of its own, which these declarations' parameters keep.
+        expect(Object.fromEntries(Vocabulary.valueTypes.filter(type => type.kind === 'generic').map(type => [type.name, type.typeParameters.length]))).toEqual(Type.genericTypeArities);
         expect(Object.isFrozen(Vocabulary.ownTypeNames)).toBe(true);
         expect([Vocabulary.getTypeDeclaration('Any'), Vocabulary.getTypeDeclaration('VerbExtensions')]).toEqual([undefined, undefined]);
         expect(Object.isFrozen(list) && Object.isFrozen(list.members[0])).toBe(true);
@@ -52,7 +56,13 @@ describe('Vocabulary', () => {
 
     it('declares the members of lists, the verbs that test a receiver, and the conversion operators of strings, numbers and Booleans, and nothing of any domain', () => {
         // The unnamed indexer has no name, and is written as its access is, brackets after the list; the members of lists read the list's T, and the verbs their extension's, the receiver's own type.
-        expect(list.members.map(writtenOf)).toEqual(['List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where']);
+        expect(list.members.map(writtenOf)).toEqual(['List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.entry']);
+        expect(Vocabulary.getTypeDeclaration('Dictionary').members.map(writtenOf)).toEqual(['Dictionary<K, V>.count', 'Dictionary<K, V>[]', 'Dictionary<K, V>.entry', 'Dictionary<K, V>.containsKey', 'Dictionary<K, V>.keys', 'Dictionary<K, V>.values', 'Dictionary<K, V>.entries']);
+        expect(Vocabulary.getTypeDeclaration('Pair').members.map(writtenOf)).toEqual(['Pair<K, V>.key', 'Pair<K, V>.value']);
+        // A dictionary's key parameter consumes null, which reads the null key or an absent one.
+        expect(Vocabulary.getTypeDeclaration('Dictionary').members[1].parameters[0]).toMatchObject({ name: 'key', type: 'K?', nulls: 'accept' });
+        expect(Vocabulary.keepsItemsInOrder(list.members.find(member => member.name === 'where'))).toBe(true);
+        expect(list.members.filter(member => member.name !== 'where').some(member => Vocabulary.keepsItemsInOrder(member))).toBe(false);
         expect(verbs).toMatchObject({ name: 'VerbExtensions', kind: 'extension', typeParameters: ['T'], target: 'T' });
         expect(verbs.members.map(writtenOf)).toEqual(['T.is', 'T.has', 'T.supports']);
         expect(conversions.map(operator => registry.formatOperator(operator))).toEqual(['Number to String', 'String to Number', 'String to Boolean', 'Boolean to String']);

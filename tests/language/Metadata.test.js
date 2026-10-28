@@ -196,5 +196,18 @@ describe('result metadata', () => {
             expect(metadataOf('let named = name.crowd { name = it.label }\nreturn named { label = it.name }').provenance).toEqual(references([parts[0], parts[1], parts[0]]));
             expect(metadataOf('{ rows = name.crowd { n = it.label } { m = it.n } }').objectFields.rows.provenance).toEqual(references([parts[0], parts[1], parts[0]]));
         });
+
+        it("realigns a filter's kept items' sources and provenance in its order, so a projection after it keeps the first projection's references", () => {
+            const filtered = metadataOf('name.crowd { name = it.label }.where(it.name == "a")');
+
+            expect(filtered.sources).toEqual(references([parts[0], parts[0]]));
+            expect(filtered.provenance).toEqual(references([parts[0], parts[0]]));
+            expect(filtered.items).toHaveLength(2);
+            expect(metadataOf('name.crowd { name = it.label }.where(it.name == "b") { label = it.name }').provenance).toEqual(references([parts[1]]));
+
+            const unprojected = metadataOf('items.where(it > 1)', { items: [1, 2, 3] });
+
+            expect([Object.hasOwn(unprojected, 'sources'), Object.hasOwn(unprojected, 'provenance')]).toEqual([false, false]);
+        });
     });
 });

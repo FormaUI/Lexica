@@ -17,7 +17,7 @@ In this document:
 
 ## Lexica's own vocabulary
 
-Lexica's own module owns the language's types, `List`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, with the members of lists, whose `T` the receiver supplies, so no list member infers it again; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; and the conversions between the language's types of data, as operators of those types.
+Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-list-members"></a>
 
@@ -32,12 +32,30 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | The unnamed indexer, `[index]` | The item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0` |
 | `where` | The items its predicate is truthy for, in the list's order, leaving out an item whose predicate is null or false; the predicate may produce any value |
 | `max`, `min`, `sum` | Evaluate a number expression against each item and require `Number?` |
+| `entry[index]` | The item at the index as a `Pair<Number, T>`, its index and the item, null wherever the unnamed indexer answers null for an index the list has no item at |
 
 `where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`.
 
 Aggregates consume null per item rather than propagating it to the entire call. `max` and `min` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Thus `room.devices.max(it.battery)` and `Home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
 
 An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
+
+<a id="vocabulary-dictionary-members"></a>
+
+### Dictionary and pair members
+
+A member following a dictionary is a member of the dictionary itself, and each reads and changes as the entries it reads do; a lookup's key consumes null, as [dictionaries](types.md#types-dictionaries-and-pairs) set out.
+
+| Dictionary member | Contract |
+| --- | --- |
+| `count` | The number of entries, 0 for an empty dictionary |
+| The unnamed indexer, `[key]` | The key's value, a `V?`, null for an absent key and for a key whose value is null |
+| `entry[key]` | The key's entry, a `Pair<K, V>?`, null for an absent key alone |
+| `containsKey(key)` | Whether the dictionary holds the key, a key whose value is null among them |
+| `keys`, `values` | The keys, a `List<K>`, and the values, a `List<V>`, in the entries' order |
+| `entries` | The entries, a `List<Pair<K, V>>`, in their order |
+
+A pair's `key` and `value` read its two parts, of its `K` and its `V`.
 
 <a id="vocabulary-verbs"></a>
 

@@ -95,6 +95,27 @@ describe('TypeChecker', () => {
         });
     });
 
+    describe('the collections\' variance', () => {
+        const assignability = (type, declaredType) => checker.assignabilityOf(typeOf(type), typeOf(declaredType));
+        const merge = (firstType, secondType) => checker.merge(typeOf(firstType), typeOf(secondType))?.toString() ?? null;
+
+        it('relates a dictionary invariantly by its keys and covariantly by its values, a pair covariantly by both, an empty dictionary\'s never keys fitting any', () => {
+            expect(assignability('Dictionary<String, home.Light>', 'Dictionary<String, home.Device>')).toBe('assignable');
+            expect(assignability('Dictionary<String, home.Light>', 'Dictionary<String?, home.Light>')).toBe('refused');
+            expect(assignability('Dictionary<home.Light, String>', 'Dictionary<home.Device, String>')).toBe('refused');
+            expect(assignability('Dictionary<Never, Never>', 'Dictionary<String, Number>')).toBe('assignable');
+            expect(assignability('Pair<home.Light, Number>', 'Pair<home.Device, Number?>')).toBe('assignable');
+            expect(assignability('Pair<String, Number>', 'Pair<Number, Number>')).toBe('refused');
+        });
+
+        it('merges a dictionary\'s keys only where they are equal or one is never, and its values and a pair\'s parts as types merge', () => {
+            expect(merge('Dictionary<String, home.Light>', 'Dictionary<String, home.Thermostat>')).toBe('Dictionary<String, Device>');
+            expect(merge('Dictionary<Never, Never>', 'Dictionary<String, Number>')).toBe('Dictionary<String, Number>');
+            expect(merge('Dictionary<String, Number>', 'Dictionary<Number, Number>')).toBeNull();
+            expect(merge('Pair<String, Number>', 'Pair<String, null>')).toBe('Pair<String, Number?>');
+        });
+    });
+
     describe('merge', () => {
         const merge = (firstType, secondType) => checker.merge(typeOf(firstType), typeOf(secondType))?.toString() ?? null;
 

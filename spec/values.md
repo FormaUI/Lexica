@@ -3,7 +3,7 @@
 <a id="values"></a>
 <a id="values-and-types"></a>
 
-A value is a number, a string, a Boolean, null, a list, an object, a structured value such as a `Climate`, a reference value such as a `Light` or a `Room`, or a function. A script's values enter it through its bindings and its members, and leave it through its result, which holds data alone.
+A value is a number, a string, a Boolean, null, a list, a dictionary, a pair, an object, a structured value such as a `Climate`, a reference value such as a `Light` or a `Room`, or a function. A script's values enter it through its bindings and its members, and leave it through its result, which holds data alone.
 
 Values are immutable. No expression changes a value once it exists, and none assigns a name twice; a binding is a frozen copy of the data its host gives, and each evaluation produces a new result.
 
@@ -130,6 +130,10 @@ The name restrictions apply to declarations in a script. Supplied data keeps all
 A **result** is data: numbers, strings, Booleans, null, lists and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`LEXICA5028`). A delegate is never part of a result either, as [delegates](functions.md#functions-delegates) set out.
 
 Each evaluation produces a new result, immutable throughout: its lists and objects, and every structured value in them, never change once produced, whatever the host's state does afterwards.
+
+A result exports the language's collections as data: a list as an array of its exported items; a pair as `{ key, value }`; and a dictionary as `{ entries: [{ key, value }, …] }`, its entries in their order, each key's type preserved, so a number's key stays a number. A dictionary or a pair is data where every key and every value is, recursively, so one holding a reference, as a key or a value, has no data form and is refused where a result would hold it, as any reference is; a script projects it to data first. Exported data never turns back into a dictionary or a pair when it is bound again.
+
+A member's implementation gives the language's collections in a host's forms where its declaration says so: a set where a list is declared, its items in their order, a map where a dictionary is, its entries in their order, and an object of a `key` and a `value` alone where a pair is, each item, key and value as its own type declares it. It receives a dictionary as the language's, which answers `count`, `has(key)`, `get(key)`, `getEntry(key)`, `keys`, `values` and `entries`, and a pair as one of `key` and `value`.
 
 <a id="conversions"></a>
 

@@ -86,6 +86,15 @@ An access on a value of `Any` selects its member as it is evaluated, so no used 
 
 `registry.createBindings` asks the registry's modules which values are references, by each module's `typeOf`, keeps each reference as it is and a frozen copy of the data, so later changes to the original data never reach a script; the bindings are that registry's alone. A resolution is reused for bindings of the same types and the same primitive values.
 
+A host's map binds as a dictionary, read by key, and a set as a list in its order; a result exports a dictionary as its entries:
+
+```js
+const menu = { prices: new Map([['coffee', 3], ['tea', 2]]) };
+
+lexica.createRegistry([]).resolve('{ tea = prices["tea"], all = prices }', menu).createEvaluator(menu).evaluate().value;
+// { tea: 2, all: { entries: [{ key: 'coffee', value: 3 }, { key: 'tea', value: 2 }] } }
+```
+
 ## Evaluate
 
 An evaluator holds one set of bindings and the environment the host owns. Evaluating answers the value and the metadata that describes it:

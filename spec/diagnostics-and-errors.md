@@ -183,6 +183,8 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA2036` | A binding whose declared type the value does not belong to, or that no public type is | A structure error naming the binding and the type |
 | `LEXICA2037` | A binding whose declared type several types share unqualified | A structure error naming the binding and the qualified names |
 | `LEXICA2021` | A bound list whose items share no type, as `[1, "two"]` | A structure error naming the binding |
+| `LEXICA2041` | A bound map holding a key that is no key type, a list, an object, a structured value, a dictionary or a pair | A structure error naming the binding and the key's type |
+| `LEXICA2042` | A bound map whose keys, or whose values, share no type | A structure error naming the binding and which of them |
 | `LEXICA2022` | A bound value holding a cycle | A structure error of its own naming the binding |
 | `LEXICA2023` | A declared binding type that is not a reference type | A structure error naming the binding |
 | `LEXICA2038` | A type declared for a value that is not a reference | A structure error naming the binding |
@@ -320,6 +322,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4560` | An operator named other than `cast` or `convert` | A module error naming the operator |
 | `LEXICA4561` | An operator declaring type parameters | A module error naming the operator |
 | `LEXICA4562` | A declaration holding a value that reaches itself through its lists and objects | A module error naming the declaration and the declaration key |
+| `LEXICA4563` | A declared dictionary whose key type is no key type, as `Dictionary<List<Number>, String>` | A module error naming the declaration and the key type |
 
 <a id="preparation-and-type-errors"></a>
 

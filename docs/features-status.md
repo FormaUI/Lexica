@@ -2,11 +2,11 @@
 
 ## Current state
 
-**The core language, host calls, definition version 34 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, the implementation following language `1.0.0-alpha.34`, its host checkpoint awaiting DOMQL's migration; in [unit 4](#unit-4--collections), collections, the lineage contract is settled, specified and recorded through projections, and the foundation is next.**
+**The core language, host calls, definition version 34 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, the implementation following language `1.0.0-alpha.34`, its host checkpoint awaiting DOMQL's migration; in [unit 4](#unit-4--collections), collections, the lineage contract and the foundation, `Dictionary<K, V>` and `Pair<K, V>`, are done, specified as language `1.0.0-alpha.35`, which the implementation reports once every part of it is in, and construction and operations are next.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.34` | `1.0.0-alpha.34` |
+| Language | `1.0.0-alpha.34` | `1.0.0-alpha.35` |
 | Definition format | 34 | 34 |
 
 The implementation reads definition version 34, its node names and its imports, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module. Its declarations take the specification's shape: reference types, with their hierarchy, membership and recognition, and structured types, each holding its members; extensions; operators; declared type parameters; and `Any`. One selector chooses every member, indexer and operator, at resolution and, for a value of `Any`, as it is evaluated. A script imports the modules and the types whose vocabulary it uses, a host supplying imports beside its own, and resolution reaches only what they make available, Lexica's own always among it. An extension access, `device:Energy.Device.usage`, selects among one extension's members, its function read without a call a reference bound to its receiver. Scripts don't yet follow line structure, which unit 3 brings next, and collections arrive in unit 4.
@@ -31,7 +31,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | ✅ Done |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | ✅ Done; its host checkpoint awaits DOMQL's migration |
-| 4 | [Collections](#unit-4--collections) | In progress: step 1 done; step 2, the foundation, next |
+| 4 | [Collections](#unit-4--collections) | In progress: steps 1 and 2 done; step 3 next |
 | 5 | [Specification examples](#unit-5--specification-examples) | Planned |
 | 6 | [Tooling](#unit-6--tooling) | Planned |
 | 7 | [Release](#unit-7--release) | Planned |
@@ -171,10 +171,10 @@ Contracts: [Scripts](../spec/scripts.md), [the grammar](../spec/grammar.md), [li
 
 ### Unit 4 — Collections
 
-The [collections proposal](proposals/collections.md)'s four parts, each settled, specified and implemented in turn. Its accepted decisions stand; each of its open contracts is settled by the stage that depends on it, before that stage implements anything. *Next: step 2, the foundation.*
+The [collections proposal](proposals/collections.md)'s four parts, each settled, specified and implemented in turn. Its accepted decisions stand; each of its open contracts is settled by the stage that depends on it, before that stage implements anything. *Next: step 3, construction and operations.*
 
 1. ✅ **The lineage contract,** as [I34](proposals/implementation-decisions.md) sets out: a projected list's `provenance`, beside its `sources`, each item's entry the source the earliest projection it descends from recorded, inherited through a projection of a projection, read through a local or an object field, specified in [provenance](../spec/runtime.md#runtime-results-provenance). The four-step chain holds as object projections write it, `people.where(it.active) { name = it.name } { label = it.name }`; written with `select`, it is an acceptance case step 3 makes pass, and `where`'s result carrying its kept items' records, sources and provenance realigned, rather than starting provenance afresh at the projection after it, is step 2's.
-2. **The foundation:** `Dictionary<K, V>` and `Pair<K, V>`, public from this stage with their checking and capture complete; capture of arrays, maps and sets; typing; key equality; insertion order; null keys; duplicate keys refused; lookup and presence; the exported forms; and metadata realigned through filtering, with lineage through projection.
+2. ✅ **The foundation,** as [I35](proposals/implementation-decisions.md) sets out, specified in [dictionaries and pairs](../spec/types.md#types-dictionaries-and-pairs) as language `1.0.0-alpha.35`: `Dictionary<K, V>`, invariant in its keys and covariant in its values, and `Pair<K, V>`, covariant in both, Lexica's own generic types beside `List<T>`, with their checking and capture; capture of arrays, of maps as dictionaries and of sets as lists, a member's map, set or pair object captured where it declares the language's, and a host call's supplied value too; typing by the common-type relation, LEXICA2041 and LEXICA2042, an empty map a `Dictionary<Never, Never>` fitting any dictionary; key types and exact key equality, LEXICA4563 for a declared dictionary of another key type; insertion order; null keys; lookup and presence, `[key]`, `entry[key]`, `containsKey`, `keys`, `values`, `entries`, `count`, a pair's `key` and `value`, and a list's `entry[index]`; the exported forms, a dictionary `{ entries: [{ key, value }, …] }` and a pair `{ key, value }`, one holding a reference refused where a result would hold it; and `where`'s result carrying its kept items' records, sources and provenance realigned. Duplicate keys are refused where a dictionary is constructed, which step 3's `toDictionary` and collection expressions do, and LEXICA codes for them land there: a host's map can't hold a key twice.
 3. **Construction and operations:** collection expressions, through the parser, the definition, line structure and canonical text; dictionary construction and grouping; and the member surface, `select` beside object projection.
 4. **Positional operations:** `Index` and `Range`, `..` and `^`, strict slicing beside tolerant lookup, typed indexer signatures, and `pick`.
 5. **Ordering:** `orderBy` and `thenBy`, stable, with their key domains and null placement.
@@ -190,6 +190,9 @@ Contract: [Collections](proposals/collections.md).
 | Owner | Before | Now | Host change |
 | --- | --- | --- | --- |
 | Result metadata | A projected list's `sources`, its immediate inputs alone | `provenance` beside `sources`, each item's source at the earliest projection it descends from, so a projection of a projection names the first projection's references | Match a projected list's items by `provenance` where they are projected from another projection's items, and by `sources` otherwise: `SnapshotComparer.mjs:106`, `SnapshotPatcher.mjs:245`, which read `sources` alone |
+| Result metadata | A filter's result described by its expression record alone, its items' sources and provenance lost | `where`'s record carries its kept items' records, `sources` and `provenance`, realigned in its order | Match a filtered list's items by its `sources` and `provenance` as a projection's: `SnapshotComparer.mjs:106`, `SnapshotPatcher.mjs:245` |
+| Result values | No dictionary or pair | A dictionary exported as `{ entries: [{ key, value }, …] }` and a pair as `{ key, value }`, frozen data | None while DOMQL declares no dictionary or pair: a result holding one compares and patches as any data |
+| Bindings | A `Map` or a `Set` refused, LEXICA2034 | A map bound as a dictionary, a set as a list in its order | None: DOMQL binds no map or set |
 
 ### Unit 5 — Specification examples
 
@@ -237,7 +240,7 @@ These capabilities work in the current implementation. The planned replacements 
 | --- | --- | --- |
 | Scripts | Parameters, bindings, names, bodies, and locals | [Scripts](../spec/scripts.md) |
 | Lexical structure | Tokens, names, strings, comments, and line structure | [Lexical structure](../spec/lexical-structure.md), [line structure](../spec/lexical-structure.md#line-structure) |
-| Values | Objects, the object root, lists, null, results, conversions, and values of `Any` | [Values](../spec/values.md) |
+| Values | Objects, the object root, lists, dictionaries and pairs, null, results and their exported forms, conversions, and values of `Any` | [Values](../spec/values.md) |
 | Expressions | Operators, conditionals, coalescing, attempts, and interpolated strings | [Expressions](../spec/expressions.md) |
 | Functions | Regular and arrow functions, delegates, references, and implicit bodies | [Functions](../spec/functions.md) |
 | Member access | Member forms, bracket property access, extension access, arguments, and one selector, at resolution and for a value of `Any` as it is evaluated | [Members](../spec/members.md), [extension access](../spec/members.md#property-access-calls-and-indexers-extension-access) |
@@ -247,7 +250,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Type selection | Type selectors and mappings | [Type selectors](../spec/vocabulary.md#vocabulary-type-selectors) |
 | Namespaces | Imports, aliases and type imports, a script's and its host's, what they make available, module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
 | Text and definitions | Parse, validate, format, quote, and get a location, each with the imports a host supplies; canonical text for definition version 34, its imports among it | [Definition](../spec/definition.md) |
-| Types | Reference types with their hierarchy, membership and recognition, structured types, extensions, declared type parameters, `Any`, one type relation, and casts, a declared cast across hierarchies among them | [Types](../spec/types.md) |
+| Types | Reference types with their hierarchy, membership and recognition, structured types, extensions, declared type parameters, `Any`, `List<T>`, `Dictionary<K, V>` and `Pair<K, V>` with their variances, one type relation, and casts, a declared cast across hierarchies among them | [Types](../spec/types.md) |
 | Runtime | Bindings a registry makes, recognizing references, resolution with its used declarations, deferred accesses and candidate declarations, reuse by resolution key, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
 | Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/diagnostics-and-errors.md) |
 | Build | Bundle and type declarations | [Build](../README.md#build) |

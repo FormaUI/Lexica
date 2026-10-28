@@ -10,7 +10,13 @@ const TYPE_PARAMETER = /^(?:[A-Z]|@[A-Za-z][A-Za-z0-9]*)$/;
 /** The scalar types' names by the JavaScript type of their values: `LexicaModule.scalarTypeNames`, which a test keeps this map to, by `typeof`, since `Type` imports nothing of the vocabulary. */
 const PRIMITIVE_TYPE_NAMES = Object.freeze({ string: 'String', number: 'Number', boolean: 'Boolean' });
 
+/** How many type arguments each of Lexica's own generic types takes, by its name: the generic value types `Vocabulary` declares, which a test keeps this table to, since `Type` imports nothing of the vocabulary. */
+const GENERIC_TYPE_ARITIES = Object.freeze({ List: 1, Dictionary: 2, Pair: 2 });
+
 export class Type {
+    /** The names of Lexica's own generic types, each with how many type arguments it takes. */
+    static genericTypeArities = GENERIC_TYPE_ARITIES;
+
     /** @type {Map<string, Type | null>} */
     static #parseCache = new Map();
 
@@ -81,6 +87,26 @@ export class Type {
     /** A list of the item type: Lexica's own generic `List`, its one type argument the item type. */
     static createListType(itemType, isNullable = false) {
         return new Type('named', { name: 'List', typeArguments: [itemType], isNullable });
+    }
+
+    /** A dictionary of the key type and the value type: Lexica's own generic `Dictionary`. */
+    static createDictionaryType(keyType, valueType, isNullable = false) {
+        return new Type('named', { name: 'Dictionary', typeArguments: [keyType, valueType], isNullable });
+    }
+
+    /** A pair of the key type and the value type: Lexica's own generic `Pair`. */
+    static createPairType(keyType, valueType, isNullable = false) {
+        return new Type('named', { name: 'Pair', typeArguments: [keyType, valueType], isNullable });
+    }
+
+    /** Whether the type is a dictionary, Lexica's own `Dictionary`. */
+    get isDictionary() {
+        return this.kind === 'named' && this.moduleName === null && this.name === 'Dictionary';
+    }
+
+    /** Whether the type is a pair, Lexica's own `Pair`. */
+    get isPair() {
+        return this.kind === 'named' && this.moduleName === null && this.name === 'Pair';
     }
 
     /** Whether the type is a list, Lexica's own `List`. */
@@ -287,20 +313,37 @@ class TypeReader {
 
         let type;
 
+        // One of Lexica's own generic types takes its type arguments in angle brackets, separated by a comma and a space, and no other name takes any.
         if (this.#text[this.#offset] === '<') {
-            if (match[0] !== 'List') {
+            const arity = Object.hasOwn(GENERIC_TYPE_ARITIES, match[0]) ? GENERIC_TYPE_ARITIES[match[0]] : 0;
+            const typeArguments = [];
+
+            this.#offset++;
+
+            for (let index = 0; index < arity; index++) {
+                if (index > 0) {
+                    if (!this.#text.startsWith(', ', this.#offset)) {
+                        return null;
+                    }
+
+                    this.#offset += 2;
+                }
+
+                const typeArgument = this.#readType();
+
+                if (typeArgument === null) {
+                    return null;
+                }
+
+                typeArguments.push(typeArgument);
+            }
+
+            if (arity === 0 || this.#text[this.#offset] !== '>') {
                 return null;
             }
 
             this.#offset++;
-            const itemType = this.#readType();
-
-            if (itemType === null || this.#text[this.#offset] !== '>') {
-                return null;
-            }
-
-            this.#offset++;
-            type = Type.createListType(itemType);
+            type = new Type('named', { name: match[0], typeArguments });
         } else if (match[0] === 'null') {
             type = Type.null;
         } else if (match[0] === 'Never') {
@@ -309,7 +352,7 @@ class TypeReader {
             type = Type.any;
         } else if (TYPE_PARAMETER.test(match[0])) {
             type = Type.createTypeParameter(match[0]);
-        } else if (match[0] === 'List') {
+        } else if (Object.hasOwn(GENERIC_TYPE_ARITIES, match[0])) {
             return null;
         } else {
             type = Type.createNamedType(match[0]);

@@ -78,7 +78,7 @@ describe('the runtime codes', () => {
         });
 
         it('LEXICA2034: a binding that is not data and that nothing recognizes', () => {
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf: new Map() })), 'LEXICA2034', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf: new WeakMap() })), 'LEXICA2034', 'structure');
             expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ weight: Number.NaN })), 'LEXICA2034', 'structure');
         });
 
@@ -89,6 +89,15 @@ describe('the runtime codes', () => {
 
             expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf })), 'LEXICA2022', 'structure');
             expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelves: [shelf] })), 'LEXICA2022', 'structure');
+        });
+
+        it('LEXICA2041: a bound map holding a key of no key type', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([[[1], 'list']]) })), 'LEXICA2041', 'structure');
+        });
+
+        it('LEXICA2042: a bound map whose keys or values share no type', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([['a', 1], [2, 2]]) })), 'LEXICA2042', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([['a', 1], ['b', 'two']]) })), 'LEXICA2042', 'structure');
         });
 
         it('LEXICA2021: a bound list whose items share no type', () => {

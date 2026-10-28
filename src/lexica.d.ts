@@ -388,6 +388,29 @@ export interface LexicaModule {
 }
 
 /**
+ * A dictionary as an implementation receives one, immutable: its entries in their order, each key once by Lexica's key equality. A host gives one as a `Map` where a declaration names a `Dictionary<K, V>`, and a result
+ * exports one as `{ entries: [{ key, value }, …] }`.
+ */
+export interface LexicaDictionary<K = unknown, V = unknown> {
+    readonly count: number;
+    /** Whether it holds the key, a key whose value is null among them. */
+    has(key: K): boolean;
+    /** The key's value, or null where it holds no such key. */
+    get(key: K): V | null;
+    /** The key's entry, or null where it holds no such key. */
+    getEntry(key: K): LexicaPair<K, V> | null;
+    readonly keys: readonly K[];
+    readonly values: readonly V[];
+    readonly entries: readonly LexicaPair<K, V>[];
+}
+
+/** A pair as an implementation receives one, immutable: a key and its value. A host gives one as `{ key, value }` where a declaration names a `Pair<K, V>`, and a result exports one so. */
+export interface LexicaPair<K = unknown, V = unknown> {
+    readonly key: K;
+    readonly value: V;
+}
+
+/**
  * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution,
  * with one candidate selected, produced two values; the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the records of the object fields
  * an object expression built and of the items a projection built, with the input each item came from, a list no projection built having no sources; and each such item's provenance. A part with no record inherits its

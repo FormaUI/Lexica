@@ -4,9 +4,12 @@
 
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
+import { Dictionary } from './Dictionary.mjs';
 import { LexicaErrors } from './LexicaError.mjs';
+import { Pair } from './Pair.mjs';
 import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
+import { Vocabulary } from './vocabulary/Vocabulary.mjs';
 
 /** @typedef {Record<string, unknown>} Environment What the host gives an evaluation that does not belong in the expression, passed to every implementation. */
 
@@ -970,6 +973,7 @@ export class Evaluator {
                 implementation: this.#registry.getImplementation(declaration),
                 takesReceiver: this.#registry.takesReceiver(declaration),
                 resultType,
+                captureCollections: Evaluator.#compileCollectionCapture(resultType),
                 isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${LexicaModule.writtenNameOf(declaration)}'`),
                 copyStructure: Evaluator.#compileStructureCopy(resultType, this.#registry),
             });
@@ -1308,6 +1312,17 @@ export class Evaluator {
                 }
 
                 return Type.createListType(itemType);
+            }
+
+            // A dictionary of the types its keys and its values share, the empty one's never, and a pair of its parts'; a dictionary is the language's, so its keys share one already.
+            if (value instanceof Dictionary) {
+                const merged = parts => parts.reduce((shared, part) => this.#registry.typeChecker.merge(shared, this.#getActualType(part, asked, fail, ancestors)) ?? Type.any, Type.never);
+
+                return Type.createDictionaryType(merged(value.keys), merged(value.values));
+            }
+
+            if (value instanceof Pair) {
+                return Type.createPairType(this.#getActualType(value.key, asked, fail, ancestors), this.#getActualType(value.value, asked, fail, ancestors));
             }
 
             if (ObjectUtils.isPlainObject(value)) {
@@ -1792,6 +1807,20 @@ export class Evaluator {
             return copyItem === null ? null : value => (value === null ? null : value.map(item => (item === null ? null : copyItem(item))));
         }
 
+        // A dictionary's keys and values, and a pair's, are copied as their types declare them, where either is a structure.
+        if (type.isDictionary || type.isPair) {
+            const [copyKey, copyValue] = type.typeArguments.map(typeArgument => Evaluator.#compileStructureCopy(typeArgument, registry));
+            const copy = (part, copyPart) => (copyPart === null || part === null ? part : copyPart(part));
+
+            if (copyKey === null && copyValue === null) {
+                return null;
+            }
+
+            return type.isPair
+                ? value => (value === null ? null : new Pair(copy(value.key, copyKey), copy(value.value, copyValue)))
+                : value => (value === null ? null : new Dictionary(value.entries.map(entry => [copy(entry.key, copyKey), copy(entry.value, copyValue)])));
+        }
+
         switch (type.kind) {
             case 'named': {
                 const isStructured = registry.getTypeDeclaration(type)?.kind === 'structured';
@@ -1863,6 +1892,36 @@ export class Evaluator {
         return found === fieldNames.size;
     }
 
+    /**
+     * The capture of a value a host gives where the type is declared, as the language's collection: a set where a list is, its items in their order, a map where a dictionary is, its entries in their order, and an object
+     * of a key and a value alone where a pair is, each item, key and value captured in turn; null where the type holds no collection. A value of the language's form is kept, and one of any other form left for its type's
+     * check to refuse, so a capture never makes a value of a type a check would refuse.
+     */
+    static #compileCollectionCapture(type) {
+        if (type.isList) {
+            const captureItem = Evaluator.#compileCollectionCapture(type.itemType);
+
+            return value => {
+                const items = value instanceof Set ? [...value] : value;
+
+                return captureItem === null || !Array.isArray(items) ? items : items.map(item => (item === null ? null : captureItem(item)));
+            };
+        }
+
+        if (!type.isDictionary && !type.isPair) {
+            return null;
+        }
+
+        const [captureKey, captureValue] = type.typeArguments.map(typeArgument => Evaluator.#compileCollectionCapture(typeArgument));
+        const capture = (part, capturePart) => (capturePart === null || part === null ? part : capturePart(part));
+
+        if (type.isPair) {
+            return value => (ObjectUtils.isPlainObject(value) && Object.keys(value).length === 2 && Object.hasOwn(value, 'key') && Object.hasOwn(value, 'value') ? new Pair(capture(value.key, captureKey), capture(value.value, captureValue)) : value);
+        }
+
+        return value => (value instanceof Map ? new Dictionary([...value].map(([key, entry]) => [capture(key, captureKey), capture(entry, captureValue)])) : value);
+    }
+
     /** Whether a value is one the type admits, with the type's structure found once and each declared structure's fields at its first check. */
     static #compileTypeCheck(type, registry, asked) {
         const admits = Evaluator.#compileNonNullTypeCheck(type, registry, asked);
@@ -1876,6 +1935,15 @@ export class Evaluator {
             const checkItem = Evaluator.#compileTypeCheck(type.itemType, registry, asked);
 
             return value => Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(checkItem);
+        }
+
+        // A dictionary is the language's, each key of its key type and each value of its value type, and a pair each of its parts.
+        if (type.isDictionary || type.isPair) {
+            const [checkKey, checkValue] = type.typeArguments.map(typeArgument => Evaluator.#compileTypeCheck(typeArgument, registry, asked));
+
+            return type.isPair
+                ? value => value instanceof Pair && checkKey(value.key) && checkValue(value.value)
+                : value => value instanceof Dictionary && value.keys.every(checkKey) && value.values.every(checkValue);
         }
 
         switch (type.kind) {
@@ -2088,7 +2156,7 @@ export class Evaluator {
      * selected as it is evaluated.
      */
     #invokeImplementation(invocation, receiver, args, node, isDeferred = false) {
-        const { declaration, implementation, takesReceiver, resultType, isOfResultType, copyStructure } = invocation;
+        const { declaration, implementation, takesReceiver, resultType, captureCollections, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
             this.#fail('LEXICA4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${LexicaModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
@@ -2127,6 +2195,11 @@ export class Evaluator {
             }
         }
 
+        // A collection a host gives in a form of its own, a set, a map or a pair's object, is the language's where the member declares one.
+        if (captureCollections !== null) {
+            value = captureCollections(value);
+        }
+
         if (!isOfResultType(value)) {
             this.#fail('LEXICA5006', `${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${resultType}`, this.#pointerOf(node));
         }
@@ -2139,7 +2212,50 @@ export class Evaluator {
             }
         }
 
-        return copyStructure === null ? value : copyStructure(value);
+        const answered = copyStructure === null ? value : copyStructure(value);
+
+        // A filter's kept items keep the lineage they had in its receiver, as each item's own record already follows it.
+        if (takesReceiver && Vocabulary.keepsItemsInOrder(declaration)) {
+            this.#realignLineage(receiver, value, answered);
+        }
+
+        return answered;
+    }
+
+    /**
+     * Gives the list a filter answered, its copy where its items were copied, the sources and the provenance its receiver's items had, realigned in its order: each kept item is found in the receiver after the one before it,
+     * the first of equal items where several are, which a filter keeps or leaves alike. A receiver without either records nothing, and an answer no order of the receiver's items gives is left without them.
+     */
+    #realignLineage(receiver, kept, answered) {
+        const sources = this.#sourcesByList.get(receiver) ?? null;
+        const provenance = this.#provenanceByList.get(receiver) ?? null;
+
+        if (sources === null && provenance === null) {
+            return;
+        }
+
+        const indexes = [];
+        let index = 0;
+
+        for (const item of kept) {
+            while (index < receiver.length && receiver[index] !== item) {
+                index++;
+            }
+
+            if (index === receiver.length) {
+                return;
+            }
+
+            indexes.push(index++);
+        }
+
+        if (sources !== null) {
+            this.#sourcesByList.set(answered, Object.freeze(indexes.map(at => sources[at])));
+        }
+
+        if (provenance !== null) {
+            this.#provenanceByList.set(answered, Object.freeze(indexes.map(at => provenance[at])));
+        }
     }
 
     /** What a message names as carrying a member out. */
@@ -2218,6 +2334,26 @@ export class Evaluator {
             }
 
             return value.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail));
+        }
+
+        // A dictionary is supplied as a map or the language's, each key and value captured as its type declares, and a pair as the language's or an object of a key and a value alone.
+        if (type.isDictionary) {
+            const entries = value instanceof Map ? [...value] : value instanceof Dictionary ? value.entries.map(entry => [entry.key, entry.value]) : fail(path, value, type);
+            const [keyType, valueType] = type.typeArguments;
+
+            return new Dictionary(entries.map(([key, entry], index) => [this.#capture(key, keyType, `${path}.entries[${index}].key`, fail), this.#capture(entry, valueType, `${path}.entries[${index}].value`, fail)]));
+        }
+
+        if (type.isPair) {
+            const isPair = value instanceof Pair || (ObjectUtils.isPlainObject(value) && Object.keys(value).length === 2 && Object.hasOwn(value, 'key') && Object.hasOwn(value, 'value'));
+
+            if (!isPair) {
+                fail(path, value, type);
+            }
+
+            const [keyType, valueType] = type.typeArguments;
+
+            return new Pair(this.#capture(value.key, keyType, Evaluator.#pathOf(path, 'key'), fail), this.#capture(value.value, valueType, Evaluator.#pathOf(path, 'value'), fail));
         }
 
         switch (type.kind) {
@@ -2386,6 +2522,15 @@ export class Evaluator {
             return ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#isData(item));
         }
 
+        // A dictionary is data where every key and every value is, and a pair where both its parts are.
+        if (value instanceof Dictionary) {
+            return value.keys.every(key => this.#isData(key)) && value.values.every(entry => this.#isData(entry));
+        }
+
+        if (value instanceof Pair) {
+            return this.#isData(value.key) && this.#isData(value.value);
+        }
+
         return ObjectUtils.isPlainObject(value) && this.#registry.recognize(value, 'the result').length === 0 && Object.values(value).every(field => this.#isData(field));
     }
 
@@ -2395,6 +2540,15 @@ export class Evaluator {
      * @returns {{ value: unknown, copiedIdentities: object | null }}
      */
     #copyResult(value) {
+        // A result exports a dictionary as its entries, in their order, and a pair as its key and its value, each a frozen object of data, so it never turns back into a dictionary or a pair when it is bound again.
+        if (value instanceof Dictionary) {
+            return { value: Object.freeze({ entries: Object.freeze(value.entries.map(entry => this.#copyResult(entry).value)) }), copiedIdentities: null };
+        }
+
+        if (value instanceof Pair) {
+            return { value: Object.freeze({ key: this.#copyResult(value.key).value, value: this.#copyResult(value.value).value }), copiedIdentities: null };
+        }
+
         if (Array.isArray(value)) {
             const copy = [];
             const itemIdentities = [];
@@ -2472,7 +2626,7 @@ export class Evaluator {
 
                     // A call of a member describes its value as any member's does.
                     if (node.callee.kind !== 'local') {
-                        return this.#resolveMemberRecord(node, resolution, identities, contextRecord, selections);
+                        return this.#resolveMemberRecord(node, resolution, identities, contextRecord, selections, value);
                     }
 
                     // A call of one function reference alone produces its value itself, as the member it invokes does, the reference's declaration its one candidate where its receiver's type is unknown.
@@ -2507,7 +2661,7 @@ export class Evaluator {
                         continue;
                     }
 
-                    return this.#resolveMemberRecord(node, resolution, identities, contextRecord, selections);
+                    return this.#resolveMemberRecord(node, resolution, identities, contextRecord, selections, value);
                 }
                 case 'it':
                     return contextRecord ?? this.#getExpressionRecord(node, null, null);
@@ -2534,7 +2688,7 @@ export class Evaluator {
      * Resolves the record of a member's value: a computed property access's by the name its evaluation selected, none where it selected none; a stored value's, an object field's or a data property's, the record of that
      * field of what it reads it from; and any other the member's own, with its declaration's tolerance. A field read through the object root is its caller's to follow.
      */
-    #resolveMemberRecord(node, resolution, identities, contextRecord, selections) {
+    #resolveMemberRecord(node, resolution, identities, contextRecord, selections, value) {
         let selected = resolution;
         let candidate = null;
 
@@ -2554,7 +2708,16 @@ export class Evaluator {
             return whole.objectFields?.[candidate ?? selected.name] ?? Evaluator.#getInheritedRecord(whole);
         }
 
-        return this.#getExpressionRecord(node, candidate, selected?.declaration?.updates?.tolerance ?? null);
+        const record = this.#getExpressionRecord(node, candidate, selected?.declaration?.updates?.tolerance ?? null);
+
+        // A filter's answer describes each item it kept as its receiver describes it, its items' records, sources and provenance realigned in its order, under the filter's own origin.
+        if (Array.isArray(value) && selected?.declaration !== undefined && Vocabulary.keepsItemsInOrder(selected.declaration)) {
+            const kept = this.#resolveRecord(Evaluator.#accessOf(node).receiver, value, identities, contextRecord);
+
+            return kept.items === undefined ? record : Object.freeze({ ...kept, origin: record.origin, tolerance: record.tolerance });
+        }
+
+        return record;
     }
 
     /**

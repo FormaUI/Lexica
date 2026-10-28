@@ -362,7 +362,7 @@ export class TypeChecker {
 
     /**
      * Gets the assignability of two types of one generic declaration, or of none, argument by argument, a covariant one by assignability and an invariant one by equality: refused where an argument is refused, checked where one
-     * waits for its value, and assignable where every one is.
+     * waits for its value, and assignable where every one is. An invariant argument of a never fits any, since the one invariant parameter, a dictionary's key, is a never only for a dictionary of no entries.
      */
     #getTypeArgumentsAssignability(type, declaredType) {
         if (type.typeArguments.length === 0) {
@@ -378,18 +378,27 @@ export class TypeChecker {
                 return this.assignabilityOf(typeArgument, declaredArgument);
             }
 
-            return typeArgument.equals(declaredArgument) ? 'assignable' : 'refused';
+            return typeArgument.kind === 'never' || typeArgument.equals(declaredArgument) ? 'assignable' : 'refused';
         }));
     }
 
-    /** The type arguments two types of one generic declaration merge to, each a covariant one's merge and an invariant one's where they are equal; null where one doesn't merge. */
+    /** The invariant argument two arguments merge to: the one where they are equal, the other where one is a never, and none otherwise. */
+    static #mergeInvariant(one, other) {
+        if (one.kind === 'never') {
+            return other;
+        }
+
+        return other.kind === 'never' || one.equals(other) ? one : null;
+    }
+
+    /** The type arguments two types of one generic declaration merge to, each a covariant one's merge and an invariant one's where they are equal or one is a never, the other; null where one doesn't merge. */
     #mergeTypeArguments(firstType, secondType) {
         const { variances } = this.#registry.getTypeDeclaration(firstType);
         const typeArguments = [];
 
         for (const [index, typeArgument] of firstType.typeArguments.entries()) {
             const other = secondType.typeArguments[index];
-            const merged = variances[index] === 'covariant' ? this.merge(typeArgument, other) : typeArgument.equals(other) ? typeArgument : null;
+            const merged = variances[index] === 'covariant' ? this.merge(typeArgument, other) : TypeChecker.#mergeInvariant(typeArgument, other);
 
             if (merged === null) {
                 return null;

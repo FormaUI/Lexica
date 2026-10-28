@@ -80,10 +80,13 @@ A binding takes its type from its value, unless the host declares it.
 - A number, a string and a Boolean are `Number`, `String` and `Boolean`.
 - Null is of the type `null`.
 - A list is a `List<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `List<Device>` and `[light, null]` a `List<Light?>`. A declared cast between two types gives them no type to share. A list of nulls alone, `[null]` or `[null, null]`, is a `List<null>`, whose items can only be null, and the empty list is a `List<Never>`, which does not hold an item.
-- An object is of the object type of its object fields' types, each typed as a binding is.
+- A set is a `List<T>` of its items in its traversal order, its uniqueness making no later projection a set.
+- A map is a `Dictionary<K, V>`, its entries in their order, `K` the type its keys share and `V` the type its values share, each merging as a list's items do, so an empty map is a `Dictionary<Never, Never>`. A key that is no key type, as a list or an object, is a structure error (LEXICA2041), and keys or values that share no type are too (LEXICA2042). A dictionary and a pair the language gave, bound again, are bound as they are.
+- An object is of the object type of its object fields' types, each typed as a binding is, an object of a `key` and a `value` among them, which never becomes a pair, and one of `entries` never a dictionary.
+- Any other iterable, a generator among them, is no binding: a host materializes it, finite, as an array, a set or a map first.
 - A list whose items share no type has no type, because Lexica has no union types and a list holds items of one type, so binding `[1, "two"]`, or a room and a light together, is a structure error.
 
-Binding keeps a frozen copy of the data it is given, through its lists and objects, and each reference value as itself, never copied or frozen, a reference within data among them. A host that changes its data afterwards changes nothing bound, and binds anew to supply new data.
+Binding keeps a frozen copy of the data it is given, through its lists, sets, maps and objects, never a live view of a set or a map, and each reference value as itself, never copied or frozen, a reference within data among them. A host that changes its data afterwards changes nothing bound, and binds anew to supply new data.
 
 A tool that checks a script without running it takes the same values, or values of the same types, for the bindings, since vocabulary declarations alone cannot establish the type of `room`.
 
