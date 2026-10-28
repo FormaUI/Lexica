@@ -1438,6 +1438,8 @@ export class Evaluator {
                 propagatesNull: false,
                 isBody: isBody === true,
                 isPredicate: parameter.kind === 'predicate',
+                // A body of each item reads its item as a value that is not null, as resolution types it, so a null item answers null and the body is never evaluated against it.
+                skipsNullItem: isBody === true && (parameter.kind === 'expression' || parameter.kind === 'predicate'),
                 functions: isBody === true ? null : this.#compileFunctions(functions),
                 memberName: LexicaModule.writtenNameOf(resolution.declaration),
                 parameterTypes,
@@ -1475,7 +1477,7 @@ export class Evaluator {
                         const capturedFrame = evaluator.#localsFrame;
                         const capturedObjectRoot = evaluator.#objectRoot;
 
-                        args[plan.name] = evaluator.#createCallback(plan, argumentValues => evaluator.#evaluateWithin(capturedFrame, capturedObjectRoot, evaluate, argumentValues[0]));
+                        args[plan.name] = evaluator.#createCallback(plan, argumentValues => (plan.skipsNullItem && argumentValues[0] === null ? null : evaluator.#evaluateWithin(capturedFrame, capturedObjectRoot, evaluate, argumentValues[0])));
                     } else {
                         let value;
 

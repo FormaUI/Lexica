@@ -159,4 +159,17 @@ describe('collections', () => {
             expect(refused).toMatchObject({ code: 'LEXICA4563', kind: 'module', message: expect.stringContaining('List<Number>') });
         });
     });
+
+    describe('a body of each item', () => {
+        it('reads its item as a value that is not null, so a null item answers null and the body is never evaluated against it, while a function of the item is called with it', () => {
+            const values = { xs: [1, null, 2], rooms: [{ size: 3 }, null, { size: 1 }], words: ['a', null] };
+            const evaluate = text => lexica.createRegistry([]).resolve(text, values).createEvaluator(values).evaluate().value;
+
+            expect(evaluate('xs.where(it > 1)')).toEqual([2]);
+            expect(evaluate('rooms.where(it.size > 1)')).toEqual([{ size: 3 }]);
+            expect(evaluate('xs.sum(it * 2)')).toBe(6);
+            expect(evaluate('xs.max(-it)')).toBe(-1);
+            expect(evaluate('words.where(w => w == null)')).toEqual([null]);
+        });
+    });
 });

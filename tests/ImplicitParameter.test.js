@@ -158,7 +158,7 @@ describe('the implicit parameter', () => {
     describe('of a list holding nulls', () => {
         it('is each item as it is for a function of the item, null among them, and a value that is not for a body', () => {
             expect(evaluate('gaps.where(w => w == null)')).toEqual([null]);
-            expect(evaluate('gaps.where(it == null)')).toEqual([null]);
+            expect(evaluate('gaps.where(it == null)')).toEqual([]);
             expect(evaluate('gaps.max(w => w?.size)')).toBe(3);
             expect(errorThrownBy(() => resolve('gaps.where(pantry.vegan)')).message).toContain("'pantry.vegan' names no function that takes those or answers that");
         });
