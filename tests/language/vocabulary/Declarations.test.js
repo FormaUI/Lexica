@@ -33,8 +33,9 @@ describe('Declarations', () => {
 
     it('creates the parameters in their declaration shape, each with the defaults its contract gives it', () => {
         expect(Declarations.createValueParameterDeclaration('width', 'Number', { default: 2 })).toEqual({ name: 'width', kind: 'value', type: 'Number', required: false, fixed: false, nulls: 'propagate', default: 2 });
-        expect(Declarations.createExpressionParameterDeclaration('Number')).toEqual({ name: 'expression', kind: 'expression', type: 'Number', context: 'item', required: true, fixed: false, nulls: 'accept' });
-        expect(Declarations.createPredicateParameterDeclaration()).toEqual({ name: 'expression', kind: 'predicate', type: 'Boolean', context: 'item', required: true, fixed: false, nulls: 'accept' });
+        expect(Declarations.createExpressionParameterDeclaration('Number')).toEqual({ name: 'expression', kind: 'expression', type: 'Number', context: 'item', required: true, fixed: false, nulls: 'propagate' });
+        expect(Declarations.createExpressionParameterDeclaration('U', { nulls: 'accept' })).toEqual({ name: 'expression', kind: 'expression', type: 'U', context: 'item', required: true, fixed: false, nulls: 'accept' });
+        expect(Declarations.createPredicateParameterDeclaration()).toEqual({ name: 'expression', kind: 'predicate', type: 'Boolean', context: 'item', required: true, fixed: false, nulls: 'propagate' });
         expect(Declarations.createFunctionParameterDeclaration('test', 'Boolean', ['String'])).toEqual({ name: 'test', kind: 'function', type: 'Boolean', parameterTypes: ['String'], required: true });
     });
 });

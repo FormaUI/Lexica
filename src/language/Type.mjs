@@ -114,6 +114,11 @@ export class Type {
         return this.kind === 'named' && this.moduleName === null && this.name === 'List';
     }
 
+    /** The type an expression of each item of the collection reads as `it`: a list's item type, and a dictionary's value type, since a dictionary's value operations evaluate against its values; null for any other type. */
+    get itemContextType() {
+        return this.isList ? this.typeArguments[0] : this.isDictionary ? this.typeArguments[1] : null;
+    }
+
     /** The type of a list's items, its one type argument; null for any other type. */
     get itemType() {
         return this.isList ? this.typeArguments[0] : null;

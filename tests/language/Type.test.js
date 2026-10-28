@@ -112,6 +112,12 @@ describe('Type', () => {
         expect(Type.parse('List<Any?>').toString()).toBe('List<Any?>');
     });
 
+    it("gives the type an expression of each item reads: a list's item, a dictionary's value, and none for any other type", () => {
+        expect(String(Type.parse('List<Number?>').itemContextType)).toBe('Number?');
+        expect(String(Type.parse('Dictionary<String, Number>').itemContextType)).toBe('Number');
+        expect([Type.parse('Pair<String, Number>').itemContextType, Type.parse('Number').itemContextType]).toEqual([null, null]);
+    });
+
     it('holds a list as Lexica\'s generic List, its item type its one type argument', () => {
         const list = Type.createListType(Type.parse('Number'));
 

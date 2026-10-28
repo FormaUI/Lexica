@@ -406,6 +406,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3079` | An argument of the wrong kind | A validation error naming the argument and the kind it takes |
 | `LEXICA3080` | A missing required argument | A validation error naming the argument |
 | `LEXICA3081` | A collection expression whose items, or whose dictionary's values, share no type | A validation error naming the types |
+| `LEXICA3083` | A dictionary a call answers keyed by a type no key is of, as `toDictionary` and `groupBy` given a key expression of an object type | A validation error at the call, naming the key type |
 | `LEXICA3082` | A function as a collection expression's item or value | A validation error at the item, saying a collection holds data and references |
 | `LEXICA3043` | A result that would contain a reference value | A validation error |
 | `LEXICA3044` | An object field read through `root` whose initializer has not completed where `root` is written | A validation error naming the object fields completed there |
@@ -452,6 +453,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5025` | An equality of a structured value, a list or an object, found when it is evaluated, with a value that isn't null, as an operand of `Any` can be | An evaluation error naming the type |
 | `LEXICA5021` | An `Any` argument that does not satisfy its parameter | An evaluation error naming the argument and the actual type |
 | `LEXICA5022` | A direct access on null at a deferred access, through `.` or `:` | An evaluation error naming the access, and giving `?.` or `?:` |
+| `LEXICA5029` | `toDictionary` given two items of one key | An evaluation error at the call, naming the key and giving `groupBy` |
+| `LEXICA5030` | `single` of a list of several items | An evaluation error at the access, naming how many |
+| `LEXICA5031` | `selectMany` given null for an item's list | An evaluation error at the call |
 | `LEXICA5028` | A result holding a value of `Any` that is found, when it is evaluated, to be no data, a reference or a function | An evaluation error at the result |
 | `LEXICA5013` | A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |
 | `LEXICA5014` | Preparing a script that ends in no host call | An evaluation error, as [host calls](runtime.md#runtime-host-calls) set out |

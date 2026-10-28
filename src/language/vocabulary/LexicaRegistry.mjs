@@ -801,8 +801,11 @@ export class LexicaRegistry {
             const target = this.getDeclaredType(type, type.target);
             const isOwnType = target.kind === 'named' && (target.moduleName === module.name || (target.moduleName === null && module === Vocabulary.module));
 
-            // A type its module owns takes its members in its own declaration, so an extension's target is another module's.
-            if (isOwnType) {
+            // A type its module owns takes its members in its own declaration, so an extension's target is another module's; Lexica's own extends its value types where a member needs a receiver narrower than
+            // the type, as a list of lists is, which the internal form its value types are declared through gives none.
+            const isNarrowedOwnValueType = module === Vocabulary.module && target.typeArguments.some(argument => argument.kind !== 'typeParameter');
+
+            if (isOwnType && !isNarrowedOwnValueType) {
                 fail('LEXICA4045', `The extension '${type.name}' targets ${target}, a type its own module owns, which takes its members within its own declaration`, type.name, 'target');
             }
         }

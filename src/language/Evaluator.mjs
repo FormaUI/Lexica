@@ -9,6 +9,7 @@ import { LexicaErrors } from './LexicaError.mjs';
 import { Pair } from './Pair.mjs';
 import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
+import { MemberFailure } from './vocabulary/MemberFailure.mjs';
 import { Vocabulary } from './vocabulary/Vocabulary.mjs';
 
 /** @typedef {Record<string, unknown>} Environment What the host gives an evaluation that does not belong in the expression, passed to every implementation. */
@@ -1438,8 +1439,8 @@ export class Evaluator {
                 propagatesNull: false,
                 isBody: isBody === true,
                 isPredicate: parameter.kind === 'predicate',
-                // A body of each item reads its item as a value that is not null, as resolution types it, so a null item answers null and the body is never evaluated against it.
-                skipsNullItem: isBody === true && (parameter.kind === 'expression' || parameter.kind === 'predicate'),
+                // A body of each item reads its item as a value that is not null, as resolution types it, so a null item answers null and the body is never evaluated against it, unless its parameter accepts null items.
+                skipsNullItem: isBody === true && (parameter.kind === 'expression' || parameter.kind === 'predicate') && parameter.nulls !== 'accept',
                 functions: isBody === true ? null : this.#compileFunctions(functions),
                 memberName: LexicaModule.writtenNameOf(resolution.declaration),
                 parameterTypes,
@@ -1701,27 +1702,24 @@ export class Evaluator {
                 return value === null && hasTarget ? null : evaluator.#applyFields(node, fields, localNames, value);
             }
 
-            const items = [];
-            const sources = [];
-            const provenance = [];
-            // An input list a projection built carries the provenance its items inherit; any other begins provenance at this projection's sources.
-            const inherited = evaluator.#provenanceByList.get(value) ?? null;
+            const items = value.map(item => (item === null ? null : evaluator.#applyFields(node, fields, localNames, item)));
 
-            for (let index = 0; index < value.length; index++) {
-                const item = value[index];
-                const source = Object.freeze(item === null ? { kind: 'null' } : isOfReferences ? { kind: 'reference', value: item } : { kind: 'data', value: Evaluator.#frozenDataOf(item) });
-
-                items.push(item === null ? null : evaluator.#applyFields(node, fields, localNames, item));
-                sources.push(source);
-                provenance.push(inherited === null ? source : inherited[index]);
-            }
-
-            // A list is projected item by item, so each item keeps the input it came from and the provenance that input carried; two inputs can project to the same data, and one input can stand more than once.
-            evaluator.#sourcesByList.set(items, Object.freeze(sources));
-            evaluator.#provenanceByList.set(items, Object.freeze(provenance));
+            evaluator.#recordLineage(value, items, isOfReferences);
 
             return items;
         };
+    }
+
+    /**
+     * Records the lineage of a list projected item by item from the input: each item's source, the input item it came from, of the kind the input's established type gives it, and the provenance it inherits, the input's
+     * where a projection built the input and its own source otherwise. Two inputs can project to the same data, and one input can stand more than once, each occurrence keeping its own.
+     */
+    #recordLineage(input, projected, isOfReferences) {
+        const inherited = this.#provenanceByList.get(input) ?? null;
+        const sources = input.map(item => Object.freeze(item === null ? { kind: 'null' } : isOfReferences ? { kind: 'reference', value: item } : { kind: 'data', value: Evaluator.#frozenDataOf(item) }));
+
+        this.#sourcesByList.set(projected, Object.freeze(sources));
+        this.#provenanceByList.set(projected, Object.freeze(sources.map((source, index) => (inherited === null ? source : inherited[index]))));
     }
 
     /** The data as Lexica holds it, frozen throughout: the value itself where it is frozen already or is no object, and a frozen copy of its lists and objects otherwise. */
@@ -2197,6 +2195,11 @@ export class Evaluator {
                 throw error;
             }
 
+            // One of Lexica's own members refuses the values it is given with a failure of the language's, at the call.
+            if (error instanceof MemberFailure && this.#registry.getDeclaringModuleName(declaration) === Vocabulary.moduleName) {
+                this.#fail(error.code, error.message, this.#pointerOf(node));
+            }
+
             this.#fail('LEXICA5007', `${this.#subjectOf(declaration, node)} failed: ${Evaluator.#messageOf(error)}`, this.#pointerOf(node), { cause: error });
         } finally {
             // A function the member was given is called only while its invocation lasts.
@@ -2228,17 +2231,22 @@ export class Evaluator {
 
         const answered = copyStructure === null ? value : copyStructure(value);
 
-        // A filter's kept items keep the lineage they had in its receiver, as each item's own record already follows it.
-        if (takesReceiver && Vocabulary.keepsItemsInOrder(declaration)) {
+        // A member answering its receiver's items keeps the lineage each had there, as each item's own record already follows it; one answering a value for each item, as a projection does, records each item as its source.
+        if (takesReceiver && Vocabulary.answersReceiverItems(declaration)) {
             this.#realignLineage(receiver, value, answered);
+        } else if (takesReceiver && Vocabulary.projectsItems(declaration)) {
+            const itemType = this.#resolvedDefinition.resolutionOf(node)?.receiverType?.itemType ?? null;
+
+            this.#recordLineage(receiver, answered, itemType !== null && this.#registry.isReferenceType(itemType.toNonNullable()));
         }
 
         return answered;
     }
 
     /**
-     * Gives the list a filter answered, its copy where its items were copied, the sources and the provenance its receiver's items had, realigned in its order: each kept item is found in the receiver after the one before it,
-     * the first of equal items where several are, which a filter keeps or leaves alike. A receiver without either records nothing, and an answer no order of the receiver's items gives is left without them.
+     * Gives the list a member answered of its receiver's items, its copy where its items were copied, the sources and the provenance its receiver's items had, realigned in its order: each answered item is the first
+     * occurrence of it in the receiver no item before it took, so a filter, a partition, a reordering and a taking of distinct items alike realign, equal items standing for each other. A receiver without either records
+     * nothing, and an answer holding an item its receiver does not, or more often than it does, is left without them.
      */
     #realignLineage(receiver, kept, answered) {
         const sources = this.#sourcesByList.get(receiver) ?? null;
@@ -2248,19 +2256,20 @@ export class Evaluator {
             return;
         }
 
+        const unused = new Map();
+
+        receiver.forEach((item, index) => (unused.has(item) ? unused.get(item).push(index) : unused.set(item, [index])));
+
         const indexes = [];
-        let index = 0;
 
         for (const item of kept) {
-            while (index < receiver.length && receiver[index] !== item) {
-                index++;
-            }
+            const index = unused.get(item)?.shift();
 
-            if (index === receiver.length) {
+            if (index === undefined) {
                 return;
             }
 
-            indexes.push(index++);
+            indexes.push(index);
         }
 
         if (sources !== null) {
@@ -2725,10 +2734,15 @@ export class Evaluator {
         const record = this.#getExpressionRecord(node, candidate, selected?.declaration?.updates?.tolerance ?? null);
 
         // A filter's answer describes each item it kept as its receiver describes it, its items' records, sources and provenance realigned in its order, under the filter's own origin.
-        if (Array.isArray(value) && selected?.declaration !== undefined && Vocabulary.keepsItemsInOrder(selected.declaration)) {
+        if (Array.isArray(value) && selected?.declaration !== undefined && Vocabulary.answersReceiverItems(selected.declaration)) {
             const kept = this.#resolveRecord(Evaluator.#accessOf(node).receiver, value, identities, contextRecord);
 
             return kept.items === undefined ? record : Object.freeze({ ...kept, origin: record.origin, tolerance: record.tolerance });
+        }
+
+        // A selection's answer records each item it read as its source and the provenance that item carried, as a projection's does, its items described by the selection's own record.
+        if (Array.isArray(value) && selected?.declaration !== undefined && Vocabulary.projectsItems(selected.declaration) && identities?.sources != null) {
+            return Object.freeze({ ...record, sources: identities.sources, provenance: identities.provenance });
         }
 
         return record;

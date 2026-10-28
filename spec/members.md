@@ -361,7 +361,7 @@ Because the kind is part of the signature, resolution validates every kind befor
 
 ### Null arguments
 
-A parameter is declared either to propagate null, which is the default and makes the call answer null without running, or to accept null with a meaning of its own, as `hold` accepts a null `until` to mean until it is disposed. Resolution never rejects an evaluated argument for being nullable; it rejects a type that cannot match.
+A parameter is declared either to propagate null, which is the default and makes the call answer null without running, or to accept null with a meaning of its own, as `hold` accepts a null `until` to mean until it is disposed. An expression or a predicate parameter's policy is its body's of a null item: one that propagates null, the default, reads each item as a value that is not null, a null item answering null without the body being evaluated against it, and one that accepts null, as `select`'s does, evaluates its body against every item, its `it` of the item's type; a function of the item is called with each item as it is, whichever its policy. Resolution never rejects an evaluated argument for being nullable; it rejects a type that cannot match.
 
 Optional and nullable are separate. An optional parameter can be omitted; a nullable parameter can receive null. Unless a member's declaration marks a parameter optional, it is required. Omitting a required argument is a validation error, and supplying null follows the parameter's null policy.
 

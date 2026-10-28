@@ -597,7 +597,8 @@ export interface LexicaDeclarations {
     /** An indexer, given its key in brackets: a named one, `x.name[key]`, or, where its name is null, the unnamed one of its receivers, `x[key]`. */
     createIndexerDeclaration(name: string | null, result: string, options?: object): LexicaMemberDeclaration;
     createValueParameterDeclaration(name: string, type: string, options?: object): LexicaParameterDeclaration;
-    createExpressionParameterDeclaration(type: string, options?: object): LexicaParameterDeclaration;
+    /** An expression of each item, its `nulls` `'propagate'` by default, so a null item answers null without its body being evaluated, or `'accept'`, which evaluates its body against every item, its `it` of the item's type. */
+    createExpressionParameterDeclaration(type: string, options?: { nulls?: 'propagate' | 'accept' }): LexicaParameterDeclaration;
     createPredicateParameterDeclaration(options?: object): LexicaParameterDeclaration;
     /** A function parameter, always required: the types of the arguments the member calls its function with, in order, and the type of the result it takes from it. */
     createFunctionParameterDeclaration(name: string, type: string, parameterTypes: readonly string[]): LexicaParameterDeclaration;

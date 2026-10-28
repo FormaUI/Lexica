@@ -182,6 +182,28 @@ describe('result metadata', () => {
             expect(metadata.provenance).toEqual(references([parts[0], parts[0]]));
         });
 
+        it('meets the four-step chain written with select: each projection keeps its immediate sources, and the final items name their original references', () => {
+            const { value, metadata } = resolve('name.crowd.where(it.label == "a").select({ name = it.label }).select({ label = it.name })').evaluate();
+
+            expect(value).toEqual([{ label: 'a' }, { label: 'a' }]);
+            expect(metadata.sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'a' } }]);
+            expect(metadata.provenance).toEqual(references([parts[0], parts[0]]));
+            expect(resolve('name.crowd.select(it.label)').evaluate().metadata).toMatchObject({ sources: references([parts[0], parts[1], parts[0]]), provenance: references([parts[0], parts[1], parts[0]]) });
+        });
+
+        it("realigns each item's lineage through every member answering its receiver's items, reordered, partitioned or taken once each", () => {
+            const lineageOf = text => resolve(text).evaluate().metadata;
+            const projected = 'name.crowd { name = it.label }';
+
+            expect(lineageOf(`${projected}.reverse`).provenance).toEqual(references([parts[0], parts[1], parts[0]]));
+            expect(lineageOf(`${projected}.reverse`).sources).toEqual(references([parts[0], parts[1], parts[0]]));
+            expect(lineageOf('name.crowd { name = it.label } { label = it.name }.reverse').sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'b' } }, { kind: 'data', value: { name: 'a' } }]);
+            expect(lineageOf(`${projected}.drop(1)`).provenance).toEqual(references([parts[1], parts[0]]));
+            expect(lineageOf(`${projected}.takeWhile(it.name == "a")`).provenance).toEqual(references([parts[0]]));
+            expect(lineageOf(`${projected}.distinctBy(it.name)`).provenance).toEqual(references([parts[0], parts[1]]));
+            expect(lineageOf(`${projected}.concat(${projected})`).provenance).toBeUndefined();
+        });
+
         it('carries a null source as a recorded provenance entry, apart from absent provenance, data provenance as its frozen copy', () => {
             const { metadata } = resolve('name.sizes { width = it.width } { w = it.width }').evaluate();
 

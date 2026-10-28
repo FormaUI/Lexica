@@ -15,14 +15,17 @@ export class Declarations {
         return parameter;
     }
 
-    /** An expression parameter, evaluated against each item of the list it follows and producing the type. */
-    static createExpressionParameterDeclaration(type) {
-        return { name: 'expression', kind: 'expression', type, context: 'item', required: true, fixed: false, nulls: 'accept' };
+    /**
+     * An expression parameter, evaluated against each item of the collection it follows, a list's item or a dictionary's value, and producing the type. Its null policy says how a body reads a null item: `propagate`, the
+     * default, reads each item as a value that is not null, a null item answering null without the body being evaluated, and `accept` evaluates the body against every item, null included, its `it` of the item's type.
+     */
+    static createExpressionParameterDeclaration(type, { nulls = 'propagate' } = {}) {
+        return { name: 'expression', kind: 'expression', type, context: 'item', required: true, fixed: false, nulls };
     }
 
-    /** A required predicate parameter, an expression evaluated against each item whose truthiness its implementation receives. */
+    /** A required predicate parameter, an expression evaluated against each item whose truthiness its implementation receives, a null item answering null, which is falsy, without the body being evaluated. */
     static createPredicateParameterDeclaration() {
-        return { name: 'expression', kind: 'predicate', type: 'Boolean', context: 'item', required: true, fixed: false, nulls: 'accept' };
+        return { name: 'expression', kind: 'predicate', type: 'Boolean', context: 'item', required: true, fixed: false, nulls: 'propagate' };
     }
 
     /** A function parameter, always required: its callback contract, the types of the arguments the member calls the function with, in order, and the type of the result it takes from it. */

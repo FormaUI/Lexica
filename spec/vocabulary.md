@@ -17,13 +17,13 @@ In this document:
 
 ## Lexica's own vocabulary
 
-Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; and the conversions between the language's types of data, as operators of those types.
+Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-list-members"></a>
 
 ### List members
 
-A member following a list is a member of the list itself: `room.devices.count` counts the room's devices. Lexica's own module declares `count`, `first`, `last`, `max`, `min`, `sum` and `where`, and its unnamed indexer, and each reads and changes as the items it selects and the expression it evaluates do.
+A member following a list is a member of the list itself: `room.devices.count` counts the room's devices. Lexica's own module declares the members below, and its unnamed indexer, and each reads and changes as the items it selects and the expression it evaluates do.
 
 | List member | Contract |
 | --- | --- |
@@ -31,12 +31,28 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | `first`, `last` | The first or the last item, null for an empty list |
 | The unnamed indexer, `[index]` | The item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0` |
 | `where` | The items its predicate is truthy for, in the list's order, leaving out an item whose predicate is null or false; the predicate may produce any value |
-| `max`, `min`, `sum` | Evaluate a number expression against each item and require `Number?` |
+| `max`, `min`, `sum`, `average` | Evaluate a number expression against each item and require `Number?`; `average` the mean of the numbers |
 | `entry[index]` | The item at the index as a `Pair<Number, T>`, its index and the item, null wherever the unnamed indexer answers null for an index the list has no item at |
+| `select(expression)` | A `List<U>`, the expression's value for every item in order, a null item among them, the expression's `it` of the item's type, so `items.select(it)` keeps the list and `items.select(it ?? 0)` replaces its nulls |
+| `selectMany(expression)` | A `List<U>`, the lists the expression gives the items joined in order; an item's list that is null, a null item's among them, is refused (LEXICA5031), never treated as empty |
+| `concat(other)` | The items, then those of `other`, a `List<T>` of the receiver's `T`, which a later argument never widens |
+| `flatten` | On a `List<List<T>>`, the items of each inner list in order, a list whose inner lists can be null having none |
+| `take(count)`, `drop(count)` | The items at an index less than the count, and those at the count or past it, whatever number the count is: one past the end takes or leaves every item, and one of zero or less none |
+| `takeWhile`, `dropWhile` | The items before the first its predicate is falsy for, and the items from that one on, the predicate evaluated against none after it |
+| `any`, `all` | Whether its predicate is truthy for some item, false for none and stopping at the first it is truthy for, and whether for every item, true for none and stopping at the first it is not |
+| `contains(value)` | Whether an item equals the value by [key equality](types.md#types-dictionaries-and-pairs), stopping at the first that does, null equal to a null item |
+| `single` | The one item, null for an empty list, and refused for a list of several (LEXICA5030) |
+| `minBy`, `maxBy` | The first item whose number is the least or the greatest, items whose number is null skipped, null where none gives one |
+| `distinct`, `distinctBy(expression)` | Each item's first occurrence, in order, items compared by key equality; and each key's first item, its key the expression's value, keys compared alike |
+| `reverse` | The items in the opposite order |
+| `toDictionary(expression)` | A `Dictionary<K, T>` of the items by the key the expression gives each, in the items' order, two items of one key refused (LEXICA5029), which `groupBy` collects instead |
+| `groupBy(expression)` | A `Dictionary<K, List<T>>` of the items by their keys, each key's items in their order, the keys in the order their first items stand |
 
-`where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`.
+`where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`. A key `toDictionary`, `groupBy` or `distinctBy` gives is of a key type, `K` its expression's type, so keys of another type are refused where they are resolved (LEXICA3083).
 
-Aggregates consume null per item rather than propagating it to the entire call. `max` and `min` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Thus `room.devices.max(it.battery)` and `Home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
+An item's body reads the item as a value that is not null, as an object projection reads it, so a null item answers null and the body is never evaluated against it: `where`, `takeWhile`, `dropWhile`, `any` and `all` find null falsy, the aggregates skip it, and `toDictionary` and `groupBy` key it by null. `select` alone evaluates its body against every item, its `it` the item's type, null included. A function of the item is called with each item as it is, whichever member it is given to.
+
+Aggregates consume null per item rather than propagating it to the entire call. `max`, `min` and `average` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Each member evaluates its expression or its predicate at most once for each item it visits, and a member that stops at a decisive item evaluates none after it. Thus `room.devices.max(it.battery)` and `Home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
 
 An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
 
@@ -54,6 +70,10 @@ A member following a dictionary is a member of the dictionary itself, and each r
 | `containsKey(key)` | Whether the dictionary holds the key, a key whose value is null among them |
 | `keys`, `values` | The keys, a `List<K>`, and the values, a `List<V>`, in the entries' order |
 | `entries` | The entries, a `List<Pair<K, V>>`, in their order |
+| `where` | The entries whose value its predicate is truthy for, a `Dictionary<K, V>`, each keeping its key and its place |
+| `select(expression)` | A `Dictionary<K, U>`, each entry's value replaced by the expression's, every value null included, each keeping its key and its place |
+
+A dictionary's value operations read each entry's value as their `it`, so `prices.where(it > 2)` keeps the entries of prices above 2; an operation needing the key reads the `entries`, as `prices.entries.where(it.key != "tea")` does.
 
 A pair's `key` and `value` read its two parts, of its `K` and its `V`.
 

@@ -7,7 +7,7 @@ describe('Vocabulary', () => {
     const registry = new LexicaRegistry([Vocabulary.module]);
     const { module } = Vocabulary;
     const list = Vocabulary.getTypeDeclaration('List');
-    const [verbs] = module.types;
+    const [verbs, nestedLists] = module.types;
 
     /** What the implementation of a list's member or a verb answers for its receiver and its arguments. */
     const read = (name, receiver, args = {}) => [...list.members, ...verbs.members].find(member => member.name === name).impl({ receiver, args, env: {} });
@@ -56,17 +56,27 @@ describe('Vocabulary', () => {
 
     it('declares the members of lists, the verbs that test a receiver, and the conversion operators of strings, numbers and Booleans, and nothing of any domain', () => {
         // The unnamed indexer has no name, and is written as its access is, brackets after the list; the members of lists read the list's T, and the verbs their extension's, the receiver's own type.
-        expect(list.members.map(writtenOf)).toEqual(['List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.entry']);
-        expect(Vocabulary.getTypeDeclaration('Dictionary').members.map(writtenOf)).toEqual(['Dictionary<K, V>.count', 'Dictionary<K, V>[]', 'Dictionary<K, V>.entry', 'Dictionary<K, V>.containsKey', 'Dictionary<K, V>.keys', 'Dictionary<K, V>.values', 'Dictionary<K, V>.entries']);
+        expect(list.members.map(writtenOf)).toEqual([
+            'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.select', 'List<T>.selectMany', 'List<T>.concat', 'List<T>.take', 'List<T>.drop',
+            'List<T>.takeWhile', 'List<T>.dropWhile', 'List<T>.any', 'List<T>.all', 'List<T>.contains', 'List<T>.single', 'List<T>.average', 'List<T>.minBy', 'List<T>.maxBy', 'List<T>.distinct', 'List<T>.distinctBy',
+            'List<T>.reverse', 'List<T>.toDictionary', 'List<T>.groupBy', 'List<T>.entry',
+        ]);
+        expect(Vocabulary.getTypeDeclaration('Dictionary').members.map(writtenOf)).toEqual(['Dictionary<K, V>.count', 'Dictionary<K, V>[]', 'Dictionary<K, V>.entry', 'Dictionary<K, V>.containsKey', 'Dictionary<K, V>.keys', 'Dictionary<K, V>.values', 'Dictionary<K, V>.entries', 'Dictionary<K, V>.where', 'Dictionary<K, V>.select']);
+        // A list of lists alone flattens, through an extension of Lexica's own value type its own declaration's receiver is too wide for.
+        expect(nestedLists).toMatchObject({ name: 'NestedListExtensions', kind: 'extension', typeParameters: ['T'], target: 'List<List<T>>' });
+        expect(nestedLists.members.map(writtenOf)).toEqual(['List<List<T>>.flatten']);
         expect(Vocabulary.getTypeDeclaration('Pair').members.map(writtenOf)).toEqual(['Pair<K, V>.key', 'Pair<K, V>.value']);
         // A dictionary's key parameter consumes null, which reads the null key or an absent one.
         expect(Vocabulary.getTypeDeclaration('Dictionary').members[1].parameters[0]).toMatchObject({ name: 'key', type: 'K?', nulls: 'accept' });
-        expect(Vocabulary.keepsItemsInOrder(list.members.find(member => member.name === 'where'))).toBe(true);
-        expect(list.members.filter(member => member.name !== 'where').some(member => Vocabulary.keepsItemsInOrder(member))).toBe(false);
+        // The members answering their receiver's items keep each item's lineage, and select records each item as its source, as a projection does.
+        const keeping = ['where', 'take', 'drop', 'takeWhile', 'dropWhile', 'distinct', 'distinctBy', 'reverse'];
+
+        expect(list.members.filter(member => Vocabulary.answersReceiverItems(member)).map(member => member.name)).toEqual(keeping);
+        expect(list.members.filter(member => Vocabulary.projectsItems(member)).map(member => member.name)).toEqual(['select']);
         expect(verbs).toMatchObject({ name: 'VerbExtensions', kind: 'extension', typeParameters: ['T'], target: 'T' });
         expect(verbs.members.map(writtenOf)).toEqual(['T.is', 'T.has', 'T.supports']);
         expect(conversions.map(operator => registry.formatOperator(operator))).toEqual(['Number to String', 'String to Number', 'String to Boolean', 'Boolean to String']);
-        expect([module.types.length, module.members]).toEqual([1, []]);
+        expect([module.types.length, module.members]).toEqual([2, []]);
         expect(module.observationTypes).toEqual([]);
         expect([module.typeSelectors, module.mappings]).toEqual([[], []]);
     });

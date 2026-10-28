@@ -1967,6 +1967,11 @@ export class LanguageResolver {
         };
         const type = receiver?.isNullable === true || resolved.isNullable ? declared.toNullable() : declared;
 
+        // A dictionary a call answers keys its entries by a key type, which a type parameter its arguments bind may leave it without.
+        if (declared.isDictionary && !this.#registry.isKeyType(declared.typeArguments[0])) {
+            this.#fail('LEXICA3083', `'${name}' answers a dictionary keyed by ${declared.typeArguments[0]}, and a dictionary's keys are scalars, references or null`, pointer);
+        }
+
         return { result: { type, kind: LanguageResolver.#getResultKind(declaration), isFixed: false, ...(declaration.result === undefined ? { suppliesNothing: true } : {}) }, resolution, use: { declaration, qualifiedName: name, pointer } };
     }
 
@@ -2625,14 +2630,14 @@ export class LanguageResolver {
                 const isOfUnknownType = receiverType === null || LanguageResolver.#isNullOrNever(receiverType);
 
                 if (receiverType === null) {
-                    this.#fail('LEXICA3500', `'${LexicaModule.writtenNameOf(declaration)}' evaluates its expression against the items of the list it follows, and a module member follows none`, valuePointer);
+                    this.#fail('LEXICA3500', `'${LexicaModule.writtenNameOf(declaration)}' evaluates its expression against the items of the collection it follows, and a module member follows none`, valuePointer);
                 }
 
-                if (!receiverType.isList && !isOfUnknownType) {
-                    this.#fail('LEXICA3500', `'${LexicaModule.writtenNameOf(declaration)}' evaluates its expression against the items of a list, and ${receiverType.toNonNullable()} has none`, valuePointer);
+                if (receiverType.itemContextType === null && !isOfUnknownType) {
+                    this.#fail('LEXICA3500', `'${LexicaModule.writtenNameOf(declaration)}' evaluates its expression against the items of a list or the values of a dictionary, and ${receiverType.toNonNullable()} has none`, valuePointer);
                 }
 
-                const itemType = isOfUnknownType ? Type.never : receiverType.itemType;
+                const itemType = isOfUnknownType ? Type.never : receiverType.itemContextType;
 
                 ({ result, callback } = this.#resolveItemArgument(given.node, valuePointer, { ...argumentScope, facts: scope.facts }, parameter, declaration, itemType, expected));
                 addCallbackEvidence(parameter, result, callback);
@@ -2984,7 +2989,7 @@ export class LanguageResolver {
      * each item, its `it`, which it reads or not, so a body reading no `it` gives each item the same value. Either is a callback of that contract, which the member calls with one item while its own invocation lasts.
      */
     #resolveItemArgument(node, pointer, scope, parameter, declaration, itemType, expected) {
-        // A function of the item is called with each item as it is, null among them where the list holds nulls, while a body reads each item as a value that is not.
+        // A function of the item is called with each item as it is, null among them where the list holds nulls, while a body reads each item as a value that is not, unless its parameter accepts null items.
         // An expression whose result writes a parameter nothing bound yet takes any value, which then binds it.
         const contract = { memberName: LexicaModule.writtenNameOf(declaration), parameterName: parameter.name, parameterTypes: [itemType], resultType: parameter.kind === 'expression' && !LanguageResolver.#holdsTypeParameter(expected) ? expected : null };
         let result;
@@ -2997,7 +3002,7 @@ export class LanguageResolver {
             // Whether the argument reads its own implicit parameter, which its own context key identifies; it holds no syntax of the body.
             const argumentBody = { key: {}, isRead: false };
 
-            result = this.#resolveNode(node, pointer, { ...scope, contextType: itemType.toNonNullable(), contextKey: argumentBody.key, argumentBody });
+            result = this.#resolveNode(node, pointer, { ...scope, contextType: parameter.nulls === 'accept' ? itemType : itemType.toNonNullable(), contextKey: argumentBody.key, argumentBody });
 
             if (result.type.kind === 'function' && argumentBody.isRead) {
                 this.#fail('LEXICA3074', `The expression of '${LexicaModule.writtenNameOf(declaration)}' reads each item as 'it' and gives a function; a function of the item is written as the argument itself, as ${declaration.name}(x => …)`, pointer);
