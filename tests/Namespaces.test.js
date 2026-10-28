@@ -70,7 +70,7 @@ describe("a script's imports", () => {
         const text = 'import shop\n{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }';
         const formatted = lexica.format(text);
 
-        expect(lexica.parse('import shop\nshop.open')).toEqual({ version: 34, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
+        expect(lexica.parse('import shop\nshop.open')).toEqual({ version: 35, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
         expect(formatted).toBe('import shop\n\n{\n    let shop = 2,\n    local = @shop,\n    parameter = ~shop,\n    namespace = shop.open\n}');
         expect(lexica.parse(formatted)).toEqual(lexica.parse(text));
         expect(lexica.format(formatted)).toBe(formatted);
@@ -78,10 +78,10 @@ describe("a script's imports", () => {
     });
 
     it("write a definition's script parameter named after a namespace its imports give as they read it, a definition created directly among them", () => {
-        const definition = lexica.validate({ version: 34, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
+        const definition = lexica.validate({ version: 35, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
 
-        expect(lexica.format({ version: 34, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
-        expect(lexica.format({ version: 34, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
+        expect(lexica.format({ version: 35, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
+        expect(lexica.format({ version: 35, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
         expect(lexica.parse(lexica.format(definition))).toEqual(definition);
     });
 

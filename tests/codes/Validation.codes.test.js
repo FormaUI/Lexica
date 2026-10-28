@@ -137,10 +137,10 @@ describe('the codes of resolution', () => {
             expect(refusalOf('let q = 1\nreturn ~q', values).message).toContain("and '~q' reads a script parameter alone: write 'q' for the local, object field, conditional binding or function parameter of that name");
         });
         it('LEXICA3051, a script parameter the host did not bind, written with ~ where no local has its name', () => expectResolutionCode('~nobody', 'LEXICA3051'));
-        it('LEXICA3051, a definition\'s script parameter the host did not bind', () => expectResolutionCode({ version: 34, imports: [], expression: { kind: 'scriptParameter', name: 'nobody' } }, 'LEXICA3051'));
+        it('LEXICA3051, a definition\'s script parameter the host did not bind', () => expectResolutionCode({ version: 35, imports: [], expression: { kind: 'scriptParameter', name: 'nobody' } }, 'LEXICA3051'));
         it('LEXICA3010, it within an argument where nothing gives it a value', () => expectResolutionCode('xs.where(x => it)', 'LEXICA3010'));
-        it('LEXICA2012, a definition\'s local no local in scope answers', () => expectResolutionCode({ version: 34, imports: [], expression: { kind: 'local', name: 'q' } }, 'LEXICA2012', 'structure'));
-        it('LEXICA2018, root outside every object expression', () => expectResolutionCode({ version: 34, imports: [], expression: { kind: 'root' } }, 'LEXICA2018', 'structure'));
+        it('LEXICA2012, a definition\'s local no local in scope answers', () => expectResolutionCode({ version: 35, imports: [], expression: { kind: 'local', name: 'q' } }, 'LEXICA2012', 'structure'));
+        it('LEXICA2018, root outside every object expression', () => expectResolutionCode({ version: 35, imports: [], expression: { kind: 'root' } }, 'LEXICA2018', 'structure'));
     });
 
     describe('members', () => {

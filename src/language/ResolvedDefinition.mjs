@@ -219,6 +219,12 @@ export class ResolvedDefinition {
             case 'call':
                 node.arguments.forEach((argument, index) => this.#index(argument, `${pointer}/arguments/${index}`));
                 break;
+            case 'list':
+                node.items.forEach((item, index) => this.#index(item, `${pointer}/items/${index}`));
+                break;
+            case 'dictionary':
+                node.entries.forEach((entry, index) => this.#index(entry.value, `${pointer}/entries/${index}/value`));
+                break;
             case 'interpolatedString':
                 node.parts.forEach((part, index) => {
                     if (part.kind === 'expression') {

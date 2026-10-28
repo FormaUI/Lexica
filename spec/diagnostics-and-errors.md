@@ -134,6 +134,9 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA1041` | A line break inside a one-line construct, as between `.` and a member's name, or between `let` and its local's name | A syntax error naming the construct and what must share its line, and giving the form joined |
 | `LEXICA1042` | A line break before a binary operator whose expression is not enclosed | A syntax error saying a line breaks before an operator only inside parentheses, brackets or a condition |
 | `LEXICA1064` | A line break after a binary operator | A syntax error saying a line breaks before an operator, never after it |
+| `LEXICA1066` | A dictionary key that is no inline string literal, as `[name = 1]`, an interpolated string or a block string | A syntax error at the key, giving the literal key for a name and `toDictionary` for a computed key |
+| `LEXICA1067` | Keyed and unkeyed entries mixed in one collection expression | A syntax error at the first entry of the other kind |
+| `LEXICA1068` | An item left out between the commas of a collection expression, as `[1, , 2]` | A syntax error at the comma |
 | `LEXICA1043` | A conditional, a `do` block or a function expression spanning lines outside block form, or followed on its `end`'s line by anything but closing punctuation | A syntax error giving its block form |
 | `LEXICA1044` | An import, a script's body after its imports, or a local or `return` of a body that uses `return`, sharing its line with earlier code | A syntax error saying it starts on a line of its own |
 | `LEXICA1045` | `import` anywhere but a script's start, as after its first local or expression | A syntax error saying imports stand at the start of the script |
@@ -185,6 +188,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA2021` | A bound list whose items share no type, as `[1, "two"]` | A structure error naming the binding |
 | `LEXICA2041` | A bound map holding a key that is no key type, a list, an object, a structured value, a dictionary or a pair | A structure error naming the binding and the key's type |
 | `LEXICA2042` | A bound map whose keys, or whose values, share no type | A structure error naming the binding and which of them |
+| `LEXICA2043` | Two entries of one dictionary a collection expression writes sharing a key, compared exactly | A structure error at the later entry, naming the key |
 | `LEXICA2022` | A bound value holding a cycle | A structure error of its own naming the binding |
 | `LEXICA2023` | A declared binding type that is not a reference type | A structure error naming the binding |
 | `LEXICA2038` | A type declared for a value that is not a reference | A structure error naming the binding |
@@ -401,6 +405,8 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3042` | A receiver, an argument, an expression or a binding of the wrong type | A validation error naming where, the expected type and the type found |
 | `LEXICA3079` | An argument of the wrong kind | A validation error naming the argument and the kind it takes |
 | `LEXICA3080` | A missing required argument | A validation error naming the argument |
+| `LEXICA3081` | A collection expression whose items, or whose dictionary's values, share no type | A validation error naming the types |
+| `LEXICA3082` | A function as a collection expression's item or value | A validation error at the item, saying a collection holds data and references |
 | `LEXICA3043` | A result that would contain a reference value | A validation error |
 | `LEXICA3044` | An object field read through `root` whose initializer has not completed where `root` is written | A validation error naming the object fields completed there |
 | `LEXICA3045` | A conditional or a coalescing operator choosing between `root` references of different object roots or object field sets | A validation error naming them |

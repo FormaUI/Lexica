@@ -216,6 +216,13 @@ export class LanguageResolver {
                 this.#requireNumber(this.#resolveNode(node.operand, `${pointer}/operand`, scope), "What '-' negates", `${pointer}/operand`);
 
                 return { type: Type.createNamedType('Number'), kind: 'value', isFixed: false };
+            case 'list':
+                return { type: Type.createListType(this.#resolveCollectionItems(node.items.map((item, index) => ({ node: item, pointer: `${pointer}/items/${index}` })), scope, pointer, "A list's items")), kind: 'value', isFixed: false };
+            case 'dictionary': {
+                const values = node.entries.map((entry, index) => ({ node: entry.value, pointer: `${pointer}/entries/${index}/value` }));
+
+                return { type: Type.createDictionaryType(Type.createNamedType('String'), this.#resolveCollectionItems(values, scope, pointer, "A dictionary's values")), kind: 'value', isFixed: false };
+            }
             case 'interpolatedString':
                 node.parts.forEach((part, index) => {
                     if (part.kind === 'expression') {
@@ -781,6 +788,36 @@ export class LanguageResolver {
         this.#resolutions.set(pointer, { kind: 'conversion', declaration: declaration ?? null, type: to });
 
         return { type: from.isNullable ? to.toNullable() : to, kind: 'value', isFixed: false };
+    }
+
+    /**
+     * Resolves a collection expression's items, a list's or a dictionary's values, in order, and answers the type they merge to, a never where it holds none: each is a value, never a host call (LEXICA3048) nor a function,
+     * since a collection holds data and references (LEXICA3082), and items of no common type are refused (LEXICA3081), never widened to Any.
+     */
+    #resolveCollectionItems(parts, scope, pointer, subject) {
+        const types = [];
+        let merged = Type.never;
+
+        for (const part of parts) {
+            const result = this.#resolveNode(part.node, part.pointer, scope);
+
+            if (result.kind !== 'value') {
+                this.#fail('LEXICA3048', `${subject} are values, and this one is ${LanguageResolver.#descriptionOf(result.kind)}`, part.pointer);
+            }
+
+            if (LanguageResolver.#heldReferenceOf(result.type) === 'function') {
+                this.#fail('LEXICA3082', `${subject} are data and references, and this one holds a function, which a collection never does: call it, and hold what it answers`, part.pointer);
+            }
+
+            types.push(result.type);
+            merged = merged === null ? null : this.#typeChecker.merge(merged, result.type);
+        }
+
+        if (merged === null) {
+            this.#fail('LEXICA3081', `${subject} share no type: ${[...new Set(types.map(type => String(type)))].join(', ')}`, pointer);
+        }
+
+        return merged;
     }
 
     /** The scope a conditional binding's consequent is resolved in: the scope around it, with the binding's name a local holding its value, of the result given. */

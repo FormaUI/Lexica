@@ -163,6 +163,15 @@ export class Lowering {
                 return this.#lowerChain(child);
             case 'object':
                 return this.#lowerObject(child, undefined, SyntaxTree.startOf(child));
+            case 'list-expression':
+                // A list's items in the order written, the commas between them left out.
+                return this.#span({ kind: 'list', items: children.slice(1, -1).filter(part => !(SyntaxTree.isToken(part) && part.type === ',')).map(item => this.#lower(item)) }, child);
+            case 'dictionary-expression':
+                // A dictionary's entries in the order written, each its key's string and its value, which spans from its key; `[=]` holds none.
+                return this.#span({
+                    kind: 'dictionary',
+                    entries: children.filter(part => part.kind === 'dictionary-entry').map(entry => this.#span({ key: entry.children[0].value, value: this.#lower(entry.children[2]) }, entry)),
+                }, child);
             case 'interpolated-string':
                 // Its text and its interpolations in the order written, each run of text the characters it stands for; a run that stands for none, a block's margin before an interpolation, is no part.
                 return this.#span({

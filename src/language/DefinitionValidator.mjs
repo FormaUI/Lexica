@@ -23,6 +23,8 @@ const NODE_PROPERTIES = {
     call: { properties: ['kind', 'callee', 'arguments'], required: ['callee', 'arguments'] },
     indexerAccess: { properties: ['kind', 'receiver', 'optional', 'argument', 'extension'], required: ['receiver', 'argument'] },
     object: { properties: ['kind', 'context', 'locals', 'objectFields'], required: ['objectFields'] },
+    list: { properties: ['kind', 'items'], required: ['items'] },
+    dictionary: { properties: ['kind', 'entries'], required: ['entries'] },
     optionalChain: { properties: ['kind', 'chain'], required: ['chain'] },
     equality: { properties: ['kind', 'left', 'right'], required: ['left', 'right'] },
     comparison: { properties: ['kind', 'operands', 'operators'], required: ['operands', 'operators'] },
@@ -49,7 +51,10 @@ const CHAIN_KINDS = new Set(['memberAccess', 'call', 'indexerAccess', 'object'])
  * The kinds of node a cast's operand starts from, its receiver, as text writes one: an input, a namespace's member, a call of the function a name holds and an object expression following no value among them, or a grouped
  * cast.
  */
-const CAST_RECEIVER_KINDS = new Set(['it', 'scriptParameter', 'root', 'namespace', 'local', 'literal', 'interpolatedString', 'call', 'object', 'cast']);
+const CAST_RECEIVER_KINDS = new Set(['it', 'scriptParameter', 'root', 'namespace', 'local', 'literal', 'interpolatedString', 'call', 'object', 'list', 'dictionary', 'cast']);
+
+/** The keys a dictionary's entry holds, both written: its key, the string its key literal writes, and its value. */
+const DICTIONARY_ENTRY_PROPERTIES = { properties: ['key', 'value'], required: ['key', 'value'] };
 
 /** The properties an extension selection holds: the extension's name, as written, and its module's local name, where it qualifies it. */
 const EXTENSION_PROPERTIES = { properties: ['name', 'module'], required: ['name'] };
@@ -240,7 +245,7 @@ export class DefinitionValidator {
         }
 
         if (!ObjectUtils.isNonArrayObject(node) || !Object.hasOwn(NODE_PROPERTIES, node.kind)) {
-            this.#fail('LEXICA2000', 'A node is an object whose kind is literal, scriptParameter, it, root, namespace, local, memberAccess, call, indexerAccess, object, optionalChain, equality, comparison, interpolatedString, body, do, function, arithmetic, arithmeticNegation, conditional, coalescing, not, cast, conversion, try, and or or', pointer);
+            this.#fail('LEXICA2000', 'A node is an object whose kind is literal, scriptParameter, it, root, namespace, local, memberAccess, call, indexerAccess, object, list, dictionary, optionalChain, equality, comparison, interpolatedString, body, do, function, arithmetic, arithmeticNegation, conditional, coalescing, not, cast, conversion, try, and or or', pointer);
         }
 
         this.#requireProperties(node, pointer, NODE_PROPERTIES[node.kind]);
@@ -325,6 +330,10 @@ export class DefinitionValidator {
                 return this.#validateComparison(node, pointer, contextAvailability);
             case 'interpolatedString':
                 return this.#validateInterpolatedString(node, pointer, contextAvailability);
+            case 'list':
+                return this.#validateList(node, pointer, contextAvailability);
+            case 'dictionary':
+                return this.#validateDictionary(node, pointer, contextAvailability);
             case 'arithmetic':
                 if (!ARITHMETIC_OPERATORS.includes(node.operator)) {
                     this.#fail('LEXICA2000', `An arithmetic operator is ${ARITHMETIC_OPERATORS.join(', ')}`, `${pointer}/operator`);
@@ -496,6 +505,46 @@ export class DefinitionValidator {
         } finally {
             this.#simpleExpression = enclosingSimpleExpression;
         }
+    }
+
+    /** Validates a list a collection expression writes: its items, a list, each a simple expression, which evaluates against the implicit parameter around it. */
+    #validateList(node, pointer, contextAvailability) {
+        if (!Array.isArray(node.items)) {
+            this.#fail('LEXICA2000', "A list's items are a list of nodes, in order", `${pointer}/items`);
+        }
+
+        return Object.freeze({ kind: 'list', items: Object.freeze(node.items.map((item, index) => this.#validateSimpleExpression(item, `${pointer}/items/${index}`, contextAvailability, "A list's item"))) });
+    }
+
+    /**
+     * Validates a dictionary a collection expression writes: its entries, a list, each its key, a string, and its value, a simple expression, no two of one key, compared exactly, which its later entry is refused for
+     * (LEXICA2043).
+     */
+    #validateDictionary(node, pointer, contextAvailability) {
+        if (!Array.isArray(node.entries)) {
+            this.#fail('LEXICA2000', "A dictionary's entries are a list, each its key and its value, in order", `${pointer}/entries`);
+        }
+
+        const keys = new Set();
+        const entries = node.entries.map((entry, index) => {
+            const entryPointer = `${pointer}/entries/${index}`;
+
+            this.#requireProperties(entry, entryPointer, DICTIONARY_ENTRY_PROPERTIES);
+
+            if (typeof entry.key !== 'string') {
+                this.#fail('LEXICA2000', "A dictionary entry's key is a string, which a collection expression writes as an inline string literal", `${entryPointer}/key`);
+            }
+
+            if (keys.has(entry.key)) {
+                this.#fail('LEXICA2043', `A dictionary holds each key once, and ${JSON.stringify(entry.key)} is the key of an entry before this one`, entryPointer);
+            }
+
+            keys.add(entry.key);
+
+            return Object.freeze({ key: entry.key, value: this.#validateSimpleExpression(entry.value, `${entryPointer}/value`, contextAvailability, "A dictionary's value") });
+        });
+
+        return Object.freeze({ kind: 'dictionary', entries: Object.freeze(entries) });
     }
 
     /** Whether the name is a type's as a cast or a conversion writes it: its local name, or its module's name, a dot and its local name, each an identifier. */

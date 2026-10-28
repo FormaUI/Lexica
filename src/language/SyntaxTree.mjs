@@ -14,6 +14,9 @@
 export const SYNTAX_NODE_KINDS = Object.freeze([
     'script',
     'import-declaration',
+    'list-expression',
+    'dictionary-expression',
+    'dictionary-entry',
     'conditional-expression',
     'body',
     'do-expression',

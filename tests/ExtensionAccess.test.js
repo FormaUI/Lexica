@@ -129,7 +129,7 @@ describe('extension access', () => {
             expect(refusal('fan:Home.Device.usage')).toMatchObject({ code: 'LEXICA3026', message: expect.stringContaining("'Home.Device' names no extension; 'Home.Device' is an ordinary type") });
             expect(refusal('fan:Device.usage', ['Home'])).toMatchObject({ code: 'LEXICA3005', message: expect.stringContaining("declared only by 'Energy' and 'Solar', which the script does not import: write 'import Energy' or 'import Solar'") });
 
-            const definition = { version: 34, imports: [{ module: 'Home' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'Home' }, name: 'find', extension: { name: 'Device' } } };
+            const definition = { version: 35, imports: [{ module: 'Home' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'Home' }, name: 'find', extension: { name: 'Device' } } };
 
             expect(refusal(definition)).toMatchObject({ code: 'LEXICA3026', location: { pointer: '/expression/extension' } });
         });

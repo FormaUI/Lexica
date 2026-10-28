@@ -708,6 +708,7 @@ A **simple expression** is an expression allowed in a delimited value position:
 - An indexer's key.
 - The name expression in computed property access.
 - An interpolation in an interpolated string.
+- A collection expression's item, or a dictionary entry's value.
 
 Simple expressions include values, references, arithmetic, comparisons, logical expressions, property accesses, indexers, function calls, and object expressions or interpolated strings whose contents are also simple. They also include a simple conditional: one `if` branch and one `else` branch, each containing one simple value.
 
@@ -739,7 +740,7 @@ A function declaration is a syntax error there, as anywhere a function stands ot
 
 ### Recursive restrictions
 
-The restrictions apply through parentheses, conditional tests and branches, nested calls, indexers, computed property access, object fields and interpolations. Adding parentheses or line breaks does not change them.
+The restrictions apply through parentheses, conditional tests and branches, nested calls, indexers, computed property access, object fields, collection expressions and interpolations. Adding parentheses or line breaks does not change them.
 
 `calculate((do 10 end))` is refused. `calculate((if metered then 10 else 20 end))` is allowed.
 

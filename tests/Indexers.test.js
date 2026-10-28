@@ -65,7 +65,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses an indexer node holding a name, and a definition of version 32', () => {
-            const named = { version: 34, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
+            const named = { version: 35, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
 
             expect(errorThrownBy(() => lexica.validate(named))).toMatchObject({ kind: 'structure' });
             expect(errorThrownBy(() => lexica.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });

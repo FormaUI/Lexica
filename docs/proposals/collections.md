@@ -57,7 +57,7 @@ The design comes in four parts, each settled, specified and implemented in turn:
 
     Each final item retains enough provenance for a host to recognize its original reference source, while each projection's `sources` still records its actual immediate input. Lineage need not retain every intermediate object or the whole history of every transformation.
 11. **Full scope, staged.** Collection expressions, ranges and slicing are planned work, delivered in the parts above, never dropped.
-12. **Collection expressions.** The written form decides the kind a collection expression constructs, and its context never changes what it constructs:
+12. **Collection expressions.** ✅ Specified in [collection expressions](../../spec/values.md#lists-collection-expressions) and implemented as definition version 35, as [I36](implementation-decisions.md) records. The written form decides the kind a collection expression constructs, and its context never changes what it constructs:
 
     ```text
     [10, 20, 30]                 // List<Number>

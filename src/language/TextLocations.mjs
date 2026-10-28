@@ -137,7 +137,12 @@ export class TextLocations {
             node.arguments.forEach((argument, index) => this.#collect(argument, `${pointer}/arguments/${index}`, spans));
         }
 
-        for (const entriesProperty of ['locals', 'objectFields']) {
+        if (node.kind === 'list') {
+            node.items.forEach((item, index) => this.#collect(item, `${pointer}/items/${index}`, spans));
+        }
+
+        // An object expression's locals and object fields, and a dictionary's entries, each spanning its head and its value.
+        for (const entriesProperty of ['locals', 'objectFields', 'entries']) {
             node[entriesProperty]?.forEach((entry, index) => {
                 const entryPointer = `${pointer}/${entriesProperty}/${index}`;
                 const entrySpan = spans.get(entry);

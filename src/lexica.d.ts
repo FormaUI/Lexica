@@ -58,6 +58,10 @@ export type LexicaDefinitionNode =
     | { readonly kind: 'call'; readonly callee: LexicaDefinitionMemberAccess | { readonly kind: 'local'; readonly name: string }; readonly arguments: readonly LexicaDefinitionNode[] }
     | { readonly kind: 'indexerAccess'; readonly receiver: LexicaDefinitionNode; readonly argument: LexicaDefinitionNode; readonly optional?: true; readonly extension?: LexicaDefinitionExtension }
     | { readonly kind: 'object'; readonly context?: LexicaDefinitionNode; readonly locals?: readonly LexicaDefinitionLocal[]; readonly objectFields: readonly LexicaDefinitionObjectField[] }
+    /** A list a collection expression writes: its items in order. */
+    | { readonly kind: 'list'; readonly items: readonly LexicaDefinitionNode[] }
+    /** A dictionary a collection expression writes: its entries in the order written, each its key's string and its value, no two of one key. */
+    | { readonly kind: 'dictionary'; readonly entries: readonly { readonly key: string; readonly value: LexicaDefinitionNode }[] }
     | { readonly kind: 'optionalChain'; readonly chain: LexicaDefinitionNode }
     | { readonly kind: 'coalescing'; readonly value: LexicaDefinitionNode; readonly fallback: LexicaDefinitionNode }
     | { readonly kind: 'not'; readonly operand: LexicaDefinitionNode }

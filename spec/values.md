@@ -96,6 +96,30 @@ Where a conditional or `??` can give either of two references, both must refer t
 - An object expression following a list applies to each item and answers a list of the same length, in the same order; an item that is null answers null at its position, so over a list whose items can be null it answers a list of objects that can be null: `xs { a = 1 }` over a `List<Device?>` is a `List<{ a: Number }?>`.
 - A member following a list is a member of the list itself, as [list members](vocabulary.md#vocabulary-list-members) set out: `room.devices.count` counts the room's devices.
 
+<a id="lists-collection-expressions"></a>
+
+### Collection expressions
+
+A **collection expression** writes a list or a dictionary in brackets where a value stands, its written form deciding which it constructs, whatever context it stands in:
+
+```lexica
+{
+    sizes = [10, 20, 30],
+    stock = ["coffee" = 3, "tea" = 2],
+    none = [],
+    empty = [=]
+}
+```
+
+`sizes` is a `List<Number>`, `stock` a `Dictionary<String, Number>`, `none` a `List<Never>` and `empty` a `Dictionary<String, Never>`.
+
+- **A list** holds items, each a [simple expression](expressions.md#simple-expressions), its `T` the type its items merge to, as [merging](types.md#types-assignability-and-merging) sets out: `[1, 2, null]` is a `List<Number?>`, `[null, null]` a `List<null>` and `[]` a `List<Never>`. Items of no common type, `[1, "two"]`, are refused, never widened to `Any`, and a list of pairs stays a list, never a dictionary.
+- **A dictionary** holds entries, each a key, `=` and its value, a simple expression, and is a `Dictionary<String, V>`, `V` its values' merged type, values of no common type refused as a list's items are. A key is an inline string literal, ordinary or raw, `["coffee" = 3]` and `['coffee' = 3]`, its key its string's value, `["first\nsecond" = value]` among them; an interpolated string, a block string and any other expression are refused as keys, a computed key and a key of another type coming from a member that constructs a dictionary. Two entries of one key, compared exactly once their escapes are read, `"a"` and `"\u{61}"` among them, are refused when the definition is validated.
+- **Its form.** Keyed and unkeyed entries never mix in one collection expression; a trailing comma is allowed, and an item is never left out between commas; no item spreads another collection into it; and a function is neither an item nor a value, since a collection holds data and references.
+- **Its evaluation.** Each item or value is evaluated once, left to right, and a dictionary keeps its entries in the order written; what it constructs is immutable.
+
+A string an extension access follows is a list's item, so `["coffee":Lookup.value]` is a list of that access's value.
+
 <a id="null"></a>
 
 ## Null

@@ -282,6 +282,7 @@ Every position between two tokens is one of three kinds: inside a one-line const
 | A body local's head, `let`, its name and `=` | `let reading =` |
 | A conditional binding's head | `if let lamp =` |
 | An object local's or an object field's head | `let devices =`, `temperature =` |
+| A dictionary entry's head, its key and `=` | `"coffee" =` |
 | A member step, `.`, `?.`, `:` or `?:` with the name after it | `.where`, `?.temperature` |
 | A computed property access's opening | `x.[`, `x?.[` |
 | A call's `(`, on the line of the name it calls | `device(`, `double(` |
@@ -304,9 +305,10 @@ A namespace's member read where a value stands, `Home.rooms`, is a chain, and fo
 | Arguments, indexer keys, a parenthesized group, a computed property's expression | After `(` or `[`, after a comma, before `)` or `]` |
 | A function's parameter list | After its `(`, after a comma, before its `)` |
 | An object expression | After `{`, after a comma, before `}` |
+| A collection expression | After `[`, after a comma, before `]` |
 | A chain | Before `.`, `?.`, `:` or `?:`, and before an extension access's `.member` |
 | A binary operator | Before the operator, where its expression is [enclosed](#line-structure-operator-expressions), and never after it |
-| A local's, an object field's or a conditional binding's value | After its `=` |
+| A local's, an object field's, a dictionary entry's or a conditional binding's value | After its `=` |
 | An arrow function | After `=>` |
 | A conditional, a `do` block or a function expression | As [keyword blocks](#line-structure-keyword-blocks) set out |
 | A block string or block raw string | Within it, by its own rules |
@@ -341,7 +343,7 @@ let count = room.devices
 return count
 ```
 
-An expression is **enclosed** where it stands directly in a parenthesized group, a call's argument, an indexer's key, a computed property's expression, or a condition, from `if` or `elseif` to its `then`. Enclosure belongs to that one position: an object's entry, a conditional's branch, and a body's locals and result, a `do` block's, a function's or an arrow's, start unenclosed again, whatever encloses them, so a line breaks before an operator there only inside parentheses of its own.
+An expression is **enclosed** where it stands directly in a parenthesized group, a call's argument, an indexer's key, a computed property's expression, or a condition, from `if` or `elseif` to its `then`. Enclosure belongs to that one position: an object's entry, a collection expression's item or value, a conditional's branch, and a body's locals and result, a `do` block's, a function's or an arrow's, start unenclosed again, whatever encloses them, so a line breaks before an operator there only inside parentheses of its own.
 
 ```text
 gap = it.climate?.temperature

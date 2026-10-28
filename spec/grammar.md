@@ -123,7 +123,8 @@ member-chain                  = receiver member-expression { member-expression }
 optional-enclosed-access      = "(?" member-chain ")"
 receiver                      = input | "(" cast ")"
 
-input                         = value | object | identifier | interpolated-string
+input                         = value | object | collection-expression
+                              | identifier | interpolated-string
                               | lexical-reference | script-parameter
                               | function-call | namespace-access
 lexical-reference             = "@" identifier
@@ -158,6 +159,16 @@ extension-name                = [ namespace-name "." ] identifier
                                  give a module that name *)
 extension-member              = "." member-name [ "(" [ argument-list ] ")" ]
                               | "[" simple-expression "]"
+
+collection-expression         = list-expression | dictionary-expression
+                              (* "[" begins one where an input stands, and an indexer
+                                 after a receiver *)
+list-expression               = "[" [ list-item { "," list-item } [ "," ] ] "]"
+list-item                     = simple-expression
+dictionary-expression         = "[" "=" "]"
+                              | "[" dictionary-entry { "," dictionary-entry } [ "," ] "]"
+dictionary-entry              = dictionary-key "=" simple-expression
+dictionary-key                = inline-string | raw-string
 
 object                        = "{" object-content "}"
 object-content                = { local "," } object-field { "," object-field } [ "," ]

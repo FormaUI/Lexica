@@ -131,6 +131,10 @@ export class DefinitionWriter {
             }
             case 'optionalChain':
                 return DefinitionWriter.#write(node.chain, level);
+            case 'list':
+                return `[${DefinitionWriter.#items(node.items, level)}]`;
+            case 'dictionary':
+                return DefinitionWriter.#dictionary(node, level);
             case 'equality':
                 return DefinitionWriter.#equality(node, '==', level);
             case 'interpolatedString':
@@ -254,6 +258,27 @@ export class DefinitionWriter {
         return `{\n${entries.map(entry => `${indentation}${entry}`).join(',\n')}\n${INDENTATION.repeat(level)}}`;
     }
 
+    /**
+     * A dictionary's brackets and entries, each its key as a string is written, `=` and its value: `[=]` where it holds none, on one line where it is compact or holds one entry, and otherwise with a line for each entry,
+     * indented a level, as an object expression is laid out, and so wherever an entry spans lines.
+     */
+    static #dictionary(node, level) {
+        if (node.entries.length === 0) {
+            return '[=]';
+        }
+
+        const entries = node.entries.map(entry => `${DefinitionWriter.#literal(entry.key)} = ${DefinitionWriter.#write(entry.value, level + 1)}`);
+        const isOneLine = DefinitionWriter.#isCompact || entries.length === 1;
+
+        if (isOneLine && !entries.some(entry => entry.includes('\n'))) {
+            return `[${entries.join(', ')}]`;
+        }
+
+        const indentation = INDENTATION.repeat(level + 1);
+
+        return `[\n${entries.map(entry => `${indentation}${entry}`).join(',\n')}\n${INDENTATION.repeat(level)}]`;
+    }
+
     /** The operation `try` attempts: a cast as it is, and a conversion whose value is grouped where it is a conversion or a cast, so `try` attempts the conversion alone. */
     static #attempted(node, level) {
         if (node.kind !== 'conversion') {
@@ -291,9 +316,14 @@ export class DefinitionWriter {
         return Names.needsPrefix(name, DefinitionWriter.#namespaceNames) ? `@${name}` : name;
     }
 
-    /** A call's arguments, separated by commas, the one after an argument that ends with a block's `end` on the next line, since only closing punctuation follows `end` on its line. */
+    /** A call's arguments, as a list of nodes is written. */
     static #arguments(node, level) {
-        const written = node.arguments.map(argument => DefinitionWriter.#write(argument, level));
+        return DefinitionWriter.#items(node.arguments, level);
+    }
+
+    /** Nodes in order, a call's arguments or a list's items, separated by commas, the one after a node that ends with a block's `end` on the next line, since only closing punctuation follows `end` on its line. */
+    static #items(nodes, level) {
+        const written = nodes.map(item => DefinitionWriter.#write(item, level));
 
         return written.map((argument, index) => (index === 0 ? argument : `${DefinitionWriter.#endsWithBlock(written[index - 1]) ? `\n${INDENTATION.repeat(level)}` : ' '}${argument}`)).join(',');
     }

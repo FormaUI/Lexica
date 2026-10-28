@@ -95,7 +95,7 @@ describe('the codes of syntax errors', () => {
             expectSyntaxCode('LEXICA1000', ['import', 'import Home.', 'import A =', 'import 1']);
             expect(lexica.parse('~import').expression).toEqual({ kind: 'scriptParameter', name: 'import' });
             expect(lexica.parse('item.import').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'item' }, name: 'import' });
-            expect(lexica.format({ version: 34, imports: [], expression: { kind: 'scriptParameter', name: 'import' } })).toBe('~import');
+            expect(lexica.format({ version: 35, imports: [], expression: { kind: 'scriptParameter', name: 'import' } })).toBe('~import');
         });
 
         it('gives LEXICA1044 to an import, or the body after the imports, sharing its line with earlier code', () => {

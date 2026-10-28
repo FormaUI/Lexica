@@ -713,6 +713,18 @@ export class Evaluator {
                 return node.operand.kind === 'cast' ? this.#compileCast(node.operand, true) : this.#compileConversion(node.operand, true);
             case 'object':
                 return this.#compileObject(node);
+            case 'list': {
+                // A list's items are evaluated once each, left to right, into a frozen list.
+                const items = node.items.map(item => this.#getCompiledFunction(item));
+
+                return (evaluator, context) => Object.freeze(items.map(item => item(evaluator, context)));
+            }
+            case 'dictionary': {
+                // A dictionary's values are evaluated once each, left to right, in the order its entries are written, which validation found of distinct keys.
+                const entries = node.entries.map(entry => ({ key: entry.key, value: this.#getCompiledFunction(entry.value) }));
+
+                return (evaluator, context) => new Dictionary(entries.map(({ key, value }) => [key, value(evaluator, context)]));
+            }
         }
     }
 

@@ -154,7 +154,17 @@ export class LineStructure {
             case 'field':
                 return index === 2 ? ALLOWED : { kind: 'refused', construct: "An object field's name and its '='" };
             case 'object':
+            case 'list-expression':
                 return is(child, ',') ? { kind: 'refused', construct: 'A comma and what it follows' } : ALLOWED;
+            case 'dictionary-expression':
+                // An empty dictionary's `[=]` is one construct, and any other's entries break as an object's do.
+                if (is(child, '=') || is(previous, '=')) {
+                    return { kind: 'refused', construct: "An empty dictionary's '[=]'" };
+                }
+
+                return is(child, ',') ? { kind: 'refused', construct: 'A comma and what it follows' } : ALLOWED;
+            case 'dictionary-entry':
+                return index === 2 ? ALLOWED : { kind: 'refused', construct: "A dictionary entry's key and its '='" };
             case 'function-call':
             case 'member-call':
             case 'namespace-access':

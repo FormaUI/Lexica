@@ -1048,7 +1048,8 @@ export class Parser {
 
     /**
      * Reads an input: `it`, a literal, a name, which the lowering reads as a local, a field, the object root or a script parameter, a reserved word after `@`, which it reads as a local or a field, a script parameter after `~`,
-     * a namespace access, which a module's name begins in text read with it, or an object expression. A keyword alone keeps its meaning, so one where a value stands gives the form with `@` for the local or the field of its name.
+     * a namespace access, which a module's name begins in text read with it, an object expression, or a collection expression, which a `[` begins where an input stands. A keyword alone keeps its meaning, so one where a
+     * value stands gives the form with `@` for the local or the field of its name.
      */
     #parseInput() {
         const token = this.#token;
@@ -1086,6 +1087,8 @@ export class Parser {
                 return this.#take();
             case '{':
                 return this.#parseObject();
+            case '[':
+                return this.#parseCollectionExpression();
             case 'interpolated-string-start':
                 return this.#parseInterpolatedString();
             case 'keyword':
@@ -1391,6 +1394,90 @@ export class Parser {
         children.push(this.#take());
 
         return Parser.#node('object', children);
+    }
+
+    /**
+     * Reads a collection expression: `[`, a list's items or a dictionary's entries, each a key, `=` and its value, separated by commas, a trailing one among them, and `]`; `[]` is an empty list and `[=]` an empty
+     * dictionary. Its written form decides its kind, so a first entry a key and `=` begin is a dictionary's, and any other a list's. A key is an inline string literal (LEXICA1066), keyed and unkeyed entries never
+     * mix (LEXICA1067), and no item is left out between commas (LEXICA1068). An item may be written as an arrow function, which validation refuses as a function standing in no argument.
+     */
+    #parseCollectionExpression() {
+        const children = [this.#take()];
+
+        if (this.#token.type === ']') {
+            children.push(this.#take());
+
+            return Parser.#node('list-expression', children);
+        }
+
+        if (this.#token.type === '=' && this.#tokens[this.#index + 1].type === ']') {
+            children.push(this.#take(), this.#take());
+
+            return Parser.#node('dictionary-expression', children);
+        }
+
+        const isDictionary = this.#startsDictionaryEntry();
+
+        while (this.#token.type !== ']') {
+            if (this.#token.type === ',') {
+                throw this.#createSyntaxError('LEXICA1068', 'A collection expression holds an item between each two commas: write one there, or remove the comma', this.#token.start);
+            }
+
+            if (isDictionary !== this.#startsDictionaryEntry()) {
+                const kind = isDictionary ? 'an item without a key' : 'an entry of a key and a value';
+
+                throw this.#createSyntaxError('LEXICA1067', `A collection expression holds a list's items or a dictionary's entries, never both, and this one, ${isDictionary ? 'a dictionary' : 'a list'}, holds ${kind}`, this.#token.start);
+            }
+
+            children.push(isDictionary ? this.#parseDictionaryEntry() : this.#parseListItem());
+
+            if (this.#token.type === ',') {
+                children.push(this.#take());
+            } else if (this.#token.type !== ']') {
+                throw this.#createUnexpectedTokenError('LEXICA1000', "',' or ']'");
+            }
+        }
+
+        children.push(this.#take());
+
+        return Parser.#node(isDictionary ? 'dictionary-expression' : 'list-expression', children);
+    }
+
+    /** Whether a dictionary's entry starts here: a key, one token, and the `=` after it, a key no string writes among them, which its entry refuses. */
+    #startsDictionaryEntry() {
+        return this.#tokens[this.#index + 1].type === '=' && this.#token.type !== ',' && this.#token.type !== ']';
+    }
+
+    /** Reads a list's item: an expression, or an arrow function, which the lowering keeps for validation to refuse; one an `=` follows is a dictionary's key no single token writes, which is refused (LEXICA1066). */
+    #parseListItem() {
+        const start = this.#token.start;
+        const item = this.#startsArrowFunction() ? this.#parseArrowFunction() : this.#parseExpression();
+
+        if (this.#token.type === '=') {
+            throw this.#createSyntaxError('LEXICA1066', "A dictionary key must be an inline string literal, as [\"coffee\" = 3]. For a computed key, construct the dictionary with toDictionary.", start);
+        }
+
+        return item;
+    }
+
+    /**
+     * Reads a dictionary's entry: its key, an inline string literal, ordinary or raw, `=` and its value. A name as a key is refused giving the literal key of its spelling, and any other key giving the form of one, each with
+     * `toDictionary` for a computed key (LEXICA1066).
+     */
+    #parseDictionaryEntry() {
+        const key = this.#take();
+        const equals = this.#take();
+        const value = this.#startsArrowFunction() ? this.#parseArrowFunction() : this.#parseExpression();
+        const isInlineString = key.type === 'literal' && typeof key.value === 'string' && key.delimiter === 1;
+
+        if (!isInlineString) {
+            const written = this.#text.slice(SyntaxTree.startOf(value), SyntaxTree.endOf(value));
+            const literal = this.#isWord(key) ? `Write ["${this.#text.slice(key.start, key.end)}" = ${written}] for the literal key "${this.#text.slice(key.start, key.end)}".` : 'Write it between quotes, as ["coffee" = 3].';
+
+            throw this.#createSyntaxError('LEXICA1066', `A dictionary key must be an inline string literal. ${literal} For a computed key, construct the dictionary with toDictionary.`, key.start);
+        }
+
+        return Parser.#node('dictionary-entry', [key, equals, value]);
     }
 
     /** Reads a local, of a body or of an object expression, whose holder reads what separates it from the next: `let`, its name, `=` and its initializer, an expression, a function or an arrow function. */
