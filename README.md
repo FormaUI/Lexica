@@ -10,7 +10,7 @@ return {
 }
 ```
 
-> **Alpha.** Lexica implements language version `1.0.0-alpha.33` in part: its indexers, computed properties, qualified type names and definition version 33. Types that declare their members, and the reference types modules declare in place of the DOM's built-in ones, follow. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
+> **Alpha.** Lexica implements language version `1.0.0-alpha.34` in part: definition version 34, its imports and extension access, its declarations, types and member selection, and its line structure and canonical text. Collections follow. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
 
 ## Features
 
@@ -28,7 +28,7 @@ return {
 
 ### Implementation (`1.0.0-alpha.37`)
 
-The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.33` in part.
+The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.34` in part.
 
 - Parse scripts into definitions, their imports and those a host supplies deciding their namespaces, validate definitions, and format either as canonical text
 - Locate any part of a definition in the text it was read from
