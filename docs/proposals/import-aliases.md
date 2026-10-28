@@ -1,6 +1,6 @@
 # Proposal: import aliases
 
-**State: accepted.** Specified in language `1.0.0-alpha.34` and definition 34, and not implemented. Allow scripts to import modules and individual types under local names. Type imports include ordinary types and extension types.
+**State: accepted.** Specified in language `1.0.0-alpha.34` and definition 34, and implemented with [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34)'s steps 3 and 4, as [I28](implementation-decisions.md) and [I29](implementation-decisions.md) record. Allow scripts to import modules and individual types under local names. Type imports include ordinary types and extension types.
 
 Related proposals: [script imports](script-imports.md), which this proposal extends, [capitalized module namespaces](capitalized-module-namespaces.md), whose initial-capital rule local names follow, and [explicit extension access](extension-access.md), whose selector an alias may name.
 
