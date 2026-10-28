@@ -87,15 +87,16 @@ describe("a script's imports", () => {
 
     it('are the only thing that makes a name a namespace: every reader reads a text alike, and registering a module changes how no text reads', () => {
         const growing = lexica.createRegistry([]);
-        const before = growing.parse('shop.open');
+        const before = lexica.parse('shop.open');
 
         expect(before.expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'shop' }, name: 'open' });
 
         growing.registerModule(createShop());
 
-        expect(growing.parse('shop.open')).toBe(before);
-        expect(registry.parse('import shop\nshop.open')).toBe(lexica.parse('import shop\nshop.open'));
-        expect(registry.format('{ shop = shop.size }')).toBe('{ shop = shop.size }');
+        expect(lexica.parse('shop.open')).toBe(before);
+        expect(growing.resolve('shop.open', { shop: { open: true } }).definition).toBe(before);
+        expect(['parse', 'format', 'quote'].filter(name => name in growing)).toEqual([]);
+        expect(lexica.format('{ shop = shop.size }')).toBe('{ shop = shop.size }');
         expect(registry.resolve('import shop.Word\nshop.size', { shop: new Word('oat') }).type).toBe('Number');
     });
 
@@ -130,7 +131,7 @@ describe("a script's imports", () => {
         expect(lexica.format('shop.open', supplied)).toBe('shop.open');
         expect(lexica.format(definition)).toBe('import Item = shop.Word\nimport shop\n\nshop.open');
         expect(lexica.quote('import shop\nshop.open', { imports: ['shop'] })).toBe('shop.open');
-        expect(registry.parse('shop.open', { imports: ['shop'] })).toBe(lexica.parse('shop.open', { imports: ['shop'] }));
+        expect(registry.resolve('shop.greet("ann")', {}, { imports: ['shop'] }).definition).toBe(lexica.parse('shop.greet("ann")', { imports: ['shop'] }));
         expect(registry.resolve('shop.greet("ann")', {}, { imports: ['shop'] }).type).toBe('String');
         expect(lexica.parse('import shop\nshop.open', { imports: ['shop'] }).imports).toEqual([{ module: 'shop' }]);
     });

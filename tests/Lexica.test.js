@@ -72,9 +72,9 @@ describe('lexica', () => {
     it('reads a word as the role its position gives it where the position expects a name, a module\'s name among them, and as the language\'s own meaning where a value stands', () => {
         const registry = createImportingRegistry([lexica.createModule('home', {})]);
 
-        expect(registry.parse('import home\nnode.root + node.home').expression).toEqual({ kind: 'arithmetic', operator: '+', left: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'node' }, name: 'root' }, right: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'node' }, name: 'home' } });
-        expect(registry.format('import home\n{ home = 1, root = 2, b = @home + @root }')).toBe('import home\n\n{\n    home = 1,\n    root = 2,\n    b = @home + @root\n}');
-        expect(registry.parse('import home\nlet f = home => @home + 1\nreturn f(1)').expression.locals[0].value.parameters).toEqual(['home']);
+        expect(lexica.parse('import home\nnode.root + node.home').expression).toEqual({ kind: 'arithmetic', operator: '+', left: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'node' }, name: 'root' }, right: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'node' }, name: 'home' } });
+        expect(lexica.format('import home\n{ home = 1, root = 2, b = @home + @root }')).toBe('import home\n\n{\n    home = 1,\n    root = 2,\n    b = @home + @root\n}');
+        expect(lexica.parse('import home\nlet f = home => @home + 1\nreturn f(1)').expression.locals[0].value.parameters).toEqual(['home']);
     });
 
     it('writes a cast\'s and a conversion\'s type bare, a reserved word among them, and refuses a string in its place with the bare name', () => {

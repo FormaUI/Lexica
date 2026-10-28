@@ -193,7 +193,7 @@ describe('the runtime codes', () => {
 
         it('LEXICA2645: parsing what is not a script\'s source', () => {
             expectLexicaError(errorThrownBy(() => lexica.parse(5)), 'LEXICA2645', 'structure');
-            expectLexicaError(errorThrownBy(() => registry.parse({ version: 33 })), 'LEXICA2645', 'structure');
+            expectLexicaError(errorThrownBy(() => lexica.parse({ version: 34 })), 'LEXICA2645', 'structure');
             expect(errorThrownBy(() => lexica.parse(5)).message).toBe("What parse reads is a script's source");
         });
 

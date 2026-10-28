@@ -528,7 +528,7 @@ export interface LexicaHostCall {
     readonly declaration: LexicaMemberDeclaration | null;
 }
 
-/** A registry a host resolves scripts against: Lexica's own module and the modules the host registers, whose names begin their namespaces in the text it reads and writes. No registry is shared. */
+/** A registry a host resolves scripts against: Lexica's own module and the modules the host registers. It reads no text of its own, since a script's imports alone decide how its text reads, which `lexica.parse`, `format` and `quote` read and write for every registry. No registry is shared. */
 export interface LexicaRegistry {
     /** Registers a module's vocabulary, which every script resolved afterwards may use. */
     registerModule(module: LexicaModule): void;
@@ -542,12 +542,6 @@ export interface LexicaRegistry {
     getDeclaringModuleName(declaration: object): string | undefined;
     /** The implementation that carries the declaration out, as its module gives it. */
     getImplementation(declaration: object): ((input: any) => unknown) | undefined;
-    /** Reads a text into its definition as `lexica.parse` does, the script's imports and those supplied deciding its namespaces, never the registry's modules. */
-    parse(source: string, options?: LexicaScriptOptions): LexicaDefinition;
-    /** The canonical text of a text or a definition, as `lexica.format` writes it. */
-    format(script: LexicaScript, options?: LexicaScriptOptions): string;
-    /** The compact canonical text of a text or a definition, as `lexica.quote` writes it. */
-    quote(script: LexicaScript, options?: LexicaScriptOptions): string;
     /**
      * Creates bindings of values by name against the registry, its modules recognizing which are references, each module's `typeOf` asked of every object and the `isInstance` of each type it names, or of a top-level
      * binding's declared type: data as a frozen copy, each reference as itself, a top-level binding of a declared type typed by it.

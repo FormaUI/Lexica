@@ -146,7 +146,7 @@ A script parameter may be named `it`, `root` or a module's name, as any name can
 
 ## Canonical text
 
-Every definition has one canonical text, which `lexica.format` writes, and `lexica.quote` writes compactly, and a registry's `format` and `quote` alike: text that writes every import the definition records, so it reads back as the same definition wherever it is parsed, whether the definition came from text or was created directly. A comment and the layout a source was written in leave no trace in it.
+Every definition has one canonical text, which `lexica.format` writes, and `lexica.quote` writes compactly, whichever registry resolves it: text that writes every import the definition records, so it reads back as the same definition wherever it is parsed, whether the definition came from text or was created directly. A comment and the layout a source was written in leave no trace in it.
 
 `lexica.format(script)` takes a script's source or its definition, and both give the same canonical text.
 

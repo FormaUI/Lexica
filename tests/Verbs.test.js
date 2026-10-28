@@ -127,8 +127,8 @@ describe('implicit bodies', () => {
     it('are recorded as written, an argument node like any other, the resolution telling them apart', () => {
         const registry = lexica.createRegistry([createPantry()]);
 
-        expect(registry.parse('word.is(it.size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size' }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
-        expect(registry.format('word.is(it.size > 2)')).toBe('word.is(it.size > 2)');
+        expect(lexica.parse('word.is(it.size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size' }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
+        expect(lexica.format('word.is(it.size > 2)')).toBe('word.is(it.size > 2)');
     });
 });
 

@@ -204,7 +204,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
 /**
  * A registry a host resolves scripts against: Lexica's own module and the modules the host registers, each module's vocabulary in effect for every script resolved after it.
- * It reads and writes text as `lexica` does, the script's imports deciding which of its names are namespaces, so registering a module changes how no text reads. No registry is shared, so two hosts never see each other's modules.
+ * It reads no text of its own: a script's imports decide which of its names are namespaces, so `lexica.parse`, `format` and `quote` read and write a text alike for every registry, and registering a module changes how no text reads. No registry is shared, so two hosts never see each other's modules.
  */
 const createRegistry = modules => {
     const registry = new LexicaRegistry([Vocabulary.module, ...modules]);
@@ -222,9 +222,6 @@ const createRegistry = modules => {
         getObservationType: name => registry.getObservationType(name),
         getDeclaringModuleName: declaration => registry.getDeclaringModuleName(declaration),
         getImplementation: declaration => registry.getImplementation(declaration),
-        parse: (source, options) => parse(source, options),
-        format: (script, options) => write(script, options, false),
-        quote: (script, options) => write(script, options, true),
         createBindings: (values = {}, options = {}) => createBindings(registry, values, options),
         resolve: (script, bindings = {}, options = {}) => {
             // The script is read before its bindings, so one that does not follow the syntax or the structure asks no module's `typeOf`.

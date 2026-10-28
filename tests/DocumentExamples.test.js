@@ -36,7 +36,7 @@ const textsOf = (block, entry) => {
 // An example a context holds, written in its place, as one testing a value is compared with null.
 const COMPARED = '(%) != null';
 
-/** The examples' registry, which reads their text with the names of the examples' two modules, whose namespaces the examples read through. */
+/** The examples' registry, of the examples' two modules, which resolves the examples that evaluate or are refused; `lexica` reads and writes their text, as it does for every registry. */
 const examples = lexica.createRegistry([lexica.createModule('home', {}), lexica.createModule('energy', {})]);
 
 /**
@@ -126,10 +126,10 @@ describe('the examples of the documents', () => {
         it.each(entries.map((entry, index) => [`${entry.about}, the block at line ${blocks[index]?.line}`, entry, blocks[index]]))('%s', (_, entry, block) => {
             textsOf(block, entry).forEach(text => {
                 const written = (entry.context ?? '%').replace('%', () => text);
-                const formatted = examples.format(written);
+                const formatted = lexica.format(written);
 
-                expect(examples.format(formatted), text).toBe(formatted);
-                expect(examples.parse(formatted), text).toEqual(examples.parse(written));
+                expect(lexica.format(formatted), text).toBe(formatted);
+                expect(lexica.parse(formatted), text).toEqual(lexica.parse(written));
 
                 if (entry.evaluates !== undefined) {
                     expect(examples.resolve(written).createEvaluator({}).evaluate().value, text).toEqual(entry.evaluates);
