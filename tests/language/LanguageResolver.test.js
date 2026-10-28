@@ -136,7 +136,7 @@ describe('LanguageResolver', () => {
             const resolved = resolveCups('(word to Cup).size');
 
             expect(resolved.getResolution('/expression/result')).toEqual({ kind: 'dataProperty', declaration: { name: 'size', kind: 'property', result: 'Number', parameters: [] }, name: 'size' });
-            expect(resolved.usedDeclarations.map(use => use.qualifiedName)).toEqual(['Cup.size']);
+            expect(resolved.usedDeclarations.map(use => use.qualifiedName)).toEqual(['String to Cup', 'Cup.size']);
         });
 
         it('is refused where it is called, as an object field, as a property of a structured type\'s data, and as one where the receiver\'s type is unknown', () => {
@@ -180,6 +180,24 @@ describe('LanguageResolver', () => {
         it('is the type the receiver applies to it by, and the name alone where that is a type parameter, which takes a receiver of any type', () => {
             expect(usesOf('String')).toEqual(['String.fade']);
             expect(usesOf('T')).toEqual(['fade']);
+        });
+    });
+
+    describe('a deferred access', () => {
+        it('records the name it accesses and its candidates, each qualified by the type it is declared for, the name alone where that is a type parameter, and uses none of them', () => {
+            const fade = () => Declarations.createPropertyDeclaration('fade', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver });
+            const fading = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+                types: [extensionDeclaration('Fades', 'String', [fade()]), extensionDeclaration('AllFades<T>', 'T', [fade()])],
+                members: [Declarations.createFunctionDeclaration('held', 'Any', { updates: constantUpdates, impl: () => 'oat' })],
+            })]);
+            const definition = ParsedTexts.parse('return shop.held().fade', new Set(fading.namespaceNames));
+            const resolved = new LanguageResolver(fading, new ParameterBindings(fading, {}), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
+            const [stringFade, anyFade] = fading.getReceiverMembers('fade');
+
+            expect(resolved.getResolution('/expression/result')).toMatchObject({ kind: 'deferred', name: 'fade', candidates: [stringFade, anyFade] });
+            expect(resolved.deferredAccesses).toEqual([{ name: 'fade', pointer: '/expression/result', candidates: [{ declaration: stringFade, qualifiedName: 'String.fade', pointer: '/expression/result' }, { declaration: anyFade, qualifiedName: 'fade', pointer: '/expression/result' }] }]);
+            expect(resolved.usedDeclarations.map(use => use.qualifiedName)).toEqual(['shop.held']);
+            expect(resolved.candidateDeclarations.map(use => use.qualifiedName)).toEqual(['shop.held', 'String.fade', 'fade']);
         });
     });
 });

@@ -91,3 +91,19 @@ describe('a cast operator', () => {
         expect(errorThrownBy(() => registry.resolve('(meter as Device) == null', { meter: values.meter }))).toMatchObject({ code: 'LEXICA3023', message: expect.stringContaining('is internal to the module \'Energy\'') });
     });
 });
+
+describe('an operator a script uses', () => {
+    it('is one of the declarations it uses, named by the syntax that invokes it, and a cast operator without an implementation needs none to evaluate', () => {
+        const registry = lexica.createRegistry([createHome(), createEnergy(operatorDeclaration('cast', 'Home.Device'))]);
+        const bindings = registry.createBindings(values, { types: { deviceMeter: 'Energy.Meter' } });
+        const resolution = registry.resolve('{ text = (word to Temperature) to String, device = (deviceMeter as Device) != null, number = "12" to Number }', bindings);
+
+        expect(resolution.usedDeclarations.map(({ name, qualifiedName, pointer }) => [name, qualifiedName, pointer])).toEqual([
+            ['convert', 'String to Temperature', '/expression/fields/0/value/target'],
+            ['convert', 'Temperature to String', '/expression/fields/0/value'],
+            ['cast', 'Meter as Home.Device', '/expression/fields/1/value/operand/left'],
+            ['convert', 'String to Number', '/expression/fields/2/value'],
+        ]);
+        expect(resolution.createEvaluator(bindings).evaluate().value).toEqual({ text: '21 degrees', device: true, number: 12 });
+    });
+});

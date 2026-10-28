@@ -428,18 +428,38 @@ export interface LexicaSkippedCall {
     readonly pointer: string;
 }
 
-/** A declaration a resolution uses, with its names and where it is used. */
+/** A declaration a resolution uses, a member or an operator, with its names and where it is used. */
 export interface LexicaUsedDeclaration {
     readonly declaration: object;
-    /** Its declared name, as `total`. */
-    readonly name: string;
+    /** Its declared name, as `total`, an operator's `convert` or `cast`, and null for an unnamed indexer. */
+    readonly name: string | null;
     /**
      * The name a message gives it: qualified by the first of its declaration's receiver types the receiver applies to it by, as `String.total`, or by its module, as `shop.greet`, for a module member or a function referenced
-     * through its namespace; its declared name alone where that receiver type is any receiver or a type parameter.
+     * through its namespace; its declared name alone where that receiver type is any receiver or a type parameter; an unnamed indexer's brackets after its type, as `List[]`; and an operator by the syntax that
+     * invokes it, as `String to Number` and `Meter as Device`. A candidate declaration is qualified by the type it is declared for, its type's or its extension's target.
      */
     readonly qualifiedName: string;
     /** Where it is used, a definition pointer `getLocation` expands; a declaration a script function's body uses is used once at its place in the body, whichever calls reach it. */
     readonly pointer: string;
+}
+
+/** An access whose member is selected during evaluation, by its receiver's actual type, since its receiver is a value of `Any`. */
+export interface LexicaDeferredAccess {
+    /** The name it accesses, null for an unnamed indexer. */
+    readonly name: string | null;
+    /** Where it stands, a definition pointer `getLocation` expands; an access in a script function's body is reported once, whichever calls reach it. */
+    readonly pointer: string;
+}
+
+/** Every declaration an evaluation could select, and whether that is an overestimate. */
+export interface LexicaCandidateDeclarations {
+    /**
+     * The used declarations, and each deferred access's candidates at its pointer: every accessible declaration of the name and the form it accesses, inherited members and visible extensions among them, which its value's
+     * actual type selects one of, or none of.
+     */
+    readonly declarations: readonly LexicaUsedDeclaration[];
+    /** True where a deferred access remains, so its candidates include declarations no evaluation may select; false where the declarations are the used ones alone. */
+    readonly isOverestimate: boolean;
 }
 
 /** A script resolved against a registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at. */
@@ -449,7 +469,15 @@ export interface LexicaResolution {
     readonly hostCall: LexicaHostCall | null;
     /** The type of the result, in type notation, null for a host call whose host supplies no values. */
     readonly type: string | null;
+    /**
+     * Every declaration it has selected, operators among them, one only an unreached branch uses included, each once at each place it is used. Where a deferred access remains, they are not everything an evaluation might
+     * use: `getCandidateDeclarations` answers that, as an overestimate.
+     */
     readonly usedDeclarations: readonly LexicaUsedDeclaration[];
+    /** The accesses whose member is selected during evaluation, in the order they were resolved; empty where every member is selected during resolution. */
+    readonly deferredAccesses: readonly LexicaDeferredAccess[];
+    /** Every declaration an evaluation could select: the used declarations, and each deferred access's candidates, an overestimate while a deferred access remains. */
+    getCandidateDeclarations(): LexicaCandidateDeclarations;
     /** The type a result path reaches, in type notation, refusing a path the type does not hold. */
     typeAt(path: readonly (string | number)[]): string;
     /** Where a pointer stands in the source the definition was read from, as `lexica.getLocation` answers given the resolution's definition. */
@@ -457,7 +485,7 @@ export interface LexicaResolution {
     /**
      * An evaluator holding bindings of this resolution's key and the environment the host gives it. Binding plain values asks the modules' `typeOf` and `isInstance`, as `createBindings` does, and nothing else calls host code
      * until it evaluates. It refuses bindings another registry made (LEXICA2024), bindings of another resolution key (LEXICA2025), a resolution its registry has moved past (LEXICA2040), and a script using a declaration
-     * or a conversion that has no implementation, even in a branch it may not take (LEXICA4001).
+     * that has no implementation, a conversion operator among them, even in a branch it may not take (LEXICA4001).
      */
     createEvaluator(bindings: LexicaBindings | LexicaBindingValues, env?: unknown): LexicaEvaluator;
 }

@@ -139,7 +139,9 @@ const resolutionOf = (registry, definition, parameterBindings) => {
     const resolved = new LanguageResolver(registry, parameterBindings, locations).resolveDefinition(definition);
     const { resolutionKey } = parameterBindings;
     const { revision } = registry;
-    const usedDeclarations = Object.freeze(resolved.usedDeclarations.map(({ declaration, qualifiedName, pointer }) => Object.freeze({ declaration, name: declaration.name ?? null, qualifiedName, pointer })));
+    const useOf = ({ declaration, qualifiedName, pointer }) => Object.freeze({ declaration, name: declaration.name ?? null, qualifiedName, pointer });
+    const usedDeclarations = Object.freeze(resolved.usedDeclarations.map(useOf));
+    const deferredAccesses = Object.freeze(resolved.deferredAccesses.map(({ name, pointer }) => Object.freeze({ name, pointer })));
 
     const requireCurrent = () => {
         if (registry.revision !== revision) {
@@ -158,20 +160,17 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         requireCurrent();
 
         // A declaration without an implementation is resolved against and never invoked, so a script that uses one, in a branch it may not take among them, is refused before anything is evaluated; a host call has none, its host invoking it.
-        // A structured type's data property is read from the data, so it takes no implementation.
-        const unimplemented = usedDeclarations.find(use => registry.getImplementation(use.declaration) === undefined && !LexicaModule.isInvokedByHost(use.declaration) && !registry.isDataProperty(use.declaration));
+        // A structured type's data property is read from the data, and a cast operator permits its cast, so neither takes an implementation.
+        const unimplemented = usedDeclarations.find(({ declaration }) => registry.getImplementation(declaration) === undefined && !LexicaModule.isInvokedByHost(declaration) && !registry.isDataProperty(declaration) && !(declaration.kind === 'operator' && declaration.name === 'cast'));
 
         if (unimplemented !== undefined) {
-            throw LexicaErrors.module('LEXICA4001', `'${unimplemented.qualifiedName}' has no implementation, so a script that uses it is resolved and never evaluated`, { module: registry.getDeclaringModuleName(unimplemented.declaration), declaration: unimplemented.declaration.name, declarationKey: 'impl' });
-        }
+            const { declaration, qualifiedName } = unimplemented;
+            const containing = registry.getContainingType(declaration);
+            // A member within a type or an extension is located at it, as any of its module's errors is.
+            const location = { module: registry.getDeclaringModuleName(declaration), ...(containing === undefined ? {} : { type: containing.name }), declaration: declaration.name, declarationKey: 'impl' };
+            const subject = declaration.kind === 'operator' ? `The conversion from ${qualifiedName}` : `'${qualifiedName}'`;
 
-        const unimplementedConversion = resolved.usedConversions.find(conversion => registry.getImplementation(conversion) === undefined);
-
-        // A conversion operator is located at the type or the extension it stands in, as any member within one is.
-        if (unimplementedConversion !== undefined) {
-            const location = { module: registry.getDeclaringModuleName(unimplementedConversion), type: registry.getContainingType(unimplementedConversion).name, declaration: unimplementedConversion.name, declarationKey: 'impl' };
-
-            throw LexicaErrors.module('LEXICA4001', `The conversion from ${registry.formatOperator(unimplementedConversion)} has no implementation, so a script that uses it is resolved and never evaluated`, location);
+            throw LexicaErrors.module('LEXICA4001', `${subject} has no implementation, so a script that uses it is resolved and never evaluated`, location);
         }
 
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);
@@ -223,6 +222,8 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         hostCall: hostCall === null ? null : Object.freeze({ name: hostCall.name, declaration: hostCall.declaration }),
         type: resolved.type === null ? null : String(resolved.type),
         usedDeclarations,
+        deferredAccesses,
+        getCandidateDeclarations: () => Object.freeze({ declarations: Object.freeze(resolved.candidateDeclarations.map(useOf)), isOverestimate: deferredAccesses.length > 0 }),
         typeAt,
         getLocation: pointer => locate(definition, pointer),
         createEvaluator,

@@ -8,6 +8,7 @@ export class ResolvedDefinition {
     #hostCall;
     #resolutions;
     #usedDeclarations;
+    #deferredAccesses;
 
     /** Each node of the definition's expression, by the node itself, with its JSON Pointer and what it resolved to. @type {Map<object, { pointer: string, resolution: object | undefined }>} */
     #nodes = new Map();
@@ -22,15 +23,18 @@ export class ResolvedDefinition {
      * @param {Map<string, object>} resolutions What each member node, by its JSON Pointer, resolved to.
      * @param {object[]} usedDeclarations The declarations the request uses, each with the pointer that used it, a call's copy of a function's body among them, and its qualified name, the name a message gives it, qualified
      * by the type its declaration is for.
+     * @param {{ name: string | null, pointer: string, candidates: object[] }[]} deferredAccesses The accesses whose member is selected during evaluation, each with the name it accesses, null for an unnamed indexer,
+     * and the declarations its selection could choose, each a use at its pointer.
      * @param {{ node: object, pointer: string, bodyPointer: string }[]} functionBodyCopies The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
      */
-    constructor(definition, type, hostCall, resolutions, usedDeclarations, functionBodyCopies = []) {
+    constructor(definition, type, hostCall, resolutions, usedDeclarations, deferredAccesses, functionBodyCopies = []) {
         this.#definition = definition;
         this.#type = type;
         this.#hostCall = hostCall;
         this.#resolutions = resolutions;
         this.#functionBodyCopies = functionBodyCopies;
         this.#usedDeclarations = Object.freeze(this.#definitionUsesOf(usedDeclarations));
+        this.#deferredAccesses = Object.freeze(this.#definitionAccessesOf(deferredAccesses));
         this.#index(definition.expression, '/expression');
         functionBodyCopies.forEach(bodyCopy => this.#index(bodyCopy.node, bodyCopy.pointer));
     }
@@ -54,6 +58,21 @@ export class ResolvedDefinition {
         }
 
         return kept;
+    }
+
+    /** The deferred accesses, each named by the pointer into the definition it stands at, as a use is, and kept once at each pointer, since every call of one function resolves its body's accesses again. */
+    #definitionAccessesOf(deferredAccesses) {
+        const kept = new Map();
+
+        for (const access of deferredAccesses) {
+            const pointer = this.resolveDefinitionPointer(access.pointer);
+
+            if (!kept.has(pointer)) {
+                kept.set(pointer, { ...access, pointer, candidates: access.candidates.map(candidate => ({ ...candidate, pointer })) });
+            }
+        }
+
+        return [...kept.values()];
     }
 
     /** Resolves the pointer into the definition a pointer names, a pointer into a call's copy of a function's body naming the part of the body it copies, and any other pointer itself. */
@@ -97,9 +116,17 @@ export class ResolvedDefinition {
         return this.#usedDeclarations;
     }
 
-    /** The conversions the request uses, each once, a branch evaluation may not take among them. */
-    get usedConversions() {
-        return [...new Set([...this.#resolutions.values()].filter(resolution => resolution.kind === 'conversion' && resolution.declaration !== null).map(resolution => resolution.declaration))];
+    /** The accesses whose member is selected during evaluation, by its value's actual type, each with where it stands in the definition, the name it accesses and the declarations its selection could choose. */
+    get deferredAccesses() {
+        return this.#deferredAccesses;
+    }
+
+    /**
+     * Every declaration evaluation could select: the used declarations, and each deferred access's candidates at its pointer, every accessible declaration of its name and form, which its value's actual type selects one
+     * of or none of, so they are an overestimate wherever a deferred access remains.
+     */
+    get candidateDeclarations() {
+        return this.#definitionUsesOf([...this.#usedDeclarations, ...this.#deferredAccesses.flatMap(access => access.candidates)]);
     }
 
     /**

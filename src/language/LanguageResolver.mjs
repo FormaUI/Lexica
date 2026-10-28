@@ -70,7 +70,17 @@ export class LanguageResolver {
 
         const hostCall = result.kind === 'hostCall' ? this.#hostCallOf(definition.expression, '/expression') : null;
 
-        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#usedDeclarations, this.#functionBodyCopies);
+        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#usedDeclarations, this.#deferredAccessesOf(), this.#functionBodyCopies);
+    }
+
+    /**
+     * Each deferred access the resolutions hold, by its pointer, with the name it accesses and every declaration its selection could choose, each named as a message names a use, qualified by the type it is declared for,
+     * since no receiver's type is known to qualify it by.
+     */
+    #deferredAccessesOf() {
+        const deferred = [...this.#resolutions].filter(([, resolution]) => resolution.kind === 'deferred');
+
+        return deferred.map(([pointer, { name, candidates }]) => ({ name, pointer, candidates: candidates.map(declaration => ({ declaration, qualifiedName: LanguageResolver.#formatQualifiedName(declaration, this.#registry.getReceiverTypes(declaration)[0]), pointer })) }));
     }
 
     /** Resolves the node in the script's terminal position, where a host call may stand: the script's expression, the result a body there returns and the body a `do` there holds. */
@@ -565,6 +575,11 @@ export class LanguageResolver {
             this.#fail('LEXICA3060', `A value of ${base} can never be cast to ${node.type}, a type of another hierarchy no cast operator reaches: the cast would always reject it`, pointer);
         }
 
+        // A cast operator is a declaration the script uses, named by the syntax that invokes it, as a message names it.
+        if (declaration !== null) {
+            this.#usedDeclarations.push({ declaration, qualifiedName: this.#registry.formatOperator(declaration), pointer });
+        }
+
         this.#resolutions.set(pointer, { kind: 'cast', type: targetType, sourceType: base, declaration });
 
         return { type: from.kind === 'null' || from.isNullable ? targetType.toNullable() : targetType, kind: 'value', isFixed: false };
@@ -689,6 +704,10 @@ export class LanguageResolver {
             const available = targets.length === 0 ? `${source} converts to nothing` : `${source} converts to ${targets.join(', ')}`;
 
             this.#fail('LEXICA3022', `No conversion from ${source} to ${to.name} is declared, and ${available}`, pointer);
+        }
+
+        if (declaration !== undefined) {
+            this.#usedDeclarations.push({ declaration, qualifiedName: this.#registry.formatOperator(declaration), pointer });
         }
 
         this.#resolutions.set(pointer, { kind: 'conversion', declaration: declaration ?? null, type: to });
@@ -1528,7 +1547,7 @@ export class LanguageResolver {
      * Resolves an access on a value of Any, whose member is selected when that value is evaluated, by its actual type, through the selector, as an access its receiver's type selects during resolution is: a property read
      * whatever its name, since a plain object's fields are named by its data, and a call or an indexer of a member some accessible declaration of its name, or an unnamed indexer, takes in that form. Its arguments are read
      * without the declaration, each a value, never an implicit body or a function, whose reading would depend on the declaration (LEXICA3029). It answers a value of Any, and records no use, since it chooses no declaration
-     * before it is evaluated.
+     * before it is evaluated; its resolution names the access, null for an unnamed indexer, and keeps its candidates, which the resolution reports.
      */
     #resolveDeferredAccess(node, pointer, scope) {
         const isUnnamedIndexer = node.kind === 'indexer' && node.name === undefined;
@@ -1552,7 +1571,7 @@ export class LanguageResolver {
         const argumentNodes = node.kind === 'call' ? node.arguments : node.kind === 'indexer' ? [node.argument] : [];
         const args = argumentNodes.map((argument, index) => this.#resolveDeferredArgument(argument, node.kind === 'indexer' ? `${pointer}/argument` : `${pointer}/arguments/${index}`, scope, written));
 
-        return { result: { type: Type.any, kind: 'value', isFixed: false }, resolution: { kind: 'deferred', candidates, receiverNode: node.target, arguments: args }, use: null };
+        return { result: { type: Type.any, kind: 'value', isFixed: false }, resolution: { kind: 'deferred', name: isUnnamedIndexer ? null : node.name, candidates, receiverNode: node.target, arguments: args }, use: null };
     }
 
     /** Resolves an argument of a deferred access, read without the declaration it will select: a value, refused where it reads an implicit parameter of its own or gives a function (LEXICA3029). */
@@ -2792,7 +2811,11 @@ export class LanguageResolver {
      * a type parameter alone, which takes a receiver of any type, keeps its name alone. A list is named by its type, Lexica's `List`, as `List.count` is.
      */
     #qualifiedNameOf(declaration, receiverType) {
-        const type = this.#typeChecker.resolveApplyingReceiverType(declaration, receiverType);
+        return LanguageResolver.#formatQualifiedName(declaration, this.#typeChecker.resolveApplyingReceiverType(declaration, receiverType));
+    }
+
+    /** The member's name qualified by the receiver type given, its type's name, or its name alone where none is given or that type is a type parameter. */
+    static #formatQualifiedName(declaration, type) {
         // An unnamed indexer is named as its access is written, brackets after its receiver.
         const isUnnamedIndexer = declaration.kind === 'indexer' && declaration.name === undefined;
 

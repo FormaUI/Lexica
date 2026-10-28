@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; in [unit 2](#unit-2--member-selection-and-deferred-evaluation), the selector, operators, `Any` and deferred selection are done, and reporting is next.**
+**The core language, host calls, definition version 33 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; in [unit 2](#unit-2--member-selection-and-deferred-evaluation), the selector, operators, `Any`, deferred selection and reporting are done, and the ledger's last item, U1's candidates, is next.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | --- | --- | --- |
 | 0 | [Decisions and the specification](#unit-0--decisions-and-the-specification) | ✅ Done |
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | ✅ Done |
-| 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | In progress: steps 1 to 3 done; step 4 next |
+| 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | In progress: steps 1 to 4 done; step 5 next |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | Planned |
 | 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
 | 5 | [Specification examples](#unit-5--specification-examples) | Planned |
@@ -86,13 +86,13 @@ Contracts: [Types](../spec/types.md), [Modules](../spec/modules.md), [declaring 
 
 ### Unit 2 — Member selection and deferred evaluation
 
-One selector chooses every member, indexer and operator, at resolution and during evaluation alike. *Next: step 4, reporting.*
+One selector chooses every member, indexer and operator, at resolution and during evaluation alike. *Next: step 5, U1's candidates.*
 
 1. ✅ **The selector,** [I20](proposals/implementation-decisions.md)'s `MemberSelector`, the registry's, replaces the three selection paths and the path for receivers of unknown type: owner precedence through inheritance; competing extensions registering, in place of the registration's refusal, and selected by the most specific target; ambiguity refused at resolution, giving the extension accesses to write; internal declarations excluded at resolution; and an empty list or a null receiver selecting as [the types](../spec/types.md) set out.
 2. ✅ **Operators,** as [I21](proposals/implementation-decisions.md) sets out: casts and conversions declared on types and in extensions, in place of module-level conversions, competing as operators do, an applicable owner's winning and otherwise the most specific extension's; Lexica's own conversions moved onto its types; declared casts, an `impl` optional, `reject` making an attempt null; and operators chosen by the selector.
 3. ✅ **`Any` and deferred selection,** as [I22](proposals/implementation-decisions.md) sets out: `Any` written in a declaration's result, its parameters and its defaults; a member selected when its receiver is evaluated, through the same selector, by its value's actual type, the selection kept by node and actual type within one compilation, plain objects read by their own fields; a structured value's identity kept through `Any`; a selection that would be a host call refused before anything is invoked, LEXICA5013; `beforeInvoke` told the selection was deferred, [C11](proposals/responsibilities-and-terminology-ledger.md#7-renames-by-owner)'s `request.isDeferred`; an `Any` argument checked against its parameter, LEXICA5021, an equality of `Any` by its rules, LEXICA5024 and LEXICA5025, and a result holding `Any` checked to be data, LEXICA5028; and a deferred access failing with the access and the actual type named, LEXICA5012, and on null, LEXICA5022. A deferred call takes values alone: the specification also accepts an explicitly written function, which waits, as I22 records.
-4. **Reporting:** used declarations including operators, in place of the separate used conversions; deferred accesses; and candidate declarations, reported as an overestimate.
-5. **From the ledger:** [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidate handling, and [U11](proposals/responsibilities-and-terminology-ledger.md#5-unifications), used declarations and used conversions unified. U10, U40, U41 and C11 are done, with operators and deferred selection.
+4. ✅ **Reporting,** as [I23](proposals/implementation-decisions.md) sets out: used declarations including operators, in place of the separate used conversions, one check of their implementations, LEXICA4001, located at the type a member stands in; deferred accesses, by their pointer and the name they access; and candidate declarations, asked for, reported as an overestimate while a deferred access remains.
+5. **From the ledger:** [U1](proposals/responsibilities-and-terminology-ledger.md#5-unifications)'s candidate handling. U10, U40, U41 and C11 are done, with operators and deferred selection, and U11 with reporting.
 
 **Completion:** the gate passes, and a host can move its declarations and its runtime use in one migration.
 
@@ -109,6 +109,7 @@ One selector chooses every member, indexer and operator, at resolution and durin
 | Prepared and skipped call | `location` | `pointer`, a definition pointer, the prepared call extending the invocation request | Locate through `resolution.getLocation(call.pointer)` where a location is needed: `domql.js:347`, `domql.js:416` |
 | Invocation request | `pointer`, a body copy's within a script function's body | `pointer`, the definition's, whichever call reached it | Key nothing by the pointer that two calls of one function must tell apart: DOMQL reads none |
 | Used declarations | A use within a script function's body at a body copy's pointer, which `getLocation` refuses, once for each call | At the definition's pointer, a declaration once at each pointer | None: `domql.js:486` and `:494` locate a refused use's pointer, which now always expands |
+| Reporting | `usedDeclarations`, members alone, and an internal `usedConversions`; LEXICA4001 for a member located without its type | Operators among the used declarations, named `convert` or `cast` and qualified by their syntax, as `String to Number`; `deferredAccesses`, `{ name, pointer }`; `getCandidateDeclarations()`, `{ declarations, isOverestimate }`; LEXICA4001 located at the `type` a member stands in | None: `#checkWatch` (`domql.js:482`) reads an operator's `updates` as absent, which no observation needs, and DOMQL reads no deferred access, since it declares no `Any` |
 | Registry | `getOwner(declaration)` | `getDeclaringModuleName(declaration)` | Rename: `Observations.mjs:445` |
 | Declarations that run code | `implementation`, on members, observation types and conversions | `impl`; `implementation` is refused with LEXICA4030 at that key, and LEXICA4001, LEXICA4030 and LEXICA4505 are located at `impl`; `registry.getImplementation` keeps its name | Attach each function as `impl`: `BrowserVocabularyDeclarations.mjs:44`. `DispatchTable`'s `#createDescriptor` reads the host call's `impl`, validates it and keeps the function as the descriptor's `implementation`, and `#createDeclaration` strips `impl` before the declaration reaches Lexica, which refuses one on a host call; an invalid one is located at `impl`. The descriptor's `implementation` and its read at `domql.js:546` keep their names |
 | Reference types | Members declared flat, each naming its `target` | A reference type's own members within it, `members`, each taking the type as its receiver and naming no target; a nested declaration's error located at its `type` | None until DOMQL declares reference types: it declares none |
@@ -236,7 +237,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Namespaces | Module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
 | Text and definitions | Parse, validate, format, quote, and get a location; canonical text for definition version 33 | [Definition](../spec/definition.md) |
 | Types | Reference types with their hierarchy, membership and recognition, structured types, extensions, declared type parameters, `Any`, one type relation, and casts, a declared cast across hierarchies among them | [Types](../spec/types.md) |
-| Runtime | Bindings a registry makes, recognizing references, resolution, reuse by resolution key, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
+| Runtime | Bindings a registry makes, recognizing references, resolution with its used declarations, deferred accesses and candidate declarations, reuse by resolution key, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
 | Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/diagnostics-and-errors.md) |
 | Build | Bundle and type declarations | [Build](../README.md#build) |
 

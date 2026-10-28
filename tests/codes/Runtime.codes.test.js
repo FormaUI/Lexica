@@ -229,8 +229,13 @@ describe('the runtime codes', () => {
         it('LEXICA4001: creating an evaluator for a resolution whose used member or conversion has no implementation', () => {
             const bare = lexica.createRegistry([createBare()]);
 
-            expectLexicaError(errorThrownBy(() => bare.resolve('word.weight', { word: 'oat' }).createEvaluator({ word: 'oat' })), 'LEXICA4001', 'module');
-            expectLexicaError(errorThrownBy(() => bare.resolve('(word to Mug).size', { word: 'oat' }).createEvaluator({ word: 'oat' })), 'LEXICA4001', 'module');
+            const member = errorThrownBy(() => bare.resolve('word.weight', { word: 'oat' }).createEvaluator({ word: 'oat' }));
+            const conversion = errorThrownBy(() => bare.resolve('(word to Mug).size', { word: 'oat' }).createEvaluator({ word: 'oat' }));
+
+            expectLexicaError(member, 'LEXICA4001', 'module');
+            expectLexicaError(conversion, 'LEXICA4001', 'module');
+            expect(member.location).toEqual({ module: 'bare', type: 'StringExtensions', declaration: 'weight', declarationKey: 'impl' });
+            expect(conversion.location).toEqual({ module: 'bare', type: 'StringExtensions', declaration: 'convert', declarationKey: 'impl' });
         });
 
         it('LEXICA5010: evaluating an evaluator from within its own evaluation', () => {

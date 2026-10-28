@@ -70,6 +70,8 @@ resolution.typeAt(['price', 'amount']); // 'Number'
 resolution.usedDeclarations.map(used => used.qualifiedName); // ['String.price', 'String.discount']
 ```
 
+An access on a value of `Any` selects its member as it is evaluated, so no used declaration names it: `resolution.deferredAccesses` lists each such access by its pointer and the name it accesses, and `resolution.getCandidateDeclarations()` answers every declaration an evaluation could select, marked as an overestimate while a deferred access remains.
+
 `registry.createBindings` asks the registry's modules which values are references, by each module's `typeOf`, keeps each reference as it is and a frozen copy of the data, so later changes to the original data never reach a script; the bindings are that registry's alone. A resolution is reused for bindings of the same types and the same primitive values.
 
 ## Evaluate

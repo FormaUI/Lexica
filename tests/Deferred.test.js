@@ -88,6 +88,41 @@ describe('values of Any', () => {
         });
     });
 
+    describe('reported', () => {
+        it('reports each deferred access by where it stands and the name it accesses, an unnamed indexer\'s null, once in a script function\'s body whichever calls reach it', () => {
+            const resolution = resolve('{ glow = shelf.item("light").glow, dim = shelf.item("device").dim(2), key = shelf.item("device")["k"] }');
+
+            expect(resolution.deferredAccesses).toEqual([
+                { name: 'glow', pointer: '/expression/fields/0/value' },
+                { name: 'dim', pointer: '/expression/fields/1/value' },
+                { name: null, pointer: '/expression/fields/2/value' },
+            ]);
+            expect(Object.isFrozen(resolution.deferredAccesses) && resolution.deferredAccesses.every(Object.isFrozen)).toBe(true);
+            expect(resolve('let f = function(x) return x.glow end\nreturn { a = f(shelf.item("light")), b = f(shelf.item("light")) }').deferredAccesses).toEqual([{ name: 'glow', pointer: '/expression/locals/0/value/body/result' }]);
+            expect(resolve('shelf.cup().size').deferredAccesses).toEqual([]);
+        });
+
+        it('gives, asked for them, the candidate declarations: the used ones, and each deferred access\'s accessible declarations of its name and form at its pointer, an overestimate while a deferred access remains', () => {
+            const candidates = resolve('{ glow = shelf.item("light").glow, shout = shelf.item("word").shout, key = shelf.item("device")["k"] }').getCandidateDeclarations();
+
+            expect(candidates.isOverestimate).toBe(true);
+            expect(candidates.declarations.map(({ name, qualifiedName, pointer }) => [name, qualifiedName, pointer])).toEqual([
+                ['item', 'shelf.item', '/expression/fields/0/value/target'],
+                ['item', 'shelf.item', '/expression/fields/1/value/target'],
+                ['item', 'shelf.item', '/expression/fields/2/value/target'],
+                ['glow', 'Light.glow', '/expression/fields/0/value'],
+                ['shout', 'String.shout', '/expression/fields/1/value'],
+                [null, 'List[]', '/expression/fields/2/value'],
+                [null, 'Device[]', '/expression/fields/2/value'],
+            ]);
+            expect(Object.isFrozen(candidates) && Object.isFrozen(candidates.declarations)).toBe(true);
+
+            const known = resolve('shelf.cup().size');
+
+            expect(known.getCandidateDeclarations()).toEqual({ declarations: known.usedDeclarations, isOverestimate: false });
+        });
+    });
+
     describe('selected as they are evaluated', () => {
         it('selects a member by the actual type of its receiver\'s value: a reference\'s, an inherited one\'s, a string\'s, a list\'s and an indexer\'s', () => {
             expect(evaluate('shelf.item("light").glow')).toBe('lamp glows');

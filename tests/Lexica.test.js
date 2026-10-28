@@ -119,7 +119,7 @@ describe('lexica', () => {
         const resolution = lexica.createRegistry([cups]).resolve('{ size = (word to Cup).size, doubled = (word to Cup).doubled }', { word: 'oat' });
         const told = [];
 
-        expect(resolution.usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Cup.size', 'Cup.doubled']);
+        expect(resolution.usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['String to Cup', 'Cup.size', 'String to Cup', 'Cup.doubled']);
         expect(resolution.createEvaluator({ word: 'oat' }).evaluate({ beforeInvoke: request => void told.push(request.declaration.name) }).value).toEqual({ size: 3, doubled: 6 });
         expect(told).toEqual(['doubled']);
     });

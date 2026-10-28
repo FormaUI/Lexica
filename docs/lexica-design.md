@@ -20,7 +20,7 @@ A script passes through five stages. Each stage's output is the next one's input
 | Reading | A lossless syntax tree of the text, every token and its trivia kept | `Tokenizer`, `Parser`, `SyntaxTree` |
 | Lowering | The definition, the script's JSON form, with the text location of each node | `Lowering`, `TextLocations` |
 | Validation | The definition checked and frozen, whether text or a host produced it | `DefinitionValidator` |
-| Resolution | Every member resolved against a registry, the result typed, the used declarations recorded | `LanguageResolver`, `ResolvedDefinition` |
+| Resolution | Every member resolved against a registry, or deferred to evaluation on a value of `Any`, the result typed, the used declarations and the deferred accesses recorded | `LanguageResolver`, `ResolvedDefinition` |
 | Evaluation | The value and its metadata, each read reported to the host | `Evaluator` |
 
 The domain enters as late as it can. Reading knows the language and the script's imports alone, which the parser reads, since an import decides whether a module's name written where a value stands begins a namespace; the tokenizer reads an identifier by its spelling alone, and reading asks no registry and knows nothing else of any module. Lowering and validation know the language alone, so a text is checked, stored and formatted without a vocabulary. Resolution reads a module's declarations as data and runs none of its code; evaluation is the one stage that invokes implementations. That split is what lets a tool check a script before running it, and a host know what an evaluation will depend on before it starts.

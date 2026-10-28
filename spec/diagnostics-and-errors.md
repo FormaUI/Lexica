@@ -210,7 +210,7 @@ A module whose declarations break the declaration contract, a type or a member n
 
 | Code | Situation | Result |
 | --- | --- | --- |
-| `LEXICA4001` | Creating an evaluator for a resolution whose used declarations or used conversion operators the evaluator invokes have no `impl` | A module error naming the declaration and its module |
+| `LEXICA4001` | Creating an evaluator for a resolution whose used declarations the evaluator invokes, conversion operators among them, have no `impl` | A module error naming the declaration and its module |
 | `LEXICA4002` | A member other than an indexer declared without a `name` | A module error naming the member |
 | `LEXICA4030` | A declaration key a declaration's kind does not take, a type-level `fields` collection, and `target`, `syntax` or `default` on a member among them | A module error naming the declaration key |
 | `LEXICA4031` | An `internal` that is no Boolean | A module error naming the declaration |
