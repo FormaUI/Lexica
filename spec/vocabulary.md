@@ -30,9 +30,12 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | `count` | The number of items, 0 for an empty list |
 | `first`, `last` | The first or the last item, null for an empty list |
 | The unnamed indexer, `[index]` | The item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0` |
+| The unnamed indexer, `[^n]` | The item at the [index](types.md#types-positions) counted from the end, `^1` the last, and null for `^0` and for an index before the start |
+| The unnamed indexer, `[range]` | A `List<T>`, the items within the [range](types.md#types-positions), applied to the list's length once, in order; a range whose start stands after its end, or either beyond the list, is refused where it is evaluated (LEXICA5033), never trimmed, and equal boundaries give an empty list, so `take` and `drop` are the tolerant partitions |
 | `where` | The items its predicate is truthy for, in the list's order, leaving out an item whose predicate is null or false; the predicate may produce any value |
 | `max`, `min`, `sum`, `average` | Evaluate a number expression against each item and require `Number?`; `average` the mean of the numbers |
-| `entry[index]` | The item at the index as a `Pair<Number, T>`, its index and the item, null wherever the unnamed indexer answers null for an index the list has no item at |
+| `entry[index]`, `entry[^n]` | The item at the index as a `Pair<Number, T>`, its index from the start and the item, null wherever the unnamed indexer answers null for an index the list has no item at |
+| `pick(positions)` | A `List<T>`, the item at each of the positions, a `List<Number>`, in the positions' order, a position given twice giving its item twice; a position no item stands at, a fractional or negative one among them, is refused (LEXICA5034) |
 | `select(expression)` | A `List<U>`, the expression's value for every item in order, a null item among them, the expression's `it` of the item's type, so `items.select(it)` keeps the list and `items.select(it ?? 0)` replaces its nulls |
 | `selectMany(expression)` | A `List<U>`, the lists the expression gives the items joined in order; an item's list that is null, a null item's among them, is refused (LEXICA5031), never treated as empty |
 | `concat(other)` | The items, then those of `other`, a `List<T>` of the receiver's `T`, which a later argument never widens |
@@ -47,6 +50,10 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | `reverse` | The items in the opposite order |
 | `toDictionary(expression)` | A `Dictionary<K, T>` of the items by the key the expression gives each, in the items' order, two items of one key refused (LEXICA5029), which `groupBy` collects instead |
 | `groupBy(expression)` | A `Dictionary<K, List<T>>` of the items by their keys, each key's items in their order, the keys in the order their first items stand |
+
+Each signature of the unnamed indexer and of `entry` is one of an [indexer's signatures](members.md#property-access-calls-and-indexers-unnamed-indexers), selected by its key's type: a number and an index are looked up tolerantly, and a range slices strictly.
+
+A number generates numbers apart from any range: `start.sequence(count, step)`, `step` 1 where it is left out, is the `List<Number>` of the count's numbers from the start, each the step after the one before, a count that is no nonnegative safe integer refused (LEXICA5035).
 
 `where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`. A key `toDictionary`, `groupBy` or `distinctBy` gives is of a key type, `K` its expression's type, so keys of another type are refused where they are resolved (LEXICA3083).
 

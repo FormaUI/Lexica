@@ -47,7 +47,7 @@ describe('LexicaRegistry', () => {
         expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'List<Chart?>' })] })).toContain("'List<Chart?>' names the type 'Chart'");
         expect(failing({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'Axis' }) }] })).toContain("names the type 'Axis'");
         expect(failing({ typeSelectors: [{ name: 'report' }], mappings: [{ key: 'chartclick', selector: 'report', type: 'ChartEvent' }] })).toContain("names the type 'ChartEvent'");
-        expect(failing({ members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'range', type: 'Range' })] })] })).toContain("names the type 'Range'");
+        expect(failing({ members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'span', type: 'Span' })] })] })).toContain("names the type 'Span'");
     });
 
     it('takes Any in a declaration\'s result and its parameters, a value of any type, and any data as its default', () => {

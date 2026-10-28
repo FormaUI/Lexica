@@ -32,6 +32,8 @@ export const SYNTAX_NODE_KINDS = Object.freeze([
     'additive',
     'multiplicative',
     'arithmetic-negation',
+    'from-end-index',
+    'range-expression',
     'coalescing',
     'attempt',
     'conversion',

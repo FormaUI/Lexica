@@ -13,7 +13,7 @@ const ESCAPED = Object.freeze({ '"': '\\"', '\\': '\\\\', '\n': '\\n', '\r': '\\
 const ESCAPED_CHARACTERS = /["\\\p{Cc}\p{Cf}\p{Zl}\p{Zp}]|(?! )\p{Zs}/gu;
 
 /** How tightly each kind of expression binds, the loosest lowest: one written where a tighter one stands is parenthesized. An optional chain is a cast's target as it is, and is grouped where a chain continues from it, since its short-circuit ends where it does. */
-const PRECEDENCE = { conditional: 0, body: 0, do: 0, function: 0, coalescing: 1, or: 2, and: 3, not: 4, equality: 5, comparison: 5, additive: 6, multiplicative: 7, arithmeticNegation: 8, try: 9, conversion: 10, cast: 11, optionalChain: 12 };
+const PRECEDENCE = { conditional: 0, body: 0, do: 0, function: 0, range: 1, coalescing: 1, or: 2, and: 3, not: 4, equality: 5, comparison: 5, additive: 6, multiplicative: 7, arithmeticNegation: 8, fromEndIndex: 8, try: 9, conversion: 10, cast: 11, optionalChain: 12 };
 
 /** How tightly a chain binds that no optional chain holds: a property access, a call, an indexer, an object expression, `it`, `root`, a namespace, a local, a literal or a script parameter. */
 const CHAIN_PRECEDENCE = 13;
@@ -167,6 +167,12 @@ export class DefinitionWriter {
 
                 return `-${runsTogether ? `(${DefinitionWriter.#write(operand, level)})` : DefinitionWriter.#within(operand, PRECEDENCE.arithmeticNegation, level)}`;
             }
+            case 'fromEndIndex':
+                // An index's offset is an equality operand, so an operator expression or a negative number is grouped after its `^`.
+                return `^${DefinitionWriter.#within(node.offset, PRECEDENCE.try, level)}`;
+            case 'range':
+                // A boundary is an arithmetic negation, so an operator expression or another range is grouped, and `..` stands between them with no space.
+                return `${node.start === undefined ? '' : DefinitionWriter.#within(node.start, PRECEDENCE.arithmeticNegation, level)}..${node.end === undefined ? '' : DefinitionWriter.#within(node.end, PRECEDENCE.arithmeticNegation, level)}`;
             case 'not':
                 // The negation of an equality is written as `!=`, which is its canonical text.
                 return node.operand.kind === 'equality' ? DefinitionWriter.#equality(node.operand, '!=', level) : `not ${DefinitionWriter.#within(node.operand, PRECEDENCE.not, level)}`;

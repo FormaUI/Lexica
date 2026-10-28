@@ -35,6 +35,8 @@ const NODE_PROPERTIES = {
     function: { properties: ['kind', 'parameters', 'body', 'arrow'], required: ['parameters', 'body'] },
     arithmetic: { properties: ['kind', 'operator', 'left', 'right'], required: ['operator', 'left', 'right'] },
     arithmeticNegation: { properties: ['kind', 'operand'], required: ['operand'] },
+    fromEndIndex: { properties: ['kind', 'offset'], required: ['offset'] },
+    range: { properties: ['kind', 'start', 'end'], required: [] },
     coalescing: { properties: ['kind', 'value', 'fallback'], required: ['value', 'fallback'] },
     not: { properties: ['kind', 'operand'], required: ['operand'] },
     cast: { properties: ['kind', 'type', 'operand'], required: ['type', 'operand'] },
@@ -245,7 +247,7 @@ export class DefinitionValidator {
         }
 
         if (!ObjectUtils.isNonArrayObject(node) || !Object.hasOwn(NODE_PROPERTIES, node.kind)) {
-            this.#fail('LEXICA2000', 'A node is an object whose kind is literal, scriptParameter, it, root, namespace, local, memberAccess, call, indexerAccess, object, list, dictionary, optionalChain, equality, comparison, interpolatedString, body, do, function, arithmetic, arithmeticNegation, conditional, coalescing, not, cast, conversion, try, and or or', pointer);
+            this.#fail('LEXICA2000', 'A node is an object whose kind is literal, scriptParameter, it, root, namespace, local, memberAccess, call, indexerAccess, object, list, dictionary, optionalChain, equality, comparison, interpolatedString, body, do, function, arithmetic, arithmeticNegation, fromEndIndex, range, conditional, coalescing, not, cast, conversion, try, and or or', pointer);
         }
 
         this.#requireProperties(node, pointer, NODE_PROPERTIES[node.kind]);
@@ -347,6 +349,20 @@ export class DefinitionValidator {
                 });
             case 'arithmeticNegation':
                 return Object.freeze({ kind: 'arithmeticNegation', operand: this.#validateNode(node.operand, `${pointer}/operand`, contextAvailability) });
+            case 'fromEndIndex':
+                return Object.freeze({ kind: 'fromEndIndex', offset: this.#validateNode(node.offset, `${pointer}/offset`, contextAvailability) });
+            case 'range': {
+                // A boundary the range leaves out is no property of its node.
+                const range = { kind: 'range' };
+
+                for (const boundary of ['start', 'end']) {
+                    if (node[boundary] !== undefined) {
+                        range[boundary] = this.#validateNode(node[boundary], `${pointer}/${boundary}`, contextAvailability);
+                    }
+                }
+
+                return Object.freeze(range);
+            }
             case 'conditional':
                 return this.#validateConditional(node, pointer, contextAvailability);
             case 'body':

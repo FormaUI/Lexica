@@ -45,7 +45,19 @@ export class MemberSelector {
         const owned = accessible.filter(declaration => this.#isOwnedBy(declaration, owner));
         const competing = this.#typeChecker.mostSpecificOf(owned.length > 0 ? owned : accessible, receiverType);
 
-        return competing.length === 1 ? { kind: 'selected', declaration: competing[0] } : { kind: 'ambiguous', declarations: competing };
+        // An indexer's signatures compete as one candidate, its first standing for them, which its key's type then chooses among.
+        if (competing.length === 1 || this.#areSignaturesOfOne(competing)) {
+            return { kind: 'selected', declaration: competing[0] };
+        }
+
+        return { kind: 'ambiguous', declarations: competing };
+    }
+
+    /** Whether the declarations are all signatures of one indexer, as the registry gives them. */
+    #areSignaturesOfOne(declarations) {
+        const signatures = this.#registry.getIndexerSignatures(declarations[0]);
+
+        return signatures.length > 1 && declarations.every(declaration => signatures.includes(declaration));
     }
 
     /** The candidates a receiver of unknown type may read, which choose no declaration: the accessible ones, an internal one no candidate. */

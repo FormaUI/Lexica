@@ -1,6 +1,6 @@
 # Proposal: collections
 
-**State: accepted in part.** The direction and the decisions under [accepted decisions](#accepted-decisions) are accepted; the contracts under [open contracts](#open-contracts) are proposed and not settled, but the lineage representation and the foundation, which are settled, specified and implemented. Nothing else here is specified or implemented yet; [unit 4](../features-status.md#unit-4--collections) of the implementation plan settles the open contracts, specifies each part and implements it.
+**State: accepted in part.** The direction and the decisions under [accepted decisions](#accepted-decisions) are accepted; the contracts under [open contracts](#open-contracts) are proposed and not settled, but the lineage representation, the foundation, construction and operations, and positional operations, which are settled, specified and implemented. Nothing else here is specified or implemented yet; [unit 4](../features-status.md#unit-4--collections) of the implementation plan settles the open contracts, specifies each part and implements it.
 
 Related proposals: [contract generics](contract-generics.md), whose inference collection members follow, [`Any` and deferred selection](any-and-deferred-selection.md), whose identity rules values in collections keep, and [line structure](line-structure.md), which collection syntax extends.
 
@@ -107,6 +107,8 @@ Each contract below is proposed; the stage that depends on it settles it first.
 - **Evaluation:** a predicate or a selected expression running at most once for each occurrence an operation visits, collection evaluation finite, short-circuiting reading only the expressions reached, and collection failures located errors that never become null; `try` keeping its meaning for casts and conversions alone.
 
 ### Positional operations
+
+✅ **Settled,** as [positions](../../spec/types.md#types-positions), [Lexica's vocabulary](../../spec/vocabulary.md#vocabulary-list-members) and [an indexer's signatures](../../spec/members.md#property-access-calls-and-indexers-unnamed-indexers) specify and [I38](implementation-decisions.md) records: an `Index` counts from the end alone, a number from the start.
 
 - **Indices and ranges:** an `Index`, an offset from the beginning or, written `^n`, from the end, and a `Range`, two boundaries of a half-open interval, `items[1..4]`, `items[..4]`, `items[4..]`, `items[^3..]`, `items[..^1]` and `items[..]`, reusable as values, `let middle = 1..^1`, capturing no collection and generating no numbers; offsets nonnegative safe integers, never rounded.
 - **Lookup and slicing:** scalar lookup tolerant as today, a missing, negative or fractional position giving null and `items[^0]` null; slicing strict, `0 <= start <= end <= L` against one captured length, a reversed or out-of-bounds range a located error, equal boundaries an empty list; and `take` and `drop` the tolerant partitions.

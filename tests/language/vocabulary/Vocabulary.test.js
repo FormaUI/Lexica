@@ -16,7 +16,7 @@ describe('Vocabulary', () => {
     const writtenOf = member => `${registry.getReceiverTypes(member).join(' or ')}${member.name === undefined ? '[]' : `.${member.name}`}`;
 
     /** The conversion operators of Lexica's own scalar types, each standing in the type it converts from. */
-    const conversions = Vocabulary.valueTypes.filter(type => type.kind === 'scalar').flatMap(type => type.members);
+    const conversions = Vocabulary.valueTypes.filter(type => type.kind === 'scalar').flatMap(type => type.members).filter(member => member.kind === 'operator');
 
     /** What the implementation of a conversion gives the value, or the reason it rejects it. */
     const convert = (from, to, value) => {
@@ -35,12 +35,12 @@ describe('Vocabulary', () => {
     });
 
     it('owns the language\'s value types, declared through its internal form: the scalars, List<T>, covariant in its items, Dictionary<K, V>, invariant in its keys, and Pair<K, V>, whose names are the ones written unqualified', () => {
-        expect(Vocabulary.valueTypes.map(({ name, kind }) => `${kind} ${name}`)).toEqual(['scalar Number', 'scalar String', 'scalar Boolean', 'generic List', 'generic Dictionary', 'generic Pair']);
+        expect(Vocabulary.valueTypes.map(({ name, kind }) => `${kind} ${name}`)).toEqual(['scalar Number', 'scalar String', 'scalar Boolean', 'generic List', 'generic Dictionary', 'position Index', 'position Range', 'generic Pair']);
         expect(list).toMatchObject({ typeParameters: ['T'], variances: ['covariant'] });
         expect(Vocabulary.getTypeDeclaration('Dictionary')).toMatchObject({ typeParameters: ['K', 'V'], variances: ['invariant', 'covariant'] });
         expect(Vocabulary.getTypeDeclaration('Pair')).toMatchObject({ typeParameters: ['K', 'V'], variances: ['covariant', 'covariant'] });
-        expect(Vocabulary.builtInTypeNames).toEqual(['Number', 'String', 'Boolean', 'List', 'Dictionary', 'Pair']);
-        expect(Vocabulary.ownTypeNames).toEqual(['Number', 'String', 'Boolean', 'List', 'Dictionary', 'Pair', 'Any', 'Never']);
+        expect(Vocabulary.builtInTypeNames).toEqual(['Number', 'String', 'Boolean', 'List', 'Dictionary', 'Index', 'Range', 'Pair']);
+        expect(Vocabulary.ownTypeNames).toEqual(['Number', 'String', 'Boolean', 'List', 'Dictionary', 'Index', 'Range', 'Pair', 'Any', 'Never']);
         // Type reads each generic type's arguments by a table of its own, which these declarations' parameters keep.
         expect(Object.fromEntries(Vocabulary.valueTypes.filter(type => type.kind === 'generic').map(type => [type.name, type.typeParameters.length]))).toEqual(Type.genericTypeArities);
         expect(Object.isFrozen(Vocabulary.ownTypeNames)).toBe(true);
@@ -57,9 +57,9 @@ describe('Vocabulary', () => {
     it('declares the members of lists, the verbs that test a receiver, and the conversion operators of strings, numbers and Booleans, and nothing of any domain', () => {
         // The unnamed indexer has no name, and is written as its access is, brackets after the list; the members of lists read the list's T, and the verbs their extension's, the receiver's own type.
         expect(list.members.map(writtenOf)).toEqual([
-            'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.select', 'List<T>.selectMany', 'List<T>.concat', 'List<T>.take', 'List<T>.drop',
+            'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>[]', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.select', 'List<T>.selectMany', 'List<T>.concat', 'List<T>.take', 'List<T>.drop',
             'List<T>.takeWhile', 'List<T>.dropWhile', 'List<T>.any', 'List<T>.all', 'List<T>.contains', 'List<T>.single', 'List<T>.average', 'List<T>.minBy', 'List<T>.maxBy', 'List<T>.distinct', 'List<T>.distinctBy',
-            'List<T>.reverse', 'List<T>.toDictionary', 'List<T>.groupBy', 'List<T>.entry',
+            'List<T>.reverse', 'List<T>.toDictionary', 'List<T>.groupBy', 'List<T>.entry', 'List<T>.entry', 'List<T>.pick',
         ]);
         expect(Vocabulary.getTypeDeclaration('Dictionary').members.map(writtenOf)).toEqual(['Dictionary<K, V>.count', 'Dictionary<K, V>[]', 'Dictionary<K, V>.entry', 'Dictionary<K, V>.containsKey', 'Dictionary<K, V>.keys', 'Dictionary<K, V>.values', 'Dictionary<K, V>.entries', 'Dictionary<K, V>.where', 'Dictionary<K, V>.select']);
         // A list of lists alone flattens, through an extension of Lexica's own value type its own declaration's receiver is too wide for.

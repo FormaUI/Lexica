@@ -216,6 +216,18 @@ export class LanguageResolver {
                 this.#requireNumber(this.#resolveNode(node.operand, `${pointer}/operand`, scope), "What '-' negates", `${pointer}/operand`);
 
                 return { type: Type.createNamedType('Number'), kind: 'value', isFixed: false };
+            case 'fromEndIndex':
+                this.#requirePosition(this.#resolveNode(node.offset, `${pointer}/offset`, scope), "An index's offset", `${pointer}/offset`, false);
+
+                return { type: Type.createNamedType('Index'), kind: 'value', isFixed: false };
+            case 'range':
+                for (const boundary of ['start', 'end']) {
+                    if (node[boundary] !== undefined) {
+                        this.#requirePosition(this.#resolveNode(node[boundary], `${pointer}/${boundary}`, scope), `A range's ${boundary}`, `${pointer}/${boundary}`, true);
+                    }
+                }
+
+                return { type: Type.createNamedType('Range'), kind: 'value', isFixed: false };
             case 'list':
                 return { type: Type.createListType(this.#resolveCollectionItems(node.items.map((item, index) => ({ node: item, pointer: `${pointer}/items/${index}` })), scope, pointer, "A list's items")), kind: 'value', isFixed: false };
             case 'dictionary': {
@@ -839,6 +851,70 @@ export class LanguageResolver {
      * Refuses what the operation, arithmetic unless another is named, takes no part in: what is no value, a value that can be null, which a fallback or a test removes first,
      * and a value of any type but a number, which nothing converts to one but `to`.
      */
+    /**
+     * The signature of the indexer the selection chose that the access's key selects: the one signature of an indexer that has one, and otherwise the one whose key type the key's type is assignable to, a key of null
+     * or a never the first's; a key none takes, and one of Any where several stand, is refused (LEXICA3084), never falling through to another member. The key is resolved to its type alone, its records discarded,
+     * since the signature's invocation resolves it.
+     */
+    #selectSignature(declaration, node, pointer, scope, receiverType) {
+        const signatures = this.#registry.getIndexerSignatures(declaration);
+
+        if (signatures.length === 1) {
+            return declaration;
+        }
+
+        const keyPointer = `${pointer}/argument`;
+        const outcome = this.#resolveSpeculatively(() => this.#resolveNode(node.argument, keyPointer, scope), { keepsSuccess: false });
+
+        if (outcome.error !== undefined) {
+            throw outcome.error;
+        }
+
+        const keyType = outcome.result.type;
+
+        if (keyType.kind === 'null' || keyType.kind === 'never') {
+            return signatures[0];
+        }
+
+        const typeArguments = (receiverType === null ? null : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType)) ?? new Map();
+        const keyTypeOf = signature => this.#registry.getDeclaredType(signature, signature.parameters[0].type).resolveTypeParameters(typeArguments);
+        const taking = signatures.filter(signature => keyType.kind !== 'any' && this.#typeChecker.isAssignable(keyType.toNonNullable(), keyTypeOf(signature).toNonNullable()));
+
+        if (taking.length === 1) {
+            return taking[0];
+        }
+
+        const subject = declaration.name === undefined ? `The unnamed indexer of ${receiverType?.toNonNullable()}` : `The indexer '${declaration.name}'`;
+        const given = keyType.kind === 'any' ? 'its key is of Any, which selects no signature until its value is known' : `is given ${keyType}`;
+
+        this.#fail('LEXICA3084', `${subject} takes ${signatures.map(keyTypeOf).map(String).join(', ').replace(/, ([^,]*)$/, ' or $1')}, and ${given}`, keyPointer);
+    }
+
+    /**
+     * Refuses a position that is none (LEXICA3085): an index's offset is a `Number`, and a range's boundary a `Number` or an `Index`, neither nullable; a never is never evaluated, and a value of Any is checked as it
+     * is evaluated.
+     */
+    #requirePosition(result, what, pointer, allowsIndex) {
+        this.#requireValue(result, what, pointer);
+
+        const { type } = result;
+        const takes = allowsIndex ? 'a number or an index' : 'a number';
+
+        if (type.kind === 'never' || (type.kind === 'any' && !type.isNullable)) {
+            return;
+        }
+
+        if (type.isNullable || type.kind === 'null') {
+            this.#fail('LEXICA3085', `${what} can be null, and is ${takes}`, pointer);
+        }
+
+        const isNamed = name => type.kind === 'named' && type.moduleName === null && type.name === name;
+
+        if (!isNamed('Number') && !(allowsIndex && isNamed('Index'))) {
+            this.#fail('LEXICA3085', `${what} is ${takes}, and this one is ${type}`, pointer);
+        }
+    }
+
     #requireNumber(result, what, pointer, operation = 'arithmetic') {
         this.#requireValue(result, what, pointer);
 
@@ -1927,8 +2003,9 @@ export class LanguageResolver {
      * its type parameters bound by its receiver's type, its own by its value arguments and then its callbacks' results, and the type a fixed argument selects. It answers its result, nullable where its receiver or an argument whose
      * parameter propagates null can be null, its resolution and the use of its declaration, under the name its messages give it, and stores neither: whoever stores the resolution records the use.
      */
-    #resolveInvocation(declaration, node, pointer, scope, receiver, name) {
+    #resolveInvocation(selected, node, pointer, scope, receiver, name) {
         const receiverType = receiver?.type ?? null;
+        const declaration = this.#selectSignature(selected, node, pointer, scope, receiverType);
         // A qualified call's receiver is its first argument, and its own arguments follow it.
         const offset = receiver !== null && receiver.node === node.arguments?.[0] ? 1 : 0;
         // The declaration was selected for its receiver, so its receiver type always applies and binds what it writes; every value argument's binding is collected before any callback is resolved, whatever their order.

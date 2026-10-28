@@ -157,7 +157,8 @@ describe('indexers and computed properties', () => {
 
     describe('an unnamed indexer', () => {
         it('is named in a message as its access is written, brackets alone, a receiver known to be null\'s candidates among them', () => {
-            expect(refusalOf('words[true]', { words: ['oat'] })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'index' of '[…]' expects Number and finds Boolean") });
+            expect(refusalOf('pairs[true]', { pairs: new Map([['oat', 1]]) })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'key' of '[…]'") });
+            expect(refusalOf('words[true]', { words: ['oat'] })).toMatchObject({ code: 'LEXICA3084', message: expect.stringContaining('The unnamed indexer of List<String> takes Number, Index or Range, and is given Boolean') });
             expect(refusalOf('nothing?[true]', { nothing: null })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'index' of '[…]' expects Number and finds Boolean") });
         });
 

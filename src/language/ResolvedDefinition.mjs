@@ -237,6 +237,17 @@ export class ResolvedDefinition {
             case 'comparison':
                 node.operands.forEach((operand, index) => this.#index(operand, `${pointer}/operands/${index}`));
                 break;
+            case 'fromEndIndex':
+                this.#index(node.offset, `${pointer}/offset`);
+                break;
+            case 'range':
+                for (const boundary of ['start', 'end']) {
+                    if (node[boundary] !== undefined) {
+                        this.#index(node[boundary], `${pointer}/${boundary}`);
+                    }
+                }
+
+                break;
             case 'not':
             case 'arithmeticNegation':
             case 'cast':

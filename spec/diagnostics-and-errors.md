@@ -137,6 +137,8 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA1066` | A dictionary key that is no inline string literal, as `[name = 1]`, an interpolated string or a block string | A syntax error at the key, giving the literal key for a name and `toDictionary` for a computed key |
 | `LEXICA1067` | Keyed and unkeyed entries mixed in one collection expression | A syntax error at the first entry of the other kind |
 | `LEXICA1068` | An item left out between the commas of a collection expression, as `[1, , 2]` | A syntax error at the comma |
+| `LEXICA1069` | A range's boundary written as an operator expression, as `a + 1..b` | A syntax error at the boundary, giving the grouped form |
+| `LEXICA1070` | A range written as another range's boundary, as `1..2..3` | A syntax error saying a range has two boundaries |
 | `LEXICA1043` | A conditional, a `do` block or a function expression spanning lines outside block form, or followed on its `end`'s line by anything but closing punctuation | A syntax error giving its block form |
 | `LEXICA1044` | An import, a script's body after its imports, or a local or `return` of a body that uses `return`, sharing its line with earlier code | A syntax error saying it starts on a line of its own |
 | `LEXICA1045` | `import` anywhere but a script's start, as after its first local or expression | A syntax error saying imports stand at the start of the script |
@@ -275,8 +277,8 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA4065` | A conversion operator on a type that is not data, or to a destination that is not data | A module error naming the operator |
 | `LEXICA4066` | A conversion operator from a type to itself | A module error naming the operator |
 | `LEXICA4067` | A conversion operator on a foreign source outside an extension | A module error naming the operator |
-| `LEXICA4029` | Two members of one name on one receiver type of one module | A module error naming both |
-| `LEXICA4068` | Two unnamed indexers for one receiver type of one module | A module error naming both |
+| `LEXICA4029` | Two members of one name on one receiver type of one module, two indexers among them only where their key types overlap, as signatures of one indexer never do | A module error naming both |
+| `LEXICA4068` | Two unnamed indexers for one receiver type of one module whose key types overlap, as signatures of one indexer never do | A module error naming both |
 | `LEXICA4069` | Two operators of one name and destination on one receiver type of one module | A module error naming both |
 | `LEXICA4500` | A module whose name is not an identifier | A module error naming the module |
 | `LEXICA4501` | A module's contents that are not an object | A module error naming what a module declares |
@@ -407,6 +409,8 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3080` | A missing required argument | A validation error naming the argument |
 | `LEXICA3081` | A collection expression whose items, or whose dictionary's values, share no type | A validation error naming the types |
 | `LEXICA3083` | A dictionary a call answers keyed by a type no key is of, as `toDictionary` and `groupBy` given a key expression of an object type | A validation error at the call, naming the key type |
+| `LEXICA3084` | An indexer's key no signature takes, or one of `Any` where several signatures stand | A validation error naming the indexer and its signatures' key types |
+| `LEXICA3085` | An index's offset that isn't a `Number`, or a range's boundary that is neither a `Number` nor an `Index`, either nullable among them | A validation error naming the boundary and its type |
 | `LEXICA3082` | A function as a collection expression's item or value | A validation error at the item, saying a collection holds data and references |
 | `LEXICA3043` | A result that would contain a reference value | A validation error |
 | `LEXICA3044` | An object field read through `root` whose initializer has not completed where `root` is written | A validation error naming the object fields completed there |
@@ -456,6 +460,10 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5029` | `toDictionary` given two items of one key | An evaluation error at the call, naming the key and giving `groupBy` |
 | `LEXICA5030` | `single` of a list of several items | An evaluation error at the access, naming how many |
 | `LEXICA5031` | `selectMany` given null for an item's list | An evaluation error at the call |
+| `LEXICA5032` | An index's offset or a range's boundary that is no nonnegative safe integer, nor an index for a boundary, when it is evaluated, as `^1.5` and a value of `Any` of another kind | An evaluation error at the index or the range |
+| `LEXICA5033` | A range sliced from a list whose start stands after its end, or either beyond the list | An evaluation error at the indexer, naming the range and the length |
+| `LEXICA5034` | `pick` given a position no item stands at | An evaluation error at the call, naming the position |
+| `LEXICA5035` | `sequence` given a count that is no nonnegative safe integer | An evaluation error at the call, naming the count |
 | `LEXICA5028` | A result holding a value of `Any` that is found, when it is evaluated, to be no data, a reference or a function | An evaluation error at the result |
 | `LEXICA5013` | A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |
 | `LEXICA5014` | Preparing a script that ends in no host call | An evaluation error, as [host calls](runtime.md#runtime-host-calls) set out |

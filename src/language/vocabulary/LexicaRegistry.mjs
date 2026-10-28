@@ -244,6 +244,20 @@ export class LexicaRegistry {
         return this.#containingTypes.get(declaration);
     }
 
+    /**
+     * The signatures of the indexer the declaration is one of: the indexers its type or its extension declares of its name, or unnamed where it is, in the order declared, each taking a key of its own type; the
+     * declaration alone where it is no indexer within one.
+     */
+    getIndexerSignatures(declaration) {
+        const containing = this.#containingTypes.get(declaration);
+
+        if (declaration.kind !== 'indexer' || containing === undefined) {
+            return [declaration];
+        }
+
+        return containing.members.filter(member => member.kind === 'indexer' && member.name === declaration.name);
+    }
+
     /** Whether the member takes a receiver: one declared within a type or an extension, whose receiver the type or the extension's target is; a module member takes none. */
     takesReceiver(declaration) {
         return this.#containingTypes.has(declaration);
@@ -866,21 +880,21 @@ export class LexicaRegistry {
             }
 
             if (LexicaRegistry.#isUnnamedIndexer(declaration)) {
-                for (const other of members.slice(0, index).filter(member => LexicaRegistry.#isUnnamedIndexer(member))) {
+                for (const other of members.slice(0, index).filter(member => LexicaRegistry.#isUnnamedIndexer(member) && !this.#areDisjointSignatures(member, declaration))) {
                     const shared = this.#getSharedReceiver(declaration, other);
 
                     if (shared !== undefined) {
-                        fail('LEXICA4068', `An unnamed indexer of ${shared} is declared already`, undefined, 'kind');
+                        fail('LEXICA4068', `An unnamed indexer of ${shared} is declared already, and a second is one of its signatures only within its type, taking a key of a type of its own`, undefined, 'kind');
                     }
                 }
 
                 return;
             }
 
-            const shared = earlier.filter(other => this.takesReceiver(other)).map(other => this.#getSharedReceiver(other, declaration)).find(notation => notation !== undefined);
+            const shared = earlier.filter(other => this.takesReceiver(other) && !this.#areDisjointSignatures(other, declaration)).map(other => this.#getSharedReceiver(other, declaration)).find(notation => notation !== undefined);
 
             if (shared !== undefined) {
-                fail('LEXICA4029', `'${declaration.name}' is declared already for ${shared}`, declaration.name, 'name');
+                fail('LEXICA4029', `'${declaration.name}' is declared already for ${shared}${declaration.kind === 'indexer' ? ', and an indexer of its name is one of its signatures only within its type, taking a key of a type of its own' : ''}`, declaration.name, 'name');
             }
         });
     }
@@ -1188,6 +1202,24 @@ export class LexicaRegistry {
     }
 
     /** The receiver type the one member is read on, as it is written, where the other is read on the same type, or undefined where they are read on different ones; a type and the type beneath it are two receiver types. */
+    /**
+     * Whether two indexers are signatures of one indexer: declared within one type or one extension, of one name or both unnamed, and taking keys of disjoint types, neither a type parameter nor `Any` and neither
+     * assignable to the other, null among them where both admit it.
+     */
+    #areDisjointSignatures(one, other) {
+        if (one.kind !== 'indexer' || other.kind !== 'indexer' || this.#containingTypes.get(one) !== this.#containingTypes.get(other)) {
+            return false;
+        }
+
+        const [oneKey, otherKey] = [one, other].map(indexer => this.getDeclaredType(indexer, indexer.parameters[0].type));
+
+        if ([oneKey, otherKey].some(key => key.kind === 'any' || key.kind === 'typeParameter') || (oneKey.isNullable && otherKey.isNullable)) {
+            return false;
+        }
+
+        return !this.#typeChecker.fitsEitherWay(oneKey.toNonNullable(), otherKey.toNonNullable());
+    }
+
     #getSharedReceiver(one, other) {
         const [mine] = this.getReceiverTypes(one);
 

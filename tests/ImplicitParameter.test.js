@@ -42,7 +42,7 @@ const createPantry = (held = {}) => {
                 }),
                 createFunctionDeclaration('weighPair', 'Number', { updates: derivedUpdates, parameters: [createExpressionParameterDeclaration('Number')], impl: ({ args }) => args.expression('oat', 'rye') }),
                 createFunctionDeclaration('weighNumber', 'Number', { updates: derivedUpdates, parameters: [createExpressionParameterDeclaration('Number')], impl: ({ args }) => args.expression(42) }),
-                createFunctionDeclaration('pick', 'Number', {
+                createFunctionDeclaration('choose', 'Number', {
                     updates: derivedUpdates,
                     arguments: 'options',
                     parameters: [{ ...createExpressionParameterDeclaration('Number'), name: 'by' }, { ...createPredicateParameterDeclaration(), name: 'keep' }],
@@ -143,9 +143,9 @@ describe('the implicit parameter', () => {
 
     describe('of a function given as an option', () => {
         it('is the item, as a positional argument\'s is, a function a local holds standing for an arrow function, which no option is', () => {
-            expect(evaluate('words.pick({ by = it.size, keep = it != "milk" })')).toBe(6);
-            expect(evaluate('let size = w => w.size\nlet kept = w => w != "milk"\nreturn words.pick({ by = size, keep = kept })')).toBe(6);
-            expect(evaluate('words.pick({ by = pantry.weight, keep = pantry.vegan })')).toBe(30);
+            expect(evaluate('words.choose({ by = it.size, keep = it != "milk" })')).toBe(6);
+            expect(evaluate('let size = w => w.size\nlet kept = w => w != "milk"\nreturn words.choose({ by = size, keep = kept })')).toBe(6);
+            expect(evaluate('words.choose({ by = pantry.weight, keep = pantry.vegan })')).toBe(30);
         });
 
         it('is the argument an implicit body option is called with, an option that has no value to read, by its name or through root', () => {

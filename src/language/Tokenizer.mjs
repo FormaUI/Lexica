@@ -11,11 +11,11 @@ import { Names } from './Names.mjs';
  * its runs of text, the `{` and `}` around each of its interpolations and what closes it, the tokens of each interpolation's expression between them.
  * A contract within Lexica until a public tooling API stabilizes it.
  */
-export const TOKEN_TYPES = Object.freeze(['identifier', 'literal', 'keyword', 'it', 'invalid', 'end', 'interpolated-string-start', 'interpolated-text', 'interpolation-start', 'interpolation-end', 'interpolated-string-end', 'script-parameter', 'lexical-reference', '.', '?.', '?[', '?:', '??', '(?', '==', '!=', '<', '<=', '>', '>=', '=', '=>', '+', '-', '*', '/', '%', ',', ':', '(', ')', '{', '}', '[', ']']);
+export const TOKEN_TYPES = Object.freeze(['identifier', 'literal', 'keyword', 'it', 'invalid', 'end', 'interpolated-string-start', 'interpolated-text', 'interpolation-start', 'interpolation-end', 'interpolated-string-end', 'script-parameter', 'lexical-reference', '.', '?.', '?[', '?:', '??', '(?', '==', '!=', '<', '<=', '>', '>=', '=', '=>', '+', '-', '*', '/', '%', ',', ':', '(', ')', '{', '}', '[', ']', '..', '^']);
 
 /**
  * @typedef {object} Token
- * @property {'identifier' | 'literal' | 'keyword' | 'it' | 'invalid' | 'end' | 'interpolated-string-start' | 'interpolated-text' | 'interpolation-start' | 'interpolation-end' | 'interpolated-string-end' | 'script-parameter' | 'lexical-reference' | '.' | '?.' | '?[' | '?:' | '??' | '(?' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '=' | '=>' | '+' | '-' | '*' | '/' | '%' | ',' | ':' | '(' | ')' | '{' | '}' | '[' | ']'} type
+ * @property {'identifier' | 'literal' | 'keyword' | 'it' | 'invalid' | 'end' | 'interpolated-string-start' | 'interpolated-text' | 'interpolation-start' | 'interpolation-end' | 'interpolated-string-end' | 'script-parameter' | 'lexical-reference' | '.' | '?.' | '?[' | '?:' | '??' | '(?' | '==' | '!=' | '<' | '<=' | '>' | '>=' | '=' | '=>' | '+' | '-' | '*' | '/' | '%' | ',' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | '..' | '^'} type
  * @property {unknown} [value] An identifier's or a keyword's text, `it` for the implicit parameter, the identifier of the script parameter `~` reads, the identifier of the local or the field `@` reads, a literal's value, or the text a run of an interpolated string's text stands for.
  * @property {'"' | "'"} [quote] The quote of a string's literal token, or of an interpolated string's opening and closing tokens, `"` for a string and `'` for a raw string.
  * @property {number} [delimiter] How many quotes that string's delimiter has: one inline, three or more for a block.
@@ -35,8 +35,11 @@ const ESCAPES = Object.freeze({ '"': '"', '\\': '\\', n: '\n', r: '\r', t: '\t',
 /** A Unicode escape after its backslash: `u` and one to six hexadecimal digits in braces. */
 const UNICODE_ESCAPE = /u\{([0-9A-Fa-f]{1,6})\}/y;
 
-/** The tokens of one character, the arithmetic operators among them: `-` is always an operator, negation or subtraction, so no number begins with it, and `/` is one wherever no comment begins. */
-const PUNCTUATION = new Set(['.', ',', ':', '(', ')', '{', '}', '[', ']', '+', '-', '*', '/', '%']);
+/**
+ * The tokens of one character, the arithmetic operators among them: `-` is always an operator, negation or subtraction, so no number begins with it, and `/` is one wherever no comment begins; and `^`, an index from
+ * the end, never an exponent.
+ */
+const PUNCTUATION = new Set(['.', ',', ':', '(', ')', '{', '}', '[', ']', '+', '-', '*', '/', '%', '^']);
 const NAME = /[A-Za-z][A-Za-z0-9]*/y;
 const NUMBER = /(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/y;
 /** Whitespace, as ECMAScript's `\s` matches it, but U+2028 and U+2029, which stand only in a string's literal text. */
@@ -161,6 +164,13 @@ export class Tokenizer {
 
                 return { type: 'interpolation-end', start, end: this.#offset };
             }
+        }
+
+        // Two dots are a range's one token, which no member step's dot begins.
+        if (this.#text.startsWith('..', start)) {
+            this.#offset += 2;
+
+            return { type: '..', start, end: this.#offset };
         }
 
         if (PUNCTUATION.has(character)) {

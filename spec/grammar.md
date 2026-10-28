@@ -70,7 +70,11 @@ function-expression           = "function" "(" [ function-parameter-list ] ")"
 function-parameter-list       = function-parameter { "," function-parameter }
 function-parameter            = identifier
 
-simple-value-expression       = coalescing | disjunction | or-operand
+simple-value-expression       = range | coalescing | disjunction | or-operand
+
+range                         = [ range-boundary ] ".." [ range-boundary ]
+                              (* a range is no range's boundary *)
+range-boundary                = arithmetic-negation
 
 coalescing                    = coalescing-operand "??"
                                 ( coalescing-operand | coalescing )
@@ -100,7 +104,8 @@ additive                      = multiplicative
                                 { ( "+" | "-" ) multiplicative }
 multiplicative                = arithmetic-negation
                                 { ( "*" | "/" | "%" ) arithmetic-negation }
-arithmetic-negation           = "-" arithmetic-negation | equality-operand
+arithmetic-negation           = "-" arithmetic-negation | from-end-index | equality-operand
+from-end-index                = "^" equality-operand
 
 equality-operand              = chain | cast | conversion | attempt
 attempt                       = "try" attempted-operation

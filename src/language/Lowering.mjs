@@ -130,6 +130,23 @@ export class Lowering {
 
                 return value;
             }
+            case 'from-end-index':
+                return this.#span({ kind: 'fromEndIndex', offset: this.#lower(children[1]) }, child);
+            case 'range-expression': {
+                // A boundary stands before or after the range's `..`, each left out where the text leaves it out.
+                const dots = children.findIndex(part => SyntaxTree.isToken(part) && part.type === '..');
+                const range = { kind: 'range' };
+
+                if (dots > 0) {
+                    range.start = this.#lower(children[0]);
+                }
+
+                if (dots < children.length - 1) {
+                    range.end = this.#lower(children[dots + 1]);
+                }
+
+                return this.#span(range, child);
+            }
             case 'arithmetic-negation': {
                 // An arithmetic negation of a numeric literal is the negative literal, negative zero included, as the text writes it.
                 const [, operand] = children;

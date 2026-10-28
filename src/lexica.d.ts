@@ -72,6 +72,8 @@ export type LexicaDefinitionNode =
     | { readonly kind: 'comparison'; readonly operands: readonly LexicaDefinitionNode[]; readonly operators: readonly ('<' | '<=' | '>' | '>=')[] }
     | { readonly kind: 'arithmetic'; readonly operator: '+' | '-' | '*' | '/' | '%'; readonly left: LexicaDefinitionNode; readonly right: LexicaDefinitionNode }
     | { readonly kind: 'arithmeticNegation'; readonly operand: LexicaDefinitionNode }
+    | { readonly kind: 'fromEndIndex'; readonly offset: LexicaDefinitionNode }
+    | { readonly kind: 'range'; readonly start?: LexicaDefinitionNode; readonly end?: LexicaDefinitionNode }
     | { readonly kind: 'cast'; readonly type: string; readonly operand: LexicaDefinitionNode }
     | { readonly kind: 'conversion'; readonly type: string; readonly operand: LexicaDefinitionNode }
     | { readonly kind: 'try'; readonly operand: LexicaDefinitionNode }
@@ -406,6 +408,22 @@ export interface LexicaDictionary<K = unknown, V = unknown> {
     readonly keys: readonly K[];
     readonly values: readonly V[];
     readonly entries: readonly LexicaPair<K, V>[];
+}
+
+/** An index as an implementation receives one, immutable: a position counted from a list's end, `^1` the last item and `^0` the end past it. Neither data nor a key, so no result holds one. */
+export interface LexicaIndex {
+    /** How far from the end it stands, a nonnegative safe integer. */
+    readonly offset: number;
+    /** The offset from the start it stands at within a list of the length, the length less its offset. */
+    resolveIn(length: number): number;
+}
+
+/** A range as an implementation receives one, immutable: a half-open interval of two boundaries, each a number counted from the start, an index from the end, or null where the range leaves it out. */
+export interface LexicaRange {
+    readonly start: number | LexicaIndex | null;
+    readonly end: number | LexicaIndex | null;
+    /** The offsets from the start its boundaries stand at within a list of the length, applied to that one length: a start left out 0 and an end left out the length. */
+    resolveIn(length: number): { readonly start: number; readonly end: number };
 }
 
 /** A pair as an implementation receives one, immutable: a key and its value. A host gives one as `{ key, value }` where a declaration names a `Pair<K, V>`, and a result exports one so. */

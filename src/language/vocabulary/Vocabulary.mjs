@@ -30,13 +30,15 @@ export class Vocabulary {
      * The value types Lexica's own module owns, each declared through a form internal to Lexica, which no other module declares through: its scalar types, of kind `scalar`, each holding its conversion operators to
      * the others, and its generic collections, of kind `generic`, their type parameters under `typeParameters` and the variance of each, in order, under `variances`, with their members within them, whose receiver
      * gives them its parameters: `List<T>`, covariant in its items, since a list is immutable; `Dictionary<K, V>`, invariant in its keys, which a lookup takes, and covariant in its values; and `Pair<K, V>`, covariant
-     * in both. Created once, frozen, and read by identity: the registry registers their members with Lexica's own module.
+     * in both; and its position types, of kind `position`, `Index`, an offset from a list's end, and `Range`, two boundaries, which declare no members. Created once, frozen, and read by identity: the registry
+     * registers their members with Lexica's own module.
      */
     static get valueTypes() {
         return Vocabulary.#valueTypes ??= Object.freeze([
-            ...LexicaModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar', members: Vocabulary.#createMembers(name, name, Vocabulary.#createConversions(name)) })),
+            ...LexicaModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar', members: Vocabulary.#createMembers(name, name, [...Vocabulary.#createConversions(name), ...(name === 'Number' ? Vocabulary.#createNumberMembers() : [])]) })),
             Object.freeze({ name: 'List', kind: 'generic', typeParameters: Object.freeze(['T']), variances: Object.freeze(['covariant']), members: Vocabulary.#createMembers('List<T>', 'List<T>', Vocabulary.#createListMembers()) }),
             Object.freeze({ name: 'Dictionary', kind: 'generic', typeParameters: Object.freeze(['K', 'V']), variances: Object.freeze(['invariant', 'covariant']), members: Vocabulary.#createMembers('Dictionary<K, V>', 'Dictionary<K, V>', Vocabulary.#createDictionaryMembers()) }),
+            ...['Index', 'Range'].map(name => Object.freeze({ name, kind: 'position', members: Object.freeze([]) })),
             Object.freeze({ name: 'Pair', kind: 'generic', typeParameters: Object.freeze(['K', 'V']), variances: Object.freeze(['covariant', 'covariant']), members: Vocabulary.#createMembers('Pair<K, V>', 'Pair<K, V>', Vocabulary.#createPairMembers()) }),
         ]);
     }
@@ -44,7 +46,7 @@ export class Vocabulary {
     /** @type {readonly string[] | undefined} */
     static #builtInTypeNames;
 
-    /** The names of the value types Lexica's own module owns, which a declaration or a script names unqualified with no module declaring them, derived from those types: `Number`, `String`, `Boolean`, `List`, `Dictionary` and `Pair`. */
+    /** The names of the value types Lexica's own module owns, which a declaration or a script names unqualified with no module declaring them, derived from those types: `Number`, `String`, `Boolean`, `List`, `Dictionary`, `Index`, `Range` and `Pair`. */
     static get builtInTypeNames() {
         return Vocabulary.#builtInTypeNames ??= Object.freeze(Vocabulary.valueTypes.map(type => type.name));
     }
@@ -161,6 +163,49 @@ export class Vocabulary {
         }
     }
 
+    /** The members of a number beside its conversions: `sequence`, the numbers from it, generated apart from any range. */
+    static #createNumberMembers() {
+        return [
+            // The count's numbers from the receiver, each the step after the one before, the step 1 where it is left out; a count that is no nonnegative safe integer is refused.
+            Declarations.createFunctionDeclaration('sequence', 'List<Number>', {
+                updates: DERIVED_UPDATES,
+                parameters: [Declarations.createValueParameterDeclaration('count', 'Number'), Declarations.createValueParameterDeclaration('step', 'Number', { default: 1 })],
+                impl: ({ receiver, args }) => {
+                    if (!Number.isSafeInteger(args.count) || args.count < 0) {
+                        throw new MemberFailure('LEXICA5035', `'sequence' takes a count that is a nonnegative whole number, and is given ${args.count}`);
+                    }
+
+                    return Array.from({ length: args.count }, (_, index) => receiver + index * args.step);
+                },
+            }),
+        ];
+    }
+
+    /** The item at the offset from the start, null for one the list has no item at. */
+    static #itemAt(list, offset) {
+        return offset >= 0 && offset < list.length ? list[offset] : null;
+    }
+
+    /** The items within the range, applied to the list's length once, its start at or before its end and both within the list, or refused. */
+    static #slice(list, range) {
+        const { start, end } = range.resolveIn(list.length);
+
+        if (start < 0 || end > list.length || start > end) {
+            throw new MemberFailure('LEXICA5033', `The range ${range} is applied to a list of ${list.length} items, and gives ${start}..${end}, which ${start > end ? 'starts after it ends' : 'stands beyond the list'}; a slice is strict, as take and drop are not`);
+        }
+
+        return list.slice(start, end);
+    }
+
+    /** The item a position `pick` is given stands at, a whole offset from the start of the list, or refused. */
+    static #pickAt(list, position) {
+        if (!Number.isInteger(position) || position < 0 || position >= list.length) {
+            throw new MemberFailure('LEXICA5034', `'pick' is given the position ${position}, and a list of ${list.length} items has no item there`);
+        }
+
+        return list[position];
+    }
+
     /** The members of lists, each reading and changing as the items it selects and the expression it evaluates do. */
     static #createListMembers() {
         return [
@@ -172,6 +217,10 @@ export class Vocabulary {
                 updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('index', 'Number')],
                 impl: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? receiver[args.index] : null),
             }),
+            // The item at an index from the end, `^1` the last, null for `^0` and for one before the start.
+            Declarations.createIndexerDeclaration(null, 'T?', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('index', 'Index')], impl: ({ receiver, args }) => Vocabulary.#itemAt(receiver, args.index.resolveIn(receiver.length)) }),
+            // The items within a range, applied to the length once, strictly: a reversed range, or one beyond the list, is refused, never trimmed.
+            Declarations.createIndexerDeclaration(null, 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('range', 'Range')], impl: ({ receiver, args }) => Vocabulary.#slice(receiver, args.range) }),
             Declarations.createFunctionDeclaration('max', 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.max) }),
             Declarations.createFunctionDeclaration('min', 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#extreme(receiver, args.expression, Math.min) }),
             Declarations.createFunctionDeclaration('sum', 'Number', { updates: DERIVED_UPDATES, parameters: [Declarations.createExpressionParameterDeclaration('Number?')], impl: ({ receiver, args }) => Vocabulary.#numbers(receiver, args.expression).reduce((total, number) => total + number, 0) }),
@@ -258,6 +307,17 @@ export class Vocabulary {
                 updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('index', 'Number')],
                 impl: ({ receiver, args }) => (Number.isInteger(args.index) && args.index >= 0 && args.index < receiver.length ? new Pair(args.index, receiver[args.index]) : null),
             }),
+            // The item at an index from the end as a pair of its index from the start and itself, null where the unnamed indexer answers null.
+            Declarations.createIndexerDeclaration('entry', 'Pair<Number, T>?', {
+                updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('index', 'Index')],
+                impl: ({ receiver, args }) => {
+                    const offset = args.index.resolveIn(receiver.length);
+
+                    return offset >= 0 && offset < receiver.length ? new Pair(offset, receiver[offset]) : null;
+                },
+            }),
+            // The item at each position, in the positions' order, one given twice giving its item twice; a position no item stands at is refused.
+            Declarations.createFunctionDeclaration('pick', 'List<T>', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('positions', 'List<Number>')], impl: ({ receiver, args }) => args.positions.map(position => Vocabulary.#pickAt(receiver, position)) }),
         ];
     }
 

@@ -174,13 +174,15 @@ A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` 
 
 ### Unnamed indexers
 
-`x[key]` invokes the unnamed indexer of `x`'s type, the indexer declared without a name, of which a type has at most one. Lexica's own `List` declares one, the item at an index counted from zero, so `rooms[0]` is the first room, and `Home`'s `Device` declares one reading a setting, so `device["mode"]` reads the setting `mode`.
+`x[key]` invokes the unnamed indexer of `x`'s type, the indexer declared without a name, of which a type has one, of one or more signatures. Lexica's own `List` declares one, the item at an index counted from zero, so `rooms[0]` is the first room, and `Home`'s `Device` declares one reading a setting, so `device["mode"]` reads the setting `mode`.
 
 | Form | Meaning |
 | --- | --- |
 | `rooms[0]` | The first room |
 | `rooms?[i]` | Null for a null list, `i` unevaluated; otherwise the item at `i` |
 | `device["mode"]` | The setting `mode`, as `device.setting["mode"]` reads it |
+
+An indexer's **signatures** are the indexers a type or an extension declares of one name, or unnamed, each taking a key of its own type: Lexica's own `List` declares three, a `Number` and an `Index` looked up and a `Range` sliced. Their key types are disjoint, two whose key types fit one way or the other, or either of which takes a type parameter or `Any`, being refused when they are registered (LEXICA4068 for unnamed ones, LEXICA4029 for named ones). An access selects the indexer as it selects any member, and then the signature whose key type its key's type is assignable to, a key of null or a never the first's; a key no signature takes, and one of `Any` where several signatures stand, is refused (LEXICA3084), never falling through to another member. On a value of `Any`, the signature its key's value is of is selected when it is evaluated.
 
 [Which unnamed indexer applies](modules.md#namespaces-indexers) follows the type's owner, as any member's does. A type with none refuses `x[key]`, and where `key` is a string and `x` has a property it could name, the validation error gives the computed form, `x.[key]`.
 
@@ -427,7 +429,7 @@ members: [
 ]
 ```
 
-A named indexer's name is a member name, so it collides with a property or a function of that name on the same type, and a type declares as many named indexers as it needs. A module declares at most one unnamed indexer for a receiver type; which one an access selects follows the receiver type's owner, as [indexer selection](modules.md#namespaces-indexers) sets out.
+A named indexer's name is a member name, so it collides with a property or a function of that name on the same type, and a type declares as many named indexers as it needs. A module declares one unnamed indexer for a receiver type, of as many signatures as disjoint key types give it, and as many signatures for a named indexer; which one an access selects follows the receiver type's owner, as [indexer selection](modules.md#namespaces-indexers) sets out.
 
 Positional arguments list parameters in order, with required parameters before optional ones; creating the module checks this order. Options take one object whose object fields supply the declared parameters.
 

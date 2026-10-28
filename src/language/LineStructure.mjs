@@ -27,10 +27,10 @@ const CALL_OPENINGS = Object.freeze({ 'function-call': 1, 'member-call': 2, 'nam
 const CLOSING_PUNCTUATION = new Set([',', ')', ']', '}']);
 
 /** The tokens written directly against the one before them, which a joined form writes with no space. */
-const ATTACHED_AFTER = new Set(['(', '[', '?[', ')', ']', ',', '.', '?.', ':', '?:']);
+const ATTACHED_AFTER = new Set(['(', '[', '?[', ')', ']', ',', '.', '?.', ':', '?:', '..']);
 
 /** The tokens written directly against the one after them. */
-const ATTACHED_BEFORE = new Set(['(', '[', '?[', '(?', '.', '?.', ':', '?:', '-']);
+const ATTACHED_BEFORE = new Set(['(', '[', '?[', '(?', '.', '?.', ':', '?:', '-', '^', '..']);
 
 /** What a block form gives, which a message about a keyword block that spans lines opens with. */
 const BLOCK_FORM = "A conditional, a do block or a function that spans lines is in block form, each 'then', 'else', 'do' and head ending its line, its content on the lines after, and 'end' on a line of its own";
@@ -203,6 +203,10 @@ export class LineStructure {
             case 'negation':
             case 'arithmetic-negation':
                 return { kind: 'refused', construct: 'A prefix operator and the start of its operand' };
+            case 'from-end-index':
+                return { kind: 'refused', construct: "An index from the end, its '^' and its offset" };
+            case 'range-expression':
+                return { kind: 'refused', construct: "A range, its boundaries and its '..'" };
             case 'arrow-function':
                 return is(previous, '=>') ? ALLOWED : { kind: 'refused', construct: "An arrow function's parameters and its '=>'" };
             case 'function-expression':

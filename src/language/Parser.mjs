@@ -25,6 +25,15 @@ const CHAIN_CONTINUATIONS = new Set(['.', '?.', '[', '?[', ':', '?:', '{']);
 /** The tokens that, after a space, make the name before them a member written without its receiver, which no local is: an argument. */
 const ARGUMENT_STARTS = new Set(['it', 'literal', 'interpolated-string-start', 'script-parameter', 'lexical-reference']);
 
+/** The tokens a range's end begins with, a position: a value, a name, a group, an index from the end, a negation or a collection expression; any other token after `..` leaves the range's end out. */
+const BOUNDARY_STARTS = new Set([...ARGUMENT_STARTS, 'identifier', '(', '(?', '^', '-', '[', '{']);
+
+/** The syntax kinds of the operator expressions no range's boundary is, which a group holding one makes a position. */
+const OPERATOR_KINDS = new Set(['disjunction', 'conjunction', 'negation', 'equality', 'comparison', 'additive', 'multiplicative', 'coalescing']);
+
+/** The tokens an operator expression continues with, which follow no range's end ungrouped. */
+const OPERATOR_TOKENS = new Set(['+', '-', '*', '/', '%', '<', '<=', '>', '>=', '==', '!=', '??']);
+
 /** The tokens that close what encloses a body, the end of a group, a list, an object or a field, before which a body's closer is missing rather than anything following its result. */
 const BODY_ENCLOSURE_CLOSINGS = new Set([')', ']', '}', ',']);
 
@@ -404,9 +413,41 @@ export class Parser {
         return node;
     }
 
-    /** Reads a simple value expression: a disjunction, or an or-operand alone, a coalescing operator among them, which stands beside neither `and` nor `or`. */
+    /** Reads a simple value expression: a range, a disjunction, or an or-operand alone, a coalescing operator among them, which stands beside neither `and` nor `or`. */
     #parseSimpleValueExpression() {
-        return this.#parseLogical('or', () => this.#parseOrOperand());
+        // A range's `..` stands after its start, or begins it where its start is left out.
+        if (this.#token.type === '..') {
+            return this.#parseRange(null);
+        }
+
+        const value = this.#parseLogical('or', () => this.#parseOrOperand());
+
+        return this.#token.type === '..' ? this.#parseRange(value) : value;
+    }
+
+    /**
+     * Reads a range: its start, the position read before its `..` or none, its `..`, and its end where a position follows. A boundary is an arithmetic negation, a group making any operator expression one, so an
+     * ungrouped operator expression is no boundary (LEXICA1069), and a range is no range's boundary (LEXICA1070).
+     */
+    #parseRange(start) {
+        if (start !== null && OPERATOR_KINDS.has(start.kind)) {
+            const written = this.#text.slice(SyntaxTree.startOf(start), SyntaxTree.endOf(start));
+
+            throw this.#createSyntaxError('LEXICA1069', `A range's boundary is a position, a number or an index, never an operator expression: write '(${written})..' to bound it by its value`, SyntaxTree.startOf(start));
+        }
+
+        const dots = this.#take();
+        const end = BOUNDARY_STARTS.has(this.#token.type) || this.#isKeyword('try') ? this.#parseArithmeticNegation() : null;
+
+        if (end !== null && OPERATOR_TOKENS.has(this.#token.type)) {
+            throw this.#createSyntaxError('LEXICA1069', `A range's boundary is a position, a number or an index, never an operator expression: group its end, as ..(…)`, SyntaxTree.startOf(end));
+        }
+
+        if (this.#token.type === '..') {
+            throw this.#createSyntaxError('LEXICA1070', "A range has two boundaries, and is no range's boundary: write one range, or group one as a value", this.#token.start);
+        }
+
+        return Parser.#node('range-expression', [...(start === null ? [] : [start]), dots, ...(end === null ? [] : [end])]);
     }
 
     /** Reads an or-operand: a conjunction, or an and-operand alone. */
@@ -711,6 +752,15 @@ export class Parser {
 
     /** Reads an arithmetic negation: `-` and what it negates, another arithmetic negation or an equality operand, so `-x to Number` negates the converted value; or an equality operand alone. */
     #parseArithmeticNegation() {
+        // An index from the end: `^` and its offset, an equality operand, never another index.
+        if (this.#token.type === '^') {
+            const caret = this.#take();
+
+            this.#refuseOperandStart(this.#token.start);
+
+            return Parser.#node('from-end-index', [caret, this.#parseEqualityOperand()]);
+        }
+
         if (this.#token.type !== '-') {
             return this.#parseEqualityOperand();
         }

@@ -34,6 +34,8 @@ The following forms are each one token and cannot contain whitespace:
 | `==` | `= =` |
 | `!=` | `! =` |
 
+`..` is one token, a range's, and `^` one, an index's from the end; neither is ever an exponent.
+
 Whitespace, including [line breaks](#line-structure-line-breaks), and comments are **trivia**, whose lines [line structure](#line-structure) constrains. Trivia may appear between tokens, never inside a token. No rule requires trivia between tokens that are already distinguishable: `it.power>0` means `it.power > 0`.
 
 <a id="tokens-and-whitespace-assignment-and-member-punctuation"></a>
@@ -283,6 +285,8 @@ Every position between two tokens is one of three kinds: inside a one-line const
 | A conditional binding's head | `if let lamp =` |
 | An object local's or an object field's head | `let devices =`, `temperature =` |
 | A dictionary entry's head, its key and `=` | `"coffee" =` |
+| An index from the end, `^` and its offset | `^1` |
+| A range, its boundaries and its `..` | `1..^1`, `..4` |
 | A member step, `.`, `?.`, `:` or `?:` with the name after it | `.where`, `?.temperature` |
 | A computed property access's opening | `x.[`, `x?.[` |
 | A call's `(`, on the line of the name it calls | `device(`, `double(` |

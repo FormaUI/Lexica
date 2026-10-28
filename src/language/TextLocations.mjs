@@ -110,6 +110,15 @@ export class TextLocations {
             this.#collect(node.operand, `${pointer}/operand`, spans);
         }
 
+        // An index's offset, and a range's boundaries where it holds them.
+        for (const property of ['offset', 'start', 'end']) {
+            if (node.kind === 'fromEndIndex' || node.kind === 'range') {
+                if (node[property] !== undefined) {
+                    this.#collect(node[property], `${pointer}/${property}`, spans);
+                }
+            }
+        }
+
         if (node.kind === 'coalescing') {
             this.#collect(node.value, `${pointer}/value`, spans);
             this.#collect(node.fallback, `${pointer}/fallback`, spans);

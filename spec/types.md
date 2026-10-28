@@ -39,11 +39,12 @@ In this document:
 | Lists | `List<T>`, a list whose items have type `T` |
 | Dictionaries | `Dictionary<K, V>`, a dictionary whose keys have type `K` and whose values have type `V` |
 | Pairs | `Pair<K, V>`, a key of type `K` and its value of type `V`, as a dictionary's entries give them |
+| Positions | `Index`, an offset from a list's end, and `Range`, a half-open interval of two boundaries, as [positions](#types-positions) set out |
 | Structured values | Data a module declares, its data shape the properties its type declares directly without `updates`, as `Climate` |
 | Object types | The object field types inferred from an object expression, as `{ name: String, count: Number }` |
 | `Any` | A value of any type that isn't null, its concrete type known when it is evaluated, as [values of `Any`](#types-any) set out |
 
-The scalar types, lists, dictionaries, pairs and object types are the language's own, which Lexica's own module owns; every reference type and structured type comes from a module, which [declares it](modules.md#modules-declaring-a-type) with its members.
+The scalar types, lists, dictionaries, pairs, positions and object types are the language's own, which Lexica's own module owns; every reference type and structured type comes from a module, which [declares it](modules.md#modules-declaring-a-type) with its members.
 
 <a id="types-type-names"></a>
 
@@ -200,7 +201,19 @@ A **dictionary** is addressed by key, its keys unique and its values free to rep
 - **Key equality** is exact: a number by its value, `-0` equal to `0`, a string by its code units, a Boolean by its value, a reference by its established identity, and null as one key of its own, a real key where `K` admits null. No host language's own equality takes part, and a snapshot's tolerance never does.
 - **Insertion order.** A dictionary's entries are ordered by insertion, the order its source gave them; order never addresses one, so `dictionary[2]` reads the key `2`, never the third entry, and a dictionary is not sorted.
 - **Duplicate keys.** A dictionary holds each key once; constructing one from duplicate keys fails with a located evaluation error, never keeping the first or the last.
+- **Positions address no dictionary.** A dictionary is addressed by key alone, so an index or a range is no key of one, refused as any key of another type is.
 - **Lookup and presence.** `dictionary[key]` answers the key's value or null, so a key whose value is null reads as an absent key does; `containsKey(key)` tells them apart, and `entry[key]` answers the pair, null where the key is absent, so a missing pair and a pair whose value is null are told apart too. A lookup's key may be null, which reads the null key where `K` admits one and an absent key otherwise, so a key's parameter consumes null, never propagating it.
+
+<a id="types-positions"></a>
+
+## Positions
+
+A list's item stands at a **position**: a `Number`, its offset from the list's start, `0` the first item, or an **index**, an `Index`, written `^n`, its offset from the list's end, `^1` the last item and `^0` the end past it. A **range**, a `Range`, is a half-open interval of two boundaries, each a position or left out, written `start..end`: `items[1..4]`, `items[..4]`, `items[4..]`, `items[^3..]`, `items[..^1]` and `items[..]`, a start left out the list's start and an end left out its end. An index and a range are values, so `let middle = 1..^1` serves any list, and neither holds a collection nor generates numbers.
+
+- **Offsets** are nonnegative safe integers, never rounded: an index's offset and a range's boundary that is a number of any other value fails where it is evaluated (LEXICA5032), so `^1.5` and `-1..2` are refused, while a lookup by a number stays tolerant, as [a list's members](vocabulary.md#vocabulary-lexicas-own) set out.
+- **Against a list.** A range is applied to one length, captured once: a start or an end that is a number stands at its offset, an index at the length less its offset, so `..^1` is every item but the last.
+- **Not data.** Neither is data, so a result holding one is refused (LEXICA3043); neither is a dictionary's key, and no equality compares them.
+- **Their operands.** `^` takes a `Number`, and a range's boundaries are each a `Number` or an `Index`, none nullable (LEXICA3085). A range's boundary is a position, never an operator expression unless grouped, and never another range, as [the grammar](grammar.md#grammar-the-grammar) sets out.
 
 <a id="reference-types"></a>
 

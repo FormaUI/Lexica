@@ -5,8 +5,10 @@
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { Dictionary } from './Dictionary.mjs';
+import { Index } from './Index.mjs';
 import { LexicaErrors } from './LexicaError.mjs';
 import { Pair } from './Pair.mjs';
+import { Range } from './Range.mjs';
 import { Type } from './Type.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 import { MemberFailure } from './vocabulary/MemberFailure.mjs';
@@ -706,6 +708,22 @@ export class Evaluator {
                     return evaluator.#arithmeticResult(node, -value, value, 0);
                 };
             }
+            case 'fromEndIndex': {
+                const offset = this.#getCompiledFunction(node.offset);
+
+                return (evaluator, context) => new Index(evaluator.#requireOffset(node, offset(evaluator, context), false));
+            }
+            case 'range': {
+                // Its start is evaluated before its end, each where the range holds it.
+                const [start, end] = ['start', 'end'].map(boundary => (node[boundary] === undefined ? null : this.#getCompiledFunction(node[boundary])));
+
+                return (evaluator, context) => {
+                    const startValue = start === null ? null : evaluator.#requireOffset(node, start(evaluator, context), true);
+                    const endValue = end === null ? null : evaluator.#requireOffset(node, end(evaluator, context), true);
+
+                    return new Range(startValue, endValue);
+                };
+            }
             case 'cast':
                 return this.#compileCast(node, false);
             case 'conversion':
@@ -1125,7 +1143,10 @@ export class Evaluator {
             return this.#readStoredValue(receiver, selection.name);
         }
 
-        const args = this.#bindDeferredArguments(node, selection, receiverType, evaluateArguments.map(evaluate => evaluate(this, context)));
+        const values = evaluateArguments.map(evaluate => evaluate(this, context));
+        // An indexer of several signatures takes the one its key's value is of, as resolution takes the one its key's type is, and otherwise its first, which refuses the key.
+        const chosen = selection.kind === 'signatures' ? (selection.selections.find(signature => signature.parameters[0]?.isOfType?.(values[0]) === true) ?? selection.selections[0]) : selection;
+        const args = this.#bindDeferredArguments(node, chosen, receiverType, values);
 
         if (args === null) {
             return null;
@@ -1167,6 +1188,13 @@ export class Evaluator {
             return { kind: 'dataProperty', name: declaration.name };
         }
 
+        const signatures = this.#registry.getIndexerSignatures(declaration);
+
+        return signatures.length > 1 ? { kind: 'signatures', selections: signatures.map(signature => this.#prepareDeferredInvocation(signature, receiverType, written)) } : this.#prepareDeferredInvocation(declaration, receiverType, written);
+    }
+
+    /** The invocation a deferred access makes of the declaration on a receiver of the type: the type arguments its receiver binds, each parameter's declared type and its check, and its invocation where it declares no type parameters of its own. */
+    #prepareDeferredInvocation(declaration, receiverType, written) {
         const typeArguments = this.#registry.typeChecker.inferReceiverTypeArguments(declaration, receiverType) ?? new Map();
         const hasOwnTypeParameters = (declaration.typeParameters ?? []).length > 0;
         const parameters = (declaration.parameters ?? []).map(parameter => {
@@ -1185,6 +1213,24 @@ export class Evaluator {
      * member taking options is given, each parameter left out taking its default. It answers null where a null value's parameter propagates null. A value whose parameter it doesn't satisfy fails the call (LEXICA5021), and
      * so do too many values, a parameter none supplies that requires one, and a parameter a value never satisfies, a function's, an expression's or a fixed one's (LEXICA5012).
      */
+    /**
+     * A position's offset as an index or a range takes it: a nonnegative safe integer, never rounded, `-0` as `0`, or, for a range's boundary, an index; any other value fails where the index or the range stands
+     * (LEXICA5032), a value of Any's among them.
+     */
+    #requireOffset(node, value, allowsIndex) {
+        if (allowsIndex && value instanceof Index) {
+            return value;
+        }
+
+        if (Number.isSafeInteger(value) && value >= 0) {
+            return value === 0 ? 0 : value;
+        }
+
+        const what = node.kind === 'range' ? "A range's boundary" : "An index's offset";
+
+        this.#fail('LEXICA5032', `${what} is a nonnegative whole number${allowsIndex ? ' or an index' : ''}, and this one is ${Evaluator.#describe(value)}`, this.#pointerOf(node));
+    }
+
     #bindDeferredArguments(node, selection, receiverType, values) {
         const { declaration, written, parameters } = selection;
         const pointer = this.#pointerOf(node);
@@ -1278,6 +1324,10 @@ export class Evaluator {
     #getActualType(value, asked, fail, ancestors = new Set()) {
         if (value === null) {
             return Type.null;
+        }
+
+        if (value instanceof Index || value instanceof Range) {
+            return Type.createNamedType(value instanceof Index ? 'Index' : 'Range');
         }
 
         if (typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) {
@@ -1978,6 +2028,13 @@ export class Evaluator {
 
                 if (type.moduleName === null && LexicaModule.scalarTypeNames.includes(name)) {
                     return value => Evaluator.#belongsToBuiltIn(value, name);
+                }
+
+                // A position is the language's own value of its kind.
+                if (type.moduleName === null && (name === 'Index' || name === 'Range')) {
+                    const kind = name === 'Index' ? Index : Range;
+
+                    return value => value instanceof kind;
                 }
 
                 if (!isStructured) {
