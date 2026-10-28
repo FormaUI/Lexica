@@ -23,8 +23,9 @@ import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 /**
  * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution, with one candidate selected, produced two values;
  * the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the record of each field of an object an object expression built and of each item of a list a projection built;
- * and the input each item of a list a projection built came from, a list no projection built having no sources. A part with no record inherits its parent's origin and tolerance.
- * @typedef {{ origin: object, tolerance: number | null, objectFields?: Record<string, ResultMetadata>, items?: ResultMetadata[], sources?: readonly ProjectionSource[] }} ResultMetadata
+ * the input each item of a list a projection built came from, a list no projection built having no sources; and, beside them, each item's provenance, the source the earliest projection it descends from recorded for it.
+ * A part with no record inherits its parent's origin and tolerance.
+ * @typedef {{ origin: object, tolerance: number | null, objectFields?: Record<string, ResultMetadata>, items?: ResultMetadata[], sources?: readonly ProjectionSource[], provenance?: readonly ProjectionSource[] }} ResultMetadata
  */
 
 /**
@@ -151,6 +152,12 @@ export class Evaluator {
 
     /** The source of each item of a list an object expression projected, by the list it produced, for the evaluation in progress. @type {WeakMap<unknown[], readonly ProjectionSource[]>} */
     #sourcesByList = new WeakMap();
+
+    /**
+     * The provenance of each item of a list an object expression projected, by the list it produced, for the evaluation in progress: the source the earliest projection the item descends from recorded for it, its own
+     * source where the list it projected carries none. @type {WeakMap<unknown[], readonly ProjectionSource[]>}
+     */
+    #provenanceByList = new WeakMap();
 
     /**
      * The selections each field of an object made, as `#selections` holds them, by the object and then the field's name: every completed field of an outermost object, which a read through a reference to it reuses as it is built, and
@@ -1667,14 +1674,22 @@ export class Evaluator {
 
             const items = [];
             const sources = [];
+            const provenance = [];
+            // An input list a projection built carries the provenance its items inherit; any other begins provenance at this projection's sources.
+            const inherited = evaluator.#provenanceByList.get(value) ?? null;
 
-            for (const item of value) {
+            for (let index = 0; index < value.length; index++) {
+                const item = value[index];
+                const source = Object.freeze(item === null ? { kind: 'null' } : isOfReferences ? { kind: 'reference', value: item } : { kind: 'data', value: Evaluator.#frozenDataOf(item) });
+
                 items.push(item === null ? null : evaluator.#applyFields(node, fields, localNames, item));
-                sources.push(Object.freeze(item === null ? { kind: 'null' } : isOfReferences ? { kind: 'reference', value: item } : { kind: 'data', value: Evaluator.#frozenDataOf(item) }));
+                sources.push(source);
+                provenance.push(inherited === null ? source : inherited[index]);
             }
 
-            // A list is projected item by item, so each item keeps the input it came from; two inputs can project to the same data, and one input can stand more than once.
+            // A list is projected item by item, so each item keeps the input it came from and the provenance that input carried; two inputs can project to the same data, and one input can stand more than once.
             evaluator.#sourcesByList.set(items, Object.freeze(sources));
+            evaluator.#provenanceByList.set(items, Object.freeze(provenance));
 
             return items;
         };
@@ -2337,6 +2352,7 @@ export class Evaluator {
      */
     #evaluateResult(node) {
         this.#sourcesByList = new WeakMap();
+        this.#provenanceByList = new WeakMap();
         this.#selections = null;
 
         try {
@@ -2393,8 +2409,9 @@ export class Evaluator {
             }
 
             const sources = this.#sourcesByList.get(value) ?? null;
+            const provenance = this.#provenanceByList.get(value) ?? null;
 
-            return { value: Object.freeze(copy), copiedIdentities: sources === null && !hasIdentities ? null : { sources, items: itemIdentities } };
+            return { value: Object.freeze(copy), copiedIdentities: sources === null && provenance === null && !hasIdentities ? null : { sources, provenance, items: itemIdentities } };
         }
 
         if (ObjectUtils.isNonArrayObject(value)) {
@@ -2552,9 +2569,10 @@ export class Evaluator {
             const itemContextRecord = followed === null ? contextRecord : Evaluator.#getInheritedRecord(followed);
             const items = value.map((item, index) => this.#createObjectRecord(node, item, identities?.items?.[index] ?? null, itemContextRecord));
             const sources = identities?.sources ?? null;
+            const provenance = identities?.provenance ?? null;
 
-            // A list no projection built records no sources at all, so a null source and absent sources stay apart.
-            return Object.freeze({ origin: this.#getExpressionRecord(node, null, null).origin, tolerance: null, items: Object.freeze(items), ...(sources === null ? {} : { sources }) });
+            // A list no projection built records neither sources nor provenance at all, so a null source and absent sources or provenance stay apart.
+            return Object.freeze({ origin: this.#getExpressionRecord(node, null, null).origin, tolerance: null, items: Object.freeze(items), ...(sources === null ? {} : { sources }), ...(provenance === null ? {} : { provenance }) });
         }
 
         return value === null ? this.#getExpressionRecord(node, null, null) : this.#createObjectRecord(node, value, identities, followed ?? contextRecord);

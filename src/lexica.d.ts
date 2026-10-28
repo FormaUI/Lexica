@@ -157,7 +157,7 @@ export interface LexicaExtensionDeclaration {
 /** A type a module declares, of the kind it says, or an extension it declares among its types. */
 export type LexicaTypeDeclaration = LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration | LexicaExtensionDeclaration;
 
-/** The input a projected item came from, of the kind its established type gives it: a reference as the host holds it, data as Lexica's own frozen copy, or null. */
+/** The input a projection was given for an item, of the kind its established type gives it: a reference as the host holds it, data as Lexica's own frozen copy, or null; a source and a provenance entry alike. */
 export type LexicaProjectionSource = { readonly kind: 'reference'; readonly value: unknown } | { readonly kind: 'data'; readonly value: unknown } | { readonly kind: 'null' };
 
 /**
@@ -390,15 +390,21 @@ export interface LexicaModule {
 /**
  * What an evaluation tells of a value it answers, beside the value and never part of it: the origin, a token for the expression that produced it, the same token exactly where one expression of one resolution,
  * with one candidate selected, produced two values; the tolerance the producing member declares, applying to every number within the value but a part with a record of its own; the records of the object fields
- * an object expression built and of the items a projection built, with the input each item came from, a list no projection built having no sources. A part with no record inherits its parent's origin and tolerance,
- * and a record's null tolerance overrides it.
+ * an object expression built and of the items a projection built, with the input each item came from, a list no projection built having no sources; and each such item's provenance. A part with no record inherits its
+ * parent's origin and tolerance, and a record's null tolerance overrides it.
  */
 export interface LexicaResultMetadata {
     readonly origin: object;
     readonly tolerance: number | null;
     readonly objectFields?: Readonly<Record<string, LexicaResultMetadata>>;
     readonly items?: readonly LexicaResultMetadata[];
+    /** The input each item of a list a projection built came from, its immediate input, a null one included; absent for a list no projection built. */
     readonly sources?: readonly LexicaProjectionSource[];
+    /**
+     * Each item's provenance, beside `sources`: the source the earliest projection the item descends from recorded for it, so a list projected from a projection's items names the references the first projection read, and a
+     * projection of a list that carries none records its own sources here too. Absent wherever `sources` is, entries repeated where an input repeats, and never a key nor a promise of a unique correspondence.
+     */
+    readonly provenance?: readonly LexicaProjectionSource[];
 }
 
 /** What a member's invocation is, as a hook's request and a prepared host call each give it: its declaration as its module declared it, its receiver, which a module member has none of, its arguments by parameter name, and where the call stands. */

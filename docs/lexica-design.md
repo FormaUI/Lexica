@@ -60,7 +60,7 @@ An access on a value of `Any` is the one place the evaluator selects: resolution
 
 The hooks a host gives an evaluation are called around each member's implementation, never inside the language's own operators, so what a host learns is exactly what the evaluation read of its domain. An evaluation's state, its pending members and the records of what it read, belongs to it alone, which is why an implementation that evaluates another script never disturbs the one that called it.
 
-A result is detached from everything the evaluation touched: the evaluator copies the data a member answers through the data shape its type declares, and freezes the copy, so neither a host's later changes nor an implementation that keeps a reference can alter a result once produced. The metadata beside the value is recorded as the value is built, from the same compiled functions, so describing a result costs nothing until a host reads its metadata.
+A result is detached from everything the evaluation touched: the evaluator copies the data a member answers through the data shape its type declares, and freezes the copy, so neither a host's later changes nor an implementation that keeps a reference can alter a result once produced. A projection records, beside each item's source, its provenance, the source the earliest projection of its input recorded, inherited from a projected input list by position, so lineage costs one array a projection and keeps no list it passed through. The metadata beside the value is recorded as the value is built, from the same compiled functions, so describing a result costs nothing until a host reads its metadata.
 
 ## Host calls
 

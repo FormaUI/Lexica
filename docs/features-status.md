@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 34 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, the implementation following language `1.0.0-alpha.34`, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is next, its lineage contract first.**
+**The core language, host calls, definition version 34 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, the implementation following language `1.0.0-alpha.34`, its host checkpoint awaiting DOMQL's migration; in [unit 4](#unit-4--collections), collections, the lineage contract is settled, specified and recorded through projections, and the foundation is next.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -31,7 +31,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | 1 | [Declarations and the type model](#unit-1--declarations-and-the-type-model) | ✅ Done |
 | 2 | [Member selection and deferred evaluation](#unit-2--member-selection-and-deferred-evaluation) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | ✅ Done; its host checkpoint awaits DOMQL's migration |
-| 4 | [Collections](#unit-4--collections) | Accepted in part; the lineage contract first |
+| 4 | [Collections](#unit-4--collections) | In progress: step 1 done; step 2, the foundation, next |
 | 5 | [Specification examples](#unit-5--specification-examples) | Planned |
 | 6 | [Tooling](#unit-6--tooling) | Planned |
 | 7 | [Release](#unit-7--release) | Planned |
@@ -171,9 +171,9 @@ Contracts: [Scripts](../spec/scripts.md), [the grammar](../spec/grammar.md), [li
 
 ### Unit 4 — Collections
 
-The [collections proposal](proposals/collections.md)'s four parts, each settled, specified and implemented in turn. Its accepted decisions stand; each of its open contracts is settled by the stage that depends on it, before that stage implements anything.
+The [collections proposal](proposals/collections.md)'s four parts, each settled, specified and implemented in turn. Its accepted decisions stand; each of its open contracts is settled by the stage that depends on it, before that stage implements anything. *Next: step 2, the foundation.*
 
-1. **The lineage contract:** the smallest representation of provenance that satisfies the proposal's requirements, specified before any transformation propagates provenance, so no temporary representation is built. It is the foundation's first remaining task.
+1. ✅ **The lineage contract,** as [I34](proposals/implementation-decisions.md) sets out: a projected list's `provenance`, beside its `sources`, each item's entry the source the earliest projection it descends from recorded, inherited through a projection of a projection, read through a local or an object field, specified in [provenance](../spec/runtime.md#runtime-results-provenance). The four-step chain holds as object projections write it, `people.where(it.active) { name = it.name } { label = it.name }`; written with `select`, it is an acceptance case step 3 makes pass, and `where`'s result carrying its kept items' records, sources and provenance realigned, rather than starting provenance afresh at the projection after it, is step 2's.
 2. **The foundation:** `Dictionary<K, V>` and `Pair<K, V>`, public from this stage with their checking and capture complete; capture of arrays, maps and sets; typing; key equality; insertion order; null keys; duplicate keys refused; lookup and presence; the exported forms; and metadata realigned through filtering, with lineage through projection.
 3. **Construction and operations:** collection expressions, through the parser, the definition, line structure and canonical text; dictionary construction and grouping; and the member surface, `select` beside object projection.
 4. **Positional operations:** `Index` and `Range`, `..` and `^`, strict slicing beside tolerant lookup, typed indexer signatures, and `pick`.
@@ -184,6 +184,12 @@ A stage that changes the definition's contract advances its version, as [the def
 **Completion:** each accepted decision and each settled contract is specified and implemented, and the gate passes; a host follows at its third checkpoint.
 
 Contract: [Collections](proposals/collections.md).
+
+**The third host checkpoint.** DOMQL adopts the changes below in its handling of collections in results at the end of this unit. The list is a working checklist, kept until that migration is verified and then removed; each line names where DOMQL, at its `7406eb4`, reads what changed.
+
+| Owner | Before | Now | Host change |
+| --- | --- | --- | --- |
+| Result metadata | A projected list's `sources`, its immediate inputs alone | `provenance` beside `sources`, each item's source at the earliest projection it descends from, so a projection of a projection names the first projection's references | Match a projected list's items by `provenance` where they are projected from another projection's items, and by `sources` otherwise: `SnapshotComparer.mjs:106`, `SnapshotPatcher.mjs:245`, which read `sources` alone |
 
 ### Unit 5 — Specification examples
 

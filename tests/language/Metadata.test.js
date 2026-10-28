@@ -17,7 +17,7 @@ const { createPropertyDeclaration } = Declarations;
 /** The references a plain host's member answers, lights of the home. */
 const parts = [new Light('a'), new Light('b')];
 
-/** A plain host's module on names: a size measured within half a unit, a length, a list of references and each reference's label. */
+/** A plain host's module on names: a size measured within half a unit, a length, a list of references, a crowd holding one of them twice, and each reference's label. */
 const shapes = new LexicaModule('shapes', withHome({
     types: [
         { name: 'Size', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number', height: 'Number' }) },
@@ -25,6 +25,7 @@ const shapes = new LexicaModule('shapes', withHome({
             createPropertyDeclaration('size', 'Size', { updates: { ...constantUpdates, tolerance: 0.5 }, impl: ({ receiver }) => ({ width: receiver.length, height: 1 }) }),
             createPropertyDeclaration('length', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
             createPropertyDeclaration('parts', 'List<Light?>', { updates: constantUpdates, impl: () => parts }),
+            createPropertyDeclaration('crowd', 'List<Light>', { updates: constantUpdates, impl: () => [parts[0], parts[1], parts[0]] }),
             createPropertyDeclaration('sizes', 'List<Size?>', { updates: constantUpdates, impl: () => [{ width: 1, height: 2 }, null] }),
         ]),
     ],
@@ -151,5 +152,49 @@ describe('result metadata', () => {
         const { objectFields } = metadataOf('{ b = 1, c = 2, a = 3 }');
 
         expect(Object.keys(objectFields)).toEqual(['b', 'c', 'a']);
+    });
+    describe('provenance', () => {
+        const references = items => items.map(item => ({ kind: 'reference', value: item }));
+
+        it('records a projection of a list no projection built with its own sources as its provenance, entry for entry', () => {
+            const { metadata } = resolve('name.crowd { name = it.label }').evaluate();
+
+            expect(metadata.provenance).toEqual(references([parts[0], parts[1], parts[0]]));
+            expect(metadata.provenance.every((entry, index) => entry === metadata.sources[index])).toBe(true);
+            expect(Object.isFrozen(metadata.provenance)).toBe(true);
+        });
+
+        it("keeps a second projection's sources its immediate input while its provenance names the references the first projection read, an input standing twice twice", () => {
+            const { value, metadata } = resolve('name.crowd { name = it.label } { label = it.name }').evaluate();
+
+            expect(value).toEqual([{ label: 'a' }, { label: 'b' }, { label: 'a' }]);
+            expect(metadata.sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'b' } }, { kind: 'data', value: { name: 'a' } }]);
+            expect(metadata.provenance).toEqual(references([parts[0], parts[1], parts[0]]));
+            expect(metadata.provenance[0].value).toBe(parts[0]);
+            expect(metadata.provenance[2].value).toBe(parts[0]);
+        });
+
+        it('meets the four-step chain as object projections write it: a filter, then two projections, the final items naming their original references', () => {
+            const { value, metadata } = resolve('name.crowd.where(it.label == "a") { name = it.label } { label = it.name }').evaluate();
+
+            expect(value).toEqual([{ label: 'a' }, { label: 'a' }]);
+            expect(metadata.sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'a' } }]);
+            expect(metadata.provenance).toEqual(references([parts[0], parts[0]]));
+        });
+
+        it('carries a null source as a recorded provenance entry, apart from absent provenance, data provenance as its frozen copy', () => {
+            const { metadata } = resolve('name.sizes { width = it.width } { w = it.width }').evaluate();
+
+            expect(metadata.sources).toEqual([{ kind: 'data', value: { width: 1 } }, { kind: 'null' }]);
+            expect(metadata.provenance).toEqual([{ kind: 'data', value: { width: 1, height: 2 } }, { kind: 'null' }]);
+            expect(Object.isFrozen(metadata.provenance[0].value)).toBe(true);
+            expect(Object.hasOwn(resolve('items', { items: [1, 2] }).evaluate().metadata, 'provenance')).toBe(false);
+            expect(resolve('items { n = it }', { items: [] }).evaluate().metadata.provenance).toEqual([]);
+        });
+
+        it('follows a projected list through a local and into an object field', () => {
+            expect(metadataOf('let named = name.crowd { name = it.label }\nreturn named { label = it.name }').provenance).toEqual(references([parts[0], parts[1], parts[0]]));
+            expect(metadataOf('{ rows = name.crowd { n = it.label } { m = it.n } }').objectFields.rows.provenance).toEqual(references([parts[0], parts[1], parts[0]]));
+        });
     });
 });
