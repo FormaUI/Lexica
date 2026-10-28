@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { lexica } from '#lexica/lexica.js';
 import { DefinitionValidator } from '#lexica/language/DefinitionValidator.mjs';
 import { DefinitionWriter } from '#lexica/language/DefinitionWriter.mjs';
 import { Versions } from '#lexica/language/Versions.mjs';
@@ -45,6 +46,13 @@ describe('DefinitionWriter', () => {
         expect(DefinitionWriter.format(spanning)).toBe('{\n    a = if lit then\n        do\n            return 1\n        end\n    else\n        2\n    end\n}');
         expect(DefinitionWriter.format(sum)).toBe('(do\n    return 1\nend\n) + 2');
         expect(DefinitionWriter.format(canonicalOf({ kind: 'conditional', condition, consequent: literal(1), alternative: literal(2) }))).toBe('if lit then 1 else 2 end');
+    });
+
+    it("starts a call's argument after one ending in a block's end on the next line, since only closing punctuation follows end on its line", () => {
+        const formatted = lexica.format('f(if c then { a = 1, b = 2 } else null end, 2)');
+
+        expect(formatted).toBe('f(if c then\n    {\n        a = 1,\n        b = 2\n    }\nelse\n    null\nend,\n2)');
+        expect(lexica.parse(formatted)).toEqual(lexica.parse('f(if c then { a = 1, b = 2 } else null end, 2)'));
     });
 
     it("writes a script's imports before its body, each on a line of its own in the definition's order, an alias and = before its source, leaving out those its destination supplies", () => {

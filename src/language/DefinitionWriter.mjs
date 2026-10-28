@@ -283,7 +283,10 @@ export class DefinitionWriter {
 
     /** A call's arguments, separated by commas. */
     static #arguments(node, level) {
-        return node.arguments.map(argument => DefinitionWriter.#write(argument, level)).join(', ');
+        const written = node.arguments.map(argument => DefinitionWriter.#write(argument, level));
+
+        // Only closing punctuation follows a block's `end` on its line, so the argument after one that ends with it starts the next line.
+        return written.map((argument, index) => (index === 0 ? argument : `${level !== null && /\n\s*end$/.test(written[index - 1]) ? `\n${INDENTATION.repeat(level)}` : ' '}${argument}`)).join(',');
     }
 
     /** A function: its parameters, and its body as a block writes it; an arrow function its parameters, one alone or several in parentheses, `=>` and the expression that is its body. */
