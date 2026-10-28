@@ -140,9 +140,11 @@ export class SyntaxTree {
             const start = offset;
 
             if (text.startsWith('//', offset)) {
-                const lineEnd = text.indexOf('\n', offset);
+                const lineEnd = text.slice(offset, token.start).search(/[\n\r]/);
+                // The comment holds the line break that ends it, CRLF one, or runs to the token where none does.
+                const breakLength = lineEnd !== -1 && text.startsWith('\r\n', offset + lineEnd) ? 2 : 1;
 
-                offset = lineEnd === -1 || lineEnd >= token.start ? token.start : lineEnd + 1;
+                offset = lineEnd === -1 ? token.start : offset + lineEnd + breakLength;
                 pieces.push({ kind: 'line-comment', start, end: offset });
             } else if (text.startsWith('/*', offset)) {
                 offset = text.indexOf('*/', offset + 2) + 2;

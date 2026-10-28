@@ -39,7 +39,11 @@ const UNICODE_ESCAPE = /u\{([0-9A-Fa-f]{1,6})\}/y;
 const PUNCTUATION = new Set(['.', ',', ':', '(', ')', '{', '}', '[', ']', '+', '-', '*', '/', '%']);
 const NAME = /[A-Za-z][A-Za-z0-9]*/y;
 const NUMBER = /(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/y;
-const SPACE = /\s/;
+/** Whitespace, as ECMAScript's `\s` matches it, but U+2028 and U+2029, which stand only in a string's literal text. */
+const SPACE = /(?![\u2028\u2029])\s/;
+
+/** The line and paragraph separators, which a string's literal text alone holds. */
+const SEPARATORS = /[\u2028\u2029]/;
 
 export class Tokenizer {
     #text;
@@ -241,7 +245,7 @@ export class Tokenizer {
 
     /**
      * Moves past the trivia before a token, answering an invalid token for a block comment never closed, which runs to the end of the text; an interpolation stands on one line, so a line break
-     * in its trivia, a line comment, which a line break ends, and a block comment holding one are invalid there.
+     * in its trivia, a line comment, which a line break ends, and a block comment holding one are invalid there. U+2028 and U+2029 are invalid in code and in a comment alike, a comment holding one invalid whole.
      */
     #skipTrivia() {
         const isInInterpolation = this.#modes.at(-1)?.kind === 'interpolation';
@@ -254,10 +258,19 @@ export class Tokenizer {
                 return this.#readInvalidToken(this.#offset, this.#offset + 1, 'LEXICA1040', oneLine, this.#offset);
             }
 
+            if (SEPARATORS.test(character)) {
+                return this.#readSeparator(this.#offset, this.#offset + 1, this.#offset);
+            }
+
             if (SPACE.test(character)) {
                 this.#offset++;
             } else if (this.#text.startsWith('//', this.#offset)) {
                 const lineEnd = this.#lineEndFrom(this.#offset);
+                const separator = this.#text.slice(this.#offset, lineEnd).search(SEPARATORS);
+
+                if (separator !== -1) {
+                    return this.#readSeparator(this.#offset, lineEnd, this.#offset + separator);
+                }
 
                 this.#offset = lineEnd >= this.#text.length ? lineEnd : lineEnd + Tokenizer.#lineBreakLengthAt(this.#text, lineEnd);
             } else if (this.#text.startsWith('/*', this.#offset)) {
@@ -265,6 +278,12 @@ export class Tokenizer {
 
                 if (commentEnd === -1) {
                     return this.#readInvalidToken(this.#offset, this.#text.length, 'LEXICA1007', 'A block comment is never closed', this.#offset);
+                }
+
+                const separator = this.#text.slice(this.#offset, commentEnd).search(SEPARATORS);
+
+                if (separator !== -1) {
+                    return this.#readSeparator(this.#offset, commentEnd + 2, this.#offset + separator);
                 }
 
                 if (isInInterpolation && /[\n\r]/.test(this.#text.slice(this.#offset, commentEnd))) {
@@ -580,6 +599,13 @@ export class Tokenizer {
         }
 
         return { offset: lineStart, diagnostic: { code: 'LEXICA1061', message: "Each line of a block that is not blank begins with its closing delimiter's indentation, the margin removed from its lines, and this one does not", offset: lineStart } };
+    }
+
+    /** An invalid token from the start to the end, for the line or the paragraph separator at the offset, which a string's literal text alone holds, as a character of its value (LEXICA1002). */
+    #readSeparator(start, end, offset) {
+        const name = this.#text[offset] === '\u2028' ? 'U+2028, the line separator,' : 'U+2029, the paragraph separator,';
+
+        return this.#readInvalidToken(start, end, 'LEXICA1002', `${name} stands only in a string's literal text, as a character of its value`, offset);
     }
 
     /** Where the line the offset stands on ends: at its line break, a line feed, a carriage return or both, or at the end of the text. */

@@ -265,6 +265,22 @@ describe('the codes of syntax errors', () => {
     });
 
     describe('the tokenizer', () => {
+        it('gives LEXICA1002 to U+2028 or U+2029 outside a string\'s literal text, in code, a comment and an interpolation\'s expression alike, naming the character', () => {
+            expectSyntaxCode('LEXICA1002', ['1 +  2', '1 +  2', '// a b\n1', '/*   */ 1', '$"{1 }"']);
+            expect(errorThrownBy(() => lexica.parse('1 +  2'))).toMatchObject({ message: expect.stringContaining('U+2028'), location: { offset: 3 } });
+            expect(lexica.parse('"a b"').expression).toEqual({ kind: 'literal', value: 'a b' });
+            expect(lexica.parse('$"a {1}"').expression.parts[0]).toEqual({ kind: 'text', value: 'a ' });
+        });
+
+        it('breaks a line at LF, CRLF and a lone CR alike, in a diagnostic\'s location and in where a body local\'s value ends', () => {
+            for (const lineBreak of ['\n', '\r\n', '\r']) {
+                expect(errorThrownBy(() => lexica.parse(`1${lineBreak}${lineBreak}@`)).location, JSON.stringify(lineBreak)).toEqual({ offset: 1 + 2 * lineBreak.length, line: 3, column: 1 });
+                expect(errorThrownBy(() => lexica.parse(`let a = 1${lineBreak}b`)), JSON.stringify(lineBreak)).toMatchObject({ code: 'LEXICA1030', location: { line: 2, column: 1 } });
+            }
+
+            expect(lexica.parse('let a = 1 // one\rreturn a').expression.result).toEqual({ kind: 'local', name: 'a' });
+        });
+
         it('gives LEXICA1000 to text that is no token', () => {
             expectSyntaxCode('LEXICA1000', ['a # b']);
         });

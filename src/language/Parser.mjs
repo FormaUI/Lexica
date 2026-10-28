@@ -694,7 +694,7 @@ export class Parser {
             return;
         }
 
-        if (this.#bodyLocalsBeingRead > 0 && this.#text.slice(this.#tokens[this.#index - 1].end, this.#token.start).includes('\n')) {
+        if (this.#bodyLocalsBeingRead > 0 && /[\n\r]/.test(this.#text.slice(this.#tokens[this.#index - 1].end, this.#token.start))) {
             return;
         }
 
