@@ -62,6 +62,12 @@ describe('ordering a list', () => {
         expect(weighed).toEqual(['bo', 'al', 'cy', 'al', 'al', 'al', 'bo', 'cy']);
     });
 
+    it('orders nulls first by whether a key is null, a null item first by a function alone, since a body never reads a null item', () => {
+        expect(evaluate('people.orderBy(it.age != null).thenBy(it.age).select(it.age)')).toEqual([null, 20, 30, 30]);
+        expect(evaluate('xs.orderBy(it != null).thenBy(it)', { xs: [2, null, 1] })).toEqual([1, 2, null]);
+        expect(evaluate('xs.orderBy(item => item != null).thenBy(it)', { xs: [2, null, 1] })).toEqual([null, 1, 2]);
+    });
+
     it('keeps the ordering of a list of collections through the capture that replaces the list an ordering answers', () => {
         expect(evaluate('xs.orderBy(it.count).thenBy(it.first)', { xs: [[2], [1, 1], [1]] })).toEqual([[1], [2], [1, 1]]);
         expect(evaluate('let sorted = xs.orderByDescending(it.count)\nreturn sorted.thenBy(it.first)', { xs: [[2], [1, 1], [1]] })).toEqual([[1, 1], [1], [2]]);
