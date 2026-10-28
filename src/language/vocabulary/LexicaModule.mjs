@@ -218,6 +218,11 @@ export class LexicaModule {
         return declaration.invokedBy === 'host';
     }
 
+    /** The name a message gives a member, as an access writes it: its name, or `[…]` for an unnamed indexer, which has none. */
+    static writtenNameOf(declaration) {
+        return declaration.name ?? '[…]';
+    }
+
     /** The object without its fields that hold undefined, which a declaration leaves out as it leaves out a field it does not write. */
     static #withoutUndefinedValues(object) {
         return ObjectUtils.isNonArrayObject(object) ? Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined)) : object;

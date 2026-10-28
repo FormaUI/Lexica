@@ -16,6 +16,12 @@ const refusal = (contents, declarationName, declarationKey, fragment) => {
 const onStrings = members => ({ types: [extensionDeclaration('Words', 'String', members)] });
 
 describe('LexicaModule', () => {
+    it('names a member in a message as an access writes it, an unnamed indexer by its brackets', () => {
+        expect(LexicaModule.writtenNameOf(propertyDeclaration({ name: 'zoom' }))).toBe('zoom');
+        expect(LexicaModule.writtenNameOf(indexerDeclaration({ name: 'cell' }))).toBe('cell');
+        expect(LexicaModule.writtenNameOf(indexerDeclaration())).toBe('[…]');
+    });
+
     it('keeps its declarations as frozen data, each implementation the function its module gave', () => {
         const implementation = () => 2;
         const module = new LexicaModule('charts', { members: [propertyDeclaration({ name: 'charts', impl: implementation })] });

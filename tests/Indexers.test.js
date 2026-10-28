@@ -156,6 +156,11 @@ describe('indexers and computed properties', () => {
     });
 
     describe('an unnamed indexer', () => {
+        it('is named in a message as its access is written, brackets alone, a receiver known to be null\'s candidates among them', () => {
+            expect(refusalOf('words[true]', { words: ['oat'] })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'index' of '[…]' expects Number and finds Boolean") });
+            expect(refusalOf('nothing?[true]', { nothing: null })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'index' of '[…]' expects Number and finds Boolean") });
+        });
+
         it('indexes what the property before its brackets answers, where the receiver\'s type has no named indexer of that name', () => {
             expect(evaluate('item.words[1]', { item: 'oat latte' })).toBe('latte');
             expect(evaluate('item.words[1]', { item: 'latte' })).toBeNull();

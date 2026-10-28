@@ -1711,7 +1711,7 @@ export class LanguageResolver {
             const resolved = this.#typeChecker.resolveTypeArgument(evidence.get(parameterName));
 
             if (resolved?.candidates !== undefined) {
-                this.#fail('LEXICA3064', `'${declaration.name}' is given ${resolved.candidates.join(' and ')} for its type parameter ${parameterName}, which binds one type, never a type they share`, pointer);
+                this.#fail('LEXICA3064', `'${LexicaModule.writtenNameOf(declaration)}' is given ${resolved.candidates.join(' and ')} for its type parameter ${parameterName}, which binds one type, never a type they share`, pointer);
             }
 
             if (resolved !== null) {
@@ -2207,14 +2207,14 @@ export class LanguageResolver {
         }
 
         if (parameters.length === 0) {
-            this.#fail('LEXICA3058', `'${declaration.name}' takes no argument`, given[0].pointer);
+            this.#fail('LEXICA3058', `'${LexicaModule.writtenNameOf(declaration)}' takes no argument`, given[0].pointer);
         }
 
         if (declaration.arguments !== 'options') {
             if (given.length > parameters.length) {
                 const count = parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`;
 
-                this.#fail('LEXICA3058', `'${declaration.name}' takes ${parameters.some(parameter => !parameter.required) ? 'at most ' : ''}${count}, and is given ${given.length}`, given[parameters.length].pointer);
+                this.#fail('LEXICA3058', `'${LexicaModule.writtenNameOf(declaration)}' takes ${parameters.some(parameter => !parameter.required) ? 'at most ' : ''}${count}, and is given ${given.length}`, given[parameters.length].pointer);
             }
 
             given.forEach((argument, index) => supplied.set(parameters[index].name, argument));
@@ -2223,20 +2223,20 @@ export class LanguageResolver {
         }
 
         if (given.length > 1) {
-            this.#fail('LEXICA3058', `'${declaration.name}' takes its arguments as the object fields of one object, as { ${parameters[0].name} = … }`, given[1].pointer);
+            this.#fail('LEXICA3058', `'${LexicaModule.writtenNameOf(declaration)}' takes its arguments as the object fields of one object, as { ${parameters[0].name} = … }`, given[1].pointer);
         }
 
         const [options] = given;
 
         if (options.node.kind !== 'object' || options.node.target !== undefined) {
-            this.#fail('LEXICA3057', `'${declaration.name}' takes its arguments as the object fields of an object, as { ${parameters[0].name} = … }`, options.pointer);
+            this.#fail('LEXICA3057', `'${LexicaModule.writtenNameOf(declaration)}' takes its arguments as the object fields of an object, as { ${parameters[0].name} = … }`, options.pointer);
         }
 
         options.node.fields.forEach((field, index) => {
             const parameter = parameters.find(candidate => candidate.name === field.name);
 
             if (parameter === undefined) {
-                this.#fail('LEXICA3018', `'${declaration.name}' has no parameter '${field.name}'; it takes ${parameters.map(candidate => candidate.name).join(', ')}`, `${options.pointer}/fields/${index}`);
+                this.#fail('LEXICA3018', `'${LexicaModule.writtenNameOf(declaration)}' has no parameter '${field.name}'; it takes ${parameters.map(candidate => candidate.name).join(', ')}`, `${options.pointer}/fields/${index}`);
             }
 
             supplied.set(parameter.name, { node: field.value, pointer: `${options.pointer}/fields/${index}/value` });
@@ -2285,7 +2285,7 @@ export class LanguageResolver {
 
             if (given === undefined) {
                 if (parameter.required) {
-                    this.#fail('LEXICA3080', `'${declaration.name}' requires the argument '${parameter.name}'`, pointer);
+                    this.#fail('LEXICA3080', `'${LexicaModule.writtenNameOf(declaration)}' requires the argument '${parameter.name}'`, pointer);
                 }
 
                 resolved.push({ parameter, isDefault: true, value: parameter.default });
@@ -2301,11 +2301,11 @@ export class LanguageResolver {
                 const isOfUnknownType = receiverType === null || LanguageResolver.#isNullOrNever(receiverType);
 
                 if (receiverType === null) {
-                    this.#fail('LEXICA3500', `'${declaration.name}' evaluates its expression against the items of the list it follows, and a module member follows none`, valuePointer);
+                    this.#fail('LEXICA3500', `'${LexicaModule.writtenNameOf(declaration)}' evaluates its expression against the items of the list it follows, and a module member follows none`, valuePointer);
                 }
 
                 if (!receiverType.isList && !isOfUnknownType) {
-                    this.#fail('LEXICA3500', `'${declaration.name}' evaluates its expression against the items of a list, and ${receiverType.toNonNullable()} has none`, valuePointer);
+                    this.#fail('LEXICA3500', `'${LexicaModule.writtenNameOf(declaration)}' evaluates its expression against the items of a list, and ${receiverType.toNonNullable()} has none`, valuePointer);
                 }
 
                 const itemType = isOfUnknownType ? Type.never : receiverType.itemType;
@@ -2382,7 +2382,7 @@ export class LanguageResolver {
         const actual = result.type;
 
         if (LanguageResolver.#heldReferenceOf(actual) === 'function') {
-            this.#fail('LEXICA3071', `The argument '${parameter.name}' of '${declaration.name}' takes a value, and a function is none: a function is passed to a local function, or to a parameter its member declares to take one`, pointer);
+            this.#fail('LEXICA3071', `The argument '${parameter.name}' of '${LexicaModule.writtenNameOf(declaration)}' takes a value, and a function is none: a function is passed to a local function, or to a parameter its member declares to take one`, pointer);
         }
 
         const assignability = parameter.nulls === 'propagate' ? (actual.kind === 'null' ? 'assignable' : this.#typeChecker.assignabilityOf(actual.toNonNullable(), expected.toNonNullable())) : this.#typeChecker.assignabilityOf(actual, expected);
@@ -2391,7 +2391,7 @@ export class LanguageResolver {
         if (!isAdmitted) {
             const [expectedName, actualName] = Type.namesOf(expected, actual);
 
-            this.#fail('LEXICA3042', `The argument '${parameter.name}' of '${declaration.name}' expects ${expectedName} and finds ${actualName}`, pointer);
+            this.#fail('LEXICA3042', `The argument '${parameter.name}' of '${LexicaModule.writtenNameOf(declaration)}' expects ${expectedName} and finds ${actualName}`, pointer);
         }
 
         return assignability;
@@ -2404,14 +2404,14 @@ export class LanguageResolver {
 
     #requireValueArgument(result, parameter, declaration, pointer) {
         if (result.kind !== 'value') {
-            this.#fail('LEXICA3048', `The argument '${parameter.name}' of '${declaration.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and an argument is a value`, pointer);
+            this.#fail('LEXICA3048', `The argument '${parameter.name}' of '${LexicaModule.writtenNameOf(declaration)}' is ${LanguageResolver.#descriptionOf(result.kind)}, and an argument is a value`, pointer);
         }
     }
 
     /** Resolves the type a fixed argument selects through its parameter's type selector, which must be known before anything is evaluated. */
     #resolveSelectedType(parameter, result, declaration, pointer) {
         if (!result.isFixed || typeof result.value !== 'string') {
-            this.#fail(result.isFixed ? 'LEXICA3007' : 'LEXICA3006', `The argument '${parameter.name}' of '${declaration.name}' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, a literal, a script parameter, or a local, a conditional binding, a conditional, a '??', an 'and' or an 'or' that settles to one, never null`, pointer);
+            this.#fail(result.isFixed ? 'LEXICA3007' : 'LEXICA3006', `The argument '${parameter.name}' of '${LexicaModule.writtenNameOf(declaration)}' selects from the vocabulary, so it is a string the expression's resolution settles without evaluating a member, a literal, a script parameter, or a local, a conditional binding, a conditional, a '??', an 'and' or an 'or' that settles to one, never null`, pointer);
         }
 
         const name = result.value;
@@ -2612,7 +2612,7 @@ export class LanguageResolver {
 
         const resultType = resolve(parameter.type);
 
-        return { memberName: declaration.name, parameterName: parameter.name, parameterTypes: parameter.parameterTypes.map(resolve), resultType: LanguageResolver.#holdsTypeParameter(resultType) ? null : resultType };
+        return { memberName: LexicaModule.writtenNameOf(declaration), parameterName: parameter.name, parameterTypes: parameter.parameterTypes.map(resolve), resultType: LanguageResolver.#holdsTypeParameter(resultType) ? null : resultType };
     }
 
     /**
@@ -2641,7 +2641,7 @@ export class LanguageResolver {
             }
 
             if (!this.#fitsResult(result.type, contract.resultType)) {
-                this.#fail('LEXICA3036', `The implicit body given as '${parameter.name}' of '${declaration.name}' gives ${result.type}, and its contract takes ${contract.resultType ?? 'any value'}`, pointer);
+                this.#fail('LEXICA3036', `The implicit body given as '${parameter.name}' of '${LexicaModule.writtenNameOf(declaration)}' gives ${result.type}, and its contract takes ${contract.resultType ?? 'any value'}`, pointer);
             }
 
             return { result, callback: { isBody: true, parameterTypes: contract.parameterTypes, resultType: contract.resultType } };
@@ -2662,7 +2662,7 @@ export class LanguageResolver {
     #resolveItemArgument(node, pointer, scope, parameter, declaration, itemType, expected) {
         // A function of the item is called with each item as it is, null among them where the list holds nulls, while a body reads each item as a value that is not.
         // An expression whose result writes a parameter nothing bound yet takes any value, which then binds it.
-        const contract = { memberName: declaration.name, parameterName: parameter.name, parameterTypes: [itemType], resultType: parameter.kind === 'expression' && !LanguageResolver.#holdsTypeParameter(expected) ? expected : null };
+        const contract = { memberName: LexicaModule.writtenNameOf(declaration), parameterName: parameter.name, parameterTypes: [itemType], resultType: parameter.kind === 'expression' && !LanguageResolver.#holdsTypeParameter(expected) ? expected : null };
         let result;
 
         if (node.kind === 'function') {
@@ -2676,7 +2676,7 @@ export class LanguageResolver {
             result = this.#resolveNode(node, pointer, { ...scope, contextType: itemType.toNonNullable(), contextKey: argumentBody.key, argumentBody });
 
             if (result.type.kind === 'function' && argumentBody.isRead) {
-                this.#fail('LEXICA3074', `The expression of '${declaration.name}' reads each item as 'it' and gives a function; a function of the item is written as the argument itself, as ${declaration.name}(x => …)`, pointer);
+                this.#fail('LEXICA3074', `The expression of '${LexicaModule.writtenNameOf(declaration)}' reads each item as 'it' and gives a function; a function of the item is written as the argument itself, as ${declaration.name}(x => …)`, pointer);
             }
         }
 
@@ -2687,7 +2687,7 @@ export class LanguageResolver {
         }
 
         if (!this.#fitsResult(result.type, contract.resultType)) {
-            this.#fail(contract.resultType === null ? 'LEXICA3028' : 'LEXICA3042', contract.resultType === null ? `The expression of '${declaration.name}' produces ${result.type}, a type no receiver gives` : `The expression of '${declaration.name}' must produce ${expected} and produces ${result.type}`, pointer);
+            this.#fail(contract.resultType === null ? 'LEXICA3028' : 'LEXICA3042', contract.resultType === null ? `The expression of '${LexicaModule.writtenNameOf(declaration)}' produces ${result.type}, a type no receiver gives` : `The expression of '${LexicaModule.writtenNameOf(declaration)}' must produce ${expected} and produces ${result.type}`, pointer);
         }
 
         return { result, callback: { isBody: true, parameterTypes: contract.parameterTypes, resultType: contract.resultType } };

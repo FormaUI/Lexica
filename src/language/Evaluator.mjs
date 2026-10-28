@@ -327,7 +327,7 @@ export class Evaluator {
         const fail = (path, part, partType) => {
             const supplied = path === '' ? Evaluator.#describe(part) : part === undefined ? `a value without '${path}'` : `a value whose '${path}' is ${Evaluator.#describe(part)}`;
 
-            this.#fail('LEXICA5015', `The host call '${declaration.name}' supplied ${supplied}, and ${path === '' ? 'it declares' : `'${path}' is declared`} ${partType}`, pointer);
+            this.#fail('LEXICA5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied ${supplied}, and ${path === '' ? 'it declares' : `'${path}' is declared`} ${partType}`, pointer);
         };
 
         const captured = this.#capture(value, resultType, '', fail);
@@ -948,7 +948,7 @@ export class Evaluator {
                 implementation: this.#registry.getImplementation(declaration),
                 takesReceiver: this.#registry.takesReceiver(declaration),
                 resultType,
-                isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${declaration.name}'`),
+                isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${LexicaModule.writtenNameOf(declaration)}'`),
                 copyStructure: Evaluator.#compileStructureCopy(resultType, this.#registry),
             });
             invocations.push(invocation);
@@ -1301,7 +1301,7 @@ export class Evaluator {
             }
 
             // A value of Any is checked against its parameter's type as it is evaluated.
-            const isOfCheckedType = argument.checkedType === undefined ? null : Evaluator.#compileTypeCheck(argument.checkedType, this.#registry, `the argument '${parameter.name}' of '${resolution.declaration.name}'`);
+            const isOfCheckedType = argument.checkedType === undefined ? null : Evaluator.#compileTypeCheck(argument.checkedType, this.#registry, `the argument '${parameter.name}' of '${LexicaModule.writtenNameOf(resolution.declaration)}'`);
             const plan = { name: parameter.name, kind: parameter.kind, evaluate: this.#getCompiledFunction(argument.node), propagatesNull: parameter.nulls === 'propagate', isOption, isReadLater, isField, checkedType: argument.checkedType ?? null, isOfCheckedType, pointer: argument.pointer };
 
             if (argument.callback === undefined) {
@@ -1310,7 +1310,7 @@ export class Evaluator {
 
             // The member calls the function it is given with the arguments the callback contract declares, each checked as the contract's types say, the checks compiled once for every call.
             const { functions, parameterTypes, resultType, isBody } = argument.callback;
-            const asked = `the function given as '${parameter.name}' of '${resolution.declaration.name}'`;
+            const asked = `the function given as '${parameter.name}' of '${LexicaModule.writtenNameOf(resolution.declaration)}'`;
             const isOfParameterType = parameterTypes.map(parameterType => Evaluator.#compileTypeCheck(parameterType, this.#registry, asked));
             const isOfResultType = resultType === null ? null : Evaluator.#compileTypeCheck(resultType, this.#registry, asked);
 
@@ -1321,7 +1321,7 @@ export class Evaluator {
                 isBody: isBody === true,
                 isPredicate: parameter.kind === 'predicate',
                 functions: isBody === true ? null : this.#compileFunctions(functions),
-                memberName: resolution.declaration.name,
+                memberName: LexicaModule.writtenNameOf(resolution.declaration),
                 parameterTypes,
                 resultType,
                 isOfParameterType,
@@ -1372,7 +1372,7 @@ export class Evaluator {
                         }
 
                         if (plan.isOfCheckedType !== null && !plan.isOfCheckedType(value)) {
-                            evaluator.#fail('LEXICA5021', `The argument '${plan.name}' of '${resolution.declaration.name}' is declared ${plan.checkedType}, and is given ${Evaluator.#describe(value)}`, plan.pointer);
+                            evaluator.#fail('LEXICA5021', `The argument '${plan.name}' of '${LexicaModule.writtenNameOf(resolution.declaration)}' is declared ${plan.checkedType}, and is given ${Evaluator.#describe(value)}`, plan.pointer);
                         }
 
                         // A delegate is evaluated where it is written, once, and goes to the member as a callback it calls, while the expression's own names and fields hold the value itself.
@@ -1990,7 +1990,7 @@ export class Evaluator {
         const { declaration, implementation, takesReceiver, resultType, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
-            this.#fail('LEXICA4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${declaration.name}' no implementation`, this.#pointerOf(node));
+            this.#fail('LEXICA4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${LexicaModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
         }
 
         // A module member is read and called through its namespace, and has no receiver.

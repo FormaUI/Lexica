@@ -11,7 +11,7 @@ import { errorThrownBy, expectLexicaError } from '../support/errors.mjs';
 import { constantUpdates, derivedUpdates } from '../support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from '../support/declarations.mjs';
 
-const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration, createFunctionDeclaration, createIndexerDeclaration } = lexica.declarations;
 
 /** What the test gives a member's implementation to do, by the member's name, so each test decides how its member fails. */
 let behaviors = {};
@@ -422,6 +422,10 @@ describe('the runtime codes', () => {
             expectLexicaError(conversion, 'LEXICA4001', 'module');
             expect(member.location).toEqual({ pointer: '/expression', offset: 0, line: 1, column: 1 });
             expect(conversion.location).toEqual({ pointer: '/expression/target', offset: 1, line: 1, column: 2 });
+
+            const indexers = lexica.createModule('indexers', { types: [extensionDeclaration('Cells', 'String', [createIndexerDeclaration(null, 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')] })])] });
+
+            expect(errorThrownBy(() => directEvaluatorOf([indexers], 'word["k"]', { word: 'oat' }).evaluate())).toMatchObject({ code: 'LEXICA4001', message: expect.stringContaining("The module 'indexers' gives '[…]' no implementation") });
         });
     });
 
