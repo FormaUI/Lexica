@@ -76,7 +76,8 @@ A script names its parameters and never holds their values, so one script serves
 
 A binding takes its type from its value, unless the host declares it.
 
-- A reference value is of the type its registry's modules [recognize](types.md#reference-types) it as, so a light is a `Light`, or of the type its host declares for it, as [a declared type](types.md#reference-types) sets out; a value no module recognizes, and that is not data, is not a binding, and one several modules recognize as unrelated types is refused as ambiguous. A reference nested in data is recognized as one bound alone is.
+- A value its host declares a type for is of that type, a reference checked by its membership, as [a declared type](types.md#reference-types) sets out, and data captured as the type, as [declared types](runtime.md#runtime-bindings) set out, a structure among them.
+- A reference value is of the type its registry's modules [recognize](types.md#reference-types) it as, so a light is a `Light`; a value no module recognizes, and that is not data, is not a binding, and one several modules recognize as unrelated types is refused as ambiguous. A reference nested in data is recognized as one bound alone is.
 - A number, a string and a Boolean are `Number`, `String` and `Boolean`.
 - Null is of the type `null`.
 - A list is a `List<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `List<Device>` and `[light, null]` a `List<Light?>`. A declared cast between two types gives them no type to share. A list of nulls alone, `[null]` or `[null, null]`, is a `List<null>`, whose items can only be null, and the empty list is a `List<Never>`, which does not hold an item.

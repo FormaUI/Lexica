@@ -720,6 +720,56 @@ export class LexicaRegistry {
         return resolve(Type.parse(notation));
     }
 
+    /**
+     * The type a binding's declared notation writes, each name in it read as a declared binding's is, in the binding scope, every registered module's public types alike: a name no type is (LEXICA2036), one several types
+     * share unqualified (LEXICA2037), a notation that is none, and a dictionary keyed by no key type (LEXICA2044), are given to `fail`, which throws, with the code and the message. It reads no script's imports.
+     * @param {string} notation
+     * @param {(code: string, message: string) => never} fail
+     */
+    resolveBindingType(notation, fail) {
+        // A notation that writes no type parses to none.
+        const parsed = Type.parse(notation);
+
+        if (parsed === null) {
+            fail('LEXICA2044', `${JSON.stringify(notation)} is no type's notation`);
+        }
+
+        const resolve = type => {
+            switch (type.kind) {
+                case 'object':
+                    return Type.createObjectType(new Map([...type.fieldTypes].map(([name, fieldType]) => [name, resolve(fieldType)])), type.isNullable);
+                case 'named':
+                case 'typeParameter': {
+                    if (type.kind === 'named' && type.typeArguments.length > 0) {
+                        const typeArguments = type.typeArguments.map(resolve);
+
+                        if (type.isDictionary && !this.isKeyType(typeArguments[0])) {
+                            fail('LEXICA2044', `${notation} names a dictionary whose keys are ${typeArguments[0]}, and a key is a number, a string, a Boolean, a reference or null`);
+                        }
+
+                        return new Type('named', { name: type.name, typeArguments, isNullable: type.isNullable });
+                    }
+
+                    const { types } = this.resolveTypeName(type.moduleName === null ? type.name : `${type.moduleName}.${type.name}`, TypeNameScope.bindingScope);
+
+                    if (types.length === 0) {
+                        fail('LEXICA2036', `${notation} names ${type.moduleName === null ? type.name : `${type.moduleName}.${type.name}`}, which is no public type`);
+                    }
+
+                    if (types.length > 1) {
+                        fail('LEXICA2037', `${notation} names ${type.name}, which is several types' name, so it is named qualified: ${types.map(found => found.toString(true)).join(' or ')}`);
+                    }
+
+                    return type.isNullable ? types[0].toNullable() : types[0];
+                }
+                default:
+                    return type;
+            }
+        };
+
+        return resolve(parsed);
+    }
+
     /** The name of the module that declares the named type, null for one of Lexica's own types, as its declaration's scope resolves it. */
     #moduleOfType(type, notation, context, fail) {
         const { name } = type;

@@ -9,7 +9,7 @@ import { LexicaErrors } from './LexicaError.mjs';
 import { Names } from './Names.mjs';
 import { Pair } from './Pair.mjs';
 import { Type } from './Type.mjs';
-import { TypeNameScope } from './vocabulary/TypeNameScope.mjs';
+import { ValueCapture } from './ValueCapture.mjs';
 
 export class ParameterBindings {
     /** @type {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} */
@@ -93,33 +93,95 @@ export class ParameterBindings {
         }).join(';');
     }
 
-    /** A top-level binding of a declared type: a reference type the registry resolves by the name, qualified or not, which a reference the binding holds belongs to; no `typeOf` is asked of it. */
+    /**
+     * A top-level binding of a declared type, the notation read in the binding scope, its names qualified or not. A reference type keeps its contract: the value belongs to it, checked by its membership, and no `typeOf`
+     * is asked of it. Any other type captures the value as a value its host supplies is captured: a structure as its data shape alone, a property left out null where its type is nullable, a reference of another type
+     * null where a nullable reference type is declared, and data the type doesn't admit refused (LEXICA2045), naming the part; the capture is frozen as bound data is, its references kept as they are.
+     */
     #bindDeclared(name, value, typeName) {
-        const types = typeof typeName === 'string' ? this.#registry.resolveTypeName(typeName, TypeNameScope.bindingScope).types : [];
+        const fail = (code, message) => {
+            throw LexicaErrors.structure(code, `The type declared for '${name}': ${message}`, { binding: name });
+        };
+        const type = typeof typeName === 'string' ? this.#registry.resolveBindingType(typeName, fail) : fail('LEXICA2036', `${String(typeName)} is no public type`);
 
-        if (types.length === 0) {
-            throw LexicaErrors.structure('LEXICA2036', `The type declared for '${name}', ${String(typeName)}, is no public type`, { binding: name });
+        if (this.#registry.isReferenceType(type)) {
+            if (value === null && type.isNullable) {
+                return { type, value };
+            }
+
+            if (value === null || typeof value !== 'object') {
+                throw LexicaErrors.structure('LEXICA2038', `A type is declared for a reference, and '${name}' is bound to data`, { binding: name });
+            }
+
+            if (!this.#registry.belongsTo(value, type, `the binding '${name}'`)) {
+                throw LexicaErrors.structure('LEXICA2036', `The value bound to '${name}' doesn't belong to its declared type, ${type}`, { binding: name });
+            }
+
+            return { type, value };
         }
 
-        if (types.length > 1) {
-            throw LexicaErrors.structure('LEXICA2037', `The type declared for '${name}', ${typeName}, is several types' name, so it is named qualified: ${types.map(type => type.toString(true)).join(' or ')}`, { binding: name });
+        if (!ParameterBindings.#holdsBoundValues(type)) {
+            fail('LEXICA2044', `${typeName} is a type no binding holds, as Any, Never, an Index and a Range are`);
         }
 
-        const [type] = types;
+        const captured = new ValueCapture(this.#registry).capture(value, type, (path, part, partType) => {
+            const given = path === '' ? `it is given ${ParameterBindings.#describe(part)}` : part === undefined ? `it is given a value without '${path}'` : `its '${path}' is ${ParameterBindings.#describe(part)}`;
 
-        if (!this.#registry.isReferenceType(type)) {
-            throw LexicaErrors.structure('LEXICA2023', `The type declared for '${name}', ${typeName}, is no reference type, and data is typed by its value alone`, { binding: name });
+            throw LexicaErrors.structure('LEXICA2045', `The value bound to '${name}' is declared ${type}, and ${given}, where ${partType} is declared`, { binding: name });
+        }, `the binding '${name}'`);
+
+        return { type, value: this.#freezeAs(captured, type) };
+    }
+
+    /** Whether values of the type are ones a binding holds, at any depth: never `Any`, `Never` or a position, which no host gives a script. */
+    static #holdsBoundValues(type) {
+        switch (type.kind) {
+            case 'any':
+            case 'never':
+                return false;
+            case 'object':
+                return [...type.fieldTypes.values()].every(fieldType => ParameterBindings.#holdsBoundValues(fieldType));
+            case 'named':
+                return !(type.moduleName === null && ['Index', 'Range'].includes(type.name)) && type.typeArguments.every(typeArgument => ParameterBindings.#holdsBoundValues(typeArgument));
+            default:
+                return true;
+        }
+    }
+
+    /** The captured value frozen through its data, as its type gives it: its lists, its objects and its structures, never a reference it holds, which stays the host's own. */
+    #freezeAs(value, type) {
+        if (value === null || typeof value !== 'object' || this.#registry.isReferenceType(type)) {
+            return value;
         }
 
-        if (value === null || typeof value !== 'object') {
-            throw LexicaErrors.structure('LEXICA2038', `A type is declared for a reference, and '${name}' is bound to data`, { binding: name });
+        if (type.isList) {
+            value.forEach(item => this.#freezeAs(item, type.itemType));
+        } else if (type.isDictionary) {
+            value.keys.forEach(key => this.#freezeAs(key, type.typeArguments[0]));
+            value.values.forEach(entry => this.#freezeAs(entry, type.typeArguments[1]));
+        } else if (type.isPair) {
+            this.#freezeAs(value.key, type.typeArguments[0]);
+            this.#freezeAs(value.value, type.typeArguments[1]);
+        } else if (type.kind === 'object') {
+            type.fieldTypes.forEach((fieldType, field) => this.#freezeAs(value[field], fieldType));
+        } else {
+            this.#registry.getDataShape(type)?.forEach((propertyType, property) => this.#freezeAs(value[property], propertyType));
         }
 
-        if (!this.#registry.belongsTo(value, type, `the binding '${name}'`)) {
-            throw LexicaErrors.structure('LEXICA2036', `The value bound to '${name}' doesn't belong to its declared type, ${type}`, { binding: name });
+        return Object.freeze(value);
+    }
+
+    /** What a value is, for a message: its text where it is data, and what kind of value it is otherwise. */
+    static #describe(value) {
+        if (value === undefined) {
+            return 'nothing';
         }
 
-        return { type, value };
+        try {
+            return JSON.stringify(value) ?? String(value);
+        } catch {
+            return Array.isArray(value) ? 'a list' : 'an object';
+        }
     }
 
     /**

@@ -6,8 +6,10 @@ import { dataPropertyDeclarations } from './support/declarations.mjs';
 
 const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
 
-/** A board, a reference its module recognizes, which places points. */
+/** A board, a reference its module recognizes, which places points, and a pin, a reference of another type. */
 class Board {}
+
+class Pin {}
 
 /** What the member a test calls last was given, by its parameter's name. */
 let received = null;
@@ -23,12 +25,13 @@ const taking = (name, parameters, options = {}) => createFunctionDeclaration(nam
  * taking one of them, its points, a value of Any, a member answering what it is given, a host call taking a point, and an unnamed indexer taking a point or a vector.
  */
 const createBoards = () => lexica.createModule('Boards', {
-    typeOf: value => (value instanceof Board ? 'Board' : null),
+    typeOf: value => (value instanceof Board ? 'Board' : value instanceof Pin ? 'Pin' : null),
     types: [
         { name: 'Point', kind: 'structured', members: dataPropertyDeclarations({ x: 'Number', label: 'String?' }) },
         { name: 'Vector', kind: 'structured', members: dataPropertyDeclarations({ x: 'Number' }) },
         { name: 'Frame', kind: 'structured', members: dataPropertyDeclarations({ origin: 'Point', corners: 'List<Point>?' }) },
         { name: 'Buttons', kind: 'structured', members: dataPropertyDeclarations({ container: 'Board?', size: 'Number?' }) },
+        { name: 'Pin', kind: 'reference', isInstance: value => value instanceof Pin },
         {
             name: 'Board',
             kind: 'reference',
@@ -140,5 +143,46 @@ describe('a structured value written in place', () => {
         held = board;
 
         expect(errorThrownBy(() => evaluate('board.held.place({ x = 1 })'))).toMatchObject({ code: 'LEXICA5021' });
+    });
+});
+
+describe('a structured value bound', () => {
+    /** The bindings of the values, each declared the type given by its name, against the board's registry. */
+    const bind = (values, types) => registry.createBindings({ board, ...values }, { types });
+
+    it('captures a binding of a declared data type as a supplied value is captured: its data shape alone, a nullable property left out null, frozen', () => {
+        const bindings = bind({ points: [{ x: 1, extra: true }, { x: 2, label: 'b' }] }, { points: 'List<Boards.Point>' });
+
+        expect(bindings.readValue('points')).toEqual([{ x: 1, label: null }, { x: 2, label: 'b' }]);
+        expect(Object.isFrozen(bindings.readValue('points')) && Object.isFrozen(bindings.readValue('points')[0])).toBe(true);
+        expect(String(bindings.getType('points'))).toBe('List<Point>');
+    });
+
+    it('gives a script the structure, which a member taking one takes, and resolves it by its declared type', () => {
+        const bindings = bind({ point: { x: 3 } }, { point: 'Point' });
+
+        registry.resolve('board.place(point)', bindings, { imports: ['Boards'] }).createEvaluator(bindings).evaluate();
+
+        expect(received.at).toEqual({ x: 3, label: null });
+        expect(bindings.resolutionKey).not.toBe(registry.createBindings({ board, point: { x: 3 } }).resolutionKey);
+    });
+
+    it('keeps a reference a structure holds as it is, and captures a reference of another type as null where a nullable reference type is declared', () => {
+        const buttons = bind({ buttons: { container: board } }, { buttons: 'Buttons' }).readValue('buttons');
+        const elsewhere = bind({ buttons: { container: new Pin() } }, { buttons: 'Buttons' }).readValue('buttons');
+
+        expect(buttons.container).toBe(board);
+        expect(Object.isFrozen(board)).toBe(false);
+        expect(elsewhere).toEqual({ container: null, size: null });
+    });
+
+    it('refuses data its declared type does not admit, naming the binding and the part of its value', () => {
+        expect(errorThrownBy(() => bind({ point: { label: 'a' } }, { point: 'Point' }))).toMatchObject({ code: 'LEXICA2045', location: { binding: 'point' }, message: expect.stringContaining("is declared Point, and it is given a value without 'x', where Number is declared") });
+        expect(errorThrownBy(() => bind({ buttons: { container: {} } }, { buttons: 'Buttons' }))).toMatchObject({ code: 'LEXICA2045' });
+    });
+
+    it('keeps a declared reference type\'s contract, a nullable one taking null', () => {
+        expect(bind({ other: null }, { other: 'Board?' }).getType('other').toString()).toBe('Board?');
+        expect(errorThrownBy(() => bind({ other: new Pin() }, { other: 'Board' }))).toMatchObject({ code: 'LEXICA2036' });
     });
 });

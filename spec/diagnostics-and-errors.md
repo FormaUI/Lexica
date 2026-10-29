@@ -192,8 +192,9 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA2042` | A bound map whose keys, or whose values, share no type | A structure error naming the binding and which of them |
 | `LEXICA2043` | Two entries of one dictionary a collection expression writes sharing a key, compared exactly | A structure error at the later entry, naming the key |
 | `LEXICA2022` | A bound value holding a cycle | A structure error of its own naming the binding |
-| `LEXICA2023` | A declared binding type that is not a reference type | A structure error naming the binding |
-| `LEXICA2038` | A type declared for a value that is not a reference | A structure error naming the binding |
+| `LEXICA2038` | A reference type declared for a value that is not a reference, null aside where the type is nullable | A structure error naming the binding |
+| `LEXICA2044` | A declared binding type no binding holds: a notation that writes no type, `Any`, `Never`, a position, or a dictionary keyed by no key type | A structure error naming the binding and the type |
+| `LEXICA2045` | A value its binding's declared data type, or a part of it, doesn't admit, as [declared types](runtime.md#runtime-bindings) set out | A structure error naming the binding, the part and the type |
 | `LEXICA2039` | A type declared for anything but a top-level binding | A structure error naming the binding |
 | `LEXICA2024` | Resolving or evaluating with a binding set another registry made | A structure error saying to bind with that registry |
 | `LEXICA2025` | Creating an evaluator with bindings of another resolution key | A structure error saying to resolve again |
@@ -495,6 +496,7 @@ A code leaves its table only by being retired here, with the condition it identi
 
 | Code | Condition | Retired in |
 | --- | --- | --- |
+| `LEXICA2023` | A declared binding type that is not a reference type, which a declared data type, captured, now is | `1.0.0-alpha.36` |
 | `LEXICA3031` | An operand of `and`, `or` or `not`, a condition or a conditional binding of what is not a value, which a host call alone is and `LEXICA3048` identifies | `1.0.0-alpha.34` |
 | `LEXICA1047` | An import whose local name begins with no capital letter, a casing that is a convention and never enforced | `1.0.0-alpha.34` |
 | `LEXICA1065` | An import whose local name is a reserved word, `Lexica` or the name of one of Lexica's own types or extensions, each a name `@` or the import's own declaration distinguishes | `1.0.0-alpha.34` |

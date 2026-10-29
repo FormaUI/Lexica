@@ -112,6 +112,10 @@ export interface LexicaBindings {
 
 /** How a registry binds values: the reference type declared for a top-level binding, by its name, unqualified or qualified by its module, in place of recognizing its value. */
 export interface LexicaBindingsOptions {
+    /**
+     * The type declared for a top-level binding, by the binding's name: a notation, its names unqualified or qualified, read against the registry. A reference type's value belongs to it; any other type captures the
+     * value as a value a host call supplies is captured, as `{ routes: 'List<Input.Route>' }` does.
+     */
     types?: Record<string, string>;
 }
 

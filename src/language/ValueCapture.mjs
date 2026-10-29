@@ -24,10 +24,16 @@ export class ValueCapture {
      * @param {unknown} value
      * @param {import('./Type.mjs').Type} type
      * @param {(path: string, part: unknown, type: import('./Type.mjs').Type) => never} fail
+     * @param {string} [asked] What asks for the capture, as a recognition's fault names it.
      */
-    capture(value, type, fail) {
+    capture(value, type, fail, asked = 'capturing a supplied value') {
+        this.#asked = asked;
+
         return this.#capture(value, type, '', fail);
     }
+
+    /** What the capture under way was asked by, which a module's recognition, faulting, names. */
+    #asked = 'capturing a supplied value';
 
     #capture(value, type, path, fail) {
         if (value === undefined || value === null) {
@@ -95,7 +101,7 @@ export class ValueCapture {
         }
 
         if (this.#registry.isReferenceType(type)) {
-            const asked = 'capturing a supplied value';
+            const asked = this.#asked;
 
             if (this.#registry.belongsTo(value, type, asked)) {
                 return value;

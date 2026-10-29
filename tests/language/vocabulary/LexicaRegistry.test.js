@@ -579,3 +579,20 @@ describe("a module's own collisions", () => {
         expect(registry.moduleNames).toEqual(['Lexica', 'views']);
     });
 });
+
+describe("a binding's declared type", () => {
+    const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', withHome({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] }))]);
+    const failure = notation => errorThrownBy(() => registry.resolveBindingType(notation, (code, message) => {
+        throw Object.assign(new Error(message), { code });
+    }));
+
+    it('reads every name of a notation in the binding scope, unqualified or qualified, through lists, dictionaries and nullability', () => {
+        expect(String(registry.resolveBindingType('List<Chart?>', () => {}))).toBe('List<Chart?>');
+        expect(registry.resolveBindingType('charts.Chart', () => {}).moduleName).toBe('charts');
+        expect(registry.resolveBindingType('Dictionary<String, Light>', () => {}).typeArguments[1].moduleName).toBe('charts');
+    });
+
+    it('gives the failure of a notation that writes no type, a name no type is, and a dictionary keyed by no key type', () => {
+        expect([failure('List<').code, failure('Lantern').code, failure('Dictionary<Chart, Number>').code]).toEqual(['LEXICA2044', 'LEXICA2036', 'LEXICA2044']);
+    });
+});

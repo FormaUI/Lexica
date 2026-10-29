@@ -131,8 +131,15 @@ describe('the runtime codes', () => {
             expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome()), office]).createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Device' } })), 'LEXICA2037', 'structure');
         });
 
-        it('LEXICA2023: a declared type that is not a reference type', () => {
-            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Number' } })), 'LEXICA2023', 'structure');
+        it('LEXICA2044: a declared type no binding holds, a notation that is none or a dictionary keyed by no key type among them', () => {
+            expectLexicaError(errorThrownBy(() => home().createBindings({ held: 1 }, { types: { held: 'Any' } })), 'LEXICA2044', 'structure');
+            expectLexicaError(errorThrownBy(() => home().createBindings({ held: 1 }, { types: { held: 'List<' } })), 'LEXICA2044', 'structure');
+            expectLexicaError(errorThrownBy(() => home().createBindings({ held: new Map() }, { types: { held: 'Dictionary<List<Number>, Number>' } })), 'LEXICA2044', 'structure');
+        });
+
+        it('LEXICA2045: a value its declared data type does not admit', () => {
+            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Number' } })), 'LEXICA2045', 'structure');
+            expect(errorThrownBy(() => home().createBindings({ sizes: [1, 'two'] }, { types: { sizes: 'List<Number>' } })).message).toContain("its '[1]' is \"two\"");
         });
 
         it('LEXICA2038: a type declared for a value that is not a reference', () => {
