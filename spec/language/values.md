@@ -111,7 +111,7 @@ A device is a valid receiver of `battery`; a wired one answers null, as an unava
 
 ## Results
 
-A **result** is data: numbers, strings, Booleans, null, lists, dictionaries, pairs, structured values and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`NEXO5028`). A delegate is never part of a result either, as [delegates](functions.md#functions-delegates) set out.
+A **result** is data: numbers, strings, Booleans, null, lists, dictionaries, pairs, structured values and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`NEXO5028`). A function reference is never part of a result either, as [function references](functions.md#functions-references) set out.
 
 Each evaluation produces a new result, immutable throughout: its lists and objects, and every structured value in them, never change once produced, whatever the host's state does afterwards.
 

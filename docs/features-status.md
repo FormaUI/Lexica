@@ -293,7 +293,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Values | Objects, the object root, null, results and their exported forms, conversions, and values of `Any` | [Values](../spec/language/values.md) |
 | Collections | Lists, dictionaries and pairs, collection expressions, positions, variance, and the members of lists, dictionaries and pairs, construction, grouping, ordering, slicing, `pick` and the positions of items among them | [Collections](../spec/language/collections.md) |
 | Expressions | Operators, conditionals, coalescing, attempts, and interpolated strings | [Expressions](../spec/language/expressions.md) |
-| Functions | Regular and arrow functions, delegates, references, and implicit bodies | [Functions](../spec/language/functions.md) |
+| Functions | Regular and arrow functions, function references, and implicit bodies | [Functions](../spec/language/functions.md) |
 | Member access | Member forms, bracket property access, an indexer's signatures, arguments, and one selector, at resolution and for a value of `Any` as it is evaluated | [Members](../spec/language/members.md) |
 | Extensions | Extensions declared on another module's types, selected by ownership and their targets' specificity, extensions on different targets, and extension access | [Extensions](../spec/language/extensions.md) |
 | Module registration | Unified declarations with implementations; whole-registration checks, revisions, and module-local collision checks | [Declarations](../spec/runtime/modules.md#modules-declarations), [registries](../spec/runtime/modules.md#modules-registries), [collisions](../spec/language/modules.md#namespaces-a-modules-own-collisions) |

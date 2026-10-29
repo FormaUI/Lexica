@@ -577,7 +577,7 @@ export class Evaluator {
                 return (evaluator, context) => !Evaluator.#isTruthy(operand(evaluator, context));
             }
             case 'function':
-                // A function evaluates to a script delegate, which holds its captured scope: all three of the locals' frame, the implicit parameter and the object root where it is declared, which each call evaluates its body in.
+                // A function evaluates to a reference to a script function, which holds its captured scope: all three of the locals' frame, the implicit parameter and the object root where it is declared, which each call evaluates its body in.
                 return (evaluator, context) => ({ function: node, capturedFrame: evaluator.#localsFrame, context, objectRoot: evaluator.#objectRoot });
             case 'call': {
                 // A call of a member is compiled as any member is; a call of the function a name holds reads the local its callee names.
@@ -587,7 +587,7 @@ export class Evaluator {
 
                 const resolution = this.#resolvedDefinition.resolutionOf(node);
 
-                // A call of one function reference alone is its qualified form's call, and the reference it is reads nothing; a receiver of unknown type selects no declaration, as the qualified form's selects none.
+                // A call of one a reference to a module's function alone is its qualified form's call, and the reference it is reads nothing; a receiver of unknown type selects no declaration, as the qualified form's selects none.
                 if (resolution.functions === undefined) {
                     return resolution.candidates !== undefined ? this.#compileOnUnknownType(resolution) : this.#compileInvocation(node, resolution);
                 }
@@ -596,7 +596,7 @@ export class Evaluator {
                 const evaluateArguments = node.arguments.map(argument => this.#getCompiledFunction(argument));
 
                 // The callee is evaluated once, and then the arguments, once each, left to right, in the caller's scope, and the body of the function it is in its captured scope, so no local of the caller's is visible in it;
-                // where it may be one of several, the one it is is recorded for the value's place in the result. A function reference's receiver argument is evaluated first, and a null one answers null before the others are.
+                // where it may be one of several, the one it is is recorded for the value's place in the result. The receiver argument of a reference to a module's function is evaluated first, and a null one answers null before the others are.
                 return (evaluator, context) => {
                     const callee = evaluator.#evaluateLocal(resolution.callee);
                     const functionKey = Evaluator.#getFunctionKey(callee);
@@ -916,11 +916,11 @@ export class Evaluator {
     #compileMember(node) {
         const resolution = this.#resolvedDefinition.resolutionOf(node);
 
-        // A function reference produces a module delegate, the same for every read of it, which reads nothing.
+        // A reference to a module's function is the same for every read of it, and reads nothing.
         if (resolution?.kind === 'functionReference') {
-            const delegate = Evaluator.#getModuleDelegate(resolution.declaration);
+            const reference = Evaluator.#getModuleFunctionReference(resolution.declaration);
 
-            return () => delegate;
+            return () => reference;
         }
 
         if (resolution?.kind === 'boundFunctionReference') {
@@ -1028,7 +1028,7 @@ export class Evaluator {
     }
 
     /**
-     * A function an extension access reads without a call: its receiver evaluated once, as the reference is created, and a delegate of the function bound to it, which a call gives the receiver it captured before its own
+     * A function an extension access reads without a call: its receiver evaluated once, as the reference is created, and a reference to the function bound to it, which a call gives the receiver it captured before its own
      * arguments. A null receiver, which only an optional access admits, answers null, and a value of Any is checked against the extension's target first.
      */
     #compileBoundFunctionReference(node, resolution) {
@@ -1438,19 +1438,19 @@ export class Evaluator {
         return false;
     }
 
-    /** The module delegate each function reference produces, by its declaration: the same for every evaluation, since it holds nothing an evaluation bound. @type {WeakMap<object, { reference: object }>} */
-    static #moduleDelegateCache = new WeakMap();
+    /** The reference to each module's function, by its declaration: the same for every evaluation, since it holds nothing an evaluation bound. @type {WeakMap<object, { reference: object }>} */
+    static #moduleFunctionReferenceCache = new WeakMap();
 
-    /** The module delegate of the declaration, made at its first request and the same at every later one. */
-    static #getModuleDelegate(declaration) {
-        let delegate = Evaluator.#moduleDelegateCache.get(declaration);
+    /** The reference to the declaration's function, made at its first request and the same at every later one. */
+    static #getModuleFunctionReference(declaration) {
+        let reference = Evaluator.#moduleFunctionReferenceCache.get(declaration);
 
-        if (delegate === undefined) {
-            delegate = Object.freeze({ reference: declaration });
-            Evaluator.#moduleDelegateCache.set(declaration, delegate);
+        if (reference === undefined) {
+            reference = Object.freeze({ reference: declaration });
+            Evaluator.#moduleFunctionReferenceCache.set(declaration, reference);
         }
 
-        return delegate;
+        return reference;
     }
 
     /**
@@ -1553,7 +1553,7 @@ export class Evaluator {
                             evaluator.#fail('NEXO5021', `The argument '${plan.name}' of '${NexoModule.writtenNameOf(resolution.declaration)}' is declared ${plan.checkedType}, and is given ${Evaluator.#describe(value)}`, plan.pointer);
                         }
 
-                        // A delegate is evaluated where it is written, once, and goes to the member as a callback it calls, while the expression's own names and fields hold the value itself.
+                        // A function reference is evaluated where it is written, once, and goes to the member as a callback it calls, while the expression's own names and fields hold the value itself.
                         argumentValue = value;
                         args[plan.name] = plan.kind === 'callback' ? evaluator.#createCallback(plan, argumentValues => evaluator.#callFunction(value, argumentValues, plan.functions, plan.node)) : value;
                     }
@@ -1578,7 +1578,7 @@ export class Evaluator {
 
     /**
      * The functions a call or a callback contract may call, each compiled once for it and found by its function key: a function the script declares, its parameters and the compiled copy of its body resolved for this call;
-     * or a function reference, its argument map and its invocation, of the result type resolved for this call. Each call compiles its own, so one function called at two places evaluates each place's body or specialization.
+     * or a reference to a module's function, its argument map and its invocation, of the result type resolved for this call. Each call compiles its own, so one function called at two places evaluates each place's body or specialization.
      * @returns {Map<object, { parameters: string[], evaluateBody: Function } | { argumentMap: object, invocation: object }>}
      */
     #compileFunctions(functions) {
@@ -1589,7 +1589,7 @@ export class Evaluator {
     }
 
     /**
-     * The key a call finds a function's compiled form by: a function reference's declaration, or the node of a function the script declares. Two delegates of one function share it, whatever each captured, which the callee
+     * The key a call finds a function's compiled form by: the declaration a reference to a module's function names, or the node of a function the script declares. Two references to one function share it, whatever each captured, which the callee
      * itself still holds.
      */
     static #getFunctionKey(callee) {
@@ -1598,7 +1598,7 @@ export class Evaluator {
 
     /**
      * Calls the callee with its arguments' values, which the caller evaluated, as the call's compiled functions say: a function the script declares, its body evaluated in the callee's captured scope, its locals, implicit parameter and object root,
-     * its parameters bound to the values in order; or a function reference, its declaration invoked as its qualified form is, its receiver the first value or, for one bound to its receiver, the receiver it captured, a null one answering null without invoking the implementation, and its own
+     * its parameters bound to the values in order; or a reference to a module's function, its declaration invoked as its qualified form is, its receiver the first value or, for one bound to its receiver, the receiver it captured, a null one answering null without invoking the implementation, and its own
      * arguments bound by its argument map, a null one whose parameter propagates null answering null without invoking it, each parameter the map leaves out taking its default. Its failures are named at the node that called it.
      */
     #callFunction(callee, values, functions, node) {
@@ -2627,7 +2627,7 @@ export class Evaluator {
                         return this.#resolveMemberRecord(node, resolution, identities, contextRecord, selections, value);
                     }
 
-                    // A call of one function reference alone produces its value itself, as the member it invokes does, the reference's declaration its one candidate where its receiver's type is unknown.
+                    // A call of one a reference to a module's function alone produces its value itself, as the member it invokes does, the reference's declaration its one candidate where its receiver's type is unknown.
                     if (resolution.functions === undefined) {
                         return this.#getExpressionRecord(node, null, (resolution.declaration ?? resolution.candidates[0]).updates?.tolerance ?? null);
                     }
@@ -2639,7 +2639,7 @@ export class Evaluator {
                         return this.#getExpressionRecord(node, null, null);
                     }
 
-                    // A call of a function reference produces its value itself, as the member it invokes does.
+                    // A call of a reference to a module's function produces its value itself, as the member it invokes does.
                     if (called.reference !== undefined) {
                         return this.#getExpressionRecord(node, null, called.reference.updates?.tolerance ?? null);
                     }

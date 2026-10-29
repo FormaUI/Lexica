@@ -226,10 +226,10 @@ describe('the codes of resolution', () => {
         it('NEXO3068, a call of a local holding a value', () => expectResolutionCode('let v = 1\nreturn v(2)', 'NEXO3068'));
         it('NEXO3068, a call of a function that may be null', () => expectResolutionCode('let g = x => x\nlet f = if s.size > 1 then g else null end\nreturn f(1)', 'NEXO3068'));
         it('NEXO3069, a local function given the wrong number of arguments', () => expectResolutionCode('let f = x => x\nreturn f(1, 2)', 'NEXO3069'));
-        it('NEXO3080, a delegate that may be a module delegate given too few arguments', () => expectResolutionCode('let g = a => a\nlet f = if s.size > 1 then shop.pad else g end\nreturn f(s)', 'NEXO3080'));
-        it('NEXO3058, a delegate that may be a module delegate given too many arguments', () => expectResolutionCode('let g = (a, b, c) => a\nlet f = if s.size > 1 then shop.pad else g end\nreturn f(s, 1, 2)', 'NEXO3058'));
-        it('NEXO3079, a delegate that may be a module delegate whose arguments are no values alone', () => expectResolutionCode('let g = (a, b) => true\nlet f = if s.size > 1 then shop.check else g end\nreturn f(s, 1)', 'NEXO3079'));
-        it('NEXO3042, a delegate that may be a module delegate given a receiver of the wrong type', () => expectResolutionCode('let g = x => x\nlet f = if s.size > 1 then shop.wipe else g end\nreturn f(1)', 'NEXO3042'));
+        it('NEXO3080, a function reference that may refer to a module function given too few arguments', () => expectResolutionCode('let g = a => a\nlet f = if s.size > 1 then shop.pad else g end\nreturn f(s)', 'NEXO3080'));
+        it('NEXO3058, a function reference that may refer to a module function given too many arguments', () => expectResolutionCode('let g = (a, b, c) => a\nlet f = if s.size > 1 then shop.pad else g end\nreturn f(s, 1, 2)', 'NEXO3058'));
+        it('NEXO3079, a function reference that may refer to a module function whose arguments are no values alone', () => expectResolutionCode('let g = (a, b) => true\nlet f = if s.size > 1 then shop.check else g end\nreturn f(s, 1)', 'NEXO3079'));
+        it('NEXO3042, a function reference that may refer to a module function given a receiver of the wrong type', () => expectResolutionCode('let g = x => x\nlet f = if s.size > 1 then shop.wipe else g end\nreturn f(1)', 'NEXO3042'));
         it('NEXO3070, a call whose functions give no one type', () => expectResolutionCode('let a = x => 1\nlet g = x => "a"\nlet f = if s.size > 1 then a else g end\nreturn f(1)', 'NEXO3070'));
         it('NEXO3034, a call reaching a function within its own call', () => expectResolutionCode('let f = g => g(g)\nreturn f(f)', 'NEXO3034'));
         it('NEXO3035, a result that would hold a function', () => expectResolutionCode('let f = x => x\nreturn f', 'NEXO3035'));

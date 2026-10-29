@@ -65,7 +65,7 @@ export class TypeChecker {
                 return this.#isSameOrSupertypeByName(declaredType, type) ? this.#getTypeArgumentsAssignability(type, declaredType) : 'refused';
             case 'object':
                 return TypeChecker.#holdsFieldsOf(type, declaredType) ? TypeChecker.#combineAssignabilities([...type.fieldTypes].map(([name, fieldType]) => this.assignabilityOf(fieldType, declaredType.fieldTypes.get(name)))) : 'refused';
-            // An object root stands where one of its object expression reads the fields it does, and a delegate where one that may be any of its functions does.
+            // An object root stands where one of its object expression reads the fields it does, and a function reference where one that may be any of its functions does.
             case 'objectRoot':
                 return type.toNonNullable().equals(declaredType.toNonNullable()) ? 'assignable' : 'refused';
             case 'function':

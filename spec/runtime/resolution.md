@@ -41,7 +41,7 @@ Resolution's checks are its semantic validation, each failure a `validation` err
 | Equality | Operand types fit in at least one direction. Values other than strings, numbers, Booleans and reference values compare only with null. |
 | Arithmetic and comparisons | Every operand is a non-null number. |
 | Interpolation | Every interpolation gives a non-null string or number. |
-| Function arguments | Each is a delegate, a function reference's among them, or an implicit body, whose argument types and result fit its parameter's callback contract; a function reference names one declaration. |
+| Function arguments | Each is a function reference or an implicit body, whose argument types and result fit its parameter's callback contract; a function reference names one declaration. |
 | Function calls | The local or function parameter holds a function, never null; the argument count matches each function it may be, whose body resolves against that call's argument types, their results merging; no call reaches a function within its own call. |
 | Conditions and logical operands | Each is a value. Truthiness determines the branch; a host call cannot be used as that value. |
 | Coalescing | Value and fallback have compatible types. |

@@ -36,7 +36,7 @@ A projection reads what the call was prepared with, and evaluates the rest anew:
 
 - **The locals before the call.** Each local the script declares before the host call is evaluated once, by `prepareHostCall`, as every local is, and each projection of that prepared call reads the value it was prepared with, never running its initializer again. A local holding a reference holds the reference, and one holding a computed value holds the value. In the example, each projection reads `room.occupied()` of the room the call was prepared with, as that room is when the motion arrives, while `occupied` keeps whether it was occupied when the call was prepared. Both read one receiver, since reading `sensor.room` again could find another room, a sensor being movable.
 - **Its own evaluation.** Each projection is an evaluation of its own, with its own supplied value, host and state; the result projection's own locals are evaluated in each, and projecting a value for one prepared call never changes what another was prepared with.
-- **Delegates.** A delegate a local before the call holds is called in any projection, as a delegate is anywhere within the script; a callback a projection gives a member lasts while that member's invocation does, as every callback given to a member does. A host call's arguments are values, so no delegate reaches the host.
+- **Function references.** A function reference a local before the call holds is called in any projection, as one is anywhere within the script; a callback a projection gives a member lasts while that member's invocation does, as every callback given to a member does. A host call's arguments are values, so no function reference reaches the host.
 
 ```nexo
 let room = sensor.room

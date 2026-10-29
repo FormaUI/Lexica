@@ -56,7 +56,7 @@ spec/
 | `types.md` | Type families, nullability, identity, type parameters as inference binds them, reference types as a script sees their hierarchy, assignability, `Any` and casts | `types.md`, but declaring a reference type's membership and registration's checks |
 | `collections.md` | Lists, dictionaries and pairs, collection expressions, positions, variance and their members | `collections.md`, whole |
 | `expressions.md` | Precedence, tests, truthiness, equality, arithmetic, comparisons, logic, conditionals, coalescing, attempts and interpolation | `expressions.md`, whole |
-| `functions.md` | Script functions, delegates, function references, what a call reads and implicit bodies | `functions.md`, whole |
+| `functions.md` | Script functions, function references, what a call reads and implicit bodies | `functions.md`, whole |
 | `members.md` | Writing a member, computed property access, arguments and their kinds, a host call's place in a script and its result projection | `members.md`, but declaring a member, how it reads and changes, and preparing a host call |
 | `modules.md` | Imports, namespaces, module members, qualified access, indexer selection, a module's own collisions as selection resolves them, and module names in text | `scripts.md`'s imports, and `modules.md`'s namespaces but the duplicates registration refuses |
 | `extensions.md` | Owners and extensions, extensions on different targets, extension access and an extension's type parameters | `extensions.md` but declaring an extension, kept a document of its own as the language's extensions are one subject |
