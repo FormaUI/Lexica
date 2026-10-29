@@ -10,16 +10,16 @@ return {
 }
 ```
 
-> **Alpha.** Lexica implements language version `1.0.0-alpha.35` in part: definition version 35, its imports and extension access, its declarations, types and member selection, its collections, dictionaries, pairs, collection expressions, positions and ordering among them, and its line structure and canonical text. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
+> **Alpha.** Lexica implements language version `1.0.0-alpha.36` in part: definition version 35, its imports and extension access, its declarations, types and member selection, its collections, dictionaries, pairs, collection expressions, positions and ordering among them, structured values a script constructs or a host binds, the members of numbers and strings, resolutions that stay current across registrations, and its line structure and canonical text. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
 
 ## Features
 
 ### Language (`1.0.0-alpha.36`)
 
 - Typed vocabulary modules, declared as data, imported by the scripts that use them and reached through their namespaces
-- Object expressions and list projections that shape data
+- Object expressions and list projections that shape data, and construct a module's structured values where they are declared
 - Optional access, fallbacks and conditionals
-- Arithmetic, comparisons and logical expressions
+- Arithmetic, comparisons and logical expressions, and the members of numbers and strings
 - Casts, conversions and attempts
 - Locals, bodies, functions, arrow functions and references to a module's functions
 - Raw, block and interpolated strings
@@ -28,7 +28,7 @@ return {
 
 ### Implementation (`1.0.0-alpha.37`)
 
-The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.35` in part.
+The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.36` in part.
 
 - Parse scripts into definitions, their imports and those a host supplies deciding their namespaces, validate definitions, and format either as canonical text
 - Locate any part of a definition in the text it was read from
