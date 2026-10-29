@@ -17,7 +17,7 @@ In this document:
 
 ## Lexica's own vocabulary
 
-Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; and the conversions between the language's types of data, as operators of those types.
+Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; the members of a number, its rounding among them; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-list-members"></a>
 
@@ -55,7 +55,7 @@ A member following a list is a member of the list itself: `room.devices.count` c
 
 Each signature of the unnamed indexer and of `entry` is one of an [indexer's signatures](members.md#property-access-calls-and-indexers-unnamed-indexers), selected by its key's type: a number and an index are looked up tolerantly, and a range slices strictly.
 
-A number generates numbers apart from any range: `start.sequence(count, step)`, `step` 1 where it is left out, is the `List<Number>` of the count's numbers from the start, each the step after the one before, a count that is no nonnegative safe integer refused (LEXICA5035).
+A number generates numbers apart from any range, as [number members](#vocabulary-number-members) set out.
 
 `where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`. A key `toDictionary`, `groupBy` or `distinctBy` gives is of a key type, `K` its expression's type, so keys of another type are refused where they are resolved (LEXICA3083).
 
@@ -77,6 +77,25 @@ Aggregates consume null per item rather than propagating it to the entire call. 
 - **What it keeps.** The keys are the evaluation's, kept with the list they ordered, never as the expressions that gave them, and no result records them: an ordered list's record realigns its items' lineage as any reordering does, as [provenance](runtime.md#runtime-results-provenance) sets out.
 
 An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
+
+<a id="vocabulary-number-members"></a>
+
+### Number members
+
+A member following a number is a member of the number itself, and reads and changes as the number does: `rect.width.round` rounds a width.
+
+| Number member | Contract |
+| --- | --- |
+| `round` | The nearest whole number, a half rounded away from zero, so `2.5.round` is `3` and `(-2.5).round` is `-3` |
+| `floor`, `ceiling`, `truncate` | The nearest whole number at or below the number, at or above it, and toward zero |
+| `abs` | The number's absolute value |
+| `min(other)`, `max(other)` | The lesser and the greater of the number and `other` |
+| `clamp(low, high)` | The number within `low` and `high`, inclusive: `low` where it is less, `high` where it is greater; a `low` greater than `high` is refused where it is evaluated (LEXICA5039) |
+| `sequence(count, step)` | The `List<Number>` of the count's numbers from the number, each the step after the one before, `step` 1 where it is left out; a count that is no nonnegative safe integer is refused (LEXICA5035) |
+
+- **Properties and functions.** A member that takes nothing is a property, as a list's `reverse` is, and one that takes a number a function.
+- **Rounding.** `round` is symmetric under negation, `(-x).round == -(x.round)`, which offsets and differences that can be negative need, so it rounds a negative half away from zero where ECMAScript's `Math.round` rounds it toward positive infinity. Rounding to a step is written by arithmetic around it, `(x * 2).round / 2`.
+- **Zero.** Each member answers `0` where it would answer `-0`, so `(-0.4).round` is `0`.
 
 <a id="vocabulary-dictionary-members"></a>
 

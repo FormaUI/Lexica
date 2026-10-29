@@ -471,6 +471,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5035` | `sequence` given a count that is no nonnegative safe integer | An evaluation error at the call, naming the count |
 | `LEXICA5036` | An ordering key that is no number, string, Boolean or null, or keys of two of those domains in one criterion, of `orderBy`, `orderByDescending`, `thenBy`, `thenByDescending`, `minBy` or `maxBy` | An evaluation error at the call, naming the member and the key's kind or the two domains |
 | `LEXICA5037` | `thenBy` or `thenByDescending` of a list no `orderBy` ordered | An evaluation error at the call, giving `orderBy` |
+| `LEXICA5039` | `clamp` given a low greater than its high | An evaluation error at the call, naming both |
 | `LEXICA5038` | A value of `Any` an object expression gives a structure's property that is found, when it is evaluated, not to be of the property's type | An evaluation error at the object expression, naming the property, its type and the value |
 | `LEXICA5028` | A result holding a value of `Any` that is found, when it is evaluated, to be no data, a reference or a function | An evaluation error at the result |
 | `LEXICA5013` | A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |

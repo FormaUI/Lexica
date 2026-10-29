@@ -168,9 +168,36 @@ export class Vocabulary {
         }
     }
 
-    /** The members of a number beside its conversions: `sequence`, the numbers from it, generated apart from any range. */
+    /**
+     * The members of a number beside its conversions: its rounding, `round` a half away from zero, `floor`, `ceiling` and `truncate`; its absolute value; the lesser and the greater of it and another, and it clamped
+     * within two, a low above the high refused; each answering 0 where it would answer -0; and `sequence`, the numbers from it, generated apart from any range.
+     */
     static #createNumberMembers() {
+        // A number a member answers is never -0, which no script tells from 0 but a host's division could.
+        const unsigned = number => (number === 0 ? 0 : number);
+        const of = (name, compute) => Declarations.createPropertyDeclaration(name, 'Number', { updates: DERIVED_UPDATES, impl: ({ receiver }) => unsigned(compute(receiver)) });
+        const against = (name, compute) => Declarations.createFunctionDeclaration(name, 'Number', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('other', 'Number')], impl: ({ receiver, args }) => unsigned(compute(receiver, args.other)) });
+
         return [
+            // Half away from zero, so a number and its negation round to a number and its negation.
+            of('round', number => Math.sign(number) * Math.round(Math.abs(number))),
+            of('floor', Math.floor),
+            of('ceiling', Math.ceil),
+            of('truncate', Math.trunc),
+            of('abs', Math.abs),
+            against('min', Math.min),
+            against('max', Math.max),
+            Declarations.createFunctionDeclaration('clamp', 'Number', {
+                updates: DERIVED_UPDATES,
+                parameters: [Declarations.createValueParameterDeclaration('low', 'Number'), Declarations.createValueParameterDeclaration('high', 'Number')],
+                impl: ({ receiver, args: { low, high } }) => {
+                    if (low > high) {
+                        throw new MemberFailure('LEXICA5039', `'clamp' takes a low no greater than its high, and is given ${low} and ${high}`);
+                    }
+
+                    return unsigned(Math.min(Math.max(receiver, low), high));
+                },
+            }),
             // The count's numbers from the receiver, each the step after the one before, the step 1 where it is left out; a count that is no nonnegative safe integer is refused.
             Declarations.createFunctionDeclaration('sequence', 'List<Number>', {
                 updates: DERIVED_UPDATES,
