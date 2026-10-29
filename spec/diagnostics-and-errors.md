@@ -20,6 +20,8 @@ Structural validation checks a definition against the definition format wherever
 
 `try` handles only a cast or conversion rejecting its value; every other error fails the operation. A **fault** is an evaluation error no attempt catches, as a declaration's `impl` failing otherwise than by its `reject`.
 
+A `NexoError` is an `Error` whose `name` is `NexoError`, holding its `code`, its `kind`, its `location`, as [where a failure is located](#validation-diagnostics) sets out, and its `message`, which says what is wrong followed, in parentheses, by where, wherever its location holds anything; an evaluation error something caused, an implementation or a hook throwing among them, holds that as its `cause`. Its constructor is not public: a host builds an error of its own with the class's factories, `NexoError.structure(code, message, location)`, `NexoError.validation(code, message, location)` and `NexoError.evaluation(code, message, location, { cause })`, each of the kind it names, and an error a host builds is never taken for one Nexo raised, as [a hook that throws](runtime.md#runtime-evaluation) sets out.
+
 In this document:
 
 1. [Codes](#diagnostics-codes)
@@ -37,7 +39,7 @@ In this document:
 
 ## Codes
 
-Each condition a diagnostic reports has a stable **code**, `NEXO` and four digits, as `NEXO1004`, which each error table below gives beside its condition: the tables are the catalog, one row for each condition the specification sets out. A diagnostic is `{ code, kind, message, location }`, and a `NexoError` carries its `code` beside its `kind` and its `location`.
+Each condition a diagnostic reports has a stable **code**, `NEXO` and four digits, as `NEXO1004`, which each error table below gives beside its condition: the tables are the catalog, one row for each condition the specification sets out. A diagnostic is `{ code, kind, message, location }`, as a `NexoError` is.
 
 | Codes | Kind |
 | --- | --- |
@@ -49,6 +51,7 @@ Each condition a diagnostic reports has a stable **code**, `NEXO` and four digit
 
 - **A code identifies its condition,** never its wording or where it is raised: a message reworded, or the same condition detected somewhere else, keeps its code, and distinct conditions never share one because their messages resemble each other. The kind still names the stage, so neither stands in for the other, and a condition reported as two kinds, in text and in a definition, has a code of each.
 - **A code is stable once assigned.** A new condition takes a new code when it is introduced. Where a condition splits, the part that keeps its meaning keeps its code and the other parts take new ones, and where no part keeps its meaning, its code is retired. A retired code is never reused, and is recorded among [retired codes](#diagnostics-retired-codes) when its row leaves its table.
+- **A code stands in its kind's range.** An error built with a code beginning `NEXO` outside its kind's range, or with a code that is no string or is empty, throws a `TypeError` instead, a mistake in the code raising it.
 - **A host's conditions** take codes of a prefix of the host's own, never `NEXO`, and a host keeps a Nexo error's code when it passes the error on.
 - **Strict and tolerant reading** give one condition the same code. A tolerant reading may go on to report further diagnostics, so the two readings' lists of diagnostics are not promised to match.
 
@@ -56,7 +59,18 @@ Each condition a diagnostic reports has a stable **code**, `NEXO` and four digit
 
 ## Where a failure is located
 
-A syntax error identifies its position in the text, its offset, line and column. A structure, validation or evaluation error identifies its node in the definition, expressed as a JSON Pointer, and, where the script was read from text, its position in the text as well. An error in a binding names the binding, and a module error the module, the declaration and, where it concerns one, the declaration key, as `updates.misses`, located by neither.
+A **location** says where a failure stands by one group of fields, never two, the group its subject gives:
+
+| Group | Fields | Locates |
+| --- | --- | --- |
+| Script | `pointer`, the node's JSON Pointer into the definition, with `offset`, `line` and `column`, its position in the text, where the definition was read from text | A structure, validation or evaluation error in a script or a definition; `getLocation` answers this group |
+| Text | `offset`, `line` and `column` alone | A syntax error, which stands in text no definition holds yet |
+| Binding | `binding`, the binding's name | An error in a binding |
+| Module | `module`, the module's name; `type`, the type a nested declaration, a member a type declares among them, stands in; `declaration`, the declaration's name; and `declarationKey`, the key the failure concerns, a declaration's, as `updates.misses`, or, with no declaration, the module's own; each but `module` only where the failure concerns it | A module error |
+
+- **A position counts from the text's start.** `offset` counts the text's UTF-16 code units from 0, and `line` and `column` count from 1. Each line break, LF, CRLF or a lone CR, begins a line, so CRLF begins one, its two characters both counted in the offset.
+- **A node without text of its own** is positioned at the nearest node enclosing it that has some, its `pointer` still its own.
+- **A failure of the API's use that stands nowhere** carries an empty location, `{}`: imports a host supplies that are refused, `NEXO2008`, bindings or their options that are not a plain object, `NEXO2020`, bindings another registry made, `NEXO2024`, bindings of another resolution key, `NEXO2025`, a resolution no longer current, `NEXO2040`, a pointer that is no JSON Pointer, `NEXO2643`, reading what is not a script's source, `NEXO2645`, a result path of another shape, `NEXO2646`, and evaluating an evaluator from within its own evaluation, `NEXO5010`.
 
 An evaluation error fails the entire result and is delivered to the host in its place.
 
@@ -164,7 +178,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | --- | --- | --- |
 | `NEXO2000` | A definition that does not follow its structure | A structure error, with its node's location |
 | `NEXO2007` | A definition of a version other than the one the implementation reads, as a version 33 definition is for version 34 | A structure error naming both versions |
-| `NEXO2008` | A definition's imports that break the rules [the definition](definition.md#definition) sets for them | A structure error located at the import |
+| `NEXO2008` | A definition's imports that break the rules [the definition](definition.md#definition) sets for them, or imports a host supplies that are no list, break an import's rules or conflict with each other | A structure error located at a definition's import, the later of two that conflict or stand out of order, and with an empty location for a host's, whose list has no text |
 | `NEXO2028` | A `namespace` node or an extension selection's `module` naming a module its imports give no local name | A structure error located at the namespace |
 | `NEXO2009` | In a definition, an object node with no object field | A structure error at the node |
 | `NEXO2029` | In a definition, a comparison node of fewer than two operands | A structure error at the node |
@@ -181,7 +195,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `NEXO2017` | A body anywhere but the script's, a do block's, a function's or a conditional branch's | A structure error: `A body is the script's, a do block's, a function's or a conditional branch's, and stands nowhere else` |
 | `NEXO2018` | A `root` written outside every object expression | A structure error: `'root' refers to the outermost object being built, and no object expression encloses it here` |
 | `NEXO2019` | A numeric literal no finite number holds, as `1e999`, in text or in a definition | A structure error: `A literal is a string, a finite number, a Boolean or null` |
-| `NEXO2020` | Bindings that are not a plain object | A structure error |
+| `NEXO2020` | Bindings that are not a plain object, or binding options, or the `types` they declare, that are not one | A structure error with an empty location |
 | `NEXO2033` | A binding not named by a letter followed by letters and digits | A structure error naming the binding: `A binding is named by a letter followed by letters and digits` |
 | `NEXO2034` | A binding that is not data and that no module recognizes | A structure error naming the binding |
 | `NEXO2035` | A binding modules recognize as unrelated types | A structure error naming the binding and the types |

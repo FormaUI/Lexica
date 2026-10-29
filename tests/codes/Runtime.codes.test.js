@@ -69,8 +69,15 @@ const directEvaluatorOf = (modules, text, resolvedWith, evaluatedWith = resolved
 
 describe('the runtime codes', () => {
     describe('of bindings', () => {
-        it('NEXO2020: bindings that are not a plain object', () => {
-            expectNexoError(errorThrownBy(() => createImportingRegistry().createBindings([1])), 'NEXO2020', 'structure');
+        it('NEXO2020: bindings, binding options or the types they declare that are not a plain object, located nowhere', () => {
+            const registry = createImportingRegistry();
+
+            [() => registry.createBindings([1]), () => registry.createBindings({}, [1]), () => registry.createBindings({}, { types: [1] })].forEach(call => {
+                const error = errorThrownBy(call);
+
+                expectNexoError(error, 'NEXO2020', 'structure');
+                expect(error.location).toEqual({});
+            });
         });
 
         it('NEXO2033: a binding not named by a letter followed by letters and digits', () => {

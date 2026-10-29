@@ -391,7 +391,7 @@ A module declares each member as data, in the `members` of the type it belongs t
 | --- | --- |
 | `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words), followed by the [type parameters](types.md#types-type-parameters) it declares, `identity<T>`; an operator's names its operation, `cast` or `convert`, and declares none; left out for a type's unnamed indexer |
 | `kind` | `property`, `function`, `indexer` or `operator` |
-| `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out |
+| `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out; an indexer takes `evaluator` alone |
 | `arguments` | The argument form of a function with parameters: `positional` or `options` |
 | `parameters` | Each parameter's name, kind, type, whether it is required and its default where it is not, its null policy, whether it is fixed and what it selects, and its implicit parameter or callback contract by its kind, as [parameter declaration keys](#members-parameter-declaration-keys) set out |
 | `result` | The type the member answers, [`Any`](types.md#types-any) for a value of any type: a property's the type of its value, an operator's its destination, and a function the host invokes the type of each value its host supplies, left out where it supplies none, which `Any` never is |
@@ -401,14 +401,14 @@ A module declares each member as data, in the `members` of the type it belongs t
 
 Each member takes the declaration keys it needs alone; every one takes `kind` and `internal`, and every one but an unnamed indexer takes `name`:
 
-| Member | `arguments` | `parameters` | `updates` | `result` | `impl` |
-| --- | --- | --- | --- | --- | --- |
-| A property declared directly in a structured type without `updates`, part of its data shape | Refused | Refused | Refused | Required | Refused |
-| A property with `updates` | Refused | Refused | Required | Required | Optional |
-| A function the evaluator invokes | Required where it has parameters, refused where it has none | Any kind; a function parameter only here | Required | Required | Optional |
-| An indexer, named or unnamed | Refused, since its arguments are positional | One required value parameter, its key, alone | Required | Required | Optional |
-| A function the host invokes | As a function's | Value parameters, of which a fixed one may select a type | Refused | Optional | Refused |
-| An operator | Refused | Refused | Refused | Required | Optional |
+| Member | `invokedBy` | `arguments` | `parameters` | `updates` | `result` | `impl` |
+| --- | --- | --- | --- | --- | --- | --- |
+| A property declared directly in a structured type without `updates`, part of its data shape | Refused | Refused | Refused | Refused | Required | Refused |
+| A property with `updates` | Refused | Refused | Refused | Required | Required | Optional |
+| A function the evaluator invokes | `evaluator`, or left out | Required where it has parameters, refused where it has none | Any kind; a function parameter only here | Required | Required | Optional |
+| An indexer, named or unnamed | `evaluator`, or left out; `host` refused (NEXO4053) | Refused, since its arguments are positional | One required value parameter, its key, alone | Required | Required | Optional |
+| A function the host invokes | `host` | As a function's | Value parameters, of which a fixed one may select a type | Refused | Optional | Refused |
+| An operator | Refused | Refused | Refused | Refused | Required | Optional |
 
 `target`, `syntax` and `default` are taken by no member: a member's place gives its receiver, and its kind and its name, or an indexer's lack of one, how it is written.
 
@@ -441,7 +441,41 @@ Changing a member's argument form is a breaking change, like renaming it. A func
 
 A parameter is a value, an expression, a predicate or a function. An expression and a predicate are evaluated against each item of the list the member follows, `context: 'item'`, and an expression declares the type it produces. A parameter declares whether it is required, its default where it is not, and whether a null argument propagates, making the call answer null, or is accepted. A fixed parameter names something the vocabulary resolves before any evaluation, and declares what it selects, a type, `selects: 'type'`, through the type selector its `selector` names.
 
+| Declaration key | Holds |
+| --- | --- |
+| `name` | The parameter's name, an [identifier](lexical-structure.md#names-and-reserved-words), once among its member's parameters, which an options object's field gives |
+| `kind` | `value`, `expression`, `predicate` or `function` |
+| `type` | A value's type, the type an expression produces, `Boolean` for a predicate, the truthiness its implementation receives (NEXO4540), and a function's result's |
+| `required` | Whether its argument must be given, a Boolean |
+| `default` | The value a missing optional argument takes; a required parameter declares none (NEXO4538) |
+| `nulls` | Its [null policy](#nullability-a-null-argument-follows-the-parameter), `propagate` or `accept`; a function parameter leaves it out (NEXO4054) |
+| `fixed` | Whether its argument is [fixed](#arguments-fixed), a Boolean (NEXO4541), which a function parameter leaves out; a fixed parameter is a value parameter of type `String` (NEXO4545) |
+| `selects`, `selector` | What a fixed parameter selects, `type`, and the type selector it selects through, which a parameter that is not fixed declares neither of (NEXO4542) |
+| `context` | An expression's or a predicate's implicit parameter, `item`, which each declares (NEXO4539) and a function parameter refuses |
+| `parameterTypes` | A function parameter's callback contract, the types of the arguments its function is called with, in order, which a function parameter declares (NEXO4537) and any other refuses |
+| `omitted` | What the member does where an optional argument is left out, said in words for its documentation, which Nexo never reads |
+
+Creating the module refuses a parameter that leaves out its `name`, its `kind`, its `type` or its `required`, or, but for a function parameter, its `nulls` (NEXO4536), and one declaring a key the table does not name (NEXO4030).
+
 Only a function the evaluator invokes declares a function parameter, which is required, has no null policy and is given to no observation; it declares the types of the arguments it is called with, `parameterTypes`, and its type is its result's. Those types may write a type parameter the type or the extension around the member declares, as `List`'s `T`, or that of an extension on any type `T`, which takes a receiver of any type and binds `T` to it, so a callback takes the receiver as its own type, as a test of any receiver a module declares does.
+
+<a id="members-declaration-helpers"></a>
+
+### Declaration helpers
+
+`nexo.declarations` holds helpers that each create a member's or a parameter's declaration as a module declares it, with the defaults the helper gives it: each constructs a record and registers nothing, and `createModule` validates what it creates as it validates any declaration.
+
+| Helper | Creates |
+| --- | --- |
+| `createPropertyDeclaration(name, result, options)` | `{ name, kind: 'property', result }`, never writing the `parameters` or the `arguments` its options give |
+| `createFunctionDeclaration(name, result, options)` | `{ name, kind: 'function', result, parameters }`, its `parameters` its options' and none where they give none, and its `arguments` its options' where it has parameters, `positional` where they give none, and left out where it has none; its `result` may be `undefined`, for a function its host invokes that supplies nothing |
+| `createIndexerDeclaration(name, result, options)` | `{ name, kind: 'indexer', result, parameters }`, without a `name` where `name` is null, the type's unnamed indexer, its `parameters` its options', and never writing the `arguments` they give |
+| `createValueParameterDeclaration(name, type, options)` | `{ name, kind: 'value', type, required, fixed: false, nulls: 'propagate' }`, `required` false where its options give a `default` and true otherwise, every key its options give written over these, and `selects` and `selector` left out where the parameter is not fixed |
+| `createExpressionParameterDeclaration(type, options)` | `{ name: 'expression', kind: 'expression', type, context: 'item', required: true, fixed: false, nulls }`, `nulls` its options' `nulls` and `propagate` where they give none |
+| `createPredicateParameterDeclaration()` | `{ name: 'expression', kind: 'predicate', type: 'Boolean', context: 'item', required: true, fixed: false, nulls: 'propagate' }` |
+| `createFunctionParameterDeclaration(name, type, parameterTypes)` | `{ name, kind: 'function', type, parameterTypes, required: true }` |
+
+A member helper takes no receiver, since where its declaration stands gives it one, and reads `impl`, `parameters`, `updates`, `arguments` and `invokedBy` from its options and nothing else: it writes `invokedBy`, `updates` and `impl` where they are given, `updates` never for `invokedBy: 'host'`, and leaves every other option out, `internal` among them.
 
 <a id="what-a-member-declares-evaluation-contract"></a>
 <a id="members-updates"></a>
@@ -450,7 +484,7 @@ Only a function the evaluator invokes declares a function parameter, which is re
 
 A member's evaluation contract is grouped under `updates`: how it reads, `reads`, as [how a member reads](#how-a-member-reads) sets out; how its result changes, `changes`, as [how a member changes](#how-a-member-changes) sets out; the changes it misses, `misses`; the `tolerance` it declares; and the `observations` that cover its changes, as [observations](vocabulary.md#observations) set out. A host call is never evaluated, so a function the host invokes leaves `updates` out. A property declared directly in a structured type without `updates` contributes to its data shape and refuses `impl`; one with `updates` contributes nothing to that shape, its implementation optional for a resolution-only use; and one declared anywhere else requires them. They remain one member kind, `property`, read by the same access forms.
 
-`changes` and `reads` are required. `misses` is required where `changes` is `partly-observable`, and refused otherwise. `observations` are required where `changes` is `observable` or `partly-observable`, and refused otherwise, each observation checked for its type, what it observes and the arguments it gives.
+`changes` and `reads` are required: `changes` is `constant`, `observable`, `partly-observable`, `unobserved` or `derived`, the [categories](#how-a-member-changes) in order, and `reads` is `fresh`, `maintained`, `captured` or `derived`, the [readings](#how-a-member-reads) in order. `misses` is required where `changes` is `partly-observable`, and refused otherwise. `observations` are required where `changes` is `observable` or `partly-observable`, and refused otherwise, each observation checked for its type, what it observes and the arguments it gives.
 
 <a id="what-a-member-declares-numeric-tolerance"></a>
 
