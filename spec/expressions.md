@@ -99,20 +99,20 @@ Conditions and the operands of `not`, `and` and `or` accept values and test thei
 
 ## Tests
 
-A test answers a Boolean: a member that answers one, read as every member is, or a verb given a test of its receiver.
+A test answers a Boolean: a member that answers one, read as every member is.
 
 ```lexica
 room.occupied()
 room.device("lamp")?.active()
-device.is(Home.batteryPowered)
-device.has(it.battery != null)
+device.batteryPowered()
+room.anyDevice(it.battery != null)
 ```
 
 <a id="tests-members"></a>
 
 ### Tests are members
 
-A test is a property or a function whose result is a `Boolean` or a `Boolean?`: `it.occupied()` asks whether a room is occupied, and `it.batteryPowered()` whether a device runs on a battery. A verb asks the test it is given of its receiver, `room.is(Home.occupied)` or `device.has(it.battery != null)`, as [the verbs](vocabulary.md#vocabulary-verbs) set out.
+A test is a property or a function whose result is a `Boolean` or a `Boolean?`: `it.occupied()` asks whether a room is occupied, and `it.batteryPowered()` whether a device runs on a battery. A member that takes a test calls the one it is given, as the home's `room.anyDevice(Home.active)` and `room.anyDevice(it.battery != null)` do, a module declaring such a member for its own domain.
 
 A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `Boolean?`, and a computed property access reads a Boolean property a binding names as it reads any other. A module declares a test as it declares any member, a [Boolean function](vocabulary.md#vocabulary-boolean-functions).
 

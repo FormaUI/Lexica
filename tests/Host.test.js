@@ -273,12 +273,12 @@ describe('the declaration shape', () => {
         expect(received).toEqual([{ receiver: 'latte', args: {}, env: { rate: 2 } }]);
     });
 
-    it('carries a Boolean function out by its own implementation, a receiver\'s called on it, and a module member\'s called through its module or by reference as the test a verb is given', () => {
+    it('carries a Boolean function out by its own implementation, a receiver\'s called on it, and a module member\'s called through its module or by reference as the function a list\'s member is given', () => {
         const received = [];
         const registry = createImportingRegistry([createMenu(received)]);
         const evaluate = (text, item) => registry.resolve(text, { item }, { imports: ['menu'] }).createEvaluator({ item }).evaluate().value;
 
-        expect(['item.vegan()', 'menu.vegan(item)', 'item.is(menu.vegan)'].map(text => [evaluate(text, 'oat latte'), evaluate(text, 'latte')])).toEqual([[true, false], [true, false], [true, false]]);
+        expect(['item.vegan()', 'menu.vegan(item)', '[item].any(menu.vegan)'].map(text => [evaluate(text, 'oat latte'), evaluate(text, 'latte')])).toEqual([[true, false], [true, false], [true, false]]);
         expect(received).toEqual([{}, {}, ...Array(2).fill([{ item: 'oat latte' }, { item: 'latte' }]).flat()]);
     });
 

@@ -3,6 +3,7 @@ import { lexica, LexicaError } from '#lexica/lexica.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { resolveWith } from './support/pipeline.mjs';
+import { receiverTestsDeclaration } from './support/declarations.mjs';
 
 const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration, createExpressionParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
 
@@ -27,6 +28,7 @@ class Bag {
 const createShop = (invoked = []) => lexica.createModule('shop', {
     typeOf: value => (value instanceof Word ? 'Word' : value instanceof Bag ? 'Bag' : null),
     types: [
+        receiverTestsDeclaration(),
         {
             name: 'Word',
             kind: 'reference',

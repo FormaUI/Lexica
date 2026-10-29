@@ -32,3 +32,15 @@ export const extensionDeclaration = (name, target, members) => ({ name, kind: 'e
 
 /** An operator, in the declaration shape: `cast` or `convert`, its destination, and its implementation where it is given one. */
 export const operatorDeclaration = (name, result, impl) => ({ kind: 'operator', name, result, ...(impl === undefined ? {} : { impl }) });
+
+/**
+ * An extension of every type declaring `is`, a function answering what the test it is given, a function of the receiver's own type, answers of its receiver: a test of any receiver as a host declares one for its domain,
+ * since Lexica declares none.
+ */
+export const receiverTestsDeclaration = () => extensionDeclaration('Checks<T>', 'T', [
+    lexica.declarations.createFunctionDeclaration('is', 'Boolean', {
+        updates: { changes: 'derived', reads: 'derived' },
+        parameters: [lexica.declarations.createFunctionParameterDeclaration('test', 'Boolean', ['T'])],
+        impl: ({ receiver, args }) => args.test(receiver),
+    }),
+]);

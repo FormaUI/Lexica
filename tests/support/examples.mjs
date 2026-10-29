@@ -5,7 +5,7 @@
 import { lexica } from '#lexica/lexica.js';
 import { Device, Light, Room, Sensor, Thermostat, homeTypeOf, homeTypes } from './home.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
 
 /** A member's updates: how its answer changes, what it reads, the observations covering its changes and its tolerance, where it has one. */
 const updates = (changes, reads, observations = [], extras = {}) => ({ changes, reads, ...(observations.length === 0 ? {} : { observations }), ...extras });
@@ -65,6 +65,8 @@ const HOME_MEMBERS = {
         field('climate', 'Climate?', climate),
         field('highestTemperature', 'Number?', updates('observable', 'captured', [ofReceiver('climate')], { tolerance: 0.5 })),
         createFunctionDeclaration('device', 'Device?', { updates: placement, parameters: [createValueParameterDeclaration('name', 'String')], impl: ({ receiver, args }) => receiver.devices.find(device => device.name === args.name) ?? null }),
+        // Whether the test holds for one of the room's devices, a function of a device answering a Boolean, called on each in turn until it does.
+        createFunctionDeclaration('anyDevice', 'Boolean', { updates: updates('derived', 'derived'), parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['Device'])], impl: ({ receiver, args }) => receiver.devices.some(device => args.test(device)) }),
         test('occupied', updates('observable', 'fresh', [ofReceiver('presence')])),
         test('reserved', updates('observable', 'fresh', [ofReceiver('presence')])),
     ],

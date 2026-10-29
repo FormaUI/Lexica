@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
-import { extensionDeclaration } from './support/declarations.mjs';
+import { extensionDeclaration, receiverTestsDeclaration } from './support/declarations.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 import { evaluateWithCreatedBindings, resolveWith, createImportingRegistry } from './support/pipeline.mjs';
@@ -17,6 +17,7 @@ const createPantry = (held = {}) => {
 
     return lexica.createModule('pantry', {
         types: [
+            receiverTestsDeclaration(),
             extensionDeclaration('StringExtensions', 'String', [
                 createPropertyDeclaration('size', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length }),
                 createFunctionDeclaration('weight', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.length * 10 }),

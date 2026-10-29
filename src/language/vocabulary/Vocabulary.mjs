@@ -1,6 +1,6 @@
 /**
- * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the language's value types, the members of lists, the conversion operators of strings, numbers and Booleans,
- * and the verbs that test a receiver, each carrying its implementation
+ * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the language's value types, the members of lists, numbers and strings, and the conversion operators of strings,
+ * numbers and Booleans, each carrying its implementation
  */
 
 import { Dictionary } from '../Dictionary.mjs';
@@ -102,16 +102,12 @@ export class Vocabulary {
 
     /**
      * Lexica's own module, each member and operator carrying its implementation: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's
-     * types no other module may declare. It declares the verbs in `VerbExtensions<T>`, an extension targeting its parameter, so on any type, and owns the value types, whose members and operators the registry registers
-     * with it. A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
+     * types no other module may declare. It declares `flatten` in `NestedListExtensions<T>`, an extension of lists of lists, and owns the value types, whose members and operators the registry registers with it.
+     * A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
      */
     static get module() {
-        // The verbs, each answering what its test answers of its receiver, a function of the receiver's own type that answers a Boolean, so each reads and changes as its test does.
-        const verb = name => Declarations.createFunctionDeclaration(name, 'Boolean', { updates: DERIVED_UPDATES, parameters: [Declarations.createFunctionParameterDeclaration('test', 'Boolean', ['T'])], impl: ({ receiver, args }) => args.test(receiver) });
-
         return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
             types: [
-                { name: 'VerbExtensions<T>', kind: 'extension', target: 'T', members: ['is', 'has', 'supports'].map(verb) },
                 // A list of lists flattens to their items, each inner list's in order; an inner list that can be null is no list of lists, so none is ever treated as empty.
                 { name: 'NestedListExtensions<T>', kind: 'extension', target: 'List<List<T>>', members: [Declarations.createPropertyDeclaration('flatten', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.flat() })] },
             ],

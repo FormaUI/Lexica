@@ -95,7 +95,7 @@ In this document:
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Test | A member that answers a Boolean, or the function a verb is given to test its receiver | [Tests](expressions.md#tests) |
+| Test | A member that answers a Boolean, or a function a member is given to test what it calls it with | [Tests](expressions.md#tests) |
 | Equality | `==`, comparing two values; `!=` negates it | [Equalities](expressions.md#equalities) |
 | Truthy / falsey | Every value is truthy except null and false | [Truthiness](expressions.md#truthiness) |
 | Logical expression | `and` or `or`, returning the operand that decides it | [Logical expressions](expressions.md#logical-expressions-negations-and-groups) |
@@ -138,7 +138,6 @@ In this document:
 | Extension access | An extension's member selected explicitly, `device:Device.usage` | [Extension access](members.md#property-access-calls-and-indexers-extension-access) |
 | Qualified form | A member of a module's own type called through its namespace, the receiver first, as `Home.device(room, "lamp")` | [Qualified access](modules.md#namespaces-qualified-access) |
 | Boolean function | A function whose result is a `Boolean`, the form a module gives a test of its receiver, as `device.active()` | [Boolean functions](vocabulary.md#vocabulary-boolean-functions) |
-| Verb | `is`, `has` or `supports`, Lexica's function answering whether its receiver passes the test it is given | [The verbs](vocabulary.md#vocabulary-verbs) |
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](vocabulary.md#observations) |
 | Observation type | A module's declaration of an observation, its contract an invalidation or maintained | [Observations](vocabulary.md#observations) |
 | Observation target | What a module declares its observations may observe besides the receiver and an argument, independent of the receiver or found from it, one target or several | [Observations](vocabulary.md#observations) |

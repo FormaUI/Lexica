@@ -17,7 +17,7 @@ In this document:
 
 ## Lexica's own vocabulary
 
-Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
+Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-list-members"></a>
 
@@ -142,49 +142,16 @@ A dictionary's value operations read each entry's value as their `it`, so `price
 
 A pair's `key` and `value` read its two parts, of its `K` and its `V`.
 
-<a id="vocabulary-verbs"></a>
-
-### The verbs
-
-`is`, `has` and `supports` are Lexica's own functions of a receiver of any type, each answering whether its receiver passes a test. Each declares one [function parameter](members.md#arguments-kinds), its **test**, whose callback contract takes the receiver and answers a `Boolean`, and answers what the test answers of its receiver: Lexica declares the three in an extension on any type, `{ name: 'VerbExtensions<T>', kind: 'extension', target: 'T' }`, whose `T` each call binds to its receiver, and its test's callback on that receiver's type, `parameters: ['T']`, so the test takes the receiver as its static type, `(T) => Boolean`, made non-null where `?.` reads the verb: a `Light` receiver gives its test a `Light`. The three read differently and do the same:
-
-| Verb | Reads as a test of | As in |
-| --- | --- | --- |
-| `is` | A state its receiver enters and leaves | `room.is(Home.occupied)` |
-| `has` | A possession or a presence | `device.has(it.battery != null)` |
-| `supports` | A capability | `device.supports(Home.dimmable)` |
-
-No verb is tied to a test, and no test to a verb: a module declares its tests as [Boolean functions](#vocabulary-boolean-functions), and a script asks any of them with any verb, or calls it directly.
-
-<a id="vocabulary-verbs-the-test"></a>
-
-#### The test
-
-The test takes any form a function argument takes, as [functions passed to members](functions.md#functions-passed-to-members) set out:
-
-- **An arrow function**, `device.is(d => d.power > 0)`, which keeps the implicit parameter of the place it is written, as every arrow function does.
-- **A delegate a name holds**, `light.is(lit)` after `let lit = (l) => l.brightness > 0`, read as every name is: `device.is(active)` reads a local, an object field, a function parameter or a script parameter named `active`, and no bare name reaches a module's function.
-- **A module's function by [reference](functions.md#functions-module-functions)**, `device.is(Home.active)`, which tests the receiver with that declaration, as `device.active()` does.
-- **An [implicit body](functions.md#functions-implicit-bodies)**, `device.has(it.battery != null)`, an expression whose `it` is the receiver.
-
-A name that does not hold a function is a validation error saying the verb takes a test, as `device.is(metered)` is for a Boolean `metered`, and so is a test that does not take the receiver's type or that answers anything but a `Boolean`.
-
-<a id="vocabulary-verbs-what-a-verb-answers"></a>
-
-#### What a verb answers
-
-A verb answers its test's result, a Boolean that cannot be null, and converts no truthiness: a test answering a `Boolean?`, or any other type, is a validation error, and a module's function whose implementation answers anything but a Boolean fails the evaluation with an evaluation error naming the function and its module. `.` requires a receiver that cannot be null, and `?.is(…)` answers null for a null receiver without evaluating its test or calling it, so `room.device(name)?.is(Home.active)` is a `Boolean?`.
-
-A verb reads what its test reads: a module's function, what its declaration's `updates` say, its observations included; an arrow function or an implicit body, the reads it makes. Creating the test reads nothing, and the verb calls it once, while its own call lasts.
-
 <a id="vocabulary-boolean-functions"></a>
 <a id="predicates"></a>
 
 ## Boolean functions
 
-A module declares a test of a receiver as a function whose result is a `Boolean`, as `Home` declares `active` and `offline` on `Device` and `occupied` on `Room`. It is a member as any other: its receivers, its implementation, its `updates`, the changes it misses and the observations that cover it are its declaration's, and its failures name it and its module. A script calls it directly, `device.active()`, through its module, `Home.active(device)`, or passes it to a verb by reference, `device.is(Home.active)`, and each way reaches the one declaration, so a host's policy for a partly observable test concerns that test however it is reached.
+A module declares a test of a receiver as a function whose result is a `Boolean`, as `Home` declares `active` and `offline` on `Device` and `occupied` on `Room`. It is a member as any other: its receivers, its implementation, its `updates`, the changes it misses and the observations that cover it are its declaration's, and its failures name it and its module. A script calls it directly, `device.active()`, through its module, `Home.active(device)`, or passes it by reference to a member that takes a function, `room.devices.where(Home.active)`, and each way reaches the one declaration, so a host's policy for a partly observable test concerns that test however it is reached.
 
 A test is declared as a function, since only a function has a [reference](functions.md#functions-module-functions) a script passes; a property is read where it is written. Boolean functions compose as Booleans do: `device.active() and not device.offline()`.
+
+Lexica declares no member that tests a receiver of any type, since how a test reads is a domain's: a module that wants one declares it for its own domain, a function taking a test of its receiver in an extension of every type, `{ name: 'Checks<T>', kind: 'extension', target: 'T' }`, as [type parameters](types.md#types-type-parameters) set out.
 
 <a id="observations"></a>
 

@@ -9,10 +9,10 @@ describe('Vocabulary', () => {
     const registry = new LexicaRegistry([Vocabulary.module]);
     const { module } = Vocabulary;
     const list = Vocabulary.getTypeDeclaration('List');
-    const [verbs, nestedLists] = module.types;
+    const [nestedLists] = module.types;
 
-    /** What the implementation of a list's member or a verb answers for its receiver and its arguments. */
-    const read = (name, receiver, args = {}) => [...list.members, ...verbs.members].find(member => member.name === name).impl({ receiver, args, env: {} });
+    /** What the implementation of a list's member answers for its receiver and its arguments. */
+    const read = (name, receiver, args = {}) => list.members.find(member => member.name === name).impl({ receiver, args, env: {} });
 
     /** How the registry writes each receiver the member is read on, and the member, as a message names it. */
     const writtenOf = member => `${registry.getReceiverTypes(member).join(' or ')}${member.name === undefined ? '[]' : `.${member.name}`}`;
@@ -33,7 +33,7 @@ describe('Vocabulary', () => {
         expect(module.name).toBe('Lexica');
         expect(module).toBe(Vocabulary.module);
         expect(conversions.every(operator => operator.kind === 'operator' && operator.name === 'convert' && typeof operator.impl === 'function')).toBe(true);
-        expect([...list.members, ...verbs.members].every(member => typeof member.impl === 'function')).toBe(true);
+        expect([...list.members, ...nestedLists.members].every(member => typeof member.impl === 'function')).toBe(true);
     });
 
     it('owns the language\'s value types, declared through its internal form: the scalars, List<T>, covariant in its items, Dictionary<K, V>, invariant in its keys, and Pair<K, V>, whose names are the ones written unqualified', () => {
@@ -46,18 +46,18 @@ describe('Vocabulary', () => {
         // Type reads each generic type's arguments by a table of its own, which these declarations' parameters keep.
         expect(Object.fromEntries(Vocabulary.valueTypes.filter(type => type.kind === 'generic').map(type => [type.name, type.typeParameters.length]))).toEqual(Type.genericTypeArities);
         expect(Object.isFrozen(Vocabulary.ownTypeNames)).toBe(true);
-        expect([Vocabulary.getTypeDeclaration('Any'), Vocabulary.getTypeDeclaration('VerbExtensions')]).toEqual([undefined, undefined]);
+        expect([Vocabulary.getTypeDeclaration('Any'), Vocabulary.getTypeDeclaration('NestedListExtensions')]).toEqual([undefined, undefined]);
         expect(Object.isFrozen(list) && Object.isFrozen(list.members[0])).toBe(true);
     });
 
     it('answers its own value types\' declarations through the registry\'s one lookup, whatever a type\'s arguments and nullability, and none for an extension', () => {
         expect(registry.getTypeDeclaration(Type.createListType(Type.createNamedType('Number'), true))).toBe(list);
         expect(registry.getTypeDeclaration(Type.createNamedType('String', true))).toBe(Vocabulary.getTypeDeclaration('String'));
-        expect(registry.getTypeDeclaration(Type.createNamedType('VerbExtensions', false, 'Lexica'))).toBeUndefined();
+        expect(registry.getTypeDeclaration(Type.createNamedType('NestedListExtensions', false, 'Lexica'))).toBeUndefined();
     });
 
-    it('declares the members of lists, the verbs that test a receiver, and the conversion operators of strings, numbers and Booleans, and nothing of any domain', () => {
-        // The unnamed indexer has no name, and is written as its access is, brackets after the list; the members of lists read the list's T, and the verbs their extension's, the receiver's own type.
+    it('declares the members of lists and the conversion operators of strings, numbers and Booleans, and nothing of any domain, a test of any receiver among it', () => {
+        // The unnamed indexer has no name, and is written as its access is, brackets after the list; the members of lists read the list's T.
         expect(list.members.map(writtenOf)).toEqual([
             'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>[]', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.select', 'List<T>.selectMany', 'List<T>.concat', 'List<T>.take', 'List<T>.drop',
             'List<T>.takeWhile', 'List<T>.dropWhile', 'List<T>.any', 'List<T>.all', 'List<T>.contains', 'List<T>.indexOf', 'List<T>.indexWhere', 'List<T>.single', 'List<T>.average', 'List<T>.minBy', 'List<T>.maxBy', 'List<T>.orderBy', 'List<T>.orderByDescending', 'List<T>.thenBy', 'List<T>.thenByDescending', 'List<T>.distinct', 'List<T>.distinctBy',
@@ -75,10 +75,8 @@ describe('Vocabulary', () => {
 
         expect(list.members.filter(member => Vocabulary.answersReceiverItems(member)).map(member => member.name ?? `[${member.parameters[0].type}]`)).toEqual(keeping);
         expect(list.members.filter(member => Vocabulary.projectsItems(member)).map(member => member.name)).toEqual(['select']);
-        expect(verbs).toMatchObject({ name: 'VerbExtensions', kind: 'extension', typeParameters: ['T'], target: 'T' });
-        expect(verbs.members.map(writtenOf)).toEqual(['T.is', 'T.has', 'T.supports']);
         expect(conversions.map(operator => registry.formatOperator(operator))).toEqual(['Number to String', 'String to Number', 'String to Boolean', 'Boolean to String']);
-        expect([module.types.length, module.members]).toEqual([2, []]);
+        expect([module.types.length, module.members, registry.getReceiverMembers('is')]).toEqual([1, [], []]);
         expect(module.observationTypes).toEqual([]);
         expect([module.typeSelectors, module.mappings]).toEqual([[], []]);
     });
@@ -111,16 +109,6 @@ describe('Vocabulary', () => {
         const slice = list.members.find(member => member.kind === 'indexer' && member.parameters[0].type === 'Range');
 
         expect(ItemPositions.getPositions(slice.impl({ receiver, args: { range: new Range(1, null) }, env: {} }))).toEqual([1, 2]);
-    });
-
-    it.each(['is', 'has', 'supports'])('declares %s as the one function of any receiver, answering what its test, a function of the receiver\'s own type, answers of it', verb => {
-        const [declaration] = registry.getReceiverMembers(verb);
-
-        expect(registry.getReceiverMembers(verb)).toHaveLength(1);
-        expect(declaration).toBe(verbs.members.find(member => member.name === verb));
-        expect(declaration).toMatchObject({ kind: 'function', result: 'Boolean', updates: { changes: 'derived', reads: 'derived' } });
-        expect(declaration.parameters).toEqual([{ name: 'test', kind: 'function', type: 'Boolean', parameterTypes: ['T'], required: true }]);
-        expect([read(verb, 'oat', { test: receiver => receiver === 'oat' }), read(verb, 'milk', { test: receiver => receiver === 'oat' })]).toEqual([true, false]);
     });
 
     it('declares the members of a number and of a string, a string\'s slice its unnamed indexer, and none of a Boolean', () => {

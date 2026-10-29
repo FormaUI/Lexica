@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lexica } from '#lexica/lexica.js';
-import { extensionDeclaration } from './support/declarations.mjs';
+import { extensionDeclaration, receiverTestsDeclaration } from './support/declarations.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { resolveWith } from './support/pipeline.mjs';
@@ -8,7 +8,7 @@ import { resolveWith } from './support/pipeline.mjs';
 const { createPropertyDeclaration, createFunctionParameterDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
 
 /**
- * A pantry's module on words: a word's size and whether it is vegan, a member of a word and a module member of the word it tests; a member that ignores the test it is given, one that keeps it for a member that calls
+ * A pantry's module on words: `is`, a test of any receiver it declares for itself, a word's size and whether it is vegan, a member of a word and a module member of the word it tests; a member that ignores the test it is given, one that keeps it for a member that calls
  * it later, and one that keeps it in what the host holds and fails; and module members a script names by reference, a test that answers no Boolean and a test of a number. Every implementation records what it read, so a
  * test sees which ran.
  */
@@ -17,6 +17,7 @@ const createPantry = (invoked = [], held = {}) => {
 
     return lexica.createModule('pantry', {
         types: [
+            receiverTestsDeclaration(),
             extensionDeclaration('StringExtensions', 'String', [
                 createPropertyDeclaration('size', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['size', receiver]), receiver.length) }),
                 createFunctionDeclaration('vegan', 'Boolean', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push(['vegan', receiver]), receiver.startsWith('oat')) }),
@@ -58,27 +59,27 @@ const evaluate = (text, bound = values) => {
 /** The resolution of the text against a registry of the pantry. */
 const resolve = (text, bound = values) => resolveWith([createPantry()], text, bound);
 
-describe('the verbs', () => {
-    it('take a test in any form a function argument takes: an arrow function, a function a name holds, a module\'s function by reference, or an implicit body', () => {
-        const forms = ['word.is(w => w.size > 2)', 'let long = w => w.size > 2\nreturn word.is(long)', 'word.is(pantry.vegan)', 'word.has(it.size > 2)'];
+describe('a function parameter', () => {
+    it('takes a function in any form a function argument takes: an arrow function, a function a name holds, a module\'s function by reference, or an implicit body', () => {
+        const forms = ['word.is(w => w.size > 2)', 'let long = w => w.size > 2\nreturn word.is(long)', 'word.is(pantry.vegan)', 'word.is(it.size > 2)'];
 
         expect(forms.map(text => evaluate(text).value)).toEqual([true, true, true, true]);
         expect(forms.map(text => evaluate(text, { ...values, word: 'ry' }).value)).toEqual([false, false, false, false]);
-        expect(evaluate('words { is = it.is(pantry.vegan), has = it.has(it.size > 3), supports = it.supports(w => w == "rye") }').value).toEqual([
-            { is: true, has: false, supports: false },
-            { is: false, has: true, supports: false },
-            { is: false, has: false, supports: true },
+        expect(evaluate('words { vegan = it.is(pantry.vegan), long = it.is(it.size > 3), rye = it.is(w => w == "rye") }').value).toEqual([
+            { vegan: true, long: false, rye: false },
+            { vegan: false, long: true, rye: false },
+            { vegan: false, long: false, rye: true },
         ]);
     });
 
-    it('test a receiver of any type, their test taking the receiver as its own type, and answer null without testing it where ?. meets null', () => {
+    it('of an extension of any type takes a receiver of any type, its callback taking the receiver as its own type, and answers null without calling it where ?. meets null', () => {
         expect(evaluate('{ list = words.is(ws => ws.count > 2), number = (4).is(pantry.even), text = word.is(w => w.size == 3) }').value).toEqual({ list: true, number: true, text: true });
         expect(evaluate('missing?.is(w => w.size > 2)')).toEqual({ value: null, invoked: [], asked: [] });
         expect(resolve('missing?.is(it.size > 2)').type).toBe('Boolean?');
         expect(errorThrownBy(() => resolve('word.is(pantry.even)'))).toMatchObject({ kind: 'validation' });
     });
 
-    it('refuse a test that is no function, one that does not take the receiver\'s type, one of another number of arguments, and one answering anything but a boolean', () => {
+    it('refuses a function that is none, one that does not take the receiver\'s type, one of another number of arguments, and one answering anything but a Boolean', () => {
         expect(errorThrownBy(() => resolve('word.is(metered)', { ...values, metered: true }))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The parameter 'test' of 'is' takes a function, as an arrow function, a function a name holds, a module's function by reference or an implicit body gives, and finds Boolean") });
         expect(errorThrownBy(() => resolve('word.is((a, b) => true)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes 2 arguments, and its contract passes 1') });
         expect(errorThrownBy(() => resolve('word.is(w => w.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Number, and its contract takes Boolean') });
@@ -86,15 +87,15 @@ describe('the verbs', () => {
         expect(errorThrownBy(() => resolve('word.is(w => if w.size > 2 then true else null end)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Boolean?, and its contract takes Boolean') });
     });
 
-    it('take a Boolean that cannot be null and convert no truthiness, failing where a module\'s function answers anything else', () => {
+    it('takes a Boolean that cannot be null where its contract declares one, converting no truthiness, and fails where a module\'s function answers anything else', () => {
         expect(errorThrownBy(() => evaluate('word.is(pantry.fresh)'))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("The member 'fresh' answered") });
         expect(errorThrownBy(() => resolve('word.is(w => w)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives String, and its contract takes Boolean') });
     });
 
-    it('read what their test reads: a module\'s function as its declaration says, and an arrow function or an implicit body the reads it makes', () => {
+    it('reads what its function reads: a module\'s function as its declaration says, and an arrow function or an implicit body the reads it makes', () => {
         expect(evaluate('word.is(pantry.vegan)').asked).toEqual(['is', 'vegan']);
         expect(evaluate('word.is(w => w.size > 2)').asked).toEqual(['is', 'size']);
-        expect(evaluate('word.has(it.size > 2)').asked).toEqual(['has', 'size']);
+        expect(evaluate('word.is(it.size > 2)').asked).toEqual(['is', 'size']);
         expect(evaluate('let test = pantry.vegan\nreturn 1').asked).toEqual([]);
     });
 });

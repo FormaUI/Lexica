@@ -5,7 +5,7 @@ import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
 import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
 import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
 import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
-import { extensionDeclaration } from '../support/declarations.mjs';
+import { extensionDeclaration, receiverTestsDeclaration } from '../support/declarations.mjs';
 import { withHome } from '../support/home.mjs';
 
 /** The checker of a registry of the home's types: a light and a thermostat beneath a device, and a room of a hierarchy of its own. */
@@ -276,7 +276,7 @@ describe('TypeChecker', () => {
         });
 
         it('applies a member to a receiver its receiver types match, inferring the type arguments it binds, and a receiver of any type to any value', () => {
-            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {})]);
+            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { types: [receiverTestsDeclaration()] })]);
             const [count] = registry.getReceiverMembers('count');
             const [is] = registry.getReceiverMembers('is');
 
