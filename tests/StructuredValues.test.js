@@ -125,7 +125,7 @@ describe('a structured value written in place', () => {
 
         held = 'three';
 
-        expect(errorThrownBy(() => evaluate('board.place({ x = board.held })'))).toMatchObject({ code: 'LEXICA5038', message: expect.stringContaining("The property 'x' of the Point written here is Number, and is given") });
+        expect(errorThrownBy(() => evaluate('board.place({ x = board.held })'))).toMatchObject({ code: 'LEXICA5038', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The property 'x' of the Point written here is Number, and is given") });
     });
 
     it('prepares a host call with the structure its argument constructs', () => {
