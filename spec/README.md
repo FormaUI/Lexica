@@ -6,7 +6,7 @@ This specification is the authoritative contract for the language and for the ho
 
 <a id="version"></a>
 
-**Version.** This specification describes language version `1.0.0-alpha.38`, and describes definition version 36. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](runtime/definition.md#definition) sets out; one change can advance both. An implementation says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
+**Version.** This specification describes language version `1.0.0-alpha.38`, and describes definition version 36. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](runtime/definition.md#definition) sets out; one change can advance both. An implementation says which of each it follows, as [versions](runtime/versions.md#runtime-versions) set out.
 
 ## What it covers
 
@@ -14,32 +14,54 @@ Three layers meet whenever a script runs, and this specification covers the firs
 
 | Layer | What it owns | Documents |
 | --- | --- | --- |
-| The language | What a script means: its text, its names and scope, its values and types, its expressions and functions, its members, and the contracts its vocabulary keeps | Every document but the host contract |
-| The implementation | Carrying the language's rules out for a host: reading, resolution and evaluation, bindings, results and what it reports | [Host contract](runtime.md) |
+| The language | What a script means: its text, its names and scope, its values and types, its expressions and functions, its members, and the contracts its vocabulary keeps | [The language](#the-language) |
+| The implementation | Carrying the language's rules out for a host: reading, resolution and evaluation, bindings, results and what it reports | [The runtime](#the-runtime) |
 | The host | The application around the implementation: which modules it registers, when it evaluates, what it does with each result, and what it does with each host call | The host's own specification |
 
 <a id="reading-this-specification"></a>
 
 ## Reading this specification
 
-Start with [scripts](scripts.md), which shows a complete script with its parameters and its result. Examples illustrate the rules. Code containing `…` is a fragment, and examples explicitly described as errors are intentionally invalid. Type notation such as `T?`, `List<T>` and `Never` describes types; it does not declare a type in a script. Every example reads the fictional vocabulary that [the examples' vocabulary](language/examples-vocabulary.md) declares.
+Start with [scripts](language/scripts.md), which shows a complete script with its parameters and its result. Examples illustrate the rules. Code containing `…` is a fragment, and examples explicitly described as errors are intentionally invalid. Type notation such as `T?`, `List<T>` and `Never` describes types; it does not declare a type in a script. Every example reads the fictional vocabulary that [the examples' vocabulary](language/examples-vocabulary.md) declares.
 
 ## Documents
 
-1. [Scripts](scripts.md): what a script is, its parameters and bindings, names and scope, the implicit parameter, bodies and locals.
+<a id="the-language"></a>
+
+### The language
+
+1. [Scripts](language/scripts.md): what a script is, its parameters, names and scope, the implicit parameter, bodies and locals.
 2. [Lexical structure](language/lexical-structure.md): tokens, names and reserved words, strings and escapes, comments and case.
-3. [Values](values.md): objects and the object root, null, supplied data, results and conversions.
-4. [Types](types.md): type families, type parameters, reference types, nullability, receivers of unknown type, values of `Any` and casts.
+3. [Values](language/values.md): objects and the object root, null, results and conversions.
+4. [Types](language/types.md): type families, type parameters, reference types, nullability, receivers of unknown type, values of `Any` and casts.
 5. [Collections](language/collections.md): lists, dictionaries and pairs, collection expressions, positions, variance, and the members of lists, dictionaries and pairs.
 6. [Expressions](language/expressions.md): precedence, tests, truthiness, equalities, arithmetic, comparisons, logical expressions, conditionals, `do` expressions, coalescing, attempts, interpolated strings and simple expressions.
 7. [Functions](language/functions.md): regular and arrow functions declared in a script, their values, references to a module's functions, what they see, what a call reads, and implicit bodies.
-8. [Members](members.md): member kinds, writing a member, computed property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
-9. [Modules](modules.md): creating a module, its declarations, registries and namespaces.
-10. [Extensions](extensions.md): declaring an extension, how owners and extensions are selected, extensions on different targets, extension access and an extension's type parameters.
-11. [Vocabulary](vocabulary.md): Nexo's own vocabulary of numbers and strings, Boolean functions, observations, type selectors and conversions.
-12. [Host contract](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
-13. [Definition](runtime/definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
-14. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
-15. [Grammar](language/grammar.md): the formal grammar, grouped by subject.
-16. [Terms](terms.md): the glossary.
-17. [The examples' vocabulary](language/examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
+8. [Members](language/members.md): member kinds, writing a member, computed property access, parameters and arguments, and host calls.
+9. [Modules](language/modules.md): imports, namespaces, module members, qualified access, indexer selection, a module's own collisions and module names in text.
+10. [Extensions](language/extensions.md): how owners and extensions are selected, extensions on different targets, extension access and an extension's type parameters.
+11. [Vocabulary](language/vocabulary.md): Nexo's own vocabulary of numbers and strings, Boolean functions and type selectors.
+12. [Grammar](language/grammar.md): the formal grammar, grouped by subject.
+13. [The examples' vocabulary](language/examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
+
+<a id="the-runtime"></a>
+
+### The runtime
+
+1. [Hosting Nexo](runtime/hosting.md): the layers, the steps a host takes and the runtime's documents.
+2. [Bindings](runtime/bindings.md): binding a host's values, how each is typed, and supplied data.
+3. [Resolution](runtime/resolution.md): resolving a script, what resolution checks, result paths, locations and reusing a resolution.
+4. [Evaluation](runtime/evaluation.md): evaluators and their hooks, results and their metadata, and a value in a host's form.
+5. [Host calls](runtime/host-calls.md): preparing a host call and projecting what its host supplies.
+6. [Modules](runtime/modules.md): creating a module, its declarations, reference types' membership and recognition, operators and conversions, internal declarations, duplicates and registries.
+7. [Members](runtime/members.md): declaring a member, its parameter keys, the declaration helpers, updates, tolerance, what an implementation receives, and how a member reads and changes.
+8. [Extensions](runtime/extensions.md): declaring an extension.
+9. [Observations](runtime/observations.md): observation types, targets and the observations a member names.
+10. [Type selectors](runtime/type-selectors.md): declaring type selectors and their keys.
+11. [Definition](runtime/definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
+12. [Versions](runtime/versions.md): the versions an implementation reports.
+
+### Beside both
+
+1. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
+2. [Terms](terms.md): the glossary.

@@ -36,7 +36,7 @@ The design comes in four parts, each settled, specified and implemented in turn:
 8. **Native and exported representations.** Native values are `List<T>` and `Dictionary<K, V>` with their established types. Exported, a list is an array of its exported items, a pair `{ key, value }`, and a dictionary `{ entries: [{ key, value }, …] }` in its order, preserving its keys' types. Export succeeds only where every key and every value, recursively, has a data form, so reference keys and reference values alike prevent a dictionary's direct export; a caller projects them to data first. Exported data never turns back into a dictionary implicitly when it is bound again.
 9. **Metadata through filtering and projection.**
    - Filtering preserves each retained item's metadata, realigned in the result's own order: the result has aligned items, sources and provenance records of its own, never the original collection's whole record reused.
-   - A projection records its immediate input in `sources`, as [results](../../spec/runtime.md#runtime-results) already specify, and `sources` never changes meaning to carry anything else.
+   - A projection records its immediate input in `sources`, as [results](../../spec/runtime/evaluation.md#runtime-results) already specify, and `sources` never changes meaning to carry anything else.
    - A second projection preserves the provenance of the values it selects, while values it computes follow the existing origin and tolerance rules. A collection's ancestry and a projected field's numeric tolerance are related metadata, never interchangeable.
 10. **Provenance requirements.** Whatever represents lineage satisfies:
     - filtering and reordering preserve each occurrence's provenance;
@@ -85,11 +85,11 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### The lineage representation
 
-✅ **Settled,** as [provenance](../../spec/runtime.md#runtime-results-provenance) specifies and [I34](implementation-decisions.md) reasons out against each requirement: beside `sources`, a projected list's record holds `provenance`, one entry for each item, of a source's kinds, naming the source the earliest projection the item descends from recorded for it. A projection of a list no projection built records its own sources there, one of a list a projection built inherits each input's entry, and an operation that filters, reorders or repeats items carries each occurrence's entries realigned.
+✅ **Settled,** as [provenance](../../spec/runtime/evaluation.md#runtime-results-provenance) specifies and [I34](implementation-decisions.md) reasons out against each requirement: beside `sources`, a projected list's record holds `provenance`, one entry for each item, of a source's kinds, naming the source the earliest projection the item descends from recorded for it. A projection of a list no projection built records its own sources there, one of a list a projection built inherits each input's entry, and an operation that filters, reorders or repeats items carries each occurrence's entries realigned.
 
 ### Foundation
 
-✅ **Settled,** as [dictionaries and pairs](../../spec/language/collections.md#collections-dictionaries-and-pairs), [how a binding is typed](../../spec/scripts.md#bindings) and [results](../../spec/values.md#values-results) specify and [I35](implementation-decisions.md) records, with the choices below as proposed; duplicate keys at construction, and a list's typing from a collection expression, land with construction.
+✅ **Settled,** as [dictionaries and pairs](../../spec/language/collections.md#collections-dictionaries-and-pairs), [how a binding is typed](../../spec/runtime/bindings.md#bindings) and [results](../../spec/language/values.md#values-results) specify and [I35](implementation-decisions.md) records, with the choices below as proposed; duplicate keys at construction, and a list's typing from a collection expression, land with construction.
 
 
 - **Host capture:** a dense array as a `List<T>`; a `Map` as a `Dictionary<K, V>`; a `Set` as a `List<T>` in its traversal order, its uniqueness not making later projections sets; a plain record as an object; a domain member's collection as its declared native type; and a general iterable only through an explicit finite materialization. Recognition keeps its precedence, a value recognized as a module's reference staying a reference, and a captured binding is never a live view.
@@ -98,7 +98,7 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### Construction and operations
 
-✅ **Settled,** as [Nexo's vocabulary](../../spec/language/collections.md#collections-list-members), [null arguments](../../spec/members.md#nullability-a-null-argument-follows-the-parameter) and [provenance](../../spec/runtime.md#runtime-results-provenance) specify and [I37](implementation-decisions.md) records, but `pick`, which positional operations settle.
+✅ **Settled,** as [Nexo's vocabulary](../../spec/language/collections.md#collections-list-members), [null arguments](../../spec/language/members.md#nullability-a-null-argument-follows-the-parameter) and [provenance](../../spec/runtime/evaluation.md#runtime-results-provenance) specify and [I37](implementation-decisions.md) records, but `pick`, which positional operations settle.
 
 - **Collection expressions,** beyond decision 12: a list dense and immutable, a trailing comma allowed in source, holes refused, no spread, items as simple expressions under the existing recursive restrictions, and delegates kept out of collection data.
 - **Dictionary construction:** `people.toDictionary(it.id)`, a dictionary of the people by their ids; `.select(…)` giving other values; and `groupBy`, a `Dictionary<K, List<T>>`.
@@ -108,7 +108,7 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### Positional operations
 
-✅ **Settled,** as [positions](../../spec/language/collections.md#collections-positions), [Nexo's vocabulary](../../spec/language/collections.md#collections-list-members) and [an indexer's signatures](../../spec/members.md#property-access-calls-and-indexers-unnamed-indexers) specify and [I38](implementation-decisions.md) records: an `Index` counts from the end alone, a number from the start.
+✅ **Settled,** as [positions](../../spec/language/collections.md#collections-positions), [Nexo's vocabulary](../../spec/language/collections.md#collections-list-members) and [an indexer's signatures](../../spec/language/members.md#property-access-calls-and-indexers-unnamed-indexers) specify and [I38](implementation-decisions.md) records: an `Index` counts from the end alone, a number from the start.
 
 - **Indices and ranges:** an `Index`, an offset from the beginning or, written `^n`, from the end, and a `Range`, two boundaries of a half-open interval, `items[1..4]`, `items[..4]`, `items[4..]`, `items[^3..]`, `items[..^1]` and `items[..]`, reusable as values, `let middle = 1..^1`, capturing no collection and generating no numbers; offsets nonnegative safe integers, never rounded.
 - **Lookup and slicing:** scalar lookup tolerant as today, a missing, negative or fractional position giving null and `items[^0]` null; slicing strict, `0 <= start <= end <= L` against one captured length, a reversed or out-of-bounds range a located error, equal boundaries an empty list; and `take` and `drop` the tolerant partitions.

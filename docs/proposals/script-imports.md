@@ -1,6 +1,6 @@
 # Proposal: script imports
 
-**State: accepted.** Specified, and implemented with [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34)'s steps 3 and 4, as [I28](implementation-decisions.md) and [I29](implementation-decisions.md) record. It changes the contract [scripts](../../spec/scripts.md), the [grammar](../../spec/language/grammar.md), [lexical structure](../../spec/language/lexical-structure.md#names-and-reserved-words), [modules](../../spec/modules.md#names-and-reserved-words-module-names), [types](../../spec/types.md#types-type-identity), the [definition](../../spec/runtime/definition.md) and the [runtime](../../spec/runtime.md) set out, and [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34) of the implementation plan delivers it, as definition version 34.
+**State: accepted.** Specified, and implemented with [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34)'s steps 3 and 4, as [I28](implementation-decisions.md) and [I29](implementation-decisions.md) record. It changes the contract [scripts](../../spec/language/scripts.md), the [grammar](../../spec/language/grammar.md), [lexical structure](../../spec/language/lexical-structure.md#names-and-reserved-words), [modules](../../spec/language/modules.md#names-and-reserved-words-module-names), [types](../../spec/language/types.md#types-type-identity), the [definition](../../spec/runtime/definition.md) and the [runtime](../../spec/runtime/hosting.md) set out, and [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34) of the implementation plan delivers it, as definition version 34.
 
 ## The problem
 
@@ -69,7 +69,7 @@ An unqualified type name resolves to the one public type of its name among Nexo'
 
 A type a host declares for a binding is resolved against the registry, never the script's imports, since a binding set is the host's and may serve scripts with different imports, and its type has one identity whichever script reads it: `types: { device: 'Home.Device' }` names it qualified, and `types: { device: 'Device' }` where exactly one public type in the registry has that name, as Nexo's own types are named; where several do, it is refused, giving the qualified names. A script's imports neither resolve nor disambiguate it.
 
-This replaces the registry-wide lookup [type identity](../../spec/types.md#types-type-identity) sets out for scripts, and leaves its rules for declarations, a type's own `import` among them, as they are. A type's `import` and a script's are one idea at two scopes: the type's names the modules whose types its own declarations name unqualified, and the script's the modules whose vocabulary the script uses.
+This replaces the registry-wide lookup [type identity](../../spec/language/types.md#types-type-identity) sets out for scripts, and leaves its rules for declarations, a type's own `import` among them, as they are. A type's `import` and a script's are one idea at two scopes: the type's names the modules whose types its own declarations name unqualified, and the script's the modules whose vocabulary the script uses.
 
 ### Reading text
 

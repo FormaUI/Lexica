@@ -66,7 +66,7 @@ const shop = nexo.createModule('Shop', {
 });
 ```
 
-An implementation receives one object and reads what it needs by name: its `receiver`, its `args` by parameter name, and the `env` the host supplies. Each kind of declaration, and the declaration keys it takes, is set out in [declarations](../spec/modules.md#modules-declarations); what `updates` means is in [updates](../spec/members.md#members-updates).
+An implementation receives one object and reads what it needs by name: its `receiver`, its `args` by parameter name, and the `env` the host supplies. Each kind of declaration, and the declaration keys it takes, is set out in [declarations](../spec/runtime/modules.md#modules-declarations); what `updates` means is in [updates](../spec/runtime/members.md#members-updates).
 
 ## Resolve a script
 

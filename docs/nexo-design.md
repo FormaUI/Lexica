@@ -1,6 +1,6 @@
 # Nexo Design v1.0.0-alpha.38
 
-The [Nexo specification](../spec/README.md) is the contract: the language, and the [host contract](../spec/runtime.md) its implementations offer. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes language version `1.0.0-alpha.37` and definition version 35, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
+The [Nexo specification](../spec/README.md) is the contract: the language, and the [host contract](../spec/runtime/hosting.md) its implementations offer. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes language version `1.0.0-alpha.37` and definition version 35, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
 
 In this document:
 
@@ -41,7 +41,7 @@ A test of a receiver is a member, a Boolean function, and a member that takes a 
 
 ## Types and their relations
 
-A `Type` is a value and nothing more: what kind of type it is, its name and its module, its type arguments, its fields and its nullability, its equality to another and how a message writes it. It knows no relation to another type, since every relation the specification sets out, [assignability, equal types and merging](../spec/types.md#types-assignability-and-merging), depends on declarations only a registry holds: a type's supertypes, and a generic type's parameters and their variance.
+A `Type` is a value and nothing more: what kind of type it is, its name and its module, its type arguments, its fields and its nullability, its equality to another and how a message writes it. It knows no relation to another type, since every relation the specification sets out, [assignability, equal types and merging](../spec/language/types.md#types-assignability-and-merging), depends on declarations only a registry holds: a type's supertypes, and a generic type's parameters and their variance.
 
 `TypeChecker` holds every relation, made with what declares types, a registry or, for bindings made without one, Nexo's own vocabulary. It answers whether a value of one type is assignable to another, the type two types merge to, whether two types fit one way or the other where an equality compares them, which types an equality compares with more than null, whether a receiver matches a member's receiver types, the type arguments it binds recorded as it matches, and the evidence an argument gives a type parameter, which it resolves to the one type its sources agree on. Each of the resolver's checks asks it, and none asks a `Type`, so a rule is written once and every expression is held to it alike.
 

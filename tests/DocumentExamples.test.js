@@ -58,7 +58,7 @@ const SUPPLIED = Object.freeze({ dim: 40, on: Object.freeze({ at: 12, strength: 
  */
 const DOCUMENTS = {
     'spec/README.md': [],
-    'spec/scripts.md': [
+    'spec/language/scripts.md': [
         { about: 'a script reading its parameter', evaluates: { name: 'living', active: 3, total: 3 } },
         { about: 'an object expression' },
         { about: 'a body' },
@@ -74,13 +74,13 @@ const DOCUMENTS = {
         { about: 'an expression continuing after a block\'s end', evaluates: 3 },
         { about: 'a body that uses return, each local on its own line' },
     ],
-    'spec/values.md': [
+    'spec/language/values.md': [
         { about: 'values of each kind' },
         { about: 'the object root', evaluates: { bar: 4, inner: { bar: 2, nearest: 2, outermost: 4 } } },
         { about: 'a field of the object root still being built', refused: 'validation' },
         { about: 'conversions', each: true },
     ],
-    'spec/types.md': [
+    'spec/language/types.md': [
         { about: 'types a script infers' },
         { about: 'casts', each: true, context: COMPARED },
     ],
@@ -119,18 +119,28 @@ const DOCUMENTS = {
         { about: 'functions as values' },
         { about: 'function references' },
     ],
-    'spec/members.md': [
+    'spec/language/members.md': [
         { about: 'a member of each kind', each: true },
         { about: 'the forms of a member', each: true, context: COMPARED },
         { about: 'computed property access' },
         { about: 'host calls', each: true },
     ],
-    'spec/modules.md': [],
-    'spec/extensions.md': [{ about: 'extensions selected by ownership and explicitly', evaluates: { usage: 0.4, power: 60, metered: 60 } }],
-    'spec/vocabulary.md': [],
-    'spec/runtime.md': [
+    'spec/language/modules.md': [],
+    'spec/language/extensions.md': [{ about: 'extensions selected by ownership and explicitly', evaluates: { usage: 0.4, power: 60, metered: 60 } }],
+    'spec/language/vocabulary.md': [],
+    'spec/runtime/host-calls.md': [
         { about: 'a result projection reading a local before its host call', projects: { at: 12, isOccupied: true, wasOccupied: true } },
     ],
+    'spec/runtime/hosting.md': [],
+    'spec/runtime/bindings.md': [],
+    'spec/runtime/resolution.md': [],
+    'spec/runtime/evaluation.md': [],
+    'spec/runtime/modules.md': [],
+    'spec/runtime/members.md': [],
+    'spec/runtime/extensions.md': [],
+    'spec/runtime/observations.md': [],
+    'spec/runtime/type-selectors.md': [],
+    'spec/runtime/versions.md': [],
     'spec/runtime/definition.md': [],
     'spec/diagnostics-and-errors.md': [],
     'spec/language/grammar.md': [],

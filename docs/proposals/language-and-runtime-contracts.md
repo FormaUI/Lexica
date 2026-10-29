@@ -58,7 +58,8 @@ spec/
 | `expressions.md` | Precedence, tests, truthiness, equality, arithmetic, comparisons, logic, conditionals, coalescing, attempts and interpolation | `expressions.md`, whole |
 | `functions.md` | Script functions, delegates, function references, what a call reads and implicit bodies | `functions.md`, whole |
 | `members.md` | Writing a member, computed property access, arguments and their kinds, a host call's place in a script and its result projection | `members.md`, but declaring a member, how it reads and changes, and preparing a host call |
-| `modules.md` | Imports, namespaces, module members, qualified access, owners and extensions, indexer and operator selection, and module names in text | `scripts.md`'s imports, `modules.md`'s namespaces but the duplicates registration refuses, and `extensions.md` but declaring an extension |
+| `modules.md` | Imports, namespaces, module members, qualified access, indexer selection, a module's own collisions as selection resolves them, and module names in text | `scripts.md`'s imports, and `modules.md`'s namespaces but the duplicates registration refuses |
+| `extensions.md` | Owners and extensions, extensions on different targets, extension access and an extension's type parameters | `extensions.md` but declaring an extension, kept a document of its own as the language's extensions are one subject |
 | `vocabulary.md` | Nexo's own members of numbers and strings, Boolean functions as a script calls and passes them, and a type selector as a fixed argument selects a result | `vocabulary.md`'s script-facing parts |
 | `errors.md` | The conditions on what a script may express, each with its kind and code | `diagnostics-and-errors.md`'s condition tables, as [the error catalog](#the-error-catalog) assigns them |
 | `grammar.md` | The formal grammar | `grammar.md`, whole |
@@ -73,7 +74,7 @@ These documents are a starting point: a document stays separate where it explain
 
 | Document | What it states | From |
 | --- | --- | --- |
-| `hosting.md` | The entry point, reading and writing text, and the lifecycle from bindings to a result | New overview, from `runtime.md`'s introduction |
+| `hosting.md` | The layers that meet in an evaluation, the steps a host takes from bindings to a result, and the runtime's documents | `runtime.md`'s introduction |
 | `bindings.md` | Binding a host's values, how each is typed, declared types, supplied data and the resolution key | `runtime.md`'s bindings, `scripts.md`'s binding typing, `values.md`'s supplied data |
 | `resolution.md` | Resolving a script, what a resolution answers, result paths, locations and reusing a resolution | `runtime.md`'s resolution |
 | `evaluation.md` | Evaluators, hooks, results and their metadata, a result's and a collection's host forms, and how positions reach an implementation | `runtime.md`'s evaluation and results, `values.md`'s host forms |

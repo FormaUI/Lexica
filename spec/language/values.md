@@ -20,9 +20,8 @@ In this document:
 
 1. [Objects](#objects)
 2. [Null](#null)
-3. [Supplied data](#values-supplied-data)
-4. [Results](#values-results)
-5. [Conversions](#conversions)
+3. [Results](#values-results)
+4. [Conversions](#conversions)
 
 <a id="objects"></a>
 
@@ -94,7 +93,7 @@ Where a conditional or `??` can give either of two references, both must refer t
 
 Null answers both "there is no such value", as when `room.device(name)` finds no device, and "the value is unavailable", as when a sensor has reported no temperature yet. One null for both keeps results simple, at the cost of telling the two apart; a member whose consumers need the difference offers it separately, as `device.offline()` says whether a device has stopped reporting.
 
-A member's signature declares its result type, as [types](types.md) set out, and a result marked `?` can be null by itself; an optional access answers null where its receiver is null, and any member answers null where an argument is null and its parameter propagates null. An optional access of null answers null and ends its chain. `??` supplies a fallback for null. Errors fail the result rather than becoming null; see [diagnostics and errors](diagnostics-and-errors.md).
+A member's signature declares its result type, as [types](types.md) set out, and a result marked `?` can be null by itself; an optional access answers null where its receiver is null, and any member answers null where an argument is null and its parameter propagates null. An optional access of null answers null and ends its chain. `??` supplies a fallback for null. Errors fail the result rather than becoming null; see [diagnostics and errors](../diagnostics-and-errors.md).
 
 <a id="nullability-a-written-null-is-an-expression-that-produces-null"></a>
 
@@ -108,30 +107,21 @@ A member's signature declares its result type, as [types](types.md) set out, and
 
 A device is a valid receiver of `battery`; a wired one answers null, as an unavailable value does. A receiver of the wrong type, a number for `battery`, is a validation error, and a module that returns a value of a type other than the one it declared has broken its contract, which is an evaluation error and never a quiet null.
 
-<a id="values-supplied-data"></a>
-<a id="names-and-reserved-words-names-in-strings-and-supplied-data"></a>
-
-## Supplied data
-
-The name restrictions apply to declarations in a script. Supplied data keeps all its own keys: bound objects and objects returned by members retain every object field, including `__proto__`, as an ordinary own object field in results.
-
 <a id="values-results"></a>
 
 ## Results
 
-A **result** is data: numbers, strings, Booleans, null, lists, dictionaries, pairs, structured values and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`NEXO5028`). A delegate is never part of a result either, as [delegates](language/functions.md#functions-delegates) set out.
+A **result** is data: numbers, strings, Booleans, null, lists, dictionaries, pairs, structured values and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`NEXO5028`). A delegate is never part of a result either, as [delegates](functions.md#functions-delegates) set out.
 
 Each evaluation produces a new result, immutable throughout: its lists and objects, and every structured value in them, never change once produced, whatever the host's state does afterwards.
 
-A result exports the language's collections as data: a list as an array of its exported items; a pair as `{ key, value }`; and a dictionary as `{ entries: [{ key, value }, …] }`, its entries in their order, each key's type preserved, so a number's key stays a number. A dictionary or a pair is data where every key and every value is, recursively, so one holding a reference, as a key or a value, has no data form and is refused where a result would hold it, as any reference is; a script projects it to data first. Exported data never turns back into a dictionary or a pair when it is bound again.
-
-A member's implementation gives the language's collections in a host's forms where its declaration says so: a set where a list is declared, its items in their order, a map where a dictionary is, its entries in their order, and an object of a `key` and a `value` alone where a pair is, each item, key and value as its own type declares it. It receives a dictionary as the language's, which answers `count`, `has(key)`, `get(key)`, `getEntry(key)`, `keys`, `values` and `entries`, and a pair as one of `key` and `value`. It receives an index as one of its `offset`, and a range as one of its `start` and its `end`, each a number, an index or null where the range leaves it out; each applies itself to a length with `resolveIn(length)`, an index answering the offset from the start it stands at, and a range its `start` and its `end` from the start, a start left out `0` and an end left out the length.
+A host receives a result, and an implementation the values it is given, in the forms [a value in a host's form](../runtime/evaluation.md#runtime-host-forms) sets out.
 
 <a id="conversions"></a>
 
 ## Conversions
 
-A conversion answers a value converted to another type of data: `value to Type` evaluates its value, carries out the [conversion operator](modules.md#modules-operators) the vocabulary declares from the value's type to the type it names, and answers the converted value. A [cast](types.md#casts) converts nothing, and a conversion casts nothing.
+A conversion answers a value converted to another type of data: `value to Type` evaluates its value, carries out the [conversion operator](../runtime/modules.md#modules-operators) the vocabulary declares from the value's type to the type it names, and answers the converted value. A [cast](types.md#casts) converts nothing, and a conversion casts nothing.
 
 ```nexo
 device["level"] to Number
@@ -154,7 +144,7 @@ A list itself is not a type a conversion converts between, and neither is a type
 
 ### One declared conversion
 
-A value converts to another type only through a conversion operator from its type to that type, as [conversions](vocabulary.md#vocabulary-conversions) declare them, selected among those its script's imports make available as [owners and extensions](extensions.md#extensions-owners) set out. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to Number` is still a validation error, whose message names the types a Boolean converts to. A script that means both conversions writes both.
+A value converts to another type only through a conversion operator from its type to that type, as [conversions](../runtime/modules.md#vocabulary-conversions) declare them, selected among those its script's imports make available as [owners and extensions](extensions.md#extensions-owners) set out. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to Number` is still a validation error, whose message names the types a Boolean converts to. A script that means both conversions writes both.
 
 <a id="conversions-a-value-already-of-the-type"></a>
 
@@ -176,7 +166,7 @@ A value of the type null, a null binding, converts to any type a conversion can 
 
 A value its conversion rejects, as `"40%" to Number`, fails the evaluation with an evaluation error naming the conversion, the reason it gave and where it stands. A conversion that fails otherwise, by throwing or by answering a value not of its type, has a fault, which fails the evaluation too.
 
-A failure never answers null or a default: `?? 0` gives a missing setting a value, and leaves a malformed one an error, for which [an attempt](language/expressions.md#attempts) answers null instead.
+A failure never answers null or a default: `?? 0` gives a missing setting a value, and leaves a malformed one an error, for which [an attempt](expressions.md#attempts) answers null instead.
 
 <a id="conversions-evaluation"></a>
 

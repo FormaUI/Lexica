@@ -20,7 +20,7 @@ Structural validation checks a definition against the definition format wherever
 
 `try` handles only a cast or conversion rejecting its value; every other error fails the operation. A **fault** is an evaluation error no attempt catches, as a declaration's `impl` failing otherwise than by its `reject`.
 
-A `NexoError` is an `Error` whose `name` is `NexoError`, holding its `code`, its `kind`, its `location`, as [where a failure is located](#validation-diagnostics) sets out, and its `message`, which says what is wrong followed, in parentheses, by where, wherever its location holds anything; an evaluation error something caused, an implementation or a hook throwing among them, holds that as its `cause`. Its constructor is not public: a host builds an error of its own with the class's factories, `NexoError.structure(code, message, location)`, `NexoError.validation(code, message, location)` and `NexoError.evaluation(code, message, location, { cause })`, each of the kind it names, and an error a host builds is never taken for one Nexo raised, as [a hook that throws](runtime.md#runtime-evaluation) sets out.
+A `NexoError` is an `Error` whose `name` is `NexoError`, holding its `code`, its `kind`, its `location`, as [where a failure is located](#validation-diagnostics) sets out, and its `message`, which says what is wrong followed, in parentheses, by where, wherever its location holds anything; an evaluation error something caused, an implementation or a hook throwing among them, holds that as its `cause`. Its constructor is not public: a host builds an error of its own with the class's factories, `NexoError.structure(code, message, location)`, `NexoError.validation(code, message, location)` and `NexoError.evaluation(code, message, location, { cause })`, each of the kind it names, and an error a host builds is never taken for one Nexo raised, as [a hook that throws](runtime/evaluation.md#runtime-evaluation) sets out.
 
 In this document:
 
@@ -208,7 +208,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `NEXO2022` | A bound value holding a cycle, a declared type's data among them | A structure error of its own naming the binding, and where it reaches itself in data a declared type captures |
 | `NEXO2038` | A reference type declared for a value that is not a reference, null aside where the type is nullable | A structure error naming the binding |
 | `NEXO2044` | A declared binding type no binding holds: a notation that writes no type, `Any`, `Never`, a position, a type holding one at any depth, a structure's data shape among it, or a dictionary keyed by no key type | A structure error naming the binding and the type |
-| `NEXO2045` | A value its binding's declared data type, or a part of it, doesn't admit, as [declared types](runtime.md#runtime-bindings) set out | A structure error naming the binding, the part and the type |
+| `NEXO2045` | A value its binding's declared data type, or a part of it, doesn't admit, as [declared types](runtime/bindings.md#runtime-bindings) set out | A structure error naming the binding, the part and the type |
 | `NEXO2039` | A type declared for anything but a top-level binding | A structure error naming the binding |
 | `NEXO2024` | Resolving or evaluating with a binding set another registry made | A structure error saying to bind with that registry |
 | `NEXO2025` | Creating an evaluator with bindings of another resolution key | A structure error saying to resolve again |
@@ -463,9 +463,9 @@ A module whose declarations break the declaration contract, a type or a member n
 | `NEXO5005` | A division or a remainder by zero | An evaluation error at the operation |
 | `NEXO5020` | An arithmetic result no finite number holds | An evaluation error at the operation |
 | `NEXO5006` | A module returning a value of a type other than the one it declared | An evaluation error naming the member and its module |
-| `NEXO5007` | A member failing unexpectedly while it evaluates, its implementation throwing | An evaluation error at the member, its `cause` exactly what the implementation threw, as [the evaluator](runtime.md#runtime-evaluation) sets out |
+| `NEXO5007` | A member failing unexpectedly while it evaluates, its implementation throwing | An evaluation error at the member, its `cause` exactly what the implementation threw, as [the evaluator](runtime/evaluation.md#runtime-evaluation) sets out |
 | `NEXO5008` | A function given to a member called after that member's invocation has ended | An evaluation error |
-| `NEXO5009` | A hook that throws: `beforeInvoke`, a host refusing a member among them, `afterInvoke`, or `afterEvaluation` after a completed evaluation | An evaluation error at that member, its `cause` exactly what the hook threw, as [a hook that throws](runtime.md#runtime-evaluation) sets out; after a failed evaluation, the cleanup's failure is recorded on the original error |
+| `NEXO5009` | A hook that throws: `beforeInvoke`, a host refusing a member among them, `afterInvoke`, or `afterEvaluation` after a completed evaluation | An evaluation error at that member, its `cause` exactly what the hook threw, as [a hook that throws](runtime/evaluation.md#runtime-evaluation) sets out; after a failed evaluation, the cleanup's failure is recorded on the original error |
 | `NEXO5010` | Evaluating an evaluator from within its own evaluation | An evaluation error |
 | `NEXO5011` | Evaluating without `beforeInvoke` a script that reads a maintained member | An evaluation error |
 | `NEXO5012` | A deferred access whose receiver's actual type lacks the member, or doesn't satisfy it | An evaluation error naming the access and the actual type |
@@ -491,13 +491,13 @@ A module whose declarations break the declaration contract, a type or a member n
 | `NEXO5038` | A value of `Any` an object expression gives a structure's property that is found, when it is evaluated, not to be of the property's type | An evaluation error at the object expression, naming the property, its type and the value |
 | `NEXO5028` | A result holding a value of `Any` that is found, when it is evaluated, to be no data, a reference or a function | An evaluation error at the result |
 | `NEXO5013` | A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |
-| `NEXO5014` | Preparing a script that ends in no host call | An evaluation error, as [host calls](runtime.md#runtime-host-calls) set out |
-| `NEXO5023` | Evaluating a script that ends in a host call | An evaluation error, as [host calls](runtime.md#runtime-host-calls) set out |
-| `NEXO5015` | A value a host supplies, or a part of it, that its host call's declared result does not admit, or that reaches itself, as [capturing a supplied value](runtime.md#runtime-host-calls-capturing) sets out | An evaluation error naming the call and the part |
+| `NEXO5014` | Preparing a script that ends in no host call | An evaluation error, as [host calls](runtime/host-calls.md#runtime-host-calls) set out |
+| `NEXO5023` | Evaluating a script that ends in a host call | An evaluation error, as [host calls](runtime/host-calls.md#runtime-host-calls) set out |
+| `NEXO5015` | A value a host supplies, or a part of it, that its host call's declared result does not admit, or that reaches itself, as [capturing a supplied value](runtime/host-calls.md#runtime-host-calls-capturing) sets out | An evaluation error naming the call and the part |
 | `NEXO5503` | A function a member calls with arguments other than its callback contract declares, in number or in type | An evaluation error naming the function and the member |
 | `NEXO5504` | A function or a body given to a member that answers, when it is evaluated, a value its callback contract's result type does not admit, as an answer of `Any` can be | An evaluation error naming the function, the member and the value |
 
-A script is validated before any evaluation, as [what resolution checks](runtime.md#validation-vocabulary-and-types) sets out. An evaluation error fails the whole result, and the host receives the error in its place.
+A script is validated before any evaluation, as [what resolution checks](runtime/resolution.md#validation-vocabulary-and-types) sets out. An evaluation error fails the whole result, and the host receives the error in its place.
 
 <a id="diagnostics-tolerant-reading"></a>
 

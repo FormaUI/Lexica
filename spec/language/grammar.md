@@ -18,15 +18,15 @@ In this document:
 
 | Group | Productions | Meaning in |
 | --- | --- | --- |
-| A script and its bodies | `script`, `import-declaration`, `body`, `local`, `local-initializer`, `do-expression` | [Scripts](../scripts.md) |
+| A script and its bodies | `script`, `import-declaration`, `body`, `local`, `local-initializer`, `do-expression` | [Scripts](scripts.md) |
 | Conditionals | `conditional-expression`, `conditional-clause`, `conditional-binding`, `simple-conditional-expression` | [Conditionals](expressions.md#conditionals) |
 | Functions | `function-expression`, `function-parameter-list`, `function-parameter`, `arrow-function`, `arrow-parameters`, `function-call` | [Functions](functions.md) |
 | Operators | `coalescing`, `disjunction`, `conjunction`, `negation`, `equality`, `comparison`, `additive`, `multiplicative`, `arithmetic-negation` and their operands | [Expressions](expressions.md) |
-| Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation`, `type-name` | [Casts](../types.md#casts), [conversions](../values.md#conversions), [attempts](expressions.md#attempts) |
-| Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `computed-property-access`, `member-call`, `indexer-access`, `extension-access`, `extension-name`, `extension-member`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](../members.md) |
+| Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation`, `type-name` | [Casts](types.md#casts), [conversions](values.md#conversions), [attempts](expressions.md#attempts) |
+| Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `computed-property-access`, `member-call`, `indexer-access`, `extension-access`, `extension-name`, `extension-member`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
 | Simple expressions | `simple-expression`, `simple-value-expression` | [Simple expressions](expressions.md#simple-expressions) |
-| Names and references | `value`, `identifier`, `local-name`, `object-field-name`, `member-name`, `namespace-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](../scripts.md#scripts-script-parameters), [namespaces](../modules.md#namespaces) |
-| Objects | `object`, `object-content`, `object-field` | [Objects](../values.md#objects) |
+| Names and references | `value`, `identifier`, `local-name`, `object-field-name`, `member-name`, `namespace-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
+| Objects | `object`, `object-content`, `object-field` | [Objects](values.md#objects) |
 | Literals and strings | `literal`, `Number`, `String` and its forms, `interpolated-string` and its parts | [Lexical structure](lexical-structure.md), [interpolated strings](expressions.md#interpolated-strings) |
 | Trivia | `trivia`, `whitespace`, `line-comment`, `block-comment` | [Comments](lexical-structure.md#comments) |
 
@@ -270,8 +270,8 @@ The grammar uses several terms more narrowly than the prose:
 | `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by the local name the script's imports give its module and a dot where written so; a qualified name parses alike whatever the script imports, and resolution decides whether the script imports the module |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |
-| `indexer-access` | An indexer access: brackets and a key after a value, reaching its type's unnamed indexer, or, after a `dot-property-access`, the named indexer that access names where its receiver's type declares one, which resolution decides, as [named indexers](../members.md#property-access-calls-and-indexers-named-indexers) set out |
+| `indexer-access` | An indexer access: brackets and a key after a value, reaching its type's unnamed indexer, or, after a `dot-property-access`, the named indexer that access names where its receiver's type declares one, which resolution decides, as [named indexers](members.md#property-access-calls-and-indexers-named-indexers) set out |
 | `equality-operand` | A chain, cast, conversion or attempt, used within the arithmetic productions |
 | `coalescing-operand` | An arithmetic negation or an equality operand, never binary arithmetic, which stands apart from `??` unless one of them is grouped |
 
-In the prose, **value** means any value an expression has; type resolution determines its type. A member's **argument form** is a separate concept: it declares what the member's arguments supply. See [parameters and arguments](../members.md#arguments).
+In the prose, **value** means any value an expression has; type resolution determines its type. A member's **argument form** is a separate concept: it declares what the member's arguments supply. See [parameters and arguments](members.md#arguments).
