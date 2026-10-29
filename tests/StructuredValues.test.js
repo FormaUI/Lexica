@@ -186,3 +186,33 @@ describe('a structured value bound', () => {
         expect(errorThrownBy(() => bind({ other: new Pin() }, { other: 'Board' }))).toMatchObject({ code: 'LEXICA2036' });
     });
 });
+
+describe('a structure expected in one reading of a node', () => {
+    /** A module whose `distance` is both a module member taking two points and a point's own member taking another, and whose `show` is a module member taking a point and a count beside a point's own `show`. */
+    const createGeo = () => lexica.createModule('Geo', {
+        types: [{
+            name: 'Point',
+            kind: 'structured',
+            members: [
+                ...dataPropertyDeclarations({ x: 'Number' }),
+                createFunctionDeclaration('distance', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('other', 'Point')], impl: () => -1 }),
+                createFunctionDeclaration('show', 'Number', { updates: constantUpdates, impl: () => -1 }),
+            ],
+        }],
+        members: [
+            createFunctionDeclaration('distance', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('a', 'Point'), createValueParameterDeclaration('b', 'Point')], impl: ({ args }) => Math.abs(args.b.x - args.a.x) }),
+            createFunctionDeclaration('show', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('at', 'Point'), createValueParameterDeclaration('count', 'Number')], impl: () => 1 }),
+        ],
+    });
+    const geo = lexica.createRegistry([createGeo()]);
+    const resolveGeo = text => geo.resolve(text, {}, { imports: ['Geo'] });
+
+    it('expects nothing of it in another reading, so a qualified form\'s receiver, which no structure\'s type reaches, constructs nothing', () => {
+        expect(resolveGeo('Geo.distance({ x = 1 }, { x = 4 })').createEvaluator({}).evaluate().value).toBe(3);
+        expect(errorThrownBy(() => resolveGeo('Geo.show({ x = 1 })'))).toMatchObject({ code: 'LEXICA3080', message: expect.stringContaining("'show' requires the argument 'count'") });
+    });
+
+    it('constructs an indexer\'s key written in any form the type reaches, a conditional among them, selecting the signature of the structure it constructs', () => {
+        expect(evaluate('board[if wanted then { x = 1, label = "a" } else { x = 2, label = "b" } end]', { wanted: true })).toBe('point');
+    });
+});

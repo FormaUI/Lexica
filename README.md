@@ -14,7 +14,7 @@ return {
 
 ## Features
 
-### Language (`1.0.0-alpha.36`)
+### Language (`1.0.0-alpha.37`)
 
 - Typed vocabulary modules, declared as data, imported by the scripts that use them and reached through their namespaces
 - Object expressions and list projections that shape data, and construct a module's structured values where they are declared

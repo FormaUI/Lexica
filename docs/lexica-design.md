@@ -1,6 +1,6 @@
-# Lexica Design v1.0.0-alpha.36
+# Lexica Design v1.0.0-alpha.37
 
-The [Lexica specification](../spec/README.md) is the contract: the language, and the [host contract](../spec/runtime.md) its implementations offer. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes language version `1.0.0-alpha.36` and definition version 35, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
+The [Lexica specification](../spec/README.md) is the contract: the language, and the [host contract](../spec/runtime.md) its implementations offer. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes language version `1.0.0-alpha.37` and definition version 35, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
 
 In this document:
 

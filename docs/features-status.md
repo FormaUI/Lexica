@@ -2,11 +2,11 @@
 
 ## Current state
 
-**The core language, host calls, definition version 35, language `1.0.0-alpha.36` and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is done, the implementation following language `1.0.0-alpha.35`, its host checkpoint awaiting DOMQL's migration; [unit 5](#unit-5--specification-examples), the specification examples, is done, every example the documents give resolving and evaluating in the gate; [unit 6](#unit-6--host-additions), the host additions, is done, the implementation following language `1.0.0-alpha.36`, its host checkpoint awaiting DOMQL's migration; [unit 7](#unit-7--tooling), tooling, is next, built on the rules unit 6 settled.**
+**The core language, host calls, definition version 35, language `1.0.0-alpha.36` and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is done, the implementation following language `1.0.0-alpha.35`, its host checkpoint awaiting DOMQL's migration; [unit 5](#unit-5--specification-examples), the specification examples, is done, every example the documents give resolving and evaluating in the gate; [unit 6](#unit-6--host-additions), the host additions, is done, the implementation following language `1.0.0-alpha.36`, and its review's corrections are in progress as language `1.0.0-alpha.37`, its host checkpoint awaiting DOMQL's migration; [unit 7](#unit-7--tooling), tooling, is next, built on the rules unit 6 settled.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.36` | `1.0.0-alpha.36` |
+| Language | `1.0.0-alpha.36` | `1.0.0-alpha.37` |
 | Definition format | 35 | 35 |
 
 The implementation reads definition version 35, its node names, its imports and its collection expressions, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module. Its declarations take the specification's shape: reference types, with their hierarchy, membership and recognition, and structured types, each holding its members; extensions; operators; declared type parameters; and `Any`. One selector chooses every member, indexer and operator, at resolution and, for a value of `Any`, as it is evaluated. A script imports the modules and the types whose vocabulary it uses, a host supplying imports beside its own, and resolution reaches only what they make available, Lexica's own always among it. An extension access, `device:Energy.Device.usage`, selects among one extension's members, its function read without a call a reference bound to its receiver. Scripts follow line structure, and their canonical text reads back as the same definition. Collections are lists, dictionaries and pairs, a script writing them as collection expressions; their construction from members, their operations, positions and ordering follow in unit 4.
@@ -33,7 +33,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 4 | [Collections](#unit-4--collections) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 5 | [Specification examples](#unit-5--specification-examples) | ✅ Done |
-| 6 | [Host additions](#unit-6--host-additions) | ✅ Done; its host checkpoint awaits DOMQL's migration |
+| 6 | [Host additions](#unit-6--host-additions) | Its review's corrections in progress, as language `1.0.0-alpha.37` |
 | 7 | [Tooling](#unit-7--tooling) | Next |
 | 8 | [Release](#unit-8--release) | Planned |
 
@@ -216,6 +216,9 @@ Contract: [Collections](proposals/collections.md).
 6. ✅ **Strings,** specified in [string members](../spec/vocabulary.md#vocabulary-string-members): `length`, `trim`, `lowercase`, `uppercase`, `startsWith`, `endsWith`, `contains`, `indexOf`, `replace`, `split` and the slice by a range, each in UTF-16 code units, the empty text refused to replace or split at and a slice never parting a surrogate pair. LEXICA5040 and LEXICA5041 join the catalog, and LEXICA5033 covers a string's slice beside a list's.
 7. ✅ **Tests of any receiver left to modules:** Lexica's `is`, `has` and `supports` removed, each a second spelling of the Boolean function it was given and an English reading no domain-free language chooses; a module that wants a test of any receiver declares it in an extension of every type, as the home's `room.anyDevice(test)` takes a test of a device. Language `1.0.0-alpha.36` carries the removal, as it was not yet published.
 8. ✅ **Versions:** language `1.0.0-alpha.36`, once every part of it was in.
+9. **The review's corrections,** each in a commit of its own, the specification describing language `1.0.0-alpha.37` from the first:
+   - ✅ An expected structure lasts as long as the resolution it is made for, so a later reading of the node, a qualified call's receiver among them, constructs nothing it doesn't expect; and an indexer's key written in any form the type reaches selects the signature of the structure it constructs.
+10. **Versions:** language `1.0.0-alpha.37`, once every correction is in.
 
 **Completion:** each part is specified and implemented, and the gate passes; DOMQL adopts them at a checkpoint of its own, and confirms there that its watches and subscriptions continue across a registration.
 

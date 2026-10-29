@@ -233,9 +233,7 @@ export class LanguageResolver {
 
                 return { type: Type.createNamedType('Range'), kind: 'value', isFixed: false };
             case 'list':
-                node.items.forEach(item => this.#expectConstruction(item, this.#expectedTypes.get(node)?.itemType));
-
-                return { type: Type.createListType(this.#resolveCollectionItems(node.items.map((item, index) => ({ node: item, pointer: `${pointer}/items/${index}` })), scope, pointer, "A list's items")), kind: 'value', isFixed: false };
+                return { type: Type.createListType(this.#resolveCollectionItems(node.items.map((item, index) => ({ node: item, pointer: `${pointer}/items/${index}` })), scope, pointer, "A list's items", this.#expectedTypes.get(node)?.itemType)), kind: 'value', isFixed: false };
             case 'dictionary': {
                 const values = node.entries.map((entry, index) => ({ node: entry.value, pointer: `${pointer}/entries/${index}/value` }));
 
@@ -288,22 +286,33 @@ export class LanguageResolver {
     }
 
     /**
-     * The structured type each node constructs, or a list of one, by the node: given to a value argument by its parameter's type, and passed on to an object field by its property's, to a list's items, to a
-     * conditional's branches and to a coalescing's sides, so an object expression written where a structure is expected constructs it. Set or cleared whenever a node is about to be resolved in such a place, since
-     * a speculative resolution resolves a node again for another declaration.
+     * The structured type each node constructs, or a list of one, by the node, while the node is being resolved in a place that expects it: given to a value argument by its parameter's type, and passed on to an
+     * object field by its property's, to a list's items, to a conditional's branches and to a coalescing's sides, so an object expression written where a structure is expected constructs it. An entry lasts as long
+     * as the resolution it is made for, so another reading of the node, a speculative one for another declaration or a receiver's, expects nothing of it.
      * @type {WeakMap<object, Type>}
      */
     #expectedTypes = new WeakMap();
 
-    /** Gives the node the type it constructs, where the type expected of it is a structured type or a list of one, nullable or not, and clears it otherwise. */
-    #expectConstruction(node, type) {
+    /** Resolves the node, expecting of it the type given where an object expression can construct that type, a structured type or a list of one, nullable or not, for as long as this resolution of it lasts. */
+    #resolveExpecting(node, pointer, scope, type) {
         const constructible = type === undefined ? null : this.#constructibleTypeOf(type.toNonNullable());
 
         if (constructible === null) {
-            this.#expectedTypes.delete(node);
-        } else {
-            this.#expectedTypes.set(node, constructible);
+            return this.#resolveNode(node, pointer, scope);
         }
+
+        this.#expectedTypes.set(node, constructible);
+
+        try {
+            return this.#resolveNode(node, pointer, scope);
+        } finally {
+            this.#expectedTypes.delete(node);
+        }
+    }
+
+    /** Whether the node is written in a form a structure's type reaches: an object expression following no value, a collection expression of items, a conditional or a coalescing. */
+    static #mayConstruct(node) {
+        return (node.kind === 'object' && node.context === undefined) || node.kind === 'list' || node.kind === 'conditional' || node.kind === 'coalescing';
     }
 
     /** The type, where an object expression can construct it, or a list of it at any depth, which its items can; null for any other, a type parameter its receiver hasn't bound among them. */
@@ -360,9 +369,7 @@ export class LanguageResolver {
      */
     #resolveCoalescing(node, pointer, scope) {
         const results = ['value', 'fallback'].map(side => {
-            this.#expectConstruction(node[side], this.#expectedTypes.get(node));
-
-            const result = this.#resolveNode(node[side], `${pointer}/${side}`, scope);
+            const result = this.#resolveExpecting(node[side], `${pointer}/${side}`, scope, this.#expectedTypes.get(node));
 
             if (result.kind !== 'value') {
                 this.#fail('LEXICA3048', `The ${side} of '??' is a value, and this one is ${LanguageResolver.#descriptionOf(result.kind)}`, `${pointer}/${side}`);
@@ -489,9 +496,7 @@ export class LanguageResolver {
         }
 
         const results = ['consequent', 'alternative'].map(branch => {
-            this.#expectConstruction(node[branch], this.#expectedTypes.get(node));
-
-            const result = this.#resolveNode(node[branch], `${pointer}/${branch}`, branch === 'consequent' ? consequentScope : falseyScope);
+            const result = this.#resolveExpecting(node[branch], `${pointer}/${branch}`, branch === 'consequent' ? consequentScope : falseyScope, this.#expectedTypes.get(node));
 
             if (result.kind !== 'value') {
                 this.#fail('LEXICA3048', `A branch of 'if' is a value, and this one is ${LanguageResolver.#descriptionOf(result.kind)}`, `${pointer}/${branch}`);
@@ -880,12 +885,12 @@ export class LanguageResolver {
      * Resolves a collection expression's items, a list's or a dictionary's values, in order, and answers the type they merge to, a never where it holds none: each is a value, never a host call (LEXICA3048) nor a function,
      * since a collection holds data and references (LEXICA3082), and items of no common type are refused (LEXICA3081), never widened to Any.
      */
-    #resolveCollectionItems(parts, scope, pointer, subject) {
+    #resolveCollectionItems(parts, scope, pointer, subject, expectedItemType) {
         const types = [];
         let merged = Type.never;
 
         for (const part of parts) {
-            const result = this.#resolveNode(part.node, part.pointer, scope);
+            const result = this.#resolveExpecting(part.node, part.pointer, scope, expectedItemType);
 
             if (result.kind !== 'value') {
                 this.#fail('LEXICA3048', `${subject} are values, and this one is ${LanguageResolver.#descriptionOf(result.kind)}`, part.pointer);
@@ -941,8 +946,8 @@ export class LanguageResolver {
         const typeArguments = (receiverType === null ? null : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType)) ?? new Map();
         const keyTypeOf = signature => this.#registry.getDeclaredType(signature, signature.parameters[0].type).resolveTypeParameters(typeArguments);
 
-        // An object expression given as a key constructs the one structure among the signatures' keys whose data shape it fits, and selects its signature.
-        if (node.argument.kind === 'object' && node.argument.context === undefined) {
+        // A key written in a form a structure's type reaches constructs the one structure among the signatures' keys it fits, and selects its signature.
+        if (LanguageResolver.#mayConstruct(node.argument)) {
             const constructing = signatures.filter(signature => {
                 const keyType = keyTypeOf(signature);
 
@@ -950,15 +955,9 @@ export class LanguageResolver {
                     return false;
                 }
 
-                const fits = this.#resolveSpeculatively(() => {
-                    this.#expectConstruction(node.argument, keyType);
+                const fits = this.#resolveSpeculatively(() => this.#resolveExpecting(node.argument, keyPointer, scope, keyType), { keepsSuccess: false });
 
-                    return this.#resolveNode(node.argument, keyPointer, scope);
-                }, { keepsSuccess: false });
-
-                this.#expectedTypes.delete(node.argument);
-
-                return fits.error === undefined;
+                return fits.error === undefined && this.#typeChecker.isAssignable(fits.result.type.toNonNullable(), keyType.toNonNullable());
             });
 
             if (constructing.length === 1) {
@@ -2190,11 +2189,7 @@ export class LanguageResolver {
                 continue;
             }
 
-            const outcome = this.#resolveSpeculatively(() => {
-                this.#expectConstruction(given.node, this.#registry.getDeclaredType(declaration, parameter.type));
-
-                return this.#resolveNode(given.node, given.pointer, argumentScope);
-            }, { keepsSuccess: false });
+            const outcome = this.#resolveSpeculatively(() => this.#resolveExpecting(given.node, given.pointer, argumentScope, this.#registry.getDeclaredType(declaration, parameter.type)), { keepsSuccess: false });
 
             if (outcome.error !== undefined) {
                 continue;
@@ -2326,7 +2321,8 @@ export class LanguageResolver {
      * Resolves a possible reading, answering what it resolves to, or the failure that refuses it where that is a LexicaError; any other failure propagates. A refused reading leaves the resolutions, the declaration uses
      * and the body copies as they were, and so does a successful one unless `keepsSuccess` keeps its records, its result answered either way. Restoring those three stores is all it promises, since resolution writes
      * nothing else a later reading could take for its own: the functions being resolved and the optional chains are removed as each resolution ends, whether it succeeds or fails; an object expression's object-root
-     * fields are reset before they are filled, and read only within it; the result a computed property access follows is read only once its own resolution wrote it; the name an access joins comes from its syntax alone;
+     * fields are reset before they are filled, and read only within it; a structure expected of a node lasts only while the resolution that expects it does; the result a computed property access follows is read only once
+     * its own resolution wrote it; the name an access joins comes from its syntax alone;
      * and the module-function cache keeps one entry for each declaration, whichever reading made it, so references to one declaration stay one function.
      * @param {() => object} resolve The resolution of the reading.
      * @param {{ keepsSuccess: boolean }} options Whether a successful reading's records are kept.
@@ -2852,8 +2848,7 @@ export class LanguageResolver {
                     }
                 }
             } else {
-                this.#expectConstruction(given.node, expected);
-                result = this.#resolveNode(given.node, valuePointer, argumentScope);
+                result = this.#resolveExpecting(given.node, valuePointer, argumentScope, expected);
                 this.#requireValueArgument(result, parameter, declaration, valuePointer);
 
                 if (this.#requireArgumentType(result, expected, parameter, declaration, valuePointer, { allowsCheck: true }) === 'checked') {
@@ -3012,9 +3007,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3086', `The ${constructed} written here has no property '${name}'; it holds ${[...shape.keys()].join(', ')}`, fieldPointer);
             }
 
-            this.#expectConstruction(field.value, shape?.get(name));
-
-            const result = this.#resolveNode(field.value, `${fieldPointer}/value`, scopeHere());
+            const result = this.#resolveExpecting(field.value, `${fieldPointer}/value`, scopeHere(), shape?.get(name));
 
             if (result.kind !== 'value') {
                 this.#fail('LEXICA3048', `The field '${name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and a field is a value`, `${fieldPointer}/value`);
