@@ -213,6 +213,11 @@ export class Vocabulary {
         ];
     }
 
+    /** A position a search found, null for the -1 of one it didn't. */
+    static #positionOrNull(position) {
+        return position === -1 ? null : position;
+    }
+
     /** The item at the offset from the start, null for one the list has no item at. */
     static #itemAt(list, offset) {
         return offset >= 0 && offset < list.length ? list[offset] : null;
@@ -289,6 +294,9 @@ export class Vocabulary {
             Declarations.createFunctionDeclaration('all', 'Boolean', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => receiver.every(item => args.expression(item) === true) }),
             // Whether an item equals the value by the language's key equality, stopping at the first that does; null equals a null item.
             Declarations.createFunctionDeclaration('contains', 'Boolean', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('value', 'T?', { nulls: 'accept' })], impl: ({ receiver, args }) => receiver.includes(args.value) }),
+            // The position of the value's first occurrence, compared as `contains` compares, and of the first item the predicate is truthy for, evaluating it against none after; null where none stands.
+            Declarations.createFunctionDeclaration('indexOf', 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('value', 'T?', { nulls: 'accept' })], impl: ({ receiver, args }) => Vocabulary.#positionOrNull(receiver.indexOf(args.value)) }),
+            Declarations.createFunctionDeclaration('indexWhere', 'Number?', { updates: DERIVED_UPDATES, parameters: [Declarations.createPredicateParameterDeclaration()], impl: ({ receiver, args }) => Vocabulary.#positionOrNull(receiver.findIndex(item => args.expression(item) === true)) }),
             // The one item, null for none, and refused where the list holds several, which no one item stands for.
             Declarations.createPropertyDeclaration('single', 'T?', {
                 updates: DERIVED_UPDATES,

@@ -102,6 +102,17 @@ describe('the members of collections', () => {
             expect([valueOf('xs.contains(1)'), valueOf('xs.contains(5)'), valueOf('gaps.contains(null)'), valueOf('devices.contains(lights.first)')]).toEqual([true, false, true, true]);
         });
 
+        it('answers the position of a value\'s first occurrence, compared as contains compares, a null item and a reference among them, and null where none stands', () => {
+            expect([valueOf('words.indexOf("tea")'), valueOf('xs.indexOf(5)'), valueOf('gaps.indexOf(null)'), valueOf('devices.indexOf(lights.first)'), valueOf('none.indexOf(null)')]).toEqual([0, null, 1, 1, null]);
+            expect(evaluate('xs.indexOf(1)').type).toBe('Number?');
+        });
+
+        it('answers the position of the first item a predicate is truthy for, evaluating it against none after, a null item falsy to a body, and null where none is', () => {
+            expect(valueOf('xs.indexWhere(it.seen < 3)')).toBe(1);
+            expect(seen).toEqual([3, 1]);
+            expect([valueOf('gaps.indexWhere(it > 1)'), valueOf('xs.indexWhere(it > 5)'), valueOf('gaps.indexWhere(x => x == null)')]).toEqual([2, null, 1]);
+        });
+
         it('answers the one item, null for none, and refuses a list of several', () => {
             expect([valueOf('lights.single == lights.first'), valueOf('none.single == null')]).toEqual([true, true]);
             expect(failureOf('xs.single')).toMatchObject({ code: 'LEXICA5030', location: { pointer: '/expression' }, message: expect.stringContaining('holds 3') });
