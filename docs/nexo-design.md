@@ -1,6 +1,6 @@
 # Nexo Design v1.0.0-alpha.38
 
-The [Nexo specification](../spec/README.md) is the contract: the language, and the [host contract](../spec/runtime/hosting.md) its implementations offer. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes language version `1.0.0-alpha.37` and definition version 35, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
+The [Nexo specification](../spec/README.md) is the contract: the [language](../spec/README.md#the-language), and the [runtime](../spec/README.md#the-runtime) its implementations offer a host. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes language version `1.0.0-alpha.37` and definition version 35, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
 
 In this document:
 

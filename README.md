@@ -58,7 +58,7 @@ resolution.createEvaluator(bindings).evaluate().value; // { total: 12 }
 
 | Document | What it holds |
 | --- | --- |
-| [Specification](https://github.com/FormaUI/Nexo/blob/main/spec/README.md) | The language, its vocabulary contracts and its definition format: the contract |
+| [Specification](https://github.com/FormaUI/Nexo/blob/main/spec/README.md) | The contract, in two parts: the language, what a script means, and the runtime, what a host provides to run it |
 | [Guide](https://github.com/FormaUI/Nexo/blob/main/docs/embedding-guide.md) | Embedding Nexo in a host, by example |
 | [Design](https://github.com/FormaUI/Nexo/blob/main/docs/nexo-design.md) | How Nexo is built: its stages, modules, evaluation and tooling |
 | [Status](https://github.com/FormaUI/Nexo/blob/main/docs/features-status.md) | What is implemented, what is being built, and what remains |

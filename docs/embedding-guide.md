@@ -1,6 +1,6 @@
 # Embedding Guide
 
-This guide shows how a host uses Nexo: read text, declare its domain as a module, resolve a script against it, evaluate it, and follow what the evaluation reads. The [specification](../spec/README.md) gives the exact rules, and the [design](nexo-design.md) how each stage works.
+This guide shows how a host uses Nexo: read text, declare its domain as a module, resolve a script against it, evaluate it, and follow what the evaluation reads. The [runtime contract](../spec/README.md#the-runtime) gives the exact rules a host relies on, the [language contract](../spec/README.md#the-language) what a script means, and the [design](nexo-design.md) how each stage works.
 
 ## Load it
 

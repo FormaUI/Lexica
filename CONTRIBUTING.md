@@ -39,10 +39,10 @@ Run the full build from the repository root:
 | `tests/` | Tests arranged to match the source folders, run in Node with no browser |
 | `scripts/` | Bundling scripts |
 | `nuget/` | The NuGet package project |
-| `spec/` | The specification, split by subject, with its index |
+| `spec/` | The specification: the language's contract in `language/` and the runtime's in `runtime/`, one document per subject, with its index |
 | `docs/` | The design, the guide and the status overview |
 
-The [specification](spec/README.md) defines the language, and the [design](docs/nexo-design.md) how Nexo is built. If a change affects either, update the relevant document before implementing it. The [status overview](docs/features-status.md) tracks what is implemented, what is being built, and what remains.
+The [specification](spec/README.md) defines the language and the runtime a host builds on, and the [design](docs/nexo-design.md) how Nexo is built. If a change affects either, update the relevant document before implementing it. The [status overview](docs/features-status.md) tracks what is implemented, what is being built, and what remains.
 
 ## Develop a change
 
