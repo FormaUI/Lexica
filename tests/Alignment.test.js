@@ -11,14 +11,14 @@ const read = path => readFileSync(resolve(repositoryRoot, path), 'utf8');
 describe('Alignment', () => {
     const specification = read('spec/README.md');
     const status = read('docs/features-status.md');
-    const design = read('docs/lexica-design.md');
+    const design = read('docs/nexo-design.md');
     const project = read('nuget/Forma.Lexica.csproj');
     const npmPackage = JSON.parse(read('package.json'));
 
     it('has a specification and a design titled with the one version the specification describes, which its version line names', () => {
-        const [, described] = specification.match(/^# Lexica Specification v(\S+)$/m);
+        const [, described] = specification.match(/^# Nexo Specification v(\S+)$/m);
 
-        expect(design.match(/^# Lexica Design v(\S+)$/m)[1]).toBe(described);
+        expect(design.match(/^# Nexo Design v(\S+)$/m)[1]).toBe(described);
         expect(specification).toContain(`describes language version \`${described}\``);
     });
 
@@ -48,7 +48,7 @@ describe('Alignment', () => {
 
     it('has a README that heads the language\'s features with the version the specification describes, and the implementation\'s with the version it reports', () => {
         const readme = read('README.md');
-        const [, described] = specification.match(/^# Lexica Specification v(\S+)$/m);
+        const [, described] = specification.match(/^# Nexo Specification v(\S+)$/m);
 
         expect(readme).toContain(`### Language (\`${described}\`)`);
         expect(readme).toContain(`### Implementation (\`${lexica.info.versions.implementation}\`)`);

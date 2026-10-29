@@ -1,12 +1,12 @@
-# Contributing to Lexica
+# Contributing to Nexo
 
-Thanks for helping improve Lexica. Bug reports, documentation fixes and code contributions are welcome.
+Thanks for helping improve Nexo. Bug reports, documentation fixes and code contributions are welcome.
 
 For a small fix, you can open a pull request directly. For a larger change, open an issue first so we can agree on the approach before you spend time implementing it. Report vulnerabilities privately using [SECURITY.md](SECURITY.md).
 
 ## Set up
 
-Lexica is a JavaScript library. A small .NET project builds its NuGet package.
+Nexo is a JavaScript library. A small .NET project builds its NuGet package.
 
 You'll need:
 
@@ -34,7 +34,7 @@ Run the full build from the repository root:
 | --- | --- |
 | `src/lexica.js` | The entry point, `lexica`, and its declarations in `src/lexica.d.ts` |
 | `src/language/` | The language: text, definitions, types, resolution, errors and locations |
-| `src/language/vocabulary/` | Modules, their registry, and Lexica's built-in vocabulary |
+| `src/language/vocabulary/` | Modules, their registry, and Nexo's built-in vocabulary |
 | `src/common/` | Object and array operations independent of the language |
 | `tests/` | Tests arranged to match the source folders, run in Node with no browser |
 | `scripts/` | Bundling scripts |
@@ -42,10 +42,10 @@ Run the full build from the repository root:
 | `spec/` | The specification, split by subject, with its index |
 | `docs/` | The design, the guide and the status overview |
 
-The [specification](spec/README.md) defines the language, and the [design](docs/lexica-design.md) how Lexica is built. If a change affects either, update the relevant document before implementing it. The [status overview](docs/features-status.md) tracks what is implemented, what is being built, and what remains.
+The [specification](spec/README.md) defines the language, and the [design](docs/nexo-design.md) how Nexo is built. If a change affects either, update the relevant document before implementing it. The [status overview](docs/features-status.md) tracks what is implemented, what is being built, and what remains.
 
 ## Develop a change
 
 Keep each change focused, and follow the surrounding code's conventions. Use `.editorconfig` for formatting and style. Add or update tests for every source module you change, beside the corresponding source under `tests/`.
 
-Lexica depends on no domain and no browser: nothing in `src/` imports from outside it, which a test enforces, and its tests run in Node.
+Nexo depends on no domain and no browser: nothing in `src/` imports from outside it, which a test enforces, and its tests run in Node.

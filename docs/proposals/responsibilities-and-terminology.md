@@ -4,7 +4,7 @@
 
 ## 1. Purpose and priority
 
-Before continuing the planned declaration migration or adding further features, clarify the conceptual boundaries and terminology throughout Lexica.
+Before continuing the planned declaration migration or adding further features, clarify the conceptual boundaries and terminology throughout Nexo.
 
 The current discussion exposed several sources of confusion:
 
@@ -104,9 +104,9 @@ For example, this JavaScript declaration helper describes a property of a struct
 lexica.declarations.createPropertyDeclaration('temperature', 'Number')
 ```
 
-This Lexica expression constructs an object:
+This Nexo expression constructs an object:
 
-```lexica
+```nexo
 {
     temperature = 25,
     humidity = 60
@@ -242,7 +242,7 @@ A function call invokes a function.
 
 These expressions obtain the function differently:
 
-```lexica
+```nexo
 find()
 Home.device()
 room.find()
@@ -264,7 +264,7 @@ Likewise, the origin of a function does not determine a new kind of call. A func
 
 ## 11. Properties illustrate a meaningful contract distinction
 
-A property is a property, whether a structured value's data or its implementation gives its value. Lexica needs no term for each way a property obtains its value: where the contracts differ, it states the rule directly.
+A property is a property, whether a structured value's data or its implementation gives its value. Nexo needs no term for each way a property obtains its value: where the contracts differ, it states the rule directly.
 
 Every property shares the member kind `property`, and scripts access it through the same property-access forms.
 
@@ -357,7 +357,7 @@ Use explicit `objectField` terminology in code.
 
 Classify each occurrence by meaning.
 
-A JavaScript representation of a structured value does not make its properties Lexica object fields.
+A JavaScript representation of a structured value does not make its properties Nexo object fields.
 
 Preserve established naming conventions for different representations:
 
@@ -535,10 +535,10 @@ Use the same vocabulary across code and documentation.
 Examples must identify their language and use current syntax:
 
 - JavaScript configuration uses JavaScript object syntax.
-- Lexica object fields use `=`.
-- Lexica computed property access uses `.[expression]`.
-- Lexica indexer access uses `[expression]`.
-- Lexica extension access begins with `:`.
+- Nexo object fields use `=`.
+- Nexo computed property access uses `.[expression]`.
+- Nexo indexer access uses `[expression]`.
+- Nexo extension access begins with `:`.
 
 Update headings, anchors, and references with the terminology changes. Preserve historical literal spellings where necessary to explain retired formats.
 

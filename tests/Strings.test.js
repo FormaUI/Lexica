@@ -33,14 +33,14 @@ describe("a string's members", () => {
     });
 
     it('refuses the empty text to replace or to split at, where it is evaluated', () => {
-        expect(errorThrownBy(() => evaluate('"ab".replace("", "-")'))).toMatchObject({ code: 'LEXICA5040', location: { pointer: '/expression' }, message: expect.stringContaining("'replace' is given the empty text") });
-        expect(errorThrownBy(() => evaluate('{ parts = "ab".split("") }'))).toMatchObject({ code: 'LEXICA5040', location: { pointer: '/expression/objectFields/0/value' }, message: expect.stringContaining('no occurrence to split at') });
+        expect(errorThrownBy(() => evaluate('"ab".replace("", "-")'))).toMatchObject({ code: 'NEXO5040', location: { pointer: '/expression' }, message: expect.stringContaining("'replace' is given the empty text") });
+        expect(errorThrownBy(() => evaluate('{ parts = "ab".split("") }'))).toMatchObject({ code: 'NEXO5040', location: { pointer: '/expression/objectFields/0/value' }, message: expect.stringContaining('no occurrence to split at') });
     });
 
     it('slices by a range as strictly as a list, never parting a surrogate pair', () => {
         expect(evaluate('[w[1..3], w[^3..], w[..], w[2..2]]', { w: 'candle' })).toEqual(['an', 'dle', 'candle', '']);
         expect(evaluate('s[0..2]', { s: '\u{1F600}!' })).toBe('\u{1F600}');
-        expect(errorThrownBy(() => evaluate('w[4..9]', { w: 'oat' }))).toMatchObject({ code: 'LEXICA5033', location: { pointer: '/expression' }, message: expect.stringContaining('stands beyond the text') });
-        expect(errorThrownBy(() => evaluate('{ tail = s[1..] }', { s: '\u{1F600}!' }))).toMatchObject({ code: 'LEXICA5041', location: { pointer: '/expression/objectFields/0/value' }, message: expect.stringContaining('parts the surrogate pair at 1') });
+        expect(errorThrownBy(() => evaluate('w[4..9]', { w: 'oat' }))).toMatchObject({ code: 'NEXO5033', location: { pointer: '/expression' }, message: expect.stringContaining('stands beyond the text') });
+        expect(errorThrownBy(() => evaluate('{ tail = s[1..] }', { s: '\u{1F600}!' }))).toMatchObject({ code: 'NEXO5041', location: { pointer: '/expression/objectFields/0/value' }, message: expect.stringContaining('parts the surrogate pair at 1') });
     });
 });

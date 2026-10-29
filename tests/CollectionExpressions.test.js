@@ -4,20 +4,20 @@ import { errorThrownBy } from './support/errors.mjs';
 
 const { createFunctionDeclaration } = lexica.declarations;
 
-/** What the text evaluates to and the type it resolves to, against Lexica's own vocabulary alone. */
+/** What the text evaluates to and the type it resolves to, against Nexo's own vocabulary alone. */
 const evaluated = (text, values = {}) => {
     const resolution = lexica.createRegistry([]).resolve(text, values);
 
     return { type: resolution.type, value: resolution.createEvaluator(values).evaluate().value };
 };
 
-/** The error resolving the text throws, against Lexica's own vocabulary alone. */
+/** The error resolving the text throws, against Nexo's own vocabulary alone. */
 const refusalOf = (text, values = {}) => errorThrownBy(() => lexica.createRegistry([]).resolve(text, values));
 
 describe('collection expressions', () => {
     describe('in text and definitions', () => {
         it('reads a list and a dictionary by their written form, an empty one of each among them, into the nodes of definition version 35', () => {
-            expect(lexica.parse('[10, 20, 30]')).toEqual({ version: 35, imports: [], expression: { kind: 'list', items: [{ kind: 'literal', value: 10 }, { kind: 'literal', value: 20 }, { kind: 'literal', value: 30 }] } });
+            expect(lexica.parse('[10, 20, 30]')).toEqual({ version: 36, imports: [], expression: { kind: 'list', items: [{ kind: 'literal', value: 10 }, { kind: 'literal', value: 20 }, { kind: 'literal', value: 30 }] } });
             expect(lexica.parse(`["coffee" = 3, 'tea' = 2,]`).expression).toEqual({ kind: 'dictionary', entries: [{ key: 'coffee', value: { kind: 'literal', value: 3 } }, { key: 'tea', value: { kind: 'literal', value: 2 } }] });
             expect(lexica.parse('[]').expression).toEqual({ kind: 'list', items: [] });
             expect(lexica.parse('[=]').expression).toEqual({ kind: 'dictionary', entries: [] });
@@ -34,37 +34,37 @@ describe('collection expressions', () => {
         it('refuses a key that is no inline string literal at the key, giving the literal key for a name and toDictionary for a computed key', () => {
             const named = errorThrownBy(() => lexica.parse('[name = 1]'));
 
-            expect(named).toMatchObject({ code: 'LEXICA1066', kind: 'syntax', location: { offset: 1, line: 1, column: 2 } });
+            expect(named).toMatchObject({ code: 'NEXO1066', kind: 'syntax', location: { offset: 1, line: 1, column: 2 } });
             expect(named.message).toContain('A dictionary key must be an inline string literal. Write ["name" = 1] for the literal key "name". For a computed key, construct the dictionary with toDictionary.');
-            expect(errorThrownBy(() => lexica.parse('[$"co{x}" = 1]'))).toMatchObject({ code: 'LEXICA1066', location: { column: 2 } });
-            expect(errorThrownBy(() => lexica.parse('[3 = 1]'))).toMatchObject({ code: 'LEXICA1066', message: expect.stringContaining('Write it between quotes, as ["coffee" = 3]') });
-            expect(errorThrownBy(() => lexica.parse('["""\n    coffee\n    """ = 1]'))).toMatchObject({ code: 'LEXICA1066', location: { column: 2 } });
+            expect(errorThrownBy(() => lexica.parse('[$"co{x}" = 1]'))).toMatchObject({ code: 'NEXO1066', location: { column: 2 } });
+            expect(errorThrownBy(() => lexica.parse('[3 = 1]'))).toMatchObject({ code: 'NEXO1066', message: expect.stringContaining('Write it between quotes, as ["coffee" = 3]') });
+            expect(errorThrownBy(() => lexica.parse('["""\n    coffee\n    """ = 1]'))).toMatchObject({ code: 'NEXO1066', location: { column: 2 } });
         });
 
         it('refuses keyed and unkeyed entries mixed, and an item left out between commas, each at its place', () => {
-            expect(errorThrownBy(() => lexica.parse('[1, "a" = 2]'))).toMatchObject({ code: 'LEXICA1067', location: { column: 5 }, message: expect.stringContaining("this one, a list, holds an entry of a key and a value") });
-            expect(errorThrownBy(() => lexica.parse('["a" = 1, 2]'))).toMatchObject({ code: 'LEXICA1067', location: { column: 11 }, message: expect.stringContaining('this one, a dictionary, holds an item without a key') });
-            expect(errorThrownBy(() => lexica.parse('[1, , 2]'))).toMatchObject({ code: 'LEXICA1068', location: { column: 5 } });
-            expect(errorThrownBy(() => lexica.parse('[, 1]'))).toMatchObject({ code: 'LEXICA1068', location: { column: 2 } });
+            expect(errorThrownBy(() => lexica.parse('[1, "a" = 2]'))).toMatchObject({ code: 'NEXO1067', location: { column: 5 }, message: expect.stringContaining("this one, a list, holds an entry of a key and a value") });
+            expect(errorThrownBy(() => lexica.parse('["a" = 1, 2]'))).toMatchObject({ code: 'NEXO1067', location: { column: 11 }, message: expect.stringContaining('this one, a dictionary, holds an item without a key') });
+            expect(errorThrownBy(() => lexica.parse('[1, , 2]'))).toMatchObject({ code: 'NEXO1068', location: { column: 5 } });
+            expect(errorThrownBy(() => lexica.parse('[, 1]'))).toMatchObject({ code: 'NEXO1068', location: { column: 2 } });
         });
 
         it('refuses two entries of one key, compared once their escapes are read, at the later entry when the definition is validated', () => {
             const duplicate = errorThrownBy(() => lexica.parse('["a" = 1, "\\u{61}" = 2]'));
 
-            expect(duplicate).toMatchObject({ code: 'LEXICA2043', kind: 'structure', location: { pointer: '/expression/entries/1', line: 1, column: 11 } });
+            expect(duplicate).toMatchObject({ code: 'NEXO2043', kind: 'structure', location: { pointer: '/expression/entries/1', line: 1, column: 11 } });
             expect(duplicate.message).toContain('"a" is the key of an entry before this one');
-            expect(errorThrownBy(() => lexica.validate({ version: 35, imports: [], expression: { kind: 'dictionary', entries: [{ key: 'a', value: { kind: 'literal', value: 1 } }, { key: 'a', value: { kind: 'literal', value: 2 } }] } }))).toMatchObject({ code: 'LEXICA2043', location: { pointer: '/expression/entries/1' } });
+            expect(errorThrownBy(() => lexica.validate({ version: 36, imports: [], expression: { kind: 'dictionary', entries: [{ key: 'a', value: { kind: 'literal', value: 1 } }, { key: 'a', value: { kind: 'literal', value: 2 } }] } }))).toMatchObject({ code: 'NEXO2043', location: { pointer: '/expression/entries/1' } });
         });
 
         it('holds simple expressions alone, refusing a do block and an arrow function as an item, and validates a definition\'s key as a string', () => {
-            expect(errorThrownBy(() => lexica.parse('[do 1 end]'))).toMatchObject({ code: 'LEXICA2011', message: expect.stringContaining("A list's item is a simple expression") });
-            expect(errorThrownBy(() => lexica.parse('["a" = do 1 end]'))).toMatchObject({ code: 'LEXICA2011', message: expect.stringContaining("A dictionary's value is a simple expression") });
-            expect(errorThrownBy(() => lexica.parse('[x => 1]'))).toMatchObject({ code: 'LEXICA2027', location: { pointer: '/expression/items/0' } });
-            expect(errorThrownBy(() => lexica.validate({ version: 35, imports: [], expression: { kind: 'dictionary', entries: [{ key: 1, value: { kind: 'literal', value: 1 } }] } }))).toMatchObject({ code: 'LEXICA2000', location: { pointer: '/expression/entries/0/key' } });
+            expect(errorThrownBy(() => lexica.parse('[do 1 end]'))).toMatchObject({ code: 'NEXO2011', message: expect.stringContaining("A list's item is a simple expression") });
+            expect(errorThrownBy(() => lexica.parse('["a" = do 1 end]'))).toMatchObject({ code: 'NEXO2011', message: expect.stringContaining("A dictionary's value is a simple expression") });
+            expect(errorThrownBy(() => lexica.parse('[x => 1]'))).toMatchObject({ code: 'NEXO2027', location: { pointer: '/expression/items/0' } });
+            expect(errorThrownBy(() => lexica.validate({ version: 36, imports: [], expression: { kind: 'dictionary', entries: [{ key: 1, value: { kind: 'literal', value: 1 } }] } }))).toMatchObject({ code: 'NEXO2000', location: { pointer: '/expression/entries/0/key' } });
         });
 
         it('refuses a definition of version 34, which holds no collection expression, naming both versions', () => {
-            expect(errorThrownBy(() => lexica.validate({ version: 34, imports: [], expression: { kind: 'literal', value: 1 } }))).toMatchObject({ code: 'LEXICA2007', message: expect.stringContaining('this one is of version 34'), location: { pointer: '/version' } });
+            expect(errorThrownBy(() => lexica.validate({ version: 34, imports: [], expression: { kind: 'literal', value: 1 } }))).toMatchObject({ code: 'NEXO2007', message: expect.stringContaining('this one is of version 34'), location: { pointer: '/version' } });
         });
     });
 
@@ -72,14 +72,14 @@ describe('collection expressions', () => {
         it('breaks after a bracket, after a comma and before the closing bracket, and keeps a key with its =, its value free to start the next line', () => {
             expect(lexica.parse('[\n    1,\n    2\n]')).toEqual(lexica.parse('[1, 2]'));
             expect(lexica.parse('[\n    "coffee" =\n        3\n]')).toEqual(lexica.parse('["coffee" = 3]'));
-            expect(errorThrownBy(() => lexica.parse('["coffee"\n= 3]'))).toMatchObject({ code: 'LEXICA1041', location: { line: 2, column: 1 } });
-            expect(errorThrownBy(() => lexica.parse('[1\n, 2]'))).toMatchObject({ code: 'LEXICA1041', location: { line: 2, column: 1 } });
-            expect(errorThrownBy(() => lexica.parse('[=\n]'))).toMatchObject({ code: 'LEXICA1041' });
+            expect(errorThrownBy(() => lexica.parse('["coffee"\n= 3]'))).toMatchObject({ code: 'NEXO1041', location: { line: 2, column: 1 } });
+            expect(errorThrownBy(() => lexica.parse('[1\n, 2]'))).toMatchObject({ code: 'NEXO1041', location: { line: 2, column: 1 } });
+            expect(errorThrownBy(() => lexica.parse('[=\n]'))).toMatchObject({ code: 'NEXO1041' });
         });
 
         it('encloses neither an item nor a value, so a line breaks before an operator there only inside parentheses of its own', () => {
-            expect(errorThrownBy(() => lexica.parse('[1\n    + 2]'))).toMatchObject({ code: 'LEXICA1042', location: { line: 2 } });
-            expect(errorThrownBy(() => lexica.parse('["a" = 1\n    + 2]'))).toMatchObject({ code: 'LEXICA1042', location: { line: 2 } });
+            expect(errorThrownBy(() => lexica.parse('[1\n    + 2]'))).toMatchObject({ code: 'NEXO1042', location: { line: 2 } });
+            expect(errorThrownBy(() => lexica.parse('["a" = 1\n    + 2]'))).toMatchObject({ code: 'NEXO1042', location: { line: 2 } });
             expect(lexica.parse('[(1\n    + 2)]')).toEqual(lexica.parse('[1 + 2]'));
         });
     });
@@ -112,9 +112,9 @@ describe('collection expressions', () => {
         });
 
         it('refuses items or values of no common type, never widening them to Any, and a function as an item', () => {
-            expect(refusalOf('[1, "two"]')).toMatchObject({ code: 'LEXICA3081', kind: 'validation', location: { pointer: '/expression' }, message: expect.stringContaining("A list's items share no type: Number, String") });
-            expect(refusalOf('["a" = 1, "b" = true]')).toMatchObject({ code: 'LEXICA3081', message: expect.stringContaining("A dictionary's values share no type: Number, Boolean") });
-            expect(refusalOf('let f = x => x\nreturn [f]')).toMatchObject({ code: 'LEXICA3082', location: { pointer: '/expression/result/items/0' } });
+            expect(refusalOf('[1, "two"]')).toMatchObject({ code: 'NEXO3081', kind: 'validation', location: { pointer: '/expression' }, message: expect.stringContaining("A list's items share no type: Number, String") });
+            expect(refusalOf('["a" = 1, "b" = true]')).toMatchObject({ code: 'NEXO3081', message: expect.stringContaining("A dictionary's values share no type: Number, Boolean") });
+            expect(refusalOf('let f = x => x\nreturn [f]')).toMatchObject({ code: 'NEXO3082', location: { pointer: '/expression/result/items/0' } });
         });
 
         it('reads a dictionary it wrote by key and a list by position, as any of its kind is read', () => {

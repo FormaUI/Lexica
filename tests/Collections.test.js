@@ -65,11 +65,11 @@ describe('collections', () => {
         });
 
         it('refuses a key of no key type and keys or values that share no type, and an iterable no host materialized', () => {
-            expect(errorThrownBy(() => resolve('m', { m: new Map([[[1], 'list']]) }))).toMatchObject({ code: 'LEXICA2041', location: { binding: 'm' } });
-            expect(errorThrownBy(() => resolve('m', { m: new Map([[{ a: 1 }, 'object']]) }))).toMatchObject({ code: 'LEXICA2041' });
-            expect(errorThrownBy(() => resolve('m', { m: new Map([['a', 1], [2, 2]]) }))).toMatchObject({ code: 'LEXICA2042', message: expect.stringContaining('keys') });
-            expect(errorThrownBy(() => resolve('m', { m: new Map([['a', 1], ['b', 'two']]) }))).toMatchObject({ code: 'LEXICA2042', message: expect.stringContaining('values') });
-            expect(errorThrownBy(() => resolve('m', { m: (function* items() { yield 1; })() }))).toMatchObject({ code: 'LEXICA2034' });
+            expect(errorThrownBy(() => resolve('m', { m: new Map([[[1], 'list']]) }))).toMatchObject({ code: 'NEXO2041', location: { binding: 'm' } });
+            expect(errorThrownBy(() => resolve('m', { m: new Map([[{ a: 1 }, 'object']]) }))).toMatchObject({ code: 'NEXO2041' });
+            expect(errorThrownBy(() => resolve('m', { m: new Map([['a', 1], [2, 2]]) }))).toMatchObject({ code: 'NEXO2042', message: expect.stringContaining('keys') });
+            expect(errorThrownBy(() => resolve('m', { m: new Map([['a', 1], ['b', 'two']]) }))).toMatchObject({ code: 'NEXO2042', message: expect.stringContaining('values') });
+            expect(errorThrownBy(() => resolve('m', { m: (function* items() { yield 1; })() }))).toMatchObject({ code: 'NEXO2034' });
         });
     });
 
@@ -119,13 +119,13 @@ describe('collections', () => {
         });
 
         it('refuses a dictionary holding a reference, as a key or a value, where a result would hold it', () => {
-            expect(errorThrownBy(() => resolve('lights', { lights: new Map([['lamp', lamp]]) }))).toMatchObject({ code: 'LEXICA3043' });
-            expect(errorThrownBy(() => resolve('byLight', { byLight: new Map([[lamp, 'on']]) }))).toMatchObject({ code: 'LEXICA3043' });
+            expect(errorThrownBy(() => resolve('lights', { lights: new Map([['lamp', lamp]]) }))).toMatchObject({ code: 'NEXO3043' });
+            expect(errorThrownBy(() => resolve('byLight', { byLight: new Map([[lamp, 'on']]) }))).toMatchObject({ code: 'NEXO3043' });
             expect(evaluate('Shop.devices.keys')).toEqual(['lamp', 'fan']);
         });
 
         it('refuses comparing a dictionary or a pair by an equality with anything but null', () => {
-            expect(errorThrownBy(() => resolve('prices == prices', { prices })).code).toMatch(/^LEXICA3/);
+            expect(errorThrownBy(() => resolve('prices == prices', { prices })).code).toMatch(/^NEXO3/);
             expect(evaluate('prices != null', { prices })).toBe(true);
         });
     });
@@ -141,7 +141,7 @@ describe('collections', () => {
         });
 
         it('fails a member whose map holds values its declaration refuses, and gives an implementation a dictionary it reads', () => {
-            expect(errorThrownBy(() => evaluate('Shop.wrong.count'))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('Dictionary<String, Number>') });
+            expect(errorThrownBy(() => evaluate('Shop.wrong.count'))).toMatchObject({ code: 'NEXO5006', message: expect.stringContaining('Dictionary<String, Number>') });
             expect(evaluate('Shop.priceOf(prices, "coffee")', { prices: new Map([['coffee', 3]]) })).toBe(3);
         });
 
@@ -150,13 +150,13 @@ describe('collections', () => {
             const prepared = lexica.createRegistry([feed]).resolve('Feed.latest()', {}, { imports: ['Feed'] }).createEvaluator({}).prepareHostCall();
 
             expect(prepared.project(new Map([['tea', 2]])).value).toEqual({ entries: [{ key: 'tea', value: 2 }] });
-            expect(errorThrownBy(() => prepared.project(new Map([[1, 2]])))).toMatchObject({ code: 'LEXICA5015' });
+            expect(errorThrownBy(() => prepared.project(new Map([[1, 2]])))).toMatchObject({ code: 'NEXO5015' });
         });
 
         it('refuses a declaration naming a dictionary whose keys are of no key type', () => {
             const refused = errorThrownBy(() => lexica.createRegistry([lexica.createModule('Bad', { members: [createPropertyDeclaration('table', 'Dictionary<List<Number>, String>', { updates: constantUpdates, impl: () => new Map() })] })]));
 
-            expect(refused).toMatchObject({ code: 'LEXICA4563', kind: 'module', message: expect.stringContaining('List<Number>') });
+            expect(refused).toMatchObject({ code: 'NEXO4563', kind: 'module', message: expect.stringContaining('List<Number>') });
         });
     });
 

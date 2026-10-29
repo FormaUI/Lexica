@@ -9,8 +9,8 @@ import { ParsedTexts } from '#lexica/language/ParsedTexts.mjs';
 /** The imports a host of the modules supplies: one of each, under its own name. */
 export const importsOf = modules => modules.map(module => module.name);
 
-/** The names of the modules a registry holds but Lexica's own, which no script imports, as it holds them when asked. */
-const registeredModuleNamesOf = registry => registry.moduleNames.filter(name => name !== 'Lexica');
+/** The names of the modules a registry holds but Nexo's own, which no script imports, as it holds them when asked. */
+const registeredModuleNamesOf = registry => registry.moduleNames.filter(name => name !== 'Nexo');
 
 /**
  * A registry of the modules whose `resolve` supplies every script an import of each module it holds when the script is resolved, those registered afterwards among them, as a host whose scripts all use its modules does;

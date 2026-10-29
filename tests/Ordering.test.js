@@ -82,19 +82,19 @@ describe('ordering a list', () => {
         expect(evaluate('xs.minBy(it)', { xs: [null, null] })).toBeNull();
     });
 
-    it('refuses a key of no ordering domain, and keys of two, at the call (LEXICA5036)', () => {
-        expect(failure('xs.orderBy(it)', { xs: [[1], [2]] })).toMatchObject({ code: 'LEXICA5036', location: { pointer: '/expression' }, message: expect.stringContaining("'orderBy' orders by numbers, strings or Booleans, and a key is a list") });
-        expect(failure('xs.orderBy(it.key)', { xs: [{ key: { a: 1 } }] })).toMatchObject({ code: 'LEXICA5036', message: expect.stringContaining('an object or a reference') });
-        expect(failure('xs.minBy(it)', { xs: [[1]] })).toMatchObject({ code: 'LEXICA5036', message: expect.stringContaining("'minBy'") });
-        expect(failure('Team.mixed().orderBy(it)')).toMatchObject({ code: 'LEXICA5036', message: expect.stringContaining("'orderBy' orders by keys of one domain, and its keys are numbers and strings") });
+    it('refuses a key of no ordering domain, and keys of two, at the call (NEXO5036)', () => {
+        expect(failure('xs.orderBy(it)', { xs: [[1], [2]] })).toMatchObject({ code: 'NEXO5036', location: { pointer: '/expression' }, message: expect.stringContaining("'orderBy' orders by numbers, strings or Booleans, and a key is a list") });
+        expect(failure('xs.orderBy(it.key)', { xs: [{ key: { a: 1 } }] })).toMatchObject({ code: 'NEXO5036', message: expect.stringContaining('an object or a reference') });
+        expect(failure('xs.minBy(it)', { xs: [[1]] })).toMatchObject({ code: 'NEXO5036', message: expect.stringContaining("'minBy'") });
+        expect(failure('Team.mixed().orderBy(it)')).toMatchObject({ code: 'NEXO5036', message: expect.stringContaining("'orderBy' orders by keys of one domain, and its keys are numbers and strings") });
     });
 
-    it('refuses thenBy of a list no orderBy ordered, a filtered ordering among them (LEXICA5037)', () => {
-        expect(failure('people.thenBy(it.name)')).toMatchObject({ code: 'LEXICA5037', location: { pointer: '/expression' }, message: expect.stringContaining("'thenBy' refines the order 'orderBy' gave a list") });
-        expect(failure('people.orderBy(it.age).where(true).thenByDescending(it.name)')).toMatchObject({ code: 'LEXICA5037', message: expect.stringContaining("'thenByDescending'") });
+    it('refuses thenBy of a list no orderBy ordered, a filtered ordering among them (NEXO5037)', () => {
+        expect(failure('people.thenBy(it.name)')).toMatchObject({ code: 'NEXO5037', location: { pointer: '/expression' }, message: expect.stringContaining("'thenBy' refines the order 'orderBy' gave a list") });
+        expect(failure('people.orderBy(it.age).where(true).thenByDescending(it.name)')).toMatchObject({ code: 'NEXO5037', message: expect.stringContaining("'thenByDescending'") });
     });
 
     it("leaves string ordering to the collection's members: an ordering between strings in an expression is still refused", () => {
-        expect(errorThrownBy(() => lexica.createRegistry([]).resolve('"a" < "b"', {}))).toMatchObject({ code: 'LEXICA3078' });
+        expect(errorThrownBy(() => lexica.createRegistry([]).resolve('"a" < "b"', {}))).toMatchObject({ code: 'NEXO3078' });
     });
 });

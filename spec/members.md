@@ -2,9 +2,9 @@
 
 <a id="members"></a>
 
-A **member** is what a module declares on a type: a property, a function, an indexer or an [operator](modules.md#modules-operators); or on no type, a [module member](modules.md#namespaces-module-members), which is a property or a function. A script reaches a member through its receiver, and the member's declaration says how the member is written, what it takes, what it answers, who invokes it, how it reads and how its value changes. Lexica checks every use of a member against its declaration before anything runs.
+A **member** is what a module declares on a type: a property, a function, an indexer or an [operator](modules.md#modules-operators); or on no type, a [module member](modules.md#namespaces-module-members), which is a property or a function. A script reaches a member through its receiver, and the member's declaration says how the member is written, what it takes, what it answers, who invokes it, how it reads and how its value changes. Nexo checks every use of a member against its declaration before anything runs.
 
-```lexica
+```nexo
 room.devices.count                    // A property, then another: the room's devices, counted.
 room.device("lamp")?.battery          // A function, then a property of what it found, if anything.
 device.setting["mode"]                // A named indexer, given its key.
@@ -35,9 +35,9 @@ A member's kind is `property`, `function`, `indexer` or `operator`. A property i
 | A script whose chain ends in | Gives |
 | --- | --- |
 | A property, a function or an indexer the evaluator invokes, or no member | A value: it reads, and answers data |
-| A function the host invokes | A host call: Lexica prepares its receiver and arguments, the host invokes it, and the object expression following it shapes each value the host supplies |
+| A function the host invokes | A host call: Nexo prepares its receiver and arguments, the host invokes it, and the object expression following it shapes each value the host supplies |
 
-Evaluating a script only reads, and the evaluator never invokes a host call, so no evaluation changes the host's state. What a host call does, and when, is the host's own; Lexica's part is set out in [host calls](#members-host-calls) and the [host contract](runtime.md#runtime-host-calls).
+Evaluating a script only reads, and the evaluator never invokes a host call, so no evaluation changes the host's state. What a host call does, and when, is the host's own; Nexo's part is set out in [host calls](#members-host-calls) and the [host contract](runtime.md#runtime-host-calls).
 
 <a id="property-access-calls-and-indexers"></a>
 <a id="access-and-calls"></a>
@@ -55,7 +55,7 @@ Property access, function calls and indexers are distinct constructs. A member's
 | Unnamed indexer | `receiver[key]` | `receiver?[key]` | `rooms[0]` |
 | Extension access | `receiver:Extension.member` | `receiver?:Extension.member` | `device:Device.usage` |
 
-```lexica
+```nexo
 room.devices.count                                // A dot property access.
 room.device("lamp")?.battery                      // A function call, then optional access.
 device.setting["mode"]                            // A named indexer.
@@ -167,14 +167,14 @@ So an optional enclosed access, which makes every access and every pair of brack
 
 A group ends an optional chain, as everywhere: in `(device?.setting)["mode"]` the group holds a named indexer written without its key, which is refused.
 
-A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` reads the property `p` names and `[k]` indexes its answer, so where `p` settles to `"setting"`, the named indexer of that name isn't a candidate, and the computed name is refused, since `setting` names an indexer rather than a property. The named-indexer reading applies only to a member access whose name is written, never to one whose name is an expression. A string literal that is a Lexica name is the name written, as [one property at a time](#bracket-property-access-one-property-at-a-time) sets out, so `device.["setting"]["mode"]` is `device.setting["mode"]`.
+A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` reads the property `p` names and `[k]` indexes its answer, so where `p` settles to `"setting"`, the named indexer of that name isn't a candidate, and the computed name is refused, since `setting` names an indexer rather than a property. The named-indexer reading applies only to a member access whose name is written, never to one whose name is an expression. A string literal that is a Nexo name is the name written, as [one property at a time](#bracket-property-access-one-property-at-a-time) sets out, so `device.["setting"]["mode"]` is `device.setting["mode"]`.
 
 <a id="property-access-calls-and-indexers-unnamed-indexers"></a>
 <a id="property-access-calls-and-indexers-default-indexers"></a>
 
 ### Unnamed indexers
 
-`x[key]` invokes the unnamed indexer of `x`'s type, the indexer declared without a name, of which a type has one, of one or more signatures. Lexica's own `List` declares one, the item at an index counted from zero, so `rooms[0]` is the first room, and `Home`'s `Device` declares one reading a setting, so `device["mode"]` reads the setting `mode`.
+`x[key]` invokes the unnamed indexer of `x`'s type, the indexer declared without a name, of which a type has one, of one or more signatures. Nexo's own `List` declares one, the item at an index counted from zero, so `rooms[0]` is the first room, and `Home`'s `Device` declares one reading a setting, so `device["mode"]` reads the setting `mode`.
 
 | Form | Meaning |
 | --- | --- |
@@ -182,7 +182,7 @@ A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` 
 | `rooms?[i]` | Null for a null list, `i` unevaluated; otherwise the item at `i` |
 | `device["mode"]` | The setting `mode`, as `device.setting["mode"]` reads it |
 
-An indexer's **signatures** are the indexers a type or an extension declares of one name, or unnamed, each taking a key of its own type: Lexica's own `List` declares three, a `Number` and an `Index` looked up and a `Range` sliced. Their key types are disjoint, two whose key types fit one way or the other, or either of which takes a type parameter or `Any`, being refused when they are registered (LEXICA4068 for unnamed ones, LEXICA4029 for named ones). An access selects the indexer as it selects any member, and then the signature whose key type its key's type is assignable to, a key of null or a never the first's; a key no signature takes, and one of `Any` where several signatures stand, is refused (LEXICA3084), never falling through to another member. On a value of `Any`, the signature its key's value is of is selected when it is evaluated.
+An indexer's **signatures** are the indexers a type or an extension declares of one name, or unnamed, each taking a key of its own type: Nexo's own `List` declares three, a `Number` and an `Index` looked up and a `Range` sliced. Their key types are disjoint, two whose key types fit one way or the other, or either of which takes a type parameter or `Any`, being refused when they are registered (NEXO4068 for unnamed ones, NEXO4029 for named ones). An access selects the indexer as it selects any member, and then the signature whose key type its key's type is assignable to, a key of null or a never the first's; a key no signature takes, and one of `Any` where several signatures stand, is refused (NEXO3084), never falling through to another member. On a value of `Any`, the signature its key's value is of is selected when it is evaluated.
 
 [Which unnamed indexer applies](modules.md#namespaces-indexers) follows the type's owner, as any member's does. A type with none refuses `x[key]`, and where `key` is a string and `x` has a property it could name, the validation error gives the computed form, `x.[key]`.
 
@@ -199,7 +199,7 @@ An indexer's **signatures** are the indexers a type or an extension declares of 
 | Named indexer | `device:Device.setting["mode"]` | `device?:Device.setting["mode"]` |
 | Unnamed indexer | `device:Device["mode"]` | `device?:Device["mode"]` |
 
-- **The extension's name.** After `:` stands an extension's name, its local name or one its module qualifies, `device:Energy.Device.usage`, where a name the script's [imports](scripts.md#scripts-imports) give a module, its own or an alias, followed by a dot, is the qualifier, so the text alone decides where the name ends, and an extension named as a module the script imports is written qualified, `device:Solar.Energy.usage`. Resolution reads it as a script's [type name](types.md#types-type-identity) is read, an extension the script imports by name first, `values:Numeric.total` after `import Numeric = Measurements.NumericList`, and otherwise the public extensions of Lexica's own and of the modules the script imports, one only, several refused with their qualified names given: ordinary types take no part, so beside `Home`'s type `Device`, `device:Device.usage` selects `Energy`'s extension, and a name only an ordinary type has is refused.
+- **The extension's name.** After `:` stands an extension's name, its local name or one its module qualifies, `device:Energy.Device.usage`, where a name the script's [imports](scripts.md#scripts-imports) give a module, its own or an alias, followed by a dot, is the qualifier, so the text alone decides where the name ends, and an extension named as a module the script imports is written qualified, `device:Solar.Energy.usage`. Resolution reads it as a script's [type name](types.md#types-type-identity) is read, an extension the script imports by name first, `values:Numeric.total` after `import Numeric = Measurements.NumericList`, and otherwise the public extensions of Nexo's own and of the modules the script imports, one only, several refused with their qualified names given: ordinary types take no part, so beside `Home`'s type `Device`, `device:Device.usage` selects `Energy`'s extension, and a name only an ordinary type has is refused.
 - **Its members alone.** Lookup is limited to the extension's members, so a member it does not declare is an error at that selection, never falling through to another extension or to the receiver's own members, and an extension that ordinary lookup outranks is still reached. The receiver satisfies the extension's target, binding its parameters as [binding a call's parameters](types.md#types-type-parameters-binding) sets out, and visibility and the host's policy apply as to any access.
 - **One member operation.** The selection applies to one member operation, and what follows it applies to that operation's answer as usual: `device:Device.details.name` reads the `name` of what `details` answers, and `device:Device.readings[0]` indexes it, unless `readings` is a named indexer, whose declaration decides. A later colon selects another extension for the intermediate value: `device:Device.readings:ListExtensions.first`.
 - **A postfix of its receiver.** It binds as a member access does, so in `left + right:NumberExtensions.description` it belongs to `right`, and in `(left + right):NumberExtensions.description` to the sum.
@@ -237,7 +237,7 @@ The text alone determines construct boundaries. Parsing does not consult the voc
 
 Computed property access chooses that property or object field by a name an expression gives. `it.["climate"]` and `it.climate` resolve the same member, with the same implementation, type, null behavior and observations.
 
-```lexica
+```nexo
 device {
     let name = if metered then "power" else "battery" end,
 
@@ -318,7 +318,7 @@ A name selects one property. `it.["climate.temperature"]` does not follow a path
 
 An object field is always named, as in `reading = it.["power"]`.
 
-When the name is a string literal that is a Lexica name, its definition is the same as dot access: `it.["power"]` has the definition of `it.power`.
+When the name is a string literal that is a Nexo name, its definition is the same as dot access: `it.["power"]` has the definition of `it.power`.
 
 <a id="arguments"></a>
 
@@ -353,9 +353,9 @@ An options object follows the ordinary rules of an object expression. Its option
 Every parameter of a member is declared as one of four kinds, and the evaluator treats them differently; a parameter an options object supplies is the same.
 
 - A **value argument** is evaluated once, where the call is written, against the same implicit parameter as the chain it appears in, so its `it` is that implicit parameter. In `room { own = it.device(it.name) }`, the argument's `it.name` is the room's name, not a device's. At the top level, where there is no implicit parameter, a value argument starts from a script parameter, `root`, a namespace's member, a local, a literal, an object expression or another input: `room.device(name)`. An object expression given to a value parameter of a structured type constructs the structure, as [constructing a structure](types.md#types-constructing-a-structure) sets out.
-- An **expression argument** is a body of each item of the list the member follows, which is its `it`, and its result must be of the type the parameter declares. In `room.devices.max(it.power)`, `it` is each device. It is written as its body, an expression the member evaluates against each item, or as a function of the item, which the member calls with each: an arrow function, `room.devices.max(d => d.power)`, a delegate a name holds, or a [function reference](functions.md#functions-module-delegates), each checked against the contract of one argument, the item's type, and the parameter's result type, as a function argument is. Whichever form gives it, the member receives a callback of that contract, which it calls only while its own invocation lasts, with one item of the list's item type, and a call after that, or with other arguments, fails. A body that reads no `it` gives each item the same value, so `room.devices.sum(1)` counts them, and one that reads `it` and gives a delegate is a validation error, since a function of the item is written as the argument itself. Lexica's own module's expression parameters are those of `max`, `min` and `sum`.
-- A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against or calls it with: in `room.devices.where(it["mode"])`, the device's setting is truthy wherever it is present, empty or not, and `room.devices.where(Home.active)` keeps the active devices. A Boolean name that does not hold a function is its body, the same for every item, so it keeps every item or none. Lexica's own module's predicate parameter is that of `where`.
-- A **function argument** is a function, which the member receives as a callback and calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type: an arrow function written as the argument, a delegate a name holds, a [function reference](functions.md#functions-module-delegates) to a module's function, as `Home.active` is, or, for a contract of one argument, an [implicit body](functions.md#functions-implicit-bodies), an expression reading `it`, which is that argument. Resolution checks each function the argument may be against the contract, its argument types and its result type, and refuses a name that does not hold a delegate, so `room.anyDevice(metered)` is a validation error for a Boolean `metered`; evaluation checks the result an implementation answers. The member calls it only while its own invocation lasts, and a call after that fails. Lexica's own module declares no function parameter: a module declares the members that take a function for its own domain, as the home's `room.anyDevice(test)` does. Where an expression argument's body that reads no `it` is a value the same for every item, a function argument's is not a delegate, so `room.anyDevice(metered)` is refused where `room.devices.where(metered)` keeps every device or none; `room.anyDevice(d => metered)` writes a test of a Boolean.
+- An **expression argument** is a body of each item of the list the member follows, which is its `it`, and its result must be of the type the parameter declares. In `room.devices.max(it.power)`, `it` is each device. It is written as its body, an expression the member evaluates against each item, or as a function of the item, which the member calls with each: an arrow function, `room.devices.max(d => d.power)`, a delegate a name holds, or a [function reference](functions.md#functions-module-delegates), each checked against the contract of one argument, the item's type, and the parameter's result type, as a function argument is. Whichever form gives it, the member receives a callback of that contract, which it calls only while its own invocation lasts, with one item of the list's item type, and a call after that, or with other arguments, fails. A body that reads no `it` gives each item the same value, so `room.devices.sum(1)` counts them, and one that reads `it` and gives a delegate is a validation error, since a function of the item is written as the argument itself. Nexo's own module's expression parameters are those of `max`, `min` and `sum`.
+- A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against or calls it with: in `room.devices.where(it["mode"])`, the device's setting is truthy wherever it is present, empty or not, and `room.devices.where(Home.active)` keeps the active devices. A Boolean name that does not hold a function is its body, the same for every item, so it keeps every item or none. Nexo's own module's predicate parameter is that of `where`.
+- A **function argument** is a function, which the member receives as a callback and calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type: an arrow function written as the argument, a delegate a name holds, a [function reference](functions.md#functions-module-delegates) to a module's function, as `Home.active` is, or, for a contract of one argument, an [implicit body](functions.md#functions-implicit-bodies), an expression reading `it`, which is that argument. Resolution checks each function the argument may be against the contract, its argument types and its result type, and refuses a name that does not hold a delegate, so `room.anyDevice(metered)` is a validation error for a Boolean `metered`; evaluation checks the result an implementation answers. The member calls it only while its own invocation lasts, and a call after that fails. Nexo's own module declares no function parameter: a module declares the members that take a function for its own domain, as the home's `room.anyDevice(test)` does. Where an expression argument's body that reads no `it` is a value the same for every item, a function argument's is not a delegate, so `room.anyDevice(metered)` is refused where `room.devices.where(metered)` keeps every device or none; `room.anyDevice(d => metered)` writes a test of a Boolean.
 
 Because the kind is part of the signature, resolution validates every kind before evaluation, and evaluation reports the reads of value, expression, predicate and function arguments.
 
@@ -462,7 +462,7 @@ A member may declare a tolerance for its numeric result and every number within 
 
 ### What an implementation receives
 
-An `impl` is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a property added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. A function the host invokes gives Lexica no implementation, and what its host invokes it with is the host's own. An observation type's holds the [`request`](vocabulary.md#observations-types-the-request), `notify` and `env`, and an operator's `value` and `reject`. A property of a structured type's data shape has none, since Lexica reads it from the data, and the hooks `typeOf` and `isInstance` are given the value alone. The contract is JavaScript's alone, and no script is written differently for it.
+An `impl` is called with one object and takes what it needs from it by name, never by position, so none accepts what it ignores to reach what it reads, and a property added later moves nothing. A member's holds `receiver`, the value it is read from, which a module member has none of; `args`, the script's arguments by parameter name, `args` since strict mode refuses `arguments` as a name; and `env`, the environment the host supplies; and, for a member reading maintained values, `samples`, its observations' latest, in the order its declaration names them. A function the host invokes gives Nexo no implementation, and what its host invokes it with is the host's own. An observation type's holds the [`request`](vocabulary.md#observations-types-the-request), `notify` and `env`, and an operator's `value` and `reject`. A property of a structured type's data shape has none, since Nexo reads it from the data, and the hooks `typeOf` and `isInstance` are given the value alone. The contract is JavaScript's alone, and no script is written differently for it.
 
 <a id="how-a-member-reads"></a>
 
@@ -479,7 +479,7 @@ A script is evaluated synchronously, without yielding, and a member's implementa
 
 Facts that must describe one measurement are properties of one structured value's data, which is captured once and read by each of them, as a `Climate`'s temperature and humidity are.
 
-A maintained member's observation starts the first time an evaluation reads it, and the member is **pending** until its first sample arrives. An evaluation that reads a pending member reads it as null and tells its host it is pending, and a host that cannot wait for the sample fails the evaluation instead, by throwing from its `beforeInvoke`, as [a hook that throws](runtime.md#runtime-evaluation) does. What the host throws is the host's own diagnostic, under a code of the host's own prefix where it carries one, and Lexica raises the evaluation's failure at that member, under [its code](diagnostics-and-errors.md#evaluation-errors) for a throwing hook, with what the host threw as its cause; when a host waits for first samples is the host's to decide.
+A maintained member's observation starts the first time an evaluation reads it, and the member is **pending** until its first sample arrives. An evaluation that reads a pending member reads it as null and tells its host it is pending, and a host that cannot wait for the sample fails the evaluation instead, by throwing from its `beforeInvoke`, as [a hook that throws](runtime.md#runtime-evaluation) does. What the host throws is the host's own diagnostic, under a code of the host's own prefix where it carries one, and Nexo raises the evaluation's failure at that member, under [its code](diagnostics-and-errors.md#evaluation-errors) for a throwing hook, with what the host threw as its cause; when a host waits for first samples is the host's to decide.
 
 Evaluating a script is read-only for every vocabulary: what changes the host's state is a host call, which the evaluator never invokes.
 
@@ -499,7 +499,7 @@ Every member declares how its result changes, for a given receiver and arguments
 | Unobserved | The member can be read, and does not name an observation, as `Home.now`. |
 | Derived | The result changes as the items it selects and the expression it evaluates do, such as a list's `first` or `where`. |
 
-The categories are facts a host reads: whether a host keeps a result current over an unobserved or a partly observable member is its own policy, which Lexica gives it the declarations a resolution uses to decide. A literal is constant, so a script that carries one changes only as its members do.
+The categories are facts a host reads: whether a host keeps a result current over an unobserved or a partly observable member is its own policy, which Nexo gives it the declarations a resolution uses to decide. A literal is constant, so a script that carries one changes only as its members do.
 
 <a id="members-host-calls"></a>
 <a id="members-actions-and-behaviors"></a>
@@ -508,9 +508,9 @@ The categories are facts a host reads: whether a host keeps a result current ove
 
 ## Host calls
 
-A **host call** is a call of a function whose declaration says the host invokes it, `invokedBy: 'host'`. Lexica resolves it as it resolves any call, checking its receiver, its arguments and their types against the declaration, and prepares it for the host by evaluating its receiver and arguments; it never invokes it, and its module gives Lexica no implementation of it. What the host does with it, and when, is the host's own.
+A **host call** is a call of a function whose declaration says the host invokes it, `invokedBy: 'host'`. Nexo resolves it as it resolves any call, checking its receiver, its arguments and their types against the declaration, and prepares it for the host by evaluating its receiver and arguments; it never invokes it, and its module gives Nexo no implementation of it. What the host does with it, and when, is the host's own.
 
-```lexica
+```nexo
 light.dim({ to = 40 })                                                                   // The host invokes dim, and supplies the brightness the light reached.
 thermostat.hold({ target = 21 })                                                         // The host invokes hold, and supplies nothing.
 sensor.on("motion") { at = it.at, strong = it.strength > 0.8, room = sensor.room.name }  // The host invokes on, and supplies each motion the sensor reports.
@@ -528,7 +528,7 @@ The declarations that take a name as it is written agree on who invokes it, as [
 
 ### The values a host supplies
 
-The `result` of a function the host invokes is the type of each value its host supplies for projection: the one value it answers, or each of several it supplies over time; one that declares no `result` supplies none. Lexica checks a supplied value against that type and takes it as the evaluator takes any member's answer, so it treats a value alike whether it arrived at once, later or repeatedly, as [projecting a supplied value](runtime.md#runtime-host-calls) sets out.
+The `result` of a function the host invokes is the type of each value its host supplies for projection: the one value it answers, or each of several it supplies over time; one that declares no `result` supplies none. Nexo checks a supplied value against that type and takes it as the evaluator takes any member's answer, so it treats a value alike whether it arrived at once, later or repeatedly, as [projecting a supplied value](runtime.md#runtime-host-calls) sets out.
 
 The object expression following a host call is its **result projection**, evaluated against each value its host supplies, which is its implicit parameter. It reads that value's own data, the locals the script declares before the call, with the values the call was [prepared](runtime.md#runtime-host-calls) with, and anything a script parameter reaches; its members are read once for each value and never evaluated again for it, so an unobserved member is allowed in it. A host call whose function declares no `result` takes no result projection, and one written is a validation error.
 

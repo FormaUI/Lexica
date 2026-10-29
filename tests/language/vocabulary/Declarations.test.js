@@ -22,7 +22,7 @@ describe('Declarations', () => {
 
     it('creates a property without updates as a property of a structured type\'s data, which a module member is refused for lacking', () => {
         expect(Declarations.createPropertyDeclaration('price', 'Number')).toEqual({ name: 'price', kind: 'property', result: 'Number' });
-        expect(refusalOf([Declarations.createPropertyDeclaration('price', 'Number', { impl: () => 1 })])).toEqual({ code: 'LEXICA4032', location: { module: 'shop', declaration: 'price', declarationKey: 'updates' } });
+        expect(refusalOf([Declarations.createPropertyDeclaration('price', 'Number', { impl: () => 1 })])).toEqual({ code: 'NEXO4032', location: { module: 'shop', declaration: 'price', declarationKey: 'updates' } });
         expect(() => new LexicaModule('shop', { types: [{ name: 'Cup', kind: 'structured', members: [Declarations.createPropertyDeclaration('price', 'Number')] }] })).not.toThrow();
         expect(() => new LexicaModule('shop', { members: [Declarations.createPropertyDeclaration('price', 'Number', { updates: constantUpdates, impl: () => 1 })] })).not.toThrow();
     });

@@ -14,33 +14,33 @@ const withLineBreaks = (text, lineBreak) => text.replaceAll('\n', lineBreak);
 
 describe('LineStructure', () => {
     describe('one-line constructs', () => {
-        it('refuse a line break inside them with LEXICA1041, naming the construct and giving the form joined, at what must share its line', () => {
-            expectRefused('rooms.\nwhere', 'LEXICA1041', 2, 1, "A member step's '.' and its name stand on one line: write '.where'");
-            expectRefused('let\nwidth = 1\nreturn width', 'LEXICA1041', 2, 1, "A local's 'let', its name and its '=' stand on one line: write 'let width'");
-            expectRefused('room { size\n= 1 }', 'LEXICA1041', 2, 1, "An object field's name and its '=' stand on one line: write 'size ='");
-            expectRefused('let f = x => x\nreturn f\n(1)', 'LEXICA1041', 3, 1, "A call's '(' and the name it calls stand on one line: write 'f('");
-            expectRefused('room.device\n("lamp")', 'LEXICA1041', 2, 1, "write 'device('");
-            expectRefused('rooms\n[0]', 'LEXICA1041', 2, 1, "An indexer's '[' and what it indexes stand on one line: write 'rooms['");
-            expectRefused('room\n{ size = it.size }', 'LEXICA1041', 2, 1, "An object expression's '{' and its receiver stand on one line");
-            expectRefused('(device as\nLight).power', 'LEXICA1041', 2, 1, "A cast's 'as' and its type stand on one line: write 'as Light'");
-            expectRefused('-\nwidth', 'LEXICA1041', 2, 1, 'A prefix operator and the start of its operand stand on one line');
-            expectRefused('not\nlit', 'LEXICA1041', 2, 1, 'A prefix operator');
-            expectRefused('rooms.map((a,\nb) => a)', 'LEXICA1041', 2, 1, "An arrow function's parameters and its '=>' stand on one line");
-            expectRefused('room.device("a"\n, "b")', 'LEXICA1041', 2, 1, 'A comma and what it follows stand on one line');
-            expectRefused('room.\n["size"]', 'LEXICA1041', 2, 1, "A computed property access's '.' and its '[' stand on one line: write '.['");
+        it('refuse a line break inside them with NEXO1041, naming the construct and giving the form joined, at what must share its line', () => {
+            expectRefused('rooms.\nwhere', 'NEXO1041', 2, 1, "A member step's '.' and its name stand on one line: write '.where'");
+            expectRefused('let\nwidth = 1\nreturn width', 'NEXO1041', 2, 1, "A local's 'let', its name and its '=' stand on one line: write 'let width'");
+            expectRefused('room { size\n= 1 }', 'NEXO1041', 2, 1, "An object field's name and its '=' stand on one line: write 'size ='");
+            expectRefused('let f = x => x\nreturn f\n(1)', 'NEXO1041', 3, 1, "A call's '(' and the name it calls stand on one line: write 'f('");
+            expectRefused('room.device\n("lamp")', 'NEXO1041', 2, 1, "write 'device('");
+            expectRefused('rooms\n[0]', 'NEXO1041', 2, 1, "An indexer's '[' and what it indexes stand on one line: write 'rooms['");
+            expectRefused('room\n{ size = it.size }', 'NEXO1041', 2, 1, "An object expression's '{' and its receiver stand on one line");
+            expectRefused('(device as\nLight).power', 'NEXO1041', 2, 1, "A cast's 'as' and its type stand on one line: write 'as Light'");
+            expectRefused('-\nwidth', 'NEXO1041', 2, 1, 'A prefix operator and the start of its operand stand on one line');
+            expectRefused('not\nlit', 'NEXO1041', 2, 1, 'A prefix operator');
+            expectRefused('rooms.map((a,\nb) => a)', 'NEXO1041', 2, 1, "An arrow function's parameters and its '=>' stand on one line");
+            expectRefused('room.device("a"\n, "b")', 'NEXO1041', 2, 1, 'A comma and what it follows stand on one line');
+            expectRefused('room.\n["size"]', 'NEXO1041', 2, 1, "A computed property access's '.' and its '[' stand on one line: write '.['");
         });
 
         it('refuse one within an import, an extension selector and a qualified type name', () => {
-            expectRefused('import\nHome\nHome.rooms', 'LEXICA1041', 2, 1, "An import's words stand on one line: write 'import Home'");
-            expectRefused('item:\nWords.shout', 'LEXICA1041', 2, 1, "An extension selector's ':' and its extension's name stand on one line");
-            expectRefused('import Home\n(device as Home.\nLight).power', 'LEXICA1041', 3, 1, "A qualified type name's words stand on one line");
+            expectRefused('import\nHome\nHome.rooms', 'NEXO1041', 2, 1, "An import's words stand on one line: write 'import Home'");
+            expectRefused('item:\nWords.shout', 'NEXO1041', 2, 1, "An extension selector's ':' and its extension's name stand on one line");
+            expectRefused('import Home\n(device as Home.\nLight).power', 'NEXO1041', 3, 1, "A qualified type name's words stand on one line");
             expect(lexica.parse('item:Words\n    .shout').expression).toMatchObject({ kind: 'memberAccess', name: 'shout', extension: { name: 'Words' } });
         });
 
         it('take a comment that holds no line break, and a line comment after a completed construct', () => {
             expect(lexica.parse('rooms./* the */where').expression).toMatchObject({ kind: 'memberAccess', name: 'where' });
             expect(lexica.parse('let width = 1 // one\nreturn width').expression).toMatchObject({ kind: 'body' });
-            expectRefused('rooms. // the\nwhere', 'LEXICA1041', 2, 1, "write '.where'");
+            expectRefused('rooms. // the\nwhere', 'NEXO1041', 2, 1, "write '.where'");
         });
     });
 
@@ -69,16 +69,16 @@ describe('LineStructure', () => {
             texts.forEach(text => expect(() => lexica.parse(text), text).not.toThrow());
         });
 
-        it('refuse one before an operator anywhere else with LEXICA1042, at the operator, an enclosure belonging to its one position', () => {
-            expectRefused('let a = b\n-1\nreturn a', 'LEXICA1042', 2, 1, 'A line breaks before an operator only inside parentheses, brackets or a condition');
-            expectRefused('room { gap = a\n    - b }', 'LEXICA1042', 2, 5);
-            expectRefused('room.dim({\n    value = a\n        + b\n})', 'LEXICA1042', 3, 9);
-            expectRefused('a\n    and b', 'LEXICA1042', 2, 5);
+        it('refuse one before an operator anywhere else with NEXO1042, at the operator, an enclosure belonging to its one position', () => {
+            expectRefused('let a = b\n-1\nreturn a', 'NEXO1042', 2, 1, 'A line breaks before an operator only inside parentheses, brackets or a condition');
+            expectRefused('room { gap = a\n    - b }', 'NEXO1042', 2, 5);
+            expectRefused('room.dim({\n    value = a\n        + b\n})', 'NEXO1042', 3, 9);
+            expectRefused('a\n    and b', 'NEXO1042', 2, 5);
         });
 
-        it('refuse one after an operator with LEXICA1064, at the operator, enclosed or not', () => {
-            expectRefused('(a +\n    b)', 'LEXICA1064', 1, 4, "A line breaks before an operator, never after it: start the next line with '+'");
-            expectRefused('a ??\n    b', 'LEXICA1064', 1, 3, "'??'");
+        it('refuse one after an operator with NEXO1064, at the operator, enclosed or not', () => {
+            expectRefused('(a +\n    b)', 'NEXO1064', 1, 4, "A line breaks before an operator, never after it: start the next line with '+'");
+            expectRefused('a ??\n    b', 'NEXO1064', 1, 3, "'??'");
         });
     });
 
@@ -96,34 +96,34 @@ describe('LineStructure', () => {
             texts.forEach(text => expect(() => lexica.parse(text), text).not.toThrow());
         });
 
-        it('refuse any mixture with LEXICA1043, giving the block form', () => {
-            expectRefused('if lit then "on"\nelse "off" end', 'LEXICA1043', 1, 13, "write the branch on the lines after its 'then'");
-            expectRefused('if lit\nthen\n    "on"\nelse\n    "off"\nend', 'LEXICA1043', 2, 1, "write 'then' at the end of its condition's last line");
-            expectRefused('if\nlit then 1 else 2 end', 'LEXICA1043', 2, 1, "write its condition's start on the line of its 'if'");
-            expectRefused('if lit then\n    "on"\nelse\n    "off" end', 'LEXICA1043', 4, 11, "write 'end' at the start of a line of its own");
-            expectRefused('(do\n    return 1\nend) + 2', 'LEXICA1043', 3, 6, "only closing punctuation follows its 'end' on that line");
-            expectRefused('let f = function\n(x) x end\nreturn f(1)', 'LEXICA1041', 2, 1, "'function' and its '(' stand on one line: write 'function('");
-            expectRefused('let f = function(x) x\nend\nreturn f(1)', 'LEXICA1043', 1, 21, "write the function's body on the lines after its head");
+        it('refuse any mixture with NEXO1043, giving the block form', () => {
+            expectRefused('if lit then "on"\nelse "off" end', 'NEXO1043', 1, 13, "write the branch on the lines after its 'then'");
+            expectRefused('if lit\nthen\n    "on"\nelse\n    "off"\nend', 'NEXO1043', 2, 1, "write 'then' at the end of its condition's last line");
+            expectRefused('if\nlit then 1 else 2 end', 'NEXO1043', 2, 1, "write its condition's start on the line of its 'if'");
+            expectRefused('if lit then\n    "on"\nelse\n    "off" end', 'NEXO1043', 4, 11, "write 'end' at the start of a line of its own");
+            expectRefused('(do\n    return 1\nend) + 2', 'NEXO1043', 3, 6, "only closing punctuation follows its 'end' on that line");
+            expectRefused('let f = function\n(x) x end\nreturn f(1)', 'NEXO1041', 2, 1, "'function' and its '(' stand on one line: write 'function('");
+            expectRefused('let f = function(x) x\nend\nreturn f(1)', 'NEXO1043', 1, 21, "write the function's body on the lines after its head");
         });
     });
 
     describe('boundaries', () => {
-        it('refuse an import, the body after the imports, and a local or return of a body that uses return sharing a line with earlier code, LEXICA1044', () => {
-            expectRefused('import Home import Garden\nHome.rooms', 'LEXICA1044', 1, 13, 'An import starts on a line of its own');
-            expectRefused('import Home Home.rooms', 'LEXICA1044', 1, 13, 'The body after the imports starts on a line of its own');
-            expectRefused('let a = 1 let b = 2\nreturn a', 'LEXICA1044', 1, 11, "Each local and the 'return' of a body that uses return start on a line of their own");
-            expectRefused('let a = 1 return a', 'LEXICA1044', 1, 11);
-            expectRefused('do return 1 end', 'LEXICA1044', 1, 4, 'A body that uses return starts on a line of its own');
-            expectRefused('return\n1', 'LEXICA1041', 2, 1, "A body's 'return' and the start of its result stand on one line");
+        it('refuse an import, the body after the imports, and a local or return of a body that uses return sharing a line with earlier code, NEXO1044', () => {
+            expectRefused('import Home import Garden\nHome.rooms', 'NEXO1044', 1, 13, 'An import starts on a line of its own');
+            expectRefused('import Home Home.rooms', 'NEXO1044', 1, 13, 'The body after the imports starts on a line of its own');
+            expectRefused('let a = 1 let b = 2\nreturn a', 'NEXO1044', 1, 11, "Each local and the 'return' of a body that uses return start on a line of their own");
+            expectRefused('let a = 1 return a', 'NEXO1044', 1, 11);
+            expectRefused('do return 1 end', 'NEXO1044', 1, 4, 'A body that uses return starts on a line of its own');
+            expectRefused('return\n1', 'NEXO1041', 2, 1, "A body's 'return' and the start of its result stand on one line");
         });
     });
 
     describe('line breaks', () => {
         it('apply alike to LF, CRLF and a lone CR', () => {
             for (const lineBreak of ['\n', '\r\n', '\r']) {
-                expect(refusalOf(withLineBreaks('rooms.\nwhere', lineBreak)), JSON.stringify(lineBreak)).toMatchObject({ code: 'LEXICA1041', location: { line: 2, column: 1 } });
-                expect(refusalOf(withLineBreaks('let a = b\n-1\nreturn a', lineBreak))).toMatchObject({ code: 'LEXICA1042', location: { line: 2, column: 1 } });
-                expect(refusalOf(withLineBreaks('let a = 1 return a', lineBreak))).toMatchObject({ code: 'LEXICA1044' });
+                expect(refusalOf(withLineBreaks('rooms.\nwhere', lineBreak)), JSON.stringify(lineBreak)).toMatchObject({ code: 'NEXO1041', location: { line: 2, column: 1 } });
+                expect(refusalOf(withLineBreaks('let a = b\n-1\nreturn a', lineBreak))).toMatchObject({ code: 'NEXO1042', location: { line: 2, column: 1 } });
+                expect(refusalOf(withLineBreaks('let a = 1 return a', lineBreak))).toMatchObject({ code: 'NEXO1044' });
                 expect(() => lexica.parse(withLineBreaks('do\n    let a = 1\n    return a\nend', lineBreak))).not.toThrow();
             }
 

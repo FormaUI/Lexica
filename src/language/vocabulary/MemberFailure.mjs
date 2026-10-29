@@ -1,5 +1,5 @@
 /**
- * MemberFailure — a failure one of Lexica's own members reports of the values it is given, which the evaluator raises at the call with the code it carries
+ * MemberFailure — a failure one of Nexo's own members reports of the values it is given, which the evaluator raises at the call with the code it carries
  */
 
 export class MemberFailure extends Error {

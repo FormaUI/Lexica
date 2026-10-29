@@ -1,5 +1,5 @@
 /**
- * Type — a Lexica type: a named type, a generic one with its type arguments among them, an object type, the object root, a function type, whose values are delegates, a type parameter or `Any`, each nullable or not, the type of null, and the type no value has;
+ * Type — a Nexo type: a named type, a generic one with its type arguments among them, an object type, the object root, a function type, whose values are delegates, a type parameter or `Any`, each nullable or not, the type of null, and the type no value has;
  * a value alone, whose relations to another type `TypeChecker` answers
  */
 
@@ -10,11 +10,11 @@ const TYPE_PARAMETER = /^(?:[A-Z]|@[A-Za-z][A-Za-z0-9]*)$/;
 /** The scalar types' names by the JavaScript type of their values: `LexicaModule.scalarTypeNames`, which a test keeps this map to, by `typeof`, since `Type` imports nothing of the vocabulary. */
 const PRIMITIVE_TYPE_NAMES = Object.freeze({ string: 'String', number: 'Number', boolean: 'Boolean' });
 
-/** How many type arguments each of Lexica's own generic types takes, by its name: the generic value types `Vocabulary` declares, which a test keeps this table to, since `Type` imports nothing of the vocabulary. */
+/** How many type arguments each of Nexo's own generic types takes, by its name: the generic value types `Vocabulary` declares, which a test keeps this table to, since `Type` imports nothing of the vocabulary. */
 const GENERIC_TYPE_ARITIES = Object.freeze({ List: 1, Dictionary: 2, Pair: 2 });
 
 export class Type {
-    /** The names of Lexica's own generic types, each with how many type arguments it takes. */
+    /** The names of Nexo's own generic types, each with how many type arguments it takes. */
     static genericTypeArities = GENERIC_TYPE_ARITIES;
 
     /** @type {Map<string, Type | null>} */
@@ -26,7 +26,7 @@ export class Type {
     /** The type's name, for a named type or a type parameter: a named type's local name, unique within its module. */
     name;
 
-    /** The name of the module that declares a named type, null for one of Lexica's own types and for a name no module qualifies yet. */
+    /** The name of the module that declares a named type, null for one of Nexo's own types and for a name no module qualifies yet. */
     moduleName;
 
     /** A generic named type's type arguments, in the order its declaration declares its parameters; empty for any other type. @type {readonly Type[]} */
@@ -65,12 +65,12 @@ export class Type {
         return Type.#parseCache.get(text);
     }
 
-    /** A named type, one of Lexica's own types where no module declares it. */
+    /** A named type, one of Nexo's own types where no module declares it. */
     static createNamedType(name, isNullable = false, moduleName = null) {
         return new Type('named', { name, moduleName, isNullable });
     }
 
-    /** A named type's identity, its module's name and its local name, or its local name alone for one of Lexica's own types; null for any other type. */
+    /** A named type's identity, its module's name and its local name, or its local name alone for one of Nexo's own types; null for any other type. */
     get identity() {
         if (this.kind !== 'named') {
             return null;
@@ -84,32 +84,32 @@ export class Type {
         return Type.createNamedType(PRIMITIVE_TYPE_NAMES[typeof value]);
     }
 
-    /** A list of the item type: Lexica's own generic `List`, its one type argument the item type. */
+    /** A list of the item type: Nexo's own generic `List`, its one type argument the item type. */
     static createListType(itemType, isNullable = false) {
         return new Type('named', { name: 'List', typeArguments: [itemType], isNullable });
     }
 
-    /** A dictionary of the key type and the value type: Lexica's own generic `Dictionary`. */
+    /** A dictionary of the key type and the value type: Nexo's own generic `Dictionary`. */
     static createDictionaryType(keyType, valueType, isNullable = false) {
         return new Type('named', { name: 'Dictionary', typeArguments: [keyType, valueType], isNullable });
     }
 
-    /** A pair of the key type and the value type: Lexica's own generic `Pair`. */
+    /** A pair of the key type and the value type: Nexo's own generic `Pair`. */
     static createPairType(keyType, valueType, isNullable = false) {
         return new Type('named', { name: 'Pair', typeArguments: [keyType, valueType], isNullable });
     }
 
-    /** Whether the type is a dictionary, Lexica's own `Dictionary`. */
+    /** Whether the type is a dictionary, Nexo's own `Dictionary`. */
     get isDictionary() {
         return this.kind === 'named' && this.moduleName === null && this.name === 'Dictionary';
     }
 
-    /** Whether the type is a pair, Lexica's own `Pair`. */
+    /** Whether the type is a pair, Nexo's own `Pair`. */
     get isPair() {
         return this.kind === 'named' && this.moduleName === null && this.name === 'Pair';
     }
 
-    /** Whether the type is a list, Lexica's own `List`. */
+    /** Whether the type is a list, Nexo's own `List`. */
     get isList() {
         return this.kind === 'named' && this.moduleName === null && this.name === 'List';
     }
@@ -318,7 +318,7 @@ class TypeReader {
 
         let type;
 
-        // One of Lexica's own generic types takes its type arguments in angle brackets, separated by a comma and a space, and no other name takes any.
+        // One of Nexo's own generic types takes its type arguments in angle brackets, separated by a comma and a space, and no other name takes any.
         if (this.#text[this.#offset] === '<') {
             const arity = Object.hasOwn(GENERIC_TYPE_ARITIES, match[0]) ? GENERIC_TYPE_ARITIES[match[0]] : 0;
             const typeArguments = [];

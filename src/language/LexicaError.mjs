@@ -1,8 +1,8 @@
 /**
- * LexicaError — a Lexica failure, the code of its condition and its location
+ * LexicaError — a Nexo failure, the code of its condition and its location
  */
 
-/** The first code of each kind's range of Lexica's own codes, which runs a thousand codes. */
+/** The first code of each kind's range of Nexo's own codes, which runs a thousand codes. */
 const CODE_RANGE_STARTS = { syntax: 1000, structure: 2000, validation: 3000, module: 4000, evaluation: 5000 };
 
 /**
@@ -17,7 +17,7 @@ const CODE_RANGE_STARTS = { syntax: 1000, structure: 2000, validation: 3000, mod
  */
 
 export class LexicaError extends Error {
-    /** The code of the condition that failed: `LEXICA` and four digits for Lexica's own, a host's own prefix for a host's. */
+    /** The code of the condition that failed: `NEXO` and four digits for Nexo's own, a host's own prefix for a host's. */
     code;
 
     /** @type {'syntax' | 'structure' | 'validation' | 'module' | 'evaluation'} */
@@ -68,15 +68,15 @@ export class LexicaError extends Error {
         return new LexicaError('module', code, message, location);
     }
 
-    /** Refuses a code that is not one, or one of Lexica's own outside its kind's range, which is a mistake in the code raising it. */
+    /** Refuses a code that is not one, or one of Nexo's own outside its kind's range, which is a mistake in the code raising it. */
     static #requireCode(kind, code) {
         if (typeof code !== 'string' || code === '') {
             throw new TypeError(`A ${kind} error is raised with the code of its condition, and is given ${String(code)}`);
         }
 
-        const own = /^LEXICA(\d{4})$/.exec(code);
-        if (code.startsWith('LEXICA') && (own === null || Math.floor(Number(own[1]) / 1000) * 1000 !== CODE_RANGE_STARTS[kind])) {
-            throw new TypeError(`The code ${code} is outside the range of Lexica's ${kind} codes, ${CODE_RANGE_STARTS[kind]} to ${CODE_RANGE_STARTS[kind] + 999}`);
+        const own = /^NEXO(\d{4})$/.exec(code);
+        if (code.startsWith('NEXO') && (own === null || Math.floor(Number(own[1]) / 1000) * 1000 !== CODE_RANGE_STARTS[kind])) {
+            throw new TypeError(`The code ${code} is outside the range of Nexo's ${kind} codes, ${CODE_RANGE_STARTS[kind]} to ${CODE_RANGE_STARTS[kind] + 999}`);
         }
     }
 
@@ -133,10 +133,10 @@ export class LexicaError extends Error {
     }
 }
 
-/** The errors Lexica's own code raised, each made by LexicaErrors; one a host builds with the class's factories is not among them. @type {WeakSet<LexicaError>} */
+/** The errors Nexo's own code raised, each made by LexicaErrors; one a host builds with the class's factories is not among them. @type {WeakSet<LexicaError>} */
 const raisedErrors = new WeakSet();
 
-/** The error, marked as one Lexica raised. */
+/** The error, marked as one Nexo raised. */
 const raise = error => {
     raisedErrors.add(error);
 
@@ -144,9 +144,9 @@ const raise = error => {
 };
 
 /**
- * The factories Lexica's own code raises its errors with, each marking the error as one Lexica raised, and `isRaisedByLexica`, whether that marker is on an error, which a failure passing through a host's code keeps as it
- * is: a LexicaError a host builds with the exported class carries none, so it stays apart from Lexica's own.
- * The package exports the class alone, whose factories a host builds its own errors with, so a host's error is never taken for Lexica's.
+ * The factories Nexo's own code raises its errors with, each marking the error as one Nexo raised, and `isRaisedByLexica`, whether that marker is on an error, which a failure passing through a host's code keeps as it
+ * is: a LexicaError a host builds with the exported class carries none, so it stays apart from Nexo's own.
+ * The package exports the class alone, whose factories a host builds its own errors with, so a host's error is never taken for Nexo's.
  */
 export const LexicaErrors = Object.freeze({
     syntax: (code, message, text, offset) => raise(LexicaError.syntax(code, message, text, offset)),

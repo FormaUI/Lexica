@@ -46,8 +46,8 @@ describe('type identity', () => {
         });
     });
 
-    describe("of a module's type spelled as one of Lexica's own", () => {
-        it("leaves an unqualified name Lexica's own, the module's named qualified, and a declaration of the module naming its own", () => {
+    describe("of a module's type spelled as one of Nexo's own", () => {
+        it("leaves an unqualified name Nexo's own, the module's named qualified, and a declaration of the module naming its own", () => {
             const measures = lexica.createModule('measures', {
                 types: [{ name: 'Number', kind: 'structured', members: dataPropertyDeclarations({ amount: 'String' }) }, extensionDeclaration('Amounts', 'String', [operatorDeclaration('convert', 'Number', ({ value }) => ({ amount: value }))])],
             });
@@ -91,7 +91,7 @@ describe('type identity', () => {
             expect(messageThrownBy(() => createImportingRegistry([axes, charts]))).toContain("names the type 'Axis', which only another module declares");
         });
 
-        it('takes a type named as a node of Lexica\'s in its own module, where it names that type, and leaves Lexica\'s node to every other', () => {
+        it('takes a type named as a node of Nexo\'s in its own module, where it names that type, and leaves Nexo\'s node to every other', () => {
             const shapes = lexica.createModule('shapes', {
                 types: [{ name: 'Element', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }],
                 members: [createPropertyDeclaration('element', 'Element', { updates: constantUpdates, impl: () => ({ width: 3 }) })],

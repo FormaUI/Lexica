@@ -1,5 +1,5 @@
 /**
- * DefinitionWriter — a definition's node as the Lexica text that writes it, parenthesized where its grouping needs it: compact, as a diagnostic quotes it, or laid out on lines, as formatting gives its canonical text
+ * DefinitionWriter — a definition's node as the Nexo text that writes it, parenthesized where its grouping needs it: compact, as a diagnostic quotes it, or laid out on lines, as formatting gives its canonical text
  */
 
 import { DefinitionValidator } from './DefinitionValidator.mjs';
@@ -210,7 +210,7 @@ export class DefinitionWriter {
     }
 
     /**
-     * A literal as Lexica writes it: a string in double quotes, a double quote, a backslash, a line feed, a carriage return, a tab and an escape character escaped by their letters,
+     * A literal as Nexo writes it: a string in double quotes, a double quote, a backslash, a line feed, a carriage return, a tab and an escape character escaped by their letters,
      * any other control, format or separator character but the space as a Unicode escape in upper-case hexadecimal, and every other character as itself; negative zero as `-0`, which JSON writes as zero; anything else as JSON writes it.
      */
     static #literal(value) {

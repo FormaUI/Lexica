@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 // A path in the forward slashes Vite matches aliases by, decoded from its URL so a space in the checkout path resolves.
 const resolved = path => decodeURIComponent(new URL(path, import.meta.url).pathname);
 
-// Lexica's scripts, reached as `#lexica/`, tested in Node, where no browser global exists.
+// Nexo's scripts, reached as `#lexica/`, tested in Node, where no browser global exists.
 export default defineConfig({
     resolve: {
         alias: [

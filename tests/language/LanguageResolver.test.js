@@ -141,9 +141,9 @@ describe('LanguageResolver', () => {
         });
 
         it('is refused where it is called, as an object field, as a property of a structured type\'s data, and as one where the receiver\'s type is unknown', () => {
-            expect(refusalOf('pair.a()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'a' is an object field of { a: Number, b: null } and takes no argument: write 'pair.a'"), pointer: '/expression/result' });
-            expect(refusalOf('(word to Cup).size()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'size' is a property of Cup's data and takes no argument: write '(word to Cup).size'"), pointer: '/expression/result' });
-            expect(refusalOf('missing?.size()')).toEqual({ code: 'LEXICA3017', message: expect.stringContaining("'size' is a property of a structured type's data and takes no argument: write 'missing?.size'"), pointer: '/expression/result/chain' });
+            expect(refusalOf('pair.a()')).toEqual({ code: 'NEXO3017', message: expect.stringContaining("'a' is an object field of { a: Number, b: null } and takes no argument: write 'pair.a'"), pointer: '/expression/result' });
+            expect(refusalOf('(word to Cup).size()')).toEqual({ code: 'NEXO3017', message: expect.stringContaining("'size' is a property of Cup's data and takes no argument: write '(word to Cup).size'"), pointer: '/expression/result' });
+            expect(refusalOf('missing?.size()')).toEqual({ code: 'NEXO3017', message: expect.stringContaining("'size' is a property of a structured type's data and takes no argument: write 'missing?.size'"), pointer: '/expression/result/chain' });
         });
     });
 
@@ -161,8 +161,8 @@ describe('LanguageResolver', () => {
 
         it('reads the fields completed where it is written, a reference written earlier and a scope captured earlier keeping the fields completed there', () => {
             expect(String(resolve('{ a = 1, b = root.a, c = "x", d = { e = root.c, f = root.b } }').type)).toBe('{ a: Number, b: Number, c: String, d: { e: String, f: Number } }');
-            expect(codeOf('{ a = 1, b = root.c, c = 2 }')).toBe('LEXICA3044');
-            expect(codeOf('{ let peek = () => root.a, a = 1, b = peek() }')).toBe('LEXICA3044');
+            expect(codeOf('{ a = 1, b = root.c, c = 2 }')).toBe('NEXO3044');
+            expect(codeOf('{ let peek = () => root.a, a = 1, b = peek() }')).toBe('NEXO3044');
             expect(String(resolve('{ a = 1, b = { let peek = () => root.a, c = peek() } }').type)).toBe('{ a: Number, b: { c: Number } }');
         });
     });

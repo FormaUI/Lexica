@@ -50,7 +50,7 @@ export class LexicaRegistry {
     #declaringModules = new WeakMap();
 
     /**
-     * The type or the extension each member is declared within, by the member, which gives its receiver: a type a module declares, one of Lexica's own value types, or an extension. Written for every such member as its
+     * The type or the extension each member is declared within, by the member, which gives its receiver: a type a module declares, one of Nexo's own value types, or an extension. Written for every such member as its
      * module's registration starts, beside its declaring module, and removed for each where the module is refused. @type {WeakMap<object, object>}
      */
     #containingTypes = new WeakMap();
@@ -69,7 +69,7 @@ export class LexicaRegistry {
         modules.forEach(module => this.registerModule(module));
     }
 
-    /** The checker of the relations between the types the registry's modules declare and Lexica's own. */
+    /** The checker of the relations between the types the registry's modules declare and Nexo's own. */
     get typeChecker() {
         return this.#typeChecker;
     }
@@ -106,7 +106,7 @@ export class LexicaRegistry {
      */
     registerModule(module) {
         if (!LexicaModule.isModule(module)) {
-            throw LexicaErrors.module('LEXICA4546', 'A module is registered as createModule makes it', { module: String(module?.name) });
+            throw LexicaErrors.module('NEXO4546', 'A module is registered as createModule makes it', { module: String(module?.name) });
         }
 
         const fail = (code, message, declarationName, declarationKey, typeName) => {
@@ -124,7 +124,7 @@ export class LexicaRegistry {
         const taken = [...this.#modules.keys()].find(name => name.toLowerCase() === module.name.toLowerCase());
 
         if (taken !== undefined) {
-            fail('LEXICA4035', `A module is registered once under a name compared case-insensitively, and '${taken}' is registered already`);
+            fail('NEXO4035', `A module is registered once under a name compared case-insensitively, and '${taken}' is registered already`);
         }
 
         // A type is named once within its module, which creating it checks, and two modules may each declare a type of one name, since its module is part of its identity.
@@ -135,12 +135,12 @@ export class LexicaRegistry {
 
             for (const moduleName of type.import ?? []) {
                 if (!this.#modules.has(moduleName)) {
-                    fail('LEXICA4015', `The type imports the module '${moduleName}', which is not registered`, type.name, 'import');
+                    fail('NEXO4015', `The type imports the module '${moduleName}', which is not registered`, type.name, 'import');
                 }
             }
         }
 
-        // A module's members are its module members, declared flat, and those each of its types and extensions declares within it; Lexica's own module owns its value types, declared through Lexica's internal form,
+        // A module's members are its module members, declared flat, and those each of its types and extensions declares within it; Nexo's own module owns its value types, declared through Nexo's internal form,
         // so the members of lists are its own.
         const ownValueTypes = module === Vocabulary.module ? Vocabulary.valueTypes : [];
         const typesOfMembers = new Map([...ownValueTypes, ...module.types].flatMap(type => (type.members ?? []).map(member => [member, type])));
@@ -150,7 +150,7 @@ export class LexicaRegistry {
 
         for (const type of module.observationTypes) {
             if (this.#observationTypes.has(type.name)) {
-                fail('LEXICA4007', `The observation type '${type.name}' is declared already`, type.name);
+                fail('NEXO4007', `The observation type '${type.name}' is declared already`, type.name);
             }
         }
 
@@ -160,7 +160,7 @@ export class LexicaRegistry {
         const ownObservationTypes = new Set(module.observationTypes);
         const getDeclaringModule = type => (ownObservationTypes.has(type) ? module : this.#modules.get(this.getDeclaringModuleName(type)));
 
-        // Every declaration's notations are read in its module: its own types, Lexica's, and those of a module a type imports, unqualified, and any other qualified by its module; a member a type declares within it reads
+        // Every declaration's notations are read in its module: its own types, Nexo's, and those of a module a type imports, unqualified, and any other qualified by its module; a member a type declares within it reads
         // its type's imports, which cover the type's whole declaration.
         const declarations = [...module.types, ...members, ...module.typeSelectors, ...module.mappings, ...module.observationTypes];
 
@@ -250,7 +250,7 @@ export class LexicaRegistry {
         return module === undefined ? [] : [...module.members, ...ownTypes.flatMap(type => type.members ?? [])].filter(declaration => declaration.name === name && declaration.kind !== 'operator');
     }
 
-    /** The type, Lexica's own value type or the extension the member is declared within, which gives its receiver and decides whether its module owns it; undefined for a module member. */
+    /** The type, Nexo's own value type or the extension the member is declared within, which gives its receiver and decides whether its module owns it; undefined for a module member. */
     getContainingType(declaration) {
         return this.#containingTypes.get(declaration);
     }
@@ -275,7 +275,7 @@ export class LexicaRegistry {
     }
 
     /**
-     * How the type the member is read on is written, as a message names it: its type's local name for a member declared within it, whose receiver is that type, written with its type parameters for Lexica's generic
+     * How the type the member is read on is written, as a message names it: its type's local name for a member declared within it, whose receiver is that type, written with its type parameters for Nexo's generic
      * type, and its extension's target for one declared within an extension; none for a module member.
      */
     #receiverNotationsOf(declaration) {
@@ -357,7 +357,7 @@ export class LexicaRegistry {
     }
 
     /**
-     * The type the member is read on, as a list of it, none for a module member: the type it is declared within, Lexica's generic type written with its own type parameters, as `List<T>`, or its extension's target, a
+     * The type the member is read on, as a list of it, none for a module member: the type it is declared within, Nexo's generic type written with its own type parameters, as `List<T>`, or its extension's target, a
      * type parameter where the extension extends every type.
      */
     getReceiverTypes(declaration) {
@@ -368,7 +368,7 @@ export class LexicaRegistry {
             return [this.getDeclaredType(type, type.target)];
         }
 
-        // Lexica's own value types are named without a module, as a notation writes them.
+        // Nexo's own value types are named without a module, as a notation writes them.
         if (type?.kind === 'generic') {
             return [new Type('named', { name: type.name, typeArguments: type.typeParameters.map(name => Type.createTypeParameter(name)), isNullable: false })];
         }
@@ -389,14 +389,14 @@ export class LexicaRegistry {
         return declaration.internal === true || this.#containingTypes.get(declaration)?.internal === true;
     }
 
-    /** Whether the member is a property of a structured type's data shape: a property the structured type declares directly without updates, which Lexica reads from the data and never invokes. */
+    /** Whether the member is a property of a structured type's data shape: a property the structured type declares directly without updates, which Nexo reads from the data and never invokes. */
     isDataProperty(declaration) {
         return declaration.kind === 'property' && declaration.updates === undefined && this.#containingTypes.get(declaration)?.kind === 'structured';
     }
 
     /**
      * The declaration of the value type the named type is, nullable or not, whatever its type arguments, its kind an attribute: a type a module declares, registered or being registered, `reference` or `structured`, and
-     * one of Lexica's own, `scalar` or `generic`, its type parameters under `typeParameters`; undefined for any other type, an extension among them, which no value is of.
+     * one of Nexo's own, `scalar` or `generic`, its type parameters under `typeParameters`; undefined for any other type, an extension among them, which no value is of.
      */
     getTypeDeclaration(type) {
         if (type.kind !== 'named') {
@@ -416,7 +416,7 @@ export class LexicaRegistry {
     }
 
     /**
-     * Whether a dictionary's keys may be of the type, the types Lexica's key equality compares exactly: a scalar, by its value, a reference type, by its identity, and null, nullable or not, and a type parameter, which a
+     * Whether a dictionary's keys may be of the type, the types Nexo's key equality compares exactly: a scalar, by its value, a reference type, by its identity, and null, nullable or not, and a type parameter, which a
      * dictionary binds to its own key type, and a never, an empty dictionary's; a list, an object, a structured value, a dictionary, a pair and a value of Any never are.
      */
     isKeyType(type) {
@@ -447,7 +447,7 @@ export class LexicaRegistry {
 
     /**
      * Whether the value belongs to the reference type: where the `isInstance` of the type and of every supertype above it answers true, each asked in turn until one answers false, on every call, no answer kept.
-     * An exception it throws (LEXICA5027) and an answer that isn't a Boolean (LEXICA5017) are faults of the module that declares the type, naming what asked.
+     * An exception it throws (NEXO5027) and an answer that isn't a Boolean (NEXO5017) are faults of the module that declares the type, naming what asked.
      * @param {unknown} value
      * @param {Type} type
      * @param {string} asked What asked whether the value belongs, as a message names it.
@@ -461,11 +461,11 @@ export class LexicaRegistry {
             try {
                 answer = declared.isInstance(value);
             } catch (error) {
-                throw LexicaErrors.evaluation('LEXICA5027', `The isInstance of ${current} threw as ${asked} asked whether a value belongs to it`, location, { cause: error });
+                throw LexicaErrors.evaluation('NEXO5027', `The isInstance of ${current} threw as ${asked} asked whether a value belongs to it`, location, { cause: error });
             }
 
             if (typeof answer !== 'boolean') {
-                throw LexicaErrors.evaluation('LEXICA5017', `The isInstance of ${current} answered what isn't a Boolean as ${asked} asked whether a value belongs to it`, location);
+                throw LexicaErrors.evaluation('NEXO5017', `The isInstance of ${current} answered what isn't a Boolean as ${asked} asked whether a value belongs to it`, location);
             }
 
             if (!answer) {
@@ -479,7 +479,7 @@ export class LexicaRegistry {
     /**
      * The reference types the registry's modules recognize the value as, each module's `typeOf` naming the most specific of its own reference types the value is of, or null; none for a value that isn't an object, which is data.
      * It asks the `typeOf` of every module declaring one, in the order they were registered, and `belongsTo` of each type named, on every call, no answer kept. A name that is no reference type of its module, an abstract one,
-     * and one the value doesn't belong to (LEXICA5002), and an exception `typeOf` throws (LEXICA5026), are faults of the module, naming what asked.
+     * and one the value doesn't belong to (NEXO5002), and an exception `typeOf` throws (NEXO5026), are faults of the module, naming what asked.
      * @param {unknown} value
      * @param {string} asked What asked for the value's type, as a message names it.
      * @returns {Type[]}
@@ -501,7 +501,7 @@ export class LexicaRegistry {
             try {
                 name = module.typeOf(value);
             } catch (error) {
-                throw LexicaErrors.evaluation('LEXICA5026', `The typeOf of the module '${module.name}' threw as ${asked} asked for a value's type`, { module: module.name }, { cause: error });
+                throw LexicaErrors.evaluation('NEXO5026', `The typeOf of the module '${module.name}' threw as ${asked} asked for a value's type`, { module: module.name }, { cause: error });
             }
 
             if (name === null || name === undefined) {
@@ -515,7 +515,7 @@ export class LexicaRegistry {
             if (declared === undefined || declared.abstract === true || declared.internal === true || !this.belongsTo(value, type, asked)) {
                 const wrong = declared === undefined ? `${JSON.stringify(name) ?? String(name)}, which is no reference type of its own` : declared.abstract === true ? `the abstract type ${name}` : declared.internal === true ? `the internal type ${name}, which no script names` : `${name}, which the value doesn't belong to`;
 
-                throw LexicaErrors.evaluation('LEXICA5002', `The typeOf of the module '${module.name}' named ${wrong}, as ${asked} asked for a value's type`, { module: module.name });
+                throw LexicaErrors.evaluation('NEXO5002', `The typeOf of the module '${module.name}' named ${wrong}, as ${asked} asked for a value's type`, { module: module.name });
             }
 
             recognized.push(type);
@@ -527,8 +527,8 @@ export class LexicaRegistry {
     /**
      * The types a type name names in its scope, a declaration's, a declared binding's or a script's, the one path each reads, its own refusals its caller's. A qualified name, `Q.Name`, names the type of its local name
      * the module `Q` names declares, `Q` the local name an import of the scope gives a module or, in a scope naming modules by their own names, a registered module's, and its answer holds that module, undefined where
-     * `Q` names none. An unqualified name names the types of the first of the scope's tiers that holds any: a type import's of that local name, then the declaring module's own type, then Lexica's own, then those the
-     * modules the scope imports declare, in the order they were registered; in a scope reaching every module, Lexica's own and every module's alike. Internal types are among them, and an extension, which no type name
+     * `Q` names none. An unqualified name names the types of the first of the scope's tiers that holds any: a type import's of that local name, then the declaring module's own type, then Nexo's own, then those the
+     * modules the scope imports declare, in the order they were registered; in a scope reaching every module, Nexo's own and every module's alike. Internal types are among them, and an extension, which no type name
      * names, is none.
      * @param {string} name
      * @param {import('./TypeNameScope.mjs').TypeNameScope} scope
@@ -659,7 +659,7 @@ export class LexicaRegistry {
         return `${this.getReceiverTypes(declaration)[0]} ${declaration.name === 'cast' ? 'as' : 'to'} ${declaration.result}`;
     }
 
-    /** Whether the type is one a conversion converts between: a type of data Lexica defines, or a structured type that holds data alone, never null. */
+    /** Whether the type is one a conversion converts between: a type of data Nexo defines, or a structured type that holds data alone, never null. */
     isConvertible(type) {
         return type.kind === 'named' && type.typeArguments.length === 0 && !type.isNullable && this.isData(type);
     }
@@ -680,7 +680,7 @@ export class LexicaRegistry {
     }
 
     /**
-     * The type the notation writes in its context, each name resolved to its identity: a qualified name to the type its module declares; an unqualified one to a type of the declaring module, one of Lexica's own types,
+     * The type the notation writes in its context, each name resolved to its identity: a qualified name to the type its module declares; an unqualified one to a type of the declaring module, one of Nexo's own types,
      * or the one type of its name among the modules a structured type imports, refusing one that several imported modules declare and one outside them, which is named qualified.
      */
     #resolveNotation(notation, context, fail) {
@@ -698,7 +698,7 @@ export class LexicaRegistry {
             switch (type.kind) {
                 case 'object':
                     return Type.createObjectType(new Map([...type.fieldTypes].map(([name, fieldType]) => [name, resolve(fieldType)])), type.isNullable);
-                // A generic value type is Lexica's own, and its type arguments are resolved in turn, a dictionary's key one of a key type.
+                // A generic value type is Nexo's own, and its type arguments are resolved in turn, a dictionary's key one of a key type.
                 case 'named': {
                     if (type.typeArguments.length === 0) {
                         return Type.createNamedType(type.name, type.isNullable, this.#moduleOfType(type, notation, context, fail));
@@ -707,7 +707,7 @@ export class LexicaRegistry {
                     const typeArguments = type.typeArguments.map(resolve);
 
                     if (type.isDictionary && !this.isKeyType(typeArguments[0])) {
-                        fail('LEXICA4563', `'${notation}' names a dictionary whose keys are ${typeArguments[0]}, and a key is a number, a string, a Boolean, a reference or null, which Lexica's key equality compares exactly`);
+                        fail('NEXO4563', `'${notation}' names a dictionary whose keys are ${typeArguments[0]}, and a key is a number, a string, a Boolean, a reference or null, which Nexo's key equality compares exactly`);
                     }
 
                     return new Type('named', { name: type.name, typeArguments, isNullable: type.isNullable });
@@ -721,8 +721,8 @@ export class LexicaRegistry {
     }
 
     /**
-     * The type a binding's declared notation writes, each name in it read as a declared binding's is, in the binding scope, every registered module's public types alike: a name no type is (LEXICA2036), one several types
-     * share unqualified (LEXICA2037), a notation that is none, and a dictionary keyed by no key type (LEXICA2044), are given to `fail`, which throws, with the code and the message. It reads no script's imports.
+     * The type a binding's declared notation writes, each name in it read as a declared binding's is, in the binding scope, every registered module's public types alike: a name no type is (NEXO2036), one several types
+     * share unqualified (NEXO2037), a notation that is none, and a dictionary keyed by no key type (NEXO2044), are given to `fail`, which throws, with the code and the message. It reads no script's imports.
      * @param {string} notation
      * @param {(code: string, message: string) => never} fail
      */
@@ -731,7 +731,7 @@ export class LexicaRegistry {
         const parsed = Type.parse(notation);
 
         if (parsed === null) {
-            fail('LEXICA2044', `${JSON.stringify(notation)} is no type's notation`);
+            fail('NEXO2044', `${JSON.stringify(notation)} is no type's notation`);
         }
 
         const resolve = type => {
@@ -744,7 +744,7 @@ export class LexicaRegistry {
                         const typeArguments = type.typeArguments.map(resolve);
 
                         if (type.isDictionary && !this.isKeyType(typeArguments[0])) {
-                            fail('LEXICA2044', `${notation} names a dictionary whose keys are ${typeArguments[0]}, and a key is a number, a string, a Boolean, a reference or null`);
+                            fail('NEXO2044', `${notation} names a dictionary whose keys are ${typeArguments[0]}, and a key is a number, a string, a Boolean, a reference or null`);
                         }
 
                         return new Type('named', { name: type.name, typeArguments, isNullable: type.isNullable });
@@ -753,11 +753,11 @@ export class LexicaRegistry {
                     const { types } = this.resolveTypeName(type.moduleName === null ? type.name : `${type.moduleName}.${type.name}`, TypeNameScope.bindingScope);
 
                     if (types.length === 0) {
-                        fail('LEXICA2036', `${notation} names ${type.moduleName === null ? type.name : `${type.moduleName}.${type.name}`}, which is no public type`);
+                        fail('NEXO2036', `${notation} names ${type.moduleName === null ? type.name : `${type.moduleName}.${type.name}`}, which is no public type`);
                     }
 
                     if (types.length > 1) {
-                        fail('LEXICA2037', `${notation} names ${type.name}, which is several types' name, so it is named qualified: ${types.map(found => found.toString(true)).join(' or ')}`);
+                        fail('NEXO2037', `${notation} names ${type.name}, which is several types' name, so it is named qualified: ${types.map(found => found.toString(true)).join(' or ')}`);
                     }
 
                     return type.isNullable ? types[0].toNullable() : types[0];
@@ -770,26 +770,26 @@ export class LexicaRegistry {
         return resolve(parsed);
     }
 
-    /** The name of the module that declares the named type, null for one of Lexica's own types, as its declaration's scope resolves it. */
+    /** The name of the module that declares the named type, null for one of Nexo's own types, as its declaration's scope resolves it. */
     #moduleOfType(type, notation, context, fail) {
         const { name } = type;
         const { moduleName, types } = this.resolveTypeName(type.moduleName === null ? name : `${type.moduleName}.${name}`, TypeNameScope.createDeclarationScope(context.moduleName, context.imports));
 
         if (type.moduleName !== null) {
             if (moduleName === undefined) {
-                fail('LEXICA4047', `'${notation}' names the type '${type.identity}', and no module named '${type.moduleName}' is registered`);
+                fail('NEXO4047', `'${notation}' names the type '${type.identity}', and no module named '${type.moduleName}' is registered`);
             }
 
             if (types.length === 0) {
-                fail('LEXICA4047', `'${notation}' names the type '${type.identity}', which the module '${type.moduleName}' does not declare`);
+                fail('NEXO4047', `'${notation}' names the type '${type.identity}', which the module '${type.moduleName}' does not declare`);
             }
 
             return type.moduleName;
         }
 
-        // Only the imported modules' tier holds several types, Lexica's own and the declaring module's one each.
+        // Only the imported modules' tier holds several types, Nexo's own and the declaring module's one each.
         if (types.length > 1) {
-            fail('LEXICA4048', `'${notation}' names the type '${name}', which the modules it imports each declare, so it is named qualified: ${types.map(found => `${found.moduleName}.${name}`).join(' or ')}`);
+            fail('NEXO4048', `'${notation}' names the type '${name}', which the modules it imports each declare, so it is named qualified: ${types.map(found => `${found.moduleName}.${name}`).join(' or ')}`);
         }
 
         if (types.length === 1) {
@@ -799,10 +799,10 @@ export class LexicaRegistry {
         const foreign = this.getModuleNamesDeclaringType(name);
 
         if (foreign.length > 0) {
-            fail('LEXICA4049', `'${notation}' names the type '${name}', which only another module declares, so it is named qualified: ${foreign.map(moduleName => `${moduleName}.${name}`).join(' or ')}`);
+            fail('NEXO4049', `'${notation}' names the type '${name}', which only another module declares, so it is named qualified: ${foreign.map(moduleName => `${moduleName}.${name}`).join(' or ')}`);
         }
 
-        fail('LEXICA4047', `'${notation}' names the type '${name}', which neither Lexica nor a module registered with it declares`);
+        fail('NEXO4047', `'${notation}' names the type '${name}', which neither Nexo nor a module registered with it declares`);
     }
 
     /**
@@ -812,7 +812,7 @@ export class LexicaRegistry {
     static #validateTypeSelections(module, members, typeSelectors, mappings, getDeclaringModuleName, fail, failAt) {
         for (const selector of module.typeSelectors) {
             if (typeSelectors.has(selector.name)) {
-                fail('LEXICA4007', `The type selector '${selector.name}' is declared already, by the module '${getDeclaringModuleName(typeSelectors.get(selector.name))}'`, selector.name, 'name');
+                fail('NEXO4007', `The type selector '${selector.name}' is declared already, by the module '${getDeclaringModuleName(typeSelectors.get(selector.name))}'`, selector.name, 'name');
             }
         }
 
@@ -820,21 +820,21 @@ export class LexicaRegistry {
 
         module.mappings.forEach(mapping => {
             if (!isDeclared(mapping.selector)) {
-                fail('LEXICA4039', `The key '${mapping.key}' belongs to the type selector '${mapping.selector}', which no module registered declares`, mapping.key, 'selector');
+                fail('NEXO4039', `The key '${mapping.key}' belongs to the type selector '${mapping.selector}', which no module registered declares`, mapping.key, 'selector');
             }
 
             // A key its own module maps twice is refused when the module is created.
             const registered = mappings.get(mapping.selector)?.get(mapping.key);
 
             if (registered !== undefined) {
-                fail('LEXICA4038', `The type selector '${mapping.selector}' maps the key '${mapping.key}' already, as the module '${getDeclaringModuleName(registered)}' declared it, and a key is never replaced`, mapping.key, 'key');
+                fail('NEXO4038', `The type selector '${mapping.selector}' maps the key '${mapping.key}' already, as the module '${getDeclaringModuleName(registered)}' declared it, and a key is never replaced`, mapping.key, 'key');
             }
         });
 
         for (const declaration of members) {
             for (const parameter of declaration.parameters.filter(candidate => candidate.selects === 'type')) {
                 if (!isDeclared(parameter.selector)) {
-                    failAt(declaration)('LEXICA4547', `The parameter '${parameter.name}' selects a type through '${parameter.selector}', which no module registered declares`, declaration.name, 'parameters');
+                    failAt(declaration)('NEXO4547', `The parameter '${parameter.name}' selects a type through '${parameter.selector}', which no module registered declares`, declaration.name, 'parameters');
                 }
             }
         }
@@ -876,19 +876,19 @@ export class LexicaRegistry {
             const target = this.getDeclaredType(type, type.target);
             const isOwnType = target.kind === 'named' && (target.moduleName === module.name || (target.moduleName === null && module === Vocabulary.module));
 
-            // A type its module owns takes its members in its own declaration, so an extension's target is another module's; Lexica's own extends its value types where a member needs a receiver narrower than
+            // A type its module owns takes its members in its own declaration, so an extension's target is another module's; Nexo's own extends its value types where a member needs a receiver narrower than
             // the type, as a list of lists is, which the internal form its value types are declared through gives none.
             const isNarrowedOwnValueType = module === Vocabulary.module && target.typeArguments.some(argument => argument.kind !== 'typeParameter');
 
             if (isOwnType && !isNarrowedOwnValueType) {
-                fail('LEXICA4045', `The extension '${type.name}' targets ${target}, a type its own module owns, which takes its members within its own declaration`, type.name, 'target');
+                fail('NEXO4045', `The extension '${type.name}' targets ${target}, a type its own module owns, which takes its members within its own declaration`, type.name, 'target');
             }
         }
 
         for (const type of module.types) {
             // A supertype is a reference type, one the module declares or one a module registered before it declares.
             if (type.supertype !== undefined && !this.isReferenceType(this.getDeclaredType(type, type.supertype))) {
-                fail('LEXICA4016', `The supertype of '${type.name}', ${type.supertype}, is no reference type`, type.name, 'supertype');
+                fail('NEXO4016', `The supertype of '${type.name}', ${type.supertype}, is no reference type`, type.name, 'supertype');
             }
         }
 
@@ -898,7 +898,7 @@ export class LexicaRegistry {
 
             for (let current = this.getSupertype(Type.createNamedType(type.name, false, module.name)); current !== null && current.moduleName === module.name; current = this.getSupertype(current)) {
                 if (visited.includes(current.name)) {
-                    fail('LEXICA4050', `The hierarchy of '${type.name}' is a cycle: ${[...visited, current.name].join(' beneath ')}`, type.name, 'supertype');
+                    fail('NEXO4050', `The hierarchy of '${type.name}' is a cycle: ${[...visited, current.name].join(' beneath ')}`, type.name, 'supertype');
                 }
 
                 visited.push(current.name);
@@ -911,14 +911,14 @@ export class LexicaRegistry {
 
             // A tolerance applies to a numeric result, or to the numbers a structured result holds, which only now, every type known, is told apart from a reference type; a member with updates always declares a result.
             if (declaration.updates?.tolerance !== undefined && !(resultType.kind === 'named' && ((resultType.moduleName === null && resultType.name === 'Number') || this.getTypeDeclaration(resultType)?.kind === 'structured'))) {
-                failAt(declaration)('LEXICA4026', 'A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', declaration.name, 'updates.tolerance');
+                failAt(declaration)('NEXO4026', 'A tolerance applies to a numeric result, or to the numbers a structured result holds, and this result holds neither', declaration.name, 'updates.tolerance');
             }
 
             for (const parameter of declaration.parameters) {
                 const type = this.getDeclaredType(declaration, parameter.type);
 
                 if (Object.hasOwn(parameter, 'default') && !this.#admits(parameter.default, type)) {
-                    failAt(declaration)('LEXICA4548', `The default of '${parameter.name}' is no ${parameter.type}`, declaration.name);
+                    failAt(declaration)('NEXO4548', `The default of '${parameter.name}' is no ${parameter.type}`, declaration.name);
                 }
             }
         }
@@ -945,7 +945,7 @@ export class LexicaRegistry {
                     const shared = this.#getSharedReceiver(declaration, other);
 
                     if (shared !== undefined) {
-                        fail('LEXICA4068', `An unnamed indexer of ${shared} is declared already, and a second is one of its signatures only within its type, taking a key of a type of its own`, undefined, 'kind');
+                        fail('NEXO4068', `An unnamed indexer of ${shared} is declared already, and a second is one of its signatures only within its type, taking a key of a type of its own`, undefined, 'kind');
                     }
                 }
 
@@ -955,14 +955,14 @@ export class LexicaRegistry {
             const shared = earlier.filter(other => this.takesReceiver(other) && !this.#areDisjointSignatures(other, declaration)).map(other => this.#getSharedReceiver(other, declaration)).find(notation => notation !== undefined);
 
             if (shared !== undefined) {
-                fail('LEXICA4029', `'${declaration.name}' is declared already for ${shared}${declaration.kind === 'indexer' ? ', and an indexer of its name is one of its signatures only within its type, taking a key of a type of its own' : ''}`, declaration.name, 'name');
+                fail('NEXO4029', `'${declaration.name}' is declared already for ${shared}${declaration.kind === 'indexer' ? ', and an indexer of its name is one of its signatures only within its type, taking a key of a type of its own' : ''}`, declaration.name, 'name');
             }
         });
     }
 
     /**
-     * Refuses a declaration that names another module's internal type, as a supertype, an extension's target, a parameter's, a callback's, a result's, an operator's destination or a mapping's type (LEXICA4018), and a
-     * public declaration that exposes an internal type of its own module through what it writes of them (LEXICA4052): a type's supertype, an extension's target, a member's parameters', callbacks' and result's types, an
+     * Refuses a declaration that names another module's internal type, as a supertype, an extension's target, a parameter's, a callback's, a result's, an operator's destination or a mapping's type (NEXO4018), and a
+     * public declaration that exposes an internal type of its own module through what it writes of them (NEXO4052): a type's supertype, an extension's target, a member's parameters', callbacks' and result's types, an
      * operator's destination among them, and a mapping's type, through list items and nullable types. A member within an internal type, and an internal one, is no public declaration; within one module, declarations name each other's internal declarations freely.
      */
     #validateAccessibility(module, members, fail, failAt) {
@@ -999,20 +999,20 @@ export class LexicaRegistry {
                 }
 
                 if (type.moduleName !== module.name) {
-                    failHere('LEXICA4018', `It names ${type.identity}, an internal type of the module '${type.moduleName}', which its own module's declarations alone name`, name);
+                    failHere('NEXO4018', `It names ${type.identity}, an internal type of the module '${type.moduleName}', which its own module's declarations alone name`, name);
                 }
 
                 if (!this.isInternal(declaration)) {
-                    failHere('LEXICA4052', `It is public, and exposes ${type.name}, an internal type of its module: a public declaration writes public types alone`, name);
+                    failHere('NEXO4052', `It is public, and exposes ${type.name}, an internal type of its module: a public declaration writes public types alone`, name);
                 }
             }
         }
     }
 
     /**
-     * Refuses a type parameter named as a type its declaration reaches unqualified, one of Lexica's own, `Any` and `Never` among them, one of its module's, or one of a module its type imports (LEXICA4042); a member whose
-     * result writes a parameter with no supported source to bind it from, its extension's target or its generic type's receiver, its value parameters' types or its callbacks' results (LEXICA4011); and a member whose
-     * callback's input writes a parameter whose only source is another callback's result, since callback results do not chain (LEXICA4044).
+     * Refuses a type parameter named as a type its declaration reaches unqualified, one of Nexo's own, `Any` and `Never` among them, one of its module's, or one of a module its type imports (NEXO4042); a member whose
+     * result writes a parameter with no supported source to bind it from, its extension's target or its generic type's receiver, its value parameters' types or its callbacks' results (NEXO4011); and a member whose
+     * callback's input writes a parameter whose only source is another callback's result, since callback results do not chain (NEXO4044).
      */
     #validateTypeParameters(module, members, fail, failAt) {
         const parametersOf = (declaration, notation) => LexicaRegistry.#typeParametersWrittenBy(this.getDeclaredType(declaration, notation));
@@ -1026,7 +1026,7 @@ export class LexicaRegistry {
             const reached = (declaration.typeParameters ?? []).find(name => isReachable(declaration, name));
 
             if (reached !== undefined) {
-                (members.includes(declaration) ? failAt(declaration) : fail)('LEXICA4042', `The type parameter '${reached}' is named as a type its declaration reaches unqualified, so a parameter of its name would hide it`, declaration.name, 'name');
+                (members.includes(declaration) ? failAt(declaration) : fail)('NEXO4042', `The type parameter '${reached}' is named as a type its declaration reaches unqualified, so a parameter of its name would hide it`, declaration.name, 'name');
             }
         }
 
@@ -1041,14 +1041,14 @@ export class LexicaRegistry {
             const fail = failAt(declaration);
 
             if (unbound !== undefined) {
-                fail('LEXICA4011', `Its result writes the type parameter '${unbound}', which nothing binds: neither its extension's target, its value parameters' types nor its callbacks' results write it`, declaration.name, 'result');
+                fail('NEXO4011', `Its result writes the type parameter '${unbound}', which nothing binds: neither its extension's target, its value parameters' types nor its callbacks' results write it`, declaration.name, 'result');
             }
 
             for (const callback of callbacks.filter(parameter => parameter.kind === 'function')) {
                 const chained = callback.parameterTypes.flatMap(notation => [...parametersOf(declaration, notation)]).find(name => !fromTarget.has(name) && !fromValues.has(name));
 
                 if (chained !== undefined) {
-                    fail('LEXICA4044', `The callback '${callback.name}' is called with the type parameter '${chained}', which only another callback's result binds, and callback results do not chain`, declaration.name, 'parameters');
+                    fail('NEXO4044', `The callback '${callback.name}' is called with the type parameter '${chained}', which only another callback's result binds, and callback results do not chain`, declaration.name, 'parameters');
                 }
             }
         }
@@ -1066,9 +1066,9 @@ export class LexicaRegistry {
     }
 
     /**
-     * Refuses an operator its receiver and its destination don't admit: a conversion between types that are not data, as each is named (LEXICA4065), from a type to itself (LEXICA4066), and between types none of which
-     * its module owns (LEXICA4028), Lexica's own module alone converting between the language's types; a cast on or to a type that is no reference type (LEXICA4027), and one between types of one hierarchy, which the
-     * hierarchy decides (LEXICA4064); and an operator of a name and a destination its module declares already on its receiver type (LEXICA4069).
+     * Refuses an operator its receiver and its destination don't admit: a conversion between types that are not data, as each is named (NEXO4065), from a type to itself (NEXO4066), and between types none of which
+     * its module owns (NEXO4028), Nexo's own module alone converting between the language's types; a cast on or to a type that is no reference type (NEXO4027), and one between types of one hierarchy, which the
+     * hierarchy decides (NEXO4064); and an operator of a name and a destination its module declares already on its receiver type (NEXO4069).
      */
     #validateOperators(module, members, failAt) {
         const operators = members.filter(declaration => declaration.kind === 'operator');
@@ -1081,32 +1081,32 @@ export class LexicaRegistry {
             if (operator.name === 'convert') {
                 for (const [type, end] of [[source, 'its receiver'], [destination, 'its destination']]) {
                     if (!this.isConvertible(type)) {
-                        fail('LEXICA4065', `A conversion operator is from a type of data to another, each named as it is declared, Number, String, Boolean or a structured type holding data alone, and ${end}, ${type}, is none of them`, operator.name, type === source ? 'kind' : 'result');
+                        fail('NEXO4065', `A conversion operator is from a type of data to another, each named as it is declared, Number, String, Boolean or a structured type holding data alone, and ${end}, ${type}, is none of them`, operator.name, type === source ? 'kind' : 'result');
                     }
                 }
 
                 if (source.equals(destination)) {
-                    fail('LEXICA4066', `A value already of ${source} converts to itself, so no conversion operator is declared from a type to itself`, operator.name, 'result');
+                    fail('NEXO4066', `A value already of ${source} converts to itself, so no conversion operator is declared from a type to itself`, operator.name, 'result');
                 }
 
                 if (module !== Vocabulary.module && source.moduleName !== module.name && destination.moduleName !== module.name) {
-                    fail('LEXICA4028', `A conversion operator converts to or from one of its module's own types, and ${this.formatOperator(operator)} does neither`, operator.name, 'result');
+                    fail('NEXO4028', `A conversion operator converts to or from one of its module's own types, and ${this.formatOperator(operator)} does neither`, operator.name, 'result');
                 }
             } else {
                 if (!this.isReferenceType(source) || !this.isReferenceType(destination)) {
-                    fail('LEXICA4027', `A cast operator is declared on a reference type and casts to another, and ${this.formatOperator(operator)} is not`, operator.name, this.isReferenceType(source) ? 'result' : 'kind');
+                    fail('NEXO4027', `A cast operator is declared on a reference type and casts to another, and ${this.formatOperator(operator)} is not`, operator.name, this.isReferenceType(source) ? 'result' : 'kind');
                 }
 
                 // A type and its supertypes and the types beneath it are cast through their hierarchy, which needs no operator.
                 if (this.#typeChecker.isAssignable(source, destination) || this.#typeChecker.isAssignable(destination, source)) {
-                    fail('LEXICA4064', `${this.formatOperator(operator)} is a cast within one hierarchy, which the hierarchy decides, so no cast operator is declared for it`, operator.name, 'result');
+                    fail('NEXO4064', `${this.formatOperator(operator)} is a cast within one hierarchy, which the hierarchy decides, so no cast operator is declared for it`, operator.name, 'result');
                 }
             }
 
             const isDeclaredEarlier = operators.slice(0, index).some(other => other.name === operator.name && this.getReceiverTypes(other)[0].equals(source) && this.getOperatorDestination(other).equals(destination));
 
             if (isDeclaredEarlier) {
-                fail('LEXICA4069', `The operator ${this.formatOperator(operator)} is declared already on ${source}`, operator.name, 'result');
+                fail('NEXO4069', `The operator ${this.formatOperator(operator)} is declared already on ${source}`, operator.name, 'result');
             }
         });
     }
@@ -1306,7 +1306,7 @@ export class LexicaRegistry {
             const type = observationTypes.get(observationDeclaration.type);
 
             if (type === undefined) {
-                fail('LEXICA4060', `The observation type '${observationDeclaration.type}' is declared by no module`, declaration.name, 'updates.observations');
+                fail('NEXO4060', `The observation type '${observationDeclaration.type}' is declared by no module`, declaration.name, 'updates.observations');
             }
 
             if (typeof observationDeclaration.of === 'string' && observationDeclaration.of !== 'receiver') {
@@ -1317,7 +1317,7 @@ export class LexicaRegistry {
         }
 
         if ((updates.reads === 'maintained') !== hasMaintained) {
-            fail(updates.reads === 'maintained' ? 'LEXICA4025' : 'LEXICA4062', updates.reads === 'maintained' ? 'It reads maintained values, so it names a maintained observation' : 'It names a maintained observation, so it reads maintained values', declaration.name, 'updates');
+            fail(updates.reads === 'maintained' ? 'NEXO4025' : 'NEXO4062', updates.reads === 'maintained' ? 'It reads maintained values, so it names a maintained observation' : 'It names a maintained observation, so it reads maintained values', declaration.name, 'updates');
         }
     }
 
@@ -1326,15 +1326,15 @@ export class LexicaRegistry {
         const target = declaringModule.observationTargets.find(candidate => candidate.name === observationDeclaration.of);
 
         if (target === undefined) {
-            fail('LEXICA4024', `The observation '${type.name}' observes '${observationDeclaration.of}', and the module '${declaringModule.name}', which declares '${type.name}', declares no target of that name`, declaration.name, 'updates.observations');
+            fail('NEXO4024', `The observation '${type.name}' observes '${observationDeclaration.of}', and the module '${declaringModule.name}', which declares '${type.name}', declares no target of that name`, declaration.name, 'updates.observations');
         }
 
         if (target.from === 'receiver' && !takesReceiver) {
-            fail('LEXICA4057', `The observation '${type.name}' observes '${target.name}', a target found from the receiver, and a module member takes no receiver`, declaration.name, 'updates.observations');
+            fail('NEXO4057', `The observation '${type.name}' observes '${target.name}', a target found from the receiver, and a module member takes no receiver`, declaration.name, 'updates.observations');
         }
 
         if (type.contract === 'maintained' && target.count === 'many') {
-            fail('LEXICA4063', `The maintained observation '${type.name}' gives one sample, so it observes one target, never '${target.name}', a target of several`, declaration.name, 'updates.observations');
+            fail('NEXO4063', `The maintained observation '${type.name}' gives one sample, so it observes one target, never '${target.name}', a target of several`, declaration.name, 'updates.observations');
         }
     }
 

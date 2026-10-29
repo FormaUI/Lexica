@@ -64,7 +64,7 @@ describe('a host of plain data', () => {
         expect(resolution.getLocation(resolution.usedDeclarations[0].pointer)).toMatchObject({ line: 2, column: 12 });
     });
 
-    it('names a used member of a list by its type, Lexica\'s List, as any member is named by the type it matched', () => {
+    it('names a used member of a list by its type, Nexo\'s List, as any member is named by the type it matched', () => {
         const registry = createImportingRegistry([createShop()]);
         const resolution = registry.resolve('items.count', registry.createBindings({ items: [1, 2] }));
 
@@ -169,7 +169,7 @@ describe('a host of plain data', () => {
             registry.registerModule(createRecognizing());
 
             expect([supplier.isCurrent, restocks.isCurrent, closing.isCurrent]).toEqual([false, true, true]);
-            expect(errorThrownBy(() => call.project(null))).toMatchObject({ code: 'LEXICA2040' });
+            expect(errorThrownBy(() => call.project(null))).toMatchObject({ code: 'NEXO2040' });
             expect(counted.project(4).value).toBe(4);
         });
 
@@ -212,7 +212,7 @@ describe('a host of plain data', () => {
             registry.registerModule(createRecognizing());
 
             expect(resolution.isCurrent).toBe(false);
-            expect(errorThrownBy(() => evaluator.evaluate())).toMatchObject({ code: 'LEXICA2040' });
+            expect(errorThrownBy(() => evaluator.evaluate())).toMatchObject({ code: 'NEXO2040' });
         });
     });
 
@@ -363,7 +363,7 @@ describe('the declaration shape', () => {
             ],
         })]);
 
-        expect(registry.moduleNames).toEqual(['Lexica', 'clock']);
+        expect(registry.moduleNames).toEqual(['Nexo', 'clock']);
         expect(registry.resolve('import clock\n{ length = item.length, zone = clock.zone }', { item: 'latte' }).createEvaluator({ item: 'latte' }, { rate: 1 }).evaluate().value).toEqual({ length: 5, zone: 'UTC' });
         expect(received).toEqual([{ args: {}, env: { rate: 1 } }]);
         expect(errorThrownBy(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);

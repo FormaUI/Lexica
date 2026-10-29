@@ -3,27 +3,27 @@
 <a id="vocabulary"></a>
 <a id="vocabulary-contracts"></a>
 
-A script's **vocabulary** is everything it can name beyond the language itself: the types, with their members and operators, the extensions, module members, type selectors and observation types of every module the registry it is resolved against holds, internal declarations aside. Lexica's own module is always among them, and every other module contributes by the same contracts, whatever its domain. A module's own specification gives its declarations and what each does in its domain; this document gives the contracts every one keeps, beside [members](members.md) and [types](types.md).
+A script's **vocabulary** is everything it can name beyond the language itself: the types, with their members and operators, the extensions, module members, type selectors and observation types of every module the registry it is resolved against holds, internal declarations aside. Nexo's own module is always among them, and every other module contributes by the same contracts, whatever its domain. A module's own specification gives its declarations and what each does in its domain; this document gives the contracts every one keeps, beside [members](members.md) and [types](types.md).
 
 In this document:
 
-1. [Lexica's own vocabulary](#vocabulary-lexicas-own)
+1. [Nexo's own vocabulary](#vocabulary-nexos-own)
 2. [Boolean functions](#vocabulary-boolean-functions)
 3. [Observations](#observations)
 4. [Type selectors](#vocabulary-type-selectors)
 5. [Conversions](#vocabulary-conversions)
 
-<a id="vocabulary-lexicas-own"></a>
+<a id="vocabulary-nexos-own"></a>
 
-## Lexica's own vocabulary
+## Nexo's own vocabulary
 
-Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
+Nexo's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-list-members"></a>
 
 ### List members
 
-A member following a list is a member of the list itself: `room.devices.count` counts the room's devices. Lexica's own module declares the members below, and its unnamed indexer, and each reads and changes as the items it selects and the expression it evaluates do.
+A member following a list is a member of the list itself: `room.devices.count` counts the room's devices. Nexo's own module declares the members below, and its unnamed indexer, and each reads and changes as the items it selects and the expression it evaluates do.
 
 | List member | Contract |
 | --- | --- |
@@ -31,13 +31,13 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | `first`, `last` | The first or the last item, null for an empty list |
 | The unnamed indexer, `[index]` | The item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0` |
 | The unnamed indexer, `[^n]` | The item at the [index](types.md#types-positions) counted from the end, `^1` the last, and null for `^0` and for an index before the start |
-| The unnamed indexer, `[range]` | A `List<T>`, the items within the [range](types.md#types-positions), applied to the list's length once, in order; a range whose start stands after its end, or either beyond the list, is refused where it is evaluated (LEXICA5033), never trimmed, and equal boundaries give an empty list, so `take` and `drop` are the tolerant partitions |
+| The unnamed indexer, `[range]` | A `List<T>`, the items within the [range](types.md#types-positions), applied to the list's length once, in order; a range whose start stands after its end, or either beyond the list, is refused where it is evaluated (NEXO5033), never trimmed, and equal boundaries give an empty list, so `take` and `drop` are the tolerant partitions |
 | `where` | The items its predicate is truthy for, in the list's order, leaving out an item whose predicate is null or false; the predicate may produce any value |
 | `max`, `min`, `sum`, `average` | Evaluate a number expression against each item and require `Number?`; `average` the mean of the numbers |
 | `entry[index]`, `entry[^n]` | The item at the index as a `Pair<Number, T>`, its index from the start and the item, null wherever the unnamed indexer answers null for an index the list has no item at |
-| `pick(positions)` | A `List<T>`, the item at each of the positions, a `List<Number>`, in the positions' order, a position given twice giving its item twice; a position no item stands at, a fractional or negative one among them, is refused (LEXICA5034) |
+| `pick(positions)` | A `List<T>`, the item at each of the positions, a `List<Number>`, in the positions' order, a position given twice giving its item twice; a position no item stands at, a fractional or negative one among them, is refused (NEXO5034) |
 | `select(expression)` | A `List<U>`, the expression's value for every item in order, a null item among them, the expression's `it` of the item's type, so `items.select(it)` keeps the list and `items.select(it ?? 0)` replaces its nulls |
-| `selectMany(expression)` | A `List<U>`, the lists the expression gives the items joined in order; an item's list that is null, a null item's among them, is refused (LEXICA5031), never treated as empty |
+| `selectMany(expression)` | A `List<U>`, the lists the expression gives the items joined in order; an item's list that is null, a null item's among them, is refused (NEXO5031), never treated as empty |
 | `concat(other)` | The items, then those of `other`, a `List<T>` of the receiver's `T`, which a later argument never widens |
 | `flatten` | On a `List<List<T>>`, the items of each inner list in order, a list whose inner lists can be null having none |
 | `take(count)`, `drop(count)` | The items at an index less than the count, and those at the count or past it, whatever number the count is: one past the end takes or leaves every item, and one of zero or less none |
@@ -46,20 +46,20 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | `contains(value)` | Whether an item equals the value by [key equality](types.md#types-dictionaries-and-pairs), stopping at the first that does, null equal to a null item |
 | `indexOf(value)` | The position of the value's first occurrence, a `Number?`, compared as `contains` compares, null equal to a null item, and null where no item equals it |
 | `indexWhere(predicate)` | The position of the first item its predicate is truthy for, a `Number?`, null where none is, evaluating it against no item after that one |
-| `single` | The one item, null for an empty list, and refused for a list of several (LEXICA5030) |
+| `single` | The one item, null for an empty list, and refused for a list of several (NEXO5030) |
 | `minBy`, `maxBy` | The first item whose key is the least or the greatest, keys compared as [ordering](#vocabulary-list-ordering) compares them, items whose key is null skipped, null where none gives one |
 | `orderBy(key)`, `orderByDescending(key)` | The items ordered by their keys, ascending or descending, as [ordering](#vocabulary-list-ordering) sets out |
 | `thenBy(key)`, `thenByDescending(key)` | The items of a list `orderBy` ordered, each run of items whose keys so far are equal ordered within itself by another key, as [ordering](#vocabulary-list-ordering) sets out |
 | `distinct`, `distinctBy(expression)` | Each item's first occurrence, in order, items compared by key equality; and each key's first item, its key the expression's value, keys compared alike |
 | `reverse` | The items in the opposite order |
-| `toDictionary(expression)` | A `Dictionary<K, T>` of the items by the key the expression gives each, in the items' order, two items of one key refused (LEXICA5029), which `groupBy` collects instead |
+| `toDictionary(expression)` | A `Dictionary<K, T>` of the items by the key the expression gives each, in the items' order, two items of one key refused (NEXO5029), which `groupBy` collects instead |
 | `groupBy(expression)` | A `Dictionary<K, List<T>>` of the items by their keys, each key's items in their order, the keys in the order their first items stand |
 
 Each signature of the unnamed indexer and of `entry` is one of an [indexer's signatures](members.md#property-access-calls-and-indexers-unnamed-indexers), selected by its key's type: a number and an index are looked up tolerantly, and a range slices strictly.
 
 A number generates numbers apart from any range, as [number members](#vocabulary-number-members) set out.
 
-`where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`. A key `toDictionary`, `groupBy` or `distinctBy` gives is of a key type, `K` its expression's type, so keys of another type are refused where they are resolved (LEXICA3083).
+`where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`. A key `toDictionary`, `groupBy` or `distinctBy` gives is of a key type, `K` its expression's type, so keys of another type are refused where they are resolved (NEXO3083).
 
 An item's body reads the item as a value that is not null, as an object projection reads it, so a null item answers null and the body is never evaluated against it: `where`, `takeWhile`, `dropWhile`, `any`, `all` and `indexWhere` find null falsy, the aggregates skip it, and `toDictionary` and `groupBy` key it by null. `select` alone evaluates its body against every item, its `it` the item's type, null included. A function of the item is called with each item as it is, whichever member it is given to.
 
@@ -71,11 +71,11 @@ A search answers null where it finds nothing, never `-1`, as a lookup by an inde
 
 `orderBy` and `orderByDescending` order a list's items by the key their expression gives each, and `thenBy` and `thenByDescending` refine that order by another key. Each answers a new `List<T>`, its receiver unchanged.
 
-- **Keys.** A key is a number, a string, a Boolean or null, and every key of one criterion that isn't null is of one of those domains: numbers compare numerically, `-0` equal to `0`; strings by their code units, without any locale; and Booleans false before true. A key of another kind, a list, an object or a reference, and keys of two domains in one criterion, are refused where the call is evaluated (LEXICA5036), as a key of `Any` is checked as it is evaluated. Comparing strings is the members' contract alone, so `"a" < "b"` stays refused in an expression.
+- **Keys.** A key is a number, a string, a Boolean or null, and every key of one criterion that isn't null is of one of those domains: numbers compare numerically, `-0` equal to `0`; strings by their code units, without any locale; and Booleans false before true. A key of another kind, a list, an object or a reference, and keys of two domains in one criterion, are refused where the call is evaluated (NEXO5036), as a key of `Any` is checked as it is evaluated. Comparing strings is the members' contract alone, so `"a" < "b"` stays refused in an expression.
 - **Nulls.** A null key, a null item's among them, orders after every other key in either direction. A script orders nulls first by ordering by whether its key is null first, `items.orderBy(it.date != null).thenBy(it.date)`. A body's key is null for a null item, which an item's body never reads, so that ordering puts null items last; a list whose items can be null orders them first by a function, which reads each item as it is: `items.orderBy(item => item != null).thenBy(it)`.
 - **Stability.** Items of equal keys keep their order, in either direction.
 - **Each key once.** A criterion evaluates its expression once for each item, whichever direction, and never again.
-- **Refinement.** `thenBy` takes a list `orderBy` or `thenBy` answered, which a local holding it keeps, and orders each run of items whose keys so far are equal by its own key, leaving every run where the order before it put it, so it refines and never sorts again. Its answer keeps the keys of every criterion, so another `thenBy` refines it further. A list no `orderBy` ordered, one another member answered of an ordered list among them, is refused (LEXICA5037), so `items.orderBy(it.a).where(it.b).thenBy(it.c)` orders by `c` within `where`'s answer only after `orderBy` again.
+- **Refinement.** `thenBy` takes a list `orderBy` or `thenBy` answered, which a local holding it keeps, and orders each run of items whose keys so far are equal by its own key, leaving every run where the order before it put it, so it refines and never sorts again. Its answer keeps the keys of every criterion, so another `thenBy` refines it further. A list no `orderBy` ordered, one another member answered of an ordered list among them, is refused (NEXO5037), so `items.orderBy(it.a).where(it.b).thenBy(it.c)` orders by `c` within `where`'s answer only after `orderBy` again.
 - **What it keeps.** The keys are the evaluation's, kept with the list they ordered, never as the expressions that gave them, and no result records them: an ordered list's record realigns its items' lineage as any reordering does, as [provenance](runtime.md#runtime-results-provenance) sets out.
 
 An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
@@ -92,8 +92,8 @@ A member following a number is a member of the number itself, and reads and chan
 | `floor`, `ceiling`, `truncate` | The nearest whole number at or below the number, at or above it, and toward zero |
 | `abs` | The number's absolute value |
 | `min(other)`, `max(other)` | The lesser and the greater of the number and `other` |
-| `clamp(low, high)` | The number within `low` and `high`, inclusive: `low` where it is less, `high` where it is greater; a `low` greater than `high` is refused where it is evaluated (LEXICA5039) |
-| `sequence(count, step)` | The `List<Number>` of the count's numbers from the number, each the step after the one before, `step` 1 where it is left out; a count that is no nonnegative safe integer is refused (LEXICA5035) |
+| `clamp(low, high)` | The number within `low` and `high`, inclusive: `low` where it is less, `high` where it is greater; a `low` greater than `high` is refused where it is evaluated (NEXO5039) |
+| `sequence(count, step)` | The `List<Number>` of the count's numbers from the number, each the step after the one before, `step` 1 where it is left out; a count that is no nonnegative safe integer is refused (NEXO5035) |
 
 - **Properties and functions.** A member that takes nothing is a property, as a list's `reverse` is, and one that takes a number a function.
 - **Rounding.** `round` is symmetric under negation, `(-x).round == -(x.round)`, which offsets and differences that can be negative need, so it rounds a negative half away from zero where ECMAScript's `Math.round` rounds it toward positive infinity. Rounding to a step is written by arithmetic around it, `(x * 2).round / 2`.
@@ -114,12 +114,12 @@ A member following a string is a member of the string itself, and reads and chan
 | `indexOf(text)` | The position of `text`'s first occurrence, a `Number?`, null where it stands nowhere |
 | `replace(old, new)` | The string with every occurrence of `old` replaced by `new`, literally, left to right, no two overlapping |
 | `split(separator)` | A `List<String>`, the parts between the occurrences of `separator`, in order: an empty part where two occurrences meet or one stands at either end, and the string alone where it holds none |
-| The unnamed indexer, `[range]` | A `String`, the code units within the [range](types.md#types-positions), applied to its length once; a range whose start stands after its end, or either beyond the string, is refused where it is evaluated (LEXICA5033), as a list's slice is |
+| The unnamed indexer, `[range]` | A `String`, the code units within the [range](types.md#types-positions), applied to its length once; a range whose start stands after its end, or either beyond the string, is refused where it is evaluated (NEXO5033), as a list's slice is |
 
-- **The empty text** stands at every position, so `startsWith("")`, `endsWith("")` and `contains("")` are true and `indexOf("")` is `0`. It has no occurrence to replace or to split at, so `replace("", new)` and `split("")` are refused where they are evaluated (LEXICA5040), never inserting between code units or splitting into them.
-- **Characters kept whole.** A slice's boundary standing between the two halves of a surrogate pair is refused where it is evaluated (LEXICA5041), so slicing never makes a well-formed text ill-formed. The other members compare code units exactly, so a text holding a lone surrogate, which only a host can give, is matched as it is: `split` at one parts a pair it finds.
+- **The empty text** stands at every position, so `startsWith("")`, `endsWith("")` and `contains("")` are true and `indexOf("")` is `0`. It has no occurrence to replace or to split at, so `replace("", new)` and `split("")` are refused where they are evaluated (NEXO5040), never inserting between code units or splitting into them.
+- **Characters kept whole.** A slice's boundary standing between the two halves of a surrogate pair is refused where it is evaluated (NEXO5041), so slicing never makes a well-formed text ill-formed. The other members compare code units exactly, so a text holding a lone surrogate, which only a host can give, is matched as it is: `split` at one parts a pair it finds.
 - **What it doesn't do.** No member reads a regular expression, a locale's case or comparison, or a number's format: a text whose domain gives it a form of its own, as `"120px"`, is read by that domain's members or conversions.
-- **Lexica's own.** `String` is Lexica's own type, so its members, and its unnamed indexer, win over a member of the same name, or an unnamed indexer, that a module's extension of `String` declares, as [owners and extensions](modules.md#namespaces-owners-and-extensions) set out.
+- **Nexo's own.** `String` is Nexo's own type, so its members, and its unnamed indexer, win over a member of the same name, or an unnamed indexer, that a module's extension of `String` declares, as [owners and extensions](modules.md#namespaces-owners-and-extensions) set out.
 
 <a id="vocabulary-dictionary-members"></a>
 
@@ -151,13 +151,13 @@ A module declares a test of a receiver as a function whose result is a `Boolean`
 
 A test is declared as a function, since only a function has a [reference](functions.md#functions-module-functions) a script passes; a property is read where it is written. Boolean functions compose as Booleans do: `device.active() and not device.offline()`.
 
-Lexica declares no member that tests a receiver of any type, since how a test reads is a domain's: a module that wants one declares it for its own domain, a function taking a test of its receiver in an extension of every type, `{ name: 'Checks<T>', kind: 'extension', target: 'T' }`, as [type parameters](types.md#types-type-parameters) set out.
+Nexo declares no member that tests a receiver of any type, since how a test reads is a domain's: a module that wants one declares it for its own domain, a function taking a test of its receiver in an extension of every type, `{ name: 'Checks<T>', kind: 'extension', target: 'T' }`, as [type parameters](types.md#types-type-parameters) set out.
 
 <a id="observations"></a>
 
 ## Observations
 
-An **observation** is what a member names to learn that its result may have changed, or to keep the sample it reads. The member declares it, Lexica validates it, and the host starts it where it follows what an evaluation read, and stops it where it no longer does; how a host shares and ends observations is its own.
+An **observation** is what a member names to learn that its result may have changed, or to keep the sample it reads. The member declares it, Nexo validates it, and the host starts it where it follows what an evaluation read, and stops it where it no longer does; how a host shares and ends observations is its own.
 
 <a id="observations-types"></a>
 
@@ -172,7 +172,7 @@ An **observation type** is a declaration of a module, named once across every mo
 
 <a id="observations-types-the-request"></a>
 
-Its implementation receives the **request** an observation makes, `{ type, target, arguments }`: the observation type's name; the target the observation observes, the receiver, a target its host resolved or the value of the member's argument it names; and the arguments the observation gives its type, by name, each argument reference resolved to the value the call gives it. The host builds the request as it starts the observation, since Lexica starts none.
+Its implementation receives the **request** an observation makes, `{ type, target, arguments }`: the observation type's name; the target the observation observes, the receiver, a target its host resolved or the value of the member's argument it names; and the arguments the observation gives its type, by name, each argument reference resolved to the value the call gives it. The host builds the request as it starts the observation, since Nexo starts none.
 
 <a id="observations-targets"></a>
 
@@ -180,7 +180,7 @@ Its implementation receives the **request** an observation makes, `{ type, targe
 
 An **observation target** is what a module declares an observation may observe besides the receiver and an argument, by a name of its own: a target independent of any receiver, as the home is, or one found from the receiver, `from: 'receiver'`; and one target, or several, `count: 'many'`. A target that omits `from` is independent of the receiver, and one that omits `count` is one target.
 
-Lexica does not know any target by name: it validates the declarations and every reference to them, and the host resolves each target when it starts an observation, so a host's module declares the targets its domain needs and the host resolves them itself. `receiver` names the receiver alone, so no module declares a target by that name, and an argument is named as `{ argument }`, never by a bare name, so a target and an argument are never mistaken for each other.
+Nexo does not know any target by name: it validates the declarations and every reference to them, and the host resolves each target when it starts an observation, so a host's module declares the targets its domain needs and the host resolves them itself. `receiver` names the receiver alone, so no module declares a target by that name, and an argument is named as `{ argument }`, never by a bare name, so a target and an argument are never mistaken for each other.
 
 <a id="observations-naming"></a>
 
@@ -199,7 +199,7 @@ An observable member names observations that cover every change to its result, a
 A **type selector** is a declaration of a module that maps keys to types, so a function's fixed argument can choose the type the function answers. The home declares the selector `event`, whose keys are the reports a device makes: `"change"` maps to its structured type `Change`, of `setting` and `value`, and `"motion"` to `Motion`, of `at` and `strength`, so the values a host supplies for `sensor.on("motion")` are `Motion`s.
 
 - **Declaring a selector.** A module declares a selector in its `typeSelectors` by its name alone. A selector is named once across every module, unlike a type, which is named once within its module, so a selector's name identifies the module that declares it, and a module declaring a selector of a name already declared is refused at registration with a module error naming the selector and the module that declared it.
-- **Its keys.** A module declares each key in its `mappings`, a **mapping** of the `selector` it belongs to, the `key` and the `type` it maps to, `{ selector: 'event', key: 'motion', type: 'Motion' }`, its key any string, as a fixed argument may give any, and its type a named type of the declaring module or one of Lexica's own written unqualified and a foreign type qualified, as [type identity](types.md#types-type-identity) sets out. A mapping never writes an object's shape in place: a key whose values are objects maps to a named structured type, as `motion` maps to `Motion`, whose properties `at` and `strength` hold a motion's data. A mapping's selector and key together are its identity, and different selectors may share a key. Any module declares keys for any selector, its own or one a module registered before it declares, so one module extends another's selector as it extends another's types, and is registered after the module it extends. A key stands once in its selector across every registered module: a second, from the same module or another, is refused at registration with a module error naming the selector, the key and the module that declared it first, and no key once registered is replaced. A key of a selector no registered module declares is refused too.
+- **Its keys.** A module declares each key in its `mappings`, a **mapping** of the `selector` it belongs to, the `key` and the `type` it maps to, `{ selector: 'event', key: 'motion', type: 'Motion' }`, its key any string, as a fixed argument may give any, and its type a named type of the declaring module or one of Nexo's own written unqualified and a foreign type qualified, as [type identity](types.md#types-type-identity) sets out. A mapping never writes an object's shape in place: a key whose values are objects maps to a named structured type, as `motion` maps to `Motion`, whose properties `at` and `strength` hold a motion's data. A mapping's selector and key together are its identity, and different selectors may share a key. Any module declares keys for any selector, its own or one a module registered before it declares, so one module extends another's selector as it extends another's types, and is registered after the module it extends. A key stands once in its selector across every registered module: a second, from the same module or another, is refused at registration with a module error naming the selector, the key and the module that declared it first, and no key once registered is replaced. A key of a selector no registered module declares is refused too.
 - **Its revision.** Registering a module that adds keys advances the registry's revision, as every registration does; a key never replaces another, so the keys a resolution settled stay as they were, and whether it stays current is set out in [reusing a resolution](runtime.md#runtime-reuse).
 - **Selecting.** A function's parameter that selects through a selector is fixed and names it, `fixed: true, selects: 'type', selector: 'event'`, and its argument settles as every [fixed argument](members.md#arguments-fixed) does. A function has at most one parameter that selects a type, since its `result` writes one `@selected` where the selected type stands, as `@selected` or `List<@selected>` does; a function with no parameter that selects a type writes none.
 - **A key the selector does not map** is a validation error naming the selector and the key.
@@ -210,4 +210,4 @@ A **type selector** is a declaration of a module that maps keys to types, so a f
 
 A **conversion** is a [conversion operator](modules.md#modules-operators) of a type of data, `{ kind: 'operator', name: 'convert', result: 'Number', impl }`, which `to` invokes and nothing else, and none from a type to itself. Several modules may each declare one from a source to a destination: they compete as every operator does, among those a script's imports make available, the owner's winning, the extension's whose target is more specific than every other's resolving where the owner declares none, and several none of which is more specific refused as ambiguous where a script converts so, as [owners and extensions](modules.md#namespaces-owners-and-extensions) set out. A destination written qualified identifies its type and never selects an operator, and an [extension access](members.md#property-access-calls-and-indexers-extension-access) reaches none. Its types are `Number`, `String`, `Boolean` and the structured types that hold data alone: a reference value is left to members, which declare how they change, so a conversion adds no dependency on a host's state. A module declares one in the members of its own source type, and in an extension where the source type is another module's and the destination its own, as `Measurements` declares one from `Number` to `Temperature`.
 
-Its `impl` reads `value`, never null, and nothing else, and answers the converted value, or calls `reject(reason)` with a diagnostic string. `reject` throws a signal private to Lexica and to that attempt, so it never returns and the conversion stops where it calls it, unlike a promise's `reject`. What `to` and `try … to` make of a rejection and of any other failure is set out in [conversions](values.md#conversions) and [attempts](expressions.md#attempts).
+Its `impl` reads `value`, never null, and nothing else, and answers the converted value, or calls `reject(reason)` with a diagnostic string. `reject` throws a signal private to Nexo and to that attempt, so it never returns and the conversion stops where it calls it, unlike a promise's `reject`. What `to` and `try … to` make of a rejection and of any other failure is set out in [conversions](values.md#conversions) and [attempts](expressions.md#attempts).

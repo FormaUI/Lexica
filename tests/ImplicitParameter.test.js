@@ -93,17 +93,17 @@ describe('the implicit parameter', () => {
         it('is a function the member calls only while its invocation lasts, with one item of the list\'s item type, whether a body or an arrow function gives it', () => {
             for (const expression of ['it.size', 'w => w.size']) {
                 expect(errorThrownBy(() => evaluate(`{ kept = words.keepBy(${expression}), late = chosen.callKept() }`)), expression).toMatchObject({
-                    code: 'LEXICA5008',
+                    code: 'NEXO5008',
                     message: expect.stringContaining("The function given as 'expression' of 'keepBy' is called after 'keepBy' returned"),
                     location: { pointer: '/expression/objectFields/0/value/arguments/0' },
                 });
                 expect(errorThrownBy(() => evaluate(`words.weighPair(${expression})`)), expression).toMatchObject({
-                    code: 'LEXICA5503',
+                    code: 'NEXO5503',
                     message: expect.stringContaining("The function given as 'expression' of 'weighPair' is called with 2 arguments, and its contract declares 1"),
                     location: { pointer: '/expression/arguments/0' },
                 });
                 expect(errorThrownBy(() => evaluate(`words.weighNumber(${expression})`)), expression).toMatchObject({
-                    code: 'LEXICA5503',
+                    code: 'NEXO5503',
                     message: expect.stringContaining("The function given as 'expression' of 'weighNumber' is called with 42, and its contract declares String"),
                     location: { pointer: '/expression/arguments/0' },
                 });
@@ -135,9 +135,9 @@ describe('the implicit parameter', () => {
                 const bindings = registry.createBindings(values);
                 const evaluator = registry.resolve(`words.keepWhereAndFail(${predicate})`, bindings).createEvaluator(bindings);
 
-                expect(errorThrownBy(() => evaluate(`{ kept = words.keepWhere(${predicate}), late = chosen.callKept() }`)), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhere' returned") });
-                expect(errorThrownBy(() => evaluator.evaluate()), predicate).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
-                expect(errorThrownBy(() => held.expression('oat')), predicate).toMatchObject({ code: 'LEXICA5008', message: expect.stringContaining("is called after 'keepWhereAndFail' returned") });
+                expect(errorThrownBy(() => evaluate(`{ kept = words.keepWhere(${predicate}), late = chosen.callKept() }`)), predicate).toMatchObject({ code: 'NEXO5008', message: expect.stringContaining("is called after 'keepWhere' returned") });
+                expect(errorThrownBy(() => evaluator.evaluate()), predicate).toMatchObject({ code: 'NEXO5007', message: expect.stringContaining('The pantry is closed') });
+                expect(errorThrownBy(() => held.expression('oat')), predicate).toMatchObject({ code: 'NEXO5008', message: expect.stringContaining("is called after 'keepWhereAndFail' returned") });
             }
         });
     });

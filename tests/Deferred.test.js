@@ -77,14 +77,14 @@ describe('values of Any', () => {
         });
 
         it('refuses a call or an indexer no accessible declaration of its name takes in that form, and takes a property of any name, which a plain object\'s fields may give', () => {
-            expect(refusal('shelf.item("light").missing()')).toMatchObject({ code: 'LEXICA3001', location: { pointer: '/expression' } });
-            expect(refusal('shelf.item("light").glow()')).toMatchObject({ code: 'LEXICA3017' });
+            expect(refusal('shelf.item("light").missing()')).toMatchObject({ code: 'NEXO3001', location: { pointer: '/expression' } });
+            expect(refusal('shelf.item("light").glow()')).toMatchObject({ code: 'NEXO3017' });
             expect(resolve('shelf.item("record").missing').type).toBe('Any');
         });
 
         it('refuses an argument whose reading would depend on the declaration selected: one that reads its own implicit parameter, and a function', () => {
-            expect(refusal('shelf.item("light").dim(it.size)')).toMatchObject({ code: 'LEXICA3029', location: { pointer: '/expression/arguments/0' } });
-            expect(refusal('shelf.item("light").test(word => word == "lamp")')).toMatchObject({ code: 'LEXICA3029', location: { pointer: '/expression/arguments/0' } });
+            expect(refusal('shelf.item("light").dim(it.size)')).toMatchObject({ code: 'NEXO3029', location: { pointer: '/expression/arguments/0' } });
+            expect(refusal('shelf.item("light").test(word => word == "lamp")')).toMatchObject({ code: 'NEXO3029', location: { pointer: '/expression/arguments/0' } });
         });
     });
 
@@ -142,13 +142,13 @@ describe('values of Any', () => {
             expect(evaluate('shelf.item("record").size')).toBe(3);
             expect(evaluate('shelf.wrap(shelf.cup()).size')).toBe(2);
             expect(evaluate('shelf.wrap(shelf.cup()).describe()')).toBe('a cup of 2');
-            expect(failure('shelf.item("record").describe()')).toMatchObject({ code: 'LEXICA5012', message: expect.stringContaining("'describe' is not available on { size: Number, name: String }") });
+            expect(failure('shelf.item("record").describe()')).toMatchObject({ code: 'NEXO5012', message: expect.stringContaining("'describe' is not available on { size: Number, name: String }") });
         });
 
         it('selects anew for each actual type an access meets, as the items of a list of Any are', () => {
             expect(evaluate('shelf.things().where(it.power == "home").count')).toBe(3);
             expect(evaluate('{ first = shelf.things().first?.glow, last = shelf.things().last?.glow }')).toEqual({ first: 'lamp glows', last: 'lamp glows' });
-            expect(errorThrownBy(() => evaluate('shelf.things().where(it.glow == "lamp glows").count'))).toMatchObject({ code: 'LEXICA5012', message: expect.stringContaining("'glow' is not available on Thermostat") });
+            expect(errorThrownBy(() => evaluate('shelf.things().where(it.glow == "lamp glows").count'))).toMatchObject({ code: 'NEXO5012', message: expect.stringContaining("'glow' is not available on Thermostat") });
         });
 
         it('binds the values a call gives, in order or as the fields of the object a member taking options is given, a default for each left out, and a type parameter of its own by their types', () => {
@@ -159,23 +159,23 @@ describe('values of Any', () => {
         });
 
         it('fails a call its selected member doesn\'t take: a value its parameter doesn\'t admit, too many values, one left out that is required, and a field it has no parameter of', () => {
-            expect(failure('shelf.item("light").dim("high")')).toMatchObject({ code: 'LEXICA5021', message: expect.stringContaining("The argument 'level' of 'dim' on Light is declared Number, and is given \"high\"") });
-            expect(failure('shelf.item("light").dim(1, 2)')).toMatchObject({ code: 'LEXICA5012', message: expect.stringContaining("'dim' on Light takes one argument, and is given 2") });
-            expect(failure('shelf.item("light").dim()')).toMatchObject({ code: 'LEXICA5012', message: expect.stringContaining("'dim' on Light requires the argument 'level'") });
-            expect(failure('shelf.item("light").tune({ speed = 2 })')).toMatchObject({ code: 'LEXICA5012', message: expect.stringContaining("has no parameter 'speed'") });
+            expect(failure('shelf.item("light").dim("high")')).toMatchObject({ code: 'NEXO5021', message: expect.stringContaining("The argument 'level' of 'dim' on Light is declared Number, and is given \"high\"") });
+            expect(failure('shelf.item("light").dim(1, 2)')).toMatchObject({ code: 'NEXO5012', message: expect.stringContaining("'dim' on Light takes one argument, and is given 2") });
+            expect(failure('shelf.item("light").dim()')).toMatchObject({ code: 'NEXO5012', message: expect.stringContaining("'dim' on Light requires the argument 'level'") });
+            expect(failure('shelf.item("light").tune({ speed = 2 })')).toMatchObject({ code: 'NEXO5012', message: expect.stringContaining("has no parameter 'speed'") });
         });
 
         it('fails a member its receiver\'s actual type lacks, a value of no type the vocabulary knows, and a host call, which resolution alone selects, before invoking anything', () => {
-            expect(failure('shelf.item("word").glow')).toMatchObject({ code: 'LEXICA5012', location: { pointer: '/expression' }, message: expect.stringContaining("'glow' is not available on String") });
-            expect(failure('shelf.item("func").power')).toMatchObject({ code: 'LEXICA5012' });
-            expect(failure('{ count = shelf.item("light").order(1) }')).toMatchObject({ code: 'LEXICA5013', message: expect.stringContaining("'order' on Light is a host call") });
+            expect(failure('shelf.item("word").glow')).toMatchObject({ code: 'NEXO5012', location: { pointer: '/expression' }, message: expect.stringContaining("'glow' is not available on String") });
+            expect(failure('shelf.item("func").power')).toMatchObject({ code: 'NEXO5012' });
+            expect(failure('{ count = shelf.item("light").order(1) }')).toMatchObject({ code: 'NEXO5013', message: expect.stringContaining("'order' on Light is a host call") });
         });
 
         it('fails a direct access on null, and answers null for an optional one and for every access after an optional one that met null', () => {
-            expect(failure('shelf.item("light").nothing.size')).toMatchObject({ code: 'LEXICA5022', location: { pointer: '/expression' }, message: expect.stringContaining("write '?.'") });
+            expect(failure('shelf.item("light").nothing.size')).toMatchObject({ code: 'NEXO5022', location: { pointer: '/expression' }, message: expect.stringContaining("write '?.'") });
             expect(evaluate('shelf.item("light").nothing?.size')).toBeNull();
             expect(evaluate('shelf.maybe("none")?.power.size')).toBeNull();
-            expect(failure('shelf.maybe("light")?.nothing.size')).toMatchObject({ code: 'LEXICA5022', location: { pointer: '/expression/chain' } });
+            expect(failure('shelf.maybe("light")?.nothing.size')).toMatchObject({ code: 'NEXO5022', location: { pointer: '/expression/chain' } });
             expect(evaluate('shelf.maybe("light")?.nothing?.size')).toBeNull();
         });
 
@@ -199,7 +199,7 @@ describe('values of Any', () => {
 
             const error = errorThrownBy(() => evaluate('shelf.item("light").glow', { beforeInvoke: request => { if (request.isDeferred) throw refused; invoked.push(request.declaration.name); } }));
 
-            expect(error).toMatchObject({ code: 'LEXICA5009', cause: refused });
+            expect(error).toMatchObject({ code: 'NEXO5009', cause: refused });
             expect(invoked).toEqual(['item']);
         });
     });
@@ -207,7 +207,7 @@ describe('values of Any', () => {
     describe('checked as they are evaluated', () => {
         it('checks a value of Any given where a type is declared against that type', () => {
             expect(evaluate('shelf.double(shelf.item("number"))')).toBe(4);
-            expect(failure('shelf.double(shelf.item("word"))')).toMatchObject({ code: 'LEXICA5021', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The argument 'value' of 'double' is declared Number, and is given \"oat\"") });
+            expect(failure('shelf.double(shelf.item("word"))')).toMatchObject({ code: 'NEXO5021', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The argument 'value' of 'double' is declared Number, and is given \"oat\"") });
         });
 
         it('checks a function\'s or an expression\'s answer of Any against the result its callback contract declares', () => {
@@ -218,32 +218,32 @@ describe('values of Any', () => {
             expect(evaluateOver('numbers.sum(shelf.item("number"))')).toBe(4);
             expect(evaluateOver('numbers.max(n => shelf.maybe("none"))')).toBeNull();
             expect(evaluateOver('numbers.sum(shelf.wrap)')).toBe(3);
-            expect(errorThrownBy(() => evaluateOver('numbers.sum(n => shelf.item("word"))'))).toMatchObject({ code: 'LEXICA5504', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The function given as 'expression' of 'sum' gave \"oat\", and its contract declares Number?") });
-            expect(errorThrownBy(() => evaluateOver('numbers.sum(shelf.item("word"))'))).toMatchObject({ code: 'LEXICA5504', location: { pointer: '/expression/arguments/0' } });
+            expect(errorThrownBy(() => evaluateOver('numbers.sum(n => shelf.item("word"))'))).toMatchObject({ code: 'NEXO5504', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The function given as 'expression' of 'sum' gave \"oat\", and its contract declares Number?") });
+            expect(errorThrownBy(() => evaluateOver('numbers.sum(shelf.item("word"))'))).toMatchObject({ code: 'NEXO5504', location: { pointer: '/expression/arguments/0' } });
         });
 
         it('compares a value of Any with a value of a type it fits one way or the other, and with null, and fails other equalities', () => {
             expect(evaluate('shelf.item("word") == "oat"')).toBe(true);
             expect(evaluate('shelf.item("light") != shelf.item("device")')).toBe(true);
             expect(evaluate('shelf.maybe("none") == 1')).toBe(false);
-            expect(failure('shelf.item("number") == "oat"')).toMatchObject({ code: 'LEXICA5024', message: expect.stringContaining('Number and String, which fit neither way') });
-            expect(failure('shelf.item("record") != null and shelf.item("record") == shelf.item("record")')).toMatchObject({ code: 'LEXICA5025' });
+            expect(failure('shelf.item("number") == "oat"')).toMatchObject({ code: 'NEXO5024', message: expect.stringContaining('Number and String, which fit neither way') });
+            expect(failure('shelf.item("record") != null and shelf.item("record") == shelf.item("record")')).toMatchObject({ code: 'NEXO5025' });
         });
 
         it('answers a result holding data through Any, and fails one holding a reference or a function', () => {
             expect(evaluate('shelf.item("record")')).toEqual({ size: 3, name: 'jar' });
             expect(evaluate('{ word = shelf.item("word"), numbers = shelf.item("numbers") }')).toEqual({ word: 'oat', numbers: [1, 2] });
-            expect(failure('shelf.item("light")')).toMatchObject({ code: 'LEXICA5028' });
-            expect(failure('{ light = shelf.item("light") }')).toMatchObject({ code: 'LEXICA5028' });
-            expect(failure('shelf.item("func")')).toMatchObject({ code: 'LEXICA5028' });
+            expect(failure('shelf.item("light")')).toMatchObject({ code: 'NEXO5028' });
+            expect(failure('{ light = shelf.item("light") }')).toMatchObject({ code: 'NEXO5028' });
+            expect(failure('shelf.item("func")')).toMatchObject({ code: 'NEXO5028' });
         });
 
         it('applies arithmetic, ordering and interpolation to a value of Any as they apply to any operand evaluated', () => {
             expect(evaluate('shelf.item("number") + 1')).toBe(3);
             expect(evaluate('$"{shelf.item("word")}!"')).toBe('oat!');
-            expect(failure('$"{shelf.item("light")}!"')).toMatchObject({ code: 'LEXICA5500' });
-            expect(failure('shelf.item("word") * 2')).toMatchObject({ code: 'LEXICA5505' });
-            expect(failure('shelf.item("word") > 2')).toMatchObject({ code: 'LEXICA5501' });
+            expect(failure('$"{shelf.item("light")}!"')).toMatchObject({ code: 'NEXO5500' });
+            expect(failure('shelf.item("word") * 2')).toMatchObject({ code: 'NEXO5505' });
+            expect(failure('shelf.item("word") > 2')).toMatchObject({ code: 'NEXO5501' });
         });
     });
 });

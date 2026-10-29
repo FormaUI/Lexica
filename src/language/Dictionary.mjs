@@ -1,12 +1,12 @@
 /**
- * Dictionary — a Lexica dictionary, immutable: its entries in the order they were inserted, each key at most once by Lexica's key equality, a number's zero and negative zero one key, a string by its code units, a
+ * Dictionary — a Nexo dictionary, immutable: its entries in the order they were inserted, each key at most once by Nexo's key equality, a number's zero and negative zero one key, a string by its code units, a
  * Boolean by its value, a reference by its identity and null as one key of its own
  */
 
 import { Pair } from './Pair.mjs';
 
 export class Dictionary {
-    /** Each key's value, in the order the keys were inserted, a JavaScript map's key equality being Lexica's for the keys a dictionary holds. @type {Map<unknown, unknown>} */
+    /** Each key's value, in the order the keys were inserted, a JavaScript map's key equality being Nexo's for the keys a dictionary holds. @type {Map<unknown, unknown>} */
     #entries;
 
     /** @param {Iterable<[unknown, unknown]>} entries Its entries, in order, each key once, which its caller has checked. */

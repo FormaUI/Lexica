@@ -12,7 +12,7 @@ So a script's meaning depends on what else its host registers. Registering a mod
 
 **Registering** a module makes it available to scripts. **Importing** it lets a script use it. A script imports the modules whose vocabulary it uses, and only those take part in its resolution:
 
-```lexica
+```nexo
 import Home
 import Energy
 
@@ -35,7 +35,7 @@ import-declaration            = "import" module-name
 
 `import` becomes a reserved word, a keyword. A member named `import` is still read after `.`, as any keyword is. Import order never decides anything. A module imported twice, once written and once supplied by the host or written twice, is imported once.
 
-Lexica's own module is always available and has no namespace, so a script never imports it, and `import Lexica` is refused.
+Nexo's own module is always available and has no namespace, so a script never imports it, and `import Nexo` is refused.
 
 ### What an import makes available
 
@@ -47,7 +47,7 @@ An import makes the module's public vocabulary available to the script:
 
 A script accesses a declared member only where the module that **declares** it is imported: a property, a function, an indexer and an operator alike. The owner of the receiver's type need not be:
 
-```lexica
+```nexo
 import Energy
 
 device.usage
@@ -65,9 +65,9 @@ The registry still understands every registered module's types: it recognizes a 
 
 ### Type names in a script
 
-An unqualified type name resolves to the one public type of its name among Lexica's own and the imported modules'; none is an unknown type, and several are ambiguous, refused with their qualified names given. A qualified name, `Home.Light`, identifies the public type of that local name in that module, which the script imports. A type of a module the script does not import is not named by it, so registering another module's `Device` changes no script that does not import that module.
+An unqualified type name resolves to the one public type of its name among Nexo's own and the imported modules'; none is an unknown type, and several are ambiguous, refused with their qualified names given. A qualified name, `Home.Light`, identifies the public type of that local name in that module, which the script imports. A type of a module the script does not import is not named by it, so registering another module's `Device` changes no script that does not import that module.
 
-A type a host declares for a binding is resolved against the registry, never the script's imports, since a binding set is the host's and may serve scripts with different imports, and its type has one identity whichever script reads it: `types: { device: 'Home.Device' }` names it qualified, and `types: { device: 'Device' }` where exactly one public type in the registry has that name, as Lexica's own types are named; where several do, it is refused, giving the qualified names. A script's imports neither resolve nor disambiguate it.
+A type a host declares for a binding is resolved against the registry, never the script's imports, since a binding set is the host's and may serve scripts with different imports, and its type has one identity whichever script reads it: `types: { device: 'Home.Device' }` names it qualified, and `types: { device: 'Device' }` where exactly one public type in the registry has that name, as Nexo's own types are named; where several do, it is refused, giving the qualified names. A script's imports neither resolve nor disambiguate it.
 
 This replaces the registry-wide lookup [type identity](../../spec/types.md#types-type-identity) sets out for scripts, and leaves its rules for declarations, a type's own `import` among them, as they are. A type's `import` and a script's are one idea at two scopes: the type's names the modules whose types its own declarations name unqualified, and the script's the modules whose vocabulary the script uses.
 
@@ -100,7 +100,7 @@ Standalone formatting writes every import, so canonical text is self-contained a
 | `as Device`, where only a module the script does not import declares a public `Device` | A validation error giving the import, or the qualified name where several modules declare one |
 | `import Garden`, where the registry does not hold a module of that name | A validation error naming the module, when the script is resolved; parsing reads `import Garden` and its namespace without asking a registry |
 | `import` after a body's first local or expression | A syntax error saying imports stand at the start of the script |
-| `import Lexica` | A syntax error saying Lexica's own vocabulary is always available |
+| `import Nexo` | A syntax error saying Nexo's own vocabulary is always available |
 
 A bound script parameter named `Home` is read as that parameter, as today, so a missing import never turns a parameter into a namespace.
 

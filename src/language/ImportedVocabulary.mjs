@@ -1,5 +1,5 @@
 /**
- * ImportedVocabulary — what a script's imports make available: the namespaces their local names begin, the types a script names, and the declarations it may select, Lexica's own always among them
+ * ImportedVocabulary — what a script's imports make available: the namespaces their local names begin, the types a script names, and the declarations it may select, Nexo's own always among them
  */
 
 import { Imports } from './Imports.mjs';
@@ -85,7 +85,7 @@ export class ImportedVocabulary {
         return [...this.#namespaceModules].find(([, module]) => module === moduleName)?.[0];
     }
 
-    /** The names of the modules the script imports whole, whose public extensions an extension access names unqualified beside Lexica's own. */
+    /** The names of the modules the script imports whole, whose public extensions an extension access names unqualified beside Nexo's own. */
     get importedModuleNames() {
         return [...this.#importedModules];
     }
@@ -105,13 +105,13 @@ export class ImportedVocabulary {
         return this.#importedModules.has(moduleName);
     }
 
-    /** The scope the script's type names are read in: its type imports' names first, then Lexica's own types, then its imported modules', qualified by the local names its module imports give. */
+    /** The scope the script's type names are read in: its type imports' names first, then Nexo's own types, then its imported modules', qualified by the local names its module imports give. */
     get typeNameScope() {
         return this.#typeNameScope;
     }
 
     /**
-     * Whether the script's imports make the declaration available to select: one of Lexica's own, which every script has; one its declaring module's import makes available; one an imported extension declares; or one an
+     * Whether the script's imports make the declaration available to select: one of Nexo's own, which every script has; one its declaring module's import makes available; one an imported extension declares; or one an
      * imported type declares within it, or a supertype above it does, which the imported type inherits. A module member is reached through its module's import alone.
      */
     makesAvailable(declaration) {

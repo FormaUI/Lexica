@@ -2,11 +2,11 @@
 
 <a id="scripts"></a>
 
-A **script** is a standalone piece of Lexica code: what a host reads, resolves against its vocabulary and evaluates. It reads its script parameters and its domain, and produces data. Each script stands alone, as a PowerShell script does: scripts never combine into one program, and no script calls another or shares its names.
+A **script** is a standalone piece of Nexo code: what a host reads, resolves against its vocabulary and evaluates. It reads its script parameters and its domain, and produces data. Each script stands alone, as a PowerShell script does: scripts never combine into one program, and no script calls another or shares its names.
 
 Here a host binds the living room as the script parameter `room`, and the script reads it:
 
-```lexica
+```nexo
 let devices = room.devices
 return {
     name = room.name,
@@ -43,13 +43,13 @@ A script reads three kinds of names: its script parameters, which its host binds
 
 ## Imports
 
-**Registering** a module with a registry makes it available to scripts, and **importing** it lets a script use it. A script imports each module whose vocabulary it uses in an import declaration, `import` and the module's name, before its body: a script that reads the home's rooms and `Energy`'s `usage` of their devices begins `import Home` and `import Energy`, and its body follows, as `Home.rooms { name = it.name, usage = it.devices.sum(it.usage) }`. Only the modules it imports, and Lexica's own, which every script has and none imports, take part in resolving it, so registering another module that declares `usage` on `Device` leaves that script as it is.
+**Registering** a module with a registry makes it available to scripts, and **importing** it lets a script use it. A script imports each module whose vocabulary it uses in an import declaration, `import` and the module's name, before its body: a script that reads the home's rooms and `Energy`'s `usage` of their devices begins `import Home` and `import Energy`, and its body follows, as `Home.rooms { name = it.name, usage = it.devices.sum(it.usage) }`. Only the modules it imports, and Nexo's own, which every script has and none imports, take part in resolving it, so registering another module that declares `usage` on `Device` leaves that script as it is.
 
-- **Where they stand.** Each import declaration names one module or one type, at the start of the script, before the first local or expression of its body, and applies to the whole script, its nested bodies and functions included. Import order decides nothing. Lexica's own module is always available and has no namespace, so neither it nor its types are imported, and `import Lexica` is refused.
+- **Where they stand.** Each import declaration names one module or one type, at the start of the script, before the first local or expression of its body, and applies to the whole script, its nested bodies and functions included. Import order decides nothing. Nexo's own module is always available and has no namespace, so neither it nor its types are imported, and `import Nexo` is refused.
 - **A module or a type.** `import Home` imports a module, and `import Home.Sensor` one of its public types, an ordinary type or an extension alike, `import Measurements.NumericList`. A source names a registered module by its registered name and a type by its local name in that module, never another import's local name, so no import depends on another.
 - **Local names.** An import gives its module or its type one local name in the script. Without an alias, that is its own name: `import Measurements` gives `Measurements`, and `import Home.Sensor` gives `Sensor`.
 - **Aliases.** An **alias** is a local name written before `=`, and the import's source after it: `import Measures = Measurements` gives the module `Measurements` the local name `Measures`, so the script writes `Measures.Temperature`. The alias replaces the own name: after `import Measures = Measurements` alone, `Measurements.Temperature` is refused, and a script writing both `import Measurements` and `import Measures = Measurements` reaches the one module by either name. After `import HomeSensor = Home.Sensor`, the script names that type `HomeSensor`, and neither `Sensor` nor the namespace `Home` is bound. An alias may be spelled as another registered module: after `import Home = Garden`, `Home` in that script is the module `Garden`, and the module registered as `Home` is reached under another local name, `import House = Home`, since a source always names a registered module.
-- **Their spelling.** A local name is any identifier, conventionally in PascalCase, which is not enforced, a reserved word, `Lexica` and the name of one of Lexica's own types among them. A reserved word keeps its language meaning where a value stands, so a local name it spells is read with `@`, `@if.rooms`; after `import Lexica = Home`, `Lexica.rooms` and `@Lexica.rooms` read `Home.rooms`; and after `import Number = Home.Sensor`, `Number` names `Home.Sensor`, the script's declaration found before Lexica's own `Number`. It renames nothing outside its script, and keeps its declaration's identity, kind, members, inheritance and contracts.
+- **Their spelling.** A local name is any identifier, conventionally in PascalCase, which is not enforced, a reserved word, `Nexo` and the name of one of Nexo's own types among them. A reserved word keeps its language meaning where a value stands, so a local name it spells is read with `@`, `@if.rooms`; after `import Nexo = Home`, `Nexo.rooms` and `@Nexo.rooms` read `Home.rooms`; and after `import Number = Home.Sensor`, `Number` names `Home.Sensor`, the script's declaration found before Nexo's own `Number`. It renames nothing outside its script, and keeps its declaration's identity, kind, members, inheritance and contracts.
 - **One scope of local names.** Modules and types share it. One local name given to two declarations is refused at the imports, whatever their kinds or order: `import Measures = Measurements` beside `import Measures = Home.Sensor`, or `import Home.Sensor` beside `import Sensor = Garden.Sensor`; distinct aliases resolve it, `import HomeSensor = Home.Sensor` and `import GardenSensor = Garden.Sensor`. One declaration under one local name, written twice or supplied by a host too, counts once, and one declaration under several local names makes no ambiguity, since lookup compares declarations by identity.
 - **What a module import makes available.** A module's public vocabulary: its namespace, through which its module members, its qualified forms and its function references are read; its public types, by their names, in a cast or a conversion, and its extensions, by theirs, in an [extension access](members.md#property-access-calls-and-indexers-extension-access); and the members it declares, its structured types' properties and its extensions among them, with its type selectors' keys, its conversions and its operators.
 - **What a type import makes available.** The type, by its local name, in a cast or a conversion, or, for an extension, in an extension access, and its public members: a type's own and those it inherits, its indexers, conversions and operators among them, and an extension's members, which take part in ordinary lookup as a module import's do. It makes neither its module's namespace nor its module's other declarations available, and an extension another module declares on the type needs its own import. A name a script imports explicitly wins over a type its module imports expose, as [type identity](types.md#types-type-identity) sets out.
@@ -82,10 +82,10 @@ A binding takes its type from its value, unless the host declares it.
 - Null is of the type `null`.
 - A list is a `List<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `List<Device>` and `[light, null]` a `List<Light?>`. A declared cast between two types gives them no type to share. A list of nulls alone, `[null]` or `[null, null]`, is a `List<null>`, whose items can only be null, and the empty list is a `List<Never>`, which does not hold an item.
 - A set is a `List<T>` of its items in its traversal order, its uniqueness making no later projection a set.
-- A map is a `Dictionary<K, V>`, its entries in their order, `K` the type its keys share and `V` the type its values share, each merging as a list's items do, so an empty map is a `Dictionary<Never, Never>`. A key that is no key type, as a list or an object, is a structure error (LEXICA2041), and keys or values that share no type are too (LEXICA2042). A dictionary and a pair the language gave, bound again, are bound as they are.
+- A map is a `Dictionary<K, V>`, its entries in their order, `K` the type its keys share and `V` the type its values share, each merging as a list's items do, so an empty map is a `Dictionary<Never, Never>`. A key that is no key type, as a list or an object, is a structure error (NEXO2041), and keys or values that share no type are too (NEXO2042). A dictionary and a pair the language gave, bound again, are bound as they are.
 - An object is of the object type of its object fields' types, each typed as a binding is, an object of a `key` and a `value` among them, which never becomes a pair, and one of `entries` never a dictionary.
 - Any other iterable, a generator among them, is no binding: a host materializes it, finite, as an array, a set or a map first.
-- A list whose items share no type has no type, because Lexica has no union types and a list holds items of one type, so binding `[1, "two"]`, or a room and a light together, is a structure error.
+- A list whose items share no type has no type, because Nexo has no union types and a list holds items of one type, so binding `[1, "two"]`, or a room and a light together, is a structure error.
 
 Binding keeps a frozen copy of the data it is given, through its lists, sets, maps and objects, never a live view of a set or a map, and each reference value as itself, never copied or frozen, a reference within data among them. A host that changes its data afterwards changes nothing bound, and binds anew to supply new data.
 
@@ -164,7 +164,7 @@ Which arguments are bodies is the parameter's to say, by its kind, and lexical s
 
 An object expression following a list projects each item, which becomes `it` within it:
 
-```lexica
+```nexo
 room {
     // The room's name, whether it is occupied, and each of its devices.
     name = it.name,
@@ -182,7 +182,7 @@ A **body** produces one value. It is either a single expression, or an ordered s
 
 A script is a body. So is a `do … end` block, a conditional branch, and a local function's body.
 
-```lexica
+```nexo
 let warmth = sensor.temperature ?? 0
 let margin = 1.5
 return {
@@ -254,7 +254,7 @@ Object-expression locals instead run at first use; an unused object local does n
 
 A local names an intermediate value with `let`. Later entries use that name, so the value is written and evaluated once.
 
-```lexica
+```nexo
 room {
     let devices = it.devices,
 

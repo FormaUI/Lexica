@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Runs the tests, bundles Lexica, builds the package project, and checks its formatting.
+Runs the tests, bundles Nexo, builds the package project, and checks its formatting.
 
 .PARAMETER Clean
 Removes every build output first, so the build starts from nothing.

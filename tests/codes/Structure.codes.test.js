@@ -16,7 +16,7 @@ const member = (receiver, name, more = {}) => ({ kind: 'memberAccess', receiver,
 const callWith = (...argumentNodes) => ({ kind: 'call', callee: member(parameter('x'), 'f'), arguments: argumentNodes });
 
 describe('the structure codes of a definition', () => {
-    it('LEXICA2000: a definition that does not follow its structure', () => {
+    it('NEXO2000: a definition that does not follow its structure', () => {
         const expressions = [
             { kind: 'infixCall' },
             { kind: 'nothing' },
@@ -52,49 +52,49 @@ describe('the structure codes of a definition', () => {
             member(parameter('x'), parameter('n'), { extension: { name: 'Words' } }),
         ];
 
-        expressions.forEach(expression => expectLexicaError(refusalOf(expression), 'LEXICA2000', 'structure'));
+        expressions.forEach(expression => expectLexicaError(refusalOf(expression), 'NEXO2000', 'structure'));
     });
 
-    it('LEXICA2001: a comparison chain whose operators point two ways', () => {
-        expectLexicaError(refusalOf({ kind: 'comparison', operands: [literal(1), literal(2), literal(3)], operators: ['<', '>'] }), 'LEXICA2001', 'structure');
+    it('NEXO2001: a comparison chain whose operators point two ways', () => {
+        expectLexicaError(refusalOf({ kind: 'comparison', operands: [literal(1), literal(2), literal(3)], operators: ['<', '>'] }), 'NEXO2001', 'structure');
     });
 
-    it('LEXICA2002: a cast whose operand text could not write', () => {
-        expectLexicaError(refusalOf({ kind: 'cast', type: 'Light', operand: { kind: 'arithmetic', operator: '+', left: parameter('a'), right: parameter('b') } }), 'LEXICA2002', 'structure');
+    it('NEXO2002: a cast whose operand text could not write', () => {
+        expectLexicaError(refusalOf({ kind: 'cast', type: 'Light', operand: { kind: 'arithmetic', operator: '+', left: parameter('a'), right: parameter('b') } }), 'NEXO2002', 'structure');
     });
 
-    it('LEXICA2003: a conditional or a do block that is the receiver of a chain', () => {
-        expectLexicaError(refusalOf(member({ kind: 'conditional', condition: literal(true), consequent: literal(1), alternative: literal(2) }, 'a')), 'LEXICA2003', 'structure');
-        expectLexicaError(refusalOf({ kind: 'object', context: { kind: 'do', body: literal(1) }, objectFields: [{ name: 'a', value: literal(1) }] }), 'LEXICA2003', 'structure');
+    it('NEXO2003: a conditional or a do block that is the receiver of a chain', () => {
+        expectLexicaError(refusalOf(member({ kind: 'conditional', condition: literal(true), consequent: literal(1), alternative: literal(2) }, 'a')), 'NEXO2003', 'structure');
+        expectLexicaError(refusalOf({ kind: 'object', context: { kind: 'do', body: literal(1) }, objectFields: [{ name: 'a', value: literal(1) }] }), 'NEXO2003', 'structure');
     });
 
-    it('LEXICA2004: a regular function that is not a local initializer', () => {
-        expectLexicaError(refusalOf({ kind: 'function', parameters: [], body: literal(1) }), 'LEXICA2004', 'structure');
+    it('NEXO2004: a regular function that is not a local initializer', () => {
+        expectLexicaError(refusalOf({ kind: 'function', parameters: [], body: literal(1) }), 'NEXO2004', 'structure');
     });
 
-    it('LEXICA2005: a regular function written directly as an argument', () => {
-        expectLexicaError(refusalOf(callWith({ kind: 'function', parameters: [], body: literal(1) })), 'LEXICA2005', 'structure');
+    it('NEXO2005: a regular function written directly as an argument', () => {
+        expectLexicaError(refusalOf(callWith({ kind: 'function', parameters: [], body: literal(1) })), 'NEXO2005', 'structure');
     });
 
-    it('LEXICA2006: an arrow function whose body is not a simple expression', () => {
-        expectLexicaError(refusalOf(callWith({ kind: 'function', parameters: [], arrow: true, body: { kind: 'body', locals: [], result: literal(1) } })), 'LEXICA2006', 'structure');
+    it('NEXO2006: an arrow function whose body is not a simple expression', () => {
+        expectLexicaError(refusalOf(callWith({ kind: 'function', parameters: [], arrow: true, body: { kind: 'body', locals: [], result: literal(1) } })), 'NEXO2006', 'structure');
     });
 
-    it('LEXICA2007: a definition of another version, version 33 among them, before anything else it holds', () => {
-        expectLexicaError(errorThrownBy(() => lexica.validate({ version: 1, expression: literal(1) })), 'LEXICA2007', 'structure');
+    it('NEXO2007: a definition of another version, version 33 among them, before anything else it holds', () => {
+        expectLexicaError(errorThrownBy(() => lexica.validate({ version: 1, expression: literal(1) })), 'NEXO2007', 'structure');
 
         const older = errorThrownBy(() => lexica.validate({ version: 33, expression: { kind: 'parameter', name: 'x' } }));
 
-        expectLexicaError(older, 'LEXICA2007', 'structure');
+        expectLexicaError(older, 'NEXO2007', 'structure');
         expect(older).toMatchObject({ message: expect.stringContaining('this one is of version 33'), location: { pointer: '/version' } });
     });
 
-    it("LEXICA2008: a definition's imports that break their rules, located at the import", () => {
+    it("NEXO2008: a definition's imports that break their rules, located at the import", () => {
         const refusals = [
             [{ module: '1a' }],
             [{ module: 'Home', extra: true }],
-            [{ module: 'Lexica' }],
-            [{ module: 'Lexica', type: 'List', alias: 'Items' }],
+            [{ module: 'Nexo' }],
+            [{ module: 'Nexo', type: 'List', alias: 'Items' }],
             [{ module: 'Home', type: 'my-type' }],
             [{ module: 'Home', alias: 'Home' }],
             [{ module: 'Home', type: 'Sensor', alias: 'Sensor' }],
@@ -107,32 +107,32 @@ describe('the structure codes of a definition', () => {
         for (const imports of refusals) {
             const refused = refusalOf(literal(1), imports);
 
-            expectLexicaError(refused, 'LEXICA2008', 'structure');
+            expectLexicaError(refused, 'NEXO2008', 'structure');
             expect(refused.location.pointer, JSON.stringify(imports)).toBe(`/imports/${imports.length - 1}`);
         }
 
-        expectLexicaError(errorThrownBy(() => lexica.validate({ version: lexica.info.versions.definition, imports: 'Home', expression: literal(1) })), 'LEXICA2000', 'structure');
-        expectLexicaError(errorThrownBy(() => lexica.validate({ version: lexica.info.versions.definition, expression: literal(1) })), 'LEXICA2000', 'structure');
+        expectLexicaError(errorThrownBy(() => lexica.validate({ version: lexica.info.versions.definition, imports: 'Home', expression: literal(1) })), 'NEXO2000', 'structure');
+        expectLexicaError(errorThrownBy(() => lexica.validate({ version: lexica.info.versions.definition, expression: literal(1) })), 'NEXO2000', 'structure');
         expect(refusalOf(literal(1), [{ module: 'Measurements', alias: 'Measures' }, { module: 'Home', type: 'Sensor', alias: 'Measures' }]).message).toContain("'Measures' is the local name both 'import Measures = Measurements' and 'import Measures = Home.Sensor' give");
     });
 
-    it("LEXICA2028: a namespace or an extension selection's module naming a module no import gives that local name", () => {
-        expectLexicaError(refusalOf(member(namespace('Home'), 'rooms')), 'LEXICA2028', 'structure');
+    it("NEXO2028: a namespace or an extension selection's module naming a module no import gives that local name", () => {
+        expectLexicaError(refusalOf(member(namespace('Home'), 'rooms')), 'NEXO2028', 'structure');
         expect(refusalOf(member(namespace('Home'), 'rooms'), [{ module: 'Home', alias: 'House' }]).location).toEqual({ pointer: '/expression/receiver' });
-        expect(refusalOf(member(namespace('Sensor'), 'rooms'), [{ module: 'Home', type: 'Sensor' }]).code).toBe('LEXICA2028');
+        expect(refusalOf(member(namespace('Sensor'), 'rooms'), [{ module: 'Home', type: 'Sensor' }]).code).toBe('NEXO2028');
         expect(refusalOf(member(parameter('x'), 'usage', { extension: { name: 'Device', module: 'Energy' } })).location).toEqual({ pointer: '/expression/extension/module' });
         expect(lexica.validate(definitionOf(member(namespace('House'), 'rooms'), [{ module: 'Home', alias: 'House' }])).expression).toEqual(member(namespace('House'), 'rooms'));
     });
 
-    it('LEXICA2009: an object node with no field', () => {
-        expectLexicaError(refusalOf({ kind: 'object', objectFields: [] }), 'LEXICA2009', 'structure');
+    it('NEXO2009: an object node with no field', () => {
+        expectLexicaError(refusalOf({ kind: 'object', objectFields: [] }), 'NEXO2009', 'structure');
     });
 
-    it('LEXICA2010: an optional access outside an optional chain', () => {
-        expectLexicaError(refusalOf(member(parameter('x'), 'a', { optional: true })), 'LEXICA2010', 'structure');
+    it('NEXO2010: an optional access outside an optional chain', () => {
+        expectLexicaError(refusalOf(member(parameter('x'), 'a', { optional: true })), 'NEXO2010', 'structure');
     });
 
-    it('LEXICA2011: a do block, a conditional binding or a conditional beyond simple branches within a simple expression', () => {
+    it('NEXO2011: a do block, a conditional binding or a conditional beyond simple branches within a simple expression', () => {
         const conditional = (consequent, alternative = literal(2)) => ({ kind: 'conditional', condition: literal(true), consequent, alternative });
         const expressions = [
             callWith({ kind: 'do', body: literal(1) }),
@@ -141,114 +141,114 @@ describe('the structure codes of a definition', () => {
             callWith(conditional({ kind: 'body', locals: [], result: literal(1) }, { kind: 'body', locals: [], result: literal(2) })),
         ];
 
-        expressions.forEach(expression => expectLexicaError(refusalOf(expression), 'LEXICA2011', 'structure'));
+        expressions.forEach(expression => expectLexicaError(refusalOf(expression), 'NEXO2011', 'structure'));
     });
 
-    it('LEXICA2012: a local no local or field in scope answers', () => {
-        expectLexicaError(refusalOf({ kind: 'local', name: 'missing' }), 'LEXICA2012', 'structure');
+    it('NEXO2012: a local no local or field in scope answers', () => {
+        expectLexicaError(refusalOf({ kind: 'local', name: 'missing' }), 'NEXO2012', 'structure');
     });
 
-    it('LEXICA2013: a name read before a local of its name declared later in its scope', () => {
-        expectLexicaError(errorThrownBy(() => lexica.parse('{ let n = n, a = n }')), 'LEXICA2013', 'structure');
+    it('NEXO2013: a name read before a local of its name declared later in its scope', () => {
+        expectLexicaError(errorThrownBy(() => lexica.parse('{ let n = n, a = n }')), 'NEXO2013', 'structure');
     });
 
-    it("LEXICA2014: a conditional binding's initializer reading the binding's own name", () => {
-        expectLexicaError(errorThrownBy(() => lexica.parse('if let k = k then 1 else 2 end')), 'LEXICA2014', 'structure');
+    it("NEXO2014: a conditional binding's initializer reading the binding's own name", () => {
+        expectLexicaError(errorThrownBy(() => lexica.parse('if let k = k then 1 else 2 end')), 'NEXO2014', 'structure');
     });
 
-    it('LEXICA2015: two locals of one name in a body or an object expression', () => {
-        expectLexicaError(refusalOf({ kind: 'body', locals: [{ name: 'a', value: literal(1) }, { name: 'a', value: literal(2) }], result: literal(1) }), 'LEXICA2015', 'structure');
-        expectLexicaError(refusalOf({ kind: 'object', locals: [{ name: 'a', value: literal(1) }, { name: 'a', value: literal(2) }], objectFields: [{ name: 'b', value: literal(1) }] }), 'LEXICA2015', 'structure');
+    it('NEXO2015: two locals of one name in a body or an object expression', () => {
+        expectLexicaError(refusalOf({ kind: 'body', locals: [{ name: 'a', value: literal(1) }, { name: 'a', value: literal(2) }], result: literal(1) }), 'NEXO2015', 'structure');
+        expectLexicaError(refusalOf({ kind: 'object', locals: [{ name: 'a', value: literal(1) }, { name: 'a', value: literal(2) }], objectFields: [{ name: 'b', value: literal(1) }] }), 'NEXO2015', 'structure');
     });
 
-    it('LEXICA2016: a function calling itself', () => {
+    it('NEXO2016: a function calling itself', () => {
         const recursive = { kind: 'function', parameters: [], body: { kind: 'call', callee: { kind: 'local', name: 'f' }, arguments: [] } };
 
-        expectLexicaError(refusalOf({ kind: 'body', locals: [{ name: 'f', value: recursive }], result: literal(1) }), 'LEXICA2016', 'structure');
+        expectLexicaError(refusalOf({ kind: 'body', locals: [{ name: 'f', value: recursive }], result: literal(1) }), 'NEXO2016', 'structure');
     });
 
-    it("LEXICA2017: a body anywhere but the script's, a do block's, a function's or a conditional branch's", () => {
-        expectLexicaError(refusalOf({ kind: 'equality', left: { kind: 'body', locals: [], result: literal(1) }, right: literal(1) }), 'LEXICA2017', 'structure');
+    it("NEXO2017: a body anywhere but the script's, a do block's, a function's or a conditional branch's", () => {
+        expectLexicaError(refusalOf({ kind: 'equality', left: { kind: 'body', locals: [], result: literal(1) }, right: literal(1) }), 'NEXO2017', 'structure');
     });
 
-    it('LEXICA2018: a root outside every object expression', () => {
-        expectLexicaError(refusalOf({ kind: 'root' }), 'LEXICA2018', 'structure');
+    it('NEXO2018: a root outside every object expression', () => {
+        expectLexicaError(refusalOf({ kind: 'root' }), 'NEXO2018', 'structure');
     });
 
-    it('LEXICA2019: a numeric literal no finite number holds', () => {
-        expectLexicaError(refusalOf(literal(Infinity)), 'LEXICA2019', 'structure');
+    it('NEXO2019: a numeric literal no finite number holds', () => {
+        expectLexicaError(refusalOf(literal(Infinity)), 'NEXO2019', 'structure');
     });
 
-    it('LEXICA2026: it where the definition alone shows nothing gives it a value', () => {
-        expectLexicaError(refusalOf({ kind: 'it' }), 'LEXICA2026', 'structure');
+    it('NEXO2026: it where the definition alone shows nothing gives it a value', () => {
+        expectLexicaError(refusalOf({ kind: 'it' }), 'NEXO2026', 'structure');
     });
 
-    it('LEXICA2027: an arrow function that is neither a local initializer nor an argument', () => {
-        expectLexicaError(refusalOf({ kind: 'function', parameters: [], body: literal(1), arrow: true }), 'LEXICA2027', 'structure');
+    it('NEXO2027: an arrow function that is neither a local initializer nor an argument', () => {
+        expectLexicaError(refusalOf({ kind: 'function', parameters: [], body: literal(1), arrow: true }), 'NEXO2027', 'structure');
     });
 
-    it('LEXICA2029: a comparison node of fewer than two operands', () => {
-        expectLexicaError(refusalOf({ kind: 'comparison', operands: [literal(1)], operators: [] }), 'LEXICA2029', 'structure');
+    it('NEXO2029: a comparison node of fewer than two operands', () => {
+        expectLexicaError(refusalOf({ kind: 'comparison', operands: [literal(1)], operators: [] }), 'NEXO2029', 'structure');
     });
 
-    it('LEXICA2030: an optional chain holding no optional access', () => {
-        expectLexicaError(refusalOf({ kind: 'optionalChain', chain: member(parameter('x'), 'a') }), 'LEXICA2030', 'structure');
+    it('NEXO2030: an optional chain holding no optional access', () => {
+        expectLexicaError(refusalOf({ kind: 'optionalChain', chain: member(parameter('x'), 'a') }), 'NEXO2030', 'structure');
     });
 
-    it('LEXICA2031: two fields of one name', () => {
-        expectLexicaError(refusalOf({ kind: 'object', objectFields: [{ name: 'a', value: literal(1) }, { name: 'a', value: literal(2) }] }), 'LEXICA2031', 'structure');
+    it('NEXO2031: two fields of one name', () => {
+        expectLexicaError(refusalOf({ kind: 'object', objectFields: [{ name: 'a', value: literal(1) }, { name: 'a', value: literal(2) }] }), 'NEXO2031', 'structure');
     });
 
-    it('LEXICA2032: two parameters of one name', () => {
+    it('NEXO2032: two parameters of one name', () => {
         const function_ = { kind: 'function', parameters: ['a', 'a'], body: literal(1) };
 
-        expectLexicaError(refusalOf({ kind: 'body', locals: [{ name: 'f', value: function_ }], result: literal(1) }), 'LEXICA2032', 'structure');
+        expectLexicaError(refusalOf({ kind: 'body', locals: [{ name: 'f', value: function_ }], result: literal(1) }), 'NEXO2032', 'structure');
     });
 
-    it('LEXICA2520: a namespace anywhere but the receiver of a member access', () => {
+    it('NEXO2520: a namespace anywhere but the receiver of a member access', () => {
         const home = [{ module: 'Home' }];
 
-        expectLexicaError(refusalOf(namespace('Home'), home), 'LEXICA2520', 'structure');
-        expectLexicaError(refusalOf({ kind: 'indexerAccess', receiver: namespace('Home'), argument: literal(0) }, home), 'LEXICA2520', 'structure');
+        expectLexicaError(refusalOf(namespace('Home'), home), 'NEXO2520', 'structure');
+        expectLexicaError(refusalOf({ kind: 'indexerAccess', receiver: namespace('Home'), argument: literal(0) }, home), 'NEXO2520', 'structure');
     });
 
-    it("LEXICA2521: a namespace's member named by a computed property access", () => {
-        expectLexicaError(refusalOf(member(namespace('Home'), parameter('p')), [{ module: 'Home' }]), 'LEXICA2521', 'structure');
+    it("NEXO2521: a namespace's member named by a computed property access", () => {
+        expectLexicaError(refusalOf(member(namespace('Home'), parameter('p')), [{ module: 'Home' }]), 'NEXO2521', 'structure');
     });
 
-    it('LEXICA2522: an optional access through a namespace', () => {
-        expectLexicaError(refusalOf({ kind: 'optionalChain', chain: member(namespace('Home'), 'rooms', { optional: true }) }, [{ module: 'Home' }]), 'LEXICA2522', 'structure');
+    it('NEXO2522: an optional access through a namespace', () => {
+        expectLexicaError(refusalOf({ kind: 'optionalChain', chain: member(namespace('Home'), 'rooms', { optional: true }) }, [{ module: 'Home' }]), 'NEXO2522', 'structure');
     });
 
-    it('LEXICA2523: an attempt of anything but a conversion or a cast', () => {
-        expectLexicaError(refusalOf({ kind: 'try', operand: literal(1) }), 'LEXICA2523', 'structure');
-        expectLexicaError(refusalOf({ kind: 'try', operand: { kind: 'try', operand: { kind: 'conversion', type: 'String', operand: parameter('a') } } }), 'LEXICA2523', 'structure');
+    it('NEXO2523: an attempt of anything but a conversion or a cast', () => {
+        expectLexicaError(refusalOf({ kind: 'try', operand: literal(1) }), 'NEXO2523', 'structure');
+        expectLexicaError(refusalOf({ kind: 'try', operand: { kind: 'try', operand: { kind: 'conversion', type: 'String', operand: parameter('a') } } }), 'NEXO2523', 'structure');
     });
 
-    it('LEXICA2524: a conditional whose branches give their results in two styles', () => {
-        expectLexicaError(refusalOf({ kind: 'conditional', condition: literal(true), consequent: { kind: 'body', locals: [], result: literal(1) }, alternative: literal(2) }), 'LEXICA2524', 'structure');
+    it('NEXO2524: a conditional whose branches give their results in two styles', () => {
+        expectLexicaError(refusalOf({ kind: 'conditional', condition: literal(true), consequent: { kind: 'body', locals: [], result: literal(1) }, alternative: literal(2) }), 'NEXO2524', 'structure');
     });
 
-    it('LEXICA2525: an and or an or of fewer than two operands', () => {
-        expectLexicaError(refusalOf({ kind: 'and', operands: [literal(true)] }), 'LEXICA2525', 'structure');
-        expectLexicaError(refusalOf({ kind: 'or', operands: [] }), 'LEXICA2525', 'structure');
+    it('NEXO2525: an and or an or of fewer than two operands', () => {
+        expectLexicaError(refusalOf({ kind: 'and', operands: [literal(true)] }), 'NEXO2525', 'structure');
+        expectLexicaError(refusalOf({ kind: 'or', operands: [] }), 'NEXO2525', 'structure');
     });
 
-    it('LEXICA2526: a comparison without exactly one operator between each two operands', () => {
-        expectLexicaError(refusalOf({ kind: 'comparison', operands: [literal(1), literal(2)], operators: ['<', '<'] }), 'LEXICA2526', 'structure');
+    it('NEXO2526: a comparison without exactly one operator between each two operands', () => {
+        expectLexicaError(refusalOf({ kind: 'comparison', operands: [literal(1), literal(2)], operators: ['<', '<'] }), 'NEXO2526', 'structure');
     });
 
-    it('LEXICA2527: an object expression declaring locals within a simple expression', () => {
-        expectLexicaError(refusalOf(callWith({ kind: 'object', locals: [{ name: 'a', value: literal(1) }], objectFields: [{ name: 'b', value: literal(1) }] })), 'LEXICA2527', 'structure');
+    it('NEXO2527: an object expression declaring locals within a simple expression', () => {
+        expectLexicaError(refusalOf(callWith({ kind: 'object', locals: [{ name: 'a', value: literal(1) }], objectFields: [{ name: 'b', value: literal(1) }] })), 'NEXO2527', 'structure');
     });
 
-    it('LEXICA2528: a parameter a text wrote alone named as a local in scope', () => {
+    it('NEXO2528: a parameter a text wrote alone named as a local in scope', () => {
         // Lowering reads such a name as the local, so only a text's definition given to validation directly holds one.
         const locations = { locate: pointer => ({ pointer }) };
         const writtenAlone = parameter('a');
         const definition = definitionOf({ kind: 'object', locals: [{ name: 'a', value: literal(1) }], objectFields: [{ name: 'b', value: writtenAlone }] });
 
-        expectLexicaError(errorThrownBy(() => new DefinitionValidator(locations, new WeakSet([writtenAlone])).validate(definition)), 'LEXICA2528', 'structure');
+        expectLexicaError(errorThrownBy(() => new DefinitionValidator(locations, new WeakSet([writtenAlone])).validate(definition)), 'NEXO2528', 'structure');
     });
 
     it('takes a definition of every node version 34 names, as canonical text writes it', () => {

@@ -28,7 +28,7 @@ const values = {
     prices: new Map([['tea', 2], ['coffee', 3], ['milk', null]]),
 };
 
-/** What the text evaluates to, its value and its type, against Lexica's own vocabulary and the probe. */
+/** What the text evaluates to, its value and its type, against Nexo's own vocabulary and the probe. */
 const evaluate = text => {
     seen = [];
 
@@ -70,8 +70,8 @@ describe('the members of collections', () => {
             expect(valueOf('xs.concat(none)')).toEqual([3, 1, 2]);
             expect(evaluate('nested.flatten')).toEqual({ value: [1, 2, 3], type: 'List<Number>' });
             expect(evaluate('nested.selectMany(it)')).toEqual({ value: [1, 2, 3], type: 'List<Number>' });
-            expect(failureOf('lights.concat(devices)')).toMatchObject({ code: 'LEXICA3042', location: { pointer: '/expression/arguments/0' } });
-            expect(failureOf('gaps.selectMany(xs)')).toMatchObject({ code: 'LEXICA5031', location: { pointer: '/expression' } });
+            expect(failureOf('lights.concat(devices)')).toMatchObject({ code: 'NEXO3042', location: { pointer: '/expression/arguments/0' } });
+            expect(failureOf('gaps.selectMany(xs)')).toMatchObject({ code: 'NEXO5031', location: { pointer: '/expression' } });
         });
 
         it('reverses and keeps each item\'s first occurrence, by value and by key', () => {
@@ -115,7 +115,7 @@ describe('the members of collections', () => {
 
         it('answers the one item, null for none, and refuses a list of several', () => {
             expect([valueOf('lights.single == lights.first'), valueOf('none.single == null')]).toEqual([true, true]);
-            expect(failureOf('xs.single')).toMatchObject({ code: 'LEXICA5030', location: { pointer: '/expression' }, message: expect.stringContaining('holds 3') });
+            expect(failureOf('xs.single')).toMatchObject({ code: 'NEXO5030', location: { pointer: '/expression' }, message: expect.stringContaining('holds 3') });
         });
 
         it('averages, and finds the first item of the least and the greatest number, skipping null numbers and answering null for none', () => {
@@ -129,14 +129,14 @@ describe('the members of collections', () => {
         it('builds a dictionary of the items by their keys in their order, refusing two items of one key, which grouping collects', () => {
             expect(evaluate('people.toDictionary(it.name)["bob"]?.team')).toEqual({ value: 'b', type: 'String?' });
             expect(valueOf('people.toDictionary(it.name).keys')).toEqual(['ann', 'bob', 'cy']);
-            expect(failureOf('people.toDictionary(it.team)')).toMatchObject({ code: 'LEXICA5029', location: { pointer: '/expression' }, message: expect.stringContaining('the key "a"') });
+            expect(failureOf('people.toDictionary(it.team)')).toMatchObject({ code: 'NEXO5029', location: { pointer: '/expression' }, message: expect.stringContaining('the key "a"') });
             expect(evaluate('people.groupBy(it.team)')).toMatchObject({ type: 'Dictionary<String, List<{ name: String, team: String }>>' });
             expect(valueOf('people.groupBy(it.team).entries.select(it.value.count)')).toEqual([2, 1]);
             expect(valueOf('people.groupBy(it.team).keys')).toEqual(['a', 'b']);
         });
 
         it('refuses a key of no key type where the call is resolved', () => {
-            expect(failureOf('people.toDictionary({ n = it.name })')).toMatchObject({ code: 'LEXICA3083', location: { pointer: '/expression' } });
+            expect(failureOf('people.toDictionary({ n = it.name })')).toMatchObject({ code: 'NEXO3083', location: { pointer: '/expression' } });
         });
     });
 

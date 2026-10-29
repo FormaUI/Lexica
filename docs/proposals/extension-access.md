@@ -11,7 +11,7 @@ Related proposals: [named extension types](named-extension-types.md), which decl
 3. **An extension's name follows a type's.** Its local name begins with a capital letter, as any type's does, and the suffix `Extensions` is a convention its author may follow or leave, as `NumericList` leaves it: the `:` operator identifies explicit extension access, `kind: 'extension'` establishes the declaration's semantics, and a name's spelling never makes a declaration an extension.
 4. **Indexer syntax remains as specified.** The colon indexer forms removed in part 1 stay removed: `device.setting["mode"]` is a named indexer, `list[0]` an unnamed one, and `device.[name]` computed property access. `device:setting["mode"]` cannot select the receiver's `setting` member, since the position after `:` requires an extension-type reference; a diagnostic may suggest `device.setting["mode"]`. `it:[name]` remains invalid, and its hint distinguishes the indexer `it[name]` from computed property access `it.[name]`.
 5. **A function accessed without invocation is a bound reference.** Resolution determines the selected member's kind: accessing a property reads it, `device:DeviceExtensions.active()` invokes a function, and `device:DeviceExtensions.active` is a function reference bound to the receiver, evaluated and captured once when the reference is created, under the existing function-reference restrictions, those concerning host calls among them. Where the receiver is supplied later, an arrow function expresses the operation: `d => d:DeviceExtensions.active()`.
-6. **Lexica's own extension names are reserved,** under the rule for its own type names, by their local names independently of their parameters, whatever their suffix.
+6. **Nexo's own extension names are reserved,** under the rule for its own type names, by their local names independently of their parameters, whatever their suffix.
 
 The definition representation stands: a `member`, `call` or `indexer` node keeps its receiver and gains the optional selector `extension: { name, module? }`, within the definition 34 revision.
 
@@ -80,7 +80,7 @@ An access must include a member operation: a named member, its invocation or ind
 
 ## Extension names and qualification
 
-The extension selector uses Lexica's type-name syntax and resolves within the script's permitted imports and built-in declarations.
+The extension selector uses Nexo's type-name syntax and resolves within the script's permitted imports and built-in declarations.
 
 An unqualified name is valid when it identifies one accessible declaration:
 
@@ -100,7 +100,7 @@ The selected declaration must have `kind: 'extension'`. Its member must be acces
 
 ## Ordinary and explicit lookup
 
-Ordinary access asks Lexica to select a member using its normal lookup rules:
+Ordinary access asks Nexo to select a member using its normal lookup rules:
 
 ```text
 device.usage
@@ -211,7 +211,7 @@ Execution follows these rules:
 
 The host's policy must permit the selected declaration before its implementation runs, including a property getter or indexer. Existing checks that can reject a script earlier remain applicable.
 
-Receiver evaluation and argument evaluation retain Lexica's established ordering and lazy-evaluation rules. A failed receiver check prevents invocation of the selected member.
+Receiver evaluation and argument evaluation retain Nexo's established ordering and lazy-evaluation rules. A failed receiver check prevents invocation of the selected member.
 
 Property observation metadata, function execution rules, indexer behavior, and result projection retain their existing meanings.
 

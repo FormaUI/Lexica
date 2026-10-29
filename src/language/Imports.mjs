@@ -64,7 +64,7 @@ export class Imports {
 
     /**
      * The imports a host supplies, each a module's name or an import in a definition's shape, as definition-shaped imports, each once, in order of the local name it gives. Each is checked as a definition's import is,
-     * and two giving one local name to different declarations are refused, each with LEXICA2008.
+     * and two giving one local name to different declarations are refused, each with NEXO2008.
      * @param {unknown} supplied
      */
     static createSuppliedImports(supplied) {
@@ -73,14 +73,14 @@ export class Imports {
         }
 
         if (!Array.isArray(supplied)) {
-            throw LexicaErrors.structure('LEXICA2008', "A host's imports are a list, each a module's name or an import, as { module: 'Home' }", {});
+            throw LexicaErrors.structure('NEXO2008', "A host's imports are a list, each a module's name or an import, as { module: 'Home' }", {});
         }
 
         const imports = supplied.map(item => {
             const entry = typeof item === 'string' ? { module: item } : item;
 
             Imports.validateImport(entry, message => {
-                throw LexicaErrors.structure('LEXICA2008', `${message}, and the host supplies ${Imports.#describe(item)}`, {});
+                throw LexicaErrors.structure('NEXO2008', `${message}, and the host supplies ${Imports.#describe(item)}`, {});
             });
 
             return Object.freeze(Object.fromEntries(IMPORT_KEYS.filter(key => entry[key] !== undefined).map(key => [key, entry[key]])));
@@ -88,14 +88,14 @@ export class Imports {
         const conflict = Imports.findConflict(imports);
 
         if (conflict !== null) {
-            throw LexicaErrors.structure('LEXICA2008', Imports.describeConflict(conflict), {});
+            throw LexicaErrors.structure('NEXO2008', Imports.describeConflict(conflict), {});
         }
 
         return Imports.mergeImports(imports);
     }
 
     /**
-     * Checks one import's shape, calling `fail` with why it breaks it: an object holding a module, an identifier other than Lexica's, a type where it imports one and an alias only where it differs from the local name the
+     * Checks one import's shape, calling `fail` with why it breaks it: an object holding a module, an identifier other than Nexo's, a type where it imports one and an alias only where it differs from the local name the
      * import gives without one, each an identifier.
      */
     static validateImport(entry, fail) {
@@ -108,7 +108,7 @@ export class Imports {
         }
 
         if (entry.module === Names.lexicaModuleName) {
-            fail("Lexica's own vocabulary is always available, so no script imports it or one of its types");
+            fail("Nexo's own vocabulary is always available, so no script imports it or one of its types");
         }
 
         if (entry.type !== undefined && !Names.isIdentifier(entry.type)) {

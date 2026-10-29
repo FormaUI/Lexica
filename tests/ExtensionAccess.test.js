@@ -93,14 +93,14 @@ describe('extension access', () => {
 
         it('reads an extension access within an argument, a colon a space follows starting no argument but a named one, and a word named as a module the imports give as its qualifier', () => {
             expect(lexica.parse('f(x:Device.usage)').expression.arguments[0]).toMatchObject({ kind: 'memberAccess', extension: { name: 'Device' } });
-            expect(errorThrownBy(() => lexica.parse('f(x: Device.usage)'))).toMatchObject({ code: 'LEXICA1012' });
-            expect(errorThrownBy(() => lexica.parse('fan:Energy.usage', { imports: ['Energy'] }))).toMatchObject({ code: 'LEXICA1000', location: { offset: 16 } });
+            expect(errorThrownBy(() => lexica.parse('f(x: Device.usage)'))).toMatchObject({ code: 'NEXO1012' });
+            expect(errorThrownBy(() => lexica.parse('fan:Energy.usage', { imports: ['Energy'] }))).toMatchObject({ code: 'NEXO1000', location: { offset: 16 } });
         });
 
         it('refuses a colon brackets follow directly, giving the unnamed indexer and the computed property access, and an extension named with no member after it', () => {
-            expect(errorThrownBy(() => lexica.parse('it:["mode"]'))).toMatchObject({ code: 'LEXICA1014', message: expect.stringContaining("write 'it[…]' for the unnamed indexer, or 'it.[…]'") });
-            expect(errorThrownBy(() => lexica.parse('it?:["mode"]'))).toMatchObject({ code: 'LEXICA1014', message: expect.stringContaining("write 'it?[…]' for the unnamed indexer, or 'it?.[…]'") });
-            expect(errorThrownBy(() => lexica.parse('a.b ?: c'))).toMatchObject({ code: 'LEXICA1000', message: expect.stringContaining("no '?:' chooses between two values, which '??' does") });
+            expect(errorThrownBy(() => lexica.parse('it:["mode"]'))).toMatchObject({ code: 'NEXO1014', message: expect.stringContaining("write 'it[…]' for the unnamed indexer, or 'it.[…]'") });
+            expect(errorThrownBy(() => lexica.parse('it?:["mode"]'))).toMatchObject({ code: 'NEXO1014', message: expect.stringContaining("write 'it?[…]' for the unnamed indexer, or 'it?.[…]'") });
+            expect(errorThrownBy(() => lexica.parse('a.b ?: c'))).toMatchObject({ code: 'NEXO1000', message: expect.stringContaining("no '?:' chooses between two values, which '??' does") });
         });
     });
 
@@ -112,43 +112,43 @@ describe('extension access', () => {
 
         it('selects among the extension\'s members alone, reaching one ordinary lookup outranks and never falling through to the receiver\'s own', () => {
             expect(evaluate('{ own = fan.label, energy = fan:Device.label }')).toEqual({ own: 'home fan', energy: 'energy fan' });
-            expect(refusal('fan:Device.power')).toMatchObject({ code: 'LEXICA3062', location: { pointer: '/expression' }, message: expect.stringContaining("The extension 'Device' declares no member 'power'") });
-            expect(refusal('lamp:Lights["k"]')).toMatchObject({ code: 'LEXICA3062', message: expect.stringContaining("The extension 'Lights' declares no unnamed indexer") });
+            expect(refusal('fan:Device.power')).toMatchObject({ code: 'NEXO3062', location: { pointer: '/expression' }, message: expect.stringContaining("The extension 'Device' declares no member 'power'") });
+            expect(refusal('lamp:Lights["k"]')).toMatchObject({ code: 'NEXO3062', message: expect.stringContaining("The extension 'Lights' declares no unnamed indexer") });
         });
 
-        it('names an extension imported by name first, then the one among Lexica\'s own and the imported modules\', several refused with their qualified names and one qualified by its module selected', () => {
+        it('names an extension imported by name first, then the one among Nexo\'s own and the imported modules\', several refused with their qualified names and one qualified by its module selected', () => {
             expect(evaluate('fan:Power.usage', ['Home', 'Solar', { module: 'Energy', type: 'Device', alias: 'Power' }])).toBe(3);
-            expect(refusal('fan:Device.usage', ['Home', 'Energy', 'Solar'])).toMatchObject({ code: 'LEXICA3061', location: { pointer: '/expression/extension' }, message: expect.stringContaining("'Energy.Device' or 'Solar.Device'") });
+            expect(refusal('fan:Device.usage', ['Home', 'Energy', 'Solar'])).toMatchObject({ code: 'NEXO3061', location: { pointer: '/expression/extension' }, message: expect.stringContaining("'Energy.Device' or 'Solar.Device'") });
             expect(evaluate('{ energy = fan:Energy.Device.usage, solar = fan:Solar.Device.usage }', ['Home', 'Energy', 'Solar'])).toEqual({ energy: 3, solar: 0 });
             expect(evaluate('fan:E.Device.usage', ['Home', { module: 'Energy', alias: 'E' }])).toBe(3);
         });
 
         it('refuses a name no reachable extension has, saying so where only an ordinary type has it, one only an unimported module declares, giving the import, and a namespace a selection follows', () => {
-            expect(refusal('fan:Missing.usage')).toMatchObject({ code: 'LEXICA3026', location: { pointer: '/expression/extension' }, message: expect.stringContaining("'Missing' names no extension the script reaches") });
-            expect(refusal('fan:Light.usage')).toMatchObject({ code: 'LEXICA3026', message: expect.stringContaining("'Light' is an ordinary type") });
-            expect(refusal('fan:Home.Device.usage')).toMatchObject({ code: 'LEXICA3026', message: expect.stringContaining("'Home.Device' names no extension; 'Home.Device' is an ordinary type") });
-            expect(refusal('fan:Device.usage', ['Home'])).toMatchObject({ code: 'LEXICA3005', message: expect.stringContaining("declared only by 'Energy' and 'Solar', which the script does not import: write 'import Energy' or 'import Solar'") });
+            expect(refusal('fan:Missing.usage')).toMatchObject({ code: 'NEXO3026', location: { pointer: '/expression/extension' }, message: expect.stringContaining("'Missing' names no extension the script reaches") });
+            expect(refusal('fan:Light.usage')).toMatchObject({ code: 'NEXO3026', message: expect.stringContaining("'Light' is an ordinary type") });
+            expect(refusal('fan:Home.Device.usage')).toMatchObject({ code: 'NEXO3026', message: expect.stringContaining("'Home.Device' names no extension; 'Home.Device' is an ordinary type") });
+            expect(refusal('fan:Device.usage', ['Home'])).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("declared only by 'Energy' and 'Solar', which the script does not import: write 'import Energy' or 'import Solar'") });
 
-            const definition = { version: 35, imports: [{ module: 'Home' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'Home' }, name: 'find', extension: { name: 'Device' } } };
+            const definition = { version: 36, imports: [{ module: 'Home' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'Home' }, name: 'find', extension: { name: 'Device' } } };
 
-            expect(refusal(definition)).toMatchObject({ code: 'LEXICA3026', location: { pointer: '/expression/extension' } });
+            expect(refusal(definition)).toMatchObject({ code: 'NEXO3026', location: { pointer: '/expression/extension' } });
         });
 
         it('refuses a receiver outside the extension\'s target, and one that can be null with \':\', giving \'?:\', which answers null for a null receiver without evaluating the arguments', () => {
-            expect(refusal('fan:Lights.glow')).toMatchObject({ code: 'LEXICA3027', message: expect.stringContaining("The extension 'Lights' extends Light, and Device does not satisfy it") });
-            expect(refusal('Home.find("fan"):Device.usage')).toMatchObject({ code: 'LEXICA3063', message: expect.stringContaining("write 'Home.find(\"fan\")?:Device.usage'") });
+            expect(refusal('fan:Lights.glow')).toMatchObject({ code: 'NEXO3027', message: expect.stringContaining("The extension 'Lights' extends Light, and Device does not satisfy it") });
+            expect(refusal('Home.find("fan"):Device.usage')).toMatchObject({ code: 'NEXO3063', message: expect.stringContaining("write 'Home.find(\"fan\")?:Device.usage'") });
             expect(evaluate('{ found = Home.find("fan")?:Device.usage, none = Home.find("none")?:Device.reset(1 / 0) }')).toEqual({ found: 3, none: null });
         });
 
         it('writes each competing extension in a refused access as the script names it, an aliased module\'s by its local name', () => {
-            expect(refusal('fan.usage', ['Home', { module: 'Energy', alias: 'E' }, 'Solar'])).toMatchObject({ code: 'LEXICA3024', message: expect.stringContaining("write 'fan:E.Device.usage' or 'fan:Solar.Device.usage' to select one") });
+            expect(refusal('fan.usage', ['Home', { module: 'Energy', alias: 'E' }, 'Solar'])).toMatchObject({ code: 'NEXO3024', message: expect.stringContaining("write 'fan:E.Device.usage' or 'fan:Solar.Device.usage' to select one") });
         });
 
         it('reads a function without a call as a reference bound to its receiver, which takes the function\'s own arguments, called through a local or given as a callback', () => {
             expect(evaluate('let reset = fan:Device.reset\nreturn reset(2)')).toBe('fan reset 2');
             expect(evaluate('counts.sum(fan:Device.weigh)')).toBe(12);
             expect(resolve('let reset = fan:Device.reset\nreturn reset(2)').usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Device.reset']);
-            expect(refusal('let order = fan:Device.order\nreturn order(1)')).toMatchObject({ code: 'LEXICA3076', message: expect.stringContaining("'Device.order' is a host call, which its host invokes, so it has no reference") });
+            expect(refusal('let order = fan:Device.order\nreturn order(1)')).toMatchObject({ code: 'NEXO3076', message: expect.stringContaining("'Device.order' is a host call, which its host invokes, so it has no reference") });
         });
 
         it('reaches a host call through an extension, which keeps its terminal position and its preparation', () => {
@@ -162,7 +162,7 @@ describe('extension access', () => {
         it('selects the extension\'s member for a value of Any, its arguments read by it, and checks the value against the target as it is evaluated', () => {
             expect(evaluate('Home.item("lamp"):Device.reset(1)')).toBe('lamp reset 1');
             expect(resolve('Home.item("lamp"):Device.usage').deferredAccesses).toEqual([]);
-            expect(failure('Home.item("word"):Device.usage')).toMatchObject({ code: 'LEXICA5012', location: { pointer: '/expression' }, message: expect.stringContaining('read through an extension of Device, and its receiver is String') });
+            expect(failure('Home.item("word"):Device.usage')).toMatchObject({ code: 'NEXO5012', location: { pointer: '/expression' }, message: expect.stringContaining('read through an extension of Device, and its receiver is String') });
         });
     });
 });

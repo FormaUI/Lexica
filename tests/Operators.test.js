@@ -50,7 +50,7 @@ describe('a conversion operator', () => {
 
     it('rejects a value it does not convert, failing a conversion and answering null for an attempt', () => {
         expect(evaluateWith(cast, 'try "warm" to Temperature')).toBeNull();
-        expect(errorThrownBy(() => evaluateWith(cast, '"warm" to Temperature'))).toMatchObject({ code: 'LEXICA5016', message: expect.stringContaining('The conversion from String to Temperature rejected its value: "warm" is no temperature') });
+        expect(errorThrownBy(() => evaluateWith(cast, '"warm" to Temperature'))).toMatchObject({ code: 'NEXO5016', message: expect.stringContaining('The conversion from String to Temperature rejected its value: "warm" is no temperature') });
     });
 });
 
@@ -60,7 +60,7 @@ describe('a cast operator', () => {
 
         expect(evaluateWith(cast, '(deviceMeter as Device) != null')).toBe(true);
         expect(evaluateWith(cast, '(try meter as Device) == null')).toBe(true);
-        expect(errorThrownBy(() => evaluateWith(cast, '(meter as Device) == null'))).toMatchObject({ code: 'LEXICA5001', message: expect.stringContaining('The cast to Device rejected its value') });
+        expect(errorThrownBy(() => evaluateWith(cast, '(meter as Device) == null'))).toMatchObject({ code: 'NEXO5001', message: expect.stringContaining('The cast to Device rejected its value') });
     });
 
     it('answers what its implementation answers, checked by the destination\'s membership, and rejects what it rejects, which an attempt answers null for', () => {
@@ -68,7 +68,7 @@ describe('a cast operator', () => {
 
         expect(evaluateWith(cast, '(deviceMeter as Device) != null')).toBe(true);
         expect(evaluateWith(cast, '(try meter as Device) == null')).toBe(true);
-        expect(errorThrownBy(() => evaluateWith(cast, '(meter as Device) == null'))).toMatchObject({ code: 'LEXICA5001', message: expect.stringContaining('The cast to Device rejected its value: the meter is no device') });
+        expect(errorThrownBy(() => evaluateWith(cast, '(meter as Device) == null'))).toMatchObject({ code: 'NEXO5001', message: expect.stringContaining('The cast to Device rejected its value: the meter is no device') });
     });
 
     it('fails with a fault, which no attempt catches, where its implementation fails other than by its rejection', () => {
@@ -76,20 +76,20 @@ describe('a cast operator', () => {
             throw new Error('the meter is broken');
         });
 
-        expect(errorThrownBy(() => evaluateWith(cast, '(try meter as Device) == null'))).toMatchObject({ code: 'LEXICA5004', message: expect.stringContaining('The cast operator Meter as Home.Device failed: the meter is broken') });
+        expect(errorThrownBy(() => evaluateWith(cast, '(try meter as Device) == null'))).toMatchObject({ code: 'NEXO5004', message: expect.stringContaining('The cast operator Meter as Home.Device failed: the meter is broken') });
     });
 
     it('is reached by no cast its destination does not name, a cast within a hierarchy needing none', () => {
         const registry = createImportingRegistry([createHome(), createEnergy(operatorDeclaration('cast', 'Home.Device'))]);
 
-        expect(errorThrownBy(() => registry.resolve('(meter as Light) == null', { meter: values.meter }))).toMatchObject({ code: 'LEXICA3060' });
+        expect(errorThrownBy(() => registry.resolve('(meter as Light) == null', { meter: values.meter }))).toMatchObject({ code: 'NEXO3060' });
         expect(registry.resolve('(lamp as Device) == null', { lamp: new Light('lamp') }).type).toBe('Boolean');
     });
 
     it('is no candidate where it is internal, which no script reaches', () => {
         const registry = createImportingRegistry([createHome(), createEnergy({ ...operatorDeclaration('cast', 'Home.Device'), internal: true })]);
 
-        expect(errorThrownBy(() => registry.resolve('(meter as Device) == null', { meter: values.meter }))).toMatchObject({ code: 'LEXICA3023', message: expect.stringContaining('is internal to the module \'Energy\'') });
+        expect(errorThrownBy(() => registry.resolve('(meter as Device) == null', { meter: values.meter }))).toMatchObject({ code: 'NEXO3023', message: expect.stringContaining('is internal to the module \'Energy\'') });
     });
 });
 

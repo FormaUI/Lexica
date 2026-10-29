@@ -34,7 +34,7 @@ describe('lexica', () => {
         const refused = errorThrownBy(() => lexica.validate({ version: Versions.definition, imports: [], expression: { kind: 'nothing' } }));
 
         expect(refused).toBeInstanceOf(LexicaError);
-        expect(refused).toMatchObject({ code: 'LEXICA2000', kind: 'structure', location: { pointer: '/expression' }, message: expect.stringMatching(/^A node is an object whose kind is literal, /) });
+        expect(refused).toMatchObject({ code: 'NEXO2000', kind: 'structure', location: { pointer: '/expression' }, message: expect.stringMatching(/^A node is an object whose kind is literal, /) });
     });
 
     it('reads definitions of its one version, refusing one of another, version 31 among them, with a structure error naming both', () => {
@@ -148,10 +148,10 @@ describe('lexica', () => {
         const registry = createImportingRegistry([prices]);
         const items = [{ price: 2, quantity: 3 }];
 
-        expect(registry.moduleNames).toEqual(['Lexica', 'price']);
+        expect(registry.moduleNames).toEqual(['Nexo', 'price']);
         expect(registry.resolve('items { total = it.price * it.quantity }.count', { items })).toMatchObject({ hostCall: null, type: 'Number' });
         expect(registry.resolve('"10".price + 1')).toMatchObject({ hostCall: null, type: 'Number' });
-        expect(createImportingRegistry().moduleNames).toEqual(['Lexica']);
+        expect(createImportingRegistry().moduleNames).toEqual(['Nexo']);
         expect(errorThrownBy(() => createImportingRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
 

@@ -1,5 +1,5 @@
 /**
- * Pair — a Lexica pair, immutable data of a key and its value, as a dictionary's entries give them
+ * Pair — a Nexo pair, immutable data of a key and its value, as a dictionary's entries give them
  */
 
 export class Pair {

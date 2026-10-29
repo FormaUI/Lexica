@@ -9,7 +9,7 @@ export class TypeNameScope {
     /** The scope's imports, in a definition's shape, whose local names qualify a type name and whose types an unqualified one finds. @type {readonly object[]} */
     #imports;
 
-    /** Whether an unqualified name finds every registered module's types alike, Lexica's own among them, as a declared binding's does. */
+    /** Whether an unqualified name finds every registered module's types alike, Nexo's own among them, as a declared binding's does. */
     #reachesEveryModule;
 
     /**
@@ -23,12 +23,12 @@ export class TypeNameScope {
         this.#reachesEveryModule = reachesEveryModule;
     }
 
-    /** The scope of a declaration's notation: its module's own types, Lexica's, and those of the modules a structured type imports, a name qualified by any registered module's own name. */
+    /** The scope of a declaration's notation: its module's own types, Nexo's, and those of the modules a structured type imports, a name qualified by any registered module's own name. */
     static createDeclarationScope(moduleName, importedModuleNames) {
         return new TypeNameScope(moduleName, importedModuleNames.map(module => Object.freeze({ module })), false);
     }
 
-    /** The scope of a script's type names: its type imports' names first, then Lexica's own types, then its imported modules', a name qualified by the local name an import gives a module alone. */
+    /** The scope of a script's type names: its type imports' names first, then Nexo's own types, then its imported modules', a name qualified by the local name an import gives a module alone. */
     static createScriptScope(imports) {
         return new TypeNameScope(null, imports, false);
     }
@@ -36,7 +36,7 @@ export class TypeNameScope {
     /** @type {TypeNameScope | undefined} */
     static #bindingScope;
 
-    /** The scope of a binding's declared type: every registered module's public types alike, Lexica's own among them, a name qualified by any registered module's own name; a script's imports never take part. */
+    /** The scope of a binding's declared type: every registered module's public types alike, Nexo's own among them, a name qualified by any registered module's own name; a script's imports never take part. */
     static get bindingScope() {
         return TypeNameScope.#bindingScope ??= new TypeNameScope(null, [], true);
     }

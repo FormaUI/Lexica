@@ -72,7 +72,7 @@ describe("a script's imports", () => {
         const text = 'import shop\n{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }';
         const formatted = lexica.format(text);
 
-        expect(lexica.parse('import shop\nshop.open')).toEqual({ version: 35, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
+        expect(lexica.parse('import shop\nshop.open')).toEqual({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
         expect(formatted).toBe('import shop\n\n{\n    let shop = 2,\n    local = @shop,\n    parameter = ~shop,\n    namespace = shop.open\n}');
         expect(lexica.parse(formatted)).toEqual(lexica.parse(text));
         expect(lexica.format(formatted)).toBe(formatted);
@@ -80,10 +80,10 @@ describe("a script's imports", () => {
     });
 
     it("write a definition's script parameter named after a namespace its imports give as they read it, a definition created directly among them", () => {
-        const definition = lexica.validate({ version: 35, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
+        const definition = lexica.validate({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
 
-        expect(lexica.format({ version: 35, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
-        expect(lexica.format({ version: 35, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
+        expect(lexica.format({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
+        expect(lexica.format({ version: 36, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
         expect(lexica.parse(lexica.format(definition))).toEqual(definition);
     });
 
@@ -139,11 +139,11 @@ describe("a script's imports", () => {
     });
 
     it("refuse a host's import that breaks an import's rules, and two of them giving one local name to different declarations", () => {
-        for (const imports of ['shop', [1], [{ module: 'Lexica' }], [{ module: 'shop', alias: 'shop' }], [{ module: 'shop', alias: 'S' }, { module: 'home', alias: 'S' }]]) {
-            expect(errorThrownBy(() => lexica.parse('1', { imports })), JSON.stringify(imports)).toMatchObject({ kind: 'structure', code: 'LEXICA2008' });
+        for (const imports of ['shop', [1], [{ module: 'Nexo' }], [{ module: 'shop', alias: 'shop' }], [{ module: 'shop', alias: 'S' }, { module: 'home', alias: 'S' }]]) {
+            expect(errorThrownBy(() => lexica.parse('1', { imports })), JSON.stringify(imports)).toMatchObject({ kind: 'structure', code: 'NEXO2008' });
         }
 
-        expect(errorThrownBy(() => lexica.parse('import S = home\n1', { imports: [{ module: 'shop', alias: 'S' }] }))).toMatchObject({ kind: 'syntax', code: 'LEXICA1048', location: { line: 1, column: 1 } });
+        expect(errorThrownBy(() => lexica.parse('import S = home\n1', { imports: [{ module: 'shop', alias: 'S' }] }))).toMatchObject({ kind: 'syntax', code: 'NEXO1048', location: { line: 1, column: 1 } });
     });
 
     it('take a module a reserved word names, which an import binding read with @ reaches', () => {
@@ -338,7 +338,7 @@ describe('the answer of a held reference', () => {
 
     it('is checked against its result type resolved for the call, as its qualified form\'s is, held, chosen among functions or given to a member', () => {
         const wrong = () => 'x';
-        const refusal = { code: 'LEXICA5006', message: expect.stringContaining('and it declares Number') };
+        const refusal = { code: 'NEXO5006', message: expect.stringContaining('and it declares Number') };
 
         expect(errorThrownBy(() => evaluateLists('lists.head(numbers)', wrong))).toMatchObject(refusal);
         expect(errorThrownBy(() => evaluateLists('let head = lists.head\nreturn head(numbers)', wrong))).toMatchObject(refusal);
@@ -348,7 +348,7 @@ describe('the answer of a held reference', () => {
 
     it('is checked against each specialization the reference is called with, apart', () => {
         expect(evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, list => list[0])).toEqual({ number: 1, word: 'a' });
-        expect(errorThrownBy(() => evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, () => 1))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('and it declares String') });
+        expect(errorThrownBy(() => evaluateLists(`${choosing}{ number = pick(numbers), word = pick(words) }`, () => 1))).toMatchObject({ code: 'NEXO5006', message: expect.stringContaining('and it declares String') });
     });
 
     it('is null where a null receiver short-circuits the call, and refused where the implementation answers null for a result that is not nullable', () => {
@@ -356,6 +356,6 @@ describe('the answer of a held reference', () => {
 
         expect(evaluateLists(`${choosing}pick(if full then numbers else missing end)`, () => null, invoked)).toBeNull();
         expect(invoked).toEqual([]);
-        expect(errorThrownBy(() => evaluateLists(`${choosing}pick(numbers)`, () => null))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining('answered null, and it declares Number') });
+        expect(errorThrownBy(() => evaluateLists(`${choosing}pick(numbers)`, () => null))).toMatchObject({ code: 'NEXO5006', message: expect.stringContaining('answered null, and it declares Number') });
     });
 });

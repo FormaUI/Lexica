@@ -52,7 +52,7 @@ describe('ImportedVocabulary', () => {
         expect([registry.resolveTypeName('Light', scope), registry.resolveTypeName('Devices', scope)]).toEqual([{ types: [] }, { types: [] }]);
     });
 
-    it('makes available Lexica\'s own declarations always, a module\'s through its import, a type\'s own and inherited members through its type\'s, and an extension\'s through its own', () => {
+    it('makes available Nexo\'s own declarations always, a module\'s through its import, a type\'s own and inherited members through its type\'s, and an extension\'s through its own', () => {
         const count = registry.getReceiverMembers('count')[0];
 
         expect(new ImportedVocabulary(registry, []).getAvailable([count, member('name'), member('usage')])).toEqual([count]);

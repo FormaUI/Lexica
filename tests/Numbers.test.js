@@ -26,7 +26,7 @@ describe("a number's members", () => {
     });
 
     it('refuses a clamp whose low stands above its high, where it is evaluated', () => {
-        expect(errorThrownBy(() => evaluate('3.clamp(5, 0)'))).toMatchObject({ code: 'LEXICA5039', location: { pointer: '/expression' }, message: expect.stringContaining("'clamp' takes a low no greater than its high, and is given 5 and 0") });
+        expect(errorThrownBy(() => evaluate('3.clamp(5, 0)'))).toMatchObject({ code: 'NEXO5039', location: { pointer: '/expression' }, message: expect.stringContaining("'clamp' takes a low no greater than its high, and is given 5 and 0") });
     });
 
     it('reads a member of a number after a group, a step written by arithmetic around it', () => {

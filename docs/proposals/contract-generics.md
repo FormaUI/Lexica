@@ -31,13 +31,13 @@ Removing generics would have simplified the module contract and moved the cost e
 | Module and local name identity | Overloading container names by generic arity |
 | The existing ambiguity rules | Specialization precedence rules |
 
-Parsing nested type references, matching arguments and substituting result types remain real work; it is bounded to the contracts Lexica needs.
+Parsing nested type references, matching arguments and substituting result types remain real work; it is bounded to the contracts Nexo needs.
 
 ### Where parameters are declared
 
 Parameters belong to declaration contracts generally. A member declares its own, whoever declares it: a type's own member, a module member, or a member of an extension container, as `identity<T>`. An extension container declares parameters shared by its target and its members, as [named extension types](named-extension-types.md#targets) sets out.
 
-Lexica's own `List<T>` is the one generic value type. A module's own reference and structured types don't declare parameters, so a type's data is never generic. Other generic value types, a map among them, are outside this scope.
+Nexo's own `List<T>` is the one generic value type. A module's own reference and structured types don't declare parameters, so a type's data is never generic. Other generic value types, a map among them, are outside this scope.
 
 ### Declaring and referring positions
 
@@ -52,7 +52,7 @@ target: 'List<T>'         // Refers to T.
 - **Referring positions.** Every other position refers: a container's `target`, a member's `result`, a parameter's type, and a callback's types.
 - **What a referring name is.** A name a declaration around it declares is that parameter. Any other name is a type's, and an unknown type where none exists, whatever its length: `T` may be an ordinary declared type. Whether a parameter is a parameter is never decided by whether a type of its name happens to exist.
 - **Scope.** A container's parameters stand within the container and every one of its members; a member's own stand within that member.
-- **Conflicts are refused.** Empty and duplicate parameter names are refused, and so is a parameter named as any type its declaration reaches unqualified: one of Lexica's own types, one of its module's, or one of a module it imports. A member declaring a parameter its container declares is refused too, since shadowing would add nothing. A conflicting declaration is never silently given another meaning.
+- **Conflicts are refused.** Empty and duplicate parameter names are refused, and so is a parameter named as any type its declaration reaches unqualified: one of Nexo's own types, one of its module's, or one of a module it imports. A member declaring a parameter its container declares is refused too, since shadowing would add nothing. A conflicting declaration is never silently given another meaning.
 
 ### Nullability
 
@@ -118,7 +118,7 @@ Lists are immutable values, so a `List<Light>` stands where a `List<Device>` is 
 1. Move type parameters to declaring positions: a container's or a member's name declares them, and every other position refers to them.
 2. Replace a receiver of any type, `<T>`, by a container declaring `T` and targeting it.
 3. Replace the implicit type parameters, every single capital letter, with declared ones, so an undeclared name is a type's.
-4. Update Lexica's declarations, documentation, tooling, and tests, and a host's migration, together.
+4. Update Nexo's declarations, documentation, tooling, and tests, and a host's migration, together.
 
 Review the effects on grammar, serialized definitions, resolution metadata, and runtime behavior before assigning version changes.
 

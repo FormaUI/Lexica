@@ -8,15 +8,15 @@ Every diagnostic has a kind, a message and a location. The kind says which stage
 
 ## The proposal
 
-Each condition a diagnostic reports gets a stable **code**, `LEXICA` and four digits, as `LEXICA3001`. A code identifies the condition; the kind still identifies the category, so the two never stand in for each other.
+Each condition a diagnostic reports gets a stable **code**, `NEXO` and four digits, as `NEXO3001`. A code identifies the condition; the kind still identifies the category, so the two never stand in for each other.
 
 | Range | Kind |
 | --- | --- |
-| `LEXICA1000` to `LEXICA1999` | `syntax` |
-| `LEXICA2000` to `LEXICA2999` | `structure` |
-| `LEXICA3000` to `LEXICA3999` | `validation` |
-| `LEXICA4000` to `LEXICA4999` | `module` |
-| `LEXICA5000` to `LEXICA5999` | `evaluation` |
+| `NEXO1000` to `NEXO1999` | `syntax` |
+| `NEXO2000` to `NEXO2999` | `structure` |
+| `NEXO3000` to `NEXO3999` | `validation` |
+| `NEXO4000` to `NEXO4999` | `module` |
+| `NEXO5000` to `NEXO5999` | `evaluation` |
 
 - **A diagnostic** is `{ code, kind, message, location }`. Its message may change; its code never does.
 - **A code is stable once assigned.** A condition that is removed retires its code, which is never reused; a condition split in two keeps its code for one part and assigns a new one to the other.
@@ -27,7 +27,7 @@ Each condition a diagnostic reports gets a stable **code**, `LEXICA` and four di
 ## Settled rules
 
 1. **Strict operations keep throwing their first error.** The public tooling API collects diagnostics without throwing; accepting codes requires no other tolerant runtime API.
-2. **Lexica owns `LEXICA` codes.** A host gives its own conditions codes of a prefix of its own, and preserves a Lexica error's code when it propagates it.
+2. **Nexo owns `NEXO` codes.** A host gives its own conditions codes of a prefix of its own, and preserves a Nexo error's code when it propagates it.
 3. **One catalog, assigned in one pass.** The specification assigns a code to every condition it sets out at once, in a code column of its error tables, so each condition keeps one entry, and each new condition takes a new code when it is introduced. A diagnostic keeps its `kind`, `message` and `location`.
 4. **A code identifies its condition,** never its wording or where it is raised: a reworded message, or the same condition detected elsewhere, keeps its code, and distinct conditions never share one because their messages resemble each other.
 5. **Continuity.** Where a condition splits, the part that keeps its meaning keeps its code and the other parts take new ones; where no part keeps its meaning, its code is retired. A retired code is never reused, and a ledger of retired codes records each one, its condition and the version that retired it.

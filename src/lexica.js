@@ -1,5 +1,5 @@
 /**
- * Lexica — a general-purpose, embeddable language whose domain each application defines: reads, validates and writes source and definitions, creates the modules that declare a vocabulary and the registries a host resolves scripts against,
+ * Nexo — a general-purpose, embeddable language whose domain each application defines: reads, validates and writes source and definitions, creates the modules that declare a vocabulary and the registries a host resolves scripts against,
  * binds values, and evaluates a resolved script for its host, describing its result; and says which build it is and which specification it follows
  */
 
@@ -33,7 +33,7 @@ const definitionOf = (script, suppliedImports = []) => (typeof script === 'strin
 /** What `parse` reads, a script's source, read with the imports a host supplies. */
 const parse = (source, options) => {
     if (typeof source !== 'string') {
-        throw LexicaErrors.structure('LEXICA2645', "What parse reads is a script's source", {});
+        throw LexicaErrors.structure('NEXO2645', "What parse reads is a script's source", {});
     }
 
     return ParsedTexts.parse(source, suppliedImportsOf(options));
@@ -77,7 +77,7 @@ const getParameterBindings = (registry, bindings) => {
     }
 
     if (parameterBindings.registry !== registry) {
-        throw LexicaErrors.structure('LEXICA2024', 'These bindings belong to another registry, which recognized their references; bind them with this registry', {});
+        throw LexicaErrors.structure('NEXO2024', 'These bindings belong to another registry, which recognized their references; bind them with this registry', {});
     }
 
     return parameterBindings;
@@ -86,14 +86,14 @@ const getParameterBindings = (registry, bindings) => {
 /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
 const locate = (definition, pointer) => {
     if (typeof pointer !== 'string' || !(pointer === '' || pointer.startsWith('/'))) {
-        throw LexicaErrors.structure('LEXICA2643', 'A pointer is a JSON Pointer into the definition, as /expression/objectFields/0', {});
+        throw LexicaErrors.structure('NEXO2643', 'A pointer is a JSON Pointer into the definition, as /expression/objectFields/0', {});
     }
 
     let node = definition;
 
     for (const segment of pointer.split('/').slice(1).map(part => part.replaceAll('~1', '/').replaceAll('~0', '~'))) {
         if (node === null || typeof node !== 'object' || !Object.hasOwn(node, segment)) {
-            throw LexicaErrors.structure('LEXICA2644', `The definition holds nothing at ${pointer}`, { pointer });
+            throw LexicaErrors.structure('NEXO2644', `The definition holds nothing at ${pointer}`, { pointer });
         }
 
         node = node[segment];
@@ -121,7 +121,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
     const requireCurrent = () => {
         if (!isCurrent()) {
-            throw LexicaErrors.structure('LEXICA2040', 'A module declaring a typeOf was registered since this script was resolved, and the script may recognize values as it is evaluated, so its resolution is stale; resolve the script again', {});
+            throw LexicaErrors.structure('NEXO2040', 'A module declaring a typeOf was registered since this script was resolved, and the script may recognize values as it is evaluated, so its resolution is stale; resolve the script again', {});
         }
     };
 
@@ -130,7 +130,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         const evaluatorBindings = getParameterBindings(registry, bindings) ?? new ParameterBindings(registry, bindings ?? {});
 
         if (evaluatorBindings.resolutionKey !== resolutionKey) {
-            throw LexicaErrors.structure('LEXICA2025', 'These bindings resolve the script otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
+            throw LexicaErrors.structure('NEXO2025', 'These bindings resolve the script otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
         }
 
         requireCurrent();
@@ -146,7 +146,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
             const location = { module: registry.getDeclaringModuleName(declaration), ...(containing === undefined ? {} : { type: containing.name }), declaration: declaration.name, declarationKey: 'impl' };
             const subject = declaration.kind === 'operator' ? `The conversion from ${qualifiedName}` : `'${qualifiedName}'`;
 
-            throw LexicaErrors.module('LEXICA4001', `${subject} has no implementation, so a script that uses it is resolved and never evaluated`, location);
+            throw LexicaErrors.module('NEXO4001', `${subject} has no implementation, so a script that uses it is resolved and never evaluated`, location);
         }
 
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);
@@ -157,7 +157,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
             requireCurrent();
 
             if (isEvaluating) {
-                throw LexicaErrors.evaluation('LEXICA5010', 'An evaluator evaluates one evaluation at a time, and this one is evaluating; evaluate with an evaluator of its own', {});
+                throw LexicaErrors.evaluation('NEXO5010', 'An evaluator evaluates one evaluation at a time, and this one is evaluating; evaluate with an evaluator of its own', {});
             }
 
             isEvaluating = true;
@@ -187,7 +187,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
     // A host call that supplies nothing gives no result, so no path reaches into one.
     const typeAt = path => {
         if (resolved.type === null) {
-            throw LexicaErrors.validation('LEXICA3600', `The script ends in the host call '${hostCall.name}', whose host supplies no values, so it has no result for a path to reach`, locate(definition, '/expression'));
+            throw LexicaErrors.validation('NEXO3600', `The script ends in the host call '${hostCall.name}', whose host supplies no values, so it has no result for a path to reach`, locate(definition, '/expression'));
         }
 
         return String(ResultPath.typeAt(resolved.type, path, registry, () => locate(definition, '/expression')));
@@ -210,7 +210,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 };
 
 /**
- * A registry a host resolves scripts against: Lexica's own module and the modules the host registers, each module's vocabulary in effect for every script resolved after it.
+ * A registry a host resolves scripts against: Nexo's own module and the modules the host registers, each module's vocabulary in effect for every script resolved after it.
  * It reads no text of its own: a script's imports decide which of its names are namespaces, so `lexica.parse`, `format` and `quote` read and write a text alike for every registry, and registering a module changes how no text reads. No registry is shared, so two hosts never see each other's modules.
  */
 const createRegistry = modules => {
@@ -256,7 +256,7 @@ const paths = Object.freeze({
     valueAt: (value, path) => ResultPath.valueAt(value, path),
 });
 
-/** Lexica: reads, checks and writes source and definitions, declares and registers vocabulary, binds values, resolves and evaluates, and says which build it is and which specification it follows. */
+/** Nexo: reads, checks and writes source and definitions, declares and registers vocabulary, binds values, resolves and evaluates, and says which build it is and which specification it follows. */
 export const lexica = Object.freeze({
     parse: (source, options) => parse(source, options),
     validate: definition => new DefinitionValidator().validate(definition),

@@ -39,7 +39,7 @@ import { Vocabulary } from './vocabulary/Vocabulary.mjs';
  */
 
 /**
- * The input a projected item came from, of the kind its established type gives it: a reference value as the host holds it, data as Lexica's own frozen copy, or null.
+ * The input a projected item came from, of the kind its established type gives it: a reference value as the host holds it, data as Nexo's own frozen copy, or null.
  * @typedef {{ kind: 'reference', value: unknown } | { kind: 'data', value: unknown } | { kind: 'null' }} ProjectionSource
  */
 
@@ -262,7 +262,7 @@ export class Evaluator {
         const { hostCall } = this.#resolvedDefinition;
 
         if (hostCall === null) {
-            this.#fail('LEXICA5014', 'The script gives a value and ends in no host call, so there is nothing to prepare; evaluate it', '/expression');
+            this.#fail('NEXO5014', 'The script gives a value and ends in no host call, so there is nothing to prepare; evaluate it', '/expression');
         }
 
         const { node, pointer, declaration } = hostCall;
@@ -348,12 +348,12 @@ export class Evaluator {
         // A part of the value is named by its path within it, the value itself by none.
         const fail = (path, part, partType, reason) => {
             if (reason === 'cycle') {
-                this.#fail('LEXICA5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied a value that reaches itself${path === '' ? '' : ` at '${path}'`}, which data never does`, pointer);
+                this.#fail('NEXO5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied a value that reaches itself${path === '' ? '' : ` at '${path}'`}, which data never does`, pointer);
             }
 
             const supplied = path === '' ? Evaluator.#describe(part) : part === undefined ? `a value without '${path}'` : `a value whose '${path}' is ${Evaluator.#describe(part)}`;
 
-            this.#fail('LEXICA5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied ${supplied}, and ${path === '' ? 'it declares' : `'${path}' is declared`} ${partType}`, pointer);
+            this.#fail('NEXO5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied ${supplied}, and ${path === '' ? 'it declares' : `'${path}' is declared`} ${partType}`, pointer);
         };
 
         const captured = this.#valueCapture.capture(value, resultType, fail);
@@ -407,13 +407,13 @@ export class Evaluator {
                     hooks.afterEvaluation(Object.freeze(outcome));
                 } catch (cleanupError) {
                     if (outcome.kind !== 'failed') {
-                        // A failure as the evaluation ends fails it, as a hook's failure does: one Lexica raised as it is, and anything else the hook threw, a LexicaError it built among them, as the cause of Lexica's own.
+                        // A failure as the evaluation ends fails it, as a hook's failure does: one Nexo raised as it is, and anything else the hook threw, a LexicaError it built among them, as the cause of Nexo's own.
                         // The finally block's throw replaces the completed result.
                         if (LexicaErrors.isRaisedByLexica(cleanupError)) {
                             throw cleanupError;
                         }
 
-                        this.#fail('LEXICA5009', `The host failed after the evaluation: ${Evaluator.#messageOf(cleanupError)}`, '/expression', { cause: cleanupError });
+                        this.#fail('NEXO5009', `The host failed after the evaluation: ${Evaluator.#messageOf(cleanupError)}`, '/expression', { cause: cleanupError });
                     }
 
                     try {
@@ -431,7 +431,7 @@ export class Evaluator {
         const { hostCall } = this.#resolvedDefinition;
 
         if (hostCall !== null) {
-            this.#fail('LEXICA5023', `The script ends in the host call '${hostCall.name}', which its host invokes, so it is never evaluated; prepare it`, hostCall.pointer);
+            this.#fail('NEXO5023', `The script ends in the host call '${hostCall.name}', which its host invokes, so it is never evaluated; prepare it`, hostCall.pointer);
         }
 
         return this.#evaluateResult(this.#resolvedDefinition.definition.expression);
@@ -665,7 +665,7 @@ export class Evaluator {
                         const value = part.evaluate(evaluator, context);
 
                         if (typeof value !== 'string' && typeof value !== 'number') {
-                            evaluator.#fail('LEXICA5500', `An interpolation inserts a string or a number, and is given ${Evaluator.#describe(value)}`, evaluator.#pointerOf(part.expression));
+                            evaluator.#fail('NEXO5500', `An interpolation inserts a string or a number, and is given ${Evaluator.#describe(value)}`, evaluator.#pointerOf(part.expression));
                         }
 
                         text += String(value);
@@ -686,7 +686,7 @@ export class Evaluator {
                         const right = operands[index + 1](evaluator, context);
 
                         if (typeof left !== 'number' || typeof right !== 'number') {
-                            evaluator.#fail('LEXICA5501', `'${node.operators[index]}' compares numbers, and is given ${Evaluator.#describe(typeof left !== 'number' ? left : right)}`, evaluator.#pointerOf(node));
+                            evaluator.#fail('NEXO5501', `'${node.operators[index]}' compares numbers, and is given ${Evaluator.#describe(typeof left !== 'number' ? left : right)}`, evaluator.#pointerOf(node));
                         }
 
                         if (!compares[index](left, right)) {
@@ -781,7 +781,7 @@ export class Evaluator {
                 return null;
             }
 
-            const outcome = implementation === undefined ? { isAccepted: true, value } : Evaluator.#invokeOperator(evaluator, implementation, value, node, `The cast operator ${name}`, { failure: 'LEXICA5004', rejection: 'LEXICA5004' });
+            const outcome = implementation === undefined ? { isAccepted: true, value } : Evaluator.#invokeOperator(evaluator, implementation, value, node, `The cast operator ${name}`, { failure: 'NEXO5004', rejection: 'NEXO5004' });
 
             if (outcome.isAccepted && evaluator.#registry.belongsTo(outcome.value, targetType, asked)) {
                 return outcome.value;
@@ -791,7 +791,7 @@ export class Evaluator {
                 return null;
             }
 
-            return evaluator.#fail('LEXICA5001', `The cast to ${targetType} rejected its value: ${outcome.isAccepted ? `it is ${what}` : outcome.reason}`, evaluator.#pointerOf(node));
+            return evaluator.#fail('NEXO5001', `The cast to ${targetType} rejected its value: ${outcome.isAccepted ? `it is ${what}` : outcome.reason}`, evaluator.#pointerOf(node));
         };
     }
 
@@ -831,7 +831,7 @@ export class Evaluator {
                     return null;
                 }
 
-                evaluator.#fail('LEXICA5016', `The conversion from ${name} rejected its value: ${outcome.reason}`, evaluator.#pointerOf(node));
+                evaluator.#fail('NEXO5016', `The conversion from ${name} rejected its value: ${outcome.reason}`, evaluator.#pointerOf(node));
             }
 
             return outcome.value;
@@ -850,17 +850,17 @@ export class Evaluator {
 
         return (evaluator, value, node) => {
             if (convert === undefined) {
-                evaluator.#fail('LEXICA4001', `The module '${registry.getDeclaringModuleName(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#pointerOf(node));
+                evaluator.#fail('NEXO4001', `The module '${registry.getDeclaringModuleName(declaration)}' gives the conversion from ${name} no implementation`, evaluator.#pointerOf(node));
             }
 
-            const outcome = Evaluator.#invokeOperator(evaluator, convert, value, node, `The conversion from ${name}`, { failure: 'LEXICA5003', rejection: 'LEXICA5018' });
+            const outcome = Evaluator.#invokeOperator(evaluator, convert, value, node, `The conversion from ${name}`, { failure: 'NEXO5003', rejection: 'NEXO5018' });
 
             if (!outcome.isAccepted) {
                 return outcome;
             }
 
             if (!conforms(outcome.value)) {
-                evaluator.#fail('LEXICA5019', `The conversion from ${name} answered ${Evaluator.#describe(outcome.value)}, and it converts to ${type}`, evaluator.#pointerOf(node));
+                evaluator.#fail('NEXO5019', `The conversion from ${name} answered ${Evaluator.#describe(outcome.value)}, and it converts to ${type}`, evaluator.#pointerOf(node));
             }
 
             return { isAccepted: true, value: copyStructure === null ? outcome.value : copyStructure(outcome.value) };
@@ -886,7 +886,7 @@ export class Evaluator {
         try {
             answered = implementation({ value, reject });
         } catch (error) {
-            // A failure Lexica raised keeps its own code and place; anything else the operator threw but its rejection, a LexicaError it built among them, is the cause of Lexica's own, exactly as thrown.
+            // A failure Nexo raised keeps its own code and place; anything else the operator threw but its rejection, a LexicaError it built among them, is the cause of Nexo's own, exactly as thrown.
             if (LexicaErrors.isRaisedByLexica(error)) {
                 throw error;
             }
@@ -1053,7 +1053,7 @@ export class Evaluator {
 
     /**
      * What an extension access on a value of Any answers where that value is null: null where the access is optional or an optional access before it in its chain met null, which ends the chain, and otherwise the
-     * failure of a direct access on null (LEXICA5022), as a deferred access fails.
+     * failure of a direct access on null (NEXO5022), as a deferred access fails.
      */
     #answerNullReceiver(node, receiverNode) {
         const isAnswered = this.#nullAnswer === receiverNode;
@@ -1064,16 +1064,16 @@ export class Evaluator {
             return null;
         }
 
-        this.#fail('LEXICA5022', `'${Evaluator.#writtenNameOf(node)}' is read through an extension on a value of Any, and its receiver is null: write '?:' before the extension to read it where its receiver is not null`, this.#pointerOf(node));
+        this.#fail('NEXO5022', `'${Evaluator.#writtenNameOf(node)}' is read through an extension on a value of Any, and its receiver is null: write '?:' before the extension to read it where its receiver is not null`, this.#pointerOf(node));
     }
 
-    /** Checks a value of Any an extension access is given against the extension's target, before anything is invoked, a value outside it, or of no type the vocabulary knows, failing the access (LEXICA5012). */
+    /** Checks a value of Any an extension access is given against the extension's target, before anything is invoked, a value outside it, or of no type the vocabulary knows, failing the access (NEXO5012). */
     #requireReceiverOf(node, declaration, receiver) {
         const written = Evaluator.#writtenNameOf(node);
         const actualType = this.#getActualType(receiver, `the access '${written}'`, this.#failSelectionOf(node));
 
         if (!this.#registry.typeChecker.matchesReceiver(declaration, actualType)) {
-            this.#fail('LEXICA5012', `'${written}' is read through an extension of ${this.#registry.getReceiverTypes(declaration).join(', ')}, and its receiver is ${actualType}, which does not satisfy it`, this.#pointerOf(node));
+            this.#fail('NEXO5012', `'${written}' is read through an extension of ${this.#registry.getReceiverTypes(declaration).join(', ')}, and its receiver is ${actualType}, which does not satisfy it`, this.#pointerOf(node));
         }
     }
 
@@ -1093,7 +1093,7 @@ export class Evaluator {
 
     /**
      * An access on a value of Any, its member selected as it is evaluated, by the actual type of its receiver's value, as deferred member selection sets out. A null receiver answers null where the access is optional, or where an
-     * optional access before it in its chain met null, which ends the chain, and fails the access otherwise (LEXICA5022), its arguments never evaluated. A plain object's own object field is read by its name; any other access
+     * optional access before it in its chain met null, which ends the chain, and fails the access otherwise (NEXO5022), its arguments never evaluated. A plain object's own object field is read by its name; any other access
      * is selected among the candidates its resolution kept, and is read or invoked as its selection says, its arguments evaluated after its receiver in the order they are written.
      */
     #compileDeferredAccess(node, resolution) {
@@ -1120,7 +1120,7 @@ export class Evaluator {
                     return null;
                 }
 
-                evaluator.#fail('LEXICA5022', `'${written}' is read on a value of Any, and its receiver is null: write '?.' before it to read it where its receiver is not null`, evaluator.#pointerOf(node));
+                evaluator.#fail('NEXO5022', `'${written}' is read on a value of Any, and its receiver is null: write '?.' before it to read it where its receiver is not null`, evaluator.#pointerOf(node));
             }
 
             const receiverType = evaluator.#getActualType(receiver, `the access '${written}'`, evaluator.#failSelectionOf(node));
@@ -1172,7 +1172,7 @@ export class Evaluator {
     /**
      * The selection a deferred access makes on a receiver of the type, through the selector, as an access its receiver's type selects during resolution: a property of a structured type's data, by its name; a member to
      * invoke, with the type arguments its receiver binds, each parameter's declared type, the check of each a type parameter of its own leaves unwritten, and its invocation where it declares none; or the failure of a type
-     * that has no applicable candidate, or several none is more specific than, LEXICA5012, and of a host call, LEXICA5013, which resolution alone selects.
+     * that has no applicable candidate, or several none is more specific than, NEXO5012, and of a host call, NEXO5013, which resolution alone selects.
      */
     #selectDeferred(node, candidates, receiverType) {
         const written = Evaluator.#writtenNameOf(node);
@@ -1181,11 +1181,11 @@ export class Evaluator {
         if (outcome.kind === 'ambiguous') {
             const modules = outcome.declarations.map(declaration => `'${this.#registry.getDeclaringModuleName(declaration)}'`);
 
-            return { kind: 'failure', code: 'LEXICA5012', message: `'${written}' on ${receiverType}, the type its receiver's value is of, is declared by ${modules.join(' and ')}, none of them its owner and none more specific than the others` };
+            return { kind: 'failure', code: 'NEXO5012', message: `'${written}' on ${receiverType}, the type its receiver's value is of, is declared by ${modules.join(' and ')}, none of them its owner and none more specific than the others` };
         }
 
         if (outcome.kind !== 'selected') {
-            return { kind: 'failure', code: 'LEXICA5012', message: `'${written}' is not available on ${receiverType}, the type its receiver's value is of` };
+            return { kind: 'failure', code: 'NEXO5012', message: `'${written}' is not available on ${receiverType}, the type its receiver's value is of` };
         }
 
         const { declaration } = outcome;
@@ -1193,7 +1193,7 @@ export class Evaluator {
         if (LexicaModule.isInvokedByHost(declaration)) {
             return {
                 kind: 'failure',
-                code: 'LEXICA5013',
+                code: 'NEXO5013',
                 message: `'${written}' on ${receiverType} is a host call, which its host invokes and resolution alone selects: make its receiver known, as a cast does, or select its extension explicitly`,
             };
         }
@@ -1224,12 +1224,12 @@ export class Evaluator {
 
     /**
      * The arguments a deferred call gives the member its selection invokes, by parameter name, with the invocation of the result type they bind: the values written in order, or the object fields of the one plain object a
-     * member taking options is given, each parameter left out taking its default. It answers null where a null value's parameter propagates null. A value whose parameter it doesn't satisfy fails the call (LEXICA5021), and
-     * so do too many values, a parameter none supplies that requires one, and a parameter a value never satisfies, a function's, an expression's or a fixed one's (LEXICA5012).
+     * member taking options is given, each parameter left out taking its default. It answers null where a null value's parameter propagates null. A value whose parameter it doesn't satisfy fails the call (NEXO5021), and
+     * so do too many values, a parameter none supplies that requires one, and a parameter a value never satisfies, a function's, an expression's or a fixed one's (NEXO5012).
      */
     /**
      * A position's offset as an index or a range takes it: a nonnegative safe integer, never rounded, `-0` as `0`, or, for a range's boundary, an index; any other value fails where the index or the range stands
-     * (LEXICA5032), a value of Any's among them.
+     * (NEXO5032), a value of Any's among them.
      */
     #requireOffset(node, value, allowsIndex) {
         if (allowsIndex && value instanceof Index) {
@@ -1242,7 +1242,7 @@ export class Evaluator {
 
         const what = node.kind === 'range' ? "A range's boundary" : "An index's offset";
 
-        this.#fail('LEXICA5032', `${what} is a nonnegative whole number${allowsIndex ? ' or an index' : ''}, and this one is ${Evaluator.#describe(value)}`, this.#pointerOf(node));
+        this.#fail('NEXO5032', `${what} is a nonnegative whole number${allowsIndex ? ' or an index' : ''}, and this one is ${Evaluator.#describe(value)}`, this.#pointerOf(node));
     }
 
     #bindDeferredArguments(node, selection, receiverType, values) {
@@ -1255,19 +1255,19 @@ export class Evaluator {
             const [options] = values;
 
             if (values.length > 1 || !ObjectUtils.isPlainObject(options)) {
-                this.#fail('LEXICA5012', `${on} takes its arguments as the object fields of one object`, pointer);
+                this.#fail('NEXO5012', `${on} takes its arguments as the object fields of one object`, pointer);
             }
 
             for (const [name, value] of Object.entries(options)) {
                 if (!parameters.some(({ parameter }) => parameter.name === name)) {
-                    this.#fail('LEXICA5012', `${on} has no parameter '${name}'; it takes ${parameters.map(({ parameter }) => parameter.name).join(', ')}`, pointer);
+                    this.#fail('NEXO5012', `${on} has no parameter '${name}'; it takes ${parameters.map(({ parameter }) => parameter.name).join(', ')}`, pointer);
                 }
 
                 supplied.set(name, value);
             }
         } else {
             if (values.length > parameters.length) {
-                this.#fail('LEXICA5012', `${on} takes ${parameters.some(({ parameter }) => !parameter.required) ? 'at most ' : ''}${parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`}, and is given ${values.length}`, pointer);
+                this.#fail('NEXO5012', `${on} takes ${parameters.some(({ parameter }) => !parameter.required) ? 'at most ' : ''}${parameters.length === 1 ? 'one argument' : `${parameters.length} arguments`}, and is given ${values.length}`, pointer);
             }
 
             values.forEach((value, index) => supplied.set(parameters[index].parameter.name, value));
@@ -1279,7 +1279,7 @@ export class Evaluator {
         for (const { parameter, declaredType } of parameters) {
             if (!supplied.has(parameter.name)) {
                 if (parameter.required) {
-                    this.#fail('LEXICA5012', `${on} requires the argument '${parameter.name}'`, pointer);
+                    this.#fail('NEXO5012', `${on} requires the argument '${parameter.name}'`, pointer);
                 }
 
                 args[parameter.name] = parameter.default;
@@ -1289,7 +1289,7 @@ export class Evaluator {
             if (parameter.kind === 'expression' || parameter.kind === 'predicate' || parameter.kind === 'function' || parameter.fixed === true) {
                 const taken = parameter.fixed === true ? 'a fixed value, which selects its result type' : parameter.kind === 'function' ? 'a function' : `an ${parameter.kind}`;
 
-                this.#fail('LEXICA5012', `${on} takes ${taken} as '${parameter.name}', and a call selected as it is evaluated gives values alone`, pointer);
+                this.#fail('NEXO5012', `${on} takes ${taken} as '${parameter.name}', and a call selected as it is evaluated gives values alone`, pointer);
             }
 
             const value = supplied.get(parameter.name);
@@ -1317,7 +1317,7 @@ export class Evaluator {
             const isAdmitted = isOfType ?? Evaluator.#compileTypeCheck(parameterType, this.#registry, `the argument '${parameter.name}' of '${written}'`);
 
             if (!isAdmitted(args[parameter.name])) {
-                this.#fail('LEXICA5021', `The argument '${parameter.name}' of ${on} is declared ${parameterType}, and is given ${Evaluator.#describe(args[parameter.name])}`, pointer);
+                this.#fail('NEXO5021', `The argument '${parameter.name}' of ${on} is declared ${parameterType}, and is given ${Evaluator.#describe(args[parameter.name])}`, pointer);
             }
         }
 
@@ -1412,9 +1412,9 @@ export class Evaluator {
         return fail(`${Evaluator.#describe(value)} has none the vocabulary knows`);
     }
 
-    /** How a deferred access fails where its receiver's value, or an argument's, has no actual type, which it is selected by (LEXICA5012). */
+    /** How a deferred access fails where its receiver's value, or an argument's, has no actual type, which it is selected by (NEXO5012). */
     #failSelectionOf(node) {
-        return reason => this.#fail('LEXICA5012', `'${Evaluator.#writtenNameOf(node)}' is selected by the types of the values it is given, and ${reason}`, this.#pointerOf(node));
+        return reason => this.#fail('NEXO5012', `'${Evaluator.#writtenNameOf(node)}' is selected by the types of the values it is given, and ${reason}`, this.#pointerOf(node));
     }
 
     /** The name a message gives an access, its member's name, a call's its callee's, or `[…]` for an unnamed indexer. */
@@ -1550,7 +1550,7 @@ export class Evaluator {
                         }
 
                         if (plan.isOfCheckedType !== null && !plan.isOfCheckedType(value)) {
-                            evaluator.#fail('LEXICA5021', `The argument '${plan.name}' of '${LexicaModule.writtenNameOf(resolution.declaration)}' is declared ${plan.checkedType}, and is given ${Evaluator.#describe(value)}`, plan.pointer);
+                            evaluator.#fail('NEXO5021', `The argument '${plan.name}' of '${LexicaModule.writtenNameOf(resolution.declaration)}' is declared ${plan.checkedType}, and is given ${Evaluator.#describe(value)}`, plan.pointer);
                         }
 
                         // A delegate is evaluated where it is written, once, and goes to the member as a callback it calls, while the expression's own names and fields hold the value itself.
@@ -1659,23 +1659,23 @@ export class Evaluator {
         const callback = (...argumentValues) => {
             try {
                 if (!lifetime.isOpen) {
-                    this.#fail('LEXICA5008', `The function given as '${name}' of '${memberName}' is called after '${memberName}' returned, and a member calls the functions it is given only while its own invocation lasts`, pointer);
+                    this.#fail('NEXO5008', `The function given as '${name}' of '${memberName}' is called after '${memberName}' returned, and a member calls the functions it is given only while its own invocation lasts`, pointer);
                 }
 
                 if (argumentValues.length !== parameterTypes.length) {
-                    this.#fail('LEXICA5503', `The function given as '${name}' of '${memberName}' is called with ${argumentValues.length === 1 ? 'one argument' : `${argumentValues.length} arguments`}, and its contract declares ${parameterTypes.length}`, pointer);
+                    this.#fail('NEXO5503', `The function given as '${name}' of '${memberName}' is called with ${argumentValues.length === 1 ? 'one argument' : `${argumentValues.length} arguments`}, and its contract declares ${parameterTypes.length}`, pointer);
                 }
 
                 for (let index = 0; index < argumentValues.length; index++) {
                     if (!isOfParameterType[index](argumentValues[index])) {
-                        this.#fail('LEXICA5503', `The function given as '${name}' of '${memberName}' is called with ${Evaluator.#describe(argumentValues[index])}, and its contract declares ${parameterTypes[index]}`, pointer);
+                        this.#fail('NEXO5503', `The function given as '${name}' of '${memberName}' is called with ${Evaluator.#describe(argumentValues[index])}, and its contract declares ${parameterTypes[index]}`, pointer);
                     }
                 }
 
                 const value = body(argumentValues);
 
                 if (isOfResultType !== null && !isOfResultType(value)) {
-                    this.#fail('LEXICA5504', `The function given as '${name}' of '${memberName}' gave ${Evaluator.#describe(value)}, and its contract declares ${resultType}`, pointer);
+                    this.#fail('NEXO5504', `The function given as '${name}' of '${memberName}' gave ${Evaluator.#describe(value)}, and its contract declares ${resultType}`, pointer);
                 }
 
                 // A predicate's contract takes any value, and the member receives its truthiness.
@@ -1773,7 +1773,7 @@ export class Evaluator {
 
     /**
      * An object expression constructing a structure: its fields evaluated as an object's are, in the order written, then the structure of its data shape, a property it leaves out null, each in the shape's order,
-     * frozen. A value of Any resolution couldn't check is checked here against its property's type (LEXICA5038).
+     * frozen. A value of Any resolution couldn't check is checked here against its property's type (NEXO5038).
      */
     #compileConstruction(node, { type, checks }, fields, localNames) {
         const shape = [...this.#registry.getDataShape(type).keys()];
@@ -1786,7 +1786,7 @@ export class Evaluator {
 
             for (const { name, propertyType, conforms } of checked) {
                 if (!conforms(object[name])) {
-                    evaluator.#fail('LEXICA5038', `The property '${name}' of the ${type} written here is ${propertyType}, and is given ${Evaluator.#describe(object[name])}`, pointer);
+                    evaluator.#fail('NEXO5038', `The property '${name}' of the ${type} written here is ${propertyType}, and is given ${Evaluator.#describe(object[name])}`, pointer);
                 }
             }
 
@@ -1810,7 +1810,7 @@ export class Evaluator {
         this.#provenanceByList.set(projected, Object.freeze(sources.map((source, index) => (inherited === null ? source : inherited[index]))));
     }
 
-    /** The data as Lexica holds it, frozen throughout: the value itself where it is frozen already or is no object, and a frozen copy of its lists and objects otherwise. */
+    /** The data as Nexo holds it, frozen throughout: the value itself where it is frozen already or is no object, and a frozen copy of its lists and objects otherwise. */
     static #frozenDataOf(value) {
         if (value === null || typeof value !== 'object' || Object.isFrozen(value)) {
             return value;
@@ -2197,7 +2197,7 @@ export class Evaluator {
 
     /**
      * Refuses an equality whose operands, one of Any among them, are found as they are evaluated to be of types it never compares, as resolution refuses where it knows them: a structured value, a list or an object
-     * compared with a value that isn't null (LEXICA5025), and values of two types that fit neither way (LEXICA5024). A null operand is compared with any value.
+     * compared with a value that isn't null (NEXO5025), and values of two types that fit neither way (NEXO5024). A null operand is compared with any value.
      */
     #requireComparable(node, leftValue, rightValue) {
         if (leftValue === null || rightValue === null) {
@@ -2206,19 +2206,19 @@ export class Evaluator {
 
         const { operator } = this.#resolvedDefinition.resolutionOf(node);
         const pointer = this.#pointerOf(node);
-        const typeOf = value => this.#getActualType(value, `'${operator}'`, reason => this.#fail('LEXICA5025', `'${operator}' compares strings, numbers, Booleans and references, and ${reason}`, pointer));
+        const typeOf = value => this.#getActualType(value, `'${operator}'`, reason => this.#fail('NEXO5025', `'${operator}' compares strings, numbers, Booleans and references, and ${reason}`, pointer));
         const leftType = typeOf(leftValue);
         const rightType = typeOf(rightValue);
         const { typeChecker } = this.#registry;
 
         for (const type of [leftType, rightType]) {
             if (!typeChecker.isComparable(type)) {
-                this.#fail('LEXICA5025', `'${operator}' compares a value of ${type} with null alone, since only strings, numbers, Booleans and references are compared with each other`, pointer);
+                this.#fail('NEXO5025', `'${operator}' compares a value of ${type} with null alone, since only strings, numbers, Booleans and references are compared with each other`, pointer);
             }
         }
 
         if (!typeChecker.fitsEitherWay(leftType, rightType)) {
-            this.#fail('LEXICA5024', `'${operator}' compares values whose types fit one way or the other, and its operands were found to be of ${leftType} and ${rightType}, which fit neither way`, pointer);
+            this.#fail('NEXO5024', `'${operator}' compares values whose types fit one way or the other, and its operands were found to be of ${leftType} and ${rightType}, which fit neither way`, pointer);
         }
     }
 
@@ -2230,15 +2230,15 @@ export class Evaluator {
         const operator = node.kind === 'arithmeticNegation' ? '-' : node.operator;
 
         if (typeof left !== 'number' || typeof right !== 'number') {
-            this.#fail('LEXICA5505', `'${operator}' takes numbers, and is given ${typeof left !== 'number' ? Evaluator.#describe(left) : Evaluator.#describe(right)}`, this.#pointerOf(node));
+            this.#fail('NEXO5505', `'${operator}' takes numbers, and is given ${typeof left !== 'number' ? Evaluator.#describe(left) : Evaluator.#describe(right)}`, this.#pointerOf(node));
         }
 
         if ((operator === '/' || operator === '%') && right === 0 && node.kind === 'arithmetic') {
-            this.#fail('LEXICA5005', `'${operator}' divides by zero`, this.#pointerOf(node));
+            this.#fail('NEXO5005', `'${operator}' divides by zero`, this.#pointerOf(node));
         }
 
         if (!Number.isFinite(result)) {
-            this.#fail('LEXICA5020', `The result of '${operator}' is no finite number`, this.#pointerOf(node));
+            this.#fail('NEXO5020', `The result of '${operator}' is no finite number`, this.#pointerOf(node));
         }
 
         return result;
@@ -2266,7 +2266,7 @@ export class Evaluator {
         const { declaration, implementation, takesReceiver, resultType, captureCollections, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
-            this.#fail('LEXICA4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${LexicaModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
+            this.#fail('NEXO4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${LexicaModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
         }
 
         // A module member is read and called through its namespace, and has no receiver.
@@ -2284,18 +2284,18 @@ export class Evaluator {
         try {
             value = implementation({ ...received, args, env: this.#environment, ...(declaration.updates?.reads === 'maintained' ? { samples } : {}) });
         } catch (error) {
-            // A failure Lexica raised, within a function the member was given or a nested evaluation among them, keeps its own code and place; anything else the implementation threw, a LexicaError it built among them,
-            // is the cause of Lexica's own, exactly as thrown.
+            // A failure Nexo raised, within a function the member was given or a nested evaluation among them, keeps its own code and place; anything else the implementation threw, a LexicaError it built among them,
+            // is the cause of Nexo's own, exactly as thrown.
             if (LexicaErrors.isRaisedByLexica(error) || this.#callbackErrors.has(error)) {
                 throw error;
             }
 
-            // One of Lexica's own members refuses the values it is given with a failure of the language's, at the call.
+            // One of Nexo's own members refuses the values it is given with a failure of the language's, at the call.
             if (error instanceof MemberFailure && this.#registry.getDeclaringModuleName(declaration) === Vocabulary.moduleName) {
                 this.#fail(error.code, error.message, this.#pointerOf(node));
             }
 
-            this.#fail('LEXICA5007', `${this.#subjectOf(declaration, node)} failed: ${Evaluator.#messageOf(error)}`, this.#pointerOf(node), { cause: error });
+            this.#fail('NEXO5007', `${this.#subjectOf(declaration, node)} failed: ${Evaluator.#messageOf(error)}`, this.#pointerOf(node), { cause: error });
         } finally {
             // A function the member was given is called only while its invocation lasts.
             for (const name in args) {
@@ -2319,7 +2319,7 @@ export class Evaluator {
         }
 
         if (!isOfResultType(value)) {
-            this.#fail('LEXICA5006', `${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${resultType}`, this.#pointerOf(node));
+            this.#fail('NEXO5006', `${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${resultType}`, this.#pointerOf(node));
         }
 
         if (request !== null && this.#hooks.afterInvoke !== undefined) {
@@ -2379,7 +2379,7 @@ export class Evaluator {
     #beforeInvoke(request, declaration, node) {
         if (request === null || this.#hooks.beforeInvoke === undefined) {
             if (declaration.updates?.reads === 'maintained') {
-                this.#fail('LEXICA5011', `${this.#subjectOf(declaration, node)} is maintained by an observation, and reading it waits for the first sample, which a synchronous evaluation cannot`, this.#pointerOf(node));
+                this.#fail('NEXO5011', `${this.#subjectOf(declaration, node)} is maintained by an observation, and reading it waits for the first sample, which a synchronous evaluation cannot`, this.#pointerOf(node));
             }
 
             return NO_SAMPLES;
@@ -2403,7 +2403,7 @@ export class Evaluator {
     }
 
     /**
-     * Fails the evaluation at the member for what a hook around its invocation threw, a LexicaError the hook built among them, a failure Lexica raised keeping its own place;
+     * Fails the evaluation at the member for what a hook around its invocation threw, a LexicaError the hook built among them, a failure Nexo raised keeping its own place;
      * the hooks are called directly, since they run on every invocation.
      */
     #failHook(error, declaration, node, moment) {
@@ -2411,7 +2411,7 @@ export class Evaluator {
             throw error;
         }
 
-        this.#fail('LEXICA5009', `The host failed ${moment} of ${this.#subjectOf(declaration, node).replace(/^The /, 'the ').replace(/,$/, '')}: ${Evaluator.#messageOf(error)}`, this.#pointerOf(node), { cause: error });
+        this.#fail('NEXO5009', `The host failed ${moment} of ${this.#subjectOf(declaration, node).replace(/^The /, 'the ').replace(/,$/, '')}: ${Evaluator.#messageOf(error)}`, this.#pointerOf(node), { cause: error });
     }
 
     /** What a thrown value says, for the message of the failure it causes: an error's message, or the value written as text, whatever it is. */
@@ -2424,13 +2424,13 @@ export class Evaluator {
     }
 
     /**
-     * Raises an error of the code and the message at the source of the pointer: a module error for a code of the module range, LEXICA4…, and an evaluation error for any other, which carries the options given as they are,
-     * the failure that caused it among them. Either is raised through Lexica's own factories, which check its code's range and mark it as Lexica's.
+     * Raises an error of the code and the message at the source of the pointer: a module error for a code of the module range, NEXO4…, and an evaluation error for any other, which carries the options given as they are,
+     * the failure that caused it among them. Either is raised through Nexo's own factories, which check its code's range and mark it as Nexo's.
      */
     #fail(code, message, pointer, options) {
         const location = this.#locate(pointer);
 
-        throw code.startsWith('LEXICA4') ? LexicaErrors.module(code, message, location) : LexicaErrors.evaluation(code, message, location, options);
+        throw code.startsWith('NEXO4') ? LexicaErrors.module(code, message, location) : LexicaErrors.evaluation(code, message, location, options);
     }
 
     /** Where the node stands in the definition, as a JSON Pointer. */
@@ -2494,7 +2494,7 @@ export class Evaluator {
 
             // Resolution proved every other part of the result data.
             if (this.#checksResultData && !this.#isData(result)) {
-                this.#fail('LEXICA5028', 'The result holds a value of Any that is no data, as a reference or a function is; read the facts it needs through an object expression', this.#pointerOf(node));
+                this.#fail('NEXO5028', 'The result holds a value of Any that is no data, as a reference or a function is; read the facts it needs through an object expression', this.#pointerOf(node));
             }
 
             const { value, copiedIdentities } = this.#copyResult(result);

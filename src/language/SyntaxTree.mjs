@@ -1,5 +1,5 @@
 /**
- * SyntaxTree — the lossless syntax tree of a Lexica text: its constructs, each a node named after the grammar rule that produces it, holding its tokens and the nodes within it, every token with the trivia before it
+ * SyntaxTree — the lossless syntax tree of a Nexo text: its constructs, each a node named after the grammar rule that produces it, holding its tokens and the nodes within it, every token with the trivia before it
  */
 
 /** @typedef {import('./Tokenizer.mjs').Token} Token */
@@ -9,7 +9,7 @@
 
 /**
  * The kinds a node is, each a construct of the grammar, which tooling reads as they are; a rule that only passes an operand on, a level of precedence or a repetition, is none of them.
- * A contract within Lexica until a public tooling API stabilizes it.
+ * A contract within Nexo until a public tooling API stabilizes it.
  */
 export const SYNTAX_NODE_KINDS = Object.freeze([
     'script',

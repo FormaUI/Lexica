@@ -65,7 +65,7 @@ export class MemberSelector {
         return candidates.filter(declaration => !this.#registry.isInternal(declaration));
     }
 
-    /** The name of the module that owns the type: the module that declares it, Lexica's own for its value types; none for a type no declaration names, an object type among them. */
+    /** The name of the module that owns the type: the module that declares it, Nexo's own for its value types; none for a type no declaration names, an object type among them. */
     static #ownerOf(type) {
         if (type.kind !== 'named') {
             return null;
@@ -74,7 +74,7 @@ export class MemberSelector {
         return type.moduleName ?? Vocabulary.moduleName;
     }
 
-    /** Whether the member is one the owner declares within a type of its own, a type or Lexica's own value type, never an extension, whose members are extensions whatever module declares them. */
+    /** Whether the member is one the owner declares within a type of its own, a type or Nexo's own value type, never an extension, whose members are extensions whatever module declares them. */
     #isOwnedBy(declaration, owner) {
         const containing = this.#registry.getContainingType(declaration);
 

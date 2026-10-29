@@ -1,5 +1,5 @@
 /**
- * ItemPositions — where in its receiver each item stood of a list one of Lexica's own members answered of its receiver's items, kept with that list, so the item's lineage follows its occurrence rather than its value
+ * ItemPositions — where in its receiver each item stood of a list one of Nexo's own members answered of its receiver's items, kept with that list, so the item's lineage follows its occurrence rather than its value
  */
 
 export class ItemPositions {

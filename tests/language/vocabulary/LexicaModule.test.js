@@ -138,7 +138,7 @@ describe('LexicaModule', () => {
 
     it('offers no way to make a module exempt from the registry\'s rules, whatever its name', () => {
         expect(LexicaModule.createBuiltIn).toBeUndefined();
-        expect('isBuiltIn' in new LexicaModule('Lexica', {})).toBe(false);
+        expect('isBuiltIn' in new LexicaModule('Nexo', {})).toBe(false);
         expect(Vocabulary.module).toBe(Vocabulary.module);
     });
 
@@ -240,7 +240,7 @@ describe('LexicaModule', () => {
 
         it('declare neither updates, since they are never evaluated, nor an implementation, since their host invokes them', () => {
             refusal({ members: [hostCall({ updates: { changes: 'constant', reads: 'fresh' } })] }, 'dim', 'updates', 'the evaluator never evaluates it, so it declares no updates');
-            refusal({ members: [hostCall({ impl: () => 1 })] }, 'dim', 'impl', 'its module gives Lexica no implementation of it');
+            refusal({ members: [hostCall({ impl: () => 1 })] }, 'dim', 'impl', 'its module gives Nexo no implementation of it');
         });
 
         it('are written as a function call and take value parameters alone', () => {
@@ -497,7 +497,7 @@ describe('LexicaModule', () => {
             expect(new LexicaModule('charts', { types: [{ name: 'X', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] }).types[0].name).toBe('X');
         });
 
-        it('take a structured type named as a node of Lexica\'s, which its module tells apart', () => {
+        it('take a structured type named as a node of Nexo\'s, which its module tells apart', () => {
             expect(() => new LexicaModule('charts', { types: [{ name: 'Element', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] })).not.toThrow();
         });
 

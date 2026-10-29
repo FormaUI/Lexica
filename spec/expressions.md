@@ -101,7 +101,7 @@ Conditions and the operands of `not`, `and` and `or` accept values and test thei
 
 A test answers a Boolean: a member that answers one, read as every member is.
 
-```lexica
+```nexo
 room.occupied()
 room.device("lamp")?.active()
 device.batteryPowered()
@@ -182,7 +182,7 @@ Narrowing changes neither evaluation nor the requirement to validate every opera
 
 `a == b` compares two values, and `a != b` is its negation.
 
-```lexica
+```nexo
 mode == "eco"
 room.device(name) == null
 left["mode"] == right["mode"]
@@ -243,7 +243,7 @@ For a nullable Boolean `x`, comparing and negating answer differently where `x` 
 
 `+`, `-`, `*`, `/` and `%` compute with numbers, and `-` before a value negates it, so an expression derives the values it needs from the ones it reads: the gap to a target, a share of a total, a margin.
 
-```lexica
+```nexo
 thermostat {
     gap = it.target - (it.room.climate?.temperature ?? 0),
     half = it.power / 2,
@@ -303,7 +303,7 @@ Arithmetic reads what its operands read, and does not name an observation of its
 
 `<`, `<=`, `>` and `>=` order two numbers, and a chain of them pointing one way orders several, so an expression tests a value it reads or calculates against a bound or a range.
 
-```lexica
+```nexo
 room {
     isLarge = it.floorArea >= 20,
     comfortable = 19 < (it.climate?.temperature ?? 0) <= 23
@@ -354,7 +354,7 @@ An evaluation reads what the operands it evaluated read, and an operand a false 
 
 `and` and `or` answer the operand that decides them, `not` answers whether a value is falsey, and parentheses group any expression.
 
-```lexica
+```nexo
 light.active() and metered
 device.offline() or (device.batteryPowered() and (device.battery ?? 0) < 10)
 room { free = not it.occupied() and not busy }
@@ -390,7 +390,7 @@ An equality binds tighter than `not`, `not` tighter than `and`, and `and` tighte
 
 So `room.device(name) and 5` is a `Number?`, `name or "untitled"` a `String` where `name` is a string, and Booleans give a `Boolean`. Where fixed operands, literals and bound parameters, decide it, it is of the one that does, so `true and "value"` is a `String`.
 
-Values no one type holds are a validation error, as `it.active() and it` in an object expression following a device, which gives false or a device: unlike Lua, Lexica types every expression, and does not offer a type for false or true beside another, so a conditional chooses between values of one type, `if it.active() then it else null end`, where null is an acceptable alternative.
+Values no one type holds are a validation error, as `it.active() and it` in an object expression following a device, which gives false or a device: unlike Lua, Nexo types every expression, and does not offer a type for false or true beside another, so a conditional chooses between values of one type, `if it.active() then it else null end`, where null is an acceptable alternative.
 
 <a id="logical-expressions-negations-and-groups-not-a-conditional"></a>
 
@@ -420,7 +420,7 @@ A conditional chooses a branch by truthiness. It starts with `if`, has a `then` 
 
 Each branch is a [body](scripts.md#bodies): one expression, or locals followed by `return`. Every branch of one conditional must use the same result style. A conditional stands on one line, or in [block form](lexical-structure.md#line-structure-keyword-blocks).
 
-```lexica
+```nexo
 if metered then light else thermostat end
 if let lamp = room.device("lamp") then { name = lamp.name, power = lamp.power } else null end
 if room.device("lamp")?.offline() then "lost" elseif room.device("lamp") == null then "none" else "ok" end
@@ -522,7 +522,7 @@ A [simple expression](#simple-expressions) cannot contain a `do` block or a full
 
 A coalescing operator answers its value where it is not null, and otherwise its fallback: `value ?? fallback`.
 
-```lexica
+```nexo
 sensor.temperature ?? 0
 device["label"] ?? device["name"] ?? "untitled"
 room.device("lamp")?.active() ?? true
@@ -570,7 +570,7 @@ A coalescing operator stands beside `not`, `and`, `or`, an equality and a compar
 
 It handles a value its operation rejects without failing, as `??` handles a missing one, so the two together give a value either way:
 
-```lexica
+```nexo
 device { level = try it["level"] to Number ?? 0 }
 (try room.device(name) as Light)?.brightness
 ```
@@ -625,7 +625,7 @@ It stands where an equality operand stands; a conversion of its result groups it
 
 A result that keeps the converted number and tells a missing value from a malformed one says which it is beside the value, reading the setting once through a local:
 
-```lexica
+```nexo
 device {
     let level = it["level"],
     level = if let n = try level to Number then
@@ -644,7 +644,7 @@ device {
 
 `$"…"` joins text and inserted values, and so do `$'…'` and the interpolated blocks, `$"""…"""` and `$'''…'''`. Each interpolation is `{`, one [simple expression](#simple-expressions), then `}`. Arithmetic `+` does not join text.
 
-```lexica
+```nexo
 room {
     label = $"{it.device("lamp")?["level"] ?? "no"} level across {it.devices.count} devices",
     title = $"{{room}} {it.name}"
@@ -712,7 +712,7 @@ A **simple expression** is an expression allowed in a delimited value position:
 
 Simple expressions include values, references, arithmetic, comparisons, logical expressions, property accesses, indexers, function calls, and object expressions or interpolated strings whose contents are also simple. They also include a simple conditional: one `if` branch and one `else` branch, each containing one simple value.
 
-```lexica
+```nexo
 let calculate = function(degrees, offset) degrees - offset end
 let adjusted = do
     let doubled = (sensor.temperature ?? 0) * 2

@@ -21,7 +21,7 @@ export const parameterDeclaration = (overrides = {}) => ({ name: 'amount', kind:
 /** A function the host invokes, declared through the declaration helpers as a host declares one, of the result given. */
 export const hostFunctionDeclaration = (name, result, options = {}) => lexica.declarations.createFunctionDeclaration(name, result, { invokedBy: 'host', ...options });
 
-/** The data properties of a structured type's data shape, in the declaration shape, from the type of each property by its name: each a property without updates, which Lexica reads from the data. */
+/** The data properties of a structured type's data shape, in the declaration shape, from the type of each property by its name: each a property without updates, which Nexo reads from the data. */
 export const dataPropertyDeclarations = shape => Object.entries(shape).map(([name, result]) => ({ name, kind: 'property', result }));
 
 /** An indexer, by default an unnamed one, taking its key, a string, in the declaration shape, with what a test changes: a name makes it a named one. */
@@ -35,7 +35,7 @@ export const operatorDeclaration = (name, result, impl) => ({ kind: 'operator', 
 
 /**
  * An extension of every type declaring `is`, a function answering what the test it is given, a function of the receiver's own type, answers of its receiver: a test of any receiver as a host declares one for its domain,
- * since Lexica declares none.
+ * since Nexo declares none.
  */
 export const receiverTestsDeclaration = () => extensionDeclaration('Checks<T>', 'T', [
     lexica.declarations.createFunctionDeclaration('is', 'Boolean', {

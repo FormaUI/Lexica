@@ -22,7 +22,7 @@ const createSheets = indexers => lexica.createModule('Sheets', {
 
 const values = { xs: [10, 20, 30, 40, 50], n: 2, maybe: null, word: 'oat' };
 
-/** The resolution of the text against Lexica's own vocabulary and the values. */
+/** The resolution of the text against Nexo's own vocabulary and the values. */
 const resolve = (text, bound = values) => lexica.createRegistry([]).resolve(text, bound);
 
 /** What the text evaluates to. */
@@ -47,22 +47,22 @@ describe('positions', () => {
 
         it('validates a definition\'s index and range, a range holding a start, an end, both or neither and an index its offset', () => {
             const literal = value => ({ kind: 'literal', value });
-            const validating = expression => () => lexica.validate({ version: 35, imports: [], expression });
+            const validating = expression => () => lexica.validate({ version: 36, imports: [], expression });
 
             expect(validating({ kind: 'range' })().expression).toEqual({ kind: 'range' });
-            expect(errorThrownBy(validating({ kind: 'range', start: literal(1), step: literal(2) }))).toMatchObject({ code: 'LEXICA2000', location: { pointer: '/expression' }, message: expect.stringContaining("'step' is no property") });
-            expect(errorThrownBy(validating({ kind: 'fromEndIndex' }))).toMatchObject({ code: 'LEXICA2000', message: expect.stringContaining("requires 'offset'") });
+            expect(errorThrownBy(validating({ kind: 'range', start: literal(1), step: literal(2) }))).toMatchObject({ code: 'NEXO2000', location: { pointer: '/expression' }, message: expect.stringContaining("'step' is no property") });
+            expect(errorThrownBy(validating({ kind: 'fromEndIndex' }))).toMatchObject({ code: 'NEXO2000', message: expect.stringContaining("requires 'offset'") });
         });
 
         it('refuses an ungrouped operator expression as a boundary and a range as a range\'s, and a line break within either', () => {
-            expect(errorThrownBy(() => lexica.parse('xs[n + 1..4]'))).toMatchObject({ code: 'LEXICA1069', location: { column: 4 }, message: expect.stringContaining("write '(n + 1)..'") });
-            expect(errorThrownBy(() => lexica.parse('xs[1..n + 1]'))).toMatchObject({ code: 'LEXICA1069', location: { column: 7 } });
-            expect(errorThrownBy(() => lexica.parse('1..2..3'))).toMatchObject({ code: 'LEXICA1070', location: { column: 5 } });
-            expect(errorThrownBy(() => lexica.parse('^-1'))).toMatchObject({ code: 'LEXICA1000' });
+            expect(errorThrownBy(() => lexica.parse('xs[n + 1..4]'))).toMatchObject({ code: 'NEXO1069', location: { column: 4 }, message: expect.stringContaining("write '(n + 1)..'") });
+            expect(errorThrownBy(() => lexica.parse('xs[1..n + 1]'))).toMatchObject({ code: 'NEXO1069', location: { column: 7 } });
+            expect(errorThrownBy(() => lexica.parse('1..2..3'))).toMatchObject({ code: 'NEXO1070', location: { column: 5 } });
+            expect(errorThrownBy(() => lexica.parse('^-1'))).toMatchObject({ code: 'NEXO1000' });
 
             for (const lineBreak of ['\n', '\r\n']) {
-                expect(errorThrownBy(() => lexica.parse(`xs[1${lineBreak}..4]`))).toMatchObject({ code: 'LEXICA1041', message: expect.stringContaining("A range, its boundaries and its '..' stand on one line: write '1..'") });
-                expect(errorThrownBy(() => lexica.parse(`xs[^${lineBreak}1]`))).toMatchObject({ code: 'LEXICA1041', message: expect.stringContaining("write '^1'") });
+                expect(errorThrownBy(() => lexica.parse(`xs[1${lineBreak}..4]`))).toMatchObject({ code: 'NEXO1041', message: expect.stringContaining("A range, its boundaries and its '..' stand on one line: write '1..'") });
+                expect(errorThrownBy(() => lexica.parse(`xs[^${lineBreak}1]`))).toMatchObject({ code: 'NEXO1041', message: expect.stringContaining("write '^1'") });
             }
         });
 
@@ -80,15 +80,15 @@ describe('positions', () => {
             expect(resolve('xs[^1]').type).toBe('Number?');
             expect(resolve('xs[1..4]').type).toBe('List<Number>');
             expect(evaluate('let middle = 1..^1\nreturn { a = xs[middle], b = [1, 2, 3][middle] }')).toEqual({ a: [20, 30, 40], b: [2] });
-            expect(errorThrownBy(() => resolve('1..2'))).toMatchObject({ code: 'LEXICA3043', message: expect.stringContaining('Range, which is no data') });
-            expect(errorThrownBy(() => resolve('{ last = ^1 }'))).toMatchObject({ code: 'LEXICA3043' });
+            expect(errorThrownBy(() => resolve('1..2'))).toMatchObject({ code: 'NEXO3043', message: expect.stringContaining('Range, which is no data') });
+            expect(errorThrownBy(() => resolve('{ last = ^1 }'))).toMatchObject({ code: 'NEXO3043' });
         });
 
         it('refuses an offset that is no number and a boundary that is neither a number nor an index, a nullable one among them', () => {
-            expect(errorThrownBy(() => resolve('xs[^word]'))).toMatchObject({ code: 'LEXICA3085', location: { pointer: '/expression/argument/offset' }, message: expect.stringContaining("An index's offset is a number, and this one is String") });
-            expect(errorThrownBy(() => resolve('xs[word..]'))).toMatchObject({ code: 'LEXICA3085', location: { pointer: '/expression/argument/start' }, message: expect.stringContaining('a number or an index') });
-            expect(errorThrownBy(() => resolve('xs[..xs.first]'))).toMatchObject({ code: 'LEXICA3085', location: { pointer: '/expression/argument/end' }, message: expect.stringContaining('can be null') });
-            expect(errorThrownBy(() => resolve('xs[(1..2)..]'))).toMatchObject({ code: 'LEXICA3085', message: expect.stringContaining('this one is Range') });
+            expect(errorThrownBy(() => resolve('xs[^word]'))).toMatchObject({ code: 'NEXO3085', location: { pointer: '/expression/argument/offset' }, message: expect.stringContaining("An index's offset is a number, and this one is String") });
+            expect(errorThrownBy(() => resolve('xs[word..]'))).toMatchObject({ code: 'NEXO3085', location: { pointer: '/expression/argument/start' }, message: expect.stringContaining('a number or an index') });
+            expect(errorThrownBy(() => resolve('xs[..xs.first]'))).toMatchObject({ code: 'NEXO3085', location: { pointer: '/expression/argument/end' }, message: expect.stringContaining('can be null') });
+            expect(errorThrownBy(() => resolve('xs[(1..2)..]'))).toMatchObject({ code: 'NEXO3085', message: expect.stringContaining('this one is Range') });
         });
 
         it('looks a number and an index up tolerantly, null where the list has no item, and slices a range strictly, against one length', () => {
@@ -97,7 +97,7 @@ describe('positions', () => {
             expect([evaluate('xs[2..2]'), evaluate('xs[5..]'), evaluate('xs[..^5]')]).toEqual([[], [], []]);
 
             for (const text of ['xs[3..1]', 'xs[1..6]', 'xs[^6..]', 'xs[..^6]']) {
-                expect(errorThrownBy(() => evaluate(text)), text).toMatchObject({ code: 'LEXICA5033', location: { pointer: '/expression' } });
+                expect(errorThrownBy(() => evaluate(text)), text).toMatchObject({ code: 'NEXO5033', location: { pointer: '/expression' } });
             }
 
             expect(errorThrownBy(() => evaluate('xs[3..1]')).message).toContain('The range 3..1 is applied to a list of 5 items, and gives 3..1, which starts after it ends');
@@ -105,9 +105,9 @@ describe('positions', () => {
         });
 
         it('refuses an offset or a boundary that is no nonnegative whole number when it is evaluated, never rounding one', () => {
-            expect(errorThrownBy(() => evaluate('xs[^1.5]'))).toMatchObject({ code: 'LEXICA5032', location: { pointer: '/expression/argument' }, message: expect.stringContaining("An index's offset is a nonnegative whole number, and this one is 1.5") });
-            expect(errorThrownBy(() => evaluate('xs[-1..2]'))).toMatchObject({ code: 'LEXICA5032', location: { pointer: '/expression/argument' }, message: expect.stringContaining("A range's boundary is a nonnegative whole number or an index") });
-            expect(errorThrownBy(() => evaluate('xs[^(n - 3)]'))).toMatchObject({ code: 'LEXICA5032' });
+            expect(errorThrownBy(() => evaluate('xs[^1.5]'))).toMatchObject({ code: 'NEXO5032', location: { pointer: '/expression/argument' }, message: expect.stringContaining("An index's offset is a nonnegative whole number, and this one is 1.5") });
+            expect(errorThrownBy(() => evaluate('xs[-1..2]'))).toMatchObject({ code: 'NEXO5032', location: { pointer: '/expression/argument' }, message: expect.stringContaining("A range's boundary is a nonnegative whole number or an index") });
+            expect(errorThrownBy(() => evaluate('xs[^(n - 3)]'))).toMatchObject({ code: 'NEXO5032' });
             expect(evaluate('xs[^(n - 2)..]')).toEqual([]);
         });
 
@@ -117,8 +117,8 @@ describe('positions', () => {
         });
 
         it('refuses a key no signature of the unnamed indexer takes, never falling through, and a range as a dictionary\'s key', () => {
-            expect(errorThrownBy(() => resolve('xs[word]'))).toMatchObject({ code: 'LEXICA3084', location: { pointer: '/expression/argument' }, message: expect.stringContaining('The unnamed indexer of List<Number> takes Number, Index or Range, and is given String') });
-            expect(errorThrownBy(() => resolve('pairs[1..2]', { pairs: new Map([['a', 1]]) }))).toMatchObject({ code: 'LEXICA3042' });
+            expect(errorThrownBy(() => resolve('xs[word]'))).toMatchObject({ code: 'NEXO3084', location: { pointer: '/expression/argument' }, message: expect.stringContaining('The unnamed indexer of List<Number> takes Number, Index or Range, and is given String') });
+            expect(errorThrownBy(() => resolve('pairs[1..2]', { pairs: new Map([['a', 1]]) }))).toMatchObject({ code: 'NEXO3042' });
         });
     });
 
@@ -128,7 +128,7 @@ describe('positions', () => {
             expect(evaluate('xs.pick([])')).toEqual([]);
 
             for (const [text, position] of [['xs.pick([5])', 5], ['xs.pick([-1])', -1], ['xs.pick([1.5])', 1.5]]) {
-                expect(errorThrownBy(() => evaluate(text))).toMatchObject({ code: 'LEXICA5034', location: { pointer: '/expression' }, message: expect.stringContaining(`'pick' is given the position ${position}`) });
+                expect(errorThrownBy(() => evaluate(text))).toMatchObject({ code: 'NEXO5034', location: { pointer: '/expression' }, message: expect.stringContaining(`'pick' is given the position ${position}`) });
             }
         });
 
@@ -139,7 +139,7 @@ describe('positions', () => {
             expect(resolve('n.sequence(2)').type).toBe('List<Number>');
 
             for (const count of ['-1', '1.5']) {
-                expect(errorThrownBy(() => evaluate(`n.sequence(${count})`))).toMatchObject({ code: 'LEXICA5035', location: { pointer: '/expression' } });
+                expect(errorThrownBy(() => evaluate(`n.sequence(${count})`))).toMatchObject({ code: 'NEXO5035', location: { pointer: '/expression' } });
             }
         });
     });
@@ -157,7 +157,7 @@ describe('positions', () => {
 
         it('registers indexers of one name, or unnamed, within one type as signatures of disjoint key types, each selected by its key\'s type', () => {
             expect([evaluateOn(unnamed, 'grid[1]'), evaluateOn(unnamed, 'grid[cell]')]).toEqual(['b', 1]);
-            expect(errorThrownBy(() => evaluateOn(unnamed, 'grid[true]'))).toMatchObject({ code: 'LEXICA3084', message: expect.stringContaining('The unnamed indexer of Grid takes Number or String, and is given Boolean') });
+            expect(errorThrownBy(() => evaluateOn(unnamed, 'grid[true]'))).toMatchObject({ code: 'NEXO3084', message: expect.stringContaining('The unnamed indexer of Grid takes Number or String, and is given Boolean') });
 
             const named = [
                 indexerOf('cell', 'Number', 'String?', ({ receiver, args }) => receiver.cells[args.key] ?? null),
@@ -174,9 +174,9 @@ describe('positions', () => {
         it('refuses two signatures whose key types overlap when they are registered, a nullable pair, a type and a supertype, and Any among them', () => {
             const registering = indexers => errorThrownBy(() => lexica.createRegistry([createSheets(indexers)]));
 
-            expect(registering([indexerOf(null, 'Number', 'String?', () => null), indexerOf(null, 'Number?', 'String?', () => null)])).toMatchObject({ code: 'LEXICA4068', message: expect.stringContaining('taking a key of a type of its own') });
-            expect(registering([indexerOf(null, 'Number', 'String?', () => null), indexerOf(null, 'Number', 'String?', () => null)])).toMatchObject({ code: 'LEXICA4068' });
-            expect(registering([indexerOf('cell', 'String', 'String?', () => null), indexerOf('cell', 'Any', 'String?', () => null)])).toMatchObject({ code: 'LEXICA4029', message: expect.stringContaining("'cell' is declared already for Grid, and an indexer of its name is one of its signatures only within its type") });
+            expect(registering([indexerOf(null, 'Number', 'String?', () => null), indexerOf(null, 'Number?', 'String?', () => null)])).toMatchObject({ code: 'NEXO4068', message: expect.stringContaining('taking a key of a type of its own') });
+            expect(registering([indexerOf(null, 'Number', 'String?', () => null), indexerOf(null, 'Number', 'String?', () => null)])).toMatchObject({ code: 'NEXO4068' });
+            expect(registering([indexerOf('cell', 'String', 'String?', () => null), indexerOf('cell', 'Any', 'String?', () => null)])).toMatchObject({ code: 'NEXO4029', message: expect.stringContaining("'cell' is declared already for Grid, and an indexer of its name is one of its signatures only within its type") });
         });
 
         it('selects the signature a value of Any\'s key is of as it is evaluated, and refuses a key of Any where several stand when it is resolved', () => {
@@ -185,7 +185,7 @@ describe('positions', () => {
 
             expect(registry.resolve('Sheets.held()[^1]', {}, { imports: ['Sheets'] }).createEvaluator({}).evaluate().value).toBe(30);
             expect(registry.resolve('Sheets.held()[1..]', {}, { imports: ['Sheets'] }).createEvaluator({}).evaluate().value).toEqual([20, 30]);
-            expect(errorThrownBy(() => registry.resolve('grid[Sheets.held()]', bound, { imports: ['Sheets'] }))).toMatchObject({ code: 'LEXICA3084', message: expect.stringContaining('its key is of Any') });
+            expect(errorThrownBy(() => registry.resolve('grid[Sheets.held()]', bound, { imports: ['Sheets'] }))).toMatchObject({ code: 'NEXO3084', message: expect.stringContaining('its key is of Any') });
         });
     });
 });

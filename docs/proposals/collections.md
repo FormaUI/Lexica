@@ -6,9 +6,9 @@ Related proposals: [contract generics](contract-generics.md), whose inference co
 
 ## The design
 
-Collections belong to Lexica: their values, types, syntax, construction, operations, equality, capture, evaluation and metadata. A host owns what happens around evaluation: obtaining domain values, observing changes, scheduling evaluations, comparing results and delivering updates. No collection rule depends on a particular host, its values or its result formats, and host containers never become collection systems of their own.
+Collections belong to Nexo: their values, types, syntax, construction, operations, equality, capture, evaluation and metadata. A host owns what happens around evaluation: obtaining domain values, observing changes, scheduling evaluations, comparing results and delivering updates. No collection rule depends on a particular host, its values or its result formats, and host containers never become collection systems of their own.
 
-Positions and keys support different operations and guarantees, and Lexica states those contracts directly: a **list** is addressed by position, a **dictionary** by key, and an object, as before, by its named fields. One native model serves both kinds: shared collection machinery and consistent semantics, without requiring identical physical storage. A dictionary becomes neither a list nor an object implicitly, and an object becomes a dictionary only through an explicit operation.
+Positions and keys support different operations and guarantees, and Nexo states those contracts directly: a **list** is addressed by position, a **dictionary** by key, and an object, as before, by its named fields. One native model serves both kinds: shared collection machinery and consistent semantics, without requiring identical physical storage. A dictionary becomes neither a list nor an object implicitly, and an object becomes a dictionary only through an explicit operation.
 
 The design comes in four parts, each settled, specified and implemented in turn:
 
@@ -43,7 +43,7 @@ The design comes in four parts, each settled, specified and implemented in turn:
     - a projection records its immediate sources apart from the provenance it inherits;
     - repeating an item preserves its origin without implying that its occurrences are unique;
     - missing provenance stays distinguishable from a recorded null source;
-    - reference identity comes from Lexica's established classification, never from a host's own check;
+    - reference identity comes from Nexo's established classification, never from a host's own check;
     - hosts decide matching, and lineage promises no unique correspondence.
 
     The requirement it must meet:
@@ -98,7 +98,7 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### Construction and operations
 
-✅ **Settled,** as [Lexica's vocabulary](../../spec/vocabulary.md#vocabulary-list-members), [null arguments](../../spec/members.md#nullability-a-null-argument-follows-the-parameter) and [provenance](../../spec/runtime.md#runtime-results-provenance) specify and [I37](implementation-decisions.md) records, but `pick`, which positional operations settle.
+✅ **Settled,** as [Nexo's vocabulary](../../spec/vocabulary.md#vocabulary-list-members), [null arguments](../../spec/members.md#nullability-a-null-argument-follows-the-parameter) and [provenance](../../spec/runtime.md#runtime-results-provenance) specify and [I37](implementation-decisions.md) records, but `pick`, which positional operations settle.
 
 - **Collection expressions,** beyond decision 12: a list dense and immutable, a trailing comma allowed in source, holes refused, no spread, items as simple expressions under the existing recursive restrictions, and delegates kept out of collection data.
 - **Dictionary construction:** `people.toDictionary(it.id)`, a dictionary of the people by their ids; `.select(…)` giving other values; and `groupBy`, a `Dictionary<K, List<T>>`.
@@ -108,7 +108,7 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### Positional operations
 
-✅ **Settled,** as [positions](../../spec/types.md#types-positions), [Lexica's vocabulary](../../spec/vocabulary.md#vocabulary-list-members) and [an indexer's signatures](../../spec/members.md#property-access-calls-and-indexers-unnamed-indexers) specify and [I38](implementation-decisions.md) records: an `Index` counts from the end alone, a number from the start.
+✅ **Settled,** as [positions](../../spec/types.md#types-positions), [Nexo's vocabulary](../../spec/vocabulary.md#vocabulary-list-members) and [an indexer's signatures](../../spec/members.md#property-access-calls-and-indexers-unnamed-indexers) specify and [I38](implementation-decisions.md) records: an `Index` counts from the end alone, a number from the start.
 
 - **Indices and ranges:** an `Index`, an offset from the beginning or, written `^n`, from the end, and a `Range`, two boundaries of a half-open interval, `items[1..4]`, `items[..4]`, `items[4..]`, `items[^3..]`, `items[..^1]` and `items[..]`, reusable as values, `let middle = 1..^1`, capturing no collection and generating no numbers; offsets nonnegative safe integers, never rounded.
 - **Lookup and slicing:** scalar lookup tolerant as today, a missing, negative or fractional position giving null and `items[^0]` null; slicing strict, `0 <= start <= end <= L` against one captured length, a reversed or out-of-bounds range a located error, equal boundaries an empty list; and `take` and `drop` the tolerant partitions.

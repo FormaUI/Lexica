@@ -106,14 +106,14 @@ describe('a structured value written in place', () => {
     });
 
     it('keeps the type a value has where it is written, so a local and a function\'s answer construct nothing', () => {
-        expect(errorThrownBy(() => resolve('let point = { x = 1 }\nreturn board.place(point)'))).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining('expects Point and finds { x: Number }') });
-        expect(errorThrownBy(() => resolve('let make = () => { x = 1 }\nreturn board.place(make())'))).toMatchObject({ code: 'LEXICA3042' });
+        expect(errorThrownBy(() => resolve('let point = { x = 1 }\nreturn board.place(point)'))).toMatchObject({ code: 'NEXO3042', message: expect.stringContaining('expects Point and finds { x: Number }') });
+        expect(errorThrownBy(() => resolve('let make = () => { x = 1 }\nreturn board.place(make())'))).toMatchObject({ code: 'NEXO3042' });
     });
 
     it('refuses an object field the data shape lacks, a property left out that can\'t be null, and a value its property doesn\'t take, each where it stands', () => {
-        expect(errorThrownBy(() => resolve('board.place({ x = 1, y = 2 })'))).toMatchObject({ code: 'LEXICA3086', location: { pointer: '/expression/arguments/0/objectFields/1' }, message: expect.stringContaining("The Point written here has no property 'y'; it holds x, label") });
-        expect(errorThrownBy(() => resolve('board.place({ label = "a" })'))).toMatchObject({ code: 'LEXICA3087', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("leaves out 'x', which is Number and can't be null") });
-        expect(errorThrownBy(() => resolve('board.place({ x = "one" })'))).toMatchObject({ code: 'LEXICA3088', location: { pointer: '/expression/arguments/0/objectFields/0/value' }, message: expect.stringContaining("The property 'x' of the Point written here is Number, and is given String") });
+        expect(errorThrownBy(() => resolve('board.place({ x = 1, y = 2 })'))).toMatchObject({ code: 'NEXO3086', location: { pointer: '/expression/arguments/0/objectFields/1' }, message: expect.stringContaining("The Point written here has no property 'y'; it holds x, label") });
+        expect(errorThrownBy(() => resolve('board.place({ label = "a" })'))).toMatchObject({ code: 'NEXO3087', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("leaves out 'x', which is Number and can't be null") });
+        expect(errorThrownBy(() => resolve('board.place({ x = "one" })'))).toMatchObject({ code: 'NEXO3088', location: { pointer: '/expression/arguments/0/objectFields/0/value' }, message: expect.stringContaining("The property 'x' of the Point written here is Number, and is given String") });
     });
 
     it('checks a value of Any where it is evaluated, against the type of the property it is given to', () => {
@@ -125,7 +125,7 @@ describe('a structured value written in place', () => {
 
         held = 'three';
 
-        expect(errorThrownBy(() => evaluate('board.place({ x = board.held })'))).toMatchObject({ code: 'LEXICA5038', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The property 'x' of the Point written here is Number, and is given") });
+        expect(errorThrownBy(() => evaluate('board.place({ x = board.held })'))).toMatchObject({ code: 'NEXO5038', location: { pointer: '/expression/arguments/0' }, message: expect.stringContaining("The property 'x' of the Point written here is Number, and is given") });
     });
 
     it('prepares a host call with the structure its argument constructs', () => {
@@ -136,13 +136,13 @@ describe('a structured value written in place', () => {
 
     it('selects an indexer\'s signature by the one structure a key constructs, and refuses a key two structures fit alike', () => {
         expect(evaluate('board[{ x = 1, label = "a" }]')).toBe('point');
-        expect(errorThrownBy(() => resolve('board[{ x = 1 }]'))).toMatchObject({ code: 'LEXICA3089', location: { pointer: '/expression/argument' }, message: expect.stringContaining('constructs Point and Vector alike') });
+        expect(errorThrownBy(() => resolve('board[{ x = 1 }]'))).toMatchObject({ code: 'NEXO3089', location: { pointer: '/expression/argument' }, message: expect.stringContaining('constructs Point and Vector alike') });
     });
 
     it('constructs nothing for a deferred call, whose parameters are known only as it is evaluated, checking the object it is given as any argument of a value of Any', () => {
         held = board;
 
-        expect(errorThrownBy(() => evaluate('board.held.place({ x = 1 })'))).toMatchObject({ code: 'LEXICA5021' });
+        expect(errorThrownBy(() => evaluate('board.held.place({ x = 1 })'))).toMatchObject({ code: 'NEXO5021' });
     });
 });
 
@@ -177,13 +177,13 @@ describe('a structured value bound', () => {
     });
 
     it('refuses data its declared type does not admit, naming the binding and the part of its value', () => {
-        expect(errorThrownBy(() => bind({ point: { label: 'a' } }, { point: 'Point' }))).toMatchObject({ code: 'LEXICA2045', location: { binding: 'point' }, message: expect.stringContaining("is declared Point, and it is given a value without 'x', where Number is declared") });
-        expect(errorThrownBy(() => bind({ buttons: { container: {} } }, { buttons: 'Buttons' }))).toMatchObject({ code: 'LEXICA2045' });
+        expect(errorThrownBy(() => bind({ point: { label: 'a' } }, { point: 'Point' }))).toMatchObject({ code: 'NEXO2045', location: { binding: 'point' }, message: expect.stringContaining("is declared Point, and it is given a value without 'x', where Number is declared") });
+        expect(errorThrownBy(() => bind({ buttons: { container: {} } }, { buttons: 'Buttons' }))).toMatchObject({ code: 'NEXO2045' });
     });
 
     it('keeps a declared reference type\'s contract, a nullable one taking null', () => {
         expect(bind({ other: null }, { other: 'Board?' }).getType('other').toString()).toBe('Board?');
-        expect(errorThrownBy(() => bind({ other: new Pin() }, { other: 'Board' }))).toMatchObject({ code: 'LEXICA2036' });
+        expect(errorThrownBy(() => bind({ other: new Pin() }, { other: 'Board' }))).toMatchObject({ code: 'NEXO2036' });
     });
 });
 
@@ -209,7 +209,7 @@ describe('a structure expected in one reading of a node', () => {
 
     it('expects nothing of it in another reading, so a qualified form\'s receiver, which no structure\'s type reaches, constructs nothing', () => {
         expect(resolveGeo('Geo.distance({ x = 1 }, { x = 4 })').createEvaluator({}).evaluate().value).toBe(3);
-        expect(errorThrownBy(() => resolveGeo('Geo.show({ x = 1 })'))).toMatchObject({ code: 'LEXICA3080', message: expect.stringContaining("'show' requires the argument 'count'") });
+        expect(errorThrownBy(() => resolveGeo('Geo.show({ x = 1 })'))).toMatchObject({ code: 'NEXO3080', message: expect.stringContaining("'show' requires the argument 'count'") });
     });
 
     it('constructs an indexer\'s key written in any form the type reaches, a conditional among them, selecting the signature of the structure it constructs', () => {
@@ -271,21 +271,21 @@ describe('declared data that no binding or capture holds', () => {
     };
 
     it('refuses a binding of a declared type whose data reaches itself as any bound cycle is refused, naming where it does', () => {
-        expect(errorThrownBy(() => chains.createBindings({ link: looped() }, { types: { link: 'Link' } }))).toMatchObject({ code: 'LEXICA2022', kind: 'structure', location: { binding: 'link' }, message: expect.stringContaining("reaches itself, which data never does, at 'next'") });
+        expect(errorThrownBy(() => chains.createBindings({ link: looped() }, { types: { link: 'Link' } }))).toMatchObject({ code: 'NEXO2022', kind: 'structure', location: { binding: 'link' }, message: expect.stringContaining("reaches itself, which data never does, at 'next'") });
     });
 
     it('refuses a value a host call supplies that reaches itself where it is captured', () => {
         const keeper = new Board();
         const call = chains.resolve('keeper.latest()', { keeper }, { imports: ['Chains'] }).createEvaluator({ keeper }).prepareHostCall();
 
-        expect(errorThrownBy(() => call.project(looped()))).toMatchObject({ code: 'LEXICA5015', kind: 'evaluation', message: expect.stringContaining("supplied a value that reaches itself at 'next'") });
+        expect(errorThrownBy(() => call.project(looped()))).toMatchObject({ code: 'NEXO5015', kind: 'evaluation', message: expect.stringContaining("supplied a value that reaches itself at 'next'") });
     });
 
     it('refuses a declared type that holds Any, Never or a position anywhere in its data, before any value is captured', () => {
-        expect(errorThrownBy(() => chains.createBindings({ bag: { held: 1 } }, { types: { bag: 'Bag' } }))).toMatchObject({ code: 'LEXICA2044', location: { binding: 'bag' }, message: expect.stringContaining('Bag is a type no binding holds, or holds one in its data') });
+        expect(errorThrownBy(() => chains.createBindings({ bag: { held: 1 } }, { types: { bag: 'Bag' } }))).toMatchObject({ code: 'NEXO2044', location: { binding: 'bag' }, message: expect.stringContaining('Bag is a type no binding holds, or holds one in its data') });
     });
 
     it('names a number that isn\'t finite as itself where data its type doesn\'t admit is refused', () => {
-        expect(errorThrownBy(() => chains.createBindings({ size: NaN }, { types: { size: 'Number' } }))).toMatchObject({ code: 'LEXICA2045', message: expect.stringContaining('it is given NaN, where Number is declared') });
+        expect(errorThrownBy(() => chains.createBindings({ size: NaN }, { types: { size: 'Number' } }))).toMatchObject({ code: 'NEXO2045', message: expect.stringContaining('it is given NaN, where Number is declared') });
     });
 });

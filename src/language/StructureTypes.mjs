@@ -1,5 +1,5 @@
 /**
- * StructureTypes — the structured type each structured value Lexica made is of, by the value: a member's answer it copied, an object expression it constructed, and a value a host supplies or binds that it captured,
+ * StructureTypes — the structured type each structured value Nexo made is of, by the value: a member's answer it copied, an object expression it constructed, and a value a host supplies or binds that it captured,
  * so a value of Any keeps the identity its declaration gave it
  */
 

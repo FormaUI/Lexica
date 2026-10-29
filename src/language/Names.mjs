@@ -1,5 +1,5 @@
 /**
- * Names — Lexica's identifiers: how one is spelled, the words the language reserves, and which identifiers a lexical reference writes with a prefix
+ * Names — Nexo's identifiers: how one is spelled, the words the language reserves, and which identifiers a lexical reference writes with a prefix
  */
 
 /** A letter followed by letters and digits, which is also a JavaScript identifier. */
@@ -20,8 +20,8 @@ export class Names {
     /** The namespace names of text read without imports: none. */
     static noNamespaceNames = NO_NAMESPACE_NAMES;
 
-    /** The name of Lexica's own module, which every script has and none imports. */
-    static lexicaModuleName = 'Lexica';
+    /** The name of Nexo's own module, which every script has and none imports. */
+    static lexicaModuleName = 'Nexo';
 
     /** Whether the text is spelled as an identifier: a letter followed by letters and digits, a reserved word among them, since a position that expects a name tells it from the word. */
     static isIdentifier(text) {

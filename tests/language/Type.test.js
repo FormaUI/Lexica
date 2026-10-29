@@ -55,7 +55,7 @@ describe('Type', () => {
     });
 
     describe('identity', () => {
-        it('tells two types of one local name apart by their modules, Lexica\'s own unqualified', () => {
+        it('tells two types of one local name apart by their modules, Nexo\'s own unqualified', () => {
             expect(Type.parse('home.Sensor').equals(Type.parse('garden.Sensor'))).toBe(false);
             expect(Type.parse('home.Sensor').equals(Type.createNamedType('Sensor', false, 'home'))).toBe(true);
             expect(Type.parse('Number').identity).toBe('Number');
@@ -118,7 +118,7 @@ describe('Type', () => {
         expect([Type.parse('Pair<String, Number>').itemContextType, Type.parse('Number').itemContextType]).toEqual([null, null]);
     });
 
-    it('holds a list as Lexica\'s generic List, its item type its one type argument', () => {
+    it('holds a list as Nexo\'s generic List, its item type its one type argument', () => {
         const list = Type.createListType(Type.parse('Number'));
 
         expect(list).toMatchObject({ kind: 'named', name: 'List', moduleName: null, isList: true });
@@ -130,7 +130,7 @@ describe('Type', () => {
     });
 
     describe('createPrimitiveType', () => {
-        it('types a string, a number and a Boolean as the scalar types Lexica\'s own module names, each by its JavaScript type', () => {
+        it('types a string, a number and a Boolean as the scalar types Nexo\'s own module names, each by its JavaScript type', () => {
             expect(['oat', 1, true].map(value => String(Type.createPrimitiveType(value)))).toEqual(['String', 'Number', 'Boolean']);
             expect(['oat', 1, true].map(value => String(Type.createPrimitiveType(value))).sort()).toEqual([...LexicaModule.scalarTypeNames].sort());
         });

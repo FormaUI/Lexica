@@ -5,14 +5,14 @@ import { lexica } from '#lexica/lexica.js';
 import { repositoryRoot } from './support/paths.mjs';
 import { createExamplesEnergy, createExamplesFixtures, createExamplesHome } from './support/examples.mjs';
 
-/** The `lexica` blocks of a document, in order, each with the line its fence opens on. */
+/** The `nexo` blocks of a document, in order, each with the line its fence opens on. */
 const blocksOf = file => {
     const lines = readFileSync(resolve(repositoryRoot, file), 'utf8').split('\n');
     const blocks = [];
     let block = null;
 
     lines.forEach((line, index) => {
-        if (block === null && line === '```lexica') {
+        if (block === null && line === '```nexo') {
             block = { line: index + 1, lines: [] };
         } else if (block !== null && line === '```') {
             blocks.push(block);
@@ -123,7 +123,7 @@ const DOCUMENTS = {
     'spec/grammar.md': [],
     'spec/terms.md': [],
     'spec/examples-vocabulary.md': [],
-    'docs/lexica-design.md': [],
+    'docs/nexo-design.md': [],
     'docs/embedding-guide.md': [],
     'docs/features-status.md': [],
     'README.md': [
@@ -151,7 +151,7 @@ describe('the examples of the documents', () => {
     describe.each(Object.entries(DOCUMENTS))('in %s', (file, entries) => {
         const blocks = blocksOf(file);
 
-        it('have an entry for each lexica block', () => {
+        it('have an entry for each nexo block', () => {
             expect(blocks.length).toBe(entries.length);
         });
 
@@ -183,10 +183,10 @@ describe('the examples of the documents', () => {
     });
 
     it('resolve against the examples\' vocabulary, its home bound as its document sets out, every example evaluating or, a host call, prepared', () => {
-        expect(examples.moduleNames).toEqual(['Lexica', 'Home', 'Energy']);
+        expect(examples.moduleNames).toEqual(['Nexo', 'Home', 'Energy']);
         expect(bindings.getType('device')).toBe('Device');
         expect(examples.resolve('device["level"] to Number', bindings, { imports: IMPORTS }).createEvaluator(bindings).evaluate(HOOKS).value).toBe(40);
         expect(examples.resolve('device:Device.power', bindings, { imports: IMPORTS }).createEvaluator(bindings).evaluate(HOOKS).value).toBe(60);
-        expect(() => examples.resolve('device as Meter', bindings, { imports: IMPORTS })).toThrow(expect.objectContaining({ code: 'LEXICA3060' }));
+        expect(() => examples.resolve('device as Meter', bindings, { imports: IMPORTS })).toThrow(expect.objectContaining({ code: 'NEXO3060' }));
     });
 });

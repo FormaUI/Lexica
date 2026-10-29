@@ -19,8 +19,8 @@ describe('LexicaRegistry', () => {
         ],
     });
 
-    it('registers Lexica\'s own module and a module beside it', () => {
-        expect(new LexicaRegistry([Vocabulary.module, own()]).moduleNames).toEqual(['Lexica', 'charts']);
+    it('registers Nexo\'s own module and a module beside it', () => {
+        expect(new LexicaRegistry([Vocabulary.module, own()]).moduleNames).toEqual(['Nexo', 'charts']);
     });
 
     it('gives the type or the extension a module declares under a local name, as its types hold it', () => {
@@ -40,10 +40,10 @@ describe('LexicaRegistry', () => {
         expect(expectModuleError(() => new LexicaRegistry([{ name: 'fake', members: [] }])).message).toContain('A module is registered as createModule makes it');
     });
 
-    it('refuses a type a declaration names that neither Lexica nor a module registered with it declares', () => {
+    it('refuses a type a declaration names that neither Nexo nor a module registered with it declares', () => {
         const failing = contents => expectModuleError(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', contents)])).message;
 
-        expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'Chart' })] })).toContain("'Chart' names the type 'Chart', which neither Lexica nor a module registered with it declares");
+        expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'Chart' })] })).toContain("'Chart' names the type 'Chart', which neither Nexo nor a module registered with it declares");
         expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'List<Chart?>' })] })).toContain("'List<Chart?>' names the type 'Chart'");
         expect(failing({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'Axis' }) }] })).toContain("names the type 'Axis'");
         expect(failing({ typeSelectors: [{ name: 'report' }], mappings: [{ key: 'chartclick', selector: 'report', type: 'ChartEvent' }] })).toContain("names the type 'ChartEvent'");
@@ -130,7 +130,7 @@ describe('LexicaRegistry', () => {
         for (const result of ['String', 'Boolean?', 'List<Number>']) {
             const tolerant = new LexicaModule('charts', { members: [propertyDeclaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });
 
-            expect(errorThrownBy(() => new LexicaRegistry([Vocabulary.module, tolerant])), result).toMatchObject({ code: 'LEXICA4026', location: { module: 'charts', declaration: 'zoom', declarationKey: 'updates.tolerance' } });
+            expect(errorThrownBy(() => new LexicaRegistry([Vocabulary.module, tolerant])), result).toMatchObject({ code: 'NEXO4026', location: { module: 'charts', declaration: 'zoom', declarationKey: 'updates.tolerance' } });
         }
     });
 
@@ -242,7 +242,7 @@ describe('LexicaRegistry', () => {
             expect(registry.getDataPropertyTypes('width')).toEqual([]);
         });
 
-        it('answer every value type\'s declaration through one lookup, its kind an attribute, Lexica\'s own among them, and none for an extension, which no value is of', () => {
+        it('answer every value type\'s declaration through one lookup, its kind an attribute, Nexo\'s own among them, and none for an extension, which no value is of', () => {
             const words = new LexicaModule('words', { types: [{ name: 'Shouting', kind: 'extension', target: 'String', members: [] }] });
             const registry = new LexicaRegistry([Vocabulary.module, declaring(), words]);
             const kindOf = type => registry.getTypeDeclaration(type)?.kind;
@@ -253,7 +253,7 @@ describe('LexicaRegistry', () => {
             expect([registry.isReferenceType(Type.createNamedType('Room', false, 'home')), registry.getSupertype(Type.createNamedType('Room', false, 'home'))]).toEqual([false, null]);
         });
 
-        it('name List among Lexica\'s own types, written unqualified with no module declaring it, as a declared binding type names it', () => {
+        it('name List among Nexo\'s own types, written unqualified with no module declaring it, as a declared binding type names it', () => {
             const registry = new LexicaRegistry([Vocabulary.module]);
 
             expect(registry.resolveTypeName('List', TypeNameScope.bindingScope)).toEqual({ types: [Type.createNamedType('List')] });
@@ -270,7 +270,7 @@ describe('LexicaRegistry', () => {
         ]);
         const named = (name, moduleName = null) => Type.createNamedType(name, false, moduleName);
 
-        it('in a declaration\'s scope, its module\'s own type first, then Lexica\'s own, then the modules it imports\', in their registration order, qualified by any registered module\'s name', () => {
+        it('in a declaration\'s scope, its module\'s own type first, then Nexo\'s own, then the modules it imports\', in their registration order, qualified by any registered module\'s name', () => {
             const scope = TypeNameScope.createDeclarationScope('office', ['home']);
 
             expect(registry.resolveTypeName('Room', scope)).toEqual({ types: [named('Room', 'office')] });
@@ -283,14 +283,14 @@ describe('LexicaRegistry', () => {
             expect(registry.resolveTypeName('home.Words', scope)).toEqual({ moduleName: 'home', types: [] });
         });
 
-        it('in a declared binding\'s scope, Lexica\'s own and every module\'s types alike, internal ones among them, qualified by any registered module\'s name', () => {
+        it('in a declared binding\'s scope, Nexo\'s own and every module\'s types alike, internal ones among them, qualified by any registered module\'s name', () => {
             expect(registry.resolveTypeName('Number', TypeNameScope.bindingScope)).toEqual({ types: [named('Number'), named('Number', 'home')] });
             expect(registry.resolveTypeName('Room', TypeNameScope.bindingScope)).toEqual({ types: [named('Room', 'home'), named('Room', 'office')] });
             expect(registry.resolveTypeName('Vault', TypeNameScope.bindingScope)).toEqual({ types: [named('Vault', 'home')] });
             expect(registry.resolveTypeName('office.Room', TypeNameScope.bindingScope)).toEqual({ moduleName: 'office', types: [named('Room', 'office')] });
         });
 
-        it('in a script\'s scope, a type import\'s name first, then Lexica\'s own, then the imported modules\', qualified by an import\'s local name alone, an extension\'s import naming no type', () => {
+        it('in a script\'s scope, a type import\'s name first, then Nexo\'s own, then the imported modules\', qualified by an import\'s local name alone, an extension\'s import naming no type', () => {
             const scope = TypeNameScope.createScriptScope([{ module: 'home' }, { module: 'office', type: 'Desk', alias: 'Number' }, { module: 'home', type: 'Words' }, { module: 'office', alias: 'Work' }]);
 
             expect(registry.resolveTypeName('Number', scope)).toEqual({ types: [named('Desk', 'office')] });
@@ -432,7 +432,7 @@ describe('type selectors', () => {
     it('are selected through by a parameter only once a module declares them, and map keys to types a module declares', () => {
         expect(() => new LexicaRegistry([reports(), new LexicaModule('charts', { members: [selecting('report')] })])).not.toThrow();
         expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('charts', { members: [selecting('report')] })]))).toMatchObject({ declaration: 'report', declarationKey: 'parameters', message: expect.stringContaining("The parameter 'kind' selects a type through 'report', which no module registered declares") });
-        expect(expectModuleError(() => new LexicaRegistry([reports(), keys('doors', [{ key: 'door:open', selector: 'report', type: 'door' }])])).message).toContain("'door' names the type 'door', which neither Lexica nor a module registered with it declares");
+        expect(expectModuleError(() => new LexicaRegistry([reports(), keys('doors', [{ key: 'door:open', selector: 'report', type: 'door' }])])).message).toContain("'door' names the type 'door', which neither Nexo nor a module registered with it declares");
     });
 });
 
@@ -464,12 +464,12 @@ describe('operators', () => {
         expect(() => registering(charts({ strings: [convert('Chart')] }, { types: [extensionDeclaration('Numbers', 'Number', [convert('Chart')])] }))()).not.toThrow();
     });
 
-    it('convert to or from a type of their own module, Lexica\'s own module alone converting between the language\'s types', () => {
+    it('convert to or from a type of their own module, Nexo\'s own module alone converting between the language\'s types', () => {
         expect(expectModuleError(registering(charts({ strings: [convert('Number')] }))).message).toContain("A conversion operator converts to or from one of its module's own types, and String to Number does neither");
-        expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('Lexica', { types: [extensionDeclaration('Strings', 'String', [convert('Number')])] })])).message).toContain("converts to or from one of its module's own types");
+        expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('Nexo', { types: [extensionDeclaration('Strings', 'String', [convert('Number')])] })])).message).toContain("converts to or from one of its module's own types");
         const lexicaOnly = new LexicaRegistry([Vocabulary.module]);
 
-        expect(lexicaOnly.getOperators('convert').map(operator => lexicaOnly.getDeclaringModuleName(operator))).toEqual(['Lexica', 'Lexica', 'Lexica', 'Lexica']);
+        expect(lexicaOnly.getOperators('convert').map(operator => lexicaOnly.getDeclaringModuleName(operator))).toEqual(['Nexo', 'Nexo', 'Nexo', 'Nexo']);
     });
 
     it('convert between types of data, each named as it is declared, never a reference type, one holding a reference, a list or a type to itself', () => {
@@ -592,7 +592,7 @@ describe("a module's own collisions", () => {
         const registry = registering(views)();
 
         expect(registry.getModule('views')).toBe(views);
-        expect(registry.moduleNames).toEqual(['Lexica', 'views']);
+        expect(registry.moduleNames).toEqual(['Nexo', 'views']);
     });
 });
 
@@ -609,6 +609,6 @@ describe("a binding's declared type", () => {
     });
 
     it('gives the failure of a notation that writes no type, a name no type is, and a dictionary keyed by no key type', () => {
-        expect([failure('List<').code, failure('Lantern').code, failure('Dictionary<Chart, Number>').code]).toEqual(['LEXICA2044', 'LEXICA2036', 'LEXICA2044']);
+        expect([failure('List<').code, failure('Lantern').code, failure('Dictionary<Chart, Number>').code]).toEqual(['NEXO2044', 'NEXO2036', 'NEXO2044']);
     });
 });

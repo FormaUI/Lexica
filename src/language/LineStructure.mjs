@@ -61,8 +61,8 @@ export class LineStructure {
     }
 
     /**
-     * Validates the script's layout, refusing the first line break, in the order of the text, that a one-line construct holds (LEXICA1041), one before a binary operator outside an enclosure (LEXICA1042) or after one
-     * (LEXICA1064), a keyword block spanning lines outside block form (LEXICA1043), and a boundary with earlier code on its line (LEXICA1044), each through the failure given, which throws.
+     * Validates the script's layout, refusing the first line break, in the order of the text, that a one-line construct holds (NEXO1041), one before a binary operator outside an enclosure (NEXO1042) or after one
+     * (NEXO1064), a keyword block spanning lines outside block form (NEXO1043), and a boundary with earlier code on its line (NEXO1044), each through the failure given, which throws.
      * @param {import('./SyntaxTree.mjs').ScriptNode} script
      * @param {(code: string, message: string, offset: number) => never} fail
      */
@@ -102,7 +102,7 @@ export class LineStructure {
         switch (rule.kind) {
             case 'refused':
                 if (breaks) {
-                    this.#fail(rule.code ?? 'LEXICA1041', rule.code === undefined ? `${rule.construct} stand on one line: write '${this.#joined(before, after)}'` : rule.message, after.start);
+                    this.#fail(rule.code ?? 'NEXO1041', rule.code === undefined ? `${rule.construct} stand on one line: write '${this.#joined(before, after)}'` : rule.message, after.start);
                 }
 
                 break;
@@ -133,20 +133,20 @@ export class LineStructure {
         const is = (part, type) => SyntaxTree.isToken(part) && (part.type === type || (part.type === 'keyword' && part.value === type));
 
         if (!SyntaxTree.isToken(child) && child.kind === 'body') {
-            return { kind: 'required', code: 'LEXICA1044', message: "A body that uses return starts on a line of its own, each of its locals and its 'return' on one of their own" };
+            return { kind: 'required', code: 'NEXO1044', message: "A body that uses return starts on a line of its own, each of its locals and its 'return' on one of their own" };
         }
 
         switch (node.kind) {
             case 'script':
                 if (!SyntaxTree.isToken(child) && child.kind === 'import-declaration') {
-                    return { kind: 'required', code: 'LEXICA1044', message: 'An import starts on a line of its own' };
+                    return { kind: 'required', code: 'NEXO1044', message: 'An import starts on a line of its own' };
                 }
 
-                return index === node.children.length - 1 ? ALLOWED : { kind: 'required', code: 'LEXICA1044', message: 'The body after the imports starts on a line of its own' };
+                return index === node.children.length - 1 ? ALLOWED : { kind: 'required', code: 'NEXO1044', message: 'The body after the imports starts on a line of its own' };
             case 'import-declaration':
                 return { kind: 'refused', construct: "An import's words" };
             case 'body':
-                return is(previous, 'return') ? { kind: 'refused', construct: "A body's 'return' and the start of its result" } : { kind: 'required', code: 'LEXICA1044', message: "Each local and the 'return' of a body that uses return start on a line of their own" };
+                return is(previous, 'return') ? { kind: 'refused', construct: "A body's 'return' and the start of its result" } : { kind: 'required', code: 'NEXO1044', message: "Each local and the 'return' of a body that uses return start on a line of their own" };
             case 'local':
                 return index === 3 ? ALLOWED : { kind: 'refused', construct: "A local's 'let', its name and its '='" };
             case 'conditional-binding':
@@ -212,7 +212,7 @@ export class LineStructure {
             case 'function-expression':
                 return LineStructure.#functionRuleOf(index, child, previous, is, isBlock);
             case 'do-expression':
-                return isBlock ? { kind: 'required', code: 'LEXICA1043', message: `${BLOCK_FORM}: write the do block's body on the lines after 'do', and 'end' on a line of its own` } : ALLOWED;
+                return isBlock ? { kind: 'required', code: 'NEXO1043', message: `${BLOCK_FORM}: write the do block's body on the lines after 'do', and 'end' on a line of its own` } : ALLOWED;
             case 'conditional-expression':
                 return LineStructure.#conditionalRuleOf(child, previous, is, isBlock);
             default:
@@ -248,7 +248,7 @@ export class LineStructure {
 
         // The body after the head's `)`, and the `end` after the body.
         if (is(previous, ')') || is(child, 'end')) {
-            return isBlock ? { kind: 'required', code: 'LEXICA1043', message: `${BLOCK_FORM}: write the function's body on the lines after its head, and 'end' on a line of its own` } : ALLOWED;
+            return isBlock ? { kind: 'required', code: 'NEXO1043', message: `${BLOCK_FORM}: write the function's body on the lines after its head, and 'end' on a line of its own` } : ALLOWED;
         }
 
         return ALLOWED;
@@ -260,11 +260,11 @@ export class LineStructure {
      */
     static #conditionalRuleOf(child, previous, is, isBlock) {
         if (is(previous, 'if') || is(previous, 'elseif')) {
-            return { kind: 'refused', code: 'LEXICA1043', message: `${BLOCK_FORM}: write its condition's start on the line of its '${previous.value}'` };
+            return { kind: 'refused', code: 'NEXO1043', message: `${BLOCK_FORM}: write its condition's start on the line of its '${previous.value}'` };
         }
 
         if (is(child, 'then')) {
-            return { kind: 'refused', code: 'LEXICA1043', message: `${BLOCK_FORM}: write 'then' at the end of its condition's last line` };
+            return { kind: 'refused', code: 'NEXO1043', message: `${BLOCK_FORM}: write 'then' at the end of its condition's last line` };
         }
 
         if (!isBlock) {
@@ -272,22 +272,22 @@ export class LineStructure {
         }
 
         if (is(previous, 'then') || is(previous, 'else')) {
-            return { kind: 'required', code: 'LEXICA1043', message: `${BLOCK_FORM}: write the branch on the lines after its '${previous.value}'` };
+            return { kind: 'required', code: 'NEXO1043', message: `${BLOCK_FORM}: write the branch on the lines after its '${previous.value}'` };
         }
 
-        return { kind: 'required', code: 'LEXICA1043', message: `${BLOCK_FORM}: write '${child.value}' at the start of a line of its own` };
+        return { kind: 'required', code: 'NEXO1043', message: `${BLOCK_FORM}: write '${child.value}' at the start of a line of its own` };
     }
 
-    /** The rule of a gap in an operator expression: before an operator, refused outside an enclosure (LEXICA1042); after one, refused always (LEXICA1064); each refusal at the operator. */
+    /** The rule of a gap in an operator expression: before an operator, refused outside an enclosure (NEXO1042); after one, refused always (NEXO1064); each refusal at the operator. */
     #operatorRuleOf(child, previous, isEnclosed) {
         if (LineStructure.#isOperator(child)) {
-            return isEnclosed ? ALLOWED : { kind: 'operator', code: 'LEXICA1042', message: `A line breaks before an operator only inside parentheses, brackets or a condition: enclose the expression in parentheses, or join '${this.#wordOf(child)}' to the line before it`, offset: child.start };
+            return isEnclosed ? ALLOWED : { kind: 'operator', code: 'NEXO1042', message: `A line breaks before an operator only inside parentheses, brackets or a condition: enclose the expression in parentheses, or join '${this.#wordOf(child)}' to the line before it`, offset: child.start };
         }
 
-        return { kind: 'operator', code: 'LEXICA1064', message: `A line breaks before an operator, never after it: start the next line with '${this.#wordOf(previous)}'`, offset: previous.start };
+        return { kind: 'operator', code: 'NEXO1064', message: `A line breaks before an operator, never after it: start the next line with '${this.#wordOf(previous)}'`, offset: previous.start };
     }
 
-    /** Validates what follows a keyword block's `end` on its line in block form, closing punctuation alone (LEXICA1043). */
+    /** Validates what follows a keyword block's `end` on its line in block form, closing punctuation alone (NEXO1043). */
     #validateAfterEnd(end) {
         let previous = end;
 
@@ -299,7 +299,7 @@ export class LineStructure {
             }
 
             if (!CLOSING_PUNCTUATION.has(token.type)) {
-                this.#fail('LEXICA1043', `${BLOCK_FORM}: only closing punctuation follows its 'end' on that line, so continue the expression on the line after it, as 'end' then ') + 2'`, token.start);
+                this.#fail('NEXO1043', `${BLOCK_FORM}: only closing punctuation follows its 'end' on that line, so continue the expression on the line after it, as 'end' then ') + 2'`, token.start);
             }
 
             previous = token;

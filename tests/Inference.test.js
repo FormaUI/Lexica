@@ -73,7 +73,7 @@ describe('type parameters', () => {
 
         it('refuse candidates of different types, whichever comes first, inferring no base type they share', () => {
             for (const text of ['kit.pair(lamp, heater)', 'kit.pair(heater, lamp)', 'kit.pair(1, "a")']) {
-                expect(errorThrownBy(() => typeOf(text)), text).toMatchObject({ code: 'LEXICA3064', kind: 'validation', message: expect.stringContaining("for its type parameter T, which binds one type") });
+                expect(errorThrownBy(() => typeOf(text)), text).toMatchObject({ code: 'NEXO3064', kind: 'validation', message: expect.stringContaining("for its type parameter T, which binds one type") });
             }
         });
 

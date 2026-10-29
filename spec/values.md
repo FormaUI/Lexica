@@ -7,7 +7,7 @@ A value is a number, a string, a Boolean, null, a list, a dictionary, a pair, an
 
 Values are immutable. No expression changes a value once it exists, and none assigns a name twice; a binding is a frozen copy of the data its host gives, and each evaluation produces a new result.
 
-```lexica
+```nexo
 room {
     name = it.name,                                 // A string.
     warmth = it.climate?.temperature ?? 0,          // A number, a fallback where there is none.
@@ -53,7 +53,7 @@ An object field reference reuses the value already obtained, and evaluates nothi
 
 Written inside an object expression, `root` refers to the outermost object being built, the **object root**. A nested object reads the object root's fields through it, even where a nearer object field has the same name:
 
-```lexica
+```nexo
 {
     bar = 4,
     inner = {
@@ -69,7 +69,7 @@ Written inside an object expression, `root` refers to the outermost object being
 - **Where it exists.** `root` must be written inside an object expression, and elsewhere is a structure error; a function declared outside every object expression cannot use it, even when it is called inside one. Each evaluation, and each result projection of a value a host supplies, builds a new object root. When `rows { … }` has no enclosing object expression, each item gets its own object root. Nested objects and projections retain the enclosing object root, and an options object follows the same rules, as [options](members.md#arguments-options) describe.
 - **Which object fields it has.** At each reference, only the object root's fields whose initializers have already completed in the declared object field order are accessible. The object field currently being initialized and later object fields are unavailable:
 
-```lexica
+```nexo
 {
     inner = {
         value = root.inner // Error: inner is still being built.
@@ -103,7 +103,7 @@ Where a conditional or `??` can give either of two references, both must refer t
 
 A **collection expression** writes a list or a dictionary in brackets where a value stands, its written form deciding which it constructs, whatever context it stands in:
 
-```lexica
+```nexo
 {
     sizes = [10, 20, 30],
     stock = ["coffee" = 3, "tea" = 2],
@@ -152,7 +152,7 @@ The name restrictions apply to declarations in a script. Supplied data keeps all
 
 ## Results
 
-A **result** is data: numbers, strings, Booleans, null, lists and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`LEXICA5028`). A delegate is never part of a result either, as [delegates](functions.md#functions-delegates) set out.
+A **result** is data: numbers, strings, Booleans, null, lists and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`NEXO5028`). A delegate is never part of a result either, as [delegates](functions.md#functions-delegates) set out.
 
 Each evaluation produces a new result, immutable throughout: its lists and objects, and every structured value in them, never change once produced, whatever the host's state does afterwards.
 
@@ -166,7 +166,7 @@ A member's implementation gives the language's collections in a host's forms whe
 
 A conversion answers a value converted to another type of data: `value to Type` evaluates its value, carries out the [conversion operator](modules.md#modules-operators) the vocabulary declares from the value's type to the type it names, and answers the converted value. A [cast](types.md#casts) converts nothing, and a conversion casts nothing.
 
-```lexica
+```nexo
 device["level"] to Number
 device["level"] to Number ?? 0
 device["night-mode"] to Boolean

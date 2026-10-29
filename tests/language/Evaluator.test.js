@@ -28,7 +28,7 @@ const createPrices = invoked => new LexicaModule('prices', {
     ],
 });
 
-/** An evaluator of the text against a registry holding Lexica's own module and the prices module, with the bindings and the environment given. */
+/** An evaluator of the text against a registry holding Nexo's own module and the prices module, with the bindings and the environment given. */
 const createEvaluator = (text, values, { env = {}, invoked = [] } = {}) => {
     const registry = new LexicaRegistry([Vocabulary.module, createPrices(invoked)]);
     const definition = parseImporting(registry, text);
@@ -57,7 +57,7 @@ describe('Evaluator', () => {
         expect(createEvaluator('{ total = name.price * quantity, count = names.count }', { name: 'tea', quantity: 2, names: ['tea', 'milk'] }).evaluate()).toMatchObject({ value: { total: 6, count: 2 }, isPending: false });
     });
 
-    it('gives every implementation the environment, which Lexica never reads', () => {
+    it('gives every implementation the environment, which Nexo never reads', () => {
         expect(createEvaluator('name.rate', { name: 'tea' }, { env: { rate: 7 } }).evaluate().value).toBe(7);
     });
 
@@ -145,7 +145,7 @@ describe('Evaluator', () => {
 
         const completed = errorThrownBy(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
 
-        expect(completed).toMatchObject({ code: 'LEXICA5009', kind: 'evaluation' });
+        expect(completed).toMatchObject({ code: 'NEXO5009', kind: 'evaluation' });
         expect(completed.cause).toBe(cleanup);
 
         const failure = errorThrownBy(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));

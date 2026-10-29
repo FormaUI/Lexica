@@ -1,5 +1,5 @@
 /**
- * Vocabulary — Lexica's built-in vocabulary, what every expression has whatever its host: the language's value types, the members of lists, numbers and strings, and the conversion operators of strings,
+ * Vocabulary — Nexo's built-in vocabulary, what every expression has whatever its host: the language's value types, the members of lists, numbers and strings, and the conversion operators of strings,
  * numbers and Booleans, each carrying its implementation
  */
 
@@ -22,18 +22,18 @@ const SURROUNDING_ASCII_WHITESPACE = /^[\t\n\f\r ]+|[\t\n\f\r ]+$/g;
 const DERIVED_UPDATES = Object.freeze({ changes: 'derived', reads: 'derived' });
 
 export class Vocabulary {
-    /** The name of Lexica's own module, spelled as the specification spells it. */
+    /** The name of Nexo's own module, spelled as the specification spells it. */
     static moduleName = Names.lexicaModuleName;
 
     /** @type {readonly object[] | undefined} */
     static #valueTypes;
 
     /**
-     * The value types Lexica's own module owns, each declared through a form internal to Lexica, which no other module declares through: its scalar types, of kind `scalar`, each holding its conversion operators to
+     * The value types Nexo's own module owns, each declared through a form internal to Nexo, which no other module declares through: its scalar types, of kind `scalar`, each holding its conversion operators to
      * the others, and its generic collections, of kind `generic`, their type parameters under `typeParameters` and the variance of each, in order, under `variances`, with their members within them, whose receiver
      * gives them its parameters: `List<T>`, covariant in its items, since a list is immutable; `Dictionary<K, V>`, invariant in its keys, which a lookup takes, and covariant in its values; and `Pair<K, V>`, covariant
      * in both; and its position types, of kind `position`, `Index`, an offset from a list's end, and `Range`, two boundaries, which declare no members. Created once, frozen, and read by identity: the registry
-     * registers their members with Lexica's own module.
+     * registers their members with Nexo's own module.
      */
     static get valueTypes() {
         return Vocabulary.#valueTypes ??= Object.freeze([
@@ -48,7 +48,7 @@ export class Vocabulary {
     /** @type {readonly string[] | undefined} */
     static #builtInTypeNames;
 
-    /** The names of the value types Lexica's own module owns, which a declaration or a script names unqualified with no module declaring them, derived from those types: `Number`, `String`, `Boolean`, `List`, `Dictionary`, `Index`, `Range` and `Pair`. */
+    /** The names of the value types Nexo's own module owns, which a declaration or a script names unqualified with no module declaring them, derived from those types: `Number`, `String`, `Boolean`, `List`, `Dictionary`, `Index`, `Range` and `Pair`. */
     static get builtInTypeNames() {
         return Vocabulary.#builtInTypeNames ??= Object.freeze(Vocabulary.valueTypes.map(type => type.name));
     }
@@ -56,7 +56,7 @@ export class Vocabulary {
     /** @type {readonly string[] | undefined} */
     static #ownTypeNames;
 
-    /** Every type name Lexica's own vocabulary gives, unqualified, wherever a type is named: its value types' and the reserved types', `Any` and `Never`. */
+    /** Every type name Nexo's own vocabulary gives, unqualified, wherever a type is named: its value types' and the reserved types', `Any` and `Never`. */
     static get ownTypeNames() {
         return Vocabulary.#ownTypeNames ??= Object.freeze([...Vocabulary.builtInTypeNames, 'Any', 'Never']);
     }
@@ -68,7 +68,7 @@ export class Vocabulary {
     static #projectingMembers;
 
     /**
-     * Whether the member is one of Lexica's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered, taken once each or repeated, so its answer carries each answered item's
+     * Whether the member is one of Nexo's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered, taken once each or repeated, so its answer carries each answered item's
      * lineage, which the position it stood at, kept by `ItemPositions` with the answer, says: `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, the members that order,
      * `orderBy`, `orderByDescending`, `thenBy` and `thenByDescending`, the unnamed indexer's signature that slices by a range, and `pick`.
      */
@@ -80,19 +80,19 @@ export class Vocabulary {
         return Vocabulary.#itemKeepingMembers.has(declaration);
     }
 
-    /** Whether the member is one of Lexica's own lists' that answers one value for each of its receiver's items, in their order, as an object projection does, so its answer records each item as its source: `select` alone. */
+    /** Whether the member is one of Nexo's own lists' that answers one value for each of its receiver's items, in their order, as an object projection does, so its answer records each item as its source: `select` alone. */
     static projectsItems(declaration) {
         Vocabulary.#projectingMembers ??= Vocabulary.#listMembersNamed(['select']);
 
         return Vocabulary.#projectingMembers.has(declaration);
     }
 
-    /** The members of Lexica's own lists of the names, by identity. */
+    /** The members of Nexo's own lists of the names, by identity. */
     static #listMembersNamed(names) {
         return new Set(Vocabulary.getTypeDeclaration('List').members.filter(member => names.includes(member.name)));
     }
 
-    /** The declaration of the value type Lexica's own module owns under the name, or undefined for a name it owns none of. */
+    /** The declaration of the value type Nexo's own module owns under the name, or undefined for a name it owns none of. */
     static getTypeDeclaration(name) {
         return Vocabulary.valueTypes.find(type => type.name === name);
     }
@@ -101,7 +101,7 @@ export class Vocabulary {
     static #module;
 
     /**
-     * Lexica's own module, each member and operator carrying its implementation: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's
+     * Nexo's own module, each member and operator carrying its implementation: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's
      * types no other module may declare. It declares `flatten` in `NestedListExtensions<T>`, an extension of lists of lists, and owns the value types, whose members and operators the registry registers with it.
      * A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
      */
@@ -115,8 +115,8 @@ export class Vocabulary {
     }
 
     /**
-     * The members of one of Lexica's own value types, validated, copied and frozen as a module's are, by a module created for that alone and never registered: an extension of the type gives them the receiver and the
-     * scope its members read, a list's `T` among them, and no module declares Lexica's value types, whose form is Lexica's alone.
+     * The members of one of Nexo's own value types, validated, copied and frozen as a module's are, by a module created for that alone and never registered: an extension of the type gives them the receiver and the
+     * scope its members read, a list's `T` among them, and no module declares Nexo's value types, whose form is Nexo's alone.
      */
     static #createMembers(name, target, members) {
         return new LexicaModule(Vocabulary.moduleName, { types: [{ name, kind: 'extension', target, members }] }).types[0].members;
@@ -188,7 +188,7 @@ export class Vocabulary {
         // The empty text stands at every position, so it has no occurrence to replace or to split at.
         const requireOccurrence = (member, text) => {
             if (text === '') {
-                throw new MemberFailure('LEXICA5040', `'${member}' is given the empty text, which stands at every position and has no occurrence to ${member === 'replace' ? 'replace' : 'split at'}`);
+                throw new MemberFailure('NEXO5040', `'${member}' is given the empty text, which stands at every position and has no occurrence to ${member === 'replace' ? 'replace' : 'split at'}`);
             }
         };
 
@@ -217,14 +217,14 @@ export class Vocabulary {
         const { start, end } = range.resolveIn(text.length);
 
         if (start < 0 || end > text.length || start > end) {
-            throw new MemberFailure('LEXICA5033', `The range ${range} is applied to a text of ${text.length} code units, and gives ${start}..${end}, which ${start > end ? 'starts after it ends' : 'stands beyond the text'}`);
+            throw new MemberFailure('NEXO5033', `The range ${range} is applied to a text of ${text.length} code units, and gives ${start}..${end}, which ${start > end ? 'starts after it ends' : 'stands beyond the text'}`);
         }
 
         // A boundary between a high and a low surrogate would leave half a character on either side.
         const parts = boundary => boundary > 0 && boundary < text.length && /[\uD800-\uDBFF]/.test(text[boundary - 1]) && /[\uDC00-\uDFFF]/.test(text[boundary]);
 
         if (parts(start) || parts(end)) {
-            throw new MemberFailure('LEXICA5041', `The range ${range} gives ${start}..${end}, which parts the surrogate pair at ${parts(start) ? start : end}, so the slice would hold half a character`);
+            throw new MemberFailure('NEXO5041', `The range ${range} gives ${start}..${end}, which parts the surrogate pair at ${parts(start) ? start : end}, so the slice would hold half a character`);
         }
 
         return text.slice(start, end);
@@ -254,7 +254,7 @@ export class Vocabulary {
                 parameters: [Declarations.createValueParameterDeclaration('low', 'Number'), Declarations.createValueParameterDeclaration('high', 'Number')],
                 impl: ({ receiver, args: { low, high } }) => {
                     if (low > high) {
-                        throw new MemberFailure('LEXICA5039', `'clamp' takes a low no greater than its high, and is given ${low} and ${high}`);
+                        throw new MemberFailure('NEXO5039', `'clamp' takes a low no greater than its high, and is given ${low} and ${high}`);
                     }
 
                     return unsigned(Math.min(Math.max(receiver, low), high));
@@ -266,7 +266,7 @@ export class Vocabulary {
                 parameters: [Declarations.createValueParameterDeclaration('count', 'Number'), Declarations.createValueParameterDeclaration('step', 'Number', { default: 1 })],
                 impl: ({ receiver, args }) => {
                     if (!Number.isSafeInteger(args.count) || args.count < 0) {
-                        throw new MemberFailure('LEXICA5035', `'sequence' takes a count that is a nonnegative whole number, and is given ${args.count}`);
+                        throw new MemberFailure('NEXO5035', `'sequence' takes a count that is a nonnegative whole number, and is given ${args.count}`);
                     }
 
                     return Array.from({ length: args.count }, (_, index) => receiver + index * args.step);
@@ -290,7 +290,7 @@ export class Vocabulary {
         const { start, end } = range.resolveIn(list.length);
 
         if (start < 0 || end > list.length || start > end) {
-            throw new MemberFailure('LEXICA5033', `The range ${range} is applied to a list of ${list.length} items, and gives ${start}..${end}, which ${start > end ? 'starts after it ends' : 'stands beyond the list'}; a slice is strict, as take and drop are not`);
+            throw new MemberFailure('NEXO5033', `The range ${range} is applied to a list of ${list.length} items, and gives ${start}..${end}, which ${start > end ? 'starts after it ends' : 'stands beyond the list'}; a slice is strict, as take and drop are not`);
         }
 
         return ItemPositions.createAnswer(list, ItemPositions.createSpan(start, end));
@@ -300,7 +300,7 @@ export class Vocabulary {
     static #pick(list, positions) {
         for (const position of positions) {
             if (!Number.isInteger(position) || position < 0 || position >= list.length) {
-                throw new MemberFailure('LEXICA5034', `'pick' is given the position ${position}, and a list of ${list.length} items has no item there`);
+                throw new MemberFailure('NEXO5034', `'pick' is given the position ${position}, and a list of ${list.length} items has no item there`);
             }
         }
 
@@ -335,7 +335,7 @@ export class Vocabulary {
                     const items = args.expression(item);
 
                     if (items === null) {
-                        throw new MemberFailure('LEXICA5031', "'selectMany' joins the list each item gives, and an item gave null, which is no list: give an empty list for an item that has none");
+                        throw new MemberFailure('NEXO5031', "'selectMany' joins the list each item gives, and an item gave null, which is no list: give an empty list for an item that has none");
                     }
 
                     return [items];
@@ -364,7 +364,7 @@ export class Vocabulary {
                 updates: DERIVED_UPDATES,
                 impl: ({ receiver }) => {
                     if (receiver.length > 1) {
-                        throw new MemberFailure('LEXICA5030', `'single' answers the one item of a list, and the list holds ${receiver.length}`);
+                        throw new MemberFailure('NEXO5030', `'single' answers the one item of a list, and the list holds ${receiver.length}`);
                     }
 
                     return receiver.at(0) ?? null;
@@ -402,7 +402,7 @@ export class Vocabulary {
                         const key = args.expression(item);
 
                         if (entries.has(key)) {
-                            throw new MemberFailure('LEXICA5029', `'toDictionary' keys each item once, and two items give the key ${Vocabulary.#describeKey(key)}: group them with groupBy`);
+                            throw new MemberFailure('NEXO5029', `'toDictionary' keys each item once, and two items give the key ${Vocabulary.#describeKey(key)}: group them with groupBy`);
                         }
 
                         entries.set(key, item);

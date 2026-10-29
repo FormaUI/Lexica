@@ -1,10 +1,10 @@
 # Embedding Guide
 
-This guide shows how a host uses Lexica: read text, declare its domain as a module, resolve a script against it, evaluate it, and follow what the evaluation reads. The [specification](../spec/README.md) gives the exact rules, and the [design](lexica-design.md) how each stage works.
+This guide shows how a host uses Nexo: read text, declare its domain as a module, resolve a script against it, evaluate it, and follow what the evaluation reads. The [specification](../spec/README.md) gives the exact rules, and the [design](nexo-design.md) how each stage works.
 
 ## Load it
 
-Lexica is one ES module with its type declarations. Neither package is published yet; `./publish.ps1` packs both into `artifacts/`.
+Nexo is one ES module with its type declarations. Neither package is published yet; `./publish.ps1` packs both into `artifacts/`.
 
 | Package | Import |
 | --- | --- |
@@ -70,7 +70,7 @@ An implementation receives one object and reads what it needs by name: its `rece
 
 ## Resolve a script
 
-A registry holds the modules a host registers. Resolving a script against it checks every member, argument and type before anything runs, among what the script's imports make available, a module's members through its import and Lexica's own always, so a member of a module no import names is refused, giving the import to write:
+A registry holds the modules a host registers. Resolving a script against it checks every member, argument and type before anything runs, among what the script's imports make available, a module's members through its import and Nexo's own always, so a member of a module no import names is refused, giving the import to write:
 
 ```js
 const registry = lexica.createRegistry([shop]);
@@ -124,7 +124,7 @@ evaluator.evaluate({
 reads; // ['price', 'discount', 'completed']
 ```
 
-Only the reads an evaluation reaches are reported: a branch not taken reports nothing, and each evaluation reports the branch it took. The [design](lexica-design.md#evaluation) sets out every hook, maintained members' samples among them.
+Only the reads an evaluation reaches are reported: a branch not taken reports nothing, and each evaluation reports the branch it took. The [design](nexo-design.md#evaluation) sets out every hook, maintained members' samples among them.
 
 ## Handle errors
 
@@ -134,13 +134,13 @@ Every failure is a `LexicaError` with the code of its condition, a `kind` and th
 try {
     registry.resolve('product.weight', bindings);
 } catch (error) {
-    error.code;          // 'LEXICA3001'
+    error.code;          // 'NEXO3001'
     error.kind;          // 'validation'
     error.location.line; // 1
     error.message;       // "'weight' is no member of the vocabulary (line 1, column 1, at /expression)"
 }
 ```
 
-The code identifies the condition and keeps it whatever the message says, so a host reacts to a condition by its code, never by its message; [the catalog](../spec/diagnostics-and-errors.md#diagnostics-codes) lists every code. A value a hook or a member's implementation throws reaches the host as the `cause` of Lexica's own error, unchanged.
+The code identifies the condition and keeps it whatever the message says, so a host reacts to a condition by its code, never by its message; [the catalog](../spec/diagnostics-and-errors.md#diagnostics-codes) lists every code. A value a hook or a member's implementation throws reaches the host as the `cause` of Nexo's own error, unchanged.
 
 The kinds, `syntax`, `structure`, `validation`, `module` and `evaluation`, and what each reports, are in [diagnostics and errors](../spec/diagnostics-and-errors.md).

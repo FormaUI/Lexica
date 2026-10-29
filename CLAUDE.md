@@ -1,6 +1,6 @@
-# Working on Lexica
+# Working on Nexo
 
-Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its grammar, definitions, types, resolution, functions and vocabulary contracts are the language's, and a host registers the vocabulary its expressions read. It knows no domain of its own: a host's modules declare one. Source ES modules live in `src/`; the build produces one minified bundle, distributed by the `formaui-net.Lexica` NuGet package, and the npm package `@formaui/lexica` ships the sources.
+Nexo is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its grammar, definitions, types, resolution, functions and vocabulary contracts are the language's, and a host registers the vocabulary its expressions read. It knows no domain of its own: a host's modules declare one. Source ES modules live in `src/`; the build produces one minified bundle, distributed by the `formaui-net.Lexica` NuGet package, and the npm package `@formaui/lexica` ships the sources.
 
 ## Before making a change
 
@@ -9,9 +9,9 @@ Read the documents that govern the affected contract:
 | Document | Authority |
 | --- | --- |
 | [Specification](spec/README.md) | Language syntax, resolution, values, requests, vocabulary contracts, definitions and diagnostics, one document per subject |
-| [Design](docs/lexica-design.md) | Architecture: the stages, modules and their registration, evaluation and tooling |
+| [Design](docs/nexo-design.md) | Architecture: the stages, modules and their registration, evaluation and tooling |
 | [Status](docs/features-status.md) | What is implemented, what is in progress, what remains, open decisions and the gaps between the design and the code |
-| [Guide](docs/embedding-guide.md) | Embedding Lexica, by example |
+| [Guide](docs/embedding-guide.md) | Embedding Nexo, by example |
 | `.editorconfig` | Code style; read it before writing C# |
 
 Update the specification before implementing a language change, and the design before changing a module or tooling contract. Each subject has one home: state a rule where it belongs and link to it elsewhere. Record a gap between the design and the code in the status overview until it closes, and update the status entries a change affects in the same commit as the change.
@@ -22,7 +22,7 @@ Update the specification before implementing a language change, and the design b
 | --- | --- |
 | `src/lexica.js` | Entry point that composes the library's modules, declared in `src/lexica.d.ts` |
 | `src/language/` | Text, definitions, types, resolution, errors and locations |
-| `src/language/vocabulary/` | Modules, their registry, and Lexica's built-in vocabulary |
+| `src/language/vocabulary/` | Modules, their registry, and Nexo's built-in vocabulary |
 | `src/common/` | Object and array operations independent of the language |
 | `tests/` | Tests mirroring the source folders, run in Node |
 | `scripts/` | Bundling scripts |

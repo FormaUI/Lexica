@@ -37,7 +37,7 @@ const shapes = new LexicaModule('shapes', withHome({
     Light: [createPropertyDeclaration('label', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name })],
 }));
 
-/** The resolution of the text against a registry of Lexica's own module and the shapes, and an evaluation of it with the bindings given. */
+/** The resolution of the text against a registry of Nexo's own module and the shapes, and an evaluation of it with the bindings given. */
 const resolve = (text, values = { name: 'tea' }) => {
     const registry = new LexicaRegistry([Vocabulary.module, shapes]);
     const definition = parseImporting(registry, text);

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Bundles Lexica into the single minified file the NuGet package ships, packs the NuGet package, and packs the npm package.
+Bundles Nexo into the single minified file the NuGet package ships, packs the NuGet package, and packs the npm package.
 
 .DESCRIPTION
 Runs the gate first, so nothing unbuilt, untested or misformatted is packed, then writes both packages to artifacts/. Pushing them to a feed or a registry is left to the caller.

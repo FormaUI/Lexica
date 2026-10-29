@@ -74,7 +74,7 @@ An object field is an object holding its `name` and its `value` node, both requi
 
 ```json
 {
-  "version": 35,
+  "version": 36,
   "imports": [{ "module": "Energy" }, { "module": "Home" }],
   "expression": {
     "kind": "object",
@@ -120,7 +120,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 
 | Area | Required structure |
 | --- | --- |
-| Imports | Each holds a `module`, an identifier other than `Lexica`; a `type`, an identifier, where it imports one type; and an `alias` only where it differs from the name the import gives without one, its `type` or else its `module`. The local name each gives is any identifier, as [imports](scripts.md#scripts-imports) set out; they are in order of it, each once, so two imports giving one local name to different declarations conflict; and every `namespace` node, and every extension selection's `module`, names a module one of them gives. |
+| Imports | Each holds a `module`, an identifier other than `Nexo`; a `type`, an identifier, where it imports one type; and an `alias` only where it differs from the name the import gives without one, its `type` or else its `module`. The local name each gives is any identifier, as [imports](scripts.md#scripts-imports) set out; they are in order of it, each once, so two imports giving one local name to different declarations conflict; and every `namespace` node, and every extension selection's `module`, names a module one of them gives. |
 | Object fields | Every object field has a name and value; names are unique within an object expression; an object expression has at least one object field. |
 | Locals | Each has a name and value; names are unique within a body or object expression; references name an in-scope local or object field. |
 | Declaration order | No reference uses a local before its declaration or within its own initializer. A name written alone cannot fall back to a script parameter when that local is declared later in the same scope. |

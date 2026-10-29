@@ -1,12 +1,12 @@
 /**
- * Lexica's API: reading a text into its definition, validating a definition's structure, writing its canonical text, creating the modules that declare a vocabulary
+ * Nexo's API: reading a text into its definition, validating a definition's structure, writing its canonical text, creating the modules that declare a vocabulary
  * and the registries a host resolves scripts against.
  */
 
 /** A script as a host gives it: its source, the text read into its definition, or the definition itself. */
 export type LexicaScript = string | LexicaDefinition;
 
-/** A Lexica definition: the JSON document that records a script's meaning, its expression tree with the version of its format and its imports, without the values its script parameters are bound to. */
+/** A Nexo definition: the JSON document that records a script's meaning, its expression tree with the version of its format and its imports, without the values its script parameters are bound to. */
 export interface LexicaDefinition {
     readonly version: number;
     /** The script's imports, those its text writes and those its host supplies, each once, in order of the local name it gives. */
@@ -141,7 +141,7 @@ export interface LexicaStructuredTypeDeclaration {
     import?: string[];
     /**
      * The members it declares within it, each taking it as its receiver: its data shape is the properties it declares without `updates`, each naming its value's type as its `result`, which
-     * Lexica reads from the data and never invokes, so each takes no `impl`.
+     * Nexo reads from the data and never invokes, so each takes no `impl`.
      */
     members?: LexicaMemberDeclaration[];
     /** Whether it is available within its declaring module alone, `false` where left out: no other module's declaration names it, and no script reaches it; its members are internal with it. */
@@ -149,14 +149,14 @@ export interface LexicaStructuredTypeDeclaration {
 }
 
 /**
- * An extension a module declares among its types: the members it adds to its one target, a type another module owns, one of Lexica's own or a parameter it declares, which its members take as their receiver. It is
+ * An extension a module declares among its types: the members it adds to its one target, a type another module owns, one of Nexo's own or a parameter it declares, which its members take as their receiver. It is
  * never a value's type.
  */
 export interface LexicaExtensionDeclaration {
     /** Its local name, and the type parameters its target and its members share, `ListExtensions<T>`. */
     name: string;
     kind: 'extension';
-    /** The type its members extend, never `Any` or nullable: a foreign type qualified, one of Lexica's own, or a parameter it declares. */
+    /** The type its members extend, never `Any` or nullable: a foreign type qualified, one of Nexo's own, or a parameter it declares. */
     target: string;
     /** The members it adds, each taking its target as its receiver. */
     members?: LexicaMemberDeclaration[];
@@ -167,7 +167,7 @@ export interface LexicaExtensionDeclaration {
 /** A type a module declares, of the kind it says, or an extension it declares among its types. */
 export type LexicaTypeDeclaration = LexicaReferenceTypeDeclaration | LexicaStructuredTypeDeclaration | LexicaExtensionDeclaration;
 
-/** The input a projection was given for an item, of the kind its established type gives it: a reference as the host holds it, data as Lexica's own frozen copy, or null; a source and a provenance entry alike. */
+/** The input a projection was given for an item, of the kind its established type gives it: a reference as the host holds it, data as Nexo's own frozen copy, or null; a source and a provenance entry alike. */
 export type LexicaProjectionSource = { readonly kind: 'reference'; readonly value: unknown } | { readonly kind: 'data'; readonly value: unknown } | { readonly kind: 'null' };
 
 /**
@@ -190,11 +190,11 @@ export interface LexicaLocation {
     declarationKey?: string;
 }
 
-/** A failure of Lexica, in the stage it happened in, and where. Its `name` is `LexicaError`. */
+/** A failure of Nexo, in the stage it happened in, and where. Its `name` is `LexicaError`. */
 export declare class LexicaError extends Error {
     private constructor();
     readonly name: 'LexicaError';
-    /** The code of the condition that failed: `LEXICA` and four digits for Lexica's own, in its kind's range, and a host's own prefix for a host's. */
+    /** The code of the condition that failed: `NEXO` and four digits for Nexo's own, in its kind's range, and a host's own prefix for a host's. */
     readonly code: string;
     /** The kind of the failure: `syntax`, text that breaks the grammar; `structure`, what a caller gave breaking a structural rule, a definition `lexica.validate` refuses among it; `validation`, a script resolution finds does not fit its vocabulary or its types; `module`, a declaration breaking its contract; `evaluation`, a failure while evaluating. */
     readonly kind: 'syntax' | 'structure' | 'validation' | 'module' | 'evaluation';
@@ -279,7 +279,7 @@ export interface LexicaMappingDeclaration {
     selector: string;
     /** The key, any string, as a fixed argument gives it. */
     key: string;
-    /** The type the key maps to, in Lexica's notation. */
+    /** The type the key maps to, in Nexo's notation. */
     type: string;
 }
 
@@ -297,7 +297,7 @@ export interface LexicaObservationTargetDeclaration {
 export interface LexicaOperatorImplementationInput {
     readonly value: unknown;
     /**
-     * Rejects the value, which the operator does not cast or convert, with a reason that is a diagnostic string. It throws a signal private to Lexica and to this attempt at the operator,
+     * Rejects the value, which the operator does not cast or convert, with a reason that is a diagnostic string. It throws a signal private to Nexo and to this attempt at the operator,
      * so it never returns and the implementation stops where it calls it, unlike a promise's `reject`. Any other exception it throws, and a value not of its destination, is a fault.
      */
     reject(reason: string): never;
@@ -312,9 +312,9 @@ export interface LexicaParameterDeclaration {
      * arguments its contract declares: one item for an expression and a predicate.
      */
     kind: 'value' | 'expression' | 'predicate' | 'function';
-    /** The parameter's type, in Lexica's notation; a predicate's is `Boolean`, what the implementation receives, and a function parameter's the type of its function's result. */
+    /** The parameter's type, in Nexo's notation; a predicate's is `Boolean`, what the implementation receives, and a function parameter's the type of its function's result. */
     type: string;
-    /** The types its function is called with, in order, in Lexica's notation, which may write a type parameter its member's receiver binds; only a function parameter declares them, beside its member's `parameters`, which are declarations. */
+    /** The types its function is called with, in order, in Nexo's notation, which may write a type parameter its member's receiver binds; only a function parameter declares them, beside its member's `parameters`, which are declarations. */
     parameterTypes?: string[];
     required: boolean;
     default?: unknown;
@@ -344,10 +344,10 @@ export interface LexicaMemberImplementationInput {
 /**
  * A property, a function, an indexer or an operator a module declares, each taking the fields it needs alone: within a type, whose receiver the type is, within an extension, whose receiver its target is, or among the module's
  * `members`, a module member, which takes no receiver and is read through its module's namespace.
- * A property answers a value, and a function the evaluator invokes its result; a script ending in a call of a function the host invokes ends in a host call, and the function has no implementation Lexica calls.
+ * A property answers a value, and a function the evaluator invokes its result; a script ending in a call of a function the host invokes ends in a host call, and the function has no implementation Nexo calls.
  */
 export interface LexicaMemberDeclaration {
-    /** The Lexica name, and the type parameters it declares in angle brackets after it, `identity<T>`, where it is declared within a type, an extension or the module; left out for an unnamed indexer, which brackets after its receiver invoke. */
+    /** The Nexo name, and the type parameters it declares in angle brackets after it, `identity<T>`, where it is declared within a type, an extension or the module; left out for an unnamed indexer, which brackets after its receiver invoke. */
     name?: string;
     /** A property, read by its name; a function, called; an indexer, given its one key in brackets, after its name, `it.setting["mode"]`, or, unnamed, after its receiver, `rooms[0]`; or an operator, named `cast` or `convert`, which `as` or `to` invokes. */
     kind: 'property' | 'function' | 'indexer' | 'operator';
@@ -357,7 +357,7 @@ export interface LexicaMemberDeclaration {
     arguments?: 'positional' | 'options';
     /** Its parameters; a property takes none. */
     parameters?: LexicaParameterDeclaration[];
-    /** The type of its result, in Lexica's notation, an operator's its destination; a function the host invokes declares the type of each value its host supplies, left out where it supplies none. */
+    /** The type of its result, in Nexo's notation, an operator's its destination; a function the host invokes declares the type of each value its host supplies, left out where it supplies none. */
     result?: string;
     /** How it changes and reads; a property and a function the evaluator invokes take it, and a function the host invokes refuses it. */
     updates?: LexicaUpdates;
@@ -398,7 +398,7 @@ export interface LexicaModule {
 }
 
 /**
- * A dictionary as an implementation receives one, immutable: its entries in their order, each key once by Lexica's key equality. A host gives one as a `Map` where a declaration names a `Dictionary<K, V>`, and a result
+ * A dictionary as an implementation receives one, immutable: its entries in their order, each key once by Nexo's key equality. A host gives one as a `Map` where a declaration names a `Dictionary<K, V>`, and a result
  * exports one as `{ entries: [{ key, value }, …] }`.
  */
 export interface LexicaDictionary<K = unknown, V = unknown> {
@@ -503,7 +503,7 @@ export interface LexicaPreparedCall extends LexicaInvocationRequest {
     /**
      * Projects one value its host supplies: checks it against the call's declared result, then evaluates the result projection against it, reading the locals the call was prepared with, as an evaluation with the hooks given;
      * a call whose host supplies nothing has none. Checking a reference asks the `isInstance` of the declared type and its supertypes, and the modules' `typeOf` where it does not belong, and the evaluation calls
-     * the host's hooks as `evaluate` does. It refuses a value the declared result does not admit (LEXICA5015), a resolution no longer current (LEXICA2040), and a projection while its evaluator is evaluating (LEXICA5010).
+     * the host's hooks as `evaluate` does. It refuses a value the declared result does not admit (NEXO5015), a resolution no longer current (NEXO2040), and a projection while its evaluator is evaluating (NEXO5010).
      */
     readonly project?: (value: unknown, hooks?: LexicaEvaluationHooks | null) => LexicaEvaluation;
 }
@@ -576,8 +576,8 @@ export interface LexicaResolution {
     readonly isCurrent: boolean;
     /**
      * An evaluator holding bindings of this resolution's key and the environment the host gives it. Binding plain values asks the modules' `typeOf` and `isInstance`, as `createBindings` does, and nothing else calls host code
-     * until it evaluates. It refuses bindings another registry made (LEXICA2024), bindings of another resolution key (LEXICA2025), a resolution no longer current (LEXICA2040), and a script using a declaration
-     * that has no implementation, a conversion operator among them, even in a branch it may not take (LEXICA4001).
+     * until it evaluates. It refuses bindings another registry made (NEXO2024), bindings of another resolution key (NEXO2025), a resolution no longer current (NEXO2040), and a script using a declaration
+     * that has no implementation, a conversion operator among them, even in a branch it may not take (NEXO4001).
      */
     createEvaluator(bindings: LexicaBindings | LexicaBindingValues, env?: unknown): LexicaEvaluator;
 }
@@ -588,11 +588,11 @@ export interface LexicaHostCall {
     readonly declaration: LexicaMemberDeclaration | null;
 }
 
-/** A registry a host resolves scripts against: Lexica's own module and the modules the host registers. It reads no text of its own, since a script's imports alone decide how its text reads, which `lexica.parse`, `format` and `quote` read and write for every registry. No registry is shared. */
+/** A registry a host resolves scripts against: Nexo's own module and the modules the host registers. It reads no text of its own, since a script's imports alone decide how its text reads, which `lexica.parse`, `format` and `quote` read and write for every registry. No registry is shared. */
 export interface LexicaRegistry {
     /** Registers a module's vocabulary, which every script resolved afterwards may use. */
     registerModule(module: LexicaModule): void;
-    /** The names of the modules registered, Lexica's own first. */
+    /** The names of the modules registered, Nexo's own first. */
     readonly moduleNames: readonly string[];
     /** A number that changes whenever the registry's vocabulary does; whether a resolution made before a registration is still current is the resolution's `isCurrent`. */
     readonly revision: number;
@@ -610,7 +610,7 @@ export interface LexicaRegistry {
     /**
      * Resolves a script against the registered vocabulary and the bindings, the registry's own or plain values it binds, its source read as `parse` reads it, or throws where it does not resolve. Binding plain values asks
      * the modules' `typeOf` and `isInstance`, as `createBindings` does; resolving calls no host code. It reads a source with the imports `options.imports` supplies, a definition recording its own, and refuses
-     * bindings another registry made (LEXICA2024), an import the registry can't give (LEXICA3002, LEXICA3052, LEXICA3053), and a script that does not resolve, a validation error locating it.
+     * bindings another registry made (NEXO2024), an import the registry can't give (NEXO3002, NEXO3052, NEXO3053), and a script that does not resolve, a validation error locating it.
      */
     resolve(script: LexicaScript, bindings?: LexicaBindings | LexicaBindingValues, options?: LexicaScriptOptions): LexicaResolution;
 }
@@ -637,7 +637,7 @@ export interface LexicaPaths {
     valueAt(value: unknown, path: readonly (string | number)[]): unknown;
 }
 
-/** The versions an implementation of Lexica reports, which change apart. */
+/** The versions an implementation of Nexo reports, which change apart. */
 export interface LexicaVersions {
     /** The implementation's release version, which the packages and the bundle carry. */
     readonly implementation: string;
@@ -654,13 +654,13 @@ export interface LexicaInfo {
 
 export interface Lexica {
     /**
-     * Reads a text into its definition, its imports and those `options.imports` supplies deciding which of its names begin namespaces, refusing a syntax error, a supplied import that breaks an import's rules (LEXICA2008)
+     * Reads a text into its definition, its imports and those `options.imports` supplies deciding which of its names begin namespaces, refusing a syntax error, a supplied import that breaks an import's rules (NEXO2008)
      * or a structure the definition cannot have. A text read with the same imports gives the same definition, whatever registry reads it.
      */
     parse(source: string, options?: LexicaScriptOptions): LexicaDefinition;
     /**
      * Validates a definition given directly against the definition format's structural rules, answering it frozen, as a text giving it would; it checks no vocabulary or types, which resolution validates. It calls
-     * no host code, answers a definition it answered already as it is, and refuses a definition of another version (LEXICA2007) and any other structure the format does not allow, a structure error at its pointer.
+     * no host code, answers a definition it answered already as it is, and refuses a definition of another version (NEXO2007) and any other structure the format does not allow, a structure error at its pointer.
      */
     validate(definition: unknown): LexicaDefinition;
     /** The canonical text of a text or a definition: every import it records, but those `options.imports` says its destination supplies, then its body, laid out on lines. */
@@ -672,7 +672,7 @@ export interface Lexica {
     /** Creates a module from the declarations it holds and the implementations that carry them out. */
     createModule(name: string, contents: LexicaModuleContents): LexicaModule;
     readonly declarations: LexicaDeclarations;
-    /** Creates a registry of Lexica's own module and the modules given, which the host registers more modules with. */
+    /** Creates a registry of Nexo's own module and the modules given, which the host registers more modules with. */
     createRegistry(modules?: readonly LexicaModule[]): LexicaRegistry;
     readonly paths: LexicaPaths;
     readonly info: LexicaInfo;

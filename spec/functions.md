@@ -4,7 +4,7 @@
 
 A **function** names a calculation a script repeats. A script declares its own in one of two forms, holds each by a local, calls it by that local's name with its **arguments**, and passes, holds and returns it as a value within the script; none outlives the evaluation that made it. A member a module declares with arguments, as `room.device(name)`, is a **member function** instead, written after its receiver and specified by [members](members.md), and a script passes a module's function as a value by its [reference](#functions-module-delegates).
 
-```lexica
+```nexo
 let shortfall = function(place, wanted)
     let warmth = place.climate?.temperature ?? 0
     return wanted - warmth
@@ -36,7 +36,7 @@ A **regular function** is `function`, its **function parameters** in parentheses
 
 An **arrow function** is its parameters, `=>` and one simple expression, whose value is its result:
 
-```lexica
+```nexo
 let answer = () => 42
 let isActive = device => device.active()
 let isLit = (light) => light.brightness > 0
@@ -69,7 +69,7 @@ A function of a vocabulary keeps its own form, `it.device("lamp")`, with the arg
 
 A function's name read without a call is a **delegate**, a callable value representing the function together with what invoking it needs, held by a local, passed as an argument and returned by a function, as either form is:
 
-```lexica
+```nexo
 let isActive = device => device.active()
 let shown = isActive
 let apply = function(test, device) test(device) end
@@ -91,7 +91,7 @@ A delegate is used within the expression, and the expression's result holds data
 
 A function a module declares, read through the module's [namespace](modules.md#namespaces) without a call, is a **function reference**, which produces a module delegate, a delegate as any other. It takes the arguments its [qualified form](modules.md#namespaces-qualified-access) takes, its receiver first where it has one and its own arguments after it, so `Home.active` is the function `device.active()` calls, taking a device, and `Home.device` the one `room.device(name)` calls, taking a room and a name:
 
-```lexica
+```nexo
 let find = Home.device
 return {
     lit = room.anyDevice(Home.active),
@@ -102,7 +102,7 @@ return {
 
 - **The declaration it names.** A reference names one declaration, whose implementation, result type, `updates` and observations every call of it follows, as its qualified form's call does, and it names it where it is written, from what that place gives it alone. Passed to a member's function parameter, it names the declaration of its name whose receiver and parameters take the arguments the parameter's callback contract declares, so `room.anyDevice(Home.active)` names `Device`'s `active`, the one a function of a device takes; anywhere else, a local's initializer among them, it names the module's one function of its name, and no later use of the local selects it. So `let test = Home.active` and `room.anyDevice(test)` name the same declaration as `room.anyDevice(Home.active)` where `Home` declares one `active`, and where it declares `active` on unrelated receivers too, the initializer is refused as ambiguous while `room.anyDevice(Home.active)` still names `Device`'s. A reference no declaration takes is a validation error naming the module's declarations of its name, and one that several take is refused as ambiguous where it is written, the error giving an arrow function or an implicit body, whose receiver's type selects one, in its place.
 - **Its calls.** A call of a reference is its qualified form's call, wherever the reference was held, passed or chosen, so `find(room, "lamp")` after `let find = Home.device` is `Home.device(room, "lamp")`: its receiver argument is evaluated first, and a null one answers null without evaluating the function's own arguments or invoking it, so `find(nothing, readName())` never calls the local function `readName` where `nothing` is null. A call of a delegate that may be a module delegate or a script delegate evaluates its receiver argument first either way and skips the rest only where it is the module delegate. Its type is nullable where its receiver argument's is.
-- **A function the evaluator invokes.** A property has no reference, since it is read where it is written, so `Home.name` written without a call is a validation error giving its qualified form, `Home.name(device)`; a module member that is a property is read, as `Home.rooms` is. A host call has none, since the evaluator never invokes one, and neither does a function of Lexica's own module, which has no namespace.
+- **A function the evaluator invokes.** A property has no reference, since it is read where it is written, so `Home.name` written without a call is a validation error giving its qualified form, `Home.name(device)`; a module member that is a property is read, as `Home.rooms` is. A host call has none, since the evaluator never invokes one, and neither does a function of Nexo's own module, which has no namespace.
 - **Read where it is written.** A reference is resolved where it is written, and creating one reads nothing and invokes nothing; each call of it reads what its declaration says, as [what a call reads](#functions-watching) sets out.
 - **Never a bare name.** A name alone reads the local, object field, function parameter or script parameter of its name, as every name does, so `room.anyDevice(active)` reads a local named `active`, and a module's function is reached through its namespace alone.
 - **An extension's function.** A function an extension declares is never reached through a namespace. Accessed through its extension without a call, `device:Device.active` is a reference bound to its receiver, which is evaluated and captured once when the reference is created, and takes the function's own arguments alone, as [extension access](members.md#property-access-calls-and-indexers-extension-access) sets out; where the receiver is supplied later, an arrow function writes it, `d => d:Device.active()`.
@@ -135,7 +135,7 @@ A call reads what its arguments and the branches its body selects read, and a br
 
 ## Functions passed to members
 
-A member function may declare a **function parameter**, whose argument is a function: an arrow function written as the argument, a delegate a name holds, a [function reference](#functions-module-delegates), or, where its callback contract takes one argument, an [implicit body](#functions-implicit-bodies). An expression or a predicate argument takes the same delegates, of the item, beside its body, as [argument kinds](members.md#arguments-kinds) set out. The member receives each as a **callback**, a callable supplied to it for it to invoke, which the evaluator creates from the delegate or the argument's body, subject to the member's contract and invocation lifetime: the member calls it only while its own invocation lasts, with the arguments its [callback contract](members.md#arguments-kinds) declares, as [argument kinds](members.md#arguments-kinds) set out. Lexica's own module declares none, so a module declares the members that take one for its own domain, as the home's `room.anyDevice(test)` takes a test of a device. A function or a body answering a value of `Any`, a reference whose declaration answers one among them, is accepted where the contract declares its result's type, and each value it answers is checked against that type when it is evaluated, as [assignability](types.md#types-assignability) sets out.
+A member function may declare a **function parameter**, whose argument is a function: an arrow function written as the argument, a delegate a name holds, a [function reference](#functions-module-delegates), or, where its callback contract takes one argument, an [implicit body](#functions-implicit-bodies). An expression or a predicate argument takes the same delegates, of the item, beside its body, as [argument kinds](members.md#arguments-kinds) set out. The member receives each as a **callback**, a callable supplied to it for it to invoke, which the evaluator creates from the delegate or the argument's body, subject to the member's contract and invocation lifetime: the member calls it only while its own invocation lasts, with the arguments its [callback contract](members.md#arguments-kinds) declares, as [argument kinds](members.md#arguments-kinds) set out. Nexo's own module declares none, so a module declares the members that take one for its own domain, as the home's `room.anyDevice(test)` takes a test of a device. A function or a body answering a value of `Any`, a reference whose declaration answers one among them, is accepted where the contract declares its result's type, and each value it answers is checked against that type when it is evaluated, as [assignability](types.md#types-assignability) sets out.
 
 <a id="functions-implicit-bodies"></a>
 

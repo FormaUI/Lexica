@@ -59,14 +59,14 @@ describe('the selection of a member', () => {
         const modules = [createHome(), createEnergy(), createSolar('Home.Device')];
 
         expect(refusalWith(modules, 'device.usage')).toMatchObject({
-            code: 'LEXICA3024',
+            code: 'NEXO3024',
             message: expect.stringContaining("'usage' on Device is ambiguous between the modules 'Energy' and 'Solar': write 'device:Energy.Device.usage' or 'device:Solar.Panel.usage' to select one"),
         });
-        expect(refusalWith([createHome(), lexica.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [indexing('energy')])] }), createSolar('Home.Device')], 'device.secret')).toMatchObject({ code: 'LEXICA3023' });
+        expect(refusalWith([createHome(), lexica.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [indexing('energy')])] }), createSolar('Home.Device')], 'device.secret')).toMatchObject({ code: 'NEXO3023' });
         expect(evaluateWith([createHome(), createEnergy(), createSolar('Home.Device')], 'device.power')).toBe('home');
     });
 
-    it('reads Lexica\'s own members of its own types, whatever an extension declares', () => {
+    it('reads Nexo\'s own members of its own types, whatever an extension declares', () => {
         const counting = lexica.createModule('Counting', { types: [extensionDeclaration('Numbers', 'List<Number>', [answering('count', 'counting')])] });
 
         expect(evaluateWith([counting], 'numbers.count', { numbers: [1, 2] })).toBe(2);
@@ -77,7 +77,7 @@ describe('the selection of a member', () => {
 
         expect(evaluateWith(solarAndEnergy, '{ light = light["mode"], thermostat = thermostat["mode"] }')).toEqual({ light: 'home', thermostat: 'home' });
         expect(evaluateWith([lexica.createModule('Home', withHome()), createEnergy(), createSolar()], '{ light = light["mode"], thermostat = thermostat["mode"] }')).toEqual({ light: 'solar', thermostat: 'energy' });
-        expect(refusalWith([lexica.createModule('Home', withHome()), createEnergy(), createSolar('Home.Device')], 'device["mode"]')).toMatchObject({ code: 'LEXICA3024', message: expect.stringContaining("write 'device:Energy.Device[…]' or 'device:Solar.Panel[…]' to select one") });
+        expect(refusalWith([lexica.createModule('Home', withHome()), createEnergy(), createSolar('Home.Device')], 'device["mode"]')).toMatchObject({ code: 'NEXO3024', message: expect.stringContaining("write 'device:Energy.Device[…]' or 'device:Solar.Panel[…]' to select one") });
     });
 
     it('gives a member another module declares on a supertype no priority over the extensions, the most specific of them selected', () => {
@@ -105,9 +105,9 @@ describe('an internal declaration', () => {
             members: [answering('code', 'hidden', { internal: true })],
         });
 
-        expect(refusalWith([createHome()], 'device.secret')).toMatchObject({ code: 'LEXICA3023', message: expect.stringContaining("'secret' on Device is internal to the module 'Home', which no script reaches") });
-        expect(refusalWith([createHome()], 'Home.secret(device)')).toMatchObject({ code: 'LEXICA3023' });
-        expect(refusalWith([hidden], 'Hidden.code', {})).toMatchObject({ code: 'LEXICA3023' });
-        expect(refusalWith([createHome(), hidden], '(device as Vault) == null')).toMatchObject({ code: 'LEXICA3023', message: expect.stringContaining("The type 'Vault' is internal to the module 'Hidden'") });
+        expect(refusalWith([createHome()], 'device.secret')).toMatchObject({ code: 'NEXO3023', message: expect.stringContaining("'secret' on Device is internal to the module 'Home', which no script reaches") });
+        expect(refusalWith([createHome()], 'Home.secret(device)')).toMatchObject({ code: 'NEXO3023' });
+        expect(refusalWith([hidden], 'Hidden.code', {})).toMatchObject({ code: 'NEXO3023' });
+        expect(refusalWith([createHome(), hidden], '(device as Vault) == null')).toMatchObject({ code: 'NEXO3023', message: expect.stringContaining("The type 'Vault' is internal to the module 'Hidden'") });
     });
 });

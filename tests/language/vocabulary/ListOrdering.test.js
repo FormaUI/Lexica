@@ -37,6 +37,6 @@ describe('ListOrdering', () => {
         expect(ListOrdering.findExtreme(items, byName, true, 'maxBy')).toBe(items[0]);
         expect(ListOrdering.findExtreme([{ name: null }], byName, true, 'maxBy')).toBeNull();
         expect(() => ListOrdering.thenBy(Object.freeze([1]), item => item, false, 'thenBy')).toThrow(MemberFailure);
-        expect(() => ListOrdering.orderBy([1, 'one'], item => item, false, 'orderBy')).toThrow(expect.objectContaining({ code: 'LEXICA5036' }));
+        expect(() => ListOrdering.orderBy([1, 'one'], item => item, false, 'orderBy')).toThrow(expect.objectContaining({ code: 'NEXO5036' }));
     });
 });

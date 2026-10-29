@@ -11,8 +11,8 @@ const codesOfTable = (file, section) => {
     return text
         .slice(start, end === -1 ? text.length : end)
         .split('\n')
-        .filter(line => line.startsWith('| `LEXICA') && !line.includes(' to `LEXICA'))
-        .flatMap(line => [...line.split('|')[1].matchAll(/LEXICA\d{4}/g)].map(match => match[0]));
+        .filter(line => line.startsWith('| `NEXO') && !line.includes(' to `NEXO'))
+        .flatMap(line => [...line.split('|')[1].matchAll(/NEXO\d{4}/g)].map(match => match[0]));
 };
 
 /** Every file of the sources, read whole. */
@@ -25,7 +25,7 @@ const sourcesOf = folder =>
 const retired = new Set(codesOfTable('spec/diagnostics-and-errors.md', '## Retired codes'));
 const catalog = new Set(codesOfTable('spec/diagnostics-and-errors.md').filter(code => !retired.has(code)));
 const temporary = new Set(codesOfTable('docs/features-status.md', '## Temporary implementation coverage'));
-const used = new Set(sourcesOf(join(repositoryRoot, 'src')).flatMap(source => [...source.matchAll(/'(LEXICA\d{4})'/g)].map(match => match[1])));
+const used = new Set(sourcesOf(join(repositoryRoot, 'src')).flatMap(source => [...source.matchAll(/'(NEXO\d{4})'/g)].map(match => match[1])));
 
 describe('the diagnostic codes', () => {
     it('each code the sources raise is in the catalog or among the temporary codes', () => {

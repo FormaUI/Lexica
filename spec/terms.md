@@ -18,7 +18,7 @@ In this document:
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Script | A standalone piece of Lexica code a host reads, resolves and evaluates, which reads its script parameters and its domain and produces data | [Scripts](scripts.md#scripts) |
+| Script | A standalone piece of Nexo code a host reads, resolves and evaluates, which reads its script parameters and its domain and produces data | [Scripts](scripts.md#scripts) |
 | Source | A script's text, which is read into its definition | [Lexical structure](lexical-structure.md#lexical-structure) |
 | Expression | A part of a script that has a value, as `room.devices`; a script is a body of expressions | [Expressions](expressions.md#expressions) |
 | Expression tree | The nodes of an expression, each with its `kind`, which the definition records with the version of its format | [Definition](definition.md#definition) |
@@ -26,7 +26,7 @@ In this document:
 | Type | The category of a value and the members it supports | [Types](types.md#types) |
 | Reference type | A type a module declares whose values have identity, naming at most one supertype, declaring its `isInstance`, and abstract or not | [Reference types](types.md#reference-types) |
 | Structured type | A type of immutable data a module declares, its data shape the properties it declares directly without `updates` | [Declaring a type](modules.md#modules-declaring-a-type) |
-| Data shape | The properties a structured type declares directly without `updates`, each with its type: what a value of the type holds, which Lexica validates, copies and freezes it by, and which no extension changes | [Declaring a type](modules.md#modules-declaring-a-type) |
+| Data shape | The properties a structured type declares directly without `updates`, each with its type: what a value of the type holds, which Nexo validates, copies and freezes it by, and which no extension changes | [Declaring a type](modules.md#modules-declaring-a-type) |
 | Membership | Whether a value belongs to a reference type, which the `isInstance` of the type and of every supertype above it answers | [Reference types](types.md#reference-types) |
 | Recognition | How a binding's reference value finds its type where none is declared: the type the registered modules' `typeOf` name, the one beneath every other | [Reference types](types.md#reference-types) |
 | Type identity | A module's type's module and local name together, as `Home.Light`, which two modules' types of one local name tell apart | [Type identity](types.md#types-type-identity) |
@@ -50,7 +50,7 @@ In this document:
 | Captured scope | What a script delegate captures where its function is declared: the locals, the implicit parameter and the object root | [What a function sees](functions.md#functions-what-it-sees) |
 | Function reference | A module's function read through its namespace without a call, as `Home.active`, which produces a module delegate taking its receiver first and its own arguments after it | [Module delegates](functions.md#functions-module-delegates) |
 | Implicit body | An expression reading `it`, given to a function parameter whose callback takes one argument, which is its `it`; the evaluator wraps it in the callback the member receives, evaluating it at each call | [Implicit bodies](functions.md#functions-implicit-bodies) |
-| Callback | A callable supplied to an operation for that operation to invoke. Lexica creates callbacks from delegates or argument bodies, subject to the receiving member's contract and invocation lifetime | [Functions passed to members](functions.md#functions-passed-to-members) |
+| Callback | A callable supplied to an operation for that operation to invoke. Nexo creates callbacks from delegates or argument bodies, subject to the receiving member's contract and invocation lifetime | [Functions passed to members](functions.md#functions-passed-to-members) |
 | Callback contract | The argument types and the result type a member declares for a function parameter, which the callback given to it is checked against | [Arguments](members.md#arguments) |
 | Function parameter | A name a function declares, holding the argument each call gives it | [Functions](functions.md#functions) |
 | Script parameter | A name a script reads and does not declare, which its host binds; `~` and its name, as `~room`, selects it whatever local, object field, conditional binding or function parameter hides it | [Script parameters](scripts.md#scripts-script-parameters) |
@@ -128,7 +128,7 @@ In this document:
 | Declaration key | A key of a declaration's own configuration, as `result`, `impl` or `updates.misses`, which a module error names where one is wrong | [Valid declarations](modules.md#modules-valid-combinations) |
 | Module key | A key of a module's contents, as `types`, `members` or `typeOf` | [Creating a module](modules.md#modules-declarations) |
 | Internal declaration | A type or a member declared `internal: true`, available within its declaring module alone | [Internal declarations](modules.md#modules-internal-declarations) |
-| Lexica's own module | The module Lexica creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
+| Nexo's own module | The module Nexo creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
 | Import | A script's declaration that it uses a module's vocabulary, `import Home`, or one type's, `import Home.Sensor`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
 | Alias | The local name an import gives in place of its module's or its type's own, `import Measures = Measurements` | [Imports](scripts.md#scripts-imports) |
 | Namespace | The local name a script's import gives a module, its own or an alias, through which its module members and its qualified forms are reached, and which qualifies its types' and extensions' names | [Namespaces](modules.md#namespaces) |
@@ -143,13 +143,13 @@ In this document:
 | Observation target | What a module declares its observations may observe besides the receiver and an argument, independent of the receiver or found from it, one target or several | [Observations](vocabulary.md#observations) |
 | Type selector | A module's declaration mapping keys to types, which a fixed argument selects the type of a function's result through | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
 | Mapping | One key of a type selector and the type it maps to, `{ selector, key, type }`, which any module may declare | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
-| Host call | A call of a function the host invokes, `invokedBy: 'host'`, which ends a script; Lexica resolves and prepares it, and never invokes it | [Host calls](members.md#members-host-calls) |
+| Host call | A call of a function the host invokes, `invokedBy: 'host'`, which ends a script; Nexo resolves and prepares it, and never invokes it | [Host calls](members.md#members-host-calls) |
 | Prepared call, skipped call | What preparing a host call answers: a prepared call, its declaration, receiver and arguments, which projects each value its host supplies where the call declares a result; or a skipped call, where there is nothing to invoke | [Host calls](runtime.md#runtime-host-calls) |
 | Result projection | The object expression following a host call, evaluated against each value its host supplies | [The values a host supplies](members.md#members-host-calls-the-values-a-host-supplies) |
 | Definition | The JSON document recording a script's meaning | [Definition](definition.md#definition) |
-| Implementation of Lexica | A program that carries the language's rules out for a host: its parser reads a script's source into its definition and validates its structure, its resolver resolves the script against a registry, and its runtime evaluates it; the rules are the language's, and an implementation follows them without defining any | [Host contract](runtime.md#runtime) |
-| Runtime | The part of an implementation of Lexica that evaluates a resolved script for its host: it holds the script's bindings and its host's environment, evaluates its expressions, invokes its members' implementations, calls its host's hooks and describes each result | [Evaluation](runtime.md#runtime-evaluation) |
-| Host | The application around an implementation of Lexica, which registers modules, binds values, evaluates, invokes its host calls and decides what to do with each result | [Host contract](runtime.md#runtime) |
+| Implementation of Nexo | A program that carries the language's rules out for a host: its parser reads a script's source into its definition and validates its structure, its resolver resolves the script against a registry, and its runtime evaluates it; the rules are the language's, and an implementation follows them without defining any | [Host contract](runtime.md#runtime) |
+| Runtime | The part of an implementation of Nexo that evaluates a resolved script for its host: it holds the script's bindings and its host's environment, evaluates its expressions, invokes its members' implementations, calls its host's hooks and describes each result | [Evaluation](runtime.md#runtime-evaluation) |
+| Host | The application around an implementation of Nexo, which registers modules, binds values, evaluates, invokes its host calls and decides what to do with each result | [Host contract](runtime.md#runtime) |
 | Registry | What holds the modules a host resolves and evaluates against | [Registries](modules.md#modules-registries) |
 | Resolution | A script resolved against a registry with bindings of one resolution key: its type and the declarations it uses | [Resolution](runtime.md#runtime-bindings-and-resolution) |
 | Diagnostic | A description of one problem, its kind, message and location, which a strict operation throws as an error | [Diagnostics and errors](diagnostics-and-errors.md#diagnostics-and-errors) |

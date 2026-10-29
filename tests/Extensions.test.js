@@ -6,7 +6,7 @@ import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
 
 /**
- * A module of extensions on Lexica's own types: a string's shout, a list's middle item, its `T` the list's items, and a receiver of any type's echo, its `T` the receiver's own type, each a member of its extension, which
+ * A module of extensions on Nexo's own types: a string's shout, a list's middle item, its `T` the list's items, and a receiver of any type's echo, its `T` the receiver's own type, each a member of its extension, which
  * names no target of its own.
  */
 const createWords = () => lexica.createModule('words', {
@@ -46,12 +46,12 @@ describe('extensions', () => {
     });
 
     it('are never reached through their module\'s namespace, which reaches the members of its own types alone', () => {
-        expect(errorThrownBy(() => resolve('words.shout(word)'))).toMatchObject({ code: 'LEXICA3001' });
+        expect(errorThrownBy(() => resolve('words.shout(word)'))).toMatchObject({ code: 'NEXO3001' });
     });
 
     it('read a name no declaration around them declares as a type\'s, whatever its length', () => {
         const refused = errorThrownBy(() => lexica.createRegistry([lexica.createModule('words', { types: [{ name: 'Lasts', kind: 'extension', target: 'List<T>', members: [] }] })]));
 
-        expect(refused).toMatchObject({ code: 'LEXICA4047', location: { module: 'words', declaration: 'Lasts' } });
+        expect(refused).toMatchObject({ code: 'NEXO4047', location: { module: 'words', declaration: 'Lasts' } });
     });
 });

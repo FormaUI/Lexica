@@ -4,7 +4,7 @@ import { Pair } from '#lexica/language/Pair.mjs';
 import { Type } from '#lexica/language/Type.mjs';
 
 describe('Dictionary', () => {
-    it('keeps its entries in their order, each key once by Lexica\'s key equality, frozen', () => {
+    it('keeps its entries in their order, each key once by Nexo\'s key equality, frozen', () => {
         const reference = {};
         const dictionary = new Dictionary([['b', 2], ['a', 1], [0, 'zero'], [null, 'none'], [reference, 'it']]);
 
@@ -34,7 +34,7 @@ describe('Pair', () => {
 });
 
 describe('Type of collections', () => {
-    it('reads Lexica\'s generic types by their arities, each argument after a comma and a space, and refuses any other count or name', () => {
+    it('reads Nexo\'s generic types by their arities, each argument after a comma and a space, and refuses any other count or name', () => {
         expect(String(Type.parse('Dictionary<String, List<Number?>>?'))).toBe('Dictionary<String, List<Number?>>?');
         expect(Type.parse('Pair<K, V>').isPair).toBe(true);
         expect(Type.parse('Dictionary<String, Number>').isDictionary).toBe(true);

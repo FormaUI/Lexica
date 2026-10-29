@@ -1,9 +1,9 @@
 <Project>
 
     <!--
-        Lexica Build Properties
+        Nexo Build Properties
 
-        Shared properties for all Lexica projects.
+        Shared properties for all Nexo projects.
     -->
 
     <PropertyGroup>

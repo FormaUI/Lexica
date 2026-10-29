@@ -153,8 +153,8 @@ describe('functions passed to members', () => {
             const bindings = registry.createBindings(values);
             const evaluator = registry.resolve(`word.keepAndFail(${test})`, bindings, { imports: ['pantry'] }).createEvaluator(bindings);
 
-            expect(errorThrownBy(() => evaluator.evaluate()), test).toMatchObject({ code: 'LEXICA5007', message: expect.stringContaining('The pantry is closed') });
-            expect(errorThrownBy(() => held.test('oat')), test).toMatchObject({ code: 'LEXICA5008', kind: 'evaluation' });
+            expect(errorThrownBy(() => evaluator.evaluate()), test).toMatchObject({ code: 'NEXO5007', message: expect.stringContaining('The pantry is closed') });
+            expect(errorThrownBy(() => held.test('oat')), test).toMatchObject({ code: 'NEXO5008', kind: 'evaluation' });
         }
     });
 });

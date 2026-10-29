@@ -24,7 +24,7 @@ Related proposals: [contract generics](contract-generics.md), which keeps the ty
 ### One lookup at two moments
 
 - If the receiver's type is known during resolution, its member is selected then.
-- Otherwise the receiver expression and the member access are kept, and the member is selected when the receiver is evaluated, by the actual value's Lexica type.
+- Otherwise the receiver expression and the member access are kept, and the member is selected when the receiver is evaluated, by the actual value's Nexo type.
 - In both cases the same visibility, inheritance, ownership and ambiguity rules apply.
 
 Missing members, incompatible receivers and invalid arguments remain errors, raised when the information is available rather than refused solely because it was unavailable before execution.
@@ -46,7 +46,7 @@ Any caching of a selection accounts for the receiver's actual type, so separate 
 
 ### Host policy at the point of selection
 
-Before invoking a member selected during evaluation, a property's getter included, Lexica checks that the host permits that declaration. Ownership, visibility, ambiguity and execution-position restrictions apply to deferred selection, which never runs a restricted operation to discover whether it was allowed.
+Before invoking a member selected during evaluation, a property's getter included, Nexo checks that the host permits that declaration. Ownership, visibility, ambiguity and execution-position restrictions apply to deferred selection, which never runs a restricted operation to discover whether it was allowed.
 
 ### What a resolution reports
 
@@ -59,7 +59,7 @@ A conservative analysis includes every declaration runtime selection could choos
 
 ### Deferred for later
 
-Whether "dynamic language" is the right description of Lexica stays undecided until its checking and execution behavior is settled; generics in module contracts do not settle it.
+Whether "dynamic language" is the right description of Nexo stays undecided until its checking and execution behavior is settled; generics in module contracts do not settle it.
 
 ## Migration
 
@@ -67,7 +67,7 @@ Whether "dynamic language" is the right description of Lexica stays undecided un
 2. Support deferred member selection where a receiver's concrete type is unavailable, with the host-policy check before invocation.
 3. Keep each value's concrete identity through `Any`.
 4. Report selected declarations and deferred accesses apart.
-5. Update Lexica's documentation, tooling, and tests, and a host's migration, together.
+5. Update Nexo's documentation, tooling, and tests, and a host's migration, together.
 
 Review the effects on resolution metadata and runtime behavior before assigning version changes.
 

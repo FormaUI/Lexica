@@ -14,7 +14,7 @@ export class ResultPath {
 
             // A field a result holds is named by any word, a reserved word among them.
             if (!isIndex && !Names.isIdentifier(item)) {
-                throw LexicaErrors.structure('LEXICA2646', `A path holds the names of fields and list indices that are whole numbers and not negative, and ${JSON.stringify(item) ?? String(item)} is neither`, {});
+                throw LexicaErrors.structure('NEXO2646', `A path holds the names of fields and list indices that are whole numbers and not negative, and ${JSON.stringify(item) ?? String(item)} is neither`, {});
             }
         }
     }
@@ -39,7 +39,7 @@ export class ResultPath {
 
             if (typeof item === 'number') {
                 if (!type.isList) {
-                    throw LexicaErrors.validation('LEXICA3601', `The path indexes ${type.toNonNullable()}, which is no list`, locationOf());
+                    throw LexicaErrors.validation('NEXO3601', `The path indexes ${type.toNonNullable()}, which is no list`, locationOf());
                 }
 
                 // An index out of range gives null.
@@ -52,7 +52,7 @@ export class ResultPath {
             const nextType = type.kind === 'object' ? type.getObjectFieldType(item) : (registry.getDataShape(type)?.get(item) ?? null);
 
             if (nextType === null) {
-                throw LexicaErrors.validation('LEXICA3602', `The path names '${item}', which ${type.toNonNullable()} does not hold`, locationOf());
+                throw LexicaErrors.validation('NEXO3602', `The path names '${item}', which ${type.toNonNullable()} does not hold`, locationOf());
             }
 
             type = nextType;

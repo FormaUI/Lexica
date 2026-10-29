@@ -105,7 +105,7 @@ A script selects an extension's member explicitly with the [extension access ope
 ## Migration
 
 1. Replace module-level extension blocks with named extension types using `target`.
-2. Update Lexica's declarations, documentation, tooling, and tests, and a host's migration, together.
+2. Update Nexo's declarations, documentation, tooling, and tests, and a host's migration, together.
 
 Review the effects on grammar, serialized definitions, resolution metadata, and runtime behavior before assigning version changes.
 

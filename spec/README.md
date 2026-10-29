@@ -1,12 +1,12 @@
-# Lexica Specification v1.0.0-alpha.37
+# Nexo Specification v1.0.0-alpha.38
 
-Lexica is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host. Lexica has no application domain of its own: modules declare the types and members available to a script, and adding them never changes the grammar.
+Nexo is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host. Nexo has no application domain of its own: modules declare the types and members available to a script, and adding them never changes the grammar.
 
-This specification is the authoritative contract for the language and for the host contract its implementations offer. It states what Lexica is, not how far an implementation has come: [the status overview](../docs/features-status.md) says what this repository implements, and [the design](../docs/lexica-design.md) how it is built.
+This specification is the authoritative contract for the language and for the host contract its implementations offer. It states what Nexo is, not how far an implementation has come: [the status overview](../docs/features-status.md) says what this repository implements, and [the design](../docs/nexo-design.md) how it is built.
 
 <a id="version"></a>
 
-**Version.** This specification describes language version `1.0.0-alpha.37`, and describes definition version 35. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](definition.md#definition) sets out; one change can advance both. An implementation says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
+**Version.** This specification describes language version `1.0.0-alpha.38`, and describes definition version 36. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](definition.md#definition) sets out; one change can advance both. An implementation says which of each it follows, as [versions](runtime.md#runtime-versions) set out.
 
 ## What it covers
 
@@ -34,7 +34,7 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 6. [Functions](functions.md): regular and arrow functions declared in a script, their values, references to a module's functions, what they see, what a call reads, and implicit bodies.
 7. [Members](members.md): member kinds, writing a member, computed property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
 8. [Modules](modules.md): creating a module, its declarations, registries, namespaces and extensions.
-9. [Vocabulary](vocabulary.md): Lexica's own vocabulary, Boolean functions, observations, type selectors and conversions.
+9. [Vocabulary](vocabulary.md): Nexo's own vocabulary, Boolean functions, observations, type selectors and conversions.
 10. [Host contract](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
 11. [Definition](definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
 12. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.

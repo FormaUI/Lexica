@@ -98,7 +98,7 @@ The **keywords** are the reserved words other than the literals' words and `root
 An identifier's spelling decides no meaning; where it stands does:
 
 - **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, object field, conditional binding or function parameter of its name, and otherwise the script parameter.
-- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, object field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`; and otherwise the import binding of its name, the local name an import gives a module or a type: after `import Lexica = Home`, `@Lexica.rooms` reads `Home.rooms`. An import binding read with `@` begins its namespace or names its type, as its bare name does, and is never a value.
+- **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, object field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`; and otherwise the import binding of its name, the local name an import gives a module or a type: after `import Nexo = Home`, `@Nexo.rooms` reads `Home.rooms`. An import binding read with `@` begins its namespace or names its type, as its bare name does, and is never a value.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
 - **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, after an [extension access](members.md#property-access-calls-and-indexers-extension-access)'s `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ Home = 1 }` declares the object field `Home`.
 - **Where the script imports a module,** the [local name](modules.md#names-and-reserved-words-module-names) its import gives the module, its own or an alias, written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@Home` reads the nearest local of its name, and the import binding only where none is in scope, `~Home` the script parameter of its name, and a member, an object field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
@@ -111,7 +111,7 @@ Declarations keep their own restrictions besides: module names are unique, compa
 
 A declaration accepts any identifier, a reserved word among them. This applies to object fields, locals, functions, function parameters and conditional bindings. Write the name without `@`:
 
-```lexica
+```nexo
 light { true = true, it = it.active() }
 ```
 
@@ -128,7 +128,7 @@ In a script, a reserved word retains its language meaning regardless of scope. A
 
 A **lexical reference**, `@` directly before an identifier, reads the nearest local, object field, conditional binding or function parameter of that name; otherwise, it resolves the import binding of that name:
 
-```lexica
+```nexo
 { let to = "3", value = @to to Number }
 ```
 
@@ -171,7 +171,7 @@ Strings come in two families: a **string**, written in double quotes, whose back
 | `$"""…"""` | Interpolated string block |
 | `$'''…'''` | Interpolated raw block |
 
-```lexica
+```nexo
 let path = 'C:\Users\Eyal\'
 return {
     path = path,
@@ -224,7 +224,7 @@ An inline string, `"…"`, `'…'`, `$"…"` or `$'…'`, does not hold a line b
 
 A block is opened by three or more matching quotes, `$` directly before them where it is interpolated, followed directly by a line break, and closed by as many of the same quote, the first text after the indentation of a later line. The source continues after the closing delimiter on its line, a call, an access, a comma or a comment:
 
-```lexica
+```nexo
 {
     label = '''
         Ready
@@ -317,7 +317,7 @@ A namespace's member read where a value stands, `Home.rooms`, is a chain, and fo
 | A conditional, a `do` block or a function expression | As [keyword blocks](#line-structure-keyword-blocks) set out |
 | A block string or block raw string | Within it, by its own rules |
 
-```lexica
+```nexo
 room {
     lit = it.devices
         .where(it.active())
@@ -341,7 +341,7 @@ room {
 
 The gaps around a binary operator, arithmetic, a comparison, an equality, `and`, `or` or `??`, follow their own rule. The gap after an operator never holds a line break, and the gap before one holds a line break only where the operator's expression is enclosed, so each continuation line starts with its operator. A break inside an operand follows that operand's own rules, so a chain breaks before its steps whether or not an operator follows it:
 
-```lexica
+```nexo
 let count = room.devices
     .count + 1
 return count
@@ -377,7 +377,7 @@ A keyword block spans lines when any line break falls between its first keyword 
 
 What may follow `end` is this layout's limit, never the grammar's: `(do … end) + 2` reads as a sum, but in block form an expression continuing after the closing parenthesis does so on the line after `end`:
 
-```lexica
+```nexo
 return (do
     return 1
 end
@@ -396,7 +396,7 @@ Each of these starts on a line of its own, with no earlier code on that line:
 - **The script's body,** on a line after its last import.
 - **In a [body](scripts.md#bodies) that uses `return`, each local and the `return`,** at every level, a script's, a function's, a `do` block's and a conditional branch's alike, a body that uses `return` without locals included.
 
-```lexica
+```nexo
 let fallback = 0
 let level = if metered then
     let reading = sensor.temperature
@@ -419,7 +419,7 @@ An enclosing one-line construct overrides every break point within it: `(a, b) =
 
 ## Case-sensitive names
 
-Every name in Lexica is case-sensitive, and nothing normalizes one: `name` and `Name` are different names, and so are `room` and `Room`. Module names are compared case-insensitively for uniqueness at registration, with their original spelling preserved. All name resolution in scripts remains case-sensitive. A name is resolved exactly as it is written, and each kind of name is spelled by its own convention:
+Every name in Nexo is case-sensitive, and nothing normalizes one: `name` and `Name` are different names, and so are `room` and `Room`. Module names are compared case-insensitively for uniqueness at registration, with their original spelling preserved. All name resolution in scripts remains case-sensitive. A name is resolved exactly as it is written, and each kind of name is spelled by its own convention:
 
 <a id="case-sensitive-names-members"></a>
 
@@ -437,6 +437,6 @@ Object field names and script parameters keep the exact spelling their author ga
 
 ### Strings are preserved
 
-Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or object field only in a computed property access, which reads the one its string names, exactly, an object field whose key is no Lexica name among them, as `o.["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or a type selector's key, follows that module's own case rules.
+Strings are preserved exactly: `kind = "List"` answers `List`. A string names a member or object field only in a computed property access, which reads the one its string names, exactly, an object field whose key is no Nexo name among them, as `o.["night-mode"]` reads a bound object's field `night-mode`. A string a module's function receives, as a setting's name or a type selector's key, follows that module's own case rules.
 
 An object field answers the key its name is written as, and how a consumer matches keys to its own members is its own: a consumer that cannot tell `isOn` from `ison` reports the ambiguity, and the language is unaffected. How a module names a member, and which JavaScript function carries it out, is the module's declaration.

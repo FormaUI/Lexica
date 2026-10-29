@@ -27,8 +27,8 @@ const literalsOf = source => [...source.matchAll(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\
     }
 }).filter(text => typeof text === 'string' && text.trim() !== '');
 
-/** The `lexica` blocks a document holds, each block's text whole. */
-const blocksOf = source => [...source.matchAll(/^```lexica\n([\s\S]*?)^```$/gm)].map(([, block]) => block.replace(/\n$/, ''));
+/** The `nexo` blocks a document holds, each block's text whole. */
+const blocksOf = source => [...source.matchAll(/^```nexo\n([\s\S]*?)^```$/gm)].map(([, block]) => block.replace(/\n$/, ''));
 
 /** The definition the text reads as, with no imports supplied or the examples' imports, or null where it reads as neither. */
 const definitionOf = text => {

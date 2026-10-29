@@ -1,14 +1,14 @@
 # Proposal: capitalized module namespaces
 
-**State: accepted.** Specified in language `1.0.0-alpha.34`, and not implemented. Require Lexica module names to begin with a capital letter, using the same initial-letter rule as type names. Use PascalCase as the naming convention for multiword module names.
+**State: accepted.** Specified in language `1.0.0-alpha.34`, and not implemented. Require Nexo module names to begin with a capital letter, using the same initial-letter rule as type names. Use PascalCase as the naming convention for multiword module names.
 
 Related proposals: [explicit extension access](extension-access.md), whose selector this proposal qualifies, and [script imports](script-imports.md), which decide the names a script reads as namespaces.
 
 ## Settled rules
 
-1. **An imported module's name wins.** After `:`, a name the script imports as a module, followed by a dot, is the qualifier, as a namespace already wins over a local of its name. An extension named as an imported module is written qualified, `device:Solar.Energy.usage`. Since Lexica's own extensions are never qualified, registration refuses a module named `Lexica` or named as one of Lexica's own types or extensions, `List` or `VerbExtensions`.
+1. **An imported module's name wins.** After `:`, a name the script imports as a module, followed by a dot, is the qualifier, as a namespace already wins over a local of its name. An extension named as an imported module is written qualified, `device:Solar.Energy.usage`. Since Nexo's own extensions are never qualified, registration refuses a module named `Nexo` or named as one of Nexo's own types or extensions, `List` or `VerbExtensions`.
 2. **Each position counts the declarations that can stand there.** An extension access resolves among extensions alone and a type reference among types alone, since no value is of an extension. Beside `Home.Device`, `device:Device.usage` selects `Energy`'s extension `Device`, and `device as Device` names `Home`'s type. Within `Energy`, `Device` names no type of its own, so its declarations write their target `Home.Device`.
-3. **Lexica's own module is `Lexica`,** always available and never imported, so `import Lexica` is refused.
+3. **Nexo's own module is `Nexo`,** always available and never imported, so `import Nexo` is refused.
 4. **Versions.** The rule joins language `1.0.0-alpha.34` and definition 34 in place: a definition records module names as it did, and only the names a registry accepts change.
 
 ## Purpose
@@ -132,7 +132,7 @@ This naming proposal does not change member access, invocation, indexing, or ext
 
 ## Scope
 
-The rule concerns Lexica module namespaces. Package identifiers, JavaScript import specifiers, assembly names, filesystem paths, and external product branding retain their own naming rules.
+The rule concerns Nexo module namespaces. Package identifiers, JavaScript import specifiers, assembly names, filesystem paths, and external product branding retain their own naming rules.
 
 The rule does not impose a new naming requirement on script locals, fields, parameters, or ordinary members. Type names, including extension names, retain their initial-capital requirement. Authors choose whether an extension name includes the optional `Extensions` suffix.
 

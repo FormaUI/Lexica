@@ -295,7 +295,7 @@ describe('prepared calls', () => {
         const env = { levels: {}, occupied: [] };
         const { evaluator } = evaluatorOf('let level = light.level\nreturn light.dim({ to = level }) { reached = it, asked = level }', { env });
 
-        expect(errorThrownBy(() => evaluator.prepareHostCall())).toMatchObject({ code: 'LEXICA5006', location: { pointer: '/expression/locals/0/value' } });
+        expect(errorThrownBy(() => evaluator.prepareHostCall())).toMatchObject({ code: 'NEXO5006', location: { pointer: '/expression/locals/0/value' } });
 
         env.levels.hall = 40;
 

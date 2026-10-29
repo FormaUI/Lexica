@@ -69,40 +69,40 @@ const directEvaluatorOf = (modules, text, resolvedWith, evaluatedWith = resolved
 
 describe('the runtime codes', () => {
     describe('of bindings', () => {
-        it('LEXICA2020: bindings that are not a plain object', () => {
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings([1])), 'LEXICA2020', 'structure');
+        it('NEXO2020: bindings that are not a plain object', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings([1])), 'NEXO2020', 'structure');
         });
 
-        it('LEXICA2033: a binding not named by a letter followed by letters and digits', () => {
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ 'floor-area': 1 })), 'LEXICA2033', 'structure');
+        it('NEXO2033: a binding not named by a letter followed by letters and digits', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ 'floor-area': 1 })), 'NEXO2033', 'structure');
         });
 
-        it('LEXICA2034: a binding that is not data and that nothing recognizes', () => {
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf: new WeakMap() })), 'LEXICA2034', 'structure');
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ weight: Number.NaN })), 'LEXICA2034', 'structure');
+        it('NEXO2034: a binding that is not data and that nothing recognizes', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf: new WeakMap() })), 'NEXO2034', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ weight: Number.NaN })), 'NEXO2034', 'structure');
         });
 
-        it('LEXICA2022: a bound value holding a cycle', () => {
+        it('NEXO2022: a bound value holding a cycle', () => {
             const shelf = { name: 'top' };
 
             shelf.self = shelf;
 
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf })), 'LEXICA2022', 'structure');
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelves: [shelf] })), 'LEXICA2022', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelf })), 'NEXO2022', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ shelves: [shelf] })), 'NEXO2022', 'structure');
         });
 
-        it('LEXICA2041: a bound map holding a key of no key type', () => {
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([[[1], 'list']]) })), 'LEXICA2041', 'structure');
+        it('NEXO2041: a bound map holding a key of no key type', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([[[1], 'list']]) })), 'NEXO2041', 'structure');
         });
 
-        it('LEXICA2042: a bound map whose keys or values share no type', () => {
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([['a', 1], [2, 2]]) })), 'LEXICA2042', 'structure');
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([['a', 1], ['b', 'two']]) })), 'LEXICA2042', 'structure');
+        it('NEXO2042: a bound map whose keys or values share no type', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([['a', 1], [2, 2]]) })), 'NEXO2042', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ table: new Map([['a', 1], ['b', 'two']]) })), 'NEXO2042', 'structure');
         });
 
-        it('LEXICA2021: a bound list whose items share no type', () => {
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ items: [1, 'two'] })), 'LEXICA2021', 'structure');
-            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome())]).createBindings({ items: [new Room('hall'), new Light('lamp')] })), 'LEXICA2021', 'structure');
+        it('NEXO2021: a bound list whose items share no type', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ items: [1, 'two'] })), 'NEXO2021', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome())]).createBindings({ items: [new Room('hall'), new Light('lamp')] })), 'NEXO2021', 'structure');
         });
     });
 
@@ -110,110 +110,110 @@ describe('the runtime codes', () => {
         const home = () => createImportingRegistry([lexica.createModule('home', withHome())]);
         const recognizing = (typeOf, types = homeTypes) => createImportingRegistry([lexica.createModule('home', { typeOf, types })]);
 
-        it('LEXICA2034: a value no module recognizes that is no data', () => {
-            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ lamp: new Light('lamp') })), 'LEXICA2034', 'structure');
+        it('NEXO2034: a value no module recognizes that is no data', () => {
+            expectLexicaError(errorThrownBy(() => createImportingRegistry().createBindings({ lamp: new Light('lamp') })), 'NEXO2034', 'structure');
         });
 
-        it('LEXICA2035: a value modules recognize as unrelated types', () => {
+        it('NEXO2035: a value modules recognize as unrelated types', () => {
             const garden = lexica.createModule('garden', { typeOf: value => (value instanceof Light ? 'Lamp' : null), types: [{ name: 'Lamp', kind: 'reference', isInstance: value => value instanceof Light }] });
 
-            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome()), garden]).createBindings({ lamp: new Light('lamp') })), 'LEXICA2035', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome()), garden]).createBindings({ lamp: new Light('lamp') })), 'NEXO2035', 'structure');
         });
 
-        it('LEXICA2036: a declared type that no public type is, or that the value does not belong to', () => {
-            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Lantern' } })), 'LEXICA2036', 'structure');
-            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: new Thermostat('heater') }, { types: { lamp: 'Light' } })), 'LEXICA2036', 'structure');
+        it('NEXO2036: a declared type that no public type is, or that the value does not belong to', () => {
+            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Lantern' } })), 'NEXO2036', 'structure');
+            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: new Thermostat('heater') }, { types: { lamp: 'Light' } })), 'NEXO2036', 'structure');
         });
 
-        it('LEXICA2037: a declared type several types share unqualified', () => {
+        it('NEXO2037: a declared type several types share unqualified', () => {
             const office = lexica.createModule('office', { types: [{ name: 'Device', kind: 'reference', isInstance: () => true }] });
 
-            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome()), office]).createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Device' } })), 'LEXICA2037', 'structure');
+            expectLexicaError(errorThrownBy(() => createImportingRegistry([lexica.createModule('home', withHome()), office]).createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Device' } })), 'NEXO2037', 'structure');
         });
 
-        it('LEXICA2044: a declared type no binding holds, a notation that is none or a dictionary keyed by no key type among them', () => {
-            expectLexicaError(errorThrownBy(() => home().createBindings({ held: 1 }, { types: { held: 'Any' } })), 'LEXICA2044', 'structure');
-            expectLexicaError(errorThrownBy(() => home().createBindings({ held: 1 }, { types: { held: 'List<' } })), 'LEXICA2044', 'structure');
-            expectLexicaError(errorThrownBy(() => home().createBindings({ held: new Map() }, { types: { held: 'Dictionary<List<Number>, Number>' } })), 'LEXICA2044', 'structure');
+        it('NEXO2044: a declared type no binding holds, a notation that is none or a dictionary keyed by no key type among them', () => {
+            expectLexicaError(errorThrownBy(() => home().createBindings({ held: 1 }, { types: { held: 'Any' } })), 'NEXO2044', 'structure');
+            expectLexicaError(errorThrownBy(() => home().createBindings({ held: 1 }, { types: { held: 'List<' } })), 'NEXO2044', 'structure');
+            expectLexicaError(errorThrownBy(() => home().createBindings({ held: new Map() }, { types: { held: 'Dictionary<List<Number>, Number>' } })), 'NEXO2044', 'structure');
         });
 
-        it('LEXICA2045: a value its declared data type does not admit', () => {
-            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Number' } })), 'LEXICA2045', 'structure');
+        it('NEXO2045: a value its declared data type does not admit', () => {
+            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: new Light('lamp') }, { types: { lamp: 'Number' } })), 'NEXO2045', 'structure');
             expect(errorThrownBy(() => home().createBindings({ sizes: [1, 'two'] }, { types: { sizes: 'List<Number>' } })).message).toContain("its '[1]' is \"two\"");
         });
 
-        it('LEXICA2038: a type declared for a value that is not a reference', () => {
-            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: 'lamp' }, { types: { lamp: 'Light' } })), 'LEXICA2038', 'structure');
+        it('NEXO2038: a type declared for a value that is not a reference', () => {
+            expectLexicaError(errorThrownBy(() => home().createBindings({ lamp: 'lamp' }, { types: { lamp: 'Light' } })), 'NEXO2038', 'structure');
         });
 
-        it('LEXICA2039: a type declared for anything but a top-level binding', () => {
-            expectLexicaError(errorThrownBy(() => home().createBindings({ room: { lamp: new Light('lamp') } }, { types: { lamp: 'Light' } })), 'LEXICA2039', 'structure');
+        it('NEXO2039: a type declared for anything but a top-level binding', () => {
+            expectLexicaError(errorThrownBy(() => home().createBindings({ room: { lamp: new Light('lamp') } }, { types: { lamp: 'Light' } })), 'NEXO2039', 'structure');
         });
 
-        it('LEXICA2024: resolving or evaluating with a binding set another registry made', () => {
+        it('NEXO2024: resolving or evaluating with a binding set another registry made', () => {
             const bindings = home().createBindings({ lamp: new Light('lamp') });
             const other = home();
 
-            expectLexicaError(errorThrownBy(() => other.resolve('lamp.name == null', bindings)), 'LEXICA2024', 'structure');
-            expectLexicaError(errorThrownBy(() => other.resolve('lamp == null', { lamp: new Light('lamp') }).createEvaluator(bindings)), 'LEXICA2024', 'structure');
+            expectLexicaError(errorThrownBy(() => other.resolve('lamp.name == null', bindings)), 'NEXO2024', 'structure');
+            expectLexicaError(errorThrownBy(() => other.resolve('lamp == null', { lamp: new Light('lamp') }).createEvaluator(bindings)), 'NEXO2024', 'structure');
         });
 
-        it('LEXICA5002: a typeOf naming what is no reference type of its module, an abstract one, or one the value does not belong to', () => {
+        it('NEXO5002: a typeOf naming what is no reference type of its module, an abstract one, or one the value does not belong to', () => {
             const abstract = [{ name: 'Device', kind: 'reference', abstract: true, isInstance: value => value instanceof Device }];
 
             for (const [typeOf, types] of [[() => 'Lantern', homeTypes], [() => 5, homeTypes], [() => 'Device', abstract], [() => 'Room', homeTypes]]) {
-                expectLexicaError(errorThrownBy(() => recognizing(typeOf, types).createBindings({ lamp: new Light('lamp') })), 'LEXICA5002', 'evaluation');
+                expectLexicaError(errorThrownBy(() => recognizing(typeOf, types).createBindings({ lamp: new Light('lamp') })), 'NEXO5002', 'evaluation');
             }
         });
 
-        it('LEXICA5026: a typeOf that throws, what it threw the cause', () => {
+        it('NEXO5026: a typeOf that throws, what it threw the cause', () => {
             const thrown = new Error('unrecognizable');
             const failure = errorThrownBy(() => recognizing(() => { throw thrown; }).createBindings({ lamp: new Light('lamp') }));
 
-            expectLexicaError(failure, 'LEXICA5026', 'evaluation');
+            expectLexicaError(failure, 'NEXO5026', 'evaluation');
             expect(failure.cause).toBe(thrown);
         });
 
-        it('LEXICA5017: an isInstance answering what isn\'t a Boolean', () => {
+        it('NEXO5017: an isInstance answering what isn\'t a Boolean', () => {
             const types = [{ name: 'Light', kind: 'reference', isInstance: () => 'yes' }];
 
-            expectLexicaError(errorThrownBy(() => recognizing(() => 'Light', types).createBindings({ lamp: new Light('lamp') })), 'LEXICA5017', 'evaluation');
+            expectLexicaError(errorThrownBy(() => recognizing(() => 'Light', types).createBindings({ lamp: new Light('lamp') })), 'NEXO5017', 'evaluation');
         });
 
-        it('LEXICA5027: an isInstance that throws, what it threw the cause', () => {
+        it('NEXO5027: an isInstance that throws, what it threw the cause', () => {
             const types = [{ name: 'Light', kind: 'reference', isInstance: () => { throw 'unknown'; } }];
             const failure = errorThrownBy(() => recognizing(() => 'Light', types).createBindings({ lamp: new Light('lamp') }));
 
-            expectLexicaError(failure, 'LEXICA5027', 'evaluation');
+            expectLexicaError(failure, 'NEXO5027', 'evaluation');
             expect(failure.cause).toBe('unknown');
         });
 
         it('check a supertype\'s membership too, where a type beneath it answers true', () => {
             const types = [{ name: 'Device', kind: 'reference', isInstance: () => false }, { name: 'Light', kind: 'reference', supertype: 'Device', isInstance: () => true }];
 
-            expectLexicaError(errorThrownBy(() => recognizing(homeTypeOf, types).createBindings({ lamp: new Light('lamp') })), 'LEXICA5002', 'evaluation');
+            expectLexicaError(errorThrownBy(() => recognizing(homeTypeOf, types).createBindings({ lamp: new Light('lamp') })), 'NEXO5002', 'evaluation');
         });
     });
 
     describe('of the entry point', () => {
         const registry = createImportingRegistry([createPantry()]);
 
-        it('LEXICA2643: a pointer that is not a JSON Pointer', () => {
-            expectLexicaError(errorThrownBy(() => lexica.getLocation(lexica.parse('1 + 2'), 'expression')), 'LEXICA2643', 'structure');
-            expectLexicaError(errorThrownBy(() => registry.resolve('1 + 2').getLocation(5)), 'LEXICA2643', 'structure');
+        it('NEXO2643: a pointer that is not a JSON Pointer', () => {
+            expectLexicaError(errorThrownBy(() => lexica.getLocation(lexica.parse('1 + 2'), 'expression')), 'NEXO2643', 'structure');
+            expectLexicaError(errorThrownBy(() => registry.resolve('1 + 2').getLocation(5)), 'NEXO2643', 'structure');
         });
 
-        it('LEXICA2644: a pointer at nothing the definition holds', () => {
-            expectLexicaError(errorThrownBy(() => lexica.getLocation(lexica.parse('1 + 2'), '/expression/middle')), 'LEXICA2644', 'structure');
+        it('NEXO2644: a pointer at nothing the definition holds', () => {
+            expectLexicaError(errorThrownBy(() => lexica.getLocation(lexica.parse('1 + 2'), '/expression/middle')), 'NEXO2644', 'structure');
         });
 
-        it('LEXICA2645: parsing what is not a script\'s source', () => {
-            expectLexicaError(errorThrownBy(() => lexica.parse(5)), 'LEXICA2645', 'structure');
-            expectLexicaError(errorThrownBy(() => lexica.parse({ version: 35 })), 'LEXICA2645', 'structure');
+        it('NEXO2645: parsing what is not a script\'s source', () => {
+            expectLexicaError(errorThrownBy(() => lexica.parse(5)), 'NEXO2645', 'structure');
+            expectLexicaError(errorThrownBy(() => lexica.parse({ version: 36 })), 'NEXO2645', 'structure');
             expect(errorThrownBy(() => lexica.parse(5)).message).toBe("What parse reads is a script's source");
         });
 
-        it('LEXICA2040: creating or entering an evaluator, or projecting a prepared call, once its resolution is no longer current', () => {
+        it('NEXO2040: creating or entering an evaluator, or projecting a prepared call, once its resolution is no longer current', () => {
             const growing = createImportingRegistry([createPantry()]);
             const resolution = growing.resolve('word.held', { word: 'oat' });
             const evaluator = resolution.createEvaluator({ word: 'oat' });
@@ -221,97 +221,97 @@ describe('the runtime codes', () => {
 
             growing.registerModule(lexica.createModule('bakery', { typeOf: () => null }));
 
-            expectLexicaError(errorThrownBy(() => resolution.createEvaluator({ word: 'oat' })), 'LEXICA2040', 'structure');
-            expectLexicaError(errorThrownBy(() => evaluator.evaluate()), 'LEXICA2040', 'structure');
-            expectLexicaError(errorThrownBy(() => call.project(1)), 'LEXICA2040', 'structure');
+            expectLexicaError(errorThrownBy(() => resolution.createEvaluator({ word: 'oat' })), 'NEXO2040', 'structure');
+            expectLexicaError(errorThrownBy(() => evaluator.evaluate()), 'NEXO2040', 'structure');
+            expectLexicaError(errorThrownBy(() => call.project(1)), 'NEXO2040', 'structure');
         });
 
-        it('LEXICA2025: creating an evaluator with bindings of another resolution key', () => {
+        it('NEXO2025: creating an evaluator with bindings of another resolution key', () => {
             const resolution = registry.resolve('word.size', { word: 'oat' });
 
-            expectLexicaError(errorThrownBy(() => resolution.createEvaluator({ word: 5 })), 'LEXICA2025', 'structure');
+            expectLexicaError(errorThrownBy(() => resolution.createEvaluator({ word: 5 })), 'NEXO2025', 'structure');
         });
 
-        it('LEXICA4001: creating an evaluator for a resolution whose used member or conversion has no implementation', () => {
+        it('NEXO4001: creating an evaluator for a resolution whose used member or conversion has no implementation', () => {
             const bare = createImportingRegistry([createBare()]);
 
             const member = errorThrownBy(() => bare.resolve('word.weight', { word: 'oat' }).createEvaluator({ word: 'oat' }));
             const conversion = errorThrownBy(() => bare.resolve('(word to Mug).size', { word: 'oat' }).createEvaluator({ word: 'oat' }));
 
-            expectLexicaError(member, 'LEXICA4001', 'module');
-            expectLexicaError(conversion, 'LEXICA4001', 'module');
+            expectLexicaError(member, 'NEXO4001', 'module');
+            expectLexicaError(conversion, 'NEXO4001', 'module');
             expect(member.location).toEqual({ module: 'bare', type: 'StringExtensions', declaration: 'weight', declarationKey: 'impl' });
             expect(conversion.location).toEqual({ module: 'bare', type: 'StringExtensions', declaration: 'convert', declarationKey: 'impl' });
         });
 
-        it('LEXICA5010: evaluating an evaluator from within its own evaluation', () => {
+        it('NEXO5010: evaluating an evaluator from within its own evaluation', () => {
             const holder = {};
 
             behaviors = { size: () => holder.evaluator.evaluate() };
             holder.evaluator = evaluatorOf('word.size');
 
-            expectLexicaError(errorThrownBy(() => holder.evaluator.evaluate()), 'LEXICA5010', 'evaluation');
+            expectLexicaError(errorThrownBy(() => holder.evaluator.evaluate()), 'NEXO5010', 'evaluation');
         });
     });
 
     describe('of result paths', () => {
         const registry = createImportingRegistry([createPantry()]);
 
-        it('LEXICA2646: a path item that is neither a name nor a list index', () => {
-            expectLexicaError(errorThrownBy(() => lexica.paths.validate(['total', -1])), 'LEXICA2646', 'structure');
-            expectLexicaError(errorThrownBy(() => lexica.paths.validate(['total', 'floor-area'])), 'LEXICA2646', 'structure');
+        it('NEXO2646: a path item that is neither a name nor a list index', () => {
+            expectLexicaError(errorThrownBy(() => lexica.paths.validate(['total', -1])), 'NEXO2646', 'structure');
+            expectLexicaError(errorThrownBy(() => lexica.paths.validate(['total', 'floor-area'])), 'NEXO2646', 'structure');
         });
 
-        it('LEXICA3600: a path into the result of a host call that supplies nothing', () => {
-            expectLexicaError(errorThrownBy(() => registry.resolve('word.drop()', { word: 'oat' }).typeAt([])), 'LEXICA3600', 'validation');
+        it('NEXO3600: a path into the result of a host call that supplies nothing', () => {
+            expectLexicaError(errorThrownBy(() => registry.resolve('word.drop()', { word: 'oat' }).typeAt([])), 'NEXO3600', 'validation');
         });
 
-        it('LEXICA3601: a path indexing what is not a list', () => {
-            expectLexicaError(errorThrownBy(() => registry.resolve('{ total = 1 }').typeAt(['total', 0])), 'LEXICA3601', 'validation');
+        it('NEXO3601: a path indexing what is not a list', () => {
+            expectLexicaError(errorThrownBy(() => registry.resolve('{ total = 1 }').typeAt(['total', 0])), 'NEXO3601', 'validation');
         });
 
-        it('LEXICA3602: a path naming a field the result does not hold', () => {
-            expectLexicaError(errorThrownBy(() => registry.resolve('{ total = 1 }').typeAt(['count'])), 'LEXICA3602', 'validation');
+        it('NEXO3602: a path naming a field the result does not hold', () => {
+            expectLexicaError(errorThrownBy(() => registry.resolve('{ total = 1 }').typeAt(['count'])), 'NEXO3602', 'validation');
         });
     });
 
     describe('of evaluation', () => {
-        it('LEXICA5014: preparing a script that ends in no host call', () => {
-            expectLexicaError(errorThrownBy(() => evaluatorOf('word.size').prepareHostCall()), 'LEXICA5014', 'evaluation');
+        it('NEXO5014: preparing a script that ends in no host call', () => {
+            expectLexicaError(errorThrownBy(() => evaluatorOf('word.size').prepareHostCall()), 'NEXO5014', 'evaluation');
         });
 
-        it('LEXICA5023: evaluating a script that ends in a host call', () => {
-            expectLexicaError(failureOf('word.order(2)'), 'LEXICA5023', 'evaluation');
+        it('NEXO5023: evaluating a script that ends in a host call', () => {
+            expectLexicaError(failureOf('word.order(2)'), 'NEXO5023', 'evaluation');
         });
 
-        it('LEXICA5015: a value a host supplies that its host call\'s declared result does not admit', () => {
+        it('NEXO5015: a value a host supplies that its host call\'s declared result does not admit', () => {
             const call = evaluatorOf('word.order(2)').prepareHostCall();
 
-            expectLexicaError(errorThrownBy(() => call.project('many')), 'LEXICA5015', 'evaluation');
+            expectLexicaError(errorThrownBy(() => call.project('many')), 'NEXO5015', 'evaluation');
         });
 
-        it('LEXICA5001: a value a strict cast rejects, naming the type its value is of', () => {
+        it('NEXO5001: a value a strict cast rejects, naming the type its value is of', () => {
             const failure = failureOf('(word.device as Light) == null');
 
-            expectLexicaError(failure, 'LEXICA5001', 'evaluation');
+            expectLexicaError(failure, 'NEXO5001', 'evaluation');
             expect(failure.message).toContain('The cast to Light rejected its value: it is a Device that isn\'t a Light');
             expect(evaluatorOf('(try word.device as Light) == null').evaluate().value).toBe(true);
         });
 
-        it('LEXICA5016: a value a conversion rejects', () => {
-            expectLexicaError(failureOf('word to Number', { word: '12px' }), 'LEXICA5016', 'evaluation');
+        it('NEXO5016: a value a conversion rejects', () => {
+            expectLexicaError(failureOf('word to Number', { word: '12px' }), 'NEXO5016', 'evaluation');
         });
 
-        it('LEXICA5003: a conversion that throws', () => {
+        it('NEXO5003: a conversion that throws', () => {
             behaviors = { convert: () => { throw new Error('no cups'); } };
 
-            expectLexicaError(failureOf('(word to Cup).size'), 'LEXICA5003', 'evaluation');
+            expectLexicaError(failureOf('(word to Cup).size'), 'NEXO5003', 'evaluation');
         });
 
-        it('LEXICA5018: a conversion that rejects with a reason that is not a string, or rejects and then answers', () => {
+        it('NEXO5018: a conversion that rejects with a reason that is not a string, or rejects and then answers', () => {
             behaviors = { convert: ({ reject }) => reject(5) };
 
-            expectLexicaError(failureOf('(word to Cup).size'), 'LEXICA5018', 'evaluation');
+            expectLexicaError(failureOf('(word to Cup).size'), 'NEXO5018', 'evaluation');
 
             behaviors = {
                 convert: ({ reject }) => {
@@ -325,113 +325,113 @@ describe('the runtime codes', () => {
                 },
             };
 
-            expectLexicaError(failureOf('(word to Cup).size'), 'LEXICA5018', 'evaluation');
+            expectLexicaError(failureOf('(word to Cup).size'), 'NEXO5018', 'evaluation');
         });
 
-        it('LEXICA5019: a conversion that answers a value not of its type', () => {
+        it('NEXO5019: a conversion that answers a value not of its type', () => {
             behaviors = { convert: () => ({ size: 'large' }) };
 
-            expectLexicaError(failureOf('(word to Cup).size'), 'LEXICA5019', 'evaluation');
+            expectLexicaError(failureOf('(word to Cup).size'), 'NEXO5019', 'evaluation');
 
             behaviors = { convert: () => null };
 
-            expectLexicaError(failureOf('(word to Cup).size'), 'LEXICA5019', 'evaluation');
+            expectLexicaError(failureOf('(word to Cup).size'), 'NEXO5019', 'evaluation');
         });
 
-        it('LEXICA5005: a division or a remainder by zero', () => {
-            expectLexicaError(failureOf('1 / none', { none: 0 }), 'LEXICA5005', 'evaluation');
-            expectLexicaError(failureOf('1 % none', { none: 0 }), 'LEXICA5005', 'evaluation');
+        it('NEXO5005: a division or a remainder by zero', () => {
+            expectLexicaError(failureOf('1 / none', { none: 0 }), 'NEXO5005', 'evaluation');
+            expectLexicaError(failureOf('1 % none', { none: 0 }), 'NEXO5005', 'evaluation');
         });
 
-        it('LEXICA5020: an arithmetic result no finite number holds', () => {
-            expectLexicaError(failureOf('big * big', { big: 1e308 }), 'LEXICA5020', 'evaluation');
+        it('NEXO5020: an arithmetic result no finite number holds', () => {
+            expectLexicaError(failureOf('big * big', { big: 1e308 }), 'NEXO5020', 'evaluation');
         });
 
-        it('LEXICA5006: a module returning a value of a type other than the one it declared', () => {
+        it('NEXO5006: a module returning a value of a type other than the one it declared', () => {
             behaviors = { size: () => 'three' };
 
-            expectLexicaError(failureOf('word.size'), 'LEXICA5006', 'evaluation');
+            expectLexicaError(failureOf('word.size'), 'NEXO5006', 'evaluation');
         });
 
-        it('LEXICA5006: a module returning a number no finite number holds, described as it is, alone or within data', () => {
+        it('NEXO5006: a module returning a number no finite number holds, described as it is, alone or within data', () => {
             for (const [answer, described] of [[Infinity, 'Infinity'], [-Infinity, '-Infinity'], [NaN, 'NaN'], [[1, -Infinity, NaN], '[1,-Infinity,NaN]'], [{ low: NaN, label: 'Infinity' }, '{"low":NaN,"label":"Infinity"}']]) {
                 behaviors = { size: () => answer };
 
                 const error = failureOf('word.size');
 
-                expectLexicaError(error, 'LEXICA5006', 'evaluation');
+                expectLexicaError(error, 'NEXO5006', 'evaluation');
                 expect(error.message, described).toContain(`answered ${described}, and it declares Number`);
             }
         });
 
-        it('LEXICA5007: a member whose implementation throws', () => {
+        it('NEXO5007: a member whose implementation throws', () => {
             behaviors = { size: () => { throw new Error('no scale'); } };
 
-            expectLexicaError(failureOf('word.size'), 'LEXICA5007', 'evaluation');
+            expectLexicaError(failureOf('word.size'), 'NEXO5007', 'evaluation');
         });
 
-        it('LEXICA5008: a function given to a member called after that member\'s invocation has ended', () => {
-            expectLexicaError(failureOf('{ kept = word.keep(w => w.size > 2), called = word.callKept() }'), 'LEXICA5008', 'evaluation');
+        it('NEXO5008: a function given to a member called after that member\'s invocation has ended', () => {
+            expectLexicaError(failureOf('{ kept = word.keep(w => w.size > 2), called = word.callKept() }'), 'NEXO5008', 'evaluation');
         });
 
-        it('LEXICA5503: a member calling a function it was given with arguments its callback contract does not declare', () => {
+        it('NEXO5503: a member calling a function it was given with arguments its callback contract does not declare', () => {
             behaviors = { check: ({ args }) => args.test() };
 
-            expectLexicaError(failureOf('word.check(w => w.size > 2)'), 'LEXICA5503', 'evaluation');
+            expectLexicaError(failureOf('word.check(w => w.size > 2)'), 'NEXO5503', 'evaluation');
 
             behaviors = { check: ({ args }) => args.test(5) };
 
-            expectLexicaError(failureOf('word.check(w => w.size > 2)'), 'LEXICA5503', 'evaluation');
+            expectLexicaError(failureOf('word.check(w => w.size > 2)'), 'NEXO5503', 'evaluation');
         });
 
-        it('LEXICA5009: a hook that throws, before or after an invocation or after a completed evaluation', () => {
-            expectLexicaError(failureOf('word.size', undefined, { beforeInvoke: () => { throw new Error('refused'); } }), 'LEXICA5009', 'evaluation');
-            expectLexicaError(failureOf('word.size', undefined, { afterInvoke: () => { throw new Error('no record'); } }), 'LEXICA5009', 'evaluation');
-            expectLexicaError(failureOf('word.size', undefined, { afterEvaluation: () => { throw new Error('no cleanup'); } }), 'LEXICA5009', 'evaluation');
+        it('NEXO5009: a hook that throws, before or after an invocation or after a completed evaluation', () => {
+            expectLexicaError(failureOf('word.size', undefined, { beforeInvoke: () => { throw new Error('refused'); } }), 'NEXO5009', 'evaluation');
+            expectLexicaError(failureOf('word.size', undefined, { afterInvoke: () => { throw new Error('no record'); } }), 'NEXO5009', 'evaluation');
+            expectLexicaError(failureOf('word.size', undefined, { afterEvaluation: () => { throw new Error('no cleanup'); } }), 'NEXO5009', 'evaluation');
         });
 
-        it('LEXICA5011: evaluating without beforeInvoke a script that reads a maintained member', () => {
-            expectLexicaError(failureOf('word.quoted'), 'LEXICA5011', 'evaluation');
-            expectLexicaError(failureOf('word.quoted', undefined, { afterInvoke: () => {} }), 'LEXICA5011', 'evaluation');
+        it('NEXO5011: evaluating without beforeInvoke a script that reads a maintained member', () => {
+            expectLexicaError(failureOf('word.quoted'), 'NEXO5011', 'evaluation');
+            expectLexicaError(failureOf('word.quoted', undefined, { afterInvoke: () => {} }), 'NEXO5011', 'evaluation');
         });
     });
 
     describe('of the checks an evaluation keeps where resolution has made sure already', () => {
-        it('LEXICA5500: an interpolation of what is no string or number', () => {
+        it('NEXO5500: an interpolation of what is no string or number', () => {
             const failure = errorThrownBy(() => directEvaluatorOf([], 'return $"a {label}"', { label: 'a' }, { label: true }).evaluate());
 
-            expectLexicaError(failure, 'LEXICA5500', 'evaluation');
+            expectLexicaError(failure, 'NEXO5500', 'evaluation');
             // A failure raised within a compiled part is located at that part.
             expect(failure.location).toEqual({ pointer: '/expression/result/parts/1/expression', offset: 12, line: 1, column: 13 });
         });
 
-        it('LEXICA5501: a comparison of what is no number', () => {
-            expectLexicaError(errorThrownBy(() => directEvaluatorOf([], 'count < 2', { count: 1 }, { count: 'one' }).evaluate()), 'LEXICA5501', 'evaluation');
+        it('NEXO5501: a comparison of what is no number', () => {
+            expectLexicaError(errorThrownBy(() => directEvaluatorOf([], 'count < 2', { count: 1 }, { count: 'one' }).evaluate()), 'NEXO5501', 'evaluation');
         });
 
-        it('LEXICA5505: arithmetic on what is no number', () => {
-            expectLexicaError(errorThrownBy(() => directEvaluatorOf([], 'count + 1', { count: 1 }, { count: 'one' }).evaluate()), 'LEXICA5505', 'evaluation');
-            expectLexicaError(errorThrownBy(() => directEvaluatorOf([], '-count', { count: 1 }, { count: 'one' }).evaluate()), 'LEXICA5505', 'evaluation');
+        it('NEXO5505: arithmetic on what is no number', () => {
+            expectLexicaError(errorThrownBy(() => directEvaluatorOf([], 'count + 1', { count: 1 }, { count: 'one' }).evaluate()), 'NEXO5505', 'evaluation');
+            expectLexicaError(errorThrownBy(() => directEvaluatorOf([], '-count', { count: 1 }, { count: 'one' }).evaluate()), 'NEXO5505', 'evaluation');
         });
 
-        it('LEXICA5504: a function given to a member that gives a value its callback contract does not declare', () => {
+        it('NEXO5504: a function given to a member that gives a value its callback contract does not declare', () => {
             behaviors = {};
 
-            expectLexicaError(errorThrownBy(() => directEvaluatorOf([createPantry()], 'word.check(w => flag)', { word: 'oat', flag: true }, { word: 'oat', flag: 'yes' }).evaluate()), 'LEXICA5504', 'evaluation');
+            expectLexicaError(errorThrownBy(() => directEvaluatorOf([createPantry()], 'word.check(w => flag)', { word: 'oat', flag: true }, { word: 'oat', flag: 'yes' }).evaluate()), 'NEXO5504', 'evaluation');
         });
 
-        it('LEXICA4001: a used member or conversion without an implementation, reached by an evaluator made without the entry point\'s check', () => {
+        it('NEXO4001: a used member or conversion without an implementation, reached by an evaluator made without the entry point\'s check', () => {
             const member = errorThrownBy(() => directEvaluatorOf([createBare()], 'word.weight', { word: 'oat' }).evaluate());
             const conversion = errorThrownBy(() => directEvaluatorOf([createBare()], '(word to Mug).size', { word: 'oat' }).evaluate());
 
-            expectLexicaError(member, 'LEXICA4001', 'module');
-            expectLexicaError(conversion, 'LEXICA4001', 'module');
+            expectLexicaError(member, 'NEXO4001', 'module');
+            expectLexicaError(conversion, 'NEXO4001', 'module');
             expect(member.location).toEqual({ pointer: '/expression', offset: 0, line: 1, column: 1 });
             expect(conversion.location).toEqual({ pointer: '/expression/receiver', offset: 1, line: 1, column: 2 });
 
             const indexers = lexica.createModule('indexers', { types: [extensionDeclaration('Cells', 'Boolean', [createIndexerDeclaration(null, 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')] })])] });
 
-            expect(errorThrownBy(() => directEvaluatorOf([indexers], 'flag["k"]', { flag: true }).evaluate())).toMatchObject({ code: 'LEXICA4001', message: expect.stringContaining("The module 'indexers' gives '[…]' no implementation") });
+            expect(errorThrownBy(() => directEvaluatorOf([indexers], 'flag["k"]', { flag: true }).evaluate())).toMatchObject({ code: 'NEXO4001', message: expect.stringContaining("The module 'indexers' gives '[…]' no implementation") });
         });
     });
 
@@ -443,44 +443,44 @@ describe('the runtime codes', () => {
             return failureOf(text);
         };
 
-        it('LEXICA5012: a deferred access whose receiver\'s actual type lacks the member', () => {
-            expectLexicaError(holding(1, 'word.held.device'), 'LEXICA5012', 'evaluation');
+        it('NEXO5012: a deferred access whose receiver\'s actual type lacks the member', () => {
+            expectLexicaError(holding(1, 'word.held.device'), 'NEXO5012', 'evaluation');
         });
 
-        it('LEXICA5013: a deferred access whose selection would be a host call', () => {
-            expectLexicaError(holding('oat', '{ count = word.held.order(1) }'), 'LEXICA5013', 'evaluation');
+        it('NEXO5013: a deferred access whose selection would be a host call', () => {
+            expectLexicaError(holding('oat', '{ count = word.held.order(1) }'), 'NEXO5013', 'evaluation');
         });
 
-        it('LEXICA5021: a value of Any its parameter does not admit', () => {
-            expectLexicaError(holding('twice', 'word.repeat(word.held)'), 'LEXICA5021', 'evaluation');
+        it('NEXO5021: a value of Any its parameter does not admit', () => {
+            expectLexicaError(holding('twice', 'word.repeat(word.held)'), 'NEXO5021', 'evaluation');
         });
 
-        it('LEXICA5022: a direct access on null at a deferred access', () => {
-            expectLexicaError(holding({ inner: null }, 'word.held.inner.size'), 'LEXICA5022', 'evaluation');
+        it('NEXO5022: a direct access on null at a deferred access', () => {
+            expectLexicaError(holding({ inner: null }, 'word.held.inner.size'), 'NEXO5022', 'evaluation');
         });
 
-        it('LEXICA5024: an equality of values of types that fit neither way', () => {
-            expectLexicaError(holding(1, 'word.held == "oat"'), 'LEXICA5024', 'evaluation');
+        it('NEXO5024: an equality of values of types that fit neither way', () => {
+            expectLexicaError(holding(1, 'word.held == "oat"'), 'NEXO5024', 'evaluation');
         });
 
-        it('LEXICA5025: an equality of a list with a value that is not null', () => {
-            expectLexicaError(holding([1], 'word.held == word.held'), 'LEXICA5025', 'evaluation');
+        it('NEXO5025: an equality of a list with a value that is not null', () => {
+            expectLexicaError(holding([1], 'word.held == word.held'), 'NEXO5025', 'evaluation');
         });
 
-        it('LEXICA5028: a result holding a value of Any that is no data', () => {
-            expectLexicaError(holding(new Thermostat('heater'), 'word.held'), 'LEXICA5028', 'evaluation');
+        it('NEXO5028: a result holding a value of Any that is no data', () => {
+            expectLexicaError(holding(new Thermostat('heater'), 'word.held'), 'NEXO5028', 'evaluation');
         });
     });
 
     describe('the failure contract', () => {
-        it('makes an implementation\'s thrown error the cause of Lexica\'s own, exactly as thrown', () => {
+        it('makes an implementation\'s thrown error the cause of Nexo\'s own, exactly as thrown', () => {
             const thrown = new Error('no scale');
 
             behaviors = { size: () => { throw thrown; } };
 
             const failure = failureOf('word.size');
 
-            expectLexicaError(failure, 'LEXICA5007', 'evaluation');
+            expectLexicaError(failure, 'NEXO5007', 'evaluation');
             expect(failure.cause).toBe(thrown);
             expect(failure.location).toMatchObject({ pointer: '/expression' });
         });
@@ -491,25 +491,25 @@ describe('the runtime codes', () => {
 
                 const failure = failureOf('word.size');
 
-                expectLexicaError(failure, 'LEXICA5007', 'evaluation');
+                expectLexicaError(failure, 'NEXO5007', 'evaluation');
                 expect(Object.hasOwn(failure, 'cause')).toBe(true);
                 expect(failure.cause).toBe(thrown);
             }
         });
 
-        it('keeps a code the thrown value carries on it, never copied into Lexica\'s', () => {
+        it('keeps a code the thrown value carries on it, never copied into Nexo\'s', () => {
             const thrown = Object.assign(new Error('no scale'), { code: 'PANTRY0001' });
 
             behaviors = { size: () => { throw thrown; } };
 
             const failure = failureOf('word.size');
 
-            expect(failure.code).toBe('LEXICA5007');
+            expect(failure.code).toBe('NEXO5007');
             expect(failure.cause).toBe(thrown);
             expect(thrown.code).toBe('PANTRY0001');
         });
 
-        it('never wraps again a Lexica error an implementation lets through, as a nested evaluation\'s failure', () => {
+        it('never wraps again a Nexo error an implementation lets through, as a nested evaluation\'s failure', () => {
             const inner = evaluatorOf('1 / none', { none: 0 });
             const innerFailure = errorThrownBy(() => inner.evaluate());
 
@@ -517,7 +517,7 @@ describe('the runtime codes', () => {
 
             const failure = failureOf('word.size');
 
-            expectLexicaError(failure, 'LEXICA5005', 'evaluation');
+            expectLexicaError(failure, 'NEXO5005', 'evaluation');
             expect(failure.message).toBe(innerFailure.message);
             expect(failure.cause).toBeUndefined();
         });
@@ -531,18 +531,18 @@ describe('the runtime codes', () => {
             };
 
             behaviors = { size: () => { throw built; } };
-            expectWrapped(failureOf('word.size'), 'LEXICA5007');
+            expectWrapped(failureOf('word.size'), 'NEXO5007');
 
             behaviors = {};
-            expectWrapped(failureOf('word.size', undefined, { beforeInvoke: () => { throw built; } }), 'LEXICA5009');
-            expectWrapped(failureOf('word.size', undefined, { afterInvoke: () => { throw built; } }), 'LEXICA5009');
-            expectWrapped(failureOf('word.size', undefined, { afterEvaluation: () => { throw built; } }), 'LEXICA5009');
+            expectWrapped(failureOf('word.size', undefined, { beforeInvoke: () => { throw built; } }), 'NEXO5009');
+            expectWrapped(failureOf('word.size', undefined, { afterInvoke: () => { throw built; } }), 'NEXO5009');
+            expectWrapped(failureOf('word.size', undefined, { afterEvaluation: () => { throw built; } }), 'NEXO5009');
 
             behaviors = { convert: () => { throw built; } };
-            expectWrapped(failureOf('(word to Cup).size'), 'LEXICA5003');
+            expectWrapped(failureOf('(word to Cup).size'), 'NEXO5003');
         });
 
-        it('never wraps again a failure Lexica raised within a function given to a member, which the member lets through', () => {
+        it('never wraps again a failure Nexo raised within a function given to a member, which the member lets through', () => {
             let raised;
 
             behaviors = {
@@ -560,7 +560,7 @@ describe('the runtime codes', () => {
             const failure = failureOf('word.check(w => 1 / none > 0)', { word: 'oat', none: 0 });
 
             expect(failure).toBe(raised);
-            expectLexicaError(failure, 'LEXICA5005', 'evaluation');
+            expectLexicaError(failure, 'NEXO5005', 'evaluation');
             expect(failure.cause).toBeUndefined();
         });
 
@@ -579,52 +579,52 @@ describe('the runtime codes', () => {
 
             const failure = failureOf('word.check(w => 1 / none > 0)', { word: 'oat', none: 0 });
 
-            expectLexicaError(failure, 'LEXICA5007', 'evaluation');
+            expectLexicaError(failure, 'NEXO5007', 'evaluation');
             expect(failure.cause).toBe(thrown);
         });
 
-        it('never wraps again a Lexica error a conversion lets through, and makes anything else it throws the cause', () => {
+        it('never wraps again a Nexo error a conversion lets through, and makes anything else it throws the cause', () => {
             const inner = evaluatorOf('1 / none', { none: 0 });
 
             behaviors = { convert: () => inner.evaluate() };
 
-            expectLexicaError(failureOf('(word to Cup).size'), 'LEXICA5005', 'evaluation');
+            expectLexicaError(failureOf('(word to Cup).size'), 'NEXO5005', 'evaluation');
 
             behaviors = { convert: () => { throw 'no cups'; } };
 
             const failure = failureOf('(word to Cup).size');
 
-            expectLexicaError(failure, 'LEXICA5003', 'evaluation');
+            expectLexicaError(failure, 'NEXO5003', 'evaluation');
             expect(failure.cause).toBe('no cups');
         });
 
-        it('makes what a hook throws the cause of Lexica\'s own, exactly as thrown, an error, a value that is none, and one carrying a code', () => {
+        it('makes what a hook throws the cause of Nexo\'s own, exactly as thrown, an error, a value that is none, and one carrying a code', () => {
             behaviors = {};
 
             const refusal = Object.assign(new Error('refused'), { code: 'PANTRY0003' });
             const before = failureOf('word.size', undefined, { beforeInvoke: () => { throw refusal; } });
             const after = failureOf('word.size', undefined, { afterInvoke: () => { throw 'no record'; } });
 
-            expectLexicaError(before, 'LEXICA5009', 'evaluation');
+            expectLexicaError(before, 'NEXO5009', 'evaluation');
             expect(before.cause).toBe(refusal);
             expect(refusal.code).toBe('PANTRY0003');
             expect(before.location).toMatchObject({ pointer: '/expression' });
-            expectLexicaError(after, 'LEXICA5009', 'evaluation');
+            expectLexicaError(after, 'NEXO5009', 'evaluation');
             expect(after.cause).toBe('no record');
         });
 
-        it('fails a completed evaluation whose afterEvaluation throws with Lexica\'s own, and keeps a failed evaluation\'s failure, the cleanup failure recorded on it', () => {
+        it('fails a completed evaluation whose afterEvaluation throws with Nexo\'s own, and keeps a failed evaluation\'s failure, the cleanup failure recorded on it', () => {
             behaviors = {};
 
             const cleanup = new Error('no cleanup');
             const completed = failureOf('word.size', undefined, { afterEvaluation: () => { throw cleanup; } });
 
-            expectLexicaError(completed, 'LEXICA5009', 'evaluation');
+            expectLexicaError(completed, 'NEXO5009', 'evaluation');
             expect(completed.cause).toBe(cleanup);
 
             const failed = failureOf('1 / none', { none: 0 }, { afterEvaluation: () => { throw cleanup; } });
 
-            expectLexicaError(failed, 'LEXICA5005', 'evaluation');
+            expectLexicaError(failed, 'NEXO5005', 'evaluation');
             expect(failed.suppressed).toBe(cleanup);
         });
     });

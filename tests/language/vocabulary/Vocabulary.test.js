@@ -17,7 +17,7 @@ describe('Vocabulary', () => {
     /** How the registry writes each receiver the member is read on, and the member, as a message names it. */
     const writtenOf = member => `${registry.getReceiverTypes(member).join(' or ')}${member.name === undefined ? '[]' : `.${member.name}`}`;
 
-    /** The conversion operators of Lexica's own scalar types, each standing in the type it converts from. */
+    /** The conversion operators of Nexo's own scalar types, each standing in the type it converts from. */
     const conversions = Vocabulary.valueTypes.filter(type => type.kind === 'scalar').flatMap(type => type.members).filter(member => member.kind === 'operator');
 
     /** What the implementation of a conversion gives the value, or the reason it rejects it. */
@@ -29,8 +29,8 @@ describe('Vocabulary', () => {
         }
     };
 
-    it('is Lexica\'s own module, one module of its own name, each of its members and operators carrying its implementation', () => {
-        expect(module.name).toBe('Lexica');
+    it('is Nexo\'s own module, one module of its own name, each of its members and operators carrying its implementation', () => {
+        expect(module.name).toBe('Nexo');
         expect(module).toBe(Vocabulary.module);
         expect(conversions.every(operator => operator.kind === 'operator' && operator.name === 'convert' && typeof operator.impl === 'function')).toBe(true);
         expect([...list.members, ...nestedLists.members].every(member => typeof member.impl === 'function')).toBe(true);
@@ -53,7 +53,7 @@ describe('Vocabulary', () => {
     it('answers its own value types\' declarations through the registry\'s one lookup, whatever a type\'s arguments and nullability, and none for an extension', () => {
         expect(registry.getTypeDeclaration(Type.createListType(Type.createNamedType('Number'), true))).toBe(list);
         expect(registry.getTypeDeclaration(Type.createNamedType('String', true))).toBe(Vocabulary.getTypeDeclaration('String'));
-        expect(registry.getTypeDeclaration(Type.createNamedType('NestedListExtensions', false, 'Lexica'))).toBeUndefined();
+        expect(registry.getTypeDeclaration(Type.createNamedType('NestedListExtensions', false, 'Nexo'))).toBeUndefined();
     });
 
     it('declares the members of lists and the conversion operators of strings, numbers and Booleans, and nothing of any domain, a test of any receiver among it', () => {
@@ -64,7 +64,7 @@ describe('Vocabulary', () => {
             'List<T>.reverse', 'List<T>.toDictionary', 'List<T>.groupBy', 'List<T>.entry', 'List<T>.entry', 'List<T>.pick',
         ]);
         expect(Vocabulary.getTypeDeclaration('Dictionary').members.map(writtenOf)).toEqual(['Dictionary<K, V>.count', 'Dictionary<K, V>[]', 'Dictionary<K, V>.entry', 'Dictionary<K, V>.containsKey', 'Dictionary<K, V>.keys', 'Dictionary<K, V>.values', 'Dictionary<K, V>.entries', 'Dictionary<K, V>.where', 'Dictionary<K, V>.select']);
-        // A list of lists alone flattens, through an extension of Lexica's own value type its own declaration's receiver is too wide for.
+        // A list of lists alone flattens, through an extension of Nexo's own value type its own declaration's receiver is too wide for.
         expect(nestedLists).toMatchObject({ name: 'NestedListExtensions', kind: 'extension', typeParameters: ['T'], target: 'List<List<T>>' });
         expect(nestedLists.members.map(writtenOf)).toEqual(['List<List<T>>.flatten']);
         expect(Vocabulary.getTypeDeclaration('Pair').members.map(writtenOf)).toEqual(['Pair<K, V>.key', 'Pair<K, V>.value']);

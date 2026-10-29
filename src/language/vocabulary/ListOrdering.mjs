@@ -26,7 +26,7 @@ export class ListOrdering {
 
     /**
      * The items ordered by the key each gives, its expression evaluated once for each item, ascending or descending, a null key last either way, items of equal keys keeping their order; the answer keeps its
-     * keys, so `thenBy` refines it. A key of no domain, or keys of two, are refused (LEXICA5036).
+     * keys, so `thenBy` refines it. A key of no domain, or keys of two, are refused (NEXO5036).
      */
     static orderBy(list, keyOf, isDescending, memberName) {
         const keys = ListOrdering.#evaluateKeys(list, keyOf, memberName);
@@ -37,14 +37,14 @@ export class ListOrdering {
 
     /**
      * The items `orderBy` and any `thenBy` after it ordered, each run of items whose keys so far are equal ordered within itself by the key each gives, evaluated once for each item, ascending or descending, a null key
-     * last either way; items keep their place where their keys are equal, so the list is refined, never sorted again. A list no `orderBy` ordered is refused (LEXICA5037), and a key of no domain, or keys of two
-     * (LEXICA5036).
+     * last either way; items keep their place where their keys are equal, so the list is refined, never sorted again. A list no `orderBy` ordered is refused (NEXO5037), and a key of no domain, or keys of two
+     * (NEXO5036).
      */
     static thenBy(list, keyOf, isDescending, memberName) {
         const ordering = ListOrdering.#orderings.get(list);
 
         if (ordering === undefined) {
-            throw new MemberFailure('LEXICA5037', `'${memberName}' refines the order 'orderBy' gave a list, and this list was ordered by no 'orderBy': order it with 'orderBy' first, which a local or 'thenBy' keeps, and no other member does`);
+            throw new MemberFailure('NEXO5037', `'${memberName}' refines the order 'orderBy' gave a list, and this list was ordered by no 'orderBy': order it with 'orderBy' first, which a local or 'thenBy' keeps, and no other member does`);
         }
 
         const keys = ListOrdering.#evaluateKeys(list, keyOf, memberName);
@@ -66,7 +66,7 @@ export class ListOrdering {
         return ListOrdering.#createOrdered(list, order, order.map(index => Object.freeze([...ordering.#keys[index], keys[index]])));
     }
 
-    /** The first item whose key is the least, or the greatest, items whose key is null skipped, and null where none gives one; a key of no domain, or keys of two, are refused (LEXICA5036). */
+    /** The first item whose key is the least, or the greatest, items whose key is null skipped, and null where none gives one; a key of no domain, or keys of two, are refused (NEXO5036). */
     static findExtreme(list, keyOf, isGreatest, memberName) {
         const keys = ListOrdering.#evaluateKeys(list, keyOf, memberName);
         let best = -1;
@@ -111,13 +111,13 @@ export class ListOrdering {
             }
 
             if (!KEY_DOMAINS.includes(typeof key)) {
-                throw new MemberFailure('LEXICA5036', `'${memberName}' orders by numbers, strings or Booleans, and a key is ${ListOrdering.#describe(key)}`);
+                throw new MemberFailure('NEXO5036', `'${memberName}' orders by numbers, strings or Booleans, and a key is ${ListOrdering.#describe(key)}`);
             }
 
             domain ??= typeof key;
 
             if (typeof key !== domain) {
-                throw new MemberFailure('LEXICA5036', `'${memberName}' orders by keys of one domain, and its keys are ${domain}s and ${typeof key}s`);
+                throw new MemberFailure('NEXO5036', `'${memberName}' orders by keys of one domain, and its keys are ${domain}s and ${typeof key}s`);
             }
         }
 

@@ -65,7 +65,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses an indexer node holding a name, and a definition of version 32', () => {
-            const named = { version: 35, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
+            const named = { version: 36, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
 
             expect(errorThrownBy(() => lexica.validate(named))).toMatchObject({ kind: 'structure' });
             expect(errorThrownBy(() => lexica.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });
@@ -157,9 +157,9 @@ describe('indexers and computed properties', () => {
 
     describe('an unnamed indexer', () => {
         it('is named in a message as its access is written, brackets alone, a receiver known to be null\'s candidates among them', () => {
-            expect(refusalOf('pairs[true]', { pairs: new Map([['oat', 1]]) })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'key' of '[…]'") });
-            expect(refusalOf('words[true]', { words: ['oat'] })).toMatchObject({ code: 'LEXICA3084', message: expect.stringContaining('The unnamed indexer of List<String> takes Number, Index or Range, and is given Boolean') });
-            expect(refusalOf('nothing?[true]', { nothing: null })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'range' of '[…]' expects Range and finds Boolean") });
+            expect(refusalOf('pairs[true]', { pairs: new Map([['oat', 1]]) })).toMatchObject({ code: 'NEXO3042', message: expect.stringContaining("The argument 'key' of '[…]'") });
+            expect(refusalOf('words[true]', { words: ['oat'] })).toMatchObject({ code: 'NEXO3084', message: expect.stringContaining('The unnamed indexer of List<String> takes Number, Index or Range, and is given Boolean') });
+            expect(refusalOf('nothing?[true]', { nothing: null })).toMatchObject({ code: 'NEXO3042', message: expect.stringContaining("The argument 'range' of '[…]' expects Range and finds Boolean") });
         });
 
         it('indexes what the property before its brackets answers, where the receiver\'s type has no named indexer of that name', () => {
@@ -204,8 +204,8 @@ describe('indexers and computed properties', () => {
 
             expect(valueOf('{ direct = item.size, computed = item.[name] }', 3, bound)).toEqual({ direct: 3, computed: 3 });
             expect(valueOf('{ direct = item.cup, computed = item.[other] }', 3, bound)).toEqual({ direct: { volume: 2 }, computed: { volume: 2 } });
-            expect(errorThrownBy(() => valueOf('item.[name]', 'large', bound))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining("The member 'size' answered") });
-            expect(errorThrownBy(() => valueOf('item.size', 'large', bound))).toMatchObject({ code: 'LEXICA5006', message: expect.stringContaining("The member 'size' answered") });
+            expect(errorThrownBy(() => valueOf('item.[name]', 'large', bound))).toMatchObject({ code: 'NEXO5006', message: expect.stringContaining("The member 'size' answered") });
+            expect(errorThrownBy(() => valueOf('item.size', 'large', bound))).toMatchObject({ code: 'NEXO5006', message: expect.stringContaining("The member 'size' answered") });
         });
     });
 

@@ -6,7 +6,7 @@
 
 Brackets after a value read a property by a computed name, `it["climate"]`, so an indexer needs a syntax of its own: `device:setting["mode"]` for a named indexer and `rooms:[0]` for the default one. The colon is a form no reader expects, and the two most common uses read oddly: indexing a list, `rooms:[0]`, and reading a keyed member, `device:setting["mode"]`.
 
-C# has one syntax for an indexer, `x[k]`, and what it does depends on `x`'s type. Lexica can do the same, and keep both named indexers and properties by a computed name, by giving each form one job.
+C# has one syntax for an indexer, `x[k]`, and what it does depends on `x`'s type. Nexo can do the same, and keep both named indexers and properties by a computed name, by giving each form one job.
 
 ## The proposal
 
@@ -72,7 +72,7 @@ An optional access skips the rest of its chain where its receiver is null, its k
 
 `x[k]` calls the unnamed indexer of `x`'s static type, selected by owner precedence as a member is: the owner's indexer wins, one extension's applies where the owner declares none, and several are refused as ambiguous. A type with none refuses `x[k]`, and, where `k` is a string and `x` has a property it could name, the refusal gives the computed-property form, `x.[k]`.
 
-Lexica's own `List` declares its unnamed indexer, the item at an index counted from zero, so `rooms[0]` is the first room and `rooms?[i]` answers null for a null list; the named indexer `item` goes.
+Nexo's own `List` declares its unnamed indexer, the item at an index counted from zero, so `rooms[0]` is the first room and `rooms?[i]` answers null for a null list; the named indexer `item` goes.
 
 ### Properties by a computed name
 
@@ -100,4 +100,4 @@ A form these rules leave without a meaning is refused with the form that has one
 
 1. **A named indexer's optional form.** Optional brackets after a named indexer's name are accepted and add nothing, as [optional forms](#optional-forms) set out, so an optional enclosed access holding one expands as it does any other. The definition keeps the marker as written, since where the name resolves to a property, it skips indexing that property's null answer.
 2. **An unnamed indexer an extension declares.** An extension declares a type's unnamed indexer, selected by owner precedence as any member is, the owner's winning where it declares one; no other selection rule applies.
-3. **Several unnamed indexers told apart by their key's type,** as C# allows, are deferred. A type has one unnamed indexer, and Lexica has no union types, so one indexer accepting keys of two types waits with them.
+3. **Several unnamed indexers told apart by their key's type,** as C# allows, are deferred. A type has one unnamed indexer, and Nexo has no union types, so one indexer accepting keys of two types waits with them.

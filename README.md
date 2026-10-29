@@ -1,8 +1,8 @@
-# Lexica
+# Nexo
 
-Lexica is a general-purpose, embeddable language that evaluates scripts against what a host binds, through a vocabulary its modules declare for the domain, and produces immutable data.
+Nexo is a general-purpose, embeddable language that evaluates scripts against what a host binds, through a vocabulary its modules declare for the domain, and produces immutable data. It was named Lexica until language `1.0.0-alpha.38`.
 
-```lexica
+```nexo
 let shown = rows.where(it.visible)
 return {
     count = shown.count,
@@ -10,11 +10,11 @@ return {
 }
 ```
 
-> **Alpha.** Lexica implements language version `1.0.0-alpha.37` in part: definition version 35, its imports and extension access, its declarations, types and member selection, its collections, dictionaries, pairs, collection expressions, positions and ordering among them, structured values a script constructs or a host binds, the members of numbers and strings, resolutions that stay current across registrations, and its line structure and canonical text. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
+> **Alpha.** Nexo implements language version `1.0.0-alpha.38` in part: definition version 36, its imports and extension access, its declarations, types and member selection, its collections, dictionaries, pairs, collection expressions, positions and ordering among them, structured values a script constructs or a host binds, the members of numbers and strings, resolutions that stay current across registrations, and its line structure and canonical text. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
 
 ## Features
 
-### Language (`1.0.0-alpha.37`)
+### Language (`1.0.0-alpha.38`)
 
 - Typed vocabulary modules, declared as data, imported by the scripts that use them and reached through their namespaces
 - Object expressions and list projections that shape data, and construct a module's structured values where they are declared
@@ -28,7 +28,7 @@ return {
 
 ### Implementation (`1.0.0-alpha.37`)
 
-The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.37` in part.
+The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.38` in part.
 
 - Parse scripts into definitions, their imports and those a host supplies deciding their namespaces, validate definitions, and format either as canonical text
 - Locate any part of a definition in the text it was read from
@@ -52,15 +52,15 @@ resolution.type; // '{ total: Number }'
 resolution.createEvaluator(bindings).evaluate().value; // { total: 12 }
 ```
 
-[Embedding Lexica](https://github.com/FormaUI/Lexica/blob/main/docs/embedding-guide.md) goes on to declaring a domain, evaluating against it and following what an evaluation reads.
+[Embedding Nexo](https://github.com/FormaUI/Lexica/blob/main/docs/embedding-guide.md) goes on to declaring a domain, evaluating against it and following what an evaluation reads.
 
 ## Documents
 
 | Document | What it holds |
 | --- | --- |
 | [Specification](https://github.com/FormaUI/Lexica/blob/main/spec/README.md) | The language, its vocabulary contracts and its definition format: the contract |
-| [Guide](https://github.com/FormaUI/Lexica/blob/main/docs/embedding-guide.md) | Embedding Lexica in a host, by example |
-| [Design](https://github.com/FormaUI/Lexica/blob/main/docs/lexica-design.md) | How Lexica is built: its stages, modules, evaluation and tooling |
+| [Guide](https://github.com/FormaUI/Lexica/blob/main/docs/embedding-guide.md) | Embedding Nexo in a host, by example |
+| [Design](https://github.com/FormaUI/Lexica/blob/main/docs/nexo-design.md) | How Nexo is built: its stages, modules, evaluation and tooling |
 | [Status](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md) | What is implemented, what is being built, and what remains |
 | [Contributing](https://github.com/FormaUI/Lexica/blob/main/CONTRIBUTING.md) | Report a bug, develop a change and run the checks |
 
@@ -70,7 +70,7 @@ resolution.createEvaluator(bindings).evaluate().value; // { total: 12 }
 ./build.ps1
 ```
 
-The gate runs the tests, bundles Lexica, builds the NuGet package project with no warnings and checks its formatting. `./publish.ps1` runs it, then packs the npm and NuGet packages into `artifacts/`.
+The gate runs the tests, bundles Nexo, builds the NuGet package project with no warnings and checks its formatting. `./publish.ps1` runs it, then packs the npm and NuGet packages into `artifacts/`.
 
 ## License
 

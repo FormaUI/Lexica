@@ -1,5 +1,5 @@
 /**
- * Parser — a Lexica text read into its lossless syntax tree, which the lowering turns into its definition
+ * Parser — a Nexo text read into its lossless syntax tree, which the lowering turns into its definition
  */
 
 import { Imports } from './Imports.mjs';
@@ -95,7 +95,7 @@ export class Parser {
         const body = this.#parseBody();
 
         if (this.#token.type !== 'end') {
-            throw this.#createAfterBodyError('LEXICA1000', TOKEN_DESCRIPTIONS.end);
+            throw this.#createAfterBodyError('NEXO1000', TOKEN_DESCRIPTIONS.end);
         }
 
         const script = { kind: 'script', text: this.#text, children: [...declarations, body, this.#take()] };
@@ -110,7 +110,7 @@ export class Parser {
 
     /**
      * Reads an import declaration at the script's start: `import`, an alias and `=` where it gives one, and its source, a module's name and, where it imports one type, a dot and the type's local name, each any word. It imports
-     * nothing of Lexica's own (LEXICA1046), and gives no local name another import, written or supplied, gives a different declaration (LEXICA1048); line structure places it on a line of its own. It adds the import, in
+     * nothing of Nexo's own (NEXO1046), and gives no local name another import, written or supplied, gives a different declaration (NEXO1048); line structure places it on a line of its own. It adds the import, in
      * a definition's shape, to those read before it.
      */
     #parseImportDeclaration(imports) {
@@ -135,13 +135,13 @@ export class Parser {
         const entry = SyntaxTree.importOf(declaration, this.#text);
 
         if (entry.module === Names.lexicaModuleName) {
-            throw this.#createSyntaxError('LEXICA1046', "Lexica's own vocabulary is always available, so no script imports it or one of its types", moduleToken.start);
+            throw this.#createSyntaxError('NEXO1046', "Nexo's own vocabulary is always available, so no script imports it or one of its types", moduleToken.start);
         }
 
         const conflict = [...imports, ...this.#suppliedImports].find(other => Imports.localNameOf(other) === Imports.localNameOf(entry) && !Imports.isSameImport(other, entry));
 
         if (conflict !== undefined) {
-            throw this.#createSyntaxError('LEXICA1048', Imports.describeConflict([conflict, entry]), keyword.start);
+            throw this.#createSyntaxError('NEXO1048', Imports.describeConflict([conflict, entry]), keyword.start);
         }
 
         imports.push(entry);
@@ -152,7 +152,7 @@ export class Parser {
     /** Takes a word an import names a module, a type or an alias by, any word, a reserved one among them, refusing anything else as the description says what was expected. */
     #takeImportWord(expected) {
         if (!this.#isWord(this.#token)) {
-            throw this.#createUnexpectedTokenError('LEXICA1000', expected);
+            throw this.#createUnexpectedTokenError('NEXO1000', expected);
         }
 
         return this.#take();
@@ -182,7 +182,7 @@ export class Parser {
 
             // An expression alone is its body's result, so a `return` after it follows what no local holds.
             if (this.#isKeyword('return')) {
-                throw this.#createSyntaxError('LEXICA1031', "Only locals may precede a body's result.", start);
+                throw this.#createSyntaxError('NEXO1031', "Only locals may precede a body's result.", start);
             }
 
             return expression;
@@ -208,23 +208,23 @@ export class Parser {
                 this.#parseExpression();
 
                 if (this.#isKeyword('return')) {
-                    throw this.#createSyntaxError('LEXICA1031', "Only locals may precede a body's result.", start);
+                    throw this.#createSyntaxError('NEXO1031', "Only locals may precede a body's result.", start);
                 }
             }
 
-            throw this.#createSyntaxError('LEXICA1030', "Introduce the body's result with return.", start);
+            throw this.#createSyntaxError('NEXO1030', "Introduce the body's result with return.", start);
         }
 
         const returnKeyword = this.#take();
 
         if (this.#token.type === 'end' || this.#isKeyword('end') || this.#isKeyword('elseif') || this.#isKeyword('else')) {
-            throw this.#createSyntaxError('LEXICA1056', "'return' gives its body's result: write the value after it, as in 'return width'", returnKeyword.start);
+            throw this.#createSyntaxError('NEXO1056', "'return' gives its body's result: write the value after it, as in 'return width'", returnKeyword.start);
         }
 
         children.push(returnKeyword, this.#parseExpression());
 
         if (this.#isKeyword('let') || this.#isKeyword('return')) {
-            throw this.#createSyntaxError('LEXICA1055', "Nothing follows a body's result, which ends it", this.#token.start);
+            throw this.#createSyntaxError('NEXO1055', "Nothing follows a body's result, which ends it", this.#token.start);
         }
 
         return Parser.#node('body', children);
@@ -238,11 +238,11 @@ export class Parser {
         if (this.#token.type !== ')') {
             for (;;) {
                 if (this.#token.type === 'lexical-reference') {
-                    throw this.#createSyntaxError('LEXICA1008', `A parameter is declared as it is written, with no '@': write '${this.#token.value}'`, this.#token.start);
+                    throw this.#createSyntaxError('NEXO1008', `A parameter is declared as it is written, with no '@': write '${this.#token.value}'`, this.#token.start);
                 }
 
                 if (!this.#isWord(this.#token)) {
-                    throw this.#createUnexpectedTokenError('LEXICA1000', "a parameter's name");
+                    throw this.#createUnexpectedTokenError('NEXO1000', "a parameter's name");
                 }
 
                 children.push(this.#take());
@@ -255,20 +255,20 @@ export class Parser {
             }
 
             if (this.#token.type !== ')') {
-                throw this.#createUnexpectedTokenError('LEXICA1000', "',' before the next parameter, or ')' closing them");
+                throw this.#createUnexpectedTokenError('NEXO1000', "',' before the next parameter, or ')' closing them");
             }
         }
 
         children.push(this.#take());
 
         if (this.#isKeyword('end')) {
-            throw this.#createSyntaxError('LEXICA1511', "A function holds a body: write 'function(…) return … end' or the expression it gives", this.#token.start);
+            throw this.#createSyntaxError('NEXO1511', "A function holds a body: write 'function(…) return … end' or the expression it gives", this.#token.start);
         }
 
         children.push(this.#parseBody());
 
         if (!this.#isKeyword('end')) {
-            throw this.#createAfterBodyError('LEXICA1029', "'end' closing the function");
+            throw this.#createAfterBodyError('NEXO1029', "'end' closing the function");
         }
 
         children.push(this.#take());
@@ -332,7 +332,7 @@ export class Parser {
         children.push(this.#take(), this.#take());
 
         if (this.#isKeyword('let') || this.#isKeyword('return') || this.#isKeyword('function') || this.#startsArrowFunction()) {
-            throw this.#createSyntaxError('LEXICA1036', "An arrow function's body is a simple expression, which gives its result: a function that holds more is a regular function bound to a local, passed by its name", this.#token.start);
+            throw this.#createSyntaxError('NEXO1036', "An arrow function's body is a simple expression, which gives its result: a function that holds more is a regular function bound to a local, passed by its name", this.#token.start);
         }
 
         children.push(this.#parseExpression());
@@ -350,7 +350,7 @@ export class Parser {
     /** Refuses an optional enclosed access opening a call's parentheses: `(?` is one token, so the call's parenthesis cannot also open the access that is its argument. */
     #refuseEnclosedAccessArgument(token, written) {
         if (token.type === '(?' && !token.spaced) {
-            throw this.#createSyntaxError('LEXICA1015', `A call whose argument is an optional enclosed access writes it in parentheses of its own: '${written}((?…))'`, token.start);
+            throw this.#createSyntaxError('NEXO1015', `A call whose argument is an optional enclosed access writes it in parentheses of its own: '${written}((?…))'`, token.start);
         }
     }
 
@@ -366,11 +366,11 @@ export class Parser {
                 if (this.#startsNamedArgument()) {
                     const options = isMember ? `; a member that takes options is given them as the object fields of an object, as { ${this.#token.value} = … }` : '';
 
-                    throw this.#createSyntaxError('LEXICA1012', `An argument is written as its value alone, as '${written}(…)' takes it${options}`, this.#token.start);
+                    throw this.#createSyntaxError('NEXO1012', `An argument is written as its value alone, as '${written}(…)' takes it${options}`, this.#token.start);
                 }
 
                 if (this.#isKeyword('function')) {
-                    throw this.#createSyntaxError('LEXICA1035', "A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.", this.#token.start);
+                    throw this.#createSyntaxError('NEXO1035', "A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.", this.#token.start);
                 }
 
                 children.push(this.#startsArrowFunction() ? this.#parseArrowFunction() : this.#parseExpression());
@@ -383,7 +383,7 @@ export class Parser {
             }
 
             if (this.#token.type !== ')') {
-                throw this.#createUnexpectedTokenError('LEXICA1000', "',' before the next argument, or ')' closing them");
+                throw this.#createUnexpectedTokenError('NEXO1000', "',' before the next argument, or ')' closing them");
             }
         }
 
@@ -397,13 +397,13 @@ export class Parser {
         const doKeyword = this.#take();
 
         if (this.#isKeyword('end')) {
-            throw this.#createSyntaxError('LEXICA1511', "A do block holds a body: write 'do return … end'", this.#token.start);
+            throw this.#createSyntaxError('NEXO1511', "A do block holds a body: write 'do return … end'", this.#token.start);
         }
 
         const body = this.#parseBody();
 
         if (!this.#isKeyword('end')) {
-            throw this.#createAfterBodyError('LEXICA1029', "'end' closing the do block");
+            throw this.#createAfterBodyError('NEXO1029', "'end' closing the do block");
         }
 
         const node = Parser.#node('do-expression', [doKeyword, body, this.#take()]);
@@ -427,24 +427,24 @@ export class Parser {
 
     /**
      * Reads a range: its start, the position read before its `..` or none, its `..`, and its end where a position follows. A boundary is an arithmetic negation, a group making any operator expression one, so an
-     * ungrouped operator expression is no boundary (LEXICA1069), and a range is no range's boundary (LEXICA1070).
+     * ungrouped operator expression is no boundary (NEXO1069), and a range is no range's boundary (NEXO1070).
      */
     #parseRange(start) {
         if (start !== null && OPERATOR_KINDS.has(start.kind)) {
             const written = this.#text.slice(SyntaxTree.startOf(start), SyntaxTree.endOf(start));
 
-            throw this.#createSyntaxError('LEXICA1069', `A range's boundary is a position, a number or an index, never an operator expression: write '(${written})..' to bound it by its value`, SyntaxTree.startOf(start));
+            throw this.#createSyntaxError('NEXO1069', `A range's boundary is a position, a number or an index, never an operator expression: write '(${written})..' to bound it by its value`, SyntaxTree.startOf(start));
         }
 
         const dots = this.#take();
         const end = BOUNDARY_STARTS.has(this.#token.type) || this.#isKeyword('try') ? this.#parseArithmeticNegation() : null;
 
         if (end !== null && OPERATOR_TOKENS.has(this.#token.type)) {
-            throw this.#createSyntaxError('LEXICA1069', `A range's boundary is a position, a number or an index, never an operator expression: group its end, as ..(…)`, SyntaxTree.startOf(end));
+            throw this.#createSyntaxError('NEXO1069', `A range's boundary is a position, a number or an index, never an operator expression: group its end, as ..(…)`, SyntaxTree.startOf(end));
         }
 
         if (this.#token.type === '..') {
-            throw this.#createSyntaxError('LEXICA1070', "A range has two boundaries, and is no range's boundary: write one range, or group one as a value", this.#token.start);
+            throw this.#createSyntaxError('NEXO1070', "A range has two boundaries, and is no range's boundary: write one range, or group one as a value", this.#token.start);
         }
 
         return Parser.#node('range-expression', [...(start === null ? [] : [start]), dots, ...(end === null ? [] : [end])]);
@@ -466,7 +466,7 @@ export class Parser {
         const operand = this.#parseAndOperand();
 
         if (this.#ungroupedCoalescings.has(operand)) {
-            throw this.#createSyntaxError('LEXICA1021', "'??' and 'not' stand apart, one of them grouped: write 'not (… ?? …)' or '(not …) ?? …'", SyntaxTree.startOf(operand));
+            throw this.#createSyntaxError('NEXO1021', "'??' and 'not' stand apart, one of them grouped: write 'not (… ?? …)' or '(not …) ?? …'", SyntaxTree.startOf(operand));
         }
 
         return Parser.#node('negation', [notKeyword, operand]);
@@ -481,13 +481,13 @@ export class Parser {
 
         for (;;) {
             if (this.#isKeyword('if')) {
-                throw this.#createSyntaxError('LEXICA1027', 'A conditional that is a condition is enclosed in parentheses: write if (if … then … else … end) then …', this.#token.start);
+                throw this.#createSyntaxError('NEXO1027', 'A conditional that is a condition is enclosed in parentheses: write if (if … then … else … end) then …', this.#token.start);
             }
 
             children.push(this.#isKeyword('let') ? this.#parseConditionalBinding() : this.#parseSimpleValueExpression());
 
             if (!this.#isKeyword('then')) {
-                throw this.#createUnexpectedTokenError('LEXICA1000', "'then' after the condition");
+                throw this.#createUnexpectedTokenError('NEXO1000', "'then' after the condition");
             }
 
             const thenKeyword = this.#take();
@@ -506,7 +506,7 @@ export class Parser {
                 branches.push(alternative);
 
                 if (!this.#isKeyword('end')) {
-                    throw this.#createAfterBodyError('LEXICA1029', "'end' closing the conditional");
+                    throw this.#createAfterBodyError('NEXO1029', "'end' closing the conditional");
                 }
 
                 // Every branch of one conditional gives its result with `return`, or none does; an `else` whose expression is a conditional, `else if … end`, follows branches of expressions in either style, and branches that return in theirs, as an `elseif` would.
@@ -517,7 +517,7 @@ export class Parser {
                 const differing = branches.find(branch => !fits(branch));
 
                 if (differing !== undefined) {
-                    throw this.#createSyntaxError('LEXICA1054', 'All branches of this conditional must give their results with return, or none of them', SyntaxTree.startOf(isExplicit(differing) ? branches[0] : differing));
+                    throw this.#createSyntaxError('NEXO1054', 'All branches of this conditional must give their results with return, or none of them', SyntaxTree.startOf(isExplicit(differing) ? branches[0] : differing));
                 }
 
                 children.push(this.#take());
@@ -525,7 +525,7 @@ export class Parser {
 
                 return Parser.#node('conditional-expression', children);
             } else {
-                throw this.#createAfterBodyError('LEXICA1505', "'elseif' or 'else', which every conditional ends with");
+                throw this.#createAfterBodyError('NEXO1505', "'elseif' or 'else', which every conditional ends with");
             }
         }
     }
@@ -535,7 +535,7 @@ export class Parser {
         const letKeyword = this.#take();
 
         if (!this.#startsEntry()) {
-            this.#refuseName('LEXICA1051', 'A conditional binding takes its value after =', 'A conditional binding is written with let, its name and = before its value, as if let mode = it.setting["mode"] then …', 'if let ');
+            this.#refuseName('NEXO1051', 'A conditional binding takes its value after =', 'A conditional binding is written with let, its name and = before its value, as if let mode = it.setting["mode"] then …', 'if let ');
         }
 
         return Parser.#node('conditional-binding', [letKeyword, this.#take(), this.#take(), this.#parseSimpleValueExpression()]);
@@ -570,15 +570,15 @@ export class Parser {
         const equality = Parser.#node('equality', [left, operator, this.#parseAdditive()]);
 
         if (this.#token.type === '??') {
-            throw this.#createSyntaxError('LEXICA1021', `'??' and '${operator.type}' stand apart, one of them grouped: write '(… ${operator.type} …) ?? …' or '… ${operator.type} (… ?? …)'`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1021', `'??' and '${operator.type}' stand apart, one of them grouped: write '(… ${operator.type} …) ?? …' or '… ${operator.type} (… ?? …)'`, this.#token.start);
         }
 
         if (this.#isEqualityOperator()) {
-            throw this.#createSyntaxError('LEXICA1020', "An equality compares two values and does not chain: write '(… == …) == …' to compare its result", this.#token.start);
+            throw this.#createSyntaxError('NEXO1020', "An equality compares two values and does not chain: write '(… == …) == …' to compare its result", this.#token.start);
         }
 
         if (this.#isComparisonOperator()) {
-            throw this.#createSyntaxError('LEXICA1052', Parser.#apartMessage(operator.type, this.#token.type), this.#token.start);
+            throw this.#createSyntaxError('NEXO1052', Parser.#apartMessage(operator.type, this.#token.type), this.#token.start);
         }
 
         return equality;
@@ -596,7 +596,7 @@ export class Parser {
             if (COMPARISON_DIRECTIONS[this.#token.type] !== direction) {
                 const previous = children.at(-2).type;
 
-                throw this.#createSyntaxError('LEXICA1019', `A comparison chain keeps one direction, and '${this.#token.type}' turns it from '${previous}': join two comparisons with 'and', as in 'a ${previous} b and b ${this.#token.type} c'`, this.#token.start);
+                throw this.#createSyntaxError('NEXO1019', `A comparison chain keeps one direction, and '${this.#token.type}' turns it from '${previous}': join two comparisons with 'and', as in 'a ${previous} b and b ${this.#token.type} c'`, this.#token.start);
             }
 
             children.push(this.#take());
@@ -607,7 +607,7 @@ export class Parser {
         const operator = children[1].type;
 
         if (this.#token.type === '??' || this.#isEqualityOperator()) {
-            throw this.#createSyntaxError(this.#token.type === '??' ? 'LEXICA1021' : 'LEXICA1052', Parser.#apartMessage(operator, this.#token.type), this.#token.start);
+            throw this.#createSyntaxError(this.#token.type === '??' ? 'NEXO1021' : 'NEXO1052', Parser.#apartMessage(operator, this.#token.type), this.#token.start);
         }
 
         return Parser.#node('comparison', children);
@@ -636,21 +636,21 @@ export class Parser {
         const tryKeyword = this.#take();
 
         if (this.#isKeyword('try')) {
-            throw this.#createSyntaxError('LEXICA1022', "'try' attempts a conversion or a cast, and no other attempt: write 'try … to type' or 'try … as type'", this.#token.start);
+            throw this.#createSyntaxError('NEXO1022', "'try' attempts a conversion or a cast, and no other attempt: write 'try … to type' or 'try … as type'", this.#token.start);
         }
 
         const operation = this.#parseEqualityOperand();
         const kind = Parser.#syntaxKindOf(operation);
 
         if (kind !== 'conversion' && kind !== 'cast') {
-            throw this.#createSyntaxError('LEXICA1022', "'try' attempts a conversion or a cast: write 'try … to type' or 'try … as type'", start);
+            throw this.#createSyntaxError('NEXO1022', "'try' attempts a conversion or a cast: write 'try … to type' or 'try … as type'", start);
         }
 
         if (this.#chainedConversions.has(operation)) {
             const [target] = operation.children;
             const inner = `${target.kind === 'cast' ? 'as' : 'to'} ${SyntaxTree.typeNameOf(target.children[2], this.#text)}`;
 
-            throw this.#createSyntaxError('LEXICA1022', `'try' attempts one operation: group the value it converts, as in 'try (… ${inner}) to ${SyntaxTree.typeNameOf(operation.children[2], this.#text)}'`, start);
+            throw this.#createSyntaxError('NEXO1022', `'try' attempts one operation: group the value it converts, as in 'try (… ${inner}) to ${SyntaxTree.typeNameOf(operation.children[2], this.#text)}'`, start);
         }
 
         return Parser.#node('attempt', [tryKeyword, operation]);
@@ -659,23 +659,23 @@ export class Parser {
     /** Refuses what an equality operand cannot start with: an equality or a comparison operator, which compares the value written before it, and a conditional, which is grouped where it is an operand. */
     #refuseOperandStart(start) {
         if (this.#isEqualityOperator() || this.#isComparisonOperator()) {
-            throw this.#createSyntaxError('LEXICA1013', `'${this.#token.type}' compares the value written before it: write 'it ${this.#token.type} …' to compare the implicit parameter`, start);
+            throw this.#createSyntaxError('NEXO1013', `'${this.#token.type}' compares the value written before it: write 'it ${this.#token.type} …' to compare the implicit parameter`, start);
         }
 
         if (this.#isKeyword('if')) {
-            throw this.#createSyntaxError('LEXICA1027', 'A conditional that is an operand is enclosed in parentheses: write (if … then … else … end)', start);
+            throw this.#createSyntaxError('NEXO1027', 'A conditional that is an operand is enclosed in parentheses: write (if … then … else … end)', start);
         }
 
         if (this.#isKeyword('do')) {
-            throw this.#createSyntaxError('LEXICA1027', 'A do block that is an operand is enclosed in parentheses: write (do … end)', start);
+            throw this.#createSyntaxError('NEXO1027', 'A do block that is an operand is enclosed in parentheses: write (do … end)', start);
         }
 
         if (this.#isKeyword('function')) {
-            throw this.#createSyntaxError('LEXICA1034', 'A function is the value of a local: write let name = function(…) … end, and call it by its name', start);
+            throw this.#createSyntaxError('NEXO1034', 'A function is the value of a local: write let name = function(…) … end, and call it by its name', start);
         }
 
         if (this.#startsArrowFunction()) {
-            throw this.#createSyntaxError('LEXICA1057', 'An arrow function is the value of a local or an argument: write let name = … => …, or pass it to a call', start);
+            throw this.#createSyntaxError('NEXO1057', 'An arrow function is the value of a local or an argument: write let name = … => …, or pass it to a call', start);
         }
     }
 
@@ -687,7 +687,7 @@ export class Parser {
         const fallbackStart = this.#token.start;
 
         if (this.#isKeyword('not')) {
-            throw this.#createSyntaxError('LEXICA1021', "'??' and 'not' stand apart, one of them grouped: write '… ?? (not …)'", fallbackStart);
+            throw this.#createSyntaxError('NEXO1021', "'??' and 'not' stand apart, one of them grouped: write '… ?? (not …)'", fallbackStart);
         }
 
         this.#refuseOperandStart(fallbackStart);
@@ -699,7 +699,7 @@ export class Parser {
         const fallback = this.#token.type === '??' ? this.#parseCoalescingOperator(fallbackValue) : fallbackValue;
 
         if (this.#isEqualityOperator() || this.#isComparisonOperator()) {
-            throw this.#createSyntaxError('LEXICA1021', Parser.#apartMessage('??', this.#token.type), this.#token.start);
+            throw this.#createSyntaxError('NEXO1021', Parser.#apartMessage('??', this.#token.type), this.#token.start);
         }
 
         const node = Parser.#node('coalescing', [value, operator, fallback]);
@@ -718,7 +718,7 @@ export class Parser {
         const operator = side.children[1].type;
         const grouped = isValue ? `'(… ${operator} …) ?? …' or '… ${operator} (… ?? …)'` : `'(… ?? …) ${operator} …' or '… ?? (… ${operator} …)'`;
 
-        throw this.#createSyntaxError('LEXICA1021', `'??' and '${operator}' stand apart, one of them grouped: write ${grouped}`, side.children[1].start);
+        throw this.#createSyntaxError('NEXO1021', `'??' and '${operator}' stand apart, one of them grouped: write ${grouped}`, side.children[1].start);
     }
 
     /** Reads an additive expression: multiplicative expressions joined by `+` and `-`, left to right; the one alone where none follows. */
@@ -818,7 +818,7 @@ export class Parser {
         }
 
         if (this.#tokens[this.#index + 1].type === '=') {
-            throw this.#createUnexpectedTokenError('LEXICA1000', "',' before the next object field");
+            throw this.#createUnexpectedTokenError('NEXO1000', "',' before the next object field");
         }
 
         const written = this.#text.slice(start, this.#tokens[this.#index - 1].end);
@@ -828,7 +828,7 @@ export class Parser {
         const next = this.#tokens[this.#index + 1];
         const arguments_ = next.type === '(' || next.type === '{' || ARGUMENT_STARTS.has(next.type) ? '(…)' : '';
 
-        throw this.#createSyntaxError('LEXICA1011', `A member follows its receiver after a dot: write '${receiver}.${this.#token.value}${arguments_}'`, this.#token.start);
+        throw this.#createSyntaxError('NEXO1011', `A member follows its receiver after a dot: write '${receiver}.${this.#token.value}${arguments_}'`, this.#token.start);
     }
 
     /** Whether the keyword `to` and a type's name stand here, which only a conversion writes, after the value it converts, or a string written in the name's place. */
@@ -846,11 +846,11 @@ export class Parser {
         const name = SyntaxTree.typeNameOf(typeName, this.#text);
 
         if (this.#continuesChain()) {
-            throw this.#createSyntaxError('LEXICA1501', `A conversion ends its chain; group it to continue from its result, as in '(… to ${name}).value'`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1501', `A conversion ends its chain; group it to continue from its result, as in '(… to ${name}).value'`, this.#token.start);
         }
 
         if (this.#isKeyword('as')) {
-            throw this.#createSyntaxError('LEXICA1025', `A conversion's result is cast only in a group: write '(… to ${name}) as …'`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1025', `A conversion's result is cast only in a group: write '(… to ${name}) as …'`, this.#token.start);
         }
 
         return node;
@@ -866,11 +866,11 @@ export class Parser {
         if (token.type === 'literal' && typeof token.value === 'string') {
             const bare = Names.isIdentifier(token.value) ? token.value : example;
 
-            throw this.#createSyntaxError('LEXICA1026', `'${keyword}' names the type it ${what} bare, as a member's name is written: write '${keyword} ${bare}'`, token.start);
+            throw this.#createSyntaxError('NEXO1026', `'${keyword}' names the type it ${what} bare, as a member's name is written: write '${keyword} ${bare}'`, token.start);
         }
 
         if (!this.#isWord(token)) {
-            throw this.#createUnexpectedTokenError('LEXICA1000', `the name of the type it ${what}, as in ${keyword} ${example}`);
+            throw this.#createUnexpectedTokenError('NEXO1000', `the name of the type it ${what}, as in ${keyword} ${example}`);
         }
 
         const name = this.#take();
@@ -882,7 +882,7 @@ export class Parser {
         const dot = this.#take();
 
         if (!this.#isWord(this.#token)) {
-            throw this.#createUnexpectedTokenError('LEXICA1000', `the name of the type '${SyntaxTree.wordOf(name, this.#text)}' declares, as in ${keyword} ${SyntaxTree.wordOf(name, this.#text)}.${example}`);
+            throw this.#createUnexpectedTokenError('NEXO1000', `the name of the type '${SyntaxTree.wordOf(name, this.#text)}' declares, as in ${keyword} ${SyntaxTree.wordOf(name, this.#text)}.${example}`);
         }
 
         return Parser.#node('type-name', [name, dot, this.#take()]);
@@ -929,11 +929,11 @@ export class Parser {
             || (chain.inputKind === 'optional-enclosed-access' && !chain.isContinued));
 
         if (chain.inputKind === 'parenthesized-expression' && chain.groupedKind === 'attempt' && !chain.isContinued) {
-            throw this.#createSyntaxError('LEXICA1023', "An attempt is no cast's target: cast what it attempts, or attempt the cast, as in 'try a as Light'", start);
+            throw this.#createSyntaxError('NEXO1023', "An attempt is no cast's target: cast what it attempts, or attempt the cast, as in 'try a as Light'", start);
         }
 
         if (!isTarget) {
-            throw this.#createSyntaxError('LEXICA1025', `A cast's target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and this is none of them`, start);
+            throw this.#createSyntaxError('NEXO1025', `A cast's target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and this is none of them`, start);
         }
 
         return this.#parseCast(target);
@@ -947,11 +947,11 @@ export class Parser {
         const name = SyntaxTree.typeNameOf(typeName, this.#text);
 
         if (this.#continuesChain()) {
-            throw this.#createSyntaxError('LEXICA1053', `A cast continues a chain only from a group: write '(… as ${name})…'`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1053', `A cast continues a chain only from a group: write '(… as ${name})…'`, this.#token.start);
         }
 
         if (this.#isKeyword('as')) {
-            throw this.#createSyntaxError('LEXICA1024', `A cast's target holds a cast only in a group: write '(… as ${name}) as …'`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1024', `A cast's target holds a cast only in a group: write '(… as ${name}) as …'`, this.#token.start);
         }
 
         return node;
@@ -983,11 +983,11 @@ export class Parser {
         const { children, accessCount } = this.#parseMemberExpressions(this.#parseReceiver());
 
         if (accessCount === 0) {
-            throw this.#createSyntaxError('LEXICA1016', 'An optional enclosed access holds a receiver and at least one access after it, as (?room.device(name).brightness)', this.#token.start);
+            throw this.#createSyntaxError('NEXO1016', 'An optional enclosed access holds a receiver and at least one access after it, as (?room.device(name).brightness)', this.#token.start);
         }
 
         if (this.#token.type !== ')') {
-            throw this.#createUnexpectedTokenError('LEXICA1016', "')' closing the optional enclosed access, which holds accesses and calls alone");
+            throw this.#createUnexpectedTokenError('NEXO1016', "')' closing the optional enclosed access, which holds accesses and calls alone");
         }
 
         return Parser.#node('optional-enclosed-access', [open, Parser.#node('member-chain', children), this.#take()]);
@@ -996,7 +996,7 @@ export class Parser {
     /** Reads a receiver within an optional enclosed access: an input, or a grouped cast, its own target's accesses optional as the enclosed access's are, where its target is no group that keeps its own rules. */
     #parseReceiver() {
         if (this.#token.type === '(?') {
-            throw this.#createSyntaxError('LEXICA1502', 'The receiver of an optional enclosed access is an input or a grouped cast, and no other optional enclosed access, as in (?room.device(name).brightness)', this.#token.start);
+            throw this.#createSyntaxError('NEXO1502', 'The receiver of an optional enclosed access is an input or a grouped cast, and no other optional enclosed access, as in (?room.device(name).brightness)', this.#token.start);
         }
 
         if (this.#token.type !== '(') {
@@ -1007,7 +1007,7 @@ export class Parser {
         const target = this.#parseCastTarget(this.#token.start);
 
         if (!this.#isKeyword('as')) {
-            throw this.#createSyntaxError('LEXICA1502', 'A group as the receiver of an optional enclosed access holds a cast, as in (?(room.device(name) as Light).brightness)', this.#token.start);
+            throw this.#createSyntaxError('NEXO1502', 'A group as the receiver of an optional enclosed access holds a cast, as in (?(room.device(name) as Light).brightness)', this.#token.start);
         }
 
         const cast = this.#parseCast(target);
@@ -1023,11 +1023,11 @@ export class Parser {
         if (this.#token.type === '(?' || (this.#token.type === '(' && !this.#groupHoldsCast())) {
             const target = this.#parseChainInput();
             if (Parser.#syntaxKindOf(target) !== 'coalescing' && !Parser.#lowersToOptionalChain(target)) {
-                throw this.#createSyntaxError('LEXICA1025', `A cast's target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and this is none of them`, start);
+                throw this.#createSyntaxError('NEXO1025', `A cast's target is a receiver and the members after it, a coalescing operator in parentheses, or an optional enclosed access, and this is none of them`, start);
             }
 
             if (this.#continuesChain() && this.#token.type !== '{') {
-                throw this.#createSyntaxError('LEXICA1025', 'A grouped target is cast as it is, with nothing after it but its cast, as in ((preferred ?? fallback) as Light)', this.#token.start);
+                throw this.#createSyntaxError('NEXO1025', 'A grouped target is cast as it is, with nothing after it but its cast, as in ((preferred ?? fallback) as Light)', this.#token.start);
             }
 
             return target;
@@ -1106,7 +1106,7 @@ export class Parser {
         const next = this.#tokens[this.#index + 1];
 
         if (this.#startsConversion()) {
-            throw this.#createSyntaxError('LEXICA1010', `'to' converts the value written before it: write 'it to ${this.#text.slice(next.start, next.end)}' to convert the implicit parameter`, token.start);
+            throw this.#createSyntaxError('NEXO1010', `'to' converts the value written before it: write 'it to ${this.#text.slice(next.start, next.end)}' to convert the implicit parameter`, token.start);
         }
 
         if (token.type === 'identifier' && this.#namespaceNames.has(token.value)) {
@@ -1124,7 +1124,7 @@ export class Parser {
             }
 
             if (token.type === 'identifier' && next.spaced && ARGUMENT_STARTS.has(next.type)) {
-                throw this.#createSyntaxError('LEXICA1503', `'${token.value}' follows no receiver: write 'it.${token.value}(…)' for a member of the implicit parameter`, token.start);
+                throw this.#createSyntaxError('NEXO1503', `'${token.value}' follows no receiver: write 'it.${token.value}(…)' for a member of the implicit parameter`, token.start);
             }
         }
 
@@ -1143,7 +1143,7 @@ export class Parser {
                 return this.#parseInterpolatedString();
             case 'keyword':
                 if (token.value === 'import') {
-                    throw this.#createSyntaxError('LEXICA1045', "Imports stand at the start of the script, before the first local or expression of its body", token.start);
+                    throw this.#createSyntaxError('NEXO1045', "Imports stand at the start of the script, before the first local or expression of its body", token.start);
                 }
 
                 if (!STRUCTURAL_KEYWORDS.has(token.value)) {
@@ -1152,12 +1152,12 @@ export class Parser {
                     // A keyword an import gives a module as its local name reads that namespace after `@` where no local of its name is in scope.
                     const binding = this.#namespaceNames.has(token.value) ? `, or, where none is in scope, the namespace the script's import gives that name` : '';
 
-                    throw this.#createSyntaxError(declares ? 'LEXICA1032' : 'LEXICA1010', `Found '${token.value}', a keyword: write '@${token.value}' for the local, object field, conditional binding or function parameter of that name${binding}`, token.start);
+                    throw this.#createSyntaxError(declares ? 'NEXO1032' : 'NEXO1010', `Found '${token.value}', a keyword: write '@${token.value}' for the local, object field, conditional binding or function parameter of that name${binding}`, token.start);
                 }
 
-                throw this.#createUnexpectedTokenError('LEXICA1010', 'a value');
+                throw this.#createUnexpectedTokenError('NEXO1010', 'a value');
             default:
-                throw this.#createUnexpectedTokenError('LEXICA1000', 'a value');
+                throw this.#createUnexpectedTokenError('NEXO1000', 'a value');
         }
     }
 
@@ -1173,13 +1173,13 @@ export class Parser {
             const isOptional = this.#token.type === '?.';
             const access = isOptional ? `A namespace is never null, so its members are read after '.': write '${name}.…'` : `'${name}' is the namespace of the module the script imports under that name, whose members are read after a dot, as ${name}.member`;
 
-            throw this.#createSyntaxError('LEXICA1506', `${access}; write '@${name}' for the local, object field, conditional binding or function parameter of that name, or '~${name}' for the script parameter`, isOptional ? this.#token.start : namespaceName.start);
+            throw this.#createSyntaxError('NEXO1506', `${access}; write '@${name}' for the local, object field, conditional binding or function parameter of that name, or '~${name}' for the script parameter`, isOptional ? this.#token.start : namespaceName.start);
         }
 
         const dot = this.#take();
 
         if (this.#token.type === 'lexical-reference') {
-            throw this.#createSyntaxError('LEXICA1008', `A member is named as it is written after its dot, with no '@': write '${name}.${this.#token.value}'`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1008', `A member is named as it is written after its dot, with no '@': write '${name}.${this.#token.value}'`, this.#token.start);
         }
 
         const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('identifier');
@@ -1211,7 +1211,7 @@ export class Parser {
 
                     return Parser.#node('interpolated-string', children);
                 default:
-                    throw this.#createUnexpectedTokenError('LEXICA1000', `'"' closing the interpolated string`);
+                    throw this.#createUnexpectedTokenError('NEXO1000', `'"' closing the interpolated string`);
             }
         }
     }
@@ -1221,13 +1221,13 @@ export class Parser {
         const open = this.#take();
 
         if (this.#token.type === 'interpolation-end') {
-            throw this.#createSyntaxError('LEXICA1039', "An interpolation holds an expression between '{' and '}'", open.start);
+            throw this.#createSyntaxError('NEXO1039', "An interpolation holds an expression between '{' and '}'", open.start);
         }
 
         const expression = this.#parseExpression();
 
         if (this.#token.type !== 'interpolation-end') {
-            throw this.#createUnexpectedTokenError('LEXICA1000', "'}' closing the interpolation");
+            throw this.#createUnexpectedTokenError('NEXO1000', "'}' closing the interpolation");
         }
 
         return Parser.#node('interpolation', [open, expression, this.#take()]);
@@ -1236,7 +1236,7 @@ export class Parser {
     /** Refuses a chain continuing from the conditional or the do block of the kind just read, grouped or not, whose value is no receiver: a local holds it first. */
     #refuseChainFrom(kind) {
         if ((kind === 'conditional-expression' || kind === 'do-expression') && this.#continuesChain()) {
-            throw this.#createSyntaxError('LEXICA1028', `${kind === 'do-expression' ? 'A do block' : 'A conditional'} is never the receiver of a chain: bind its value to a local first, and continue from the local`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1028', `${kind === 'do-expression' ? 'A do block' : 'A conditional'} is never the receiver of a chain: bind its value to a local first, and continue from the local`, this.#token.start);
         }
     }
 
@@ -1253,13 +1253,13 @@ export class Parser {
         const open = this.#take();
 
         if (this.#token.type === ']') {
-            throw this.#createSyntaxError('LEXICA1017', 'An indexer takes one key in its brackets', this.#token.start);
+            throw this.#createSyntaxError('NEXO1017', 'An indexer takes one key in its brackets', this.#token.start);
         }
 
         const key = this.#parseExpression();
 
         if (this.#token.type === ',') {
-            throw this.#createSyntaxError('LEXICA1017', 'An indexer takes one key', this.#token.start);
+            throw this.#createSyntaxError('NEXO1017', 'An indexer takes one key', this.#token.start);
         }
 
         return Parser.#node('indexer', [open, key, this.#expect(']')]);
@@ -1268,7 +1268,7 @@ export class Parser {
     /**
      * Reads an extension access: `:`, or `?:` where it is optional, the extension's name, qualified where its first word is a name the script's imports give a module and a dot and a word follow it, and the one member
      * operation the extension supplies, a dot property access or a member call after its dot, or an indexer's key in brackets. A colon brackets follow directly names no extension, so it gives the unnamed indexer and the
-     * computed property access the brackets may mean (LEXICA1014); an extension's name with no member after it gives what follows a member (LEXICA1000).
+     * computed property access the brackets may mean (NEXO1014); an extension's name with no member after it gives what follows a member (NEXO1000).
      */
     #parseExtensionAccess(start) {
         const colon = this.#token;
@@ -1277,7 +1277,7 @@ export class Parser {
         const optionalBrackets = colon.type === '?:' ? '?[' : '[';
 
         if (!this.#isWord(this.#tokens[this.#index + 1])) {
-            throw this.#createSyntaxError('LEXICA1014', `A colon in a chain names the extension its member is selected from: write '${written}${optionalBrackets}…]' for the unnamed indexer, or '${written}${dot}[…]' for a property read by a computed name`, colon.start);
+            throw this.#createSyntaxError('NEXO1014', `A colon in a chain names the extension its member is selected from: write '${written}${optionalBrackets}…]' for the unnamed indexer, or '${written}${dot}[…]' for a property read by a computed name`, colon.start);
         }
 
         const children = [this.#take()];
@@ -1297,7 +1297,7 @@ export class Parser {
         } else {
             const fallback = colon.type === '?:' ? "; no '?:' chooses between two values, which '??' does" : '';
 
-            throw this.#createUnexpectedTokenError('LEXICA1000', `'.' and the member the extension supplies, or its key in '[…]'${fallback}`);
+            throw this.#createUnexpectedTokenError('NEXO1000', `'.' and the member the extension supplies, or its key in '[…]'${fallback}`);
         }
 
         return Parser.#node('extension-access', children);
@@ -1306,7 +1306,7 @@ export class Parser {
     /** Reads what follows a dot, or the `?.` of an optional access: a property read by a computed name in brackets, a dot property access, or a member call. */
     #parseAfterDot(dot) {
         if (this.#token.type === '?[') {
-            throw this.#createSyntaxError('LEXICA1507', "An optional computed property access writes its '?' before the dot, as '?.[…]', its brackets directly after the dot", this.#token.start);
+            throw this.#createSyntaxError('NEXO1507', "An optional computed property access writes its '?' before the dot, as '?.[…]', its brackets directly after the dot", this.#token.start);
         }
 
         if (this.#token.type !== '[') {
@@ -1323,7 +1323,7 @@ export class Parser {
     #parseDotPropertyAccessOrMemberCall(dot) {
         // After a dot only a member's name stands, so any word names one there, a reserved word among them, written as it is.
         if (this.#token.type === 'lexical-reference') {
-            throw this.#createSyntaxError('LEXICA1008', `A member is named as it is written after its dot, with no '@': write '.${this.#token.value}'`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1008', `A member is named as it is written after its dot, with no '@': write '.${this.#token.value}'`, this.#token.start);
         }
 
         const nameToken = this.#isWord(this.#token) ? this.#take() : this.#expect('identifier');
@@ -1333,7 +1333,7 @@ export class Parser {
 
         if (this.#token.type !== '(') {
             if (this.#token.type === 'literal') {
-                throw this.#createSyntaxError('LEXICA1508', `An argument after a dot is enclosed in parentheses, as a call's is, '.${name}(…)'`, this.#token.start);
+                throw this.#createSyntaxError('NEXO1508', `An argument after a dot is enclosed in parentheses, as a call's is, '.${name}(…)'`, this.#token.start);
             }
 
             return Parser.#node('dot-property-access', [dot, nameToken]);
@@ -1404,7 +1404,7 @@ export class Parser {
     /** Refuses a coalescing operator no group holds as an operand of `and` or `or`, which it never stands beside. */
     #refuseUngroupedCoalescing(operand, operator) {
         if (this.#ungroupedCoalescings.has(operand)) {
-            throw this.#createSyntaxError('LEXICA1021', `'??' and '${operator}' stand apart, one of them grouped: write '(… ?? …) ${operator} …' or '… ?? (… ${operator} …)'`, SyntaxTree.startOf(operand));
+            throw this.#createSyntaxError('NEXO1021', `'??' and '${operator}' stand apart, one of them grouped: write '(… ?? …) ${operator} …' or '… ?? (… ${operator} …)'`, SyntaxTree.startOf(operand));
         }
     }
 
@@ -1419,7 +1419,7 @@ export class Parser {
 
             if (this.#token.type !== ',') {
                 // An object expression closed after its local holds no field.
-                throw this.#createUnexpectedTokenError(this.#token.type === '}' ? 'LEXICA1018' : 'LEXICA1000', "',' after the local, which the object fields follow");
+                throw this.#createUnexpectedTokenError(this.#token.type === '}' ? 'NEXO1018' : 'NEXO1000', "',' after the local, which the object fields follow");
             }
 
             children.push(this.#take());
@@ -1428,7 +1428,7 @@ export class Parser {
         if (this.#token.type === '}') {
             const example = locals > 0 ? '{ let climate = it.climate, warmth = climate?.temperature }' : '{ size = it.size }';
 
-            throw this.#createSyntaxError('LEXICA1018', `An object expression holds at least one object field${locals > 0 ? ' after its locals' : ''}, as ${example}`, this.#token.start);
+            throw this.#createSyntaxError('NEXO1018', `An object expression holds at least one object field${locals > 0 ? ' after its locals' : ''}, as ${example}`, this.#token.start);
         }
 
         while (this.#token.type !== '}') {
@@ -1437,7 +1437,7 @@ export class Parser {
             if (this.#token.type === ',') {
                 children.push(this.#take());
             } else if (this.#token.type !== '}') {
-                throw this.#createUnexpectedTokenError('LEXICA1000', "',' or '}'");
+                throw this.#createUnexpectedTokenError('NEXO1000', "',' or '}'");
             }
         }
 
@@ -1448,8 +1448,8 @@ export class Parser {
 
     /**
      * Reads a collection expression: `[`, a list's items or a dictionary's entries, each a key, `=` and its value, separated by commas, a trailing one among them, and `]`; `[]` is an empty list and `[=]` an empty
-     * dictionary. Its written form decides its kind, so a first entry a key and `=` begin is a dictionary's, and any other a list's. A key is an inline string literal (LEXICA1066), keyed and unkeyed entries never
-     * mix (LEXICA1067), and no item is left out between commas (LEXICA1068). An item may be written as an arrow function, which validation refuses as a function standing in no argument.
+     * dictionary. Its written form decides its kind, so a first entry a key and `=` begin is a dictionary's, and any other a list's. A key is an inline string literal (NEXO1066), keyed and unkeyed entries never
+     * mix (NEXO1067), and no item is left out between commas (NEXO1068). An item may be written as an arrow function, which validation refuses as a function standing in no argument.
      */
     #parseCollectionExpression() {
         const children = [this.#take()];
@@ -1470,13 +1470,13 @@ export class Parser {
 
         while (this.#token.type !== ']') {
             if (this.#token.type === ',') {
-                throw this.#createSyntaxError('LEXICA1068', 'A collection expression holds an item between each two commas: write one there, or remove the comma', this.#token.start);
+                throw this.#createSyntaxError('NEXO1068', 'A collection expression holds an item between each two commas: write one there, or remove the comma', this.#token.start);
             }
 
             if (isDictionary !== this.#startsDictionaryEntry()) {
                 const kind = isDictionary ? 'an item without a key' : 'an entry of a key and a value';
 
-                throw this.#createSyntaxError('LEXICA1067', `A collection expression holds a list's items or a dictionary's entries, never both, and this one, ${isDictionary ? 'a dictionary' : 'a list'}, holds ${kind}`, this.#token.start);
+                throw this.#createSyntaxError('NEXO1067', `A collection expression holds a list's items or a dictionary's entries, never both, and this one, ${isDictionary ? 'a dictionary' : 'a list'}, holds ${kind}`, this.#token.start);
             }
 
             children.push(isDictionary ? this.#parseDictionaryEntry() : this.#parseListItem());
@@ -1484,7 +1484,7 @@ export class Parser {
             if (this.#token.type === ',') {
                 children.push(this.#take());
             } else if (this.#token.type !== ']') {
-                throw this.#createUnexpectedTokenError('LEXICA1000', "',' or ']'");
+                throw this.#createUnexpectedTokenError('NEXO1000', "',' or ']'");
             }
         }
 
@@ -1498,13 +1498,13 @@ export class Parser {
         return this.#tokens[this.#index + 1].type === '=' && this.#token.type !== ',' && this.#token.type !== ']';
     }
 
-    /** Reads a list's item: an expression, or an arrow function, which the lowering keeps for validation to refuse; one an `=` follows is a dictionary's key no single token writes, which is refused (LEXICA1066). */
+    /** Reads a list's item: an expression, or an arrow function, which the lowering keeps for validation to refuse; one an `=` follows is a dictionary's key no single token writes, which is refused (NEXO1066). */
     #parseListItem() {
         const start = this.#token.start;
         const item = this.#startsArrowFunction() ? this.#parseArrowFunction() : this.#parseExpression();
 
         if (this.#token.type === '=') {
-            throw this.#createSyntaxError('LEXICA1066', "A dictionary key must be an inline string literal, as [\"coffee\" = 3]. For a computed key, construct the dictionary with toDictionary.", start);
+            throw this.#createSyntaxError('NEXO1066', "A dictionary key must be an inline string literal, as [\"coffee\" = 3]. For a computed key, construct the dictionary with toDictionary.", start);
         }
 
         return item;
@@ -1512,7 +1512,7 @@ export class Parser {
 
     /**
      * Reads a dictionary's entry: its key, an inline string literal, ordinary or raw, `=` and its value. A name as a key is refused giving the literal key of its spelling, and any other key giving the form of one, each with
-     * `toDictionary` for a computed key (LEXICA1066).
+     * `toDictionary` for a computed key (NEXO1066).
      */
     #parseDictionaryEntry() {
         const key = this.#take();
@@ -1524,7 +1524,7 @@ export class Parser {
             const written = this.#text.slice(SyntaxTree.startOf(value), SyntaxTree.endOf(value));
             const literal = this.#isWord(key) ? `Write ["${this.#text.slice(key.start, key.end)}" = ${written}] for the literal key "${this.#text.slice(key.start, key.end)}".` : 'Write it between quotes, as ["coffee" = 3].';
 
-            throw this.#createSyntaxError('LEXICA1066', `A dictionary key must be an inline string literal. ${literal} For a computed key, construct the dictionary with toDictionary.`, key.start);
+            throw this.#createSyntaxError('NEXO1066', `A dictionary key must be an inline string literal. ${literal} For a computed key, construct the dictionary with toDictionary.`, key.start);
         }
 
         return Parser.#node('dictionary-entry', [key, equals, value]);
@@ -1535,7 +1535,7 @@ export class Parser {
         const letKeyword = this.#take();
 
         if (!this.#startsEntry()) {
-            this.#refuseName('LEXICA1051', 'A local takes its value after =', 'A local is written with let, its name and = before its value, as let width = …', 'let ');
+            this.#refuseName('NEXO1051', 'A local takes its value after =', 'A local is written with let, its name and = before its value, as let width = …', 'let ');
         }
 
         const name = this.#take();
@@ -1554,12 +1554,12 @@ export class Parser {
     /** Reads a field: its name, `=` and its value. */
     #parseField() {
         if (this.#startsLocal()) {
-            throw this.#createSyntaxError('LEXICA1504', 'A local is written before the object fields of its object expression', this.#token.start);
+            throw this.#createSyntaxError('NEXO1504', 'A local is written before the object fields of its object expression', this.#token.start);
         }
 
         if (!this.#startsEntry()) {
             // A field written without its name, and a `return` among the fields, each have a code of their own.
-            this.#refuseName(this.#isKeyword('return') ? 'LEXICA1033' : 'LEXICA1051', 'An object field takes its value after =', 'An object field is written with its name and = before its value, as size = it.size', '');
+            this.#refuseName(this.#isKeyword('return') ? 'NEXO1033' : 'NEXO1051', 'An object field takes its value after =', 'An object field is written with its name and = before its value, as size = it.size', '');
         }
 
         return Parser.#node('field', [this.#take(), this.#take(), this.#parseExpression()]);
@@ -1574,11 +1574,11 @@ export class Parser {
         const token = this.#token;
 
         if (token.type === 'lexical-reference') {
-            throw this.#createSyntaxError('LEXICA1008', `A name is declared as it is written, with no '@': write '${prefix}${token.value} = …'`, token.start);
+            throw this.#createSyntaxError('NEXO1008', `A name is declared as it is written, with no '@': write '${prefix}${token.value} = …'`, token.start);
         }
 
         if (this.#startsColonEntry()) {
-            throw this.#createSyntaxError('LEXICA1003', `${colonMessage}: write '${prefix}${SyntaxTree.wordOf(token, this.#text)} = …'`, this.#tokens[this.#index + 1].start);
+            throw this.#createSyntaxError('NEXO1003', `${colonMessage}: write '${prefix}${SyntaxTree.wordOf(token, this.#text)} = …'`, this.#tokens[this.#index + 1].start);
         }
 
         if (token.type === 'literal' && (this.#tokens[this.#index + 1]?.type === '=' || this.#tokens[this.#index + 1]?.type === ':')) {
@@ -1616,7 +1616,7 @@ export class Parser {
         const token = this.#token;
 
         if (token.type !== type) {
-            throw this.#createUnexpectedTokenError('LEXICA1000', TOKEN_DESCRIPTIONS[type] ?? `'${type}'`);
+            throw this.#createUnexpectedTokenError('NEXO1000', TOKEN_DESCRIPTIONS[type] ?? `'${type}'`);
         }
 
         this.#advance();
@@ -1642,14 +1642,14 @@ export class Parser {
             const next = this.#tokens[this.#index + 1];
 
             if (previous?.type === '<' || previous?.type === '>') {
-                return this.#createSyntaxError('LEXICA1001', `'${previous.type}=' is one operator, written with nothing between its signs`, previous.start);
+                return this.#createSyntaxError('NEXO1001', `'${previous.type}=' is one operator, written with nothing between its signs`, previous.start);
             }
 
             if (next?.type === '=' || next?.type === '>') {
-                return this.#createSyntaxError('LEXICA1001', `'=${next.type}' is one operator, written with nothing between its signs`, token.start);
+                return this.#createSyntaxError('NEXO1001', `'=${next.type}' is one operator, written with nothing between its signs`, token.start);
             }
 
-            return this.#createSyntaxError('LEXICA1004', "Unexpected '=' in an expression. Use '==' to compare values.", token.start);
+            return this.#createSyntaxError('NEXO1004', "Unexpected '=' in an expression. Use '==' to compare values.", token.start);
         }
         const found = token.type === 'end' ? TOKEN_DESCRIPTIONS.end : Parser.#quote(this.#text.slice(token.start, token.end));
 
@@ -1663,14 +1663,14 @@ export class Parser {
     #createAfterBodyError(code, expected) {
         // An import after a body's result stands where no import does, as one anywhere but the script's start.
         if (this.#isKeyword('import')) {
-            return this.#createSyntaxError('LEXICA1045', 'Imports stand at the start of the script, before the first local or expression of its body', this.#token.start);
+            return this.#createSyntaxError('NEXO1045', 'Imports stand at the start of the script, before the first local or expression of its body', this.#token.start);
         }
 
         if (this.#token.type === 'end' || this.#token.type === '=' || BODY_ENCLOSURE_CLOSINGS.has(this.#token.type) || (this.#token.type === 'keyword' && STRUCTURAL_KEYWORDS.has(this.#token.value))) {
             return this.#createUnexpectedTokenError(code, expected);
         }
 
-        return this.#createSyntaxError('LEXICA1055', "Nothing follows a body's result, which ends it", this.#token.start);
+        return this.#createSyntaxError('NEXO1055', "Nothing follows a body's result, which ends it", this.#token.start);
     }
 
     static #node(kind, children) {

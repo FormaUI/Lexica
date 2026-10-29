@@ -1,5 +1,5 @@
 /**
- * The errors a test's call throws, and the assertions on them that tests share: what a call throws, its message, and whether it is a Lexica error of a code and a kind, a module error among them
+ * The errors a test's call throws, and the assertions on them that tests share: what a call throws, its message, and whether it is a Nexo error of a code and a kind, a module error among them
  */
 import { expect } from 'vitest';
 import { LexicaError } from '#lexica/language/LexicaError.mjs';
@@ -18,7 +18,7 @@ export const errorThrownBy = call => {
 /** Runs the call and answers the message of what it threw, whatever that is. */
 export const messageThrownBy = call => errorThrownBy(call).message;
 
-/** Asserts that the error is a Lexica error of the code and the kind. */
+/** Asserts that the error is a Nexo error of the code and the kind. */
 export const expectLexicaError = (error, code, kind) => {
     expect(error).toBeInstanceOf(LexicaError);
     expect({ code: error.code, kind: error.kind }).toEqual({ code, kind });
