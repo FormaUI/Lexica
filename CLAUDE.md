@@ -43,8 +43,6 @@ Nothing in `src/` imports from outside it or reads a browser global; a test enfo
 
 ## Names and responsibilities
 
-[Clarify responsibilities and unify terminology](docs/proposals/responsibilities-and-terminology.md) gives the reasoning, and [its ledger](docs/proposals/responsibilities-and-terminology-ledger.md) each concept's review.
-
 - Distinguish what matters, and unify what is equivalent. Give one concept one term and one contract; give two things separate terms only where a difference in meaning, behaviour or responsibility requires treating them differently, and state the difference. Different syntax, origins, stages or code paths make no new concept by themselves, and representations that look alike make no shared one.
 - Keep the roles apart where the difference matters: a module's declarations and its implementations, a script's syntax and its definition, preparation, compilation, runtime execution and diagnostic metadata. One operation may coordinate several, its contract saying so; a role needs no class, namespace or layer of its own.
 - Let an operation's owner and its name together say who owns it, what it does and what it concerns. The owner is the class whose responsibility it is: never move an operation, or add a namespace or a layer, only to fit a name.
