@@ -1,6 +1,6 @@
 # Proposal: indexers and computed properties
 
-**State: accepted.** Specified, and implemented in definition version 33. It changes the contract [members](../../spec/members.md), [modules](../../spec/modules.md#namespaces-indexers), the [grammar](../../spec/grammar.md) and the [definition](../../spec/definition.md) set out, as [the status overview](../features-status.md#indexers-and-computed-properties) records.
+**State: accepted.** Specified, and implemented in definition version 33. Definition version 34 renamed its node `indexerAccess`, holding its `receiver`, and [collections](collections.md) gave an unnamed indexer several signatures, told apart by their keys' types, where this document has one, and judged overlapping receivers where they are used, not at registration. It changes the contract [members](../../spec/members.md), [modules](../../spec/modules.md#namespaces-indexers), the [grammar](../../spec/grammar.md) and the [definition](../../spec/definition.md) set out, as [the status overview](../features-status.md#indexers-and-computed-properties) records.
 
 ## The problem
 

@@ -1,6 +1,6 @@
 # Proposal: contract generics
 
-**State: accepted.** Specified, and not implemented. It answers how declarations express relationships between types. It supersedes the decision of October 22, 2026, to remove generics, and the [type parameters](../../spec/types.md#types-type-parameters) the specification sets out, and [unit 1](../features-status.md#unit-1--declarations-and-the-type-model) of the implementation plan delivers it.
+**State: accepted.** Specified, and implemented with [unit 1](../features-status.md#unit-1--declarations-and-the-type-model)'s declaration model and inference of type parameters, its steps 5 and 6. It answers how declarations express relationships between types. It supersedes the decision of October 22, 2026, to remove generics, and the [type parameters](../../spec/types.md#types-type-parameters) the specification sets out, and [unit 1](../features-status.md#unit-1--declarations-and-the-type-model) of the implementation plan delivers it.
 
 Related proposals: [named extension types](named-extension-types.md), whose containers declare parameters as any declaration does, and [`Any` and deferred selection](any-and-deferred-selection.md), which sets out what happens where a value's type is not known before evaluation.
 

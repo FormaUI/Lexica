@@ -309,7 +309,7 @@ These capabilities work in the current implementation. The planned replacements 
 
 **Implemented.**
 
-- Type names in PascalCase, Nexo's own among them, `Number` and `List<T>`, and a module's type checked for its initial capital when the module is created. Nexo's own names are reserved.
+- Type names in PascalCase by convention, Nexo's own among them, `Number` and `List<T>`, never enforced: a module's type of any identifier registers, as [type names](../spec/types.md#types-type-names) set out.
 - A type identified by its module and local name, so different modules declare the same local name; a structured type's `import` and qualified type references, every reference resolved to its identity at registration; and an argument's diagnostic writing the type it expects and the one it finds by their qualified names where they share a local name. A type name qualified by a module names it through the local name the script's imports give that module, and an unqualified one by the script's tiers: a type import's local name, then Nexo's own, then the one public type of its name among the modules the script imports. A declaration's, a declared binding's and a script's names are each read in a scope of their own, `TypeNameScope`, through the registry's one path, `resolveTypeName`.
 
 ### Indexers and computed properties
@@ -340,6 +340,16 @@ The decisions taken while implementing step 5 of unit 1 through unit 5, each wit
 Two open decisions are recorded. The first: a module that declares a type spelled as one of Nexo's own, as `Home.Number`, can't name Nexo's own type of that name in its own declarations, since [type name lookup](../spec/types.md#types-type-name-lookup) finds the module's own first and Nexo's own types have no qualified spelling. Giving Nexo a permanent namespace for that was declined; the limitation stands until another spelling is chosen.
 
 The second: a type parameter's default is checked at registration to be data, and against what the parameter binds to nowhere, since resolution checks the arguments a call gives and passes a default left out as it is, so `0` reaches an implementation whose `T` is `String`. Whether resolution refuses such a call, or a parameter of a type parameter takes no default, is open.
+
+An audit of the specification against the code found these gaps between them, each open until it is decided and closed:
+
+- **Parameter defaults.** [Null arguments](../spec/members.md#nullability-a-null-argument-follows-the-parameter) make propagating null a parameter's default, and a parameter required unless marked optional, while `createModule` requires `required` and `nulls` of every parameter (NEXO4536), and only the [declaration helpers](../spec/members.md#members-declaration-helpers) supply defaults.
+- **`distinctBy`'s key.** [List members](../spec/collections.md#collections-list-members) refuse a key of no key type that `distinctBy` gives (NEXO3083), while the resolver refuses one only where a call answers a dictionary, so `xs.distinctBy({ a = it })` is accepted.
+- **Membership of other values.** `contains`, `indexOf`, `distinct` and `distinctBy` compare by [key equality](../spec/collections.md#collections-dictionaries-and-pairs), which defines none for an object, a list or a structured value, while the evaluator compares those by identity, so `[[1], [1]].distinct.count` is 2.
+- **A dictionary's metadata.** [Provenance](../spec/runtime.md#runtime-results-provenance) gives a list's lineage through filtering and reordering alone, while the collections proposal's decision 9 keeps a retained entry's metadata too; a dictionary's `where` and `select` record none.
+- **Codes.** NEXO5012 is raised for an ambiguous deferred selection and for each argument a selected member can't take, conditions its catalogue row doesn't name, against the rule that distinct conditions never share a code; NEXO3045, NEXO3065, NEXO4021 and NEXO4067 are catalogued and never raised.
+- **Declarations.** `createPredicateParameterDeclaration` takes no options, which `nexo.d.ts` declares; a member helper drops `internal` and passes `invokedBy` to a property, which `createModule` then refuses; a value parameter's `context` is never checked; and a type's copy keeps a key holding `undefined`, which [valid declarations](../spec/modules.md#modules-declarations) count as left out.
+- **Errors.** `NexoError` exposes `syntax`, `module` and `locate`, beside the three factories `nexo.d.ts` declares, and result paths are validated by `nexo.paths.validate` alone, never by `typeAt` and `valueAt`.
 
 Unit 0's decisions are taken, and unit 4 settles the collections proposal's open contracts, the lineage representation first. Deferred items below require their stated trigger before design or implementation resumes.
 

@@ -1,6 +1,6 @@
 # Proposal: explicit extension access with `:`
 
-**State: accepted.** Specified, and implemented with [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34)'s step 5, as [I30](implementation-decisions.md) records. This document specifies the extension access operator discussed on October 22, 2026, and the rules settled after it, which [settled rules](#settled-rules) records.
+**State: accepted.** Specified, but for its rules 3 and 6, an extension's local name beginning with a capital and Nexo's own extension names reserved, which language `1.0.0-alpha.34` retired, and implemented with [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34)'s step 5, as [I30](implementation-decisions.md) records. This document specifies the extension access operator discussed on October 22, 2026, and the rules settled after it, which [settled rules](#settled-rules) records.
 
 Related proposals: [named extension types](named-extension-types.md), which declares the extensions this operator selects, [contract generics](contract-generics.md), whose inference a selected extension's target follows, and [`Any` and deferred selection](any-and-deferred-selection.md), whose rules apply where a receiver's type is known only during evaluation.
 
