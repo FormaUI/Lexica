@@ -117,7 +117,7 @@ A member following a string is a member of the string itself, and reads and chan
 | The unnamed indexer, `[range]` | A `String`, the code units within the [range](types.md#types-positions), applied to its length once; a range whose start stands after its end, or either beyond the string, is refused where it is evaluated (LEXICA5033), as a list's slice is |
 
 - **The empty text** stands at every position, so `startsWith("")`, `endsWith("")` and `contains("")` are true and `indexOf("")` is `0`. It has no occurrence to replace or to split at, so `replace("", new)` and `split("")` are refused where they are evaluated (LEXICA5040), never inserting between code units or splitting into them.
-- **Characters kept whole.** A slice's boundary standing between the two halves of a surrogate pair is refused where it is evaluated (LEXICA5041), so slicing never makes a well-formed text ill-formed.
+- **Characters kept whole.** A slice's boundary standing between the two halves of a surrogate pair is refused where it is evaluated (LEXICA5041), so slicing never makes a well-formed text ill-formed. The other members compare code units exactly, so a text holding a lone surrogate, which only a host can give, is matched as it is: `split` at one parts a pair it finds.
 - **What it doesn't do.** No member reads a regular expression, a locale's case or comparison, or a number's format: a text whose domain gives it a form of its own, as `"120px"`, is read by that domain's members or conversions.
 - **Lexica's own.** `String` is Lexica's own type, so its members, and its unnamed indexer, win over a member of the same name, or an unnamed indexer, that a module's extension of `String` declares, as [owners and extensions](modules.md#namespaces-owners-and-extensions) set out.
 

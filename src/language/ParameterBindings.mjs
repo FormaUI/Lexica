@@ -23,10 +23,11 @@ export class ParameterBindings {
 
     /**
      * Binds each value to its name, asking the registry's modules which values are references before copying anything: a reference is kept as it is, by its identity, a reference nested in data among them, and the rest of the data
-     * is copied and frozen. A top-level binding's declared type, a reference type the registry resolves, is its type in place of recognition, the value checked by the type's membership.
+     * is copied and frozen. A top-level binding's declared type, a notation the registry resolves, is its type in place of recognition: a reference type's value checked by the type's membership, and any other
+     * type's value captured as that type.
      * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry The registry the bindings belong to.
      * @param {Record<string, unknown>} parameters Each parameter's name and the value it is bound to.
-     * @param {{ types?: Record<string, string> }} [options] The reference type declared for a top-level binding, by its name.
+     * @param {{ types?: Record<string, string> }} [options] The type declared for a top-level binding, by its name, as a notation.
      */
     constructor(registry, parameters = {}, options = {}) {
         this.#registry = registry;

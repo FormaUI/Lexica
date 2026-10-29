@@ -98,7 +98,7 @@ export interface LexicaBindingValues {
     [name: string]: unknown;
 }
 
-/** Bindings as a registry's `createBindings` creates them, the registry's own: data a frozen copy of the data given, each reference itself, and the resolution key that says which resolutions they may reuse. */
+/** Bindings as a registry's `createBindings` creates them, the registry's own: data a frozen copy of the data given, or of what its declared type captures of it, each reference itself, and the resolution key that says which resolutions they may reuse. */
 export interface LexicaBindings {
     /** Each binding's type by its qualified identity, with each primitive binding's value, which a resolution is reused with. */
     readonly resolutionKey: string;
@@ -110,7 +110,7 @@ export interface LexicaBindings {
     getType(name: string): string | undefined;
 }
 
-/** How a registry binds values: the reference type declared for a top-level binding, by its name, unqualified or qualified by its module, in place of recognizing its value. */
+/** How a registry binds values: the type declared for a top-level binding, by its name, a notation whose names are unqualified or qualified by their module, in place of typing its value by itself. */
 export interface LexicaBindingsOptions {
     /**
      * The type declared for a top-level binding, by the binding's name: a notation, its names unqualified or qualified, read against the registry. A reference type's value belongs to it; any other type captures the
@@ -604,7 +604,7 @@ export interface LexicaRegistry {
     getImplementation(declaration: object): ((input: any) => unknown) | undefined;
     /**
      * Creates bindings of values by name against the registry, its modules recognizing which are references, each module's `typeOf` asked of every object and the `isInstance` of each type it names, or of a top-level
-     * binding's declared type: data as a frozen copy, each reference as itself, a top-level binding of a declared type typed by it.
+     * binding's declared type: data as a frozen copy, each reference as itself, a top-level binding of a declared type typed by it, its data captured as that type.
      */
     createBindings(values?: LexicaBindingValues, options?: LexicaBindingsOptions): LexicaBindings;
     /**
