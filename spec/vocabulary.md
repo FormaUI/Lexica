@@ -17,7 +17,7 @@ In this document:
 
 ## Nexo's own vocabulary
 
-Nexo's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, which [collections](collections.md) set out, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
+Nexo's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, which [collections](language/collections.md) set out, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-number-members"></a>
 
@@ -42,7 +42,7 @@ A member following a number is a member of the number itself, and reads and chan
 
 ### String members
 
-A member following a string is a member of the string itself, and reads and changes as the string does. Each counts in UTF-16 code units, as [ordering](collections.md#collections-list-ordering) compares strings and as a host's text holds them, and joining texts is [interpolation](expressions.md#interpolated-strings)'s, `$"{prefix}{name}"`.
+A member following a string is a member of the string itself, and reads and changes as the string does. Each counts in UTF-16 code units, as [ordering](language/collections.md#collections-list-ordering) compares strings and as a host's text holds them, and joining texts is [interpolation](language/expressions.md#interpolated-strings)'s, `$"{prefix}{name}"`.
 
 | String member | Contract |
 | --- | --- |
@@ -53,7 +53,7 @@ A member following a string is a member of the string itself, and reads and chan
 | `indexOf(text)` | The position of `text`'s first occurrence, a `Number?`, null where it stands nowhere |
 | `replace(old, new)` | The string with every occurrence of `old` replaced by `new`, literally, left to right, no two overlapping |
 | `split(separator)` | A `List<String>`, the parts between the occurrences of `separator`, in order: an empty part where two occurrences meet or one stands at either end, and the string alone where it holds none |
-| The unnamed indexer, `[range]` | A `String`, the code units within the [range](collections.md#collections-positions), applied to its length once; a range whose start stands after its end, or either beyond the string, is refused where it is evaluated (NEXO5033), as a list's slice is |
+| The unnamed indexer, `[range]` | A `String`, the code units within the [range](language/collections.md#collections-positions), applied to its length once; a range whose start stands after its end, or either beyond the string, is refused where it is evaluated (NEXO5033), as a list's slice is |
 
 - **The empty text** stands at every position, so `startsWith("")`, `endsWith("")` and `contains("")` are true and `indexOf("")` is `0`. It has no occurrence to replace or to split at, so `replace("", new)` and `split("")` are refused where they are evaluated (NEXO5040), never inserting between code units or splitting into them.
 - **Characters kept whole.** A slice's boundary standing between the two halves of a surrogate pair is refused where it is evaluated (NEXO5041), so slicing never makes a well-formed text ill-formed. The other members compare code units exactly, so a text holding a lone surrogate, which only a host can give, is matched as it is: `split` at one parts a pair it finds.
@@ -67,7 +67,7 @@ A member following a string is a member of the string itself, and reads and chan
 
 A module declares a test of a receiver as a function whose result is a `Boolean`, as `Home` declares `active` and `offline` on `Device` and `occupied` on `Room`. It is a member as any other: its receivers, its implementation, its `updates`, the changes it misses and the observations that cover it are its declaration's, and its failures name it and its module. A script calls it directly, `device.active()`, through its module, `Home.active(device)`, or passes it by reference to a member that takes a function, `room.devices.where(Home.active)`, and each way reaches the one declaration, so a host's policy for a partly observable test concerns that test however it is reached.
 
-A test is declared as a function, since only a function has a [reference](functions.md#functions-module-functions) a script passes; a property is read where it is written. Boolean functions compose as Booleans do: `device.active() and not device.offline()`.
+A test is declared as a function, since only a function has a [reference](language/functions.md#functions-module-functions) a script passes; a property is read where it is written. Boolean functions compose as Booleans do: `device.active() and not device.offline()`.
 
 Nexo declares no member that tests a receiver of any type, since how a test reads is a domain's: a module that wants one declares it for its own domain, a function taking a test of its receiver in an extension of every type, `{ name: 'Checks<T>', kind: 'extension', target: 'T' }`, as [type parameters](types.md#types-type-parameters) set out.
 
@@ -134,4 +134,4 @@ A **type selector** is a declaration of a module that maps keys to types, so a f
 
 A **conversion** is a [conversion operator](modules.md#modules-operators) of a type of data, `{ kind: 'operator', name: 'convert', result: 'Number', impl }`, which `to` invokes and nothing else, and none from a type to itself. Several modules may each declare one from a source to a destination: they compete as every operator does, among those a script's imports make available, the owner's winning, the extension's whose target is more specific than every other's resolving where the owner declares none, and several none of which is more specific refused as ambiguous where a script converts so, as [owners and extensions](extensions.md#extensions-owners) set out. A destination written qualified identifies its type and never selects an operator, and an [extension access](extensions.md#extensions-access) reaches none. Its types are `Number`, `String`, `Boolean` and the structured types that hold data alone: a reference value is left to members, which declare how they change, so a conversion adds no dependency on a host's state. A module declares one in the members of its own source type, and in an extension where the source type is another module's and the destination its own, as `Measurements` declares one from `Number` to `Temperature`.
 
-Its `impl` reads `value`, never null, and nothing else, and answers the converted value, or calls `reject(reason)` with a diagnostic string. `reject` throws a signal private to Nexo and to that attempt, so it never returns and the conversion stops where it calls it, unlike a promise's `reject`. What `to` and `try … to` make of a rejection and of any other failure is set out in [conversions](values.md#conversions) and [attempts](expressions.md#attempts).
+Its `impl` reads `value`, never null, and nothing else, and answers the converted value, or calls `reject(reason)` with a diagnostic string. `reject` throws a signal private to Nexo and to that attempt, so it never returns and the conversion stops where it calls it, unlike a promise's `reject`. What `to` and `try … to` make of a rejection and of any other failure is set out in [conversions](values.md#conversions) and [attempts](language/expressions.md#attempts).

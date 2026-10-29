@@ -1,6 +1,6 @@
 # Proposal: indexers and computed properties
 
-**State: accepted.** Specified, and implemented in definition version 33. Definition version 34 renamed its node `indexerAccess`, holding its `receiver`, and [collections](collections.md) gave an unnamed indexer several signatures, told apart by their keys' types, where this document has one, and judged overlapping receivers where they are used, not at registration. It changes the contract [members](../../spec/members.md), [modules](../../spec/modules.md#namespaces-indexers), the [grammar](../../spec/grammar.md) and the [definition](../../spec/definition.md) set out, as [the status overview](../features-status.md#indexers-and-computed-properties) records.
+**State: accepted.** Specified, and implemented in definition version 33. Definition version 34 renamed its node `indexerAccess`, holding its `receiver`, and [collections](collections.md) gave an unnamed indexer several signatures, told apart by their keys' types, where this document has one, and judged overlapping receivers where they are used, not at registration. It changes the contract [members](../../spec/members.md), [modules](../../spec/modules.md#namespaces-indexers), the [grammar](../../spec/language/grammar.md) and the [definition](../../spec/runtime/definition.md) set out, as [the status overview](../features-status.md#indexers-and-computed-properties) records.
 
 ## The problem
 
@@ -50,7 +50,7 @@ Resolution reads the pair together. Where an indexer's target is a member access
 
 A group does not add a node to the definition, so `(device.setting)["mode"]` is `device.setting["mode"]`.
 
-This follows the precedent of [implicit bodies](../../spec/functions.md#functions-implicit-bodies): the definition records what was written, and the resolution records what it means, so the text alone still decides every construct's boundaries, and the vocabulary only what a name stands for.
+This follows the precedent of [implicit bodies](../../spec/language/functions.md#functions-implicit-bodies): the definition records what was written, and the resolution records what it means, so the text alone still decides every construct's boundaries, and the vocabulary only what a name stands for.
 
 ### Optional forms
 

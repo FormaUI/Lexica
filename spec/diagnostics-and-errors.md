@@ -178,7 +178,7 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | --- | --- | --- |
 | `NEXO2000` | A definition that does not follow its structure | A structure error, with its node's location |
 | `NEXO2007` | A definition of a version other than the one the implementation reads, as a version 33 definition is for version 34 | A structure error naming both versions |
-| `NEXO2008` | A definition's imports that break the rules [the definition](definition.md#definition) sets for them, or imports a host supplies that are no list, break an import's rules or conflict with each other | A structure error located at a definition's import, the later of two that conflict or stand out of order, and with an empty location for a host's, whose list has no text |
+| `NEXO2008` | A definition's imports that break the rules [the definition](runtime/definition.md#definition) sets for them, or imports a host supplies that are no list, break an import's rules or conflict with each other | A structure error located at a definition's import, the later of two that conflict or stand out of order, and with an empty location for a host's, whose list has no text |
 | `NEXO2028` | A `namespace` node or an extension selection's `module` naming a module its imports give no local name | A structure error located at the namespace |
 | `NEXO2009` | In a definition, an object node with no object field | A structure error at the node |
 | `NEXO2029` | In a definition, a comparison node of fewer than two operands | A structure error at the node |

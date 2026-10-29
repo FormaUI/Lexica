@@ -20,9 +20,9 @@ In this document:
 | Term | Meaning | Reference |
 | --- | --- | --- |
 | Script | A standalone piece of Nexo code a host reads, resolves and evaluates, which reads its script parameters and its domain and produces data | [Scripts](scripts.md#scripts) |
-| Source | A script's text, which is read into its definition | [Lexical structure](lexical-structure.md#lexical-structure) |
-| Expression | A part of a script that has a value, as `room.devices`; a script is a body of expressions | [Expressions](expressions.md#expressions) |
-| Expression tree | The nodes of an expression, each with its `kind`, which the definition records with the version of its format | [Definition](definition.md#definition) |
+| Source | A script's text, which is read into its definition | [Lexical structure](language/lexical-structure.md#lexical-structure) |
+| Expression | A part of a script that has a value, as `room.devices`; a script is a body of expressions | [Expressions](language/expressions.md#expressions) |
+| Expression tree | The nodes of an expression, each with its `kind`, which the definition records with the version of its format | [Definition](runtime/definition.md#definition) |
 | Result | The data produced by an expression | [Values and types](values.md#values-and-types) |
 | Type | The category of a value and the members it supports | [Types](types.md#types) |
 | Reference type | A type a module declares whose values have identity, naming at most one supertype, declaring its `isInstance`, and abstract or not | [Reference types](types.md#reference-types) |
@@ -42,28 +42,28 @@ In this document:
 | Body | What a script, a do block, a function or a conditional branch holds: an expression alone, or locals and the `return` that gives its result | [Bodies](scripts.md#bodies) |
 | Do block | `do … end`, a body evaluated where it stands, giving its result | [Bodies](scripts.md#bodies) |
 | Local | A name declared with `let` in a body or an object expression, visible after its declaration through its scope, holding a value or a function | [Locals](scripts.md#locals) |
-| Function | A calculation evaluated by a call. A module declares a member function, which a script also passes by reference; an expression declares a regular or arrow function that can be held by a local or passed as an argument value. | [Functions](functions.md#functions), [What a member declares](members.md#what-a-member-declares) |
-| Regular function | `function(…) … end`, whose body is a body | [Functions](functions.md#functions-declaring-one) |
-| Arrow function | `parameters => expression`, whose body is one simple expression, a local's initializer or an argument | [Functions](functions.md#functions-declaring-one) |
-| Delegate | A callable value representing a function together with the information needed to invoke it: a function read by its name without a call, an arrow function written as an argument, or a module's function read by its function reference; used within the expression and never part of its result | [Delegates](functions.md#functions-delegates) |
-| Module delegate | A delegate representing a function declared by a module, which its function reference produces | [Module delegates](functions.md#functions-module-delegates) |
-| Script delegate | A delegate representing a function declared in a script, including its captured scope | [Delegates](functions.md#functions-delegates) |
-| Captured scope | What a script delegate captures where its function is declared: the locals, the implicit parameter and the object root | [What a function sees](functions.md#functions-what-it-sees) |
-| Function reference | A module's function read through its namespace without a call, as `Home.active`, which produces a module delegate taking its receiver first and its own arguments after it | [Module delegates](functions.md#functions-module-delegates) |
-| Implicit body | An expression reading `it`, given to a function parameter whose callback takes one argument, which is its `it`; the evaluator wraps it in the callback the member receives, evaluating it at each call | [Implicit bodies](functions.md#functions-implicit-bodies) |
-| Callback | A callable supplied to an operation for that operation to invoke. Nexo creates callbacks from delegates or argument bodies, subject to the receiving member's contract and invocation lifetime | [Functions passed to members](functions.md#functions-passed-to-members) |
+| Function | A calculation evaluated by a call. A module declares a member function, which a script also passes by reference; an expression declares a regular or arrow function that can be held by a local or passed as an argument value. | [Functions](language/functions.md#functions), [What a member declares](members.md#what-a-member-declares) |
+| Regular function | `function(…) … end`, whose body is a body | [Functions](language/functions.md#functions-declaring-one) |
+| Arrow function | `parameters => expression`, whose body is one simple expression, a local's initializer or an argument | [Functions](language/functions.md#functions-declaring-one) |
+| Delegate | A callable value representing a function together with the information needed to invoke it: a function read by its name without a call, an arrow function written as an argument, or a module's function read by its function reference; used within the expression and never part of its result | [Delegates](language/functions.md#functions-delegates) |
+| Module delegate | A delegate representing a function declared by a module, which its function reference produces | [Module delegates](language/functions.md#functions-module-delegates) |
+| Script delegate | A delegate representing a function declared in a script, including its captured scope | [Delegates](language/functions.md#functions-delegates) |
+| Captured scope | What a script delegate captures where its function is declared: the locals, the implicit parameter and the object root | [What a function sees](language/functions.md#functions-what-it-sees) |
+| Function reference | A module's function read through its namespace without a call, as `Home.active`, which produces a module delegate taking its receiver first and its own arguments after it | [Module delegates](language/functions.md#functions-module-delegates) |
+| Implicit body | An expression reading `it`, given to a function parameter whose callback takes one argument, which is its `it`; the evaluator wraps it in the callback the member receives, evaluating it at each call | [Implicit bodies](language/functions.md#functions-implicit-bodies) |
+| Callback | A callable supplied to an operation for that operation to invoke. Nexo creates callbacks from delegates or argument bodies, subject to the receiving member's contract and invocation lifetime | [Functions passed to members](language/functions.md#functions-passed-to-members) |
 | Callback contract | The argument types and the result type a member declares for a function parameter, which the callback given to it is checked against | [Arguments](members.md#arguments) |
-| Function parameter | A name a function declares, holding the argument each call gives it | [Functions](functions.md#functions) |
+| Function parameter | A name a function declares, holding the argument each call gives it | [Functions](language/functions.md#functions) |
 | Script parameter | A name a script reads and does not declare, which its host binds; `~` and its name, as `~room`, selects it whatever local, object field, conditional binding or function parameter hides it | [Script parameters](scripts.md#scripts-script-parameters) |
 | Binding | The value a host supplies for a script parameter | [Script parameters](scripts.md#scripts-script-parameters) |
-| Identifier | A letter followed by letters and digits, the spelling of every name and every reference to a binding, whose position decides what it means | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
+| Identifier | A letter followed by letters and digits, the spelling of every name and every reference to a binding, whose position decides what it means | [Names and reserved words](language/lexical-structure.md#names-and-reserved-words) |
 | Object root | The outermost object being built, which `root`, written inside an object expression, refers to, reading its object fields whose initializers have completed; the language's one root | [The object root](values.md#locals-the-object-root) |
-| Line break | LF, CRLF or a lone CR, the one definition every rule about lines follows | [Line breaks](lexical-structure.md#line-structure-line-breaks) |
-| Line structure | Where a line may break, must break and cannot, which constrains a layout and never changes a reading | [Line structure](lexical-structure.md#line-structure) |
-| Block form | A conditional, a `do` block or a function expression spanning lines, each keyword ending its line and `end` on its own | [Keyword blocks](lexical-structure.md#line-structure-keyword-blocks) |
-| Reserved word | A word that keeps its language meaning where a value stands: a literal's word, `root` or a keyword; a module's name is none, though it begins its namespace there in a script importing the module | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
-| Keyword | A reserved word other than the literals' words and `root`, as `let`, `if` and `it` | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
-| Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, object field, conditional binding or function parameter of that name, and otherwise resolving the import binding of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |
+| Line break | LF, CRLF or a lone CR, the one definition every rule about lines follows | [Line breaks](language/lexical-structure.md#line-structure-line-breaks) |
+| Line structure | Where a line may break, must break and cannot, which constrains a layout and never changes a reading | [Line structure](language/lexical-structure.md#line-structure) |
+| Block form | A conditional, a `do` block or a function expression spanning lines, each keyword ending its line and `end` on its own | [Keyword blocks](language/lexical-structure.md#line-structure-keyword-blocks) |
+| Reserved word | A word that keeps its language meaning where a value stands: a literal's word, `root` or a keyword; a module's name is none, though it begins its namespace there in a script importing the module | [Names and reserved words](language/lexical-structure.md#names-and-reserved-words) |
+| Keyword | A reserved word other than the literals' words and `root`, as `let`, `if` and `it` | [Names and reserved words](language/lexical-structure.md#names-and-reserved-words) |
+| Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, object field, conditional binding or function parameter of that name, and otherwise resolving the import binding of that name, needed where the identifier alone means something else | [Lexical references](language/lexical-structure.md#names-and-reserved-words-lexical-references) |
 | Implicit parameter | The value against which the current expression runs, read as `it` | [Names and resolution](scripts.md#names-and-resolution) |
 
 <a id="terms-collections"></a>
@@ -72,17 +72,17 @@ In this document:
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Collection | A list or a dictionary, an immutable value whose members Nexo's own module declares | [Collections](collections.md#collections) |
-| List | `List<T>`, items of type `T` in order, each at a position | [Lists](collections.md#collections-lists) |
-| Dictionary | `Dictionary<K, V>`, entries addressed by key, each key once, ordered by insertion | [Dictionaries and pairs](collections.md#collections-dictionaries-and-pairs) |
-| Pair | `Pair<K, V>`, immutable data of a `key` and its `value`, as a dictionary's entries give them | [Dictionaries and pairs](collections.md#collections-dictionaries-and-pairs) |
-| Key type | A type whose values one exact equality compares, which a dictionary's keys, grouping, membership and distinctness use | [Dictionaries and pairs](collections.md#collections-dictionaries-and-pairs) |
-| Collection expression | `[…]`, a list of its items or a dictionary of its entries written where a value stands, `[]` and `[=]` the empty ones | [Collection expressions](collections.md#collections-collection-expressions) |
-| Position | Where a list's item stands: a number, its offset from the start, or an index | [Positions](collections.md#collections-positions) |
-| Index | `^n`, an `Index`, a position counted from a list's end, `^1` the last item | [Positions](collections.md#collections-positions) |
-| Range | `start..end`, a `Range`, a half-open interval of two positions, either left out, which slices a list or a string | [Positions](collections.md#collections-positions) |
-| Variance | How a generic type's arguments relate: `List<T>` covariant, `Dictionary<K, V>` invariant in `K` and covariant in `V`, `Pair<K, V>` covariant in both | [Variance](collections.md#collections-variance) |
-| Ordering | `orderBy` and its kin, ordering a list's items by keys stably, `thenBy` refining an order already made | [Ordering](collections.md#collections-list-ordering) |
+| Collection | A list or a dictionary, an immutable value whose members Nexo's own module declares | [Collections](language/collections.md#collections) |
+| List | `List<T>`, items of type `T` in order, each at a position | [Lists](language/collections.md#collections-lists) |
+| Dictionary | `Dictionary<K, V>`, entries addressed by key, each key once, ordered by insertion | [Dictionaries and pairs](language/collections.md#collections-dictionaries-and-pairs) |
+| Pair | `Pair<K, V>`, immutable data of a `key` and its `value`, as a dictionary's entries give them | [Dictionaries and pairs](language/collections.md#collections-dictionaries-and-pairs) |
+| Key type | A type whose values one exact equality compares, which a dictionary's keys, grouping, membership and distinctness use | [Dictionaries and pairs](language/collections.md#collections-dictionaries-and-pairs) |
+| Collection expression | `[…]`, a list of its items or a dictionary of its entries written where a value stands, `[]` and `[=]` the empty ones | [Collection expressions](language/collections.md#collections-collection-expressions) |
+| Position | Where a list's item stands: a number, its offset from the start, or an index | [Positions](language/collections.md#collections-positions) |
+| Index | `^n`, an `Index`, a position counted from a list's end, `^1` the last item | [Positions](language/collections.md#collections-positions) |
+| Range | `start..end`, a `Range`, a half-open interval of two positions, either left out, which slices a list or a string | [Positions](language/collections.md#collections-positions) |
+| Variance | How a generic type's arguments relate: `List<T>` covariant, `Dictionary<K, V>` invariant in `K` and covariant in `V`, `Pair<K, V>` covariant in both | [Variance](language/collections.md#collections-variance) |
+| Ordering | `orderBy` and its kin, ordering a list's items by keys stably, `thenBy` refining an order already made | [Ordering](language/collections.md#collections-list-ordering) |
 
 <a id="chains-and-members"></a>
 
@@ -90,8 +90,8 @@ In this document:
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Chain input | What a chain starts from: the implicit parameter, the object root, a literal, a name, a namespace's member or qualified form, a lexical reference, a script parameter selected with `~`, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](grammar.md#syntax) |
-| Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](expressions.md#expression-structure-and-precedence) |
+| Chain input | What a chain starts from: the implicit parameter, the object root, a literal, a name, a namespace's member or qualified form, a lexical reference, a script parameter selected with `~`, an object expression, an interpolated string, a function call, a parenthesized expression or an optional enclosed access | [Syntax](language/grammar.md#syntax) |
+| Chain | An input followed by zero or more member accesses and object expressions | [Expression structure and precedence](language/expressions.md#expression-structure-and-precedence) |
 | Receiver | The value before a member access, function call or indexer | [Access and calls](members.md#access-and-calls) |
 | Member | A property, a function, an indexer or an operator a module declares on a type, or a property or a function it declares on none | [Vocabulary contracts](vocabulary.md#vocabulary-contracts) |
 | Property | A member a script reads without arguments, whether a structured value's data or its implementation gives its value; a definition node's, a record's and a JavaScript object's keys are properties too, in JavaScript's sense, and none is a member | [Members](members.md#members) |
@@ -114,26 +114,26 @@ In this document:
 
 | Term | Meaning | Reference |
 | --- | --- | --- |
-| Test | A member that answers a Boolean, or a function a member is given to test what it calls it with | [Tests](expressions.md#tests) |
-| Equality | `==`, comparing two values; `!=` negates it | [Equalities](expressions.md#equalities) |
-| Truthy / falsey | Every value is truthy except null and false | [Truthiness](expressions.md#truthiness) |
-| Logical expression | `and` or `or`, returning the operand that decides it | [Logical expressions](expressions.md#logical-expressions-negations-and-groups) |
-| Negation | `not`, answering whether a value is falsey | [Logical expressions](expressions.md#logical-expressions-negations-and-groups) |
-| Conditional | An `if` expression selecting a branch by truthiness | [Conditionals](expressions.md#conditionals) |
-| Conditional binding | `if let` or `elseif let`, naming and testing a value once | [Conditionals](expressions.md#conditionals) |
-| Coalescing operator | `??`, returning its fallback only when its value is null | [Coalescing operators](expressions.md#coalescing-operators) |
-| Parenthesized expression | An expression grouped by parentheses | [Logical expressions](expressions.md#logical-expressions-negations-and-groups) |
+| Test | A member that answers a Boolean, or a function a member is given to test what it calls it with | [Tests](language/expressions.md#tests) |
+| Equality | `==`, comparing two values; `!=` negates it | [Equalities](language/expressions.md#equalities) |
+| Truthy / falsey | Every value is truthy except null and false | [Truthiness](language/expressions.md#truthiness) |
+| Logical expression | `and` or `or`, returning the operand that decides it | [Logical expressions](language/expressions.md#logical-expressions-negations-and-groups) |
+| Negation | `not`, answering whether a value is falsey | [Logical expressions](language/expressions.md#logical-expressions-negations-and-groups) |
+| Conditional | An `if` expression selecting a branch by truthiness | [Conditionals](language/expressions.md#conditionals) |
+| Conditional binding | `if let` or `elseif let`, naming and testing a value once | [Conditionals](language/expressions.md#conditionals) |
+| Coalescing operator | `??`, returning its fallback only when its value is null | [Coalescing operators](language/expressions.md#coalescing-operators) |
+| Parenthesized expression | An expression grouped by parentheses | [Logical expressions](language/expressions.md#logical-expressions-negations-and-groups) |
 | Cast | `as`, answering a reference value as a type of its hierarchy, or one a declared cast operator reaches, checked by that type's membership | [Casts](types.md#casts) |
 | Operator | A member of `kind: 'operator'`, `cast` or `convert`, which `as` or `to` alone invokes | [Operators](modules.md#modules-operators) |
 | Conversion | `to`, converting data to another declared type | [Conversions](values.md#conversions) |
-| Attempt | `try`, returning null when the one cast or conversion it attempts rejects its value | [Attempts](expressions.md#attempts) |
-| Arithmetic negation | `-` before a number, negating it | [Arithmetic](expressions.md#arithmetic) |
-| Interpolation | An interpolated string's `{…}`, inserting the text of the simple expression it holds | [Interpolated strings](expressions.md#interpolated-strings) |
-| String | `"…"`, text whose backslashes begin escapes; also the type every form gives | [Strings and escapes](lexical-structure.md#strings-and-escapes) |
-| Raw string | `'…'`, text whose backslashes are text and whose doubled quote is one quote | [Raw strings](lexical-structure.md#strings-and-escapes-raw-strings) |
-| Interpolated string | `$"…"`, or `$'…'` for an interpolated raw string, text holding interpolations | [Interpolated strings](expressions.md#interpolated-strings) |
-| Block | A string, raw or not and interpolated or not, written on lines of its own between delimiters of three or more quotes, its margin removed | [Blocks](lexical-structure.md#strings-and-escapes-blocks) |
-| Simple expression | The restricted expression an argument, an indexer's key, a computed property name or an interpolation holds | [Simple expressions](expressions.md#simple-expressions) |
+| Attempt | `try`, returning null when the one cast or conversion it attempts rejects its value | [Attempts](language/expressions.md#attempts) |
+| Arithmetic negation | `-` before a number, negating it | [Arithmetic](language/expressions.md#arithmetic) |
+| Interpolation | An interpolated string's `{…}`, inserting the text of the simple expression it holds | [Interpolated strings](language/expressions.md#interpolated-strings) |
+| String | `"…"`, text whose backslashes begin escapes; also the type every form gives | [Strings and escapes](language/lexical-structure.md#strings-and-escapes) |
+| Raw string | `'…'`, text whose backslashes are text and whose doubled quote is one quote | [Raw strings](language/lexical-structure.md#strings-and-escapes-raw-strings) |
+| Interpolated string | `$"…"`, or `$'…'` for an interpolated raw string, text holding interpolations | [Interpolated strings](language/expressions.md#interpolated-strings) |
+| Block | A string, raw or not and interpolated or not, written on lines of its own between delimiters of three or more quotes, its margin removed | [Blocks](language/lexical-structure.md#strings-and-escapes-blocks) |
+| Simple expression | The restricted expression an argument, an indexer's key, a computed property name or an interpolation holds | [Simple expressions](language/expressions.md#simple-expressions) |
 
 <a id="vocabulary-and-host-calls"></a>
 <a id="vocabulary-and-requests"></a>
@@ -165,7 +165,7 @@ In this document:
 | Host call | A call of a function the host invokes, `invokedBy: 'host'`, which ends a script; Nexo resolves and prepares it, and never invokes it | [Host calls](members.md#members-host-calls) |
 | Prepared call, skipped call | What preparing a host call answers: a prepared call, its declaration, receiver and arguments, which projects each value its host supplies where the call declares a result; or a skipped call, where there is nothing to invoke | [Host calls](runtime.md#runtime-host-calls) |
 | Result projection | The object expression following a host call, evaluated against each value its host supplies | [The values a host supplies](members.md#members-host-calls-the-values-a-host-supplies) |
-| Definition | The JSON document recording a script's meaning | [Definition](definition.md#definition) |
+| Definition | The JSON document recording a script's meaning | [Definition](runtime/definition.md#definition) |
 | Implementation of Nexo | A program that carries the language's rules out for a host: its parser reads a script's source into its definition and validates its structure, its resolver resolves the script against a registry, and its runtime evaluates it; the rules are the language's, and an implementation follows them without defining any | [Host contract](runtime.md#runtime) |
 | Runtime | The part of an implementation of Nexo that evaluates a resolved script for its host: it holds the script's bindings and its host's environment, evaluates its expressions, invokes its members' implementations, calls its host's hooks and describes each result | [Evaluation](runtime.md#runtime-evaluation) |
 | Host | The application around an implementation of Nexo, which registers modules, binds values, evaluates, invokes its host calls and decides what to do with each result | [Host contract](runtime.md#runtime) |

@@ -64,7 +64,7 @@ A **collection expression** writes a list or a dictionary in brackets where a va
 
 `sizes` is a `List<Number>`, `stock` a `Dictionary<String, Number>`, `none` a `List<Never>` and `empty` a `Dictionary<String, Never>`.
 
-- **A list** holds items, each a [simple expression](expressions.md#simple-expressions), its `T` the type its items merge to, as [merging](types.md#types-assignability-and-merging) sets out: `[1, 2, null]` is a `List<Number?>`, `[null, null]` a `List<null>` and `[]` a `List<Never>`. Items of no common type, `[1, "two"]`, are refused, never widened to `Any`, and a list of pairs stays a list, never a dictionary.
+- **A list** holds items, each a [simple expression](expressions.md#simple-expressions), its `T` the type its items merge to, as [merging](../types.md#types-assignability-and-merging) sets out: `[1, 2, null]` is a `List<Number?>`, `[null, null]` a `List<null>` and `[]` a `List<Never>`. Items of no common type, `[1, "two"]`, are refused, never widened to `Any`, and a list of pairs stays a list, never a dictionary.
 - **A dictionary** holds entries, each a key, `=` and its value, a simple expression, and is a `Dictionary<String, V>`, `V` its values' merged type, values of no common type refused as a list's items are. A key is an inline string literal, ordinary or raw, `["coffee" = 3]` and `['coffee' = 3]`, its key its string's value, `["first\nsecond" = value]` among them; an interpolated string, a block string and any other expression are refused as keys, a computed key and a key of another type coming from a member that constructs a dictionary. Two entries of one key, compared exactly once their escapes are read, `"a"` and `"\u{61}"` among them, are refused when the definition is validated.
 - **Its form.** Keyed and unkeyed entries never mix in one collection expression; a trailing comma is allowed, and an item is never left out between commas; no item spreads another collection into it; and a function is neither an item nor a value, since a collection holds data and references.
 - **Its evaluation.** Each item or value is evaluated once, left to right, and a dictionary keeps its entries in the order written; what it constructs is immutable.
@@ -82,7 +82,7 @@ A list's item stands at a **position**: a `Number`, its offset from the list's s
 - **Not data.** Neither is data, so a result holding one is refused (NEXO3043); neither is a dictionary's key, and no equality compares them.
 - **Their operands.** `^` takes a `Number`, and a range's boundaries are each a `Number` or an `Index`, none nullable (NEXO3085). A range's boundary is a position, never an operator expression unless grouped, and never another range, as [the grammar](grammar.md#grammar-the-grammar) sets out.
 
-A string is sliced by a range as a list is, as [string members](vocabulary.md#vocabulary-string-members) set out.
+A string is sliced by a range as a list is, as [string members](../vocabulary.md#vocabulary-string-members) set out.
 
 <a id="collections-variance"></a>
 
@@ -136,9 +136,9 @@ A member following a list is a member of the list itself: `room.devices.count` c
 | `toDictionary(expression)` | A `Dictionary<K, T>` of the items by the key the expression gives each, in the items' order, two items of one key refused (NEXO5029), which `groupBy` collects instead |
 | `groupBy(expression)` | A `Dictionary<K, List<T>>` of the items by their keys, each key's items in their order, the keys in the order their first items stand |
 
-Each signature of the unnamed indexer and of `entry` is one of an [indexer's signatures](members.md#property-access-calls-and-indexers-unnamed-indexers), selected by its key's type: a number and an index are looked up tolerantly, and a range slices strictly.
+Each signature of the unnamed indexer and of `entry` is one of an [indexer's signatures](../members.md#property-access-calls-and-indexers-unnamed-indexers), selected by its key's type: a number and an index are looked up tolerantly, and a range slices strictly.
 
-A number generates numbers apart from any range, as [number members](vocabulary.md#vocabulary-number-members) set out.
+A number generates numbers apart from any range, as [number members](../vocabulary.md#vocabulary-number-members) set out.
 
 `where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`. A key `toDictionary`, `groupBy` or `distinctBy` gives is of a key type, `K` its expression's type, so keys of another type are refused where they are resolved (NEXO3083).
 
@@ -146,7 +146,7 @@ An item's body reads the item as a value that is not null, as an object projecti
 
 A search answers null where it finds nothing, never `-1`, as a lookup by an index answers null where no item stands. Aggregates consume null per item rather than propagating it to the entire call. `max`, `min` and `average` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Each member evaluates its expression or its predicate at most once for each item it visits, and a member that stops at a decisive item evaluates none after it. Thus `room.devices.max(it.battery)` and `Home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
 
-An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
+An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](../members.md#arguments-kinds) set out.
 
 <a id="collections-list-ordering"></a>
 
@@ -159,7 +159,7 @@ An expression parameter declares the item type it evaluates against and the resu
 - **Stability.** Items of equal keys keep their order, in either direction.
 - **Each key once.** A criterion evaluates its expression once for each item, whichever direction, and never again.
 - **Refinement.** `thenBy` takes a list `orderBy` or `thenBy` answered, which a local holding it keeps, and orders each run of items whose keys so far are equal by its own key, leaving every run where the order before it put it, so it refines and never sorts again. Its answer keeps the keys of every criterion, so another `thenBy` refines it further. A list no `orderBy` ordered, one another member answered of an ordered list among them, is refused (NEXO5037), so `items.orderBy(it.a).where(it.b).thenBy(it.c)` orders by `c` within `where`'s answer only after `orderBy` again.
-- **What it keeps.** The keys are the evaluation's, kept with the list they ordered, never as the expressions that gave them, and no result records them: an ordered list's record realigns its items' lineage as any reordering does, as [provenance](runtime.md#runtime-results-provenance) sets out.
+- **What it keeps.** The keys are the evaluation's, kept with the list they ordered, never as the expressions that gave them, and no result records them: an ordered list's record realigns its items' lineage as any reordering does, as [provenance](../runtime.md#runtime-results-provenance) sets out.
 
 <a id="collections-dictionary-members"></a>
 

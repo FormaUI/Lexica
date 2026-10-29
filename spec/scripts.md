@@ -35,7 +35,7 @@ In this document:
 
 ## What a script is
 
-A script is its [imports](#scripts-imports) and a [body](#bodies): one expression, or locals and the `return` that gives its result. Its text is its source, which [the lexical structure](lexical-structure.md) and [the grammar](grammar.md) read, and its JSON form is its [definition](definition.md). The last member of its chain decides [what it gives](members.md#members-member-kinds-and-host-calls): most scripts give a value, which a host evaluates, and a script whose chain ends in a function the host invokes ends in a host call, which the host carries out.
+A script is its [imports](#scripts-imports) and a [body](#bodies): one expression, or locals and the `return` that gives its result. Its text is its source, which [the lexical structure](language/lexical-structure.md) and [the grammar](language/grammar.md) read, and its JSON form is its [definition](runtime/definition.md). The last member of its chain decides [what it gives](members.md#members-member-kinds-and-host-calls): most scripts give a value, which a host evaluates, and a script whose chain ends in a function the host invokes ends in a host call, which the host carries out.
 
 A script reads three kinds of names: its script parameters, which its host binds; the names it declares itself, its locals, object fields, conditional bindings and function parameters; and its vocabulary's, the members, types and module namespaces of the modules it imports. How a host resolves and evaluates a script, the [host contract](runtime.md) sets out.
 
@@ -59,7 +59,7 @@ A script reads three kinds of names: its script parameters, which its host binds
 - **Diagnostics name both.** A diagnostic about a name an import gives writes the local name and the declaration it denotes, `HomeSensor`, `Home.Sensor`, and a resolution records the declarations themselves.
 - **Parameters keep their names.** A bound script parameter named after a module is read as that parameter wherever no import of the script gives that name, so a missing import never turns a parameter into a namespace; a script reading a registered module's name that none of its imports gives, where no parameter of that name is bound, is refused, giving the import to write.
 
-The examples are read as their host reads them, which supplies imports of `Home` and `Energy` to every script, as [the examples' vocabulary](examples-vocabulary.md) sets out.
+The examples are read as their host reads them, which supplies imports of `Home` and `Energy` to every script, as [the examples' vocabulary](language/examples-vocabulary.md) sets out.
 
 <a id="scripts-script-parameters"></a>
 <a id="names-and-resolution-parameters-and-roots"></a>
@@ -96,7 +96,7 @@ A tool that checks a script without running it takes the same values, or values 
 
 ### Selecting a script parameter
 
-`~` directly before an identifier, a `script-parameter` in the [grammar](grammar.md#grammar-the-grammar), selects the script parameter of that name explicitly, whatever local, object field, conditional binding or function parameter of that name hides it. In `{ room = room.name, devices = ~room.devices.count }`, the object field `room` hides the parameter after it, and `~room` still reads the room the host bound.
+`~` directly before an identifier, a `script-parameter` in the [grammar](language/grammar.md#grammar-the-grammar), selects the script parameter of that name explicitly, whatever local, object field, conditional binding or function parameter of that name hides it. In `{ room = room.name, devices = ~room.devices.count }`, the object field `room` hides the parameter after it, and `~room` still reads the room the host bound.
 
 `~` also selects a parameter named by a reserved word: `~as` and `~Home` read the parameters `as` and `Home`, which written alone would read the keyword and, in a script importing `Home`, the module's namespace. A parameter the host did not bind is a validation error.
 
@@ -156,7 +156,7 @@ At the top level, `{ level = light.brightness, active = light.active() }` has no
 - **A value argument reads it.** A value argument is evaluated where the call is written, against the `it` already there.
 - **None is not a value.** `it` where no body gives one is an error.
 
-Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a function argument requires its callback contract's result type. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is not a delegate.
+Which arguments are bodies is the parameter's to say, by its kind, and lexical scope decides where `it` within one is its own, as [implicit bodies](language/functions.md#functions-implicit-bodies) set out. A body's result policy is its contract's own: an expression argument requires its declared type, a predicate argument gives its truthiness, and a function argument requires its callback contract's result type. These are three contracts, and `it` means the same in each. A projection stays an object expression, and is not a delegate.
 
 <a id="names-and-resolution-projection-example"></a>
 
@@ -206,9 +206,9 @@ Only locals may precede the result. An unused standalone calculation, such as `l
 
 > Only locals may precede a body's result.
 
-A line break never ends an initializer and never continues one by itself, as [line structure](lexical-structure.md#line-structure) sets out: `let available = width` followed on the next line by `- padding * 2` is refused, since nothing encloses the subtraction, and `let available = (width` followed by `- padding * 2)` is one local declaration.
+A line break never ends an initializer and never continues one by itself, as [line structure](language/lexical-structure.md#line-structure) sets out: `let available = width` followed on the next line by `- padding * 2` is refused, since nothing encloses the subtraction, and `let available = (width` followed by `- padding * 2)` is one local declaration.
 
-Bodies place local declarations one after another, each and the `return` on a line of its own, as [boundaries](lexical-structure.md#line-structure-boundaries) set out. Object expressions use the same local construct but separate entries with commas.
+Bodies place local declarations one after another, each and the `return` on a line of its own, as [boundaries](language/lexical-structure.md#line-structure-boundaries) set out. Object expressions use the same local construct but separate entries with commas.
 
 <a id="bodies-one-result-at-the-end"></a>
 
@@ -276,7 +276,7 @@ An object expression writes its locals before its first object field. Each local
 
 A local name can start a chain, take a projection, or supply an argument. A reserved local name uses `@name` when referenced. A local holding a value cannot be called: `items(…)` is a validation error.
 
-Locals occur only in bodies and object expressions. A [simple expression](expressions.md#simple-expressions) does not hold a body, and an object expression inside one, a member's options object among them, declares no locals.
+Locals occur only in bodies and object expressions. A [simple expression](language/expressions.md#simple-expressions) does not hold a body, and an object expression inside one, a member's options object among them, declares no locals.
 
 <a id="locals-sequential-scope"></a>
 

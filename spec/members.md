@@ -119,13 +119,13 @@ An optional enclosed access written directly as a call's argument is a syntax er
 
 The closing parenthesis ends the enclosed optional chain. `(?x.y.z)?.a.b` is `(x?.y?.z)?.a.b`; `.b` still requires a non-null `a`.
 
-A projection or any other expression beyond that member chain is a syntax error. The definition records the individual accesses as optional, and the [canonical text](definition.md#definition-canonical-text) writes `?.` and `?[` rather than the enclosed shorthand.
+A projection or any other expression beyond that member chain is a syntax error. The definition records the individual accesses as optional, and the [canonical text](runtime/definition.md#definition-canonical-text) writes `?.` and `?[` rather than the enclosed shorthand.
 
 <a id="property-access-calls-and-indexers-calls"></a>
 
 ### Function calls
 
-A function call takes zero or more positional arguments inside parentheses, separated by commas. Each argument is a [simple expression](expressions.md#simple-expressions). The chain may continue after the call. Every member written with arguments in parentheses is written as a function call, whoever invokes it.
+A function call takes zero or more positional arguments inside parentheses, separated by commas. Each argument is a [simple expression](language/expressions.md#simple-expressions). The chain may continue after the call. Every member written with arguments in parentheses is written as a function call, whoever invokes it.
 
 Argument count and types come from the signature. `room.device("lamp", "fan")` is a validation error because `device` takes one argument.
 
@@ -135,7 +135,7 @@ Calls do not accept named arguments. `room.device(name = "lamp")` is a syntax er
 
 ### Named indexers
 
-A named indexer takes one key, written in brackets after its name. The key is a [simple expression](expressions.md#simple-expressions).
+A named indexer takes one key, written in brackets after its name. The key is a [simple expression](language/expressions.md#simple-expressions).
 
 | Form | Meaning |
 | --- | --- |
@@ -331,9 +331,9 @@ An options object follows the ordinary rules of an object expression. Its option
 Every parameter of a member is declared as one of four kinds, and the evaluator treats them differently; a parameter an options object supplies is the same.
 
 - A **value argument** is evaluated once, where the call is written, against the same implicit parameter as the chain it appears in, so its `it` is that implicit parameter. In `room { own = it.device(it.name) }`, the argument's `it.name` is the room's name, not a device's. At the top level, where there is no implicit parameter, a value argument starts from a script parameter, `root`, a namespace's member, a local, a literal, an object expression or another input: `room.device(name)`. An object expression given to a value parameter of a structured type constructs the structure, as [constructing a structure](types.md#types-constructing-a-structure) sets out.
-- An **expression argument** is a body of each item of the list the member follows, which is its `it`, and its result must be of the type the parameter declares. In `room.devices.max(it.power)`, `it` is each device. It is written as its body, an expression the member evaluates against each item, or as a function of the item, which the member calls with each: an arrow function, `room.devices.max(d => d.power)`, a delegate a name holds, or a [function reference](functions.md#functions-module-delegates), each checked against the contract of one argument, the item's type, and the parameter's result type, as a function argument is. Whichever form gives it, the member receives a callback of that contract, which it calls only while its own invocation lasts, with one item of the list's item type, and a call after that, or with other arguments, fails. A body that reads no `it` gives each item the same value, so `room.devices.sum(1)` counts them, and one that reads `it` and gives a delegate is a validation error, since a function of the item is written as the argument itself. Nexo's own module's expression parameters are those of `max`, `min` and `sum`.
+- An **expression argument** is a body of each item of the list the member follows, which is its `it`, and its result must be of the type the parameter declares. In `room.devices.max(it.power)`, `it` is each device. It is written as its body, an expression the member evaluates against each item, or as a function of the item, which the member calls with each: an arrow function, `room.devices.max(d => d.power)`, a delegate a name holds, or a [function reference](language/functions.md#functions-module-delegates), each checked against the contract of one argument, the item's type, and the parameter's result type, as a function argument is. Whichever form gives it, the member receives a callback of that contract, which it calls only while its own invocation lasts, with one item of the list's item type, and a call after that, or with other arguments, fails. A body that reads no `it` gives each item the same value, so `room.devices.sum(1)` counts them, and one that reads `it` and gives a delegate is a validation error, since a function of the item is written as the argument itself. Nexo's own module's expression parameters are those of `max`, `min` and `sum`.
 - A **predicate argument** is an expression argument of any value, and the member receives its truthiness, a Boolean, for each item it evaluates it against or calls it with: in `room.devices.where(it["mode"])`, the device's setting is truthy wherever it is present, empty or not, and `room.devices.where(Home.active)` keeps the active devices. A Boolean name that does not hold a function is its body, the same for every item, so it keeps every item or none. Nexo's own module's predicate parameter is that of `where`.
-- A **function argument** is a function, which the member receives as a callback and calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type: an arrow function written as the argument, a delegate a name holds, a [function reference](functions.md#functions-module-delegates) to a module's function, as `Home.active` is, or, for a contract of one argument, an [implicit body](functions.md#functions-implicit-bodies), an expression reading `it`, which is that argument. Resolution checks each function the argument may be against the contract, its argument types and its result type, and refuses a name that does not hold a delegate, so `room.anyDevice(metered)` is a validation error for a Boolean `metered`; evaluation checks the result an implementation answers. The member calls it only while its own invocation lasts, and a call after that fails. Nexo's own module declares no function parameter: a module declares the members that take a function for its own domain, as the home's `room.anyDevice(test)` does. Where an expression argument's body that reads no `it` is a value the same for every item, a function argument's is not a delegate, so `room.anyDevice(metered)` is refused where `room.devices.where(metered)` keeps every device or none; `room.anyDevice(d => metered)` writes a test of a Boolean.
+- A **function argument** is a function, which the member receives as a callback and calls with arguments of the types its **callback contract** declares, taking a result of the contract's result type: an arrow function written as the argument, a delegate a name holds, a [function reference](language/functions.md#functions-module-delegates) to a module's function, as `Home.active` is, or, for a contract of one argument, an [implicit body](language/functions.md#functions-implicit-bodies), an expression reading `it`, which is that argument. Resolution checks each function the argument may be against the contract, its argument types and its result type, and refuses a name that does not hold a delegate, so `room.anyDevice(metered)` is a validation error for a Boolean `metered`; evaluation checks the result an implementation answers. The member calls it only while its own invocation lasts, and a call after that fails. Nexo's own module declares no function parameter: a module declares the members that take a function for its own domain, as the home's `room.anyDevice(test)` does. Where an expression argument's body that reads no `it` is a value the same for every item, a function argument's is not a delegate, so `room.anyDevice(metered)` is refused where `room.devices.where(metered)` keeps every device or none; `room.anyDevice(d => metered)` writes a test of a Boolean.
 
 Because the kind is part of the signature, resolution validates every kind before evaluation, and evaluation reports the reads of value, expression, predicate and function arguments.
 
@@ -367,7 +367,7 @@ A module declares each member as data, in the `members` of the type it belongs t
 
 | Declaration key | Holds |
 | --- | --- |
-| `name` | The member's name in the language, an [identifier](lexical-structure.md#names-and-reserved-words), followed by the [type parameters](types.md#types-type-parameters) it declares, `identity<T>`; an operator's names its operation, `cast` or `convert`, and declares none; left out for a type's unnamed indexer |
+| `name` | The member's name in the language, an [identifier](language/lexical-structure.md#names-and-reserved-words), followed by the [type parameters](types.md#types-type-parameters) it declares, `identity<T>`; an operator's names its operation, `cast` or `convert`, and declares none; left out for a type's unnamed indexer |
 | `kind` | `property`, `function`, `indexer` or `operator` |
 | `invokedBy` | Who invokes a function: `evaluator`, the default, or `host`, as [host calls](#members-host-calls) set out; an indexer takes `evaluator` alone |
 | `arguments` | The argument form of a function with parameters: `positional` or `options` |
@@ -390,7 +390,7 @@ Each member takes the declaration keys it needs alone; every one takes `kind` an
 
 `target`, `syntax` and `default` are taken by no member: a member's place gives its receiver, and its kind and its name, or an indexer's lack of one, how it is written.
 
-A function the host invokes takes value parameters alone, a deliberate restriction, which a design giving such arguments an evaluation context and a lifetime could lift: its arguments are prepared as values its host keeps, while an expression, a predicate or a function argument is evaluated by the evaluator as its member calls it, which for a host call would come after preparation ends and need an evaluation context and a lifetime no function the host invokes declares. A value parameter's type holds data and reference values, and a function is never given to one, as [functions as values](functions.md#functions-as-values) sets out, so a prepared argument does not hold a function at any depth, in an object or a list among them.
+A function the host invokes takes value parameters alone, a deliberate restriction, which a design giving such arguments an evaluation context and a lifetime could lift: its arguments are prepared as values its host keeps, while an expression, a predicate or a function argument is evaluated by the evaluator as its member calls it, which for a host call would come after preparation ends and need an evaluation context and a lifetime no function the host invokes declares. A value parameter's type holds data and reference values, and a function is never given to one, as [functions as values](language/functions.md#functions-as-values) sets out, so a prepared argument does not hold a function at any depth, in an object or a list among them.
 
 A module member is a property or a function, and refuses what only a receiver gives: an indexer, and an observation of the receiver or of a target found from it, in its own `updates` and in any observation it names.
 
@@ -421,7 +421,7 @@ A parameter is a value, an expression, a predicate or a function. An expression 
 
 | Declaration key | Holds |
 | --- | --- |
-| `name` | The parameter's name, an [identifier](lexical-structure.md#names-and-reserved-words), once among its member's parameters, which an options object's field gives |
+| `name` | The parameter's name, an [identifier](language/lexical-structure.md#names-and-reserved-words), once among its member's parameters, which an options object's field gives |
 | `kind` | `value`, `expression`, `predicate` or `function` |
 | `type` | A value's type, the type an expression produces, `Boolean` for a predicate, the truthiness its implementation receives (NEXO4540), and a function's result's |
 | `required` | Whether its argument must be given, a Boolean |

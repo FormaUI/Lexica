@@ -64,7 +64,7 @@ const DOCUMENTS = {
         { about: 'a body' },
         { about: 'locals' },
     ],
-    'spec/lexical-structure.md': [
+    'spec/language/lexical-structure.md': [
         { about: 'fields named by reserved words' },
         { about: 'a lexical reference', evaluates: { value: 3 } },
         { about: 'strings of each family', evaluates: { path: 'C:\\Users\\Eyal\\', pattern: '\\d{3}-\\d{2}', message: 'Saved to C:\\Users\\Eyal\\\n\nDone.' } },
@@ -84,7 +84,7 @@ const DOCUMENTS = {
         { about: 'types a script infers' },
         { about: 'casts', each: true, context: COMPARED },
     ],
-    'spec/collections.md': [
+    'spec/language/collections.md': [
         {
             about: 'the members of lists and dictionaries',
             evaluates: {
@@ -100,7 +100,7 @@ const DOCUMENTS = {
             evaluates: { sizes: [10, 20, 30], stock: { entries: [{ key: 'coffee', value: 3 }, { key: 'tea', value: 2 }] }, none: [], empty: { entries: [] } },
         },
     ],
-    'spec/expressions.md': [
+    'spec/language/expressions.md': [
         { about: 'tests', each: true },
         { about: 'equalities', each: true },
         { about: 'arithmetic' },
@@ -113,7 +113,7 @@ const DOCUMENTS = {
         { about: 'interpolated strings' },
         { about: 'a simple expression' },
     ],
-    'spec/functions.md': [
+    'spec/language/functions.md': [
         { about: 'a function' },
         { about: 'arrow functions', evaluates: 42 },
         { about: 'functions as values' },
@@ -131,11 +131,11 @@ const DOCUMENTS = {
     'spec/runtime.md': [
         { about: 'a result projection reading a local before its host call', projects: { at: 12, isOccupied: true, wasOccupied: true } },
     ],
-    'spec/definition.md': [],
+    'spec/runtime/definition.md': [],
     'spec/diagnostics-and-errors.md': [],
-    'spec/grammar.md': [],
+    'spec/language/grammar.md': [],
     'spec/terms.md': [],
-    'spec/examples-vocabulary.md': [],
+    'spec/language/examples-vocabulary.md': [],
     'docs/nexo-design.md': [],
     'docs/embedding-guide.md': [],
     'docs/features-status.md': [],

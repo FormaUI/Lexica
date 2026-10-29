@@ -119,7 +119,7 @@ The name restrictions apply to declarations in a script. Supplied data keeps all
 
 ## Results
 
-A **result** is data: numbers, strings, Booleans, null, lists, dictionaries, pairs, structured values and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`NEXO5028`). A delegate is never part of a result either, as [delegates](functions.md#functions-delegates) set out.
+A **result** is data: numbers, strings, Booleans, null, lists, dictionaries, pairs, structured values and objects. A reference value has no data form, so a script whose result would contain one is a validation error; a script reads the facts it needs of a reference value through an object expression. A value of [`Any`](types.md#types-any) a result holds is data or not as it is evaluated, so the result is checked then, and one that holds a reference or a function fails the evaluation (`NEXO5028`). A delegate is never part of a result either, as [delegates](language/functions.md#functions-delegates) set out.
 
 Each evaluation produces a new result, immutable throughout: its lists and objects, and every structured value in them, never change once produced, whatever the host's state does afterwards.
 
@@ -176,7 +176,7 @@ A value of the type null, a null binding, converts to any type a conversion can 
 
 A value its conversion rejects, as `"40%" to Number`, fails the evaluation with an evaluation error naming the conversion, the reason it gave and where it stands. A conversion that fails otherwise, by throwing or by answering a value not of its type, has a fault, which fails the evaluation too.
 
-A failure never answers null or a default: `?? 0` gives a missing setting a value, and leaves a malformed one an error, for which [an attempt](expressions.md#attempts) answers null instead.
+A failure never answers null or a default: `?? 0` gives a missing setting a value, and leaves a malformed one an error, for which [an attempt](language/expressions.md#attempts) answers null instead.
 
 <a id="conversions-evaluation"></a>
 

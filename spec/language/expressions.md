@@ -114,7 +114,7 @@ room.anyDevice(it.battery != null)
 
 A test is a property or a function whose result is a `Boolean` or a `Boolean?`: `it.occupied()` asks whether a room is occupied, and `it.batteryPowered()` whether a device runs on a battery. A member that takes a test calls the one it is given, as the home's `room.anyDevice(Home.active)` and `room.anyDevice(it.battery != null)` do, a module declaring such a member for its own domain.
 
-A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `Boolean?`, and a computed property access reads a Boolean property a binding names as it reads any other. A module declares a test as it declares any member, a [Boolean function](vocabulary.md#vocabulary-boolean-functions).
+A test follows the access rules as every member does, so one of a receiver that can be null is read with `?.` and is a `Boolean?`, and a computed property access reads a Boolean property a binding names as it reads any other. A module declares a test as it declares any member, a [Boolean function](../vocabulary.md#vocabulary-boolean-functions).
 
 <a id="tests-no-test-by-name-after-"></a>
 
@@ -418,7 +418,7 @@ A parenthesized expression holds an expression and adds nothing of its own, so `
 
 A conditional chooses a branch by truthiness. It starts with `if`, has a `then` branch and an `else` branch, and closes with `end`. Optional `elseif` clauses are tested in order.
 
-Each branch is a [body](scripts.md#bodies): one expression, or locals followed by `return`. Every branch of one conditional must use the same result style. A conditional stands on one line, or in [block form](lexical-structure.md#line-structure-keyword-blocks).
+Each branch is a [body](../scripts.md#bodies): one expression, or locals followed by `return`. Every branch of one conditional must use the same result style. A conditional stands on one line, or in [block form](lexical-structure.md#line-structure-keyword-blocks).
 
 ```nexo
 if metered then light else thermostat end
@@ -463,7 +463,7 @@ The name follows local naming rules, and may hide an outer local, object field o
 
 ### Branch types
 
-All branches are required. Their types must [merge](types.md#types-merging), with object types merged by their object fields and reference types of one hierarchy merging to the nearest supertype they share, as a list's items do. Nullability may differ.
+All branches are required. Their types must [merge](../types.md#types-merging), with object types merged by their object fields and reference types of one hierarchy merging to the nearest supertype they share, as a list's items do. Nullability may differ.
 
 | Branch types | Conditional type |
 | --- | --- |
@@ -510,7 +510,7 @@ A nested conditional chooses its own style. An `else` whose expression is a cond
 
 ## Do expressions
 
-`do … end` is a [body](scripts.md#bodies) evaluated where it stands, giving its result: `doubled = do warmth * 2 end`, or a body of locals and `return`, written in [block form](lexical-structure.md#line-structure-keyword-blocks).
+`do … end` is a [body](../scripts.md#bodies) evaluated where it stands, giving its result: `doubled = do warmth * 2 end`, or a body of locals and `return`, written in [block form](lexical-structure.md#line-structure-keyword-blocks).
 
 A `do` block or conditional must be grouped when used as an operand. Neither can be a chain receiver, grouped or not. Bind its value to a local before continuing a chain.
 

@@ -1,6 +1,6 @@
 # Proposal: line structure
 
-**State: accepted.** Specified in language `1.0.0-alpha.34`, as [line structure](../../spec/lexical-structure.md#line-structure) sets out, and implemented with [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34)'s step 6 of the implementation plan, as [I31](implementation-decisions.md) records.
+**State: accepted.** Specified in language `1.0.0-alpha.34`, as [line structure](../../spec/language/lexical-structure.md#line-structure) sets out, and implemented with [unit 3](../features-status.md#unit-3--script-text-imports-and-definition-version-34)'s step 6 of the implementation plan, as [I31](implementation-decisions.md) records.
 
 Related proposals: [script imports](script-imports.md), whose declarations each take a line of their own here.
 

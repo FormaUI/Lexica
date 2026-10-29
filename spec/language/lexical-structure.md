@@ -42,7 +42,7 @@ Whitespace, including [line breaks](#line-structure-line-breaks), and comments a
 
 ### Assignment and member punctuation
 
-Object fields, locals and conditional bindings put `=` between a name and its value. A colon in a member chain begins an [extension access](extensions.md#extensions-access), `device:Device.usage`, and anywhere else belongs only inside strings and comments.
+Object fields, locals and conditional bindings put `=` between a name and its value. A colon in a member chain begins an [extension access](../extensions.md#extensions-access), `device:Device.usage`, and anywhere else belongs only inside strings and comments.
 
 - `count: it.devices.count` is a syntax error that suggests `count = …`.
 - `=` in another position is a syntax error that explains that `==` compares values.
@@ -99,11 +99,11 @@ An identifier's spelling decides no meaning; where it stands does:
 
 - **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, object field, conditional binding or function parameter of its name, and otherwise the script parameter.
 - **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, object field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`; and otherwise the import binding of its name, the local name an import gives a module or a type: after `import Nexo = Home`, `@Nexo.rooms` reads `Home.rooms`. An import binding read with `@` begins its namespace or names its type, as its bare name does, and is never a value.
-- **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
-- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, after an [extension access](extensions.md#extensions-access)'s `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ Home = 1 }` declares the object field `Home`.
-- **Where the script imports a module,** the [local name](modules.md#names-and-reserved-words-module-names) its import gives the module, its own or an alias, written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@Home` reads the nearest local of its name, and the import binding only where none is in scope, `~Home` the script parameter of its name, and a member, an object field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
+- **After `~`,** the [script parameter](../scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
+- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, after an [extension access](../extensions.md#extensions-access)'s `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ Home = 1 }` declares the object field `Home`.
+- **Where the script imports a module,** the [local name](../modules.md#names-and-reserved-words-module-names) its import gives the module, its own or an alias, written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@Home` reads the nearest local of its name, and the import binding only where none is in scope, `~Home` the script parameter of its name, and a member, an object field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
 
-Declarations keep their own restrictions besides: module names are unique, compared case-insensitively, and a type is named once within its module, as [registering a module](modules.md#modules-registries) sets out. Ambiguity is checked when resolving a reference, against the declarations applicable at that location. Declarations are not refused merely because their names could become ambiguous in another context. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.
+Declarations keep their own restrictions besides: module names are unique, compared case-insensitively, and a type is named once within its module, as [registering a module](../modules.md#modules-registries) sets out. Ambiguity is checked when resolving a reference, against the declarations applicable at that location. Declarations are not refused merely because their names could become ambiguous in another context. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.
 
 <a id="names-and-reserved-words-declaring-and-accessing-a-reserved-name"></a>
 
@@ -394,7 +394,7 @@ Each of these starts on a line of its own, with no earlier code on that line:
 
 - **Each import declaration.**
 - **The script's body,** on a line after its last import.
-- **In a [body](scripts.md#bodies) that uses `return`, each local and the `return`,** at every level, a script's, a function's, a `do` block's and a conditional branch's alike, a body that uses `return` without locals included.
+- **In a [body](../scripts.md#bodies) that uses `return`, each local and the `return`,** at every level, a script's, a function's, a `do` block's and a conditional branch's alike, a body that uses `return` without locals included.
 
 ```nexo
 let fallback = 0
