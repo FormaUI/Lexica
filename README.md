@@ -1,6 +1,6 @@
 # Nexo
 
-Nexo is a general-purpose, embeddable language that evaluates scripts against what a host binds, through a vocabulary its modules declare for the domain, and produces immutable data. It was named Lexica until language `1.0.0-alpha.38`.
+Nexo is a general-purpose, embeddable language that evaluates scripts against what a host binds, through a vocabulary its modules declare for the domain, and produces immutable data.
 
 ```nexo
 let shown = rows.where(it.visible)
