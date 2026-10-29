@@ -47,7 +47,6 @@ In this document:
 6. [Valid declarations](#modules-valid-combinations)
 7. [Registries](#modules-registries)
 8. [Namespaces](#namespaces)
-9. [Extensions](#extensions)
 
 <a id="modules-declarations"></a>
 
@@ -67,7 +66,7 @@ A module is given the capability it exposes, never an instance of it, since inst
 
 ## What a module declares
 
-A module declares types of its own, reference and structured, each holding its members: its properties, a structured type's data among them, functions and indexers, for the evaluator or the host to invoke, Boolean functions among them, and its operators. It adds members to types other modules own in its [extensions](#extensions), declared among its `types`, declares module members with no receiver, and declares type selectors and their keys, observation types and observation targets. It follows these contracts throughout: every member declares its signature, its argument kinds and its result type, every member the evaluator invokes declares how it changes, aside from the properties a structured type declares directly without `updates`, which are its data, and operators, whose answer depends on their operand alone, and evaluating a script stays read-only and synchronous.
+A module declares types of its own, reference and structured, each holding its members: its properties, a structured type's data among them, functions and indexers, for the evaluator or the host to invoke, Boolean functions among them, and its operators. It adds members to types other modules own in its [extensions](extensions.md#extensions), declared among its `types`, declares module members with no receiver, and declares type selectors and their keys, observation types and observation targets. It follows these contracts throughout: every member declares its signature, its argument kinds and its result type, every member the evaluator invokes declares how it changes, aside from the properties a structured type declares directly without `updates`, which are its data, and operators, whose answer depends on their operand alone, and evaluating a script stays read-only and synchronous.
 
 | Declaration | What it is | Specified in |
 | --- | --- | --- |
@@ -75,11 +74,11 @@ A module declares types of its own, reference and structured, each holding its m
 | Structured type | A type of data: its name, its data shape in the properties it declares directly without `updates`, and its other members | [Declaring a type](#modules-declaring-a-type) |
 | `typeOf` | The module's recognition of a host's value, naming the most specific of its reference types the value is of, or null | [Reference types](types.md#reference-types) |
 | Member | A property, a function, an indexer or an operator of a type, or a property or a function of no type | [Members](members.md), [operators](#modules-operators) |
-| Extension | A named group of the members a module adds to a type another module owns, its `target` | [Extensions](#extensions) |
+| Extension | A named group of the members a module adds to a type another module owns, its `target` | [Extensions](extensions.md#extensions) |
 | Type selector, mapping | A selector a fixed argument chooses a type through, and a mapping of one of its keys to a type | [Type selectors](vocabulary.md#vocabulary-type-selectors) |
 | Observation type, observation target | What a member names to learn that its result may have changed, and what it may observe | [Observations](vocabulary.md#observations) |
 
-A module declares members on any type, its own in their declarations and another module's in its extensions, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](#namespaces-owners-and-extensions) set out. Any type or member may be [internal](#modules-internal-declarations), available within its module alone.
+A module declares members on any type, its own in their declarations and another module's in its extensions, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](extensions.md#extensions-owners) set out. Any type or member may be [internal](#modules-internal-declarations), available within its module alone.
 
 <a id="modules-declaring-a-type"></a>
 
@@ -108,7 +107,7 @@ A module declares each type it owns in its `types`, its `kind` saying which fami
 
 - **A reference type** is `kind: 'reference'`. It declares its `isInstance`, may name a `supertype` and be `abstract`, and holds its members, as [reference types](types.md#reference-types) set out.
 - **A structured type** is `kind: 'structured'`, a type of immutable data. Its data shape is the properties it declares directly without `updates`, each naming the type of its value in `result` and taking no `impl`: Nexo reads each from the data, and validates, copies and freezes a structured value by them, never invoking an implementation to do so. Each is read as any property is, `room.climate?.temperature`. Its properties with `updates`, and its other members, answer through their `impl`, which a tool may leave out without changing the data shape. An extension adds nothing to a type's data shape, and a property declared without `updates` anywhere but directly in a structured type is refused.
-- **An extension** is `kind: 'extension'`, holding the members it adds to its `target`, as [extensions](#extensions) set out, and never a value's type.
+- **An extension** is `kind: 'extension'`, holding the members it adds to its `target`, as [extensions](extensions.md#extensions) set out, and never a value's type.
 - **A type's name** is unique within its module, conventionally in PascalCase, as [type names](types.md#types-type-names) set out, and the type is identified by its module and that name.
 - **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['Home']`; every other foreign type it names is qualified, `Home.Device`, as [type identity](types.md#types-type-identity) sets out.
 
@@ -148,7 +147,7 @@ A type or a member declares `internal: true` to be available within its declarin
   | A public reference type declaring an internal supertype | Refused |
   | A mapping of a key to the internal `ReadingState` | Refused |
 
-- **At resolution.** A script does not reach an internal declaration through any form: a member read or called, a data shape's property read by name or by computed property access, a qualified form, an extension access, a function reference, an indexer, and a cast or a conversion naming an internal type or selecting an internal operator. An internal declaration is not a candidate where [owner precedence](#namespaces-owners-and-extensions) chooses, so an accessible extension resolves where the owner's member of its name is internal.
+- **At resolution.** A script does not reach an internal declaration through any form: a member read or called, a data shape's property read by name or by computed property access, a qualified form, an extension access, a function reference, an indexer, and a cast or a conversion naming an internal type or selecting an internal operator. An internal declaration is not a candidate where [owner precedence](extensions.md#extensions-owners) chooses, so an accessible extension resolves where the owner's member of its name is internal.
 - **In tooling.** Completion and every listing a script's author reads leave internal declarations out.
 
 `internal` decides what scripts and other modules' declarations name, and nothing else: an implementation is JavaScript, and works with its values and its helpers as it always does, and a value a result holds keeps what it holds, an internal property among them, since what a script can name and what its host receives are separate.
@@ -206,25 +205,11 @@ A module's namespace is how a script reaches what the module declares: in a scri
 
 A member a module declares in its own `members`, with no type it applies to, is a **module member**, read through the namespace alone: `Home.rooms` reads the home's rooms, and `Home.now` the time. Its implementation is given no receiver. Two modules may each declare a module member of one name, since each is read through its own namespace. Reading a member through a namespace says nothing of how its value changes: `Home.now` is unobserved, and changes between evaluations.
 
-<a id="namespaces-owners-and-extensions"></a>
-
-### Owners and extensions
-
-A module may declare members on any type, its own in their declarations or another module's in its [extensions](#extensions). The module that declares a type **owns** it, and a member another module declares on it is an **extension**, as `Energy`'s `device.usage` is. An unqualified member resolves by the owner of its receiver's static type, among the declarations applicable to the receiver and accessible to the script, those of Nexo's own module and of the modules the script [imports](scripts.md#scripts-imports):
-
-- An applicable member the owner declares wins over every extension, so `device.power` reads `Home`'s, whatever `Energy` declares. A member the owner declares on a supertype it also owns takes part with the owner's priority, while one another module declares on a supertype is applicable with no priority over other extensions. An extension on a more specific receiver never defeats an applicable member of the owner.
-- Otherwise the applicable extension whose target is more specific than every other applicable extension's target is selected, by the specificity [a module's own collisions](#namespaces-a-modules-own-collisions) follow. One applicable extension resolves as any member does, so `device.usage` reads `Energy`'s; and were a module `Solar` to declare `usage` in an extension on `Light`, `light.usage` reads `Solar`'s and `thermostat.usage` `Energy`'s, whatever order the two modules registered in.
-- Where no applicable extension's target is more specific than every other's, the access is refused as ambiguous when the script is resolved, before anything is evaluated: two extensions targeting the same type, and applicable targets neither of which is more specific than the other. Each still registers, since refusing one would leave it unreachable where explicit access selects it. Were `Solar` to declare `usage` on `Device` instead, in an extension also named `Device`, `device.usage` is refused in a script importing both, and reads `Energy`'s in one importing `Energy` alone:
-
-> Member 'usage' on 'Device' is ambiguous between modules 'Energy' and 'Solar'. Use 'device:Energy.Device.usage' or 'device:Solar.Device.usage' to select one.
-
-Applicability follows the receiver's type and the access form, so one name on unrelated types is never ambiguous, and an [internal](#modules-internal-declarations) declaration is not a candidate, so an accessible extension resolves where the owner's member of its name is internal. Registration order never decides. Nexo's own module owns the language's types, `List`, `Number`, `String` and `Boolean` among them, so `rooms.count` reads Nexo's whatever an extension declares; that module has no namespace, and its name is reserved nowhere. Indexers follow the same precedence, as [indexer selection](#namespaces-indexers) sets out, and so do [operators](#modules-operators): a cast or a conversion is selected among the operators of its name and destination applicable to its receiver, the owner's winning, the extension's whose target is more specific than every other's resolving where the owner declares none, and several none of which is more specific refused as ambiguous, since no syntax selects one module's operator, extension access among them.
-
 <a id="namespaces-qualified-access"></a>
 
 ### Qualified access
 
-Every member a module declares on one of its own types is also reached through the module's namespace, the receiver its first argument and the member's own arguments after it: `Home.device(room, "lamp")` and `Home.active(device)`. The qualified form selects that module's declaration and reuses its implementation and its contract, and the unqualified form stays available beside it, so no module declares a second implementation to make a member addressable. An extension's member is selected explicitly through its extension instead, `device:Device.usage`, as [extension access](members.md#property-access-calls-and-indexers-extension-access) sets out, and no namespace reaches it.
+Every member a module declares on one of its own types is also reached through the module's namespace, the receiver its first argument and the member's own arguments after it: `Home.device(room, "lamp")` and `Home.active(device)`. The qualified form selects that module's declaration and reuses its implementation and its contract, and the unqualified form stays available beside it, so no module declares a second implementation to make a member addressable. An extension's member is selected explicitly through its extension instead, `device:Device.usage`, as [extension access](extensions.md#extensions-access) sets out, and no namespace reaches it.
 
 In a qualified call to a receiver member, the receiver argument propagates null. If it is null, the member's implementation is not invoked and the call produces null. The result type includes null whenever the receiver argument's type includes null, so each qualified form is a receiver form selecting that module's declaration:
 
@@ -246,7 +231,7 @@ An indexer is selected by the owner of its receiver's type, as a member is, and 
 - **A named indexer**, `x.name[key]`, resolves as an unqualified member does: the owner's indexer of that name wins over every extension's, the applicable extension's whose target is more specific than every other's resolves, and several none of which is more specific are refused as ambiguous when the script is resolved, the error naming the indexer, its receiver's type and the competing modules.
 - **An unnamed indexer**, `x[key]`, selects the indexer declared without a name for its receiver's type: the owner's wins, the applicable extension's whose target is more specific than every other's resolves where the owner declares none, and several none of which is more specific are refused as ambiguous, as named ones are. So `device["mode"]` reads `Home`'s, whatever an extension declares, and `rooms[0]` reads `List`'s.
 
-No qualified form reaches an indexer, and an extension's indexer is selected explicitly through its extension, `device:Device.setting["mode"]` and `device:Device["mode"]`, as [extension access](members.md#property-access-calls-and-indexers-extension-access) sets out, so one that the owner's indexer of its name outranks, or that another extension's competes with, is still reached that way.
+No qualified form reaches an indexer, and an extension's indexer is selected explicitly through its extension, `device:Device.setting["mode"]` and `device:Device["mode"]`, as [extension access](extensions.md#extensions-access) sets out, so one that the owner's indexer of its name outranks, or that another extension's competes with, is still reached that way.
 
 <a id="namespaces-a-modules-own-collisions"></a>
 
@@ -254,7 +239,7 @@ No qualified form reaches an indexer, and an extension's indexer is selected exp
 
 Within one module, an exact duplicate is refused at registration: two members of one name declared on one receiver type, two unnamed indexers for one receiver type, and two operators of one name and destination on one receiver type. Declarations whose receivers only overlap are not duplicates, and both register: `Home` may declare `active` on `Device` and on `Light`, two declarations though a light satisfies both, and so may a `List<Light>` and a `List<Device>` each take a member of one name. An access, an indexer or an operator resolves through its receiver's type: select the applicable declaration whose receiver type is more specific than every other applicable declaration's receiver type. If there is no unique such declaration, the access is ambiguous. Specificity follows the type relationships: `Light` is more specific than `Device`, `List<Light>` than `List<Device>` by list covariance, and a receiver of any type is the least specific, so a member on a type hides one of its name on a supertype, `light.active` reading `Light`'s and `device.active` of a `Device` reading `Device`'s. The receiver's static type selects, so a light held as a `Device` reads `Device`'s. Where both `List<Number>.active` and `List<String>.active` are registered, an empty list, a `List<Never>`, satisfies both receiver types, and neither is more specific than the other, so that access is ambiguous, the diagnostic naming the competing declarations; with one applicable declaration, or a uniquely most specific one, it resolves as any access does. A module member competing with a receiver's member in a qualified call is a separate rule, set out below. Members of one name on unrelated receivers never meet, since the receiver selects one, written unqualified or qualified, and a [function reference](functions.md#functions-module-functions) selects one by the callback contract it is passed to, refusing one that several take.
 
-A module member, which has no receiver, and a member of its name on a receiver both register, and both are reached through the module's namespace: `Home.rooms` reads or references the module member, and `Home.rooms(room)` is the qualified form of the receiver's member as well as a call of the module member. Resolution and type checking decide which reading a qualified call takes, nothing being evaluated: one reading applies, and is selected; both apply, and the call is refused as ambiguous, the receiver form, `room.rooms`, reaching the receiver's member. A module member and an extension of its name never meet, since an extension's function is never reached through a namespace. Owner precedence and ambiguity between modules are set out in [owners and extensions](#namespaces-owners-and-extensions).
+A module member, which has no receiver, and a member of its name on a receiver both register, and both are reached through the module's namespace: `Home.rooms` reads or references the module member, and `Home.rooms(room)` is the qualified form of the receiver's member as well as a call of the module member. Resolution and type checking decide which reading a qualified call takes, nothing being evaluated: one reading applies, and is selected; both apply, and the call is refused as ambiguous, the receiver form, `room.rooms`, reaching the receiver's member. A module member and an extension of its name never meet, since an extension's function is never reached through a namespace. Owner precedence and ambiguity between modules are set out in [owners and extensions](extensions.md#extensions-owners).
 
 <a id="names-and-reserved-words-module-names"></a>
 <a id="namespaces-text-and-registries"></a>
@@ -268,42 +253,3 @@ A module's name is an identifier, conventionally written in PascalCase, `Home` a
 Text is written by the same names: formatting writes a namespace as the local name the script's imports give the module, `Home` or `Measures`, a local or an object field named as a namespace the script's imports give as a lexical reference, `@Home`, and a script parameter named after one with `~`, `~Home`. Canonical text writes every import its definition records, so it reads back as the same definition wherever it is parsed; a caller may name the imports its destination supplies, `format(source, { imports: ['Home'] })`, which the text leaves out, and that text reads back as the same definition where it is parsed with them supplied.
 
 Parsing reads an import and its namespace without asking a registry, so whether the module is registered is checked when the script is resolved, which refuses an import of a module the registry does not hold. A definition's namespace naming a module its imports leave out is a structure error. Parsed texts are kept by their text and the imports supplied to them.
-
-<a id="extensions"></a>
-
-## Extensions
-
-An **extension** is a named group of the members and indexers a module declares on a type another module owns, as `Energy`'s `Device` adds `device.usage` to `Home`'s `Device`. A module declares each among its `types`, of `kind: 'extension'`, naming the `target` its members extend, which take that type as their receiver as a type's own members do:
-
-```js
-const energy = nexo.createModule('Energy', {
-    types: [
-        {
-            name: 'Device',
-            kind: 'extension',
-            target: 'Home.Device',
-            members: [/* usage, power, meter */],
-        },
-    ],
-});
-```
-
-- **Its name.** An extension is a declaration of its module, identified by its module and its local name as a type is, so a module declares a name once among its types, and an ordinary type and an extension never share one. Its local name is conventionally in PascalCase, as a type's is, which is not enforced, and a suffix such as `Extensions` is its author's choice: `kind: 'extension'` makes a declaration an extension, and its spelling never does. Its name may declare [type parameters](types.md#types-type-parameters) its target and its members share, `ListExtensions<T>`, which the receiver binds at each access.
-- **Its target.** An extension has one target, and a module declares as many extensions as it groups its members into, on one target or several. A target names a foreign type qualified, `Home.Device`, one of Nexo's own types as it is, `List<Number>`, or a parameter its extension declares, `{ name: 'Checks<T>', kind: 'extension', target: 'T' }`, which extends a receiver of any type; a parameter is no type its module owns, so a module declares such an extension whatever types it owns. A target is never `Any`, since a parameter extends every type and binds the receiver's, and never nullable, since a member is read on a value and an [optional access](members.md#property-access-calls-and-indexers-required-access-and-optional-chains) skips a null receiver. An extension declares no `import`: within it, its own module's types and Nexo's resolve unqualified, a foreign type is written qualified, and it does not inherit an import of the type it extends.
-- **What it is.** An extension owns its members and is addressable for [extension access](members.md#property-access-calls-and-indexers-extension-access), `device:Device.usage`. It is never a value's type: it never wraps a receiver or changes a type's identity, and its target is never its supertype.
-- **What it adds.** Members alone: it changes no type's `isInstance`, data shape, hierarchy, abstractness or `internal` flag, and no module's `typeOf`. A property it declares takes `updates`, so it adds nothing to a data shape, and it never attaches state to a receiver.
-
-Every module may declare them, on any type another module owns, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](#namespaces-owners-and-extensions) set out, so extensions that compete both register and are told apart by extension access. A type that the module itself owns takes its members in its own declaration, and a target no module declares is refused when the module is registered, so a misspelled type never becomes an extension.
-
-<a id="extensions-different-targets"></a>
-
-### Extensions on different targets
-
-Extensions whose targets differ may declare members of one name, in one module or in several, each extension a declaration with its own identity:
-
-```js
-{ name: 'NumericList', kind: 'extension', target: 'List<Number>', members: [/* total */] }
-{ name: 'StringList', kind: 'extension', target: 'List<String>', members: [/* total */] }
-```
-
-Ordinary lookup first takes the extensions whose targets the receiver satisfies, by the [assignability rules](types.md#types-assignability), and then applies ownership and specificity, as [owners and extensions](#namespaces-owners-and-extensions) set out: `values.total` reads `NumericList`'s for a `List<Number>`, and `StringList`'s for a `List<String>`. An empty list, a `List<Never>`, satisfies both targets through list covariance, and neither target is more specific than the other, so `values.total` is refused as ambiguous, and an [extension access](members.md#property-access-calls-and-indexers-extension-access) resolves it: `values:NumericList.total`, `values:StringList.total`, or one its module qualifies, `values:Measurements.NumericList.total`. The selected extension's target still accepts the receiver, since selecting one never bypasses type checking.

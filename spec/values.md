@@ -154,7 +154,7 @@ A list itself is not a type a conversion converts between, and neither is a type
 
 ### One declared conversion
 
-A value converts to another type only through a conversion operator from its type to that type, as [conversions](vocabulary.md#vocabulary-conversions) declare them, selected among those its script's imports make available as [owners and extensions](modules.md#namespaces-owners-and-extensions) set out. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to Number` is still a validation error, whose message names the types a Boolean converts to. A script that means both conversions writes both.
+A value converts to another type only through a conversion operator from its type to that type, as [conversions](vocabulary.md#vocabulary-conversions) declare them, selected among those its script's imports make available as [owners and extensions](extensions.md#extensions-owners) set out. Conversions never chain on their own: a Boolean converts to a string and a string to a number, and `enabled to Number` is still a validation error, whose message names the types a Boolean converts to. A script that means both conversions writes both.
 
 <a id="conversions-a-value-already-of-the-type"></a>
 

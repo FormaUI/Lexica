@@ -147,14 +147,14 @@ In this document:
 | Declaration key | A key of a declaration's own configuration, as `result`, `impl` or `updates.misses`, which a module error names where one is wrong | [Valid declarations](modules.md#modules-valid-combinations) |
 | Module key | A key of a module's contents, as `types`, `members` or `typeOf` | [Creating a module](modules.md#modules-declarations) |
 | Internal declaration | A type or a member declared `internal: true`, available within its declaring module alone | [Internal declarations](modules.md#modules-internal-declarations) |
-| Nexo's own module | The module Nexo creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
+| Nexo's own module | The module Nexo creates, which owns the language's types and declares their members, as `count` and `where`, and has no namespace | [Owners and extensions](extensions.md#extensions-owners) |
 | Import | A script's declaration that it uses a module's vocabulary, `import Home`, or one type's, `import Home.Sensor`, written at its start or supplied by its host | [Imports](scripts.md#scripts-imports) |
 | Alias | The local name an import gives in place of its module's or its type's own, `import Measures = Measurements` | [Imports](scripts.md#scripts-imports) |
 | Namespace | The local name a script's import gives a module, its own or an alias, through which its module members and its qualified forms are reached, and which qualifies its types' and extensions' names | [Namespaces](modules.md#namespaces) |
 | Module member | A member a module declares on no type, read through its namespace, as `Home.rooms` | [Module members](modules.md#namespaces-module-members) |
-| Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](modules.md#namespaces-owners-and-extensions) |
-| Extension | A named group a module declares among its `types`, `kind: 'extension'`, of the members, indexers and operators it adds to its `target`, a type another module owns or a type parameter it declares | [Extensions](modules.md#extensions) |
-| Extension access | An extension's member selected explicitly, `device:Device.usage` | [Extension access](members.md#property-access-calls-and-indexers-extension-access) |
+| Owner | The module that declares a type, whose members and indexers on it win over every extension | [Owners and extensions](extensions.md#extensions-owners) |
+| Extension | A named group a module declares among its `types`, `kind: 'extension'`, of the members, indexers and operators it adds to its `target`, a type another module owns or a type parameter it declares | [Extensions](extensions.md#extensions) |
+| Extension access | An extension's member selected explicitly, `device:Device.usage` | [Extension access](extensions.md#extensions-access) |
 | Qualified form | A member of a module's own type called through its namespace, the receiver first, as `Home.device(room, "lamp")` | [Qualified access](modules.md#namespaces-qualified-access) |
 | Boolean function | A function whose result is a `Boolean`, the form a module gives a test of its receiver, as `device.active()` | [Boolean functions](vocabulary.md#vocabulary-boolean-functions) |
 | Observation | What a member names to learn that its result may have changed, or to keep the sample it reads | [Observations](vocabulary.md#observations) |

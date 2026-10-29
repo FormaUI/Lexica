@@ -53,7 +53,7 @@ Property access, function calls and indexers are distinct constructs. A member's
 | Function call | `receiver.function(…)` | `receiver?.function(…)` | `room.device("lamp")` |
 | Named indexer | `receiver.indexer[key]` | `receiver?.indexer[key]` | `device.setting["mode"]` |
 | Unnamed indexer | `receiver[key]` | `receiver?[key]` | `rooms[0]` |
-| Extension access | `receiver:Extension.member` | `receiver?:Extension.member` | `device:Device.usage` |
+| [Extension access](extensions.md#extensions-access) | `receiver:Extension.member` | `receiver?:Extension.member` | `device:Device.usage` |
 
 ```nexo
 room.devices.count                                // A dot property access.
@@ -149,7 +149,7 @@ The text reads `x.name[key]` as it is written, the member `name` and then bracke
 - Where the receiver's type has a named indexer `name` the script can reach, `x.name[key]` invokes it with the key.
 - Otherwise `name` is a property, and the brackets invoke the [unnamed indexer](#property-access-calls-and-indexers-unnamed-indexers) of the type it answers, as `room.devices[0]` reads the room's first device.
 
-The two readings never both apply, since a named indexer and a property of one name on one type collide, and [owner precedence](modules.md#namespaces-owners-and-extensions) chooses one declaration of a name. Resolution reads the pair together: where the member access names a named indexer of its receiver's type, it supplies the receiver and the indexer's name and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index. Once a named indexer applies, the brackets are its key whatever they hold: a key it refuses, as `device.setting[3]` for a setting's name, is that indexer's validation error, and never makes the brackets index the answer of a property instead.
+The two readings never both apply, since a named indexer and a property of one name on one type collide, and [owner precedence](extensions.md#extensions-owners) chooses one declaration of a name. Resolution reads the pair together: where the member access names a named indexer of its receiver's type, it supplies the receiver and the indexer's name and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index. Once a named indexer applies, the brackets are its key whatever they hold: a key it refuses, as `device.setting[3]` for a setting's name, is that indexer's validation error, and never makes the brackets index the answer of a property instead.
 
 A group leaves the definition as it is, so `(device.setting)["mode"]` is `device.setting["mode"]`.
 
@@ -185,28 +185,6 @@ A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` 
 An indexer's **signatures** are the indexers a type or an extension declares of one name, or unnamed, each taking a key of its own type: Nexo's own `List` declares three, a `Number` and an `Index` looked up and a `Range` sliced. Their key types are disjoint, two whose key types fit one way or the other, or either of which takes a type parameter or `Any`, being refused when they are registered (NEXO4068 for unnamed ones, NEXO4029 for named ones). An access selects the indexer as it selects any member, and then the signature whose key type its key's type is assignable to, a key of null or a never the first's; a key no signature takes, and one of `Any` where several signatures stand, is refused (NEXO3084), never falling through to another member. On a value of `Any`, the signature its key's value is of is selected when it is evaluated.
 
 [Which unnamed indexer applies](modules.md#namespaces-indexers) follows the type's owner, as any member's does. A type with none refuses `x[key]`, and where `key` is a string and `x` has a property it could name, the validation error gives the computed form, `x.[key]`.
-
-<a id="property-access-calls-and-indexers-extension-access"></a>
-
-### Extension access
-
-`receiver:Extension.member` selects an [extension](modules.md#extensions) explicitly: the expression before `:` is the receiver, the name after it identifies the extension that supplies the member, and the member keeps its own form.
-
-| Member form | Required form | Optional form |
-| --- | --- | --- |
-| Property | `device:Device.usage` | `device?:Device.usage` |
-| Function | `device:Device.reset(3)` | `device?:Device.reset(3)` |
-| Named indexer | `device:Device.setting["mode"]` | `device?:Device.setting["mode"]` |
-| Unnamed indexer | `device:Device["mode"]` | `device?:Device["mode"]` |
-
-- **The extension's name.** After `:` stands an extension's name, its local name or one its module qualifies, `device:Energy.Device.usage`, where a name the script's [imports](scripts.md#scripts-imports) give a module, its own or an alias, followed by a dot, is the qualifier, so the text alone decides where the name ends, and an extension named as a module the script imports is written qualified, `device:Solar.Energy.usage`. Resolution reads it as a script's [type name](types.md#types-type-identity) is read, an extension the script imports by name first, `values:Numeric.total` after `import Numeric = Measurements.NumericList`, and otherwise the public extensions of Nexo's own and of the modules the script imports, one only, several refused with their qualified names given: ordinary types take no part, so beside `Home`'s type `Device`, `device:Device.usage` selects `Energy`'s extension, and a name only an ordinary type has is refused.
-- **Its members alone.** Lookup is limited to the extension's members, so a member it does not declare is an error at that selection, never falling through to another extension or to the receiver's own members, and an extension that ordinary lookup outranks is still reached. The receiver satisfies the extension's target, binding its parameters as [binding a call's parameters](types.md#types-type-parameters-binding) sets out, and visibility and the host's policy apply as to any access.
-- **One member operation.** The selection applies to one member operation, and what follows it applies to that operation's answer as usual: `device:Device.details.name` reads the `name` of what `details` answers, and `device:Device.readings[0]` indexes it, unless `readings` is a named indexer, whose declaration decides. A later colon selects another extension for the intermediate value: `device:Device.readings:ListExtensions.first`.
-- **A postfix of its receiver.** It binds as a member access does, so in `left + right:NumberExtensions.description` it belongs to `right`, and in `(left + right):NumberExtensions.description` to the sum.
-- **Null.** `:` takes a receiver that cannot be null, one that can being refused with the form `?:`, as `.` is with `?.`, and a null found during evaluation failing the access. `?:` evaluates its receiver once and, where it is null, answers null without evaluating the member's arguments or keys, as `?.` does, the extension's name still resolved and its declaration still checked. The items of a `List<Device?>` don't make the list null.
-- **A function without a call** is a function reference bound to its receiver: `device:Device.active` evaluates and captures `device` once, when the reference is created, and takes the member's own arguments alone, under the restrictions every [function reference](functions.md#functions-module-functions) follows, so a function the host invokes has none. Where the receiver is supplied later, an arrow function writes it: `d => d:Device.active()`.
-- **A receiver of `Any`.** The selection names the declaration, so its arguments are read by it, and the receiver is checked against the target when it is evaluated, as [values of `Any`](types.md#types-any) set out; selecting an extension doesn't make an unknown type known, so what inference still needs from the value is refused as for any call.
-- **Evaluation.** The receiver is evaluated once and checked against the target, and a failed check invokes nothing; the arguments or keys follow the member's contract, the host's `beforeInvoke` decides before the member is invoked, a property's getter and an indexer included, and the answer is checked as any member's is. A host call selected so keeps its terminal position, its preparation and its projection, and a resolution reports the selected member among its used declarations.
 
 <a id="property-access-calls-and-indexers-member-form-and-parsing"></a>
 
@@ -385,7 +363,7 @@ A member's value is known only once it is evaluated, so an expression that needs
 
 ## Declaring a member
 
-A module declares each member as data, in the `members` of the type it belongs to, of an [extension](modules.md#extensions) of a type another module owns, or of the module itself for a [module member](modules.md#namespaces-module-members). A member in a type or an extension takes that type as its receiver and names none, and a module member has none. Its declaration keys are its signature, which lets resolution check every use of it before evaluation, and its evaluation contract, which tells a host how the member reads and changes:
+A module declares each member as data, in the `members` of the type it belongs to, of an [extension](extensions.md#extensions) of a type another module owns, or of the module itself for a [module member](modules.md#namespaces-module-members). A member in a type or an extension takes that type as its receiver and names none, and a module member has none. Its declaration keys are its signature, which lets resolution check every use of it before evaluation, and its evaluation contract, which tells a host how the member reads and changes:
 
 | Declaration key | Holds |
 | --- | --- |

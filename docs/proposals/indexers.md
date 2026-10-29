@@ -44,7 +44,7 @@ The text parses as it reads, the member `name` and then brackets, and resolution
 - Where the receiver's type has a named indexer `name`, accessible to the script, `x.name[k]` calls it with the key `k`.
 - Otherwise `name` is a property, and the brackets call the unnamed indexer of the type it answers.
 
-The two readings never both apply, since a named indexer and a property of one name on one type collide, and [owner precedence](../../spec/modules.md#namespaces-owners-and-extensions) chooses one declaration of a name. A named indexer written without brackets, `device.setting`, is refused, giving `device.setting[…]`, and a named indexer written as a call, `device.setting("mode")`, is refused, giving the same form.
+The two readings never both apply, since a named indexer and a property of one name on one type collide, and [owner precedence](../../spec/extensions.md#extensions-owners) chooses one declaration of a name. A named indexer written without brackets, `device.setting`, is refused, giving `device.setting[…]`, and a named indexer written as a call, `device.setting("mode")`, is refused, giving the same form.
 
 Resolution reads the pair together. Where an indexer's target is a member access, it first asks whether that access names a named indexer of its receiver's type; where it does, the member access supplies the receiver and the indexer's name, and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index.
 

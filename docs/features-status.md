@@ -135,7 +135,7 @@ One selector chooses every member, indexer and operator, at resolution and durin
 | `Any` | Refused in a declaration | A declaration's result, a parameter and a default of `Any` or `Any?`, a member on a value of `Any` selected as it is evaluated; an invocation request's `isDeferred`, and a prepared call's, always false | None: DOMQL declares no `Any`, and reads no request's `isDeferred` |
 | Module creation and registration | Duplicate types, module members and mapping keys refused at registration; any default accepted for a type parameter, and `Infinity`, `NaN` or a list with a hole for a number or a list | Refused when the module is created, as a declaration holding a value that reaches itself is; a default is data, finite, and a list holding a value at every index | Correct any declaration these now refuse |
 
-Contracts: [Owners and extensions](../spec/modules.md#namespaces-owners-and-extensions), [operators](../spec/modules.md#modules-operators), [internal declarations](../spec/modules.md#modules-internal-declarations), [values of `Any`](../spec/types.md#types-any), [resolution](../spec/runtime.md#runtime-bindings-and-resolution).
+Contracts: [Owners and extensions](../spec/extensions.md#extensions-owners), [operators](../spec/modules.md#modules-operators), [internal declarations](../spec/modules.md#modules-internal-declarations), [values of `Any`](../spec/types.md#types-any), [resolution](../spec/runtime.md#runtime-bindings-and-resolution).
 
 ### Unit 3 — Script text, imports and definition version 34
 
@@ -153,7 +153,7 @@ Scripts write imports and extension access, and the definition records both; a s
 
 **Completion:** the implementation follows language `1.0.0-alpha.34` and reads definition version 34, and the gate passes.
 
-Contracts: [Scripts](../spec/scripts.md), [the grammar](../spec/grammar.md), [line structure](../spec/lexical-structure.md#line-structure), [the definition](../spec/definition.md), [extension access](../spec/members.md#property-access-calls-and-indexers-extension-access).
+Contracts: [Scripts](../spec/scripts.md), [the grammar](../spec/grammar.md), [line structure](../spec/lexical-structure.md#line-structure), [the definition](../spec/definition.md), [extension access](../spec/extensions.md#extensions-access).
 
 **The second host checkpoint.** DOMQL migrates its scripts at the end of this unit, adopting every change below. The list is a working checklist, kept until that migration is verified and then removed; each line names where DOMQL, at its `7406eb4`, writes what changed.
 
@@ -293,7 +293,8 @@ These capabilities work in the current implementation. The planned replacements 
 | Collections | Lists, dictionaries and pairs, collection expressions, positions, variance, and the members of lists, dictionaries and pairs, construction, grouping, ordering, slicing, `pick` and the positions of items among them | [Collections](../spec/collections.md) |
 | Expressions | Operators, conditionals, coalescing, attempts, and interpolated strings | [Expressions](../spec/expressions.md) |
 | Functions | Regular and arrow functions, delegates, references, and implicit bodies | [Functions](../spec/functions.md) |
-| Member access | Member forms, bracket property access, extension access, an indexer's signatures, arguments, and one selector, at resolution and for a value of `Any` as it is evaluated | [Members](../spec/members.md), [extension access](../spec/members.md#property-access-calls-and-indexers-extension-access) |
+| Member access | Member forms, bracket property access, an indexer's signatures, arguments, and one selector, at resolution and for a value of `Any` as it is evaluated | [Members](../spec/members.md) |
+| Extensions | Extensions declared on another module's types, selected by ownership and their targets' specificity, extensions on different targets, and extension access | [Extensions](../spec/extensions.md) |
 | Module registration | Unified declarations with implementations; whole-registration checks, revisions, and module-local collision checks | [Declarations](../spec/modules.md#modules-declarations), [registries](../spec/modules.md#modules-registries), [collisions](../spec/modules.md#namespaces-a-modules-own-collisions) |
 | Vocabulary | A number's rounding, bounds and `sequence`, a string's length, case, searching, replacement, splitting and slicing, Nexo's own conversions, and Boolean functions | [Nexo's vocabulary](../spec/vocabulary.md#vocabulary-nexos-own), [Boolean functions](../spec/vocabulary.md#vocabulary-boolean-functions) |
 | Observations | Observation types and module-declared observation targets | [Observations](../spec/vocabulary.md#observations), [targets](../spec/vocabulary.md#observations-targets) |

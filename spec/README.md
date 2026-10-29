@@ -34,11 +34,12 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 6. [Expressions](expressions.md): precedence, tests, truthiness, equalities, arithmetic, comparisons, logical expressions, conditionals, `do` expressions, coalescing, attempts, interpolated strings and simple expressions.
 7. [Functions](functions.md): regular and arrow functions declared in a script, their values, references to a module's functions, what they see, what a call reads, and implicit bodies.
 8. [Members](members.md): member kinds, writing a member, computed property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
-9. [Modules](modules.md): creating a module, its declarations, registries, namespaces and extensions.
-10. [Vocabulary](vocabulary.md): Nexo's own vocabulary of numbers and strings, Boolean functions, observations, type selectors and conversions.
-11. [Host contract](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
-12. [Definition](definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
-13. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
-14. [Grammar](grammar.md): the formal grammar, grouped by subject.
-15. [Terms](terms.md): the glossary.
-16. [The examples' vocabulary](examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
+9. [Modules](modules.md): creating a module, its declarations, registries and namespaces.
+10. [Extensions](extensions.md): declaring an extension, how owners and extensions are selected, extensions on different targets, extension access and an extension's type parameters.
+11. [Vocabulary](vocabulary.md): Nexo's own vocabulary of numbers and strings, Boolean functions, observations, type selectors and conversions.
+12. [Host contract](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
+13. [Definition](definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
+14. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
+15. [Grammar](grammar.md): the formal grammar, grouped by subject.
+16. [Terms](terms.md): the glossary.
+17. [The examples' vocabulary](examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
