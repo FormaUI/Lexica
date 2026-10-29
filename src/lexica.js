@@ -103,7 +103,8 @@ const locate = (definition, pointer) => {
 };
 
 /**
- * A resolution: the script resolved against the registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at.
+ * A resolution: the script resolved against the registry with bindings of one resolution key, reused with any bindings of that key while it is current: until a module declaring a `typeOf` is registered, where
+ * it may recognize values as it is evaluated, and for good where it may not.
  * An evaluator it creates holds one binding set and the environment the host owns, and evaluates one evaluation at a time.
  */
 const resolutionOf = (registry, definition, parameterBindings) => {
@@ -115,9 +116,12 @@ const resolutionOf = (registry, definition, parameterBindings) => {
     const usedDeclarations = Object.freeze(resolved.usedDeclarations.map(useOf));
     const deferredAccesses = Object.freeze(resolved.deferredAccesses.map(({ name, pointer }) => Object.freeze({ name, pointer })));
 
+    // A registration changes a resolution through recognition alone, so only a module declaring a `typeOf`, registered since, makes stale a resolution that may recognize values.
+    const isCurrent = () => registry.revision === revision || !resolved.mayRecognize || registry.recognitionRevision <= revision;
+
     const requireCurrent = () => {
-        if (registry.revision !== revision) {
-            throw LexicaErrors.structure('LEXICA2040', 'A module was registered since this script was resolved, so its resolution is stale; resolve the script again', {});
+        if (!isCurrent()) {
+            throw LexicaErrors.structure('LEXICA2040', 'A module declaring a typeOf was registered since this script was resolved, and the script may recognize values as it is evaluated, so its resolution is stale; resolve the script again', {});
         }
     };
 
@@ -198,6 +202,9 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         getCandidateDeclarations: () => Object.freeze({ declarations: Object.freeze(resolved.candidateDeclarations.map(useOf)), isOverestimate: deferredAccesses.length > 0 }),
         typeAt,
         getLocation: pointer => locate(definition, pointer),
+        get isCurrent() {
+            return isCurrent();
+        },
         createEvaluator,
     });
 };

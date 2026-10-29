@@ -201,4 +201,28 @@ describe('LanguageResolver', () => {
             expect(resolved.candidateDeclarations.map(use => use.qualifiedName)).toEqual(['shop.held', 'String.fade', 'fade']);
         });
     });
+
+    describe('whether it may recognize a value', () => {
+        const recognizing = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+            members: [
+                Declarations.createFunctionDeclaration('held', 'Any', { updates: constantUpdates, impl: () => 'oat' }),
+                Declarations.createFunctionDeclaration('count', 'Number', { updates: constantUpdates, impl: () => 1 }),
+                Declarations.createFunctionDeclaration('restocks', 'Number', { invokedBy: 'host' }),
+                Declarations.createFunctionDeclaration('close', undefined, { invokedBy: 'host' }),
+            ],
+        })]);
+        const mayRecognize = text => {
+            const definition = ParsedTexts.parse(text, [{ module: 'shop' }]);
+
+            return new LanguageResolver(recognizing, new ParameterBindings(recognizing, { wanted: false }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition).mayRecognize;
+        };
+
+        it('may where a declaration it uses holds Any, in a branch evaluation never takes among them, or where it ends in a host call that supplies values', () => {
+            expect([mayRecognize('shop.held()'), mayRecognize('if wanted then shop.held() else 0 end'), mayRecognize('shop.restocks()'), mayRecognize('shop.restocks() { n = it }')]).toEqual([true, true, true, true]);
+        });
+
+        it('may not where nothing it uses holds Any and its host call, if any, supplies nothing', () => {
+            expect([mayRecognize('shop.count() + 1'), mayRecognize('shop.close()')]).toEqual([false, false]);
+        });
+    });
 });

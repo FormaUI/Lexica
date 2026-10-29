@@ -516,6 +516,44 @@ describe('data', () => {
     });
 });
 
+describe('recognition', () => {
+    it('records the revision the last module declaring a typeOf was registered at, which a module declaring none leaves as it was', () => {
+        const registry = new LexicaRegistry([Vocabulary.module]);
+
+        expect(registry.recognitionRevision).toBe(0);
+
+        registry.registerModule(new LexicaModule('home', withHome()));
+        registry.registerModule(new LexicaModule('plain', {}));
+
+        expect([registry.revision, registry.recognitionRevision]).toEqual([3, 2]);
+    });
+
+    it('tells a declaration whose signature holds Any, through its result, a parameter, a callback, a list, an object, a structure\'s data shape and a selected key\'s type, from one that holds none', () => {
+        const holding = { name: 'Holding', kind: 'structured', members: dataPropertyDeclarations({ inner: 'Any?' }) };
+        const nested = { name: 'Nested', kind: 'structured', members: dataPropertyDeclarations({ holding: 'Holding', self: 'Nested?' }) };
+        const plain = { name: 'Plain', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number', self: 'Plain?' }) };
+        const selecting = result => functionDeclaration({ name: `on${result}`, result: '@selected', parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: result === 'Any' ? 'loose' : 'strict' })] });
+        const members = [
+            propertyDeclaration({ name: 'any', result: 'Any' }),
+            functionDeclaration({ name: 'takesAny', parameters: [parameterDeclaration({ type: 'List<Any>' })] }),
+            functionDeclaration({ name: 'callsAny', parameters: [{ name: 'test', kind: 'function', type: 'Boolean', parameterTypes: ['Any'], required: true }] }),
+            propertyDeclaration({ name: 'nested', result: 'List<Nested>' }),
+            propertyDeclaration({ name: 'shaped', result: 'Plain' }),
+            functionDeclaration({ name: 'counts' }),
+            selecting('Any'),
+            selecting('Number'),
+        ];
+        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {
+            types: [holding, nested, plain, extensionDeclaration('Words', 'String', members)],
+            typeSelectors: [{ name: 'loose' }, { name: 'strict' }],
+            mappings: [{ selector: 'loose', key: 'held', type: 'Holding' }, { selector: 'strict', key: 'plain', type: 'Plain' }],
+        })]);
+        const holds = registry.getModuleType('charts', 'Words').members.map(member => [member.name, registry.holdsAnyInSignature(member)]);
+
+        expect(holds).toEqual([['any', true], ['takesAny', true], ['callsAny', true], ['nested', true], ['shaped', false], ['counts', false], ['onAny', true], ['onNumber', false]]);
+    });
+});
+
 describe("a module's own collisions", () => {
     const lit = (overrides = {}) => propertyDeclaration({ name: 'lit', kind: 'function', result: 'Boolean', parameters: [], ...overrides });
     const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, ...modules]);

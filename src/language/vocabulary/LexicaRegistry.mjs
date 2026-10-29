@@ -88,6 +88,13 @@ export class LexicaRegistry {
         return this.#modules.size;
     }
 
+    /** The revision the last module declaring a `typeOf` was registered at, 0 where none is, since a registration changes a resolution made before it through recognition alone. */
+    get recognitionRevision() {
+        return this.#recognitionRevision;
+    }
+
+    #recognitionRevision = 0;
+
     /** The names of the modules registered. */
     get moduleNames() {
         return [...this.#modules.keys()];
@@ -190,6 +197,10 @@ export class LexicaRegistry {
         }
 
         this.#modules.set(module.name, module);
+
+        if (module.typeOf !== undefined) {
+            this.#recognitionRevision = this.revision;
+        }
 
         for (const type of module.types) {
             (type.kind === 'extension' ? this.#extensions : this.#types).set(`${module.name}.${type.name}`, type);
@@ -1057,6 +1068,45 @@ export class LexicaRegistry {
      */
     isData(type) {
         return this.#isData(type, new Set(), false);
+    }
+
+    /**
+     * Whether the declaration's signature holds `Any`, the one way a value of `Any` reaches an evaluation: its result, a parameter's type, a callback's types, and, for a member whose fixed argument selects its result's
+     * type, the type of any key its selector maps; each through lists, dictionaries, pairs, objects and a structure's data shape.
+     */
+    holdsAnyInSignature(declaration) {
+        const notations = [declaration.result, ...(declaration.parameters ?? []).flatMap(parameter => [parameter.type, ...(parameter.parameterTypes ?? [])])].filter(notation => notation !== undefined);
+        const selector = (declaration.parameters ?? []).find(parameter => parameter.selects === 'type')?.selector;
+        const selected = selector === undefined ? [] : [...(this.#mappings.get(selector)?.values() ?? [])].map(mapping => this.getDeclaredType(mapping, mapping.type));
+
+        return [...notations.map(notation => this.getDeclaredType(declaration, notation)), ...selected].some(type => this.#holdsAny(type, new Set()));
+    }
+
+    /** Whether the type holds `Any` anywhere: itself, a type argument, an object field, or a property of a structure's data shape, a structure already being walked counting as holding none, since its properties are walked where it is first met. */
+    #holdsAny(type, walking) {
+        switch (type.kind) {
+            case 'any':
+                return true;
+            case 'object':
+                return [...type.fieldTypes.values()].some(fieldType => this.#holdsAny(fieldType, walking));
+            case 'named': {
+                if (type.typeArguments.length > 0) {
+                    return type.typeArguments.some(typeArgument => this.#holdsAny(typeArgument, walking));
+                }
+
+                const shape = this.getDataShape(type);
+
+                if (shape === null || walking.has(type.identity)) {
+                    return false;
+                }
+
+                walking.add(type.identity);
+
+                return [...shape.values()].some(propertyType => this.#holdsAny(propertyType, walking));
+            }
+            default:
+                return false;
+        }
     }
 
     /** Whether values of the type are data, as `isData` says, or are once each value of `Any` among them is checked as it is evaluated, which a result holding one asks for. */

@@ -485,7 +485,7 @@ export interface LexicaEvaluation {
     readonly metadata: LexicaResultMetadata;
 }
 
-/** An evaluator of a resolution: one binding set and the environment the host owns, evaluating one evaluation at a time while its registry stays at the resolution's revision. */
+/** An evaluator of a resolution: one binding set and the environment the host owns, evaluating one evaluation at a time while its resolution is current. */
 export interface LexicaEvaluator {
     /** Evaluates a script that gives a value, refusing one that ends in a host call. */
     evaluate(hooks?: LexicaEvaluationHooks | null): LexicaEvaluation;
@@ -499,7 +499,7 @@ export interface LexicaPreparedCall extends LexicaInvocationRequest {
     /**
      * Projects one value its host supplies: checks it against the call's declared result, then evaluates the result projection against it, reading the locals the call was prepared with, as an evaluation with the hooks given;
      * a call whose host supplies nothing has none. Checking a reference asks the `isInstance` of the declared type and its supertypes, and the modules' `typeOf` where it does not belong, and the evaluation calls
-     * the host's hooks as `evaluate` does. It refuses a value the declared result does not admit (LEXICA5015), a registry moved past the resolution (LEXICA2040), and a projection while its evaluator is evaluating (LEXICA5010).
+     * the host's hooks as `evaluate` does. It refuses a value the declared result does not admit (LEXICA5015), a resolution no longer current (LEXICA2040), and a projection while its evaluator is evaluating (LEXICA5010).
      */
     readonly project?: (value: unknown, hooks?: LexicaEvaluationHooks | null) => LexicaEvaluation;
 }
@@ -545,7 +545,7 @@ export interface LexicaCandidateDeclarations {
     readonly isOverestimate: boolean;
 }
 
-/** A script resolved against a registry with bindings of one resolution key, reused with any bindings of that key while the registry stays at the revision it was resolved at. */
+/** A script resolved against a registry with bindings of one resolution key, reused with any bindings of that key while it is current. */
 export interface LexicaResolution {
     readonly definition: LexicaDefinition;
     /** The host call the script ends in, null for a script that gives a value. */
@@ -566,8 +566,13 @@ export interface LexicaResolution {
     /** Where a pointer stands in the source the definition was read from, as `lexica.getLocation` answers given the resolution's definition. */
     getLocation(pointer: string): LexicaLocation;
     /**
+     * Whether it is current, so its evaluators evaluate and their prepared calls project: false once a module declaring a `typeOf` is registered where it may recognize values as it is evaluated, a declaration it uses,
+     * in any branch, holding `Any` in its signature, or its host call supplying values; true for good where it may not.
+     */
+    readonly isCurrent: boolean;
+    /**
      * An evaluator holding bindings of this resolution's key and the environment the host gives it. Binding plain values asks the modules' `typeOf` and `isInstance`, as `createBindings` does, and nothing else calls host code
-     * until it evaluates. It refuses bindings another registry made (LEXICA2024), bindings of another resolution key (LEXICA2025), a resolution its registry has moved past (LEXICA2040), and a script using a declaration
+     * until it evaluates. It refuses bindings another registry made (LEXICA2024), bindings of another resolution key (LEXICA2025), a resolution no longer current (LEXICA2040), and a script using a declaration
      * that has no implementation, a conversion operator among them, even in a branch it may not take (LEXICA4001).
      */
     createEvaluator(bindings: LexicaBindings | LexicaBindingValues, env?: unknown): LexicaEvaluator;
@@ -585,7 +590,7 @@ export interface LexicaRegistry {
     registerModule(module: LexicaModule): void;
     /** The names of the modules registered, Lexica's own first. */
     readonly moduleNames: readonly string[];
-    /** A number that changes whenever the registry's vocabulary does, so a host that keeps resolutions knows when to resolve again. */
+    /** A number that changes whenever the registry's vocabulary does; whether a resolution made before a registration is still current is the resolution's `isCurrent`. */
     readonly revision: number;
     /** The observation type of the name, as the module that declares it declared it. */
     getObservationType(name: string): object | undefined;

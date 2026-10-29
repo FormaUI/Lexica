@@ -15,6 +15,9 @@ const createShop = () => lexica.createModule('shop', {
             createPropertyDeclaration('total', 'Price', { updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 }, impl: ({ receiver, env }) => ({ amount: env.prices[receiver], currency: 'EUR' }) }),
             createFunctionDeclaration('discount', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [createValueParameterDeclaration('code', 'String')], impl: ({ args }) => (args.code === 'TEN' ? 10 : 0) }),
             createPropertyDeclaration('stock', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'stock', of: 'receiver' }] }, impl: ({ samples: [count] }) => count }),
+            createPropertyDeclaration('held', 'Any', { updates: { changes: 'constant', reads: 'fresh' }, impl: () => 7 }),
+            createFunctionDeclaration('restocks', 'Number', { invokedBy: 'host' }),
+            createFunctionDeclaration('close', undefined, { invokedBy: 'host' }),
         ]),
     ],
     observationTypes: [{ name: 'stock', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 0 }) }) }],
@@ -104,15 +107,85 @@ describe('a host of plain data', () => {
 
     it('refuses to evaluate a resolution a module registered since has made stale, wherever the evaluator was created', () => {
         const registry = createImportingRegistry([createShop()]);
-        const resolution = registry.resolve('order.total', { order: 'a' });
+        const resolution = registry.resolve('order.held', { order: 'a' });
         const evaluator = resolution.createEvaluator({ order: 'a' }, { prices: { a: 1 } });
 
-        expect(evaluator.evaluate().value).toEqual({ amount: 1, currency: 'EUR' });
+        expect(evaluator.evaluate().value).toBe(7);
 
-        registry.registerModule(lexica.createModule('extra', {}));
+        registry.registerModule(lexica.createModule('extra', { typeOf: () => null }));
 
+        expect(resolution.isCurrent).toBe(false);
         expect(errorThrownBy(() => evaluator.evaluate())).toMatchObject({ kind: 'structure', message: expect.stringContaining('its resolution is stale; resolve the script again') });
         expect(errorThrownBy(() => resolution.createEvaluator({ order: 'a' }))).toMatchObject({ kind: 'structure' });
+    });
+
+    describe('across a registration', () => {
+        /** A module of nothing but a recognition, which tells a value's type to whatever may recognize it. */
+        const createRecognizing = () => lexica.createModule('recognizing', { typeOf: () => null });
+
+        it('keeps a resolution that may not recognize current, so its evaluator evaluates on and its results\' origins stay comparable with those before', () => {
+            const registry = createImportingRegistry([createShop()]);
+            const resolution = registry.resolve('{ cut = order.discount(code) }', { order: 'a', code: 'TEN' });
+            const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' });
+            const before = evaluator.evaluate();
+
+            registry.registerModule(lexica.createModule('extra', {}));
+            registry.registerModule(createRecognizing());
+
+            const after = evaluator.evaluate();
+
+            expect(resolution.isCurrent).toBe(true);
+            expect(after.value).toEqual({ cut: 10 });
+            expect(after.metadata.objectFields.cut.origin).toBe(before.metadata.objectFields.cut.origin);
+            expect(resolution.createEvaluator({ order: 'a', code: 'TEN' }).evaluate().value).toEqual({ cut: 10 });
+        });
+
+        it('keeps a prepared call projecting across a registration that changes nothing it reads, each projection reading the locals it was prepared with', () => {
+            const registry = createImportingRegistry([createShop()]);
+            const resolution = registry.resolve('let cut = order.discount(code)\nreturn order.restocks() { count = it, cut = cut }', { order: 'a', code: 'TEN' });
+            const call = resolution.createEvaluator({ order: 'a', code: 'TEN' }).prepareHostCall();
+            const before = call.project(3);
+
+            registry.registerModule(lexica.createModule('extra', {}));
+
+            const after = call.project(4);
+
+            expect(resolution.isCurrent).toBe(true);
+            expect(after.value).toEqual({ count: 4, cut: 10 });
+            expect(after.metadata.objectFields.cut.origin).toBe(before.metadata.objectFields.cut.origin);
+        });
+
+        it('makes a host call that supplies values stale once a module declaring a typeOf registers, since capturing a value may recognize it, and keeps one that supplies nothing current', () => {
+            const registry = createImportingRegistry([createShop()]);
+            const supplying = registry.resolve('order.restocks()', { order: 'a' });
+            const call = supplying.createEvaluator({ order: 'a' }).prepareHostCall();
+            const closing = registry.resolve('order.close()', { order: 'a' });
+
+            registry.registerModule(createRecognizing());
+
+            expect(supplying.isCurrent).toBe(false);
+            expect(errorThrownBy(() => call.project(4))).toMatchObject({ code: 'LEXICA2040' });
+            expect(closing.isCurrent).toBe(true);
+            expect(closing.createEvaluator({ order: 'a' }).prepareHostCall().kind).toBe('prepared');
+        });
+
+        it('makes a resolution stale that may recognize through a branch no evaluation takes, once a module declaring a typeOf registers, and keeps it current through any other registration', () => {
+            const registry = createImportingRegistry([createShop()]);
+            const resolution = registry.resolve('if wanted then order.held else 0 end', { order: 'a', wanted: false });
+            const evaluator = resolution.createEvaluator({ order: 'a', wanted: false });
+
+            expect(evaluator.evaluate().value).toBe(0);
+
+            registry.registerModule(lexica.createModule('extra', {}));
+
+            expect(resolution.isCurrent).toBe(true);
+            expect(evaluator.evaluate().value).toBe(0);
+
+            registry.registerModule(createRecognizing());
+
+            expect(resolution.isCurrent).toBe(false);
+            expect(errorThrownBy(() => evaluator.evaluate())).toMatchObject({ code: 'LEXICA2040' });
+        });
     });
 
     it('registers a module and answers nothing, so no registration hands out the registry behind it', () => {

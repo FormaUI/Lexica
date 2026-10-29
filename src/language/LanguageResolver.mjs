@@ -76,8 +76,12 @@ export class LanguageResolver {
         }
 
         const hostCall = result.kind === 'hostCall' ? this.#hostCallOf(definition.expression, '/expression') : null;
+        const deferredAccesses = this.#deferredAccessesOf();
 
-        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#usedDeclarations, this.#deferredAccessesOf(), this.#functionBodyCopies);
+        // A value of Any reaches an evaluation through a declaration whose signature holds it, and a supplied value through a host call that supplies values, so a resolution of neither, in any branch, recognizes nothing.
+        const mayRecognize = (hostCall !== null && result.suppliesNothing !== true) || deferredAccesses.length > 0 || this.#usedDeclarations.some(({ declaration }) => this.#registry.holdsAnyInSignature(declaration));
+
+        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#usedDeclarations, deferredAccesses, this.#functionBodyCopies, mayRecognize);
     }
 
     /**

@@ -390,7 +390,7 @@ Both apply the same visibility, inheritance, ownership and ambiguity rules, and 
 - **Host calls are selected during resolution.** A deferred access whose selection would be a host call is refused before anything is invoked, saying to make its receiver known or to select its extension explicitly.
 - **An `Any` argument of a selected call** is checked against that call's contract when its value is known.
 - **The host is asked first.** Before a member selected during evaluation is invoked, a property's getter included, the host's `beforeInvoke` decides whether it is permitted, as [the evaluator's hooks](runtime.md#runtime-evaluation) set out, and ownership, visibility, ambiguity and execution-position rules are applied without running a restricted member to learn whether it was allowed.
-- **A selection is kept for one type.** A selection is kept by its node and the receiver's actual type within one registry context, a change to the registry's contents discarding it, so an evaluation never reuses a selection made for a receiver of another type. A plain structured object's fields are looked up on each object, since objects of one general type need not hold the same object fields.
+- **A selection is kept for one type.** A selection is kept by its node and the receiver's actual type within one resolution, which a registration that makes it stale discards, as [reusing a resolution](runtime.md#runtime-reuse) sets out, so an evaluation never reuses a selection made for a receiver of another type. A plain structured object's fields are looked up on each object, since objects of one general type need not hold the same object fields.
 
 <a id="types-any-identity"></a>
 

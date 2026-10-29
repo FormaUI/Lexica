@@ -37,7 +37,7 @@ In this document:
 `registry.createBindings(values, options)` binds a host's values to a script's parameters by name, against the registry, since its modules' `typeOf` decide which values are references: it asks them of each value before copying it, keeps each reference value as it is, by its identity, a reference nested in data among them, neither copied nor frozen, and copies and freezes the rest of the data recursively. It refuses an unsupported value and a cycle. How each binding is typed is set out in [script parameters and bindings](scripts.md#scripts-script-parameters).
 
 - **Declared types.** `options.types` declares the reference type of a top-level binding by its name, unqualified or qualified, as `registry.createBindings({ device }, { types: { device: 'Device' } })` and `{ device: 'Home.Device' }` bind a light as a `Device`. The name resolves against the registry when the binding is made, never a script's imports, as [type identity](types.md#types-type-identity) sets out, and the binding keeps the type it resolved to; the value must belong to the type, and no `typeOf` is asked for it, as [a declared type](types.md#reference-types) sets out. No other binding, and no value nested in one, takes a declared type.
-- **Captured once.** A binding set captures its values and their types when it is made. Registering a module afterwards invalidates the registry's resolutions, which a host resolves again, and leaves a binding set as it was: its values and their types stay those it captured, and a binding set made afterwards uses the registry's recognition as it then is.
+- **Captured once.** A binding set captures its values and their types when it is made. Registering a module afterwards leaves a binding set as it was: its values and their types stay those it captured, and a binding set made afterwards uses the registry's recognition as it then is.
 - **Its registry.** A binding set is the registry's that made it, and resolving or evaluating against another registry is refused, saying to bind with that one. Plain values given to `registry.resolve` or to an evaluator are bound by that registry, as `registry.createBindings` binds them.
 - **What it answers.** It answers whether it holds a binding of a name, `has`, the value, `readValue`, and the type, `getType`, of each, and its resolution key, as soon as it is made.
 
@@ -84,7 +84,13 @@ Resolution's checks are its semantic validation, each failure a `validation` err
 
 ### Reusing a resolution
 
-A resolution is reused with bindings of its resolution key, against its registry at the revision it was resolved at. Creating an evaluator refuses bindings of another key, and each evaluator entry point refuses a registry whose revision has moved, each with a structure error saying to resolve again, so an evaluator never evaluates a stale resolution.
+A resolution is reused with bindings of its resolution key, against its registry, for as long as it is **current**. Creating an evaluator refuses bindings of another key, and creating one and each evaluator entry point, a prepared call's projection among them, refuse a resolution that is no longer current, each with a structure error saying to resolve again, so an evaluator never evaluates a stale resolution.
+
+A registration can change a resolution made before it through recognition alone: resolution reaches only what a script's imports make available, Lexica's own always, a type selector's key once registered is never replaced, and a registration changes no type's membership, hierarchy or data shape, while a module registered later adds its `typeOf` to what recognizes a value. Evaluation recognizes a value in five places: a deferred access, which selects by its receiver's actual type; a type argument inferred from a value of `Any`; an equality of a value of `Any`; the check that a result holding `Any` is data; and capturing a value a host supplies, where it tells a reference of another type from mistyped data. A resolution therefore **may recognize** values as it is evaluated where a declaration it uses, in any branch, reached or not, holds `Any` in its result, a parameter's type or a callback's types, or where it ends in a host call that supplies values.
+
+- **What stays current.** Registering a module that declares a `typeOf` makes every resolution that may recognize values stale; every other registration, and every registration for a resolution that may not, leaves it current, with its evaluators and the calls they prepared, whose locals keep the values they were prepared with and whose results' origins stay comparable with those before.
+- **`resolution.isCurrent`** answers whether the resolution is current, from what it resolved, so it never depends on which paths an evaluation has taken. A host that keeps resolutions asks it, rather than comparing revisions.
+- **The revision.** A registry's `revision` still advances with every registration, for a host that keys anything else by its vocabulary.
 
 <a id="runtime-evaluation"></a>
 
@@ -187,7 +193,7 @@ let occupied = room.occupied()
 return sensor.on("motion") { at = it.at, isOccupied = room.occupied(), wasOccupied = occupied }
 ```
 
-Lexica requires no disposal of a prepared call, which starts nothing; the lifetime of whatever its host starts is the host's. A prepared call holds the locals and the references it was prepared with for as long as it is reachable. Each projection goes through the checks every evaluation does, the refusal of a registry that has moved since the resolution among them.
+Lexica requires no disposal of a prepared call, which starts nothing; the lifetime of whatever its host starts is the host's. A prepared call holds the locals and the references it was prepared with for as long as it is reachable. Each projection goes through the checks every evaluation does, the refusal of a resolution no longer [current](#runtime-reuse) among them.
 
 A host projects each value as it arrives, once for a value its call answers once and once for each of several it supplies over time, so the runtime treats them alike. Waiting for samples, cancellation between evaluations, keeping a result current and scheduling it, and the lifetime of whatever a host call starts, are the host's.
 

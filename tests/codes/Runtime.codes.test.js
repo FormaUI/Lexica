@@ -206,15 +206,17 @@ describe('the runtime codes', () => {
             expect(errorThrownBy(() => lexica.parse(5)).message).toBe("What parse reads is a script's source");
         });
 
-        it('LEXICA2040: creating or entering an evaluator after its registry\'s revision has moved', () => {
+        it('LEXICA2040: creating or entering an evaluator, or projecting a prepared call, once its resolution is no longer current', () => {
             const growing = createImportingRegistry([createPantry()]);
-            const resolution = growing.resolve('word.size', { word: 'oat' });
+            const resolution = growing.resolve('word.held', { word: 'oat' });
             const evaluator = resolution.createEvaluator({ word: 'oat' });
+            const call = growing.resolve('word.order(2)', { word: 'oat' }).createEvaluator({ word: 'oat' }).prepareHostCall();
 
-            growing.registerModule(lexica.createModule('bakery', {}));
+            growing.registerModule(lexica.createModule('bakery', { typeOf: () => null }));
 
             expectLexicaError(errorThrownBy(() => resolution.createEvaluator({ word: 'oat' })), 'LEXICA2040', 'structure');
             expectLexicaError(errorThrownBy(() => evaluator.evaluate()), 'LEXICA2040', 'structure');
+            expectLexicaError(errorThrownBy(() => call.project(1)), 'LEXICA2040', 'structure');
         });
 
         it('LEXICA2025: creating an evaluator with bindings of another resolution key', () => {

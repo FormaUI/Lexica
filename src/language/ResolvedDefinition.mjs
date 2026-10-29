@@ -26,8 +26,10 @@ export class ResolvedDefinition {
      * @param {{ name: string | null, pointer: string, candidates: object[] }[]} deferredAccesses The accesses whose member is selected during evaluation, each with the name it accesses, null for an unnamed indexer,
      * and the declarations its selection could choose, each a use at its pointer.
      * @param {{ node: object, pointer: string, bodyPointer: string }[]} functionBodyCopies The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
+     * @param {boolean} mayRecognize Whether evaluating it may ask a module's `typeOf` of a value, in any branch, reached or not.
      */
-    constructor(definition, type, hostCall, resolutions, usedDeclarations, deferredAccesses, functionBodyCopies = []) {
+    constructor(definition, type, hostCall, resolutions, usedDeclarations, deferredAccesses, functionBodyCopies = [], mayRecognize = false) {
+        this.#mayRecognize = mayRecognize;
         this.#definition = definition;
         this.#type = type;
         this.#hostCall = hostCall;
@@ -94,6 +96,16 @@ export class ResolvedDefinition {
     /** The body copy whose pointer the pointer is or lies beneath, the innermost one, which is resolved after the one it lies in. */
     static #bodyCopyOf(pointer, functionBodyCopies) {
         return functionBodyCopies.findLast(bodyCopy => pointer === bodyCopy.pointer || pointer.startsWith(`${bodyCopy.pointer}/`));
+    }
+
+    #mayRecognize;
+
+    /**
+     * Whether evaluating it may recognize a value, asking each module's `typeOf`, in any branch, reached or not: where a declaration it uses holds `Any` in its signature, a deferred access among them, or it ends in a
+     * host call that supplies values. A registration changes a resolution through recognition alone, so one that may not stays current whatever is registered after it.
+     */
+    get mayRecognize() {
+        return this.#mayRecognize;
     }
 
     /** The request's definition. */

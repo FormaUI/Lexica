@@ -2,11 +2,11 @@
 
 ## Current state
 
-**The core language, host calls, definition version 35 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is done, the implementation following language `1.0.0-alpha.35`, its host checkpoint awaiting DOMQL's migration; [unit 5](#unit-5--specification-examples), the specification examples, is done, every example the documents give resolving and evaluating in the gate; [unit 6](#unit-6--host-additions), the host additions, is next, and [unit 7](#unit-7--tooling), tooling, after it, built on the rules unit 6 settles.**
+**The core language, host calls, definition version 35 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is done, the implementation following language `1.0.0-alpha.35`, its host checkpoint awaiting DOMQL's migration; [unit 5](#unit-5--specification-examples), the specification examples, is done, every example the documents give resolving and evaluating in the gate; [unit 6](#unit-6--host-additions), the host additions, is in progress, its current resolutions in, and [unit 7](#unit-7--tooling), tooling, follows it, built on the rules unit 6 settles.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.35` | `1.0.0-alpha.35` |
+| Language | `1.0.0-alpha.35` | `1.0.0-alpha.36` |
 | Definition format | 35 | 35 |
 
 The implementation reads definition version 35, its node names, its imports and its collection expressions, the language's indexers, computed properties and qualified type names, its types' names in PascalCase, and each type identified by its module. Its declarations take the specification's shape: reference types, with their hierarchy, membership and recognition, and structured types, each holding its members; extensions; operators; declared type parameters; and `Any`. One selector chooses every member, indexer and operator, at resolution and, for a value of `Any`, as it is evaluated. A script imports the modules and the types whose vocabulary it uses, a host supplying imports beside its own, and resolution reaches only what they make available, Lexica's own always among it. An extension access, `device:Energy.Device.usage`, selects among one extension's members, its function read without a call a reference bound to its receiver. Scripts follow line structure, and their canonical text reads back as the same definition. Collections are lists, dictionaries and pairs, a script writing them as collection expressions; their construction from members, their operations, positions and ordering follow in unit 4.
@@ -33,7 +33,7 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 4 | [Collections](#unit-4--collections) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 5 | [Specification examples](#unit-5--specification-examples) | ✅ Done |
-| 6 | [Host additions](#unit-6--host-additions) | Next |
+| 6 | [Host additions](#unit-6--host-additions) | In progress |
 | 7 | [Tooling](#unit-7--tooling) | Planned |
 | 8 | [Release](#unit-8--release) | Planned |
 
@@ -208,7 +208,7 @@ Contract: [Collections](proposals/collections.md).
 
 The [host additions proposal](proposals/host-additions.md)'s five parts, each specified and implemented in a stage of its own, the order the host's first consumer needs them in: current resolutions and structured values first, since its module loading and its typed requests wait on them, then the members. Each changes what resolution accepts or what a script can name, so tooling waits for them. The specification describes language `1.0.0-alpha.36` from the first stage, and the implementation follows it once every stage is in.
 
-1. **Current resolutions:** a registration leaves current every resolution that can't be changed by it, `resolution.isCurrent` saying which, as [the proposal](proposals/host-additions.md#current-resolutions) sets out.
+1. ✅ **Current resolutions,** specified in [reusing a resolution](../spec/runtime.md#runtime-reuse): a resolution may recognize values where a declaration it uses, in any branch, holds `Any` in its signature or it ends in a host call that supplies values; a module declaring a `typeOf` makes such a resolution stale, and any other registration leaves every resolution current, with its evaluators and the calls they prepared, `resolution.isCurrent` saying which. LEXICA2040 refuses a stale one alone.
 2. **Structured values written in place:** an object expression written where a structured type is declared constructs it, as [the proposal](proposals/host-additions.md#structured-values) sets out, capture of a supplied value made a class of its own first, since a binding captures too.
 3. **Structured values bound:** a host declares a data binding's type, which captures its value.
 4. **Numbers:** `round`, `floor`, `ceiling`, `truncate`, `abs`, `min`, `max` and `clamp`.
@@ -219,6 +219,12 @@ The [host additions proposal](proposals/host-additions.md)'s five parts, each sp
 **Completion:** each part is specified and implemented, and the gate passes; DOMQL adopts them at a checkpoint of its own, and confirms there that its watches and subscriptions continue across a registration.
 
 Contract: [Host additions](proposals/host-additions.md).
+
+**The fourth host checkpoint.** DOMQL adopts the changes below once it has passed the third, each line growing as its stage lands. The list is a working checklist, kept until that migration is verified and then removed; each line names where DOMQL, at its `7406eb4`, uses what changed.
+
+| Owner | Before | Now | Host change |
+| --- | --- | --- | --- |
+| Resolution | Every registration made every resolution stale, its evaluators and its prepared calls refusing with LEXICA2040 | A resolution stays current unless it may recognize values and a module declaring a `typeOf` registers since; `resolution.isCurrent` says which | Keep a resolution while it is current rather than while the revision stands, `domql.js:453` to `:460`; and add an integration test that a watch and a subscription running when a module registers, one without a `typeOf`, keep evaluating and delivering |
 
 ### Unit 7 — Tooling
 
@@ -273,7 +279,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Namespaces | Imports, aliases and type imports, a script's and its host's, what they make available, module members, qualified access, and null propagation | [Namespaces](../spec/modules.md#namespaces), [qualified access](../spec/modules.md#namespaces-qualified-access) |
 | Text and definitions | Parse, validate, format, quote, and get a location, each with the imports a host supplies; canonical text for definition version 35, its imports, collection expressions and positions among it | [Definition](../spec/definition.md) |
 | Types | Reference types with their hierarchy, membership and recognition, structured types, extensions, declared type parameters, `Any`, `List<T>`, `Dictionary<K, V>` and `Pair<K, V>` with their variances, `Index` and `Range`, one type relation, and casts, a declared cast across hierarchies among them | [Types](../spec/types.md) |
-| Runtime | Bindings a registry makes, recognizing references, resolution with its used declarations, deferred accesses and candidate declarations, reuse by resolution key, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
+| Runtime | Bindings a registry makes, recognizing references, resolution with its used declarations, deferred accesses and candidate declarations, reuse by resolution key while a resolution is current, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime.md#runtime-bindings), [evaluation](../spec/runtime.md#runtime-evaluation), [results](../spec/runtime.md#runtime-results) |
 | Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/diagnostics-and-errors.md) |
 | Build | Bundle and type declarations | [Build](../README.md#build) |
 
