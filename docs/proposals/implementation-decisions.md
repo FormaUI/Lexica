@@ -1,6 +1,6 @@
 # Implementation decisions
 
-The decisions taken while implementing the plan from step 5 of unit 1 through unit 5 without a review of each, so the work goes on uninterrupted: each is recorded here as it is taken, with its reason and what it departs from, if anything, and all of them are reviewed together before unit 6, when any is changed. A decision that settles what the specification leaves open is recorded in the specification too, where its subject lives, and links back here until its review.
+The decisions taken while implementing the plan from step 5 of unit 1 through unit 5 without a review of each, so the work goes on uninterrupted: each is recorded here as it is taken, with its reason and what it departs from, if anything, and all of them are reviewed together before unit 7, tooling, when any is changed. A decision that settles what the specification leaves open is recorded in the specification too, where its subject lives, and links back here until its review.
 
 **State:** awaiting review. An entry is reviewed once it is marked ✅ reviewed, or changed as its review decides.
 

@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The core language, host calls, definition version 35 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is done, the implementation following language `1.0.0-alpha.35`, its host checkpoint awaiting DOMQL's migration; [unit 5](#unit-5--specification-examples), the specification examples, is done, every example the documents give resolving and evaluating in the gate; [unit 6](#unit-6--tooling), tooling, is next, once the decisions recorded since unit 1's step 5 are reviewed.**
+**The core language, host calls, definition version 35 and the diagnostic codes are implemented. [Unit 0](#unit-0--decisions-and-the-specification) of the [implementation plan](#implementation-plan) is done. [Unit 1](#unit-1--declarations-and-the-type-model), the declarations and the type model, is done; [unit 2](#unit-2--member-selection-and-deferred-evaluation), member selection and deferred evaluation, is done, its host checkpoint awaiting DOMQL's migration; [unit 3](#unit-3--script-text-imports-and-definition-version-34), script text, imports and definition version 34, is done, its host checkpoint awaiting DOMQL's migration; [unit 4](#unit-4--collections), collections, is done, the implementation following language `1.0.0-alpha.35`, its host checkpoint awaiting DOMQL's migration; [unit 5](#unit-5--specification-examples), the specification examples, is done, every example the documents give resolving and evaluating in the gate; [unit 6](#unit-6--host-additions), the host additions, is next, and [unit 7](#unit-7--tooling), tooling, after it, built on the rules unit 6 settles.**
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -33,8 +33,9 @@ The remaining work is grouped by the code it rewrites, so each mechanism is rewr
 | 3 | [Script text, imports and definition version 34](#unit-3--script-text-imports-and-definition-version-34) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 4 | [Collections](#unit-4--collections) | ✅ Done; its host checkpoint awaits DOMQL's migration |
 | 5 | [Specification examples](#unit-5--specification-examples) | ✅ Done |
-| 6 | [Tooling](#unit-6--tooling) | Next, once the implementation decisions are reviewed |
-| 7 | [Release](#unit-7--release) | Planned |
+| 6 | [Host additions](#unit-6--host-additions) | Next |
+| 7 | [Tooling](#unit-7--tooling) | Planned |
+| 8 | [Release](#unit-8--release) | Planned |
 
 ### Unit 0 — Decisions and the specification
 
@@ -203,7 +204,23 @@ Contract: [Collections](proposals/collections.md).
 
 ✅ Done, as [I40](proposals/implementation-decisions.md) sets out: the modules `Home` and `Energy` implementing [the examples' vocabulary](../spec/examples-vocabulary.md), written once in `tests/support/examples.mjs` on the home's reference types, and the home they read, its rooms, devices and settings, bound as the vocabulary types each name; and `tests/DocumentExamples.test.js`, giving each example the home, the host's imports of `Home` and `Energy`, a maintained member's sample, and for a host call its prepared call and the projection of the value its host supplies. Every example the specification and the README give resolves and evaluates in the gate, its documented value or refusal asserted where its document states one. Three examples were corrected to the specification, and the vocabulary gained the room's `reserved` test an example reads.
 
-### Unit 6 — Tooling
+### Unit 6 — Host additions
+
+The [host additions proposal](proposals/host-additions.md)'s five parts, each specified and implemented in a stage of its own, the order the host's first consumer needs them in: current resolutions and structured values first, since its module loading and its typed requests wait on them, then the members. Each changes what resolution accepts or what a script can name, so tooling waits for them. The specification describes language `1.0.0-alpha.36` from the first stage, and the implementation follows it once every stage is in.
+
+1. **Current resolutions:** a registration leaves current every resolution that can't be changed by it, `resolution.isCurrent` saying which, as [the proposal](proposals/host-additions.md#current-resolutions) sets out.
+2. **Structured values written in place:** an object expression written where a structured type is declared constructs it, as [the proposal](proposals/host-additions.md#structured-values) sets out, capture of a supplied value made a class of its own first, since a binding captures too.
+3. **Structured values bound:** a host declares a data binding's type, which captures its value.
+4. **Numbers:** `round`, `floor`, `ceiling`, `truncate`, `abs`, `min`, `max` and `clamp`.
+5. **Positions:** `indexOf` and `indexWhere`.
+6. **Strings:** `length`, `trim`, `lowercase`, `uppercase`, `startsWith`, `endsWith`, `contains`, `indexOf`, `replace`, `split` and the slice by a range.
+7. **Versions:** language `1.0.0-alpha.36`, once every part of it is in.
+
+**Completion:** each part is specified and implemented, and the gate passes; DOMQL adopts them at a checkpoint of its own, and confirms there that its watches and subscriptions continue across a registration.
+
+Contract: [Host additions](proposals/host-additions.md).
+
+### Unit 7 — Tooling
 
 Built once, on the final syntax and visibility rules:
 
@@ -213,7 +230,7 @@ Built once, on the final syntax and visibility rules:
 
 References: [Syntax tree](lexica-design.md#the-syntax-tree), [tooling](lexica-design.md#tooling).
 
-### Unit 7 — Release
+### Unit 8 — Release
 
 **Packages.** One source and build produce both packages locally; neither is published. Both carry the implementation version declared by `src/language/Versions.mjs`.
 
@@ -290,7 +307,7 @@ Contracts: [Host-call declarations](../spec/members.md#members-host-calls), [hos
 
 ## Open decisions
 
-The decisions taken while implementing step 5 of unit 1 through unit 5, each without its own review, are recorded in [implementation decisions](proposals/implementation-decisions.md), and reviewed together before unit 6. A first review keeps the design and found lineage that followed equal values rather than occurrences, and lineage lost, which unit 6 waits for: [D26](proposals/responsibilities-and-terminology-ledger.md#3-defects) realigns it by position, D27 keeps it in a filtered selection's metadata, and D28 carries it through a slice and `pick`; D29, found beside them, keeps an ordering of a list of collections through its capture. The review also corrected [I39](proposals/implementation-decisions.md)'s recipe for null items first, which [ordering](../spec/vocabulary.md#vocabulary-list-ordering) now gives as a function.
+The decisions taken while implementing step 5 of unit 1 through unit 5, each without its own review, are recorded in [implementation decisions](proposals/implementation-decisions.md), and reviewed together before unit 7, tooling. A first review keeps the design and found lineage that followed equal values rather than occurrences, and lineage lost, which tooling waits for: [D26](proposals/responsibilities-and-terminology-ledger.md#3-defects) realigns it by position, D27 keeps it in a filtered selection's metadata, and D28 carries it through a slice and `pick`; D29, found beside them, keeps an ordering of a list of collections through its capture. The review also corrected [I39](proposals/implementation-decisions.md)'s recipe for null items first, which [ordering](../spec/vocabulary.md#vocabulary-list-ordering) now gives as a function.
 
 Two open decisions are recorded. The first: a module that declares a type spelled as one of Lexica's own, as `Home.Number`, can't name Lexica's own type of that name in its own declarations, since [type name lookup](../spec/types.md#types-type-name-lookup) finds the module's own first and Lexica's own types have no qualified spelling. Giving Lexica a permanent namespace for that was declined; the limitation stands until another spelling is chosen.
 
