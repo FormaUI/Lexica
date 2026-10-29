@@ -1,6 +1,6 @@
 # Proposal: host additions
 
-**State: accepted and implemented.** Each part is specified and implemented, in turn, by [unit 6](../features-status.md#unit-6--host-additions) of the implementation plan, the implementation following language `1.0.0-alpha.36`.
+**State: accepted and implemented.** Each part is specified and implemented, in turn, by [unit 6](../features-status.md#unit-6--host-additions) of the implementation plan, the implementation following language `1.0.0-alpha.36`, and, with a review's corrections and the verbs' removal, `1.0.0-alpha.37`.
 
 A host's first consumer, replacing a component library's browser scripts with a host's requests, needs five things of the language that no host can give itself: resolutions that survive a registration they can't be changed by, structured values a script writes or a host binds, and the members of numbers, strings and positions every host would otherwise declare alike. Each is Lexica's because only the language can make it, or because two hosts making it apart would compete for one name on one type. What stays with a host, and why, is set out under [what stays with the host](#what-stays-with-the-host).
 
