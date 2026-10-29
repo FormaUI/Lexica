@@ -273,6 +273,18 @@ So `{ name: String }` is assignable to `{ name: String? }`, and neither `{ name:
 
 A value of `Any` is assignable to another type once its value is known: given where a concrete type is declared, it is accepted when it is resolved and checked against that type when it is evaluated, and one of `Any?` the same, the check refusing null where the declared type isn't nullable. Only what is unknown waits: a violation resolution can prove is refused then, as [values of `Any`](#types-any) set out.
 
+<a id="types-constructing-a-structure"></a>
+
+### Constructing a structure
+
+An object type is assignable to no named type, so a structured value is never an object that happens to hold its fields. A script constructs one by writing an object expression where its type is declared: the object expression **constructs** the structure, and is a value of it. `board.place({ x = 1 })` constructs a `Point` for a `place` whose parameter is a `Point`, of `x: Number` and `label: String?`.
+
+- **Where the type reaches.** An object expression constructs the structure expected of it, nullable or not, written as a value argument of a member or an option of that type; as an object field of an object expression that constructs a structure, whose property is of a structured type; as an item of a collection expression written where a list of a structured type is expected, at any depth; and as a branch of a conditional, or an operand of a coalescing, written in one of those places, since such an expression's value is one of its operands'. Parentheses change nothing, as they change no definition.
+- **Where it doesn't.** A value typed where it is written keeps its type: `let point = { x = 1 }` holds an object, so `board.place(point)` is refused where `board.place({ x = 1 })` constructs; a function answers the type its body gives; and an expression, a predicate or a function argument's body is typed by its own expressions, no value argument. A parameter whose type is a type parameter takes its type from the receiver where the receiver binds it, so `points.concat([{ x = 1 }])` constructs a `Point` on a `List<Point>`, and infers it from the object where nothing binds it, an object type. A deferred call's parameters are known only as it is evaluated, so its arguments construct nothing, and an object it is given is checked as any argument of a value of `Any` is.
+- **Its data shape.** The object fields are held to the structure's data shape as an options object is held to its member's parameters: an object field the shape lacks is refused (LEXICA3086), a property it leaves out is null where the property's type is nullable and refused otherwise (LEXICA3087), and each object field's value is assignable to its property's type (LEXICA3088), a value of `Any` checked when it is evaluated (LEXICA5038). A property of a reference type holds a reference, as a structure's data shape may: `{ container = board }` constructs `Buttons` of a `container: Board?`.
+- **Its value.** The structure holds every property of its data shape, in the shape's order, a property left out null, frozen as every value an evaluation produces is. Its object fields are evaluated as any object expression's are, in the order written, each in scope after its initializer.
+- **Selecting a signature.** An unnamed or a named indexer's signatures are selected by their key's type, so an object expression given as a key constructs the one structure among their keys whose data shape it fits, and selects its signature; one two or more structures fit alike is refused (LEXICA3089), naming them. No other selection reads an argument's type: a member is selected by its receiver.
+
 <a id="types-type-equality"></a>
 
 ### Equal types

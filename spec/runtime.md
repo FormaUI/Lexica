@@ -61,7 +61,7 @@ Resolution's checks are its semantic validation, each failure a `validation` err
 | --- | --- |
 | Member resolution | Every member exists and uses its declared form, every extension an access selects is one and declares the member, and an access on a value of `Any` is checked when that value is evaluated. |
 | Arguments | Positional arguments match the signature's order and count; options use one object whose object fields name the member's parameters; every required parameter is supplied. |
-| Types and kinds | Receivers, arguments, expressions and bindings fit their declared types; each argument uses its declared argument kind. |
+| Types and kinds | Receivers, arguments, expressions and bindings fit their declared types, an object expression written where a structured type is declared constructing it, as [constructing a structure](types.md#types-constructing-a-structure) sets out; each argument uses its declared argument kind. |
 | Required access | Access written with `.` has a receiver that cannot be null. Other required access forms follow the same nullability rule. |
 | Fixed arguments | Resolution settles each to a non-null string without evaluating a member, as [fixed arguments](members.md#arguments-fixed) set out. |
 | Computed property access | Resolution determines every possible property name; each names a property of the receiver and their types merge. |

@@ -233,6 +233,8 @@ export class LanguageResolver {
 
                 return { type: Type.createNamedType('Range'), kind: 'value', isFixed: false };
             case 'list':
+                node.items.forEach(item => this.#expectConstruction(item, this.#expectedTypes.get(node)?.itemType));
+
                 return { type: Type.createListType(this.#resolveCollectionItems(node.items.map((item, index) => ({ node: item, pointer: `${pointer}/items/${index}` })), scope, pointer, "A list's items")), kind: 'value', isFixed: false };
             case 'dictionary': {
                 const values = node.entries.map((entry, index) => ({ node: entry.value, pointer: `${pointer}/entries/${index}/value` }));
@@ -285,6 +287,70 @@ export class LanguageResolver {
         }
     }
 
+    /**
+     * The structured type each node constructs, or a list of one, by the node: given to a value argument by its parameter's type, and passed on to an object field by its property's, to a list's items, to a
+     * conditional's branches and to a coalescing's sides, so an object expression written where a structure is expected constructs it. Set or cleared whenever a node is about to be resolved in such a place, since
+     * a speculative resolution resolves a node again for another declaration.
+     * @type {WeakMap<object, Type>}
+     */
+    #expectedTypes = new WeakMap();
+
+    /** Gives the node the type it constructs, where the type expected of it is a structured type or a list of one, nullable or not, and clears it otherwise. */
+    #expectConstruction(node, type) {
+        const constructible = type === undefined ? null : this.#constructibleTypeOf(type.toNonNullable());
+
+        if (constructible === null) {
+            this.#expectedTypes.delete(node);
+        } else {
+            this.#expectedTypes.set(node, constructible);
+        }
+    }
+
+    /** The type, where an object expression can construct it, or a list of it at any depth, which its items can; null for any other, a type parameter its receiver hasn't bound among them. */
+    #constructibleTypeOf(type) {
+        if (type.isList) {
+            return this.#constructibleTypeOf(type.itemType.toNonNullable()) === null ? null : type;
+        }
+
+        return type.kind === 'named' && type.typeArguments.length === 0 && this.#registry.getDataShape(type) !== null ? type : null;
+    }
+
+    /**
+     * Checks the object fields an object expression gives against the data shape of the structure it constructs: each value assignable to its property's type, one of Any checked when it is evaluated, and every
+     * property it leaves out nullable, which then holds null. It answers the structure, and records the construction for evaluation, with the properties whose values it checks then.
+     */
+    #resolveConstruction(constructed, shape, fieldTypes, pointer) {
+        const checks = new Map();
+
+        for (const [name, propertyType] of shape) {
+            if (!fieldTypes.has(name)) {
+                if (!propertyType.isNullable) {
+                    this.#fail('LEXICA3087', `The ${constructed} written here leaves out '${name}', which is ${propertyType} and can't be null`, pointer);
+                }
+
+                continue;
+            }
+
+            const fieldType = fieldTypes.get(name);
+            const assignability = this.#typeChecker.assignabilityOf(fieldType, propertyType);
+
+            if (assignability === 'refused') {
+                const [expectedName, actualName] = Type.namesOf(propertyType, fieldType);
+                const index = [...fieldTypes.keys()].indexOf(name);
+
+                this.#fail('LEXICA3088', `The property '${name}' of the ${constructed} written here is ${expectedName}, and is given ${actualName}`, `${pointer}/objectFields/${index}/value`);
+            }
+
+            if (assignability === 'checked') {
+                checks.set(name, propertyType);
+            }
+        }
+
+        this.#resolutions.set(pointer, { kind: 'construction', type: constructed, checks });
+
+        return { type: constructed, kind: 'value', isFixed: false };
+    }
+
     /** The result each condition and operand resolved to, by its node, which the values a computed property access can give follow where it is fixed or its type tells its falsey part. @type {WeakMap<object, object>} */
     #decidingResults = new WeakMap();
 
@@ -294,6 +360,8 @@ export class LanguageResolver {
      */
     #resolveCoalescing(node, pointer, scope) {
         const results = ['value', 'fallback'].map(side => {
+            this.#expectConstruction(node[side], this.#expectedTypes.get(node));
+
             const result = this.#resolveNode(node[side], `${pointer}/${side}`, scope);
 
             if (result.kind !== 'value') {
@@ -421,6 +489,8 @@ export class LanguageResolver {
         }
 
         const results = ['consequent', 'alternative'].map(branch => {
+            this.#expectConstruction(node[branch], this.#expectedTypes.get(node));
+
             const result = this.#resolveNode(node[branch], `${pointer}/${branch}`, branch === 'consequent' ? consequentScope : falseyScope);
 
             if (result.kind !== 'value') {
@@ -868,6 +938,40 @@ export class LanguageResolver {
         }
 
         const keyPointer = `${pointer}/argument`;
+        const typeArguments = (receiverType === null ? null : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType)) ?? new Map();
+        const keyTypeOf = signature => this.#registry.getDeclaredType(signature, signature.parameters[0].type).resolveTypeParameters(typeArguments);
+
+        // An object expression given as a key constructs the one structure among the signatures' keys whose data shape it fits, and selects its signature.
+        if (node.argument.kind === 'object' && node.argument.context === undefined) {
+            const constructing = signatures.filter(signature => {
+                const keyType = keyTypeOf(signature);
+
+                if (this.#constructibleTypeOf(keyType.toNonNullable()) === null) {
+                    return false;
+                }
+
+                const fits = this.#resolveSpeculatively(() => {
+                    this.#expectConstruction(node.argument, keyType);
+
+                    return this.#resolveNode(node.argument, keyPointer, scope);
+                }, { keepsSuccess: false });
+
+                this.#expectedTypes.delete(node.argument);
+
+                return fits.error === undefined;
+            });
+
+            if (constructing.length === 1) {
+                return constructing[0];
+            }
+
+            if (constructing.length > 1) {
+                const subject = declaration.name === undefined ? `The unnamed indexer of ${receiverType?.toNonNullable()}` : `The indexer '${declaration.name}'`;
+
+                this.#fail('LEXICA3089', `${subject} is given an object that constructs ${constructing.map(keyTypeOf).map(String).join(', ').replace(/, ([^,]*)$/, ' and $1')} alike, which its signatures take apart; give it a value of one of them`, keyPointer);
+            }
+        }
+
         const outcome = this.#resolveSpeculatively(() => this.#resolveNode(node.argument, keyPointer, scope), { keepsSuccess: false });
 
         if (outcome.error !== undefined) {
@@ -880,8 +984,6 @@ export class LanguageResolver {
             return signatures[0];
         }
 
-        const typeArguments = (receiverType === null ? null : this.#typeChecker.inferReceiverTypeArguments(declaration, receiverType)) ?? new Map();
-        const keyTypeOf = signature => this.#registry.getDeclaredType(signature, signature.parameters[0].type).resolveTypeParameters(typeArguments);
         const taking = signatures.filter(signature => keyType.kind !== 'any' && this.#typeChecker.isAssignable(keyType.toNonNullable(), keyTypeOf(signature).toNonNullable()));
 
         if (taking.length === 1) {
@@ -2088,7 +2190,11 @@ export class LanguageResolver {
                 continue;
             }
 
-            const outcome = this.#resolveSpeculatively(() => this.#resolveNode(given.node, given.pointer, argumentScope), { keepsSuccess: false });
+            const outcome = this.#resolveSpeculatively(() => {
+                this.#expectConstruction(given.node, this.#registry.getDeclaredType(declaration, parameter.type));
+
+                return this.#resolveNode(given.node, given.pointer, argumentScope);
+            }, { keepsSuccess: false });
 
             if (outcome.error !== undefined) {
                 continue;
@@ -2746,6 +2852,7 @@ export class LanguageResolver {
                     }
                 }
             } else {
+                this.#expectConstruction(given.node, expected);
                 result = this.#resolveNode(given.node, valuePointer, argumentScope);
                 this.#requireValueArgument(result, parameter, declaration, valuePointer);
 
@@ -2894,10 +3001,19 @@ export class LanguageResolver {
         });
 
         const fieldTypes = new Map();
+        const constructed = target === null ? (this.#expectedTypes.get(node) ?? null) : null;
+        const shape = constructed === null ? null : this.#registry.getDataShape(constructed);
 
         node.objectFields.forEach((field, index) => {
             const fieldPointer = `${pointer}/objectFields/${index}`;
             const { name } = field;
+
+            if (shape !== null && !shape.has(name)) {
+                this.#fail('LEXICA3086', `The ${constructed} written here has no property '${name}'; it holds ${[...shape.keys()].join(', ')}`, fieldPointer);
+            }
+
+            this.#expectConstruction(field.value, shape?.get(name));
+
             const result = this.#resolveNode(field.value, `${fieldPointer}/value`, scopeHere());
 
             if (result.kind !== 'value') {
@@ -2914,7 +3030,7 @@ export class LanguageResolver {
                 this.#fail('LEXICA3035', `The field '${name}' would hold a function, which is used within the expression and never part of its result: call it, as name(…)`, `${fieldPointer}/value`);
             }
 
-            if (!this.#registry.isDataOnceChecked(result.type)) {
+            if (shape === null && !this.#registry.isDataOnceChecked(result.type)) {
                 this.#fail('LEXICA3043', `The field '${name}' would hold ${result.type}, which is no data; read the facts it needs through an object expression`, `${fieldPointer}/value`);
             }
 
@@ -2929,6 +3045,10 @@ export class LanguageResolver {
                 objectRootType = Type.createObjectRootType(objectExpression, new Map(objectRootType.fieldTypes).set(name, result.type));
             }
         });
+
+        if (shape !== null) {
+            return this.#resolveConstruction(constructed, shape, fieldTypes, pointer);
+        }
 
         const objectType = Type.createObjectType(fieldTypes);
         const isNullable = target?.type.isNullable === true;

@@ -411,6 +411,10 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA3083` | A dictionary a call answers keyed by a type no key is of, as `toDictionary` and `groupBy` given a key expression of an object type | A validation error at the call, naming the key type |
 | `LEXICA3084` | An indexer's key no signature takes, or one of `Any` where several signatures stand | A validation error naming the indexer and its signatures' key types |
 | `LEXICA3085` | An index's offset that isn't a `Number`, or a range's boundary that is neither a `Number` nor an `Index`, either nullable among them | A validation error naming the boundary and its type |
+| `LEXICA3086` | An object expression constructing a structure that writes an object field the structure's data shape lacks | A validation error at the object field, naming the structure and its properties |
+| `LEXICA3087` | An object expression constructing a structure that leaves out a property whose type isn't nullable | A validation error at the object expression, naming the property and its type |
+| `LEXICA3088` | An object expression constructing a structure that gives a property a value its type doesn't take | A validation error at the value, naming the property, its type and the value's |
+| `LEXICA3089` | An object expression given as an indexer's key that constructs the keys of two or more of its signatures alike | A validation error at the key, naming the structures |
 | `LEXICA3082` | A function as a collection expression's item or value | A validation error at the item, saying a collection holds data and references |
 | `LEXICA3043` | A result that would contain a reference value | A validation error |
 | `LEXICA3044` | An object field read through `root` whose initializer has not completed where `root` is written | A validation error naming the object fields completed there |
@@ -466,6 +470,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5035` | `sequence` given a count that is no nonnegative safe integer | An evaluation error at the call, naming the count |
 | `LEXICA5036` | An ordering key that is no number, string, Boolean or null, or keys of two of those domains in one criterion, of `orderBy`, `orderByDescending`, `thenBy`, `thenByDescending`, `minBy` or `maxBy` | An evaluation error at the call, naming the member and the key's kind or the two domains |
 | `LEXICA5037` | `thenBy` or `thenByDescending` of a list no `orderBy` ordered | An evaluation error at the call, giving `orderBy` |
+| `LEXICA5038` | A value of `Any` an object expression gives a structure's property that is found, when it is evaluated, not to be of the property's type | An evaluation error at the object expression, naming the property, its type and the value |
 | `LEXICA5028` | A result holding a value of `Any` that is found, when it is evaluated, to be no data, a reference or a function | An evaluation error at the result |
 | `LEXICA5013` | A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |
 | `LEXICA5014` | Preparing a script that ends in no host call | An evaluation error, as [host calls](runtime.md#runtime-host-calls) set out |

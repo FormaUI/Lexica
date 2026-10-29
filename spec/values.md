@@ -35,6 +35,7 @@ An **object expression** names the fields of the object it builds, `{ name = val
 - Two object fields of one object expression with the same name are an error when the definition is checked.
 - A result keeps its object fields in the order the object expression names them.
 - An object expression following null is null.
+- An object expression written where a structured type is declared, as a value argument of that type, constructs the structure, as [constructing a structure](types.md#types-constructing-a-structure) sets out; anywhere else it builds an object.
 
 <a id="locals-object-fields-as-names"></a>
 

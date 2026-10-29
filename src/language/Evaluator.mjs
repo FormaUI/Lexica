@@ -1753,6 +1753,10 @@ export class Evaluator {
             evaluate: this.#getCompiledFunction(field.value),
         }));
 
+        if (resolution?.kind === 'construction') {
+            return this.#compileConstruction(node, resolution, fields, localNames);
+        }
+
         return (evaluator, context) => {
             const value = hasTarget ? evaluateSource(evaluator, context) : context;
 
@@ -1765,6 +1769,29 @@ export class Evaluator {
             evaluator.#recordLineage(value, items, isOfReferences);
 
             return items;
+        };
+    }
+
+    /**
+     * An object expression constructing a structure: its fields evaluated as an object's are, in the order written, then the structure of its data shape, a property it leaves out null, each in the shape's order,
+     * frozen. A value of Any resolution couldn't check is checked here against its property's type (LEXICA5038).
+     */
+    #compileConstruction(node, { type, checks }, fields, localNames) {
+        const shape = [...this.#registry.getDataShape(type).keys()];
+        const asked = `constructing ${type}`;
+        const checked = [...checks].map(([name, propertyType]) => ({ name, propertyType, conforms: Evaluator.#compileTypeCheck(propertyType, this.#registry, asked) }));
+        const pointer = this.#pointerOf(node);
+
+        return (evaluator, context) => {
+            const object = evaluator.#applyFields(node, fields, localNames, context);
+
+            for (const { name, propertyType, conforms } of checked) {
+                if (!conforms(object[name])) {
+                    evaluator.#fail('LEXICA5038', `The property '${name}' of the ${type} written here is ${propertyType}, and is given ${Evaluator.#describe(object[name])}`, pointer);
+                }
+            }
+
+            return Object.freeze(Object.fromEntries(shape.map(name => [name, Object.hasOwn(object, name) ? object[name] : null])));
         };
     }
 
