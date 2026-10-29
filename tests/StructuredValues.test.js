@@ -216,3 +216,37 @@ describe('a structure expected in one reading of a node', () => {
         expect(evaluate('board[if wanted then { x = 1, label = "a" } else { x = 2, label = "b" } end]', { wanted: true })).toBe('point');
     });
 });
+
+describe("a structure's type through a value of Any", () => {
+    /** A module whose point has a member of its own, which a member answering its argument as a value of Any passes on, and a host call supplying a point. */
+    const createMarks = () => lexica.createModule('Marks', {
+        typeOf: value => (value instanceof Board ? 'Sheet' : null),
+        types: [
+            { name: 'Point', kind: 'structured', members: [...dataPropertyDeclarations({ x: 'Number' }), createFunctionDeclaration('double', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.x * 2 })] },
+            {
+                name: 'Sheet',
+                kind: 'reference',
+                isInstance: value => value instanceof Board,
+                members: [
+                    createFunctionDeclaration('wrap', 'Any', { updates: constantUpdates, parameters: [createValueParameterDeclaration('at', 'Point')], impl: ({ args }) => args.at }),
+                    createFunctionDeclaration('latest', 'Point', { invokedBy: 'host' }),
+                ],
+            },
+        ],
+    });
+    const marks = lexica.createRegistry([createMarks()]);
+    const sheet = new Board();
+    const evaluateMarks = (text, bindings) => marks.resolve(text, bindings, { imports: ['Marks'] }).createEvaluator(bindings).evaluate().value;
+
+    it('keeps the type of a structure written in place, so a member selected by the value\'s type finds it', () => {
+        expect(evaluateMarks('sheet.wrap({ x = 5 }).double()', marks.createBindings({ sheet }))).toBe(10);
+    });
+
+    it('keeps the type of a structure a host binds as a declared type, and of one a host call supplies', () => {
+        expect(evaluateMarks('sheet.wrap(point).double()', marks.createBindings({ sheet, point: { x: 10 } }, { types: { point: 'Point' } }))).toBe(20);
+
+        const call = marks.resolve('sheet.latest() { doubled = sheet.wrap(it).double() }', { sheet }, { imports: ['Marks'] }).createEvaluator({ sheet }).prepareHostCall();
+
+        expect(call.project({ x: 4 }).value).toEqual({ doubled: 8 });
+    });
+});

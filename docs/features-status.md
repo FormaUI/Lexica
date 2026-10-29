@@ -218,6 +218,7 @@ Contract: [Collections](proposals/collections.md).
 8. ✅ **Versions:** language `1.0.0-alpha.36`, once every part of it was in.
 9. **The review's corrections,** each in a commit of its own, the specification describing language `1.0.0-alpha.37` from the first:
    - ✅ An expected structure lasts as long as the resolution it is made for, so a later reading of the node, a qualified call's receiver among them, constructs nothing it doesn't expect; and an indexer's key written in any form the type reaches selects the signature of the structure it constructs.
+   - ✅ A structure keeps its type through a value of `Any` wherever Lexica makes it, one an object expression constructs and one a host binds or supplies among them, as one a member answers did.
 10. **Versions:** language `1.0.0-alpha.37`, once every correction is in.
 
 **Completion:** each part is specified and implemented, and the gate passes; DOMQL adopts them at a checkpoint of its own, and confirms there that its watches and subscriptions continue across a registration.

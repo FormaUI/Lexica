@@ -9,6 +9,7 @@ import { Index } from './Index.mjs';
 import { LexicaErrors } from './LexicaError.mjs';
 import { Pair } from './Pair.mjs';
 import { Range } from './Range.mjs';
+import { StructureTypes } from './StructureTypes.mjs';
 import { Type } from './Type.mjs';
 import { ValueCapture } from './ValueCapture.mjs';
 import { ItemPositions } from './vocabulary/ItemPositions.mjs';
@@ -1359,10 +1360,10 @@ export class Evaluator {
             return specific;
         }
 
-        const structured = Evaluator.#structuredTypes.get(value);
+        const structured = StructureTypes.getType(value, this.#registry);
 
-        if (structured?.registry === this.#registry) {
-            return structured.type;
+        if (structured !== undefined) {
+            return structured;
         }
 
         if (ancestors.has(value)) {
@@ -1431,13 +1432,6 @@ export class Evaluator {
 
         return false;
     }
-
-    /**
-     * The type of each structured value an answer gave, by the value, the copy made of it or the answer itself where it is its declared shape already, with the registry whose declaration typed it, so a value of Any keeps
-     * the identity its declared result gave it. An entry is held as long as its value is, and is replaced where another answer gives that value as another type, which only an answer of its declared shape already can.
-     * @type {WeakMap<object, { registry: object, type: Type }>}
-     */
-    static #structuredTypes = new WeakMap();
 
     /** The module delegate each function reference produces, by its declaration: the same for every evaluation, since it holds nothing an evaluation bound. @type {WeakMap<object, { reference: object }>} */
     static #moduleDelegateCache = new WeakMap();
@@ -1791,7 +1785,11 @@ export class Evaluator {
                 }
             }
 
-            return Object.freeze(Object.fromEntries(shape.map(name => [name, Object.hasOwn(object, name) ? object[name] : null])));
+            const structure = Object.freeze(Object.fromEntries(shape.map(name => [name, Object.hasOwn(object, name) ? object[name] : null])));
+
+            StructureTypes.recordType(structure, evaluator.#registry, type);
+
+            return structure;
         };
     }
 
@@ -1931,7 +1929,7 @@ export class Evaluator {
                 let fieldNames = null;
                 let isFlat = false;
                 // The type each copy keeps through a value of Any.
-                const structured = { registry, type: type.toNonNullable() };
+                const structured = type.toNonNullable();
 
                 return value => {
                     if (value === null) {
@@ -1946,7 +1944,7 @@ export class Evaluator {
 
                     // An answer that is a plain object of its declared fields alone, none of them a structure, is its declared shape already, as a built-in member's is.
                     if (isFlat && Evaluator.#holdsExactly(value, fieldNames)) {
-                        Evaluator.#structuredTypes.set(value, structured);
+                        StructureTypes.recordType(value, registry, structured);
 
                         return value;
                     }
@@ -1960,7 +1958,7 @@ export class Evaluator {
                         copy[name] = copyField === null || field === null ? field : copyField(field);
                     }
 
-                    Evaluator.#structuredTypes.set(copy, structured);
+                    StructureTypes.recordType(copy, registry, structured);
 
                     return copy;
                 };

@@ -408,7 +408,7 @@ Both apply the same visibility, inheritance, ownership and ambiguity rules, and 
 
 ### A value keeps its identity
 
-`Any` neither establishes a value's concrete identity nor erases it. A typed value keeps its identity through an unrestricted contract, so a `Climate` returned through `Any` remains a `Climate`; an untyped object arriving without one is plain structured data; and a concrete result declaration establishes a checked identity at its boundary. A reference value's type is what its modules recognize it as, as [reference types](#reference-types) set out.
+`Any` neither establishes a value's concrete identity nor erases it. A typed value keeps its identity through an unrestricted contract, so a `Climate` returned through `Any` remains a `Climate`, whether a member answered it, an object expression [constructed](#types-constructing-a-structure) it, or a host bound it as a declared type or supplied it for a host call; an untyped object arriving without one is plain structured data; and a concrete result declaration establishes a checked identity at its boundary. A reference value's type is what its modules recognize it as, as [reference types](#reference-types) set out.
 
 <a id="casts"></a>
 

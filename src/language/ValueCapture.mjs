@@ -7,6 +7,7 @@ import { ArrayUtils } from '../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { Dictionary } from './Dictionary.mjs';
 import { Pair } from './Pair.mjs';
+import { StructureTypes } from './StructureTypes.mjs';
 import { LexicaModule } from './vocabulary/LexicaModule.mjs';
 
 export class ValueCapture {
@@ -120,7 +121,12 @@ export class ValueCapture {
             fail(path, value, type);
         }
 
-        return Object.fromEntries([...this.#registry.getDataShape(type)].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, ValueCapture.#pathOf(path, name), fail)]));
+        const structure = Object.fromEntries([...this.#registry.getDataShape(type)].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, ValueCapture.#pathOf(path, name), fail)]));
+
+        // A captured structure keeps its type through a value of Any, as one a member answers does.
+        StructureTypes.recordType(structure, this.#registry, type.toNonNullable());
+
+        return structure;
     }
 
     /** The path of a field within the path of the value that holds it. */
