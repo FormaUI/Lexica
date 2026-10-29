@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { lexica, LexicaError } from '#lexica/lexica.js';
+import { nexo, NexoError } from '#nexo/nexo.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { evaluateWith, resolveWith, createImportingRegistry } from './support/pipeline.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 
-const { createPropertyDeclaration, createValueParameterDeclaration, createIndexerDeclaration, createFunctionDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createValueParameterDeclaration, createIndexerDeclaration, createFunctionDeclaration } = nexo.declarations;
 
 /** A plain host's module of text: a word's letter by its index, a named indexer, and its words, a list, which a word without any has none of. */
-const createText = () => lexica.createModule('text', {
+const createText = () => nexo.createModule('text', {
     types: [
         extensionDeclaration('StringExtensions', 'String', [
             createIndexerDeclaration('letter', 'String?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('index', 'Number')], impl: ({ receiver, args }) => receiver[args.index] ?? null }),
@@ -29,46 +29,46 @@ describe('indexers and computed properties', () => {
         it('writes each form as it is read, its optional access where the text places it', () => {
             const texts = ['a.b[k]', 'a?.b[k]', 'a.b?[k]', 'a[k]', 'a?[k]', 'a.[p]', 'a?.[p]', 'a.b[k].[p]', 'a?.b?[k]?.[p]'];
 
-            texts.forEach(text => expect(lexica.format(text), text).toBe(text));
+            texts.forEach(text => expect(nexo.format(text), text).toBe(text));
         });
 
         it('records a named indexer as an indexer of the member access its name is written in, an optional receiver on the access and optional brackets on the indexer', () => {
             const a = { kind: 'scriptParameter', name: 'a' };
             const k = { kind: 'scriptParameter', name: 'k' };
 
-            expect(lexica.parse('a.b[k]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b' }, argument: k });
-            expect(lexica.parse('a?.b[k]').expression).toEqual({ kind: 'optionalChain', chain: { kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b', optional: true }, argument: k } });
-            expect(lexica.parse('a.b?[k]').expression).toEqual({ kind: 'optionalChain', chain: { kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b' }, argument: k, optional: true } });
+            expect(nexo.parse('a.b[k]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b' }, argument: k });
+            expect(nexo.parse('a?.b[k]').expression).toEqual({ kind: 'optionalChain', chain: { kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b', optional: true }, argument: k } });
+            expect(nexo.parse('a.b?[k]').expression).toEqual({ kind: 'optionalChain', chain: { kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: a, name: 'b' }, argument: k, optional: true } });
         });
 
         it('records a computed property as a member named by its expression, or by the name a string literal is', () => {
-            expect(lexica.parse('a.[p]').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: { kind: 'scriptParameter', name: 'p' } });
-            expect(lexica.parse('a.["b"]').expression).toEqual(lexica.parse('a.b').expression);
-            expect(lexica.parse('a.["night-mode"]').expression.name).toEqual({ kind: 'literal', value: 'night-mode' });
+            expect(nexo.parse('a.[p]').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: { kind: 'scriptParameter', name: 'p' } });
+            expect(nexo.parse('a.["b"]').expression).toEqual(nexo.parse('a.b').expression);
+            expect(nexo.parse('a.["night-mode"]').expression.name).toEqual({ kind: 'literal', value: 'night-mode' });
         });
 
         it('adds no node for a group, so a grouped member access before brackets is the named indexer written plainly', () => {
-            expect(lexica.format('(a.b)[k]')).toBe('a.b[k]');
+            expect(nexo.format('(a.b)[k]')).toBe('a.b[k]');
         });
 
         it('reads a member\'s name after a colon as an extension\'s, and refuses a colon brackets follow, giving the forms with a dot and the brackets', () => {
-            expect(lexica.parse('device:setting["mode"]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'device' }, extension: { name: 'setting' }, argument: { kind: 'literal', value: 'mode' } });
-            expect(errorThrownBy(() => lexica.parse('it:["mode"]')).message).toContain("'it.[…]'");
-            expect(errorThrownBy(() => lexica.parse('it?:["mode"]')).message).toContain("'it?.[…]'");
-            expect(errorThrownBy(() => lexica.parse('a.b ?: c'))).toMatchObject({ kind: 'syntax' });
+            expect(nexo.parse('device:setting["mode"]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'device' }, extension: { name: 'setting' }, argument: { kind: 'literal', value: 'mode' } });
+            expect(errorThrownBy(() => nexo.parse('it:["mode"]')).message).toContain("'it.[…]'");
+            expect(errorThrownBy(() => nexo.parse('it?:["mode"]')).message).toContain("'it?.[…]'");
+            expect(errorThrownBy(() => nexo.parse('a.b ?: c'))).toMatchObject({ kind: 'syntax' });
         });
 
         it('refuses an indexer of no key or of several, and optional brackets after a dot', () => {
-            expect(errorThrownBy(() => lexica.parse('a.b[]')).message).toContain('An indexer takes one key in its brackets');
-            expect(errorThrownBy(() => lexica.parse('a.b[1, 2]')).message).toContain('An indexer takes one key');
-            expect(errorThrownBy(() => lexica.parse('a.?[p]')).message).toContain("writes its '?' before the dot, as '?.[…]'");
+            expect(errorThrownBy(() => nexo.parse('a.b[]')).message).toContain('An indexer takes one key in its brackets');
+            expect(errorThrownBy(() => nexo.parse('a.b[1, 2]')).message).toContain('An indexer takes one key');
+            expect(errorThrownBy(() => nexo.parse('a.?[p]')).message).toContain("writes its '?' before the dot, as '?.[…]'");
         });
 
         it('refuses an indexer node holding a name, and a definition of version 32', () => {
             const named = { version: 36, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
 
-            expect(errorThrownBy(() => lexica.validate(named))).toMatchObject({ kind: 'structure' });
-            expect(errorThrownBy(() => lexica.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });
+            expect(errorThrownBy(() => nexo.validate(named))).toMatchObject({ kind: 'structure' });
+            expect(errorThrownBy(() => nexo.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });
         });
     });
 
@@ -81,7 +81,7 @@ describe('indexers and computed properties', () => {
         it('refuses a key it does not take as its own error, never reading the brackets another way', () => {
             const error = refusalOf('item.letter["x"]', { item: 'latte' });
 
-            expect(error).toBeInstanceOf(LexicaError);
+            expect(error).toBeInstanceOf(NexoError);
             expect(error.kind).toBe('validation');
             expect(error.message).toContain('letter');
             expect(error.message).not.toContain('no unnamed indexer');
@@ -98,11 +98,11 @@ describe('indexers and computed properties', () => {
             expect(evaluate('item?.letter?[1]', { item: null })).toBeNull();
             expect(evaluate('(?item.letter[1])', { item: 'latte' })).toBe('a');
             expect(evaluate('(?item.letter[1])', { item: null })).toBeNull();
-            expect(lexica.format('(?item.letter[1])')).toBe('item?.letter?[1]');
+            expect(nexo.format('(?item.letter[1])')).toBe('item?.letter?[1]');
         });
 
         it('refuses a receiver that can be null where only its brackets are optional, which protect nothing before its name', () => {
-            const registry = createImportingRegistry([createText(), lexica.createModule('maybe', {
+            const registry = createImportingRegistry([createText(), nexo.createModule('maybe', {
                 types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('maybe', 'String?', { updates: constantUpdates, impl: ({ receiver }) => (receiver === '' ? null : receiver) })])],
             })]);
 
@@ -112,7 +112,7 @@ describe('indexers and computed properties', () => {
 
         it('answers null for a null receiver written optionally, its key unevaluated', () => {
             const keys = [];
-            const registry = createImportingRegistry([createText(), lexica.createModule('keys', {
+            const registry = createImportingRegistry([createText(), nexo.createModule('keys', {
                 types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('key', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (keys.push(receiver), 1) })])],
             })]);
 
@@ -123,7 +123,7 @@ describe('indexers and computed properties', () => {
 
         it('evaluates the receiver before its name once, before its key, a member\'s answer among them', () => {
             const invoked = [];
-            const registry = createImportingRegistry([createText(), lexica.createModule('steps', {
+            const registry = createImportingRegistry([createText(), nexo.createModule('steps', {
                 types: [
                     extensionDeclaration('StringExtensions', 'String', [
                         createPropertyDeclaration('trimmed', 'String', { updates: constantUpdates, impl: ({ receiver }) => (invoked.push('trimmed'), receiver.trim()) }),
@@ -147,7 +147,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses a function written with brackets, giving its call', () => {
-            const registry = createImportingRegistry([lexica.createModule('cut', {
+            const registry = createImportingRegistry([nexo.createModule('cut', {
                 types: [extensionDeclaration('StringExtensions', 'String', [createFunctionDeclaration('cut', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('percent', 'Number')], impl: ({ args }) => args.percent })])],
             })]);
 
@@ -188,7 +188,7 @@ describe('indexers and computed properties', () => {
 
     describe('a property read by a computed name', () => {
         /** A module whose `size` answers what the test gives it and `cup`, a structure, a copy of the one it answers. */
-        const createCups = size => lexica.createModule('cups', {
+        const createCups = size => nexo.createModule('cups', {
             types: [
                 { name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ volume: 'Number' }) },
                 extensionDeclaration('StringExtensions', 'String', [
@@ -210,14 +210,14 @@ describe('indexers and computed properties', () => {
     });
 
     describe('a type name qualified by its module', () => {
-        const createCups = () => lexica.createModule('cups', {
+        const createCups = () => nexo.createModule('cups', {
             types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length }))])],
         });
 
         it('is read and written as it is, in text read without a registry too', () => {
-            expect(lexica.parse('order to cups.Cup').expression).toEqual({ kind: 'conversion', type: 'cups.Cup', operand: { kind: 'scriptParameter', name: 'order' } });
-            expect(lexica.format('(order to cups.Cup).size')).toBe('(order to cups.Cup).size');
-            expect(lexica.format('node as dom.element')).toBe('node as dom.element');
+            expect(nexo.parse('order to cups.Cup').expression).toEqual({ kind: 'conversion', type: 'cups.Cup', operand: { kind: 'scriptParameter', name: 'order' } });
+            expect(nexo.format('(order to cups.Cup).size')).toBe('(order to cups.Cup).size');
+            expect(nexo.format('node as dom.element')).toBe('node as dom.element');
         });
 
         it('names the type its registered module declares', () => {

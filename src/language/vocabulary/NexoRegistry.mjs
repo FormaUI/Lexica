@@ -1,20 +1,20 @@
 /**
- * LexicaRegistry — the declarations of every module registered with the registry, which requests resolve against
+ * NexoRegistry — the declarations of every module registered with the registry, which requests resolve against
  */
 
 import { ArrayUtils } from '../../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
 import { Imports } from '../Imports.mjs';
-import { LexicaErrors } from '../LexicaError.mjs';
+import { NexoErrors } from '../NexoError.mjs';
 import { MemberSelector } from '../MemberSelector.mjs';
 import { Type } from '../Type.mjs';
 import { TypeChecker } from '../TypeChecker.mjs';
-import { LexicaModule } from './LexicaModule.mjs';
+import { NexoModule } from './NexoModule.mjs';
 import { TypeNameScope } from './TypeNameScope.mjs';
 import { Vocabulary } from './Vocabulary.mjs';
 
-export class LexicaRegistry {
-    /** @type {Map<string, import('./LexicaModule.mjs').LexicaModule>} */
+export class NexoRegistry {
+    /** @type {Map<string, import('./NexoModule.mjs').NexoModule>} */
     #modules = new Map();
 
     /** @type {Map<string, object[]>} */
@@ -64,7 +64,7 @@ export class LexicaRegistry {
     /** The module being registered and its value types, by identity, which its own declarations name before it is registered; null between registrations. */
     #pending = null;
 
-    /** @param {import('./LexicaModule.mjs').LexicaModule[]} modules The modules registered at the start. */
+    /** @param {import('./NexoModule.mjs').NexoModule[]} modules The modules registered at the start. */
     constructor(modules = []) {
         modules.forEach(module => this.registerModule(module));
     }
@@ -105,12 +105,12 @@ export class LexicaRegistry {
      * and implementations are called only as values are bound or evaluated.
      */
     registerModule(module) {
-        if (!LexicaModule.isModule(module)) {
-            throw LexicaErrors.module('NEXO4546', 'A module is registered as createModule makes it', { module: String(module?.name) });
+        if (!NexoModule.isModule(module)) {
+            throw NexoErrors.module('NEXO4546', 'A module is registered as createModule makes it', { module: String(module?.name) });
         }
 
         const fail = (code, message, declarationName, declarationKey, typeName) => {
-            throw LexicaErrors.module(code, message, {
+            throw NexoErrors.module(code, message, {
                 module: module.name,
                 ...(typeName === undefined ? {} : { type: typeName }),
                 ...(declarationName === undefined ? {} : { declaration: declarationName }),
@@ -118,7 +118,7 @@ export class LexicaRegistry {
             });
         };
         // A member declared within a type is located at its type as well, and an unnamed indexer as its access is written.
-        const failAt = declaration => (code, message, declarationName, declarationKey) => fail(code, message, declarationName ?? LexicaRegistry.#locatedNameOf(declaration), declarationKey, this.#containingTypes.get(declaration)?.name);
+        const failAt = declaration => (code, message, declarationName, declarationKey) => fail(code, message, declarationName ?? NexoRegistry.#locatedNameOf(declaration), declarationKey, this.#containingTypes.get(declaration)?.name);
 
         // Module names are compared case-insensitively for uniqueness, each keeping its own spelling.
         const taken = [...this.#modules.keys()].find(name => name.toLowerCase() === module.name.toLowerCase());
@@ -146,7 +146,7 @@ export class LexicaRegistry {
         const typesOfMembers = new Map([...ownValueTypes, ...module.types].flatMap(type => (type.members ?? []).map(member => [member, type])));
         const members = [...module.members, ...typesOfMembers.keys()];
 
-        LexicaRegistry.#validateTypeSelections(module, members, this.#typeSelectors, this.#mappings, declaration => this.getDeclaringModuleName(declaration), fail, failAt);
+        NexoRegistry.#validateTypeSelections(module, members, this.#typeSelectors, this.#mappings, declaration => this.getDeclaringModuleName(declaration), fail, failAt);
 
         for (const type of module.observationTypes) {
             if (this.#observationTypes.has(type.name)) {
@@ -167,7 +167,7 @@ export class LexicaRegistry {
         for (const declaration of declarations) {
             const type = module.types.includes(declaration) ? declaration : typesOfMembers.get(declaration);
 
-            this.#declaringModules.set(declaration, { moduleName: module.name, imports: type?.import ?? [], typeParameters: LexicaRegistry.#typeParameterScopeOf(declaration, type) });
+            this.#declaringModules.set(declaration, { moduleName: module.name, imports: type?.import ?? [], typeParameters: NexoRegistry.#typeParameterScopeOf(declaration, type) });
         }
 
         typesOfMembers.forEach((type, member) => this.#containingTypes.set(member, type));
@@ -179,7 +179,7 @@ export class LexicaRegistry {
             this.#validateDeclaredTypes(module, members, fail, failAt);
 
             for (const declaration of members) {
-                LexicaRegistry.#validateObservations(declaration, this.takesReceiver(declaration), observationTypes, getDeclaringModule, failAt(declaration));
+                NexoRegistry.#validateObservations(declaration, this.takesReceiver(declaration), observationTypes, getDeclaringModule, failAt(declaration));
             }
 
             this.#validateMemberCollisions(members, failAt);
@@ -223,7 +223,7 @@ export class LexicaRegistry {
         for (const declaration of members) {
             if (declaration.kind === 'operator') {
                 this.#operators.set(declaration.name, [...this.getOperators(declaration.name), declaration]);
-            } else if (LexicaRegistry.#isUnnamedIndexer(declaration)) {
+            } else if (NexoRegistry.#isUnnamedIndexer(declaration)) {
                 this.#unnamedIndexers.push(declaration);
             } else if (this.takesReceiver(declaration)) {
                 this.#receiverMembers.set(declaration.name, [...this.getReceiverMembers(declaration.name), declaration]);
@@ -327,7 +327,7 @@ export class LexicaRegistry {
 
     /** How a location names the declaration: an unnamed indexer, which is given no name, as its access is written, and any other by its name. */
     static #locatedNameOf(declaration) {
-        return LexicaRegistry.#isUnnamedIndexer(declaration) ? '[]' : declaration.name;
+        return NexoRegistry.#isUnnamedIndexer(declaration) ? '[]' : declaration.name;
     }
 
     /**
@@ -345,9 +345,9 @@ export class LexicaRegistry {
 
         if (!types.has(notation)) {
             const typeName = this.#containingTypes.get(declaration)?.name;
-            const declarationName = LexicaRegistry.#locatedNameOf(declaration);
+            const declarationName = NexoRegistry.#locatedNameOf(declaration);
             const fail = (code, message) => {
-                throw LexicaErrors.module(code, message, { module: this.getDeclaringModuleName(declaration), ...(typeName === undefined ? {} : { type: typeName }), declaration: declarationName });
+                throw NexoErrors.module(code, message, { module: this.getDeclaringModuleName(declaration), ...(typeName === undefined ? {} : { type: typeName }), declaration: declarationName });
             };
 
             types.set(notation, this.#resolveNotation(notation, this.#declaringModules.get(declaration), fail));
@@ -426,7 +426,7 @@ export class LexicaRegistry {
             case 'typeParameter':
                 return true;
             case 'named':
-                return (type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) || this.isReferenceType(type);
+                return (type.moduleName === null && NexoModule.scalarTypeNames.includes(type.name)) || this.isReferenceType(type);
             default:
                 return false;
         }
@@ -461,11 +461,11 @@ export class LexicaRegistry {
             try {
                 answer = declared.isInstance(value);
             } catch (error) {
-                throw LexicaErrors.evaluation('NEXO5027', `The isInstance of ${current} threw as ${asked} asked whether a value belongs to it`, location, { cause: error });
+                throw NexoErrors.evaluation('NEXO5027', `The isInstance of ${current} threw as ${asked} asked whether a value belongs to it`, location, { cause: error });
             }
 
             if (typeof answer !== 'boolean') {
-                throw LexicaErrors.evaluation('NEXO5017', `The isInstance of ${current} answered what isn't a Boolean as ${asked} asked whether a value belongs to it`, location);
+                throw NexoErrors.evaluation('NEXO5017', `The isInstance of ${current} answered what isn't a Boolean as ${asked} asked whether a value belongs to it`, location);
             }
 
             if (!answer) {
@@ -501,7 +501,7 @@ export class LexicaRegistry {
             try {
                 name = module.typeOf(value);
             } catch (error) {
-                throw LexicaErrors.evaluation('NEXO5026', `The typeOf of the module '${module.name}' threw as ${asked} asked for a value's type`, { module: module.name }, { cause: error });
+                throw NexoErrors.evaluation('NEXO5026', `The typeOf of the module '${module.name}' threw as ${asked} asked for a value's type`, { module: module.name }, { cause: error });
             }
 
             if (name === null || name === undefined) {
@@ -515,7 +515,7 @@ export class LexicaRegistry {
             if (declared === undefined || declared.abstract === true || declared.internal === true || !this.belongsTo(value, type, asked)) {
                 const wrong = declared === undefined ? `${JSON.stringify(name) ?? String(name)}, which is no reference type of its own` : declared.abstract === true ? `the abstract type ${name}` : declared.internal === true ? `the internal type ${name}, which no script names` : `${name}, which the value doesn't belong to`;
 
-                throw LexicaErrors.evaluation('NEXO5002', `The typeOf of the module '${module.name}' named ${wrong}, as ${asked} asked for a value's type`, { module: module.name });
+                throw NexoErrors.evaluation('NEXO5002', `The typeOf of the module '${module.name}' named ${wrong}, as ${asked} asked for a value's type`, { module: module.name });
             }
 
             recognized.push(type);
@@ -600,7 +600,7 @@ export class LexicaRegistry {
         let shape = this.#dataShapeCache.get(structure);
 
         if (shape === undefined) {
-            shape = new Map(LexicaRegistry.#dataPropertiesOf(structure).map(property => [property.name, this.getDeclaredType(property, property.result)]));
+            shape = new Map(NexoRegistry.#dataPropertiesOf(structure).map(property => [property.name, this.getDeclaredType(property, property.result)]));
             this.#dataShapeCache.set(structure, shape);
         }
 
@@ -611,7 +611,7 @@ export class LexicaRegistry {
     getDataPropertyTypes(propertyName) {
         return [...this.#types.values()]
             .filter(type => type.kind === 'structured')
-            .flatMap(type => LexicaRegistry.#dataPropertiesOf(type).filter(property => property.name === propertyName).map(property => this.getDeclaredType(property, property.result)));
+            .flatMap(type => NexoRegistry.#dataPropertiesOf(type).filter(property => property.name === propertyName).map(property => this.getDeclaredType(property, property.result)));
     }
 
     /** The properties the structured type declares directly without updates, its data shape, in the order it declares them. */
@@ -940,8 +940,8 @@ export class LexicaRegistry {
                 return;
             }
 
-            if (LexicaRegistry.#isUnnamedIndexer(declaration)) {
-                for (const other of members.slice(0, index).filter(member => LexicaRegistry.#isUnnamedIndexer(member) && !this.#areDisjointSignatures(member, declaration))) {
+            if (NexoRegistry.#isUnnamedIndexer(declaration)) {
+                for (const other of members.slice(0, index).filter(member => NexoRegistry.#isUnnamedIndexer(member) && !this.#areDisjointSignatures(member, declaration))) {
                     const shared = this.#getSharedReceiver(declaration, other);
 
                     if (shared !== undefined) {
@@ -1015,7 +1015,7 @@ export class LexicaRegistry {
      * callback's input writes a parameter whose only source is another callback's result, since callback results do not chain (NEXO4044).
      */
     #validateTypeParameters(module, members, fail, failAt) {
-        const parametersOf = (declaration, notation) => LexicaRegistry.#typeParametersWrittenBy(this.getDeclaredType(declaration, notation));
+        const parametersOf = (declaration, notation) => NexoRegistry.#typeParametersWrittenBy(this.getDeclaredType(declaration, notation));
         const isReachable = (declaration, name) => {
             const { moduleName, imports } = this.#declaringModules.get(declaration);
 
@@ -1062,7 +1062,7 @@ export class LexicaRegistry {
 
         const parts = [...type.typeArguments, ...(type.fieldTypes === null ? [] : type.fieldTypes.values())];
 
-        return new Set(parts.flatMap(part => [...LexicaRegistry.#typeParametersWrittenBy(part)]));
+        return new Set(parts.flatMap(part => [...NexoRegistry.#typeParametersWrittenBy(part)]));
     }
 
     /**
@@ -1220,7 +1220,7 @@ export class LexicaRegistry {
                     return type.typeArguments.every(typeArgument => this.#isData(typeArgument, checking, isAnyChecked));
                 }
 
-                if ((type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) || checking.has(type.identity)) {
+                if ((type.moduleName === null && NexoModule.scalarTypeNames.includes(type.name)) || checking.has(type.identity)) {
                     return true;
                 }
 
@@ -1250,7 +1250,7 @@ export class LexicaRegistry {
             // A type parameter's default is data, whatever the parameter binds to; whether it fits that binding is checked nowhere yet. A default of Any is any data.
             case 'typeParameter':
             case 'any':
-                return LexicaRegistry.#isDataValue(value);
+                return NexoRegistry.#isDataValue(value);
             case 'named': {
                 if (type.isList) {
                     return Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1 && value.every(item => this.#admits(item, type.itemType));
@@ -1261,7 +1261,7 @@ export class LexicaRegistry {
                 }
 
                 // The scalars beside a number, which is finite, are admitted by their JavaScript type.
-                if (type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) {
+                if (type.moduleName === null && NexoModule.scalarTypeNames.includes(type.name)) {
                     return typeof value === type.name.toLowerCase();
                 }
 
@@ -1283,10 +1283,10 @@ export class LexicaRegistry {
         }
 
         if (Array.isArray(value)) {
-            return ArrayUtils.findMissingIndex(value) === -1 && value.every(item => LexicaRegistry.#isDataValue(item));
+            return ArrayUtils.findMissingIndex(value) === -1 && value.every(item => NexoRegistry.#isDataValue(item));
         }
 
-        return ObjectUtils.isPlainObject(value) && Object.values(value).every(field => LexicaRegistry.#isDataValue(field));
+        return ObjectUtils.isPlainObject(value) && Object.values(value).every(field => NexoRegistry.#isDataValue(field));
     }
 
     /**
@@ -1310,7 +1310,7 @@ export class LexicaRegistry {
             }
 
             if (typeof observationDeclaration.of === 'string' && observationDeclaration.of !== 'receiver') {
-                LexicaRegistry.#validateObservedTarget(declaration, takesReceiver, observationDeclaration, type, getDeclaringModule(type), fail);
+                NexoRegistry.#validateObservedTarget(declaration, takesReceiver, observationDeclaration, type, getDeclaringModule(type), fail);
             }
 
             hasMaintained ||= type.contract === 'maintained';

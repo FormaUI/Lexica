@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { ImportedVocabulary } from '#lexica/language/ImportedVocabulary.mjs';
-import { Type } from '#lexica/language/Type.mjs';
-import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
-import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { ImportedVocabulary } from '#nexo/language/ImportedVocabulary.mjs';
+import { Type } from '#nexo/language/Type.mjs';
+import { Declarations } from '#nexo/language/vocabulary/Declarations.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
+import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 import { withHome } from '../support/home.mjs';
 import { constantUpdates } from '../support/updates.mjs';
 import { extensionDeclaration } from '../support/declarations.mjs';
@@ -14,10 +14,10 @@ const { createPropertyDeclaration, createFunctionDeclaration } = Declarations;
 const property = name => createPropertyDeclaration(name, 'String', { updates: constantUpdates, impl: () => name });
 
 /** A registry of the home, whose devices and lights hold members of their own, and energy, which extends the home's devices and has a module member. */
-const registry = new LexicaRegistry([
+const registry = new NexoRegistry([
     Vocabulary.module,
-    new LexicaModule('Home', withHome({}, { Device: [property('name')], Light: [property('glow')], Room: [property('label')] })),
-    new LexicaModule('Energy', { types: [extensionDeclaration('Devices', 'Home.Device', [property('usage')])], members: [createFunctionDeclaration('total', 'Number', { updates: constantUpdates, impl: () => 1 })] }),
+    new NexoModule('Home', withHome({}, { Device: [property('name')], Light: [property('glow')], Room: [property('label')] })),
+    new NexoModule('Energy', { types: [extensionDeclaration('Devices', 'Home.Device', [property('usage')])], members: [createFunctionDeclaration('total', 'Number', { updates: constantUpdates, impl: () => 1 })] }),
 ]);
 
 /** The declaration of the name the registry indexes for receivers, the first of its name. */

@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Device, Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { extensionDeclaration } from './support/declarations.mjs';
 import { importsOf, createImportingRegistry } from './support/pipeline.mjs';
 
-const { createPropertyDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
 /** A property answering the text given, internal where it says so. */
 const answering = (name, answer, { internal = false } = {}) => ({ ...createPropertyDeclaration(name, 'String', { updates: constantUpdates, impl: () => answer }), ...(internal ? { internal } : {}) });
@@ -15,16 +15,16 @@ const answering = (name, answer, { internal = false } = {}) => ({ ...createPrope
 const indexing = answer => createIndexerDeclaration(null, 'String', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')], impl: () => answer });
 
 /** The home, which owns its devices: a device's power, its level, a secret no script reaches and its unnamed indexer, and a light's glow. */
-const createHome = () => lexica.createModule('Home', withHome({}, {
+const createHome = () => nexo.createModule('Home', withHome({}, {
     Device: [answering('power', 'home'), answering('level', 'home device'), answering('secret', 'home', { internal: true }), indexing('home')],
     Light: [answering('glow', 'home light')],
 }));
 
 /** Energy, which extends the home's devices: their power, their usage, a secret and an unnamed indexer of its own. */
-const createEnergy = () => lexica.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [answering('power', 'energy'), answering('usage', 'energy'), answering('secret', 'energy'), indexing('energy')])] });
+const createEnergy = () => nexo.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [answering('power', 'energy'), answering('usage', 'energy'), answering('secret', 'energy'), indexing('energy')])] });
 
 /** Solar, which extends the target given, the home's lights unless another is given: its usage, its level, and an unnamed indexer of its own. */
-const createSolar = (target = 'Home.Light') => lexica.createModule('Solar', { types: [extensionDeclaration('Panel', target, [answering('usage', 'solar'), answering('level', 'solar'), indexing('solar')])] });
+const createSolar = (target = 'Home.Light') => nexo.createModule('Solar', { types: [extensionDeclaration('Panel', target, [answering('usage', 'solar'), answering('level', 'solar'), indexing('solar')])] });
 
 const values = { device: new Device('fan'), light: new Light('lamp'), thermostat: new Thermostat('heater'), numbers: [1, 2] };
 
@@ -62,12 +62,12 @@ describe('the selection of a member', () => {
             code: 'NEXO3024',
             message: expect.stringContaining("'usage' on Device is ambiguous between the modules 'Energy' and 'Solar': write 'device:Energy.Device.usage' or 'device:Solar.Panel.usage' to select one"),
         });
-        expect(refusalWith([createHome(), lexica.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [indexing('energy')])] }), createSolar('Home.Device')], 'device.secret')).toMatchObject({ code: 'NEXO3023' });
+        expect(refusalWith([createHome(), nexo.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [indexing('energy')])] }), createSolar('Home.Device')], 'device.secret')).toMatchObject({ code: 'NEXO3023' });
         expect(evaluateWith([createHome(), createEnergy(), createSolar('Home.Device')], 'device.power')).toBe('home');
     });
 
     it('reads Nexo\'s own members of its own types, whatever an extension declares', () => {
-        const counting = lexica.createModule('Counting', { types: [extensionDeclaration('Numbers', 'List<Number>', [answering('count', 'counting')])] });
+        const counting = nexo.createModule('Counting', { types: [extensionDeclaration('Numbers', 'List<Number>', [answering('count', 'counting')])] });
 
         expect(evaluateWith([counting], 'numbers.count', { numbers: [1, 2] })).toBe(2);
     });
@@ -76,17 +76,17 @@ describe('the selection of a member', () => {
         const solarAndEnergy = [createHome(), createEnergy(), createSolar()];
 
         expect(evaluateWith(solarAndEnergy, '{ light = light["mode"], thermostat = thermostat["mode"] }')).toEqual({ light: 'home', thermostat: 'home' });
-        expect(evaluateWith([lexica.createModule('Home', withHome()), createEnergy(), createSolar()], '{ light = light["mode"], thermostat = thermostat["mode"] }')).toEqual({ light: 'solar', thermostat: 'energy' });
-        expect(refusalWith([lexica.createModule('Home', withHome()), createEnergy(), createSolar('Home.Device')], 'device["mode"]')).toMatchObject({ code: 'NEXO3024', message: expect.stringContaining("write 'device:Energy.Device[…]' or 'device:Solar.Panel[…]' to select one") });
+        expect(evaluateWith([nexo.createModule('Home', withHome()), createEnergy(), createSolar()], '{ light = light["mode"], thermostat = thermostat["mode"] }')).toEqual({ light: 'solar', thermostat: 'energy' });
+        expect(refusalWith([nexo.createModule('Home', withHome()), createEnergy(), createSolar('Home.Device')], 'device["mode"]')).toMatchObject({ code: 'NEXO3024', message: expect.stringContaining("write 'device:Energy.Device[…]' or 'device:Solar.Panel[…]' to select one") });
     });
 
     it('gives a member another module declares on a supertype no priority over the extensions, the most specific of them selected', () => {
         class Gadget {}
         class Lamp extends Gadget {}
 
-        const gear = lexica.createModule('Gear', { types: [{ name: 'Gadget', kind: 'reference', isInstance: value => value instanceof Gadget, members: [answering('tag', 'gear')] }] });
-        const lamps = lexica.createModule('Lamps', { typeOf: value => (value instanceof Lamp ? 'Lamp' : null), types: [{ name: 'Lamp', kind: 'reference', supertype: 'Gear.Gadget', isInstance: value => value instanceof Lamp }] });
-        const shine = lexica.createModule('Shine', { types: [extensionDeclaration('Lamps', 'Lamps.Lamp', [answering('tag', 'shine')])] });
+        const gear = nexo.createModule('Gear', { types: [{ name: 'Gadget', kind: 'reference', isInstance: value => value instanceof Gadget, members: [answering('tag', 'gear')] }] });
+        const lamps = nexo.createModule('Lamps', { typeOf: value => (value instanceof Lamp ? 'Lamp' : null), types: [{ name: 'Lamp', kind: 'reference', supertype: 'Gear.Gadget', isInstance: value => value instanceof Lamp }] });
+        const shine = nexo.createModule('Shine', { types: [extensionDeclaration('Lamps', 'Lamps.Lamp', [answering('tag', 'shine')])] });
         const registry = createImportingRegistry([gear, lamps, shine]);
         const bindings = registry.createBindings({ lamp: new Lamp() });
 
@@ -100,7 +100,7 @@ describe('an internal declaration', () => {
     });
 
     it('is refused where it alone applies, through any form, as if no declaration of its name were accessible', () => {
-        const hidden = lexica.createModule('Hidden', {
+        const hidden = nexo.createModule('Hidden', {
             types: [{ name: 'Vault', kind: 'reference', isInstance: () => false, internal: true }],
             members: [answering('code', 'hidden', { internal: true })],
         });

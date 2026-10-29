@@ -4,19 +4,19 @@
 
 <a id="errors-and-diagnostics"></a>
 
-A **diagnostic** describes one problem with a script, a definition, a binding or a module: what is wrong, and where. An **error** is how a strict operation reports one: it throws a `LexicaError`, whose `code` identifies the condition, as [codes](#diagnostics-codes) set out, whose `kind` is the category of the failure and whose `location` says where it stands, and stops there. Every public operation of an implementation is strict: reading text, validating a definition, binding, registering a module, resolving and evaluating each throw their first diagnostic as an error. Tooling reads text tolerantly instead, and keeps every diagnostic without throwing, as [tolerant reading](#diagnostics-tolerant-reading) sets out.
+A **diagnostic** describes one problem with a script, a definition, a binding or a module: what is wrong, and where. An **error** is how a strict operation reports one: it throws a `NexoError`, whose `code` identifies the condition, as [codes](#diagnostics-codes) set out, whose `kind` is the category of the failure and whose `location` says where it stands, and stops there. Every public operation of an implementation is strict: reading text, validating a definition, binding, registering a module, resolving and evaluating each throw their first diagnostic as an error. Tooling reads text tolerantly instead, and keeps every diagnostic without throwing, as [tolerant reading](#diagnostics-tolerant-reading) sets out.
 
 An absent or unavailable value is not a failure: it is null. Invalid syntax, an invalid definition or binding, an invalid script, an invalid module and an evaluation failure are errors, of the kinds `syntax`, `structure`, `validation`, `module` and `evaluation`, each raised at its stage:
 
 | Kind | Raised by | For |
 | --- | --- | --- |
 | `syntax` | Reading text | Text that does not follow the grammar |
-| `structure` | Reading text, validating a definition, binding, and resolving, creating an evaluator or entering one with bindings or a registry that no longer fit | A definition or a binding that breaks the language's structural rules; validating a definition, `lexica.validate`, checks these alone, with no registry |
+| `structure` | Reading text, validating a definition, binding, and resolving, creating an evaluator or entering one with bindings or a registry that no longer fit | A definition or a binding that breaks the language's structural rules; validating a definition, `nexo.validate`, checks these alone, with no registry |
 | `validation` | Resolution | A script that does not fit its vocabulary or its types: the semantic validation resolution performs against a registry |
 | `module` | Creating and registering a module, creating an evaluator | A declaration that breaks a declaration contract, or a used declaration without an implementation |
 | `evaluation` | Evaluation, its hooks and its prepared calls | A failure while the script is evaluated |
 
-Structural validation checks a definition against the definition format wherever one is read or given, `lexica.validate` among them, and reports a `structure` error. Semantic validation checks a script against its vocabulary and its types, which resolution alone can, and reports a `validation` error, so `lexica.validate` never raises one.
+Structural validation checks a definition against the definition format wherever one is read or given, `nexo.validate` among them, and reports a `structure` error. Semantic validation checks a script against its vocabulary and its types, which resolution alone can, and reports a `validation` error, so `nexo.validate` never raises one.
 
 `try` handles only a cast or conversion rejecting its value; every other error fails the operation. A **fault** is an evaluation error no attempt catches, as a declaration's `impl` failing otherwise than by its `reject`.
 
@@ -37,7 +37,7 @@ In this document:
 
 ## Codes
 
-Each condition a diagnostic reports has a stable **code**, `NEXO` and four digits, as `NEXO1004`, which each error table below gives beside its condition: the tables are the catalog, one row for each condition the specification sets out. A diagnostic is `{ code, kind, message, location }`, and a `LexicaError` carries its `code` beside its `kind` and its `location`.
+Each condition a diagnostic reports has a stable **code**, `NEXO` and four digits, as `NEXO1004`, which each error table below gives beside its condition: the tables are the catalog, one row for each condition the specification sets out. A diagnostic is `{ code, kind, message, location }`, and a `NexoError` carries its `code` beside its `kind` and its `location`.
 
 | Codes | Kind |
 | --- | --- |
@@ -521,7 +521,7 @@ A code leaves its table only by being retired here, with the condition it identi
 | `NEXO4036` | A module named by a reserved word, `Nexo`, or one of Nexo's own types or extensions, `Nexo` refused as any registered name is and the rest names a module may share | `1.0.0-alpha.34` |
 | `NEXO4046` | A type named as one of Nexo's own extensions, a name another module's declaration may share, ambiguity checked where a reference resolves | `1.0.0-alpha.34` |
 | `NEXO5502` | A definition node no evaluation existed for, a code of language `1.0.0-alpha.33` alone: every node a definition holds is evaluated by its kind, a namespace, an interpolation's text and its expressions by the node that holds them | `1.0.0-alpha.34` |
-| `NEXO2640` | `lexica.format` or `lexica.quote` given a definition reading through a namespace, which text read without a registry's module names could not write, a code of language `1.0.0-alpha.33` alone: a definition's imports give every namespace it reads, and canonical text writes them | `1.0.0-alpha.34` |
+| `NEXO2640` | `nexo.format` or `nexo.quote` given a definition reading through a namespace, which text read without a registry's module names could not write, a code of language `1.0.0-alpha.33` alone: a definition's imports give every namespace it reads, and canonical text writes them | `1.0.0-alpha.34` |
 | `NEXO2641` | A definition read without a registry's module names that wrote one of them alone, which the registry read as that module's namespace, a code of language `1.0.0-alpha.33` alone: a text reads alike whatever reads it, its imports deciding its namespaces | `1.0.0-alpha.34` |
 | `NEXO2642` | A namespace naming no module the registry held, a code of language `1.0.0-alpha.33` alone: a namespace names a local name its imports give, `NEXO2028`, and an import of a module the registry doesn't hold is `NEXO3002` | `1.0.0-alpha.34` |
 | `NEXO4557` | A module named by a reserved word, which text reached only through an import binding, a code of language `1.0.0-alpha.33` alone: the script imports it and reads its namespace with `@` | `1.0.0-alpha.34` |

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { LanguageResolver } from '#lexica/language/LanguageResolver.mjs';
-import { ParameterBindings } from '#lexica/language/ParameterBindings.mjs';
-import { ParsedTexts } from '#lexica/language/ParsedTexts.mjs';
-import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
-import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { LanguageResolver } from '#nexo/language/LanguageResolver.mjs';
+import { ParameterBindings } from '#nexo/language/ParameterBindings.mjs';
+import { ParsedTexts } from '#nexo/language/ParsedTexts.mjs';
+import { Declarations } from '#nexo/language/vocabulary/Declarations.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
+import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 import { constantUpdates } from '../support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from '../support/declarations.mjs';
 import { parseImporting } from '../support/pipeline.mjs';
@@ -24,7 +24,7 @@ const trimming = impl => Declarations.createFunctionDeclaration('trim', 'String'
  * A shop whose `pad` is a module member taking a word and a count written as a string, a member of its own word taking a count, which its namespace reaches too, and a member of a Boolean taking a count written as a
  * string; and whose `trim` is a member of a string and of a Boolean, each taking a count.
  */
-const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+const registry = new NexoRegistry([Vocabulary.module, new NexoModule('shop', {
     typeOf: value => (value instanceof Word ? 'Word' : null),
     types: [
         { name: 'Word', kind: 'reference', isInstance: value => value instanceof Word, members: [padding('Number')] },
@@ -98,7 +98,7 @@ describe('LanguageResolver', () => {
     describe('a computed property access', () => {
         it('keeps each name\'s resolution by its name and records each use as its name is resolved, its own pointer holding its own resolution', () => {
             const property = (name, result = 'Number') => Declarations.createPropertyDeclaration(name, result, { updates: constantUpdates, impl: () => 1 });
-            const lit = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', { types: [extensionDeclaration('Words', 'String', [property('glow'), property('dim'), property('long', 'Boolean')])] })]);
+            const lit = new NexoRegistry([Vocabulary.module, new NexoModule('shop', { types: [extensionDeclaration('Words', 'String', [property('glow'), property('dim'), property('long', 'Boolean')])] })]);
             const definition = parseImporting(lit, 'return word.[if word.long then "glow" else "dim" end]');
             const resolved = new LanguageResolver(lit, new ParameterBindings(lit, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
             const { kind, resolutionsByName } = resolved.getResolution('/expression/result');
@@ -111,7 +111,7 @@ describe('LanguageResolver', () => {
 
     describe('an object field and a structured type\'s data property', () => {
         /** A registry whose `Cup` is a structured type of a size, converted from a string. */
-        const cups = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+        const cups = new NexoRegistry([Vocabulary.module, new NexoModule('shop', {
             types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup', ({ value }) => ({ size: value.length }))])],
         })]);
         const values = { word: 'oat', pair: { a: 1, b: null }, missing: null };
@@ -170,7 +170,7 @@ describe('LanguageResolver', () => {
     describe('the name a use is qualified by', () => {
         /** The qualified names `word.fade` uses, where `fade` is a property of an extension of the target given. */
         const usesOf = target => {
-            const fading = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+            const fading = new NexoRegistry([Vocabulary.module, new NexoModule('shop', {
                 types: [extensionDeclaration(target === 'T' ? 'Fades<T>' : 'Fades', target, [Declarations.createPropertyDeclaration('fade', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver })])],
             })]);
             const definition = parseImporting(fading, 'return word.fade');
@@ -187,7 +187,7 @@ describe('LanguageResolver', () => {
     describe('a deferred access', () => {
         it('records the name it accesses and its candidates, each qualified by the type it is declared for, the name alone where that is a type parameter, and uses none of them', () => {
             const fade = () => Declarations.createPropertyDeclaration('fade', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver });
-            const fading = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+            const fading = new NexoRegistry([Vocabulary.module, new NexoModule('shop', {
                 types: [extensionDeclaration('Fades', 'String', [fade()]), extensionDeclaration('AllFades<T>', 'T', [fade()])],
                 members: [Declarations.createFunctionDeclaration('held', 'Any', { updates: constantUpdates, impl: () => 'oat' })],
             })]);
@@ -203,7 +203,7 @@ describe('LanguageResolver', () => {
     });
 
     describe('whether it may recognize a value', () => {
-        const recognizing = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+        const recognizing = new NexoRegistry([Vocabulary.module, new NexoModule('shop', {
             types: [{ name: 'Supplier', kind: 'reference', isInstance: () => true }],
             members: [
                 Declarations.createFunctionDeclaration('supplier', 'Supplier?', { invokedBy: 'host' }),

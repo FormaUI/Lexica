@@ -11,8 +11,8 @@
     "type": "module",
     "exports": {
         ".": {
-            "types": "./src/lexica.d.ts",
-            "default": "./src/lexica.js"
+            "types": "./src/nexo.d.ts",
+            "default": "./src/nexo.js"
         }
     },
     "files": [

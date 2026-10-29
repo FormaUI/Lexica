@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { Dictionary } from '#lexica/language/Dictionary.mjs';
-import { Pair } from '#lexica/language/Pair.mjs';
-import { Type } from '#lexica/language/Type.mjs';
-import { ValueCapture } from '#lexica/language/ValueCapture.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
-import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { Dictionary } from '#nexo/language/Dictionary.mjs';
+import { Pair } from '#nexo/language/Pair.mjs';
+import { Type } from '#nexo/language/Type.mjs';
+import { ValueCapture } from '#nexo/language/ValueCapture.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
+import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 import { Light, Thermostat, withHome } from '../support/home.mjs';
 import { dataPropertyDeclarations } from '../support/declarations.mjs';
 
 /** A home whose `Spot` is a structure of a size and a light that may be missing. */
-const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('home', withHome({ types: [{ name: 'Spot', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number', lamp: 'Light?' }) }] }))]);
+const registry = new NexoRegistry([Vocabulary.module, new NexoModule('home', withHome({ types: [{ name: 'Spot', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number', lamp: 'Light?' }) }] }))]);
 const capture = new ValueCapture(registry);
 const named = (name, isNullable = false) => Type.createNamedType(name, isNullable, 'home');
 
@@ -56,7 +56,7 @@ describe('ValueCapture', () => {
 });
 
 describe('ValueCapture of data reaching itself', () => {
-    const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('chains', { types: [{ name: 'Link', kind: 'structured', members: dataPropertyDeclarations({ value: 'Number', next: 'Link?' }) }] })]);
+    const registry = new NexoRegistry([Vocabulary.module, new NexoModule('chains', { types: [{ name: 'Link', kind: 'structured', members: dataPropertyDeclarations({ value: 'Number', next: 'Link?' }) }] })]);
 
     it('gives fail the reason cycle and the path where the data reaches itself, and captures a chain that ends', () => {
         const link = { value: 1 };

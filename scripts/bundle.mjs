@@ -19,7 +19,7 @@ export const declarationsPath = resolve(root, 'nuget', 'wwwroot', 'lexica.d.ts')
 /** Bundles the entry and every module it imports into one minified ES module, answering its text. */
 export async function bundle() {
     const result = await build({
-        entryPoints: [resolve(root, 'src', 'lexica.js')],
+        entryPoints: [resolve(root, 'src', 'nexo.js')],
         bundle: true,
         minify: true,
         format: 'esm',
@@ -37,7 +37,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 
     await mkdir(dirname(bundlePath), { recursive: true });
     await writeFile(bundlePath, text);
-    await copyFile(resolve(root, 'src', 'lexica.d.ts'), declarationsPath);
+    await copyFile(resolve(root, 'src', 'nexo.d.ts'), declarationsPath);
 
     console.log(`Bundled ${Buffer.byteLength(text)} bytes of Nexo ${Versions.implementation} to ${bundlePath}, with its declarations beside it`);
 }

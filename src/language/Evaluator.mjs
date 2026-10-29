@@ -6,14 +6,14 @@ import { ArrayUtils } from '../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { Dictionary } from './Dictionary.mjs';
 import { Index } from './Index.mjs';
-import { LexicaErrors } from './LexicaError.mjs';
+import { NexoErrors } from './NexoError.mjs';
 import { Pair } from './Pair.mjs';
 import { Range } from './Range.mjs';
 import { StructureTypes } from './StructureTypes.mjs';
 import { Type } from './Type.mjs';
 import { ValueCapture } from './ValueCapture.mjs';
 import { ItemPositions } from './vocabulary/ItemPositions.mjs';
-import { LexicaModule } from './vocabulary/LexicaModule.mjs';
+import { NexoModule } from './vocabulary/NexoModule.mjs';
 import { ListOrdering } from './vocabulary/ListOrdering.mjs';
 import { MemberFailure } from './vocabulary/MemberFailure.mjs';
 import { Vocabulary } from './vocabulary/Vocabulary.mjs';
@@ -213,7 +213,7 @@ export class Evaluator {
     #nullAnswer = null;
 
     /**
-     * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry The vocabulary the request was resolved against.
+     * @param {import('./vocabulary/NexoRegistry.mjs').NexoRegistry} registry The vocabulary the request was resolved against.
      * @param {import('./ResolvedDefinition.mjs').ResolvedDefinition} resolvedDefinition The resolved definition to read.
      * @param {import('./ParameterBindings.mjs').ParameterBindings} parameterBindings What the request's parameters are bound to.
      * @param {Environment} environment What the host gives the evaluation, passed to every implementation.
@@ -348,12 +348,12 @@ export class Evaluator {
         // A part of the value is named by its path within it, the value itself by none.
         const fail = (path, part, partType, reason) => {
             if (reason === 'cycle') {
-                this.#fail('NEXO5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied a value that reaches itself${path === '' ? '' : ` at '${path}'`}, which data never does`, pointer);
+                this.#fail('NEXO5015', `The host call '${NexoModule.writtenNameOf(declaration)}' supplied a value that reaches itself${path === '' ? '' : ` at '${path}'`}, which data never does`, pointer);
             }
 
             const supplied = path === '' ? Evaluator.#describe(part) : part === undefined ? `a value without '${path}'` : `a value whose '${path}' is ${Evaluator.#describe(part)}`;
 
-            this.#fail('NEXO5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied ${supplied}, and ${path === '' ? 'it declares' : `'${path}' is declared`} ${partType}`, pointer);
+            this.#fail('NEXO5015', `The host call '${NexoModule.writtenNameOf(declaration)}' supplied ${supplied}, and ${path === '' ? 'it declares' : `'${path}' is declared`} ${partType}`, pointer);
         };
 
         const captured = this.#valueCapture.capture(value, resultType, fail);
@@ -407,9 +407,9 @@ export class Evaluator {
                     hooks.afterEvaluation(Object.freeze(outcome));
                 } catch (cleanupError) {
                     if (outcome.kind !== 'failed') {
-                        // A failure as the evaluation ends fails it, as a hook's failure does: one Nexo raised as it is, and anything else the hook threw, a LexicaError it built among them, as the cause of Nexo's own.
+                        // A failure as the evaluation ends fails it, as a hook's failure does: one Nexo raised as it is, and anything else the hook threw, a NexoError it built among them, as the cause of Nexo's own.
                         // The finally block's throw replaces the completed result.
-                        if (LexicaErrors.isRaisedByLexica(cleanupError)) {
+                        if (NexoErrors.isRaisedByNexo(cleanupError)) {
                             throw cleanupError;
                         }
 
@@ -886,8 +886,8 @@ export class Evaluator {
         try {
             answered = implementation({ value, reject });
         } catch (error) {
-            // A failure Nexo raised keeps its own code and place; anything else the operator threw but its rejection, a LexicaError it built among them, is the cause of Nexo's own, exactly as thrown.
-            if (LexicaErrors.isRaisedByLexica(error)) {
+            // A failure Nexo raised keeps its own code and place; anything else the operator threw but its rejection, a NexoError it built among them, is the cause of Nexo's own, exactly as thrown.
+            if (NexoErrors.isRaisedByNexo(error)) {
                 throw error;
             }
 
@@ -1018,7 +1018,7 @@ export class Evaluator {
                 takesReceiver: this.#registry.takesReceiver(declaration),
                 resultType,
                 captureCollections: Evaluator.#compileCollectionCapture(resultType),
-                isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${LexicaModule.writtenNameOf(declaration)}'`),
+                isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${NexoModule.writtenNameOf(declaration)}'`),
                 copyStructure: Evaluator.#compileStructureCopy(resultType, this.#registry),
             });
             invocations.push(invocation);
@@ -1190,7 +1190,7 @@ export class Evaluator {
 
         const { declaration } = outcome;
 
-        if (LexicaModule.isInvokedByHost(declaration)) {
+        if (NexoModule.isInvokedByHost(declaration)) {
             return {
                 kind: 'failure',
                 code: 'NEXO5013',
@@ -1477,7 +1477,7 @@ export class Evaluator {
             }
 
             // A value of Any is checked against its parameter's type as it is evaluated.
-            const isOfCheckedType = argument.checkedType === undefined ? null : Evaluator.#compileTypeCheck(argument.checkedType, this.#registry, `the argument '${parameter.name}' of '${LexicaModule.writtenNameOf(resolution.declaration)}'`);
+            const isOfCheckedType = argument.checkedType === undefined ? null : Evaluator.#compileTypeCheck(argument.checkedType, this.#registry, `the argument '${parameter.name}' of '${NexoModule.writtenNameOf(resolution.declaration)}'`);
             const plan = { name: parameter.name, kind: parameter.kind, evaluate: this.#getCompiledFunction(argument.node), propagatesNull: parameter.nulls === 'propagate', isOption, isReadLater, isField, checkedType: argument.checkedType ?? null, isOfCheckedType, pointer: argument.pointer };
 
             if (argument.callback === undefined) {
@@ -1486,7 +1486,7 @@ export class Evaluator {
 
             // The member calls the function it is given with the arguments the callback contract declares, each checked as the contract's types say, the checks compiled once for every call.
             const { functions, parameterTypes, resultType, isBody } = argument.callback;
-            const asked = `the function given as '${parameter.name}' of '${LexicaModule.writtenNameOf(resolution.declaration)}'`;
+            const asked = `the function given as '${parameter.name}' of '${NexoModule.writtenNameOf(resolution.declaration)}'`;
             const isOfParameterType = parameterTypes.map(parameterType => Evaluator.#compileTypeCheck(parameterType, this.#registry, asked));
             const isOfResultType = resultType === null ? null : Evaluator.#compileTypeCheck(resultType, this.#registry, asked);
 
@@ -1499,7 +1499,7 @@ export class Evaluator {
                 // A body of each item reads its item as a value that is not null, as resolution types it, so a null item answers null and the body is never evaluated against it, unless its parameter accepts null items.
                 skipsNullItem: isBody === true && (parameter.kind === 'expression' || parameter.kind === 'predicate') && parameter.nulls !== 'accept',
                 functions: isBody === true ? null : this.#compileFunctions(functions),
-                memberName: LexicaModule.writtenNameOf(resolution.declaration),
+                memberName: NexoModule.writtenNameOf(resolution.declaration),
                 parameterTypes,
                 resultType,
                 isOfParameterType,
@@ -1550,7 +1550,7 @@ export class Evaluator {
                         }
 
                         if (plan.isOfCheckedType !== null && !plan.isOfCheckedType(value)) {
-                            evaluator.#fail('NEXO5021', `The argument '${plan.name}' of '${LexicaModule.writtenNameOf(resolution.declaration)}' is declared ${plan.checkedType}, and is given ${Evaluator.#describe(value)}`, plan.pointer);
+                            evaluator.#fail('NEXO5021', `The argument '${plan.name}' of '${NexoModule.writtenNameOf(resolution.declaration)}' is declared ${plan.checkedType}, and is given ${Evaluator.#describe(value)}`, plan.pointer);
                         }
 
                         // A delegate is evaluated where it is written, once, and goes to the member as a callback it calls, while the expression's own names and fields hold the value itself.
@@ -2064,7 +2064,7 @@ export class Evaluator {
                     return value => registry.belongsTo(value, type, asked);
                 }
 
-                if (type.moduleName === null && LexicaModule.scalarTypeNames.includes(name)) {
+                if (type.moduleName === null && NexoModule.scalarTypeNames.includes(name)) {
                     return value => ValueCapture.belongsToScalar(value, name);
                 }
 
@@ -2266,7 +2266,7 @@ export class Evaluator {
         const { declaration, implementation, takesReceiver, resultType, captureCollections, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
-            this.#fail('NEXO4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${LexicaModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
+            this.#fail('NEXO4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${NexoModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
         }
 
         // A module member is read and called through its namespace, and has no receiver.
@@ -2284,9 +2284,9 @@ export class Evaluator {
         try {
             value = implementation({ ...received, args, env: this.#environment, ...(declaration.updates?.reads === 'maintained' ? { samples } : {}) });
         } catch (error) {
-            // A failure Nexo raised, within a function the member was given or a nested evaluation among them, keeps its own code and place; anything else the implementation threw, a LexicaError it built among them,
+            // A failure Nexo raised, within a function the member was given or a nested evaluation among them, keeps its own code and place; anything else the implementation threw, a NexoError it built among them,
             // is the cause of Nexo's own, exactly as thrown.
-            if (LexicaErrors.isRaisedByLexica(error) || this.#callbackErrors.has(error)) {
+            if (NexoErrors.isRaisedByNexo(error) || this.#callbackErrors.has(error)) {
                 throw error;
             }
 
@@ -2403,11 +2403,11 @@ export class Evaluator {
     }
 
     /**
-     * Fails the evaluation at the member for what a hook around its invocation threw, a LexicaError the hook built among them, a failure Nexo raised keeping its own place;
+     * Fails the evaluation at the member for what a hook around its invocation threw, a NexoError the hook built among them, a failure Nexo raised keeping its own place;
      * the hooks are called directly, since they run on every invocation.
      */
     #failHook(error, declaration, node, moment) {
-        if (LexicaErrors.isRaisedByLexica(error) || this.#callbackErrors.has(error)) {
+        if (NexoErrors.isRaisedByNexo(error) || this.#callbackErrors.has(error)) {
             throw error;
         }
 
@@ -2430,7 +2430,7 @@ export class Evaluator {
     #fail(code, message, pointer, options) {
         const location = this.#locate(pointer);
 
-        throw code.startsWith('NEXO4') ? LexicaErrors.module(code, message, location) : LexicaErrors.evaluation(code, message, location, options);
+        throw code.startsWith('NEXO4') ? NexoErrors.module(code, message, location) : NexoErrors.evaluation(code, message, location, options);
     }
 
     /** Where the node stands in the definition, as a JSON Pointer. */

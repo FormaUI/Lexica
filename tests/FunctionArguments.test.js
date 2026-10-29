@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { extensionDeclaration, receiverTestsDeclaration } from './support/declarations.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { resolveWith } from './support/pipeline.mjs';
 
-const { createPropertyDeclaration, createFunctionParameterDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionParameterDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = nexo.declarations;
 
 /**
  * A pantry's module on words: `is`, a test of any receiver it declares for itself, a word's size and whether it is vegan, a member of a word and a module member of the word it tests; a member that ignores the test it is given, one that keeps it for a member that calls
@@ -15,7 +15,7 @@ const { createPropertyDeclaration, createFunctionParameterDeclaration, createVal
 const createPantry = (invoked = [], held = {}) => {
     let kept = null;
 
-    return lexica.createModule('pantry', {
+    return nexo.createModule('pantry', {
         types: [
             receiverTestsDeclaration(),
             extensionDeclaration('StringExtensions', 'String', [
@@ -49,7 +49,7 @@ const values = { word: 'oat', other: 'milk', words: ['oat', 'milk', 'rye'], miss
 const evaluate = (text, bound = values) => {
     const invoked = [];
     const asked = [];
-    const registry = lexica.createRegistry([createPantry(invoked)]);
+    const registry = nexo.createRegistry([createPantry(invoked)]);
     const bindings = registry.createBindings(bound);
     const value = registry.resolve(text, bindings, { imports: ['pantry'] }).createEvaluator(bindings).evaluate({ beforeInvoke: request => void asked.push(request.declaration.name) }).value;
 
@@ -126,10 +126,10 @@ describe('implicit bodies', () => {
     });
 
     it('are recorded as written, an argument node like any other, the resolution telling them apart', () => {
-        const registry = lexica.createRegistry([createPantry()]);
+        const registry = nexo.createRegistry([createPantry()]);
 
-        expect(lexica.parse('word.is(it.size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size' }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
-        expect(lexica.format('word.is(it.size > 2)')).toBe('word.is(it.size > 2)');
+        expect(nexo.parse('word.is(it.size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size' }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
+        expect(nexo.format('word.is(it.size > 2)')).toBe('word.is(it.size > 2)');
     });
 });
 
@@ -149,7 +149,7 @@ describe('functions passed to members', () => {
     it('expire when the member fails as when it returns, a call after its failure refused', () => {
         for (const test of ['w => w.size > 2', 'it.size > 2', 'pantry.vegan']) {
             const held = {};
-            const registry = lexica.createRegistry([createPantry([], held)]);
+            const registry = nexo.createRegistry([createPantry([], held)]);
             const bindings = registry.createBindings(values);
             const evaluator = registry.resolve(`word.keepAndFail(${test})`, bindings, { imports: ['pantry'] }).createEvaluator(bindings);
 

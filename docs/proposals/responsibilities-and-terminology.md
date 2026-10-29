@@ -101,7 +101,7 @@ A module declaration does not become a script declaration because a script can u
 For example, this JavaScript declaration helper describes a property of a structured type's data:
 
 ```javascript
-lexica.declarations.createPropertyDeclaration('temperature', 'Number')
+nexo.declarations.createPropertyDeclaration('temperature', 'Number')
 ```
 
 This Nexo expression constructs an object:
@@ -290,7 +290,7 @@ Under the supplied declaration contract:
 One helper declares either:
 
 ```javascript
-lexica.declarations.createPropertyDeclaration(name, result, options)
+nexo.declarations.createPropertyDeclaration(name, result, options)
 ```
 
 It produces a property declaration, which follows the contract of where it stands. It neither obtains nor assigns a property's runtime value.
@@ -417,7 +417,7 @@ The following are concrete applications rather than illustrative namespace desig
 | Current | Proposed |
 | --- | --- |
 | Definition object node `fields` | `objectFields` |
-| `LexicaDefinitionField` | `LexicaDefinitionObjectField` |
+| `NexoDefinitionField` | `NexoDefinitionObjectField` |
 | Result metadata `fields` | `objectFields` |
 | `/expression/fields/0/value` | `/expression/objectFields/0/value` |
 | Module-error `location.field` | `location.declarationKey` |
@@ -458,7 +458,7 @@ Examples from the survey include:
 - `getLocation` for retrieving location information.
 - `paths.validate` for validation.
 - `prepareHostCall` for preparing the host invocation.
-- `LexicaEvaluationHooks` for the hooks supplied to an evaluation.
+- `NexoEvaluationHooks` for the hooks supplied to an evaluation.
 
 These recommendations must be checked against their complete contracts, including side effects.
 

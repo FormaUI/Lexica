@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 
-const { createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
 /** A grid of cells, a reference its module recognizes, which an index or a range reads. */
 class Grid {
@@ -14,7 +14,7 @@ class Grid {
 const indexerOf = (name, keyType, result, impl) => createIndexerDeclaration(name, result, { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', keyType)], impl });
 
 /** A module of grids, declaring the indexers given within its type, and a member answering a value of Any. */
-const createSheets = indexers => lexica.createModule('Sheets', {
+const createSheets = indexers => nexo.createModule('Sheets', {
     typeOf: value => (value instanceof Grid ? 'Grid' : null),
     types: [{ name: 'Grid', kind: 'reference', isInstance: value => value instanceof Grid, members: indexers }],
     members: [createFunctionDeclaration('held', 'Any', { updates: constantUpdates, impl: () => [10, 20, 30] })],
@@ -23,7 +23,7 @@ const createSheets = indexers => lexica.createModule('Sheets', {
 const values = { xs: [10, 20, 30, 40, 50], n: 2, maybe: null, word: 'oat' };
 
 /** The resolution of the text against Nexo's own vocabulary and the values. */
-const resolve = (text, bound = values) => lexica.createRegistry([]).resolve(text, bound);
+const resolve = (text, bound = values) => nexo.createRegistry([]).resolve(text, bound);
 
 /** What the text evaluates to. */
 const evaluate = (text, bound = values) => resolve(text, bound).createEvaluator(bound).evaluate().value;
@@ -33,7 +33,7 @@ describe('positions', () => {
         it('reads an index from the end and a range of each form, a boundary left out absent from its node', () => {
             const literal = value => ({ kind: 'literal', value });
             const fromEnd = value => ({ kind: 'fromEndIndex', offset: literal(value) });
-            const argumentOf = text => lexica.parse(text).expression.argument;
+            const argumentOf = text => nexo.parse(text).expression.argument;
 
             expect(argumentOf('xs[^1]')).toEqual(fromEnd(1));
             expect(argumentOf('xs[1..4]')).toEqual({ kind: 'range', start: literal(1), end: literal(4) });
@@ -42,12 +42,12 @@ describe('positions', () => {
             expect(argumentOf('xs[^3..]')).toEqual({ kind: 'range', start: fromEnd(3) });
             expect(argumentOf('xs[..^1]')).toEqual({ kind: 'range', end: fromEnd(1) });
             expect(argumentOf('xs[..]')).toEqual({ kind: 'range' });
-            expect(lexica.parse('let middle = 1..^1\nreturn xs[middle]').expression.locals[0].value).toEqual({ kind: 'range', start: literal(1), end: fromEnd(1) });
+            expect(nexo.parse('let middle = 1..^1\nreturn xs[middle]').expression.locals[0].value).toEqual({ kind: 'range', start: literal(1), end: fromEnd(1) });
         });
 
         it('validates a definition\'s index and range, a range holding a start, an end, both or neither and an index its offset', () => {
             const literal = value => ({ kind: 'literal', value });
-            const validating = expression => () => lexica.validate({ version: 36, imports: [], expression });
+            const validating = expression => () => nexo.validate({ version: 36, imports: [], expression });
 
             expect(validating({ kind: 'range' })().expression).toEqual({ kind: 'range' });
             expect(errorThrownBy(validating({ kind: 'range', start: literal(1), step: literal(2) }))).toMatchObject({ code: 'NEXO2000', location: { pointer: '/expression' }, message: expect.stringContaining("'step' is no property") });
@@ -55,22 +55,22 @@ describe('positions', () => {
         });
 
         it('refuses an ungrouped operator expression as a boundary and a range as a range\'s, and a line break within either', () => {
-            expect(errorThrownBy(() => lexica.parse('xs[n + 1..4]'))).toMatchObject({ code: 'NEXO1069', location: { column: 4 }, message: expect.stringContaining("write '(n + 1)..'") });
-            expect(errorThrownBy(() => lexica.parse('xs[1..n + 1]'))).toMatchObject({ code: 'NEXO1069', location: { column: 7 } });
-            expect(errorThrownBy(() => lexica.parse('1..2..3'))).toMatchObject({ code: 'NEXO1070', location: { column: 5 } });
-            expect(errorThrownBy(() => lexica.parse('^-1'))).toMatchObject({ code: 'NEXO1000' });
+            expect(errorThrownBy(() => nexo.parse('xs[n + 1..4]'))).toMatchObject({ code: 'NEXO1069', location: { column: 4 }, message: expect.stringContaining("write '(n + 1)..'") });
+            expect(errorThrownBy(() => nexo.parse('xs[1..n + 1]'))).toMatchObject({ code: 'NEXO1069', location: { column: 7 } });
+            expect(errorThrownBy(() => nexo.parse('1..2..3'))).toMatchObject({ code: 'NEXO1070', location: { column: 5 } });
+            expect(errorThrownBy(() => nexo.parse('^-1'))).toMatchObject({ code: 'NEXO1000' });
 
             for (const lineBreak of ['\n', '\r\n']) {
-                expect(errorThrownBy(() => lexica.parse(`xs[1${lineBreak}..4]`))).toMatchObject({ code: 'NEXO1041', message: expect.stringContaining("A range, its boundaries and its '..' stand on one line: write '1..'") });
-                expect(errorThrownBy(() => lexica.parse(`xs[^${lineBreak}1]`))).toMatchObject({ code: 'NEXO1041', message: expect.stringContaining("write '^1'") });
+                expect(errorThrownBy(() => nexo.parse(`xs[1${lineBreak}..4]`))).toMatchObject({ code: 'NEXO1041', message: expect.stringContaining("A range, its boundaries and its '..' stand on one line: write '1..'") });
+                expect(errorThrownBy(() => nexo.parse(`xs[^${lineBreak}1]`))).toMatchObject({ code: 'NEXO1041', message: expect.stringContaining("write '^1'") });
             }
         });
 
         it('writes them as canonical text, each without spaces, grouping an operator expression and a negative offset, which reads back as the same definition', () => {
             for (const [text, canonical] of [['xs[ 1 .. 4 ]', 'xs[1..4]'], ['xs[ .. ]', 'xs[..]'], ['xs[..^ 1]', 'xs[..^1]'], ['xs[(n + 1)..(n * 2)]', 'xs[(n + 1)..(n * 2)]'], ['xs[^(n + 1)]', 'xs[^(n + 1)]'], ['xs[^(-1)]', 'xs[^(-1)]'], ['let m = (1..2)\nreturn m', 'let m = 1..2\nreturn m']]) {
-                expect(lexica.format(text)).toBe(canonical);
-                expect(lexica.quote(text)).toBe(canonical);
-                expect(lexica.parse(canonical)).toEqual(lexica.parse(text));
+                expect(nexo.format(text)).toBe(canonical);
+                expect(nexo.quote(text)).toBe(canonical);
+                expect(nexo.parse(canonical)).toEqual(nexo.parse(text));
             }
         });
     });
@@ -152,7 +152,7 @@ describe('positions', () => {
         const evaluateOn = (indexers, text) => {
             const bound = { grid: new Grid(), cell: 'b' };
 
-            return lexica.createRegistry([createSheets(indexers)]).resolve(text, bound, { imports: ['Sheets'] }).createEvaluator(bound).evaluate().value;
+            return nexo.createRegistry([createSheets(indexers)]).resolve(text, bound, { imports: ['Sheets'] }).createEvaluator(bound).evaluate().value;
         };
 
         it('registers indexers of one name, or unnamed, within one type as signatures of disjoint key types, each selected by its key\'s type', () => {
@@ -172,7 +172,7 @@ describe('positions', () => {
         });
 
         it('refuses two signatures whose key types overlap when they are registered, a nullable pair, a type and a supertype, and Any among them', () => {
-            const registering = indexers => errorThrownBy(() => lexica.createRegistry([createSheets(indexers)]));
+            const registering = indexers => errorThrownBy(() => nexo.createRegistry([createSheets(indexers)]));
 
             expect(registering([indexerOf(null, 'Number', 'String?', () => null), indexerOf(null, 'Number?', 'String?', () => null)])).toMatchObject({ code: 'NEXO4068', message: expect.stringContaining('taking a key of a type of its own') });
             expect(registering([indexerOf(null, 'Number', 'String?', () => null), indexerOf(null, 'Number', 'String?', () => null)])).toMatchObject({ code: 'NEXO4068' });
@@ -181,7 +181,7 @@ describe('positions', () => {
 
         it('selects the signature a value of Any\'s key is of as it is evaluated, and refuses a key of Any where several stand when it is resolved', () => {
             const bound = { grid: new Grid() };
-            const registry = lexica.createRegistry([createSheets(unnamed)]);
+            const registry = nexo.createRegistry([createSheets(unnamed)]);
 
             expect(registry.resolve('Sheets.held()[^1]', {}, { imports: ['Sheets'] }).createEvaluator({}).evaluate().value).toBe(30);
             expect(registry.resolve('Sheets.held()[1..]', {}, { imports: ['Sheets'] }).createEvaluator({}).evaluate().value).toEqual([20, 30]);

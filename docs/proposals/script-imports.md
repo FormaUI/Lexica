@@ -73,7 +73,7 @@ This replaces the registry-wide lookup [type identity](../../spec/types.md#types
 
 ### Reading text
 
-A script's imports decide which names are namespaces: a name is a module's namespace where it stands unprefixed in place of a value and an import names that module. The registry's inventory no longer affects how text reads, so `lexica.parse` and `registry.parse` read a text alike, and registering a module never changes how an earlier text reads.
+A script's imports decide which names are namespaces: a name is a module's namespace where it stands unprefixed in place of a value and an import names that module. The registry's inventory no longer affects how text reads, so `nexo.parse` and `registry.parse` read a text alike, and registering a module never changes how an earlier text reads.
 
 A host supplies imports of its own through the API, in place of prepending text, so source positions stay as written and a definition created directly or fluently takes them alike: `parse(text, { imports: ['Home'] })`, and the same option to `resolve` and to a host's own entry points. A host whose scripts all use its module supplies it to every script this way, so a script writes `import Home` only where it chooses to, and writing it as well is harmless.
 

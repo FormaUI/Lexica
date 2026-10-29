@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Device, Light, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 
-const { createFunctionDeclaration, createPropertyDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createFunctionDeclaration, createPropertyDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
 const lamp = new Light('lamp');
 const fan = new Device('fan');
@@ -13,7 +13,7 @@ const fan = new Device('fan');
  * A shop of the home: its prices as a map, its tags as a set and its best offer as an object of a key and a value, each a collection a host gives in a form of its own where its declaration names the language's;
  * a price looked up through a dictionary it is given; and a mistyped map, whose values are no numbers.
  */
-const createShop = () => lexica.createModule('Shop', withHome({
+const createShop = () => nexo.createModule('Shop', withHome({
     members: [
         createPropertyDeclaration('prices', 'Dictionary<String, Number>', { updates: constantUpdates, impl: () => new Map([['coffee', 3], ['tea', 2]]) }),
         createPropertyDeclaration('tags', 'List<String>', { updates: constantUpdates, impl: () => new Set(['hot', 'iced', 'hot']) }),
@@ -28,7 +28,7 @@ const createShop = () => lexica.createModule('Shop', withHome({
 }));
 
 /** The resolution of the text against a registry of the shop, imported, with the values bound. */
-const resolve = (text, values = {}) => lexica.createRegistry([createShop()]).resolve(text, values, { imports: ['Shop'] });
+const resolve = (text, values = {}) => nexo.createRegistry([createShop()]).resolve(text, values, { imports: ['Shop'] });
 
 /** What the text evaluates to against the shop, with the values bound. */
 const evaluate = (text, values = {}) => resolve(text, values).createEvaluator(values).evaluate().value;
@@ -42,7 +42,7 @@ describe('collections', () => {
             expect(evaluate('prices.keys', { prices })).toEqual(['coffee', 'tea', 'water']);
             expect(resolve('tags', { tags: new Set(['b', 'a', 'b']) }).type).toBe('List<String>');
             expect(evaluate('tags', { tags: new Set(['b', 'a']) })).toEqual(['b', 'a']);
-            const registry = lexica.createRegistry([createShop()]);
+            const registry = nexo.createRegistry([createShop()]);
 
             expect(String(registry.createBindings({ lights: new Map([[1, lamp]]) }).getType('lights'))).toBe('Dictionary<Number, Light>');
             expect(String(registry.createBindings({ byLight: new Map([[lamp, 'on'], [fan, 'off']]) }).getType('byLight'))).toBe('Dictionary<Device, String>');
@@ -55,7 +55,7 @@ describe('collections', () => {
 
         it('copies a map and a set as they stand, never a live view, and leaves an object of a key and a value or of entries an object', () => {
             const live = new Map([['a', 1]]);
-            const registry = lexica.createRegistry([]);
+            const registry = nexo.createRegistry([]);
             const bindings = registry.createBindings({ live });
 
             live.set('b', 2);
@@ -146,15 +146,15 @@ describe('collections', () => {
         });
 
         it('captures a host call\'s supplied map as the dictionary its call declares, and refuses one its keys don\'t fit', () => {
-            const feed = lexica.createModule('Feed', { members: [createFunctionDeclaration('latest', 'Dictionary<String, Number>', { invokedBy: 'host' })] });
-            const prepared = lexica.createRegistry([feed]).resolve('Feed.latest()', {}, { imports: ['Feed'] }).createEvaluator({}).prepareHostCall();
+            const feed = nexo.createModule('Feed', { members: [createFunctionDeclaration('latest', 'Dictionary<String, Number>', { invokedBy: 'host' })] });
+            const prepared = nexo.createRegistry([feed]).resolve('Feed.latest()', {}, { imports: ['Feed'] }).createEvaluator({}).prepareHostCall();
 
             expect(prepared.project(new Map([['tea', 2]])).value).toEqual({ entries: [{ key: 'tea', value: 2 }] });
             expect(errorThrownBy(() => prepared.project(new Map([[1, 2]])))).toMatchObject({ code: 'NEXO5015' });
         });
 
         it('refuses a declaration naming a dictionary whose keys are of no key type', () => {
-            const refused = errorThrownBy(() => lexica.createRegistry([lexica.createModule('Bad', { members: [createPropertyDeclaration('table', 'Dictionary<List<Number>, String>', { updates: constantUpdates, impl: () => new Map() })] })]));
+            const refused = errorThrownBy(() => nexo.createRegistry([nexo.createModule('Bad', { members: [createPropertyDeclaration('table', 'Dictionary<List<Number>, String>', { updates: constantUpdates, impl: () => new Map() })] })]));
 
             expect(refused).toMatchObject({ code: 'NEXO4563', kind: 'module', message: expect.stringContaining('List<Number>') });
         });
@@ -163,7 +163,7 @@ describe('collections', () => {
     describe('a body of each item', () => {
         it('reads its item as a value that is not null, so a null item answers null and the body is never evaluated against it, while a function of the item is called with it', () => {
             const values = { xs: [1, null, 2], rooms: [{ size: 3 }, null, { size: 1 }], words: ['a', null] };
-            const evaluate = text => lexica.createRegistry([]).resolve(text, values).createEvaluator(values).evaluate().value;
+            const evaluate = text => nexo.createRegistry([]).resolve(text, values).createEvaluator(values).evaluate().value;
 
             expect(evaluate('xs.where(it > 1)')).toEqual([2]);
             expect(evaluate('rooms.where(it.size > 1)')).toEqual([{ size: 3 }]);

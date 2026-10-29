@@ -8,12 +8,12 @@ import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { Dictionary } from './Dictionary.mjs';
 import { Pair } from './Pair.mjs';
 import { StructureTypes } from './StructureTypes.mjs';
-import { LexicaModule } from './vocabulary/LexicaModule.mjs';
+import { NexoModule } from './vocabulary/NexoModule.mjs';
 
 export class ValueCapture {
     #registry;
 
-    /** @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry The registry whose types the value is captured as, whose modules recognize a reference of another type. */
+    /** @param {import('./vocabulary/NexoRegistry.mjs').NexoRegistry} registry The registry whose types the value is captured as, whose modules recognize a reference of another type. */
     constructor(registry) {
         this.#registry = registry;
     }
@@ -113,7 +113,7 @@ export class ValueCapture {
      * data, which fails whatever its nullability.
      */
     #captureNamed(value, type, path, fail) {
-        if (type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) {
+        if (type.moduleName === null && NexoModule.scalarTypeNames.includes(type.name)) {
             if (!ValueCapture.belongsToScalar(value, type.name)) {
                 fail(path, value, type);
             }
@@ -154,7 +154,7 @@ export class ValueCapture {
         return path === '' ? name : `${path}.${name}`;
     }
 
-    /** Whether the value belongs to the scalar type the name names, one of `LexicaModule.scalarTypeNames`: a finite number, a string or a Boolean. */
+    /** Whether the value belongs to the scalar type the name names, one of `NexoModule.scalarTypeNames`: a finite number, a string or a Boolean. */
     static belongsToScalar(value, typeName) {
         switch (typeName) {
             case 'Number':

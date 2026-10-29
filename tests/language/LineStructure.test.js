@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
-import { Tokenizer } from '#lexica/language/Tokenizer.mjs';
+import { nexo } from '#nexo/nexo.js';
+import { Tokenizer } from '#nexo/language/Tokenizer.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
 
 /** The syntax error parsing the text throws, its code, the start of its message's key part and where it stands. */
-const refusalOf = text => errorThrownBy(() => lexica.parse(text));
+const refusalOf = text => errorThrownBy(() => nexo.parse(text));
 
 /** Expects the text refused with the code at the line and column, its message holding the fragment. */
 const expectRefused = (text, code, line, column, fragment = '') => expect(refusalOf(text), JSON.stringify(text)).toMatchObject({ code, kind: 'syntax', location: { line, column }, message: expect.stringContaining(fragment) });
@@ -34,12 +34,12 @@ describe('LineStructure', () => {
             expectRefused('import\nHome\nHome.rooms', 'NEXO1041', 2, 1, "An import's words stand on one line: write 'import Home'");
             expectRefused('item:\nWords.shout', 'NEXO1041', 2, 1, "An extension selector's ':' and its extension's name stand on one line");
             expectRefused('import Home\n(device as Home.\nLight).power', 'NEXO1041', 3, 1, "A qualified type name's words stand on one line");
-            expect(lexica.parse('item:Words\n    .shout').expression).toMatchObject({ kind: 'memberAccess', name: 'shout', extension: { name: 'Words' } });
+            expect(nexo.parse('item:Words\n    .shout').expression).toMatchObject({ kind: 'memberAccess', name: 'shout', extension: { name: 'Words' } });
         });
 
         it('take a comment that holds no line break, and a line comment after a completed construct', () => {
-            expect(lexica.parse('rooms./* the */where').expression).toMatchObject({ kind: 'memberAccess', name: 'where' });
-            expect(lexica.parse('let width = 1 // one\nreturn width').expression).toMatchObject({ kind: 'body' });
+            expect(nexo.parse('rooms./* the */where').expression).toMatchObject({ kind: 'memberAccess', name: 'where' });
+            expect(nexo.parse('let width = 1 // one\nreturn width').expression).toMatchObject({ kind: 'body' });
             expectRefused('rooms. // the\nwhere', 'NEXO1041', 2, 1, "write '.where'");
         });
     });
@@ -58,7 +58,7 @@ describe('LineStructure', () => {
                 'item:Words\n    .shout',
             ];
 
-            texts.forEach(text => expect(() => lexica.parse(text), text).not.toThrow());
+            texts.forEach(text => expect(() => nexo.parse(text), text).not.toThrow());
         });
     });
 
@@ -66,7 +66,7 @@ describe('LineStructure', () => {
         it('take a line break before an operator where the expression is enclosed, in a group, an argument, a key or a condition', () => {
             const texts = ['(a\n    + b)', 'room.device(a\n    ?? b)', 'rooms[a\n    - 1]', 'if a\n    and b then\n    1\nelse\n    2\nend', '(a\n    * b\n    + c)', '(not a\n    and b)'];
 
-            texts.forEach(text => expect(() => lexica.parse(text), text).not.toThrow());
+            texts.forEach(text => expect(() => nexo.parse(text), text).not.toThrow());
         });
 
         it('refuse one before an operator anywhere else with NEXO1042, at the operator, an enclosure belonging to its one position', () => {
@@ -93,7 +93,7 @@ describe('LineStructure', () => {
                 'return (do\n    return 1\nend\n) + 2',
             ];
 
-            texts.forEach(text => expect(() => lexica.parse(text), text).not.toThrow());
+            texts.forEach(text => expect(() => nexo.parse(text), text).not.toThrow());
         });
 
         it('refuse any mixture with NEXO1043, giving the block form', () => {
@@ -124,7 +124,7 @@ describe('LineStructure', () => {
                 expect(refusalOf(withLineBreaks('rooms.\nwhere', lineBreak)), JSON.stringify(lineBreak)).toMatchObject({ code: 'NEXO1041', location: { line: 2, column: 1 } });
                 expect(refusalOf(withLineBreaks('let a = b\n-1\nreturn a', lineBreak))).toMatchObject({ code: 'NEXO1042', location: { line: 2, column: 1 } });
                 expect(refusalOf(withLineBreaks('let a = 1 return a', lineBreak))).toMatchObject({ code: 'NEXO1044' });
-                expect(() => lexica.parse(withLineBreaks('do\n    let a = 1\n    return a\nend', lineBreak))).not.toThrow();
+                expect(() => nexo.parse(withLineBreaks('do\n    let a = 1\n    return a\nend', lineBreak))).not.toThrow();
             }
 
             expect([Tokenizer.holdsLineBreak('a\r\nb', 0, 4), Tokenizer.holdsLineBreak('a\rb', 1, 2), Tokenizer.holdsLineBreak('a b', 0, 3), Tokenizer.holdsLineBreak('a\nb', 2, 3)]).toEqual([true, true, false, false]);
@@ -136,7 +136,7 @@ describe('LineStructure', () => {
                 'let devices = room.devices\n    .where(it.active())\nreturn {\n    count = devices.count,\n    gap = (devices.count\n        - 1)\n}',
                 'let devices =\n    room.devices.where(\n        it.active()\n    )\nreturn { count = devices\n    .count, gap = (\n    devices.count - 1\n) }',
             ];
-            const [first, ...rest] = layouts.map(text => lexica.parse(text));
+            const [first, ...rest] = layouts.map(text => nexo.parse(text));
 
             rest.forEach(definition => expect(definition).toEqual(first));
         });

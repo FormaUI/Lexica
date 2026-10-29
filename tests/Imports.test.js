@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Device, Light, Room, Sensor as HomeSensor, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
 /** A sensor of the garden's, a type of the local name the home's sensor has too. */
 class GardenSensor {}
 
 /** The home: a device's name, a light's dimming, a room's devices by index, and its own sensor, among its types. */
-const createHome = () => lexica.createModule('Home', {
+const createHome = () => nexo.createModule('Home', {
     ...withHome({}, {
         Room: [createIndexerDeclaration(null, 'Device?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('index', 'Number')], impl: ({ receiver, args }) => receiver.devices[args.index] ?? null })],
         Device: [createPropertyDeclaration('name', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name })],
@@ -20,7 +20,7 @@ const createHome = () => lexica.createModule('Home', {
 });
 
 /** The garden: a reading of degrees, written as text by its own conversion, and a sensor of its own. */
-const createGarden = () => lexica.createModule('Garden', {
+const createGarden = () => nexo.createModule('Garden', {
     typeOf: value => (value instanceof GardenSensor ? 'Sensor' : null),
     types: [
         { name: 'Reading', kind: 'structured', members: [...dataPropertyDeclarations({ degrees: 'Number' }), operatorDeclaration('convert', 'String', ({ value }) => `${value.degrees} degrees`)] },
@@ -29,7 +29,7 @@ const createGarden = () => lexica.createModule('Garden', {
 });
 
 /** Energy: an extension of the home's devices, their usage and the garden's reading of them, and a module member that answers a value of Any. */
-const createEnergy = () => lexica.createModule('Energy', {
+const createEnergy = () => nexo.createModule('Energy', {
     types: [
         extensionDeclaration('Devices', 'Home.Device', [
             createPropertyDeclaration('usage', 'Number', { updates: constantUpdates, impl: () => 3 }),
@@ -42,7 +42,7 @@ const createEnergy = () => lexica.createModule('Energy', {
 const values = { device: new Device('fan'), light: new Light('lamp'), room: new Room('hall', [new Light('lamp')]), sensor: new HomeSensor(), gardenSensor: new GardenSensor() };
 
 /** A registry of the home, the garden and energy. */
-const createRegistry = () => lexica.createRegistry([createHome(), createGarden(), createEnergy()]);
+const createRegistry = () => nexo.createRegistry([createHome(), createGarden(), createEnergy()]);
 
 /** The resolution of the text against the registry, its host supplying the imports given. */
 const resolve = (text, imports = []) => createRegistry().resolve(text, values, { imports });

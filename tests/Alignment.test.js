@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
-import { Versions } from '#lexica/language/Versions.mjs';
+import { nexo } from '#nexo/nexo.js';
+import { Versions } from '#nexo/language/Versions.mjs';
 import { repositoryRoot } from './support/paths.mjs';
 
 // A path from the repository root, read as text.
@@ -26,8 +26,8 @@ describe('Alignment', () => {
         const [, language] = status.match(/^\| Language \| `([^`]+)` \|/m);
         const [, definition] = status.match(/^\| Definition format \| (\d+) \|/m);
 
-        expect(language).toBe(lexica.info.versions.language);
-        expect(Number(definition)).toBe(lexica.info.versions.definition);
+        expect(language).toBe(nexo.info.versions.language);
+        expect(Number(definition)).toBe(nexo.info.versions.definition);
     });
 
     it('has a specification whose example definition is of the definition version it describes', () => {
@@ -42,7 +42,7 @@ describe('Alignment', () => {
 
         expect(project).toContain('src\\language\\Versions.mjs');
         expect(npmPackage.version).toBe(Versions.implementation);
-        expect(lexica.info.versions.implementation).toBe(Versions.implementation);
+        expect(nexo.info.versions.implementation).toBe(Versions.implementation);
         expect(await bundle()).toContain(JSON.stringify(Versions.implementation));
     });
 
@@ -51,7 +51,7 @@ describe('Alignment', () => {
         const [, described] = specification.match(/^# Nexo Specification v(\S+)$/m);
 
         expect(readme).toContain(`### Language (\`${described}\`)`);
-        expect(readme).toContain(`### Implementation (\`${lexica.info.versions.implementation}\`)`);
-        expect(readme).toContain(`implements language version \`${lexica.info.versions.language}\``);
+        expect(readme).toContain(`### Implementation (\`${nexo.info.versions.implementation}\`)`);
+        expect(readme).toContain(`implements language version \`${nexo.info.versions.language}\``);
     });
 });

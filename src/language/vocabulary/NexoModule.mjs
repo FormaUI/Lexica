@@ -1,9 +1,9 @@
 /**
- * LexicaModule — a vocabulary's declarations as data, each that runs code carrying its implementation
+ * NexoModule — a vocabulary's declarations as data, each that runs code carrying its implementation
  */
 
 import { ObjectUtils } from '../../common/ObjectUtils.mjs';
-import { LexicaErrors } from '../LexicaError.mjs';
+import { NexoErrors } from '../NexoError.mjs';
 import { Names } from '../Names.mjs';
 import { Type } from '../Type.mjs';
 
@@ -76,7 +76,7 @@ const MAPPING_KEYS = ['selector', 'key', 'type'];
 const OBSERVATION_TYPE_KEYS = ['name', 'contract', 'identity', 'shared', 'impl'];
 const OBSERVATION_TARGET_KEYS = ['name', 'from', 'count'];
 
-export class LexicaModule {
+export class NexoModule {
     #name;
     #typeOf;
     #types;
@@ -99,12 +99,12 @@ export class LexicaModule {
      */
     constructor(name, contents = {}) {
         if (!Names.isIdentifier(name)) {
-            throw LexicaErrors.module('NEXO4500', 'A module is named as a name is', { module: String(name) });
+            throw NexoErrors.module('NEXO4500', 'A module is named as a name is', { module: String(name) });
         }
 
         // A declaration nested in a type is located at the type it stands in, as well as at its module.
         const failWithin = typeName => (code, message, declarationName, declarationKey) => {
-            throw LexicaErrors.module(code, message, {
+            throw NexoErrors.module(code, message, {
                 module: name,
                 ...(typeName === undefined ? {} : { type: typeName }),
                 ...(declarationName === undefined ? {} : { declaration: declarationName }),
@@ -114,7 +114,7 @@ export class LexicaModule {
         const fail = failWithin(undefined);
 
         // A module's contents take their keys as a declaration does, refused by codes of their own.
-        LexicaModule.#validateKeys(contents, MODULE_KEYS, "A module's contents", fail, null, {
+        NexoModule.#validateKeys(contents, MODULE_KEYS, "A module's contents", fail, null, {
             notObjectCode: 'NEXO4501',
             unknownKeyCode: 'NEXO4502',
             declaringSubject: 'A module',
@@ -134,33 +134,33 @@ export class LexicaModule {
 
         // Data that reaches itself is refused before anything reads into it, since validating, copying and freezing a declaration each walk its data.
         for (const [key, list] of Object.entries({ types, members, typeSelectors, mappings, observationTypes, observationTargets })) {
-            list.forEach(declared => LexicaModule.#refuseCycles(declared, LexicaModule.#declarationNameOf(declared, key), fail));
+            list.forEach(declared => NexoModule.#refuseCycles(declared, NexoModule.#declarationNameOf(declared, key), fail));
         }
 
         this.#name = name;
         this.#typeOf = typeOf;
 
         // Each declaration but a type is read without its keys that hold undefined, which it leaves out as it leaves out a key it does not write; a type is kept as it is given.
-        const normalized = declarations => declarations.map(declared => LexicaModule.#withoutUndefinedValues(declared));
+        const normalized = declarations => declarations.map(declared => NexoModule.#withoutUndefinedValues(declared));
         const memberDeclarations = normalized(members);
         const typeSelectorDeclarations = normalized(typeSelectors);
         const mappingDeclarations = normalized(mappings);
         const observationTypeDeclarations = normalized(observationTypes);
         const observationTargetDeclarations = normalized(observationTargets);
 
-        LexicaModule.#validateTypeDeclarations(types, fail, failWithin);
-        LexicaModule.#validateMembers(memberDeclarations, fail);
-        LexicaModule.#validateTypeSelectors(typeSelectorDeclarations, fail);
-        LexicaModule.#validateMappings(mappingDeclarations, name, fail);
-        LexicaModule.#validateObservationTypes(observationTypeDeclarations, fail);
-        LexicaModule.#validateObservationTargets(observationTargetDeclarations, fail);
+        NexoModule.#validateTypeDeclarations(types, fail, failWithin);
+        NexoModule.#validateMembers(memberDeclarations, fail);
+        NexoModule.#validateTypeSelectors(typeSelectorDeclarations, fail);
+        NexoModule.#validateMappings(mappingDeclarations, name, fail);
+        NexoModule.#validateObservationTypes(observationTypeDeclarations, fail);
+        NexoModule.#validateObservationTargets(observationTargetDeclarations, fail);
 
-        this.#types = LexicaModule.#freezeItems(types.map(type => LexicaModule.#createTypeCopy(type)));
-        this.#members = LexicaModule.#freezeItems(memberDeclarations.map(member => LexicaModule.#createMemberCopy(member)));
-        this.#typeSelectors = LexicaModule.#freezeItems(typeSelectorDeclarations.map(selector => LexicaModule.#copyOf(selector)));
-        this.#mappings = LexicaModule.#freezeItems(mappingDeclarations.map(mapping => LexicaModule.#copyOf(mapping)));
-        this.#observationTypes = LexicaModule.#freezeItems(observationTypeDeclarations.map(type => LexicaModule.#createObservationTypeCopy(type)));
-        this.#observationTargets = LexicaModule.#freezeItems(observationTargetDeclarations.map(target => LexicaModule.#copyOf(target)));
+        this.#types = NexoModule.#freezeItems(types.map(type => NexoModule.#createTypeCopy(type)));
+        this.#members = NexoModule.#freezeItems(memberDeclarations.map(member => NexoModule.#createMemberCopy(member)));
+        this.#typeSelectors = NexoModule.#freezeItems(typeSelectorDeclarations.map(selector => NexoModule.#copyOf(selector)));
+        this.#mappings = NexoModule.#freezeItems(mappingDeclarations.map(mapping => NexoModule.#copyOf(mapping)));
+        this.#observationTypes = NexoModule.#freezeItems(observationTypeDeclarations.map(type => NexoModule.#createObservationTypeCopy(type)));
+        this.#observationTargets = NexoModule.#freezeItems(observationTargetDeclarations.map(target => NexoModule.#copyOf(target)));
     }
 
     /** The module's name. */
@@ -210,7 +210,7 @@ export class LexicaModule {
 
     /** Whether the value is a module `createModule` made. */
     static isModule(value) {
-        return value instanceof LexicaModule;
+        return value instanceof NexoModule;
     }
 
     /** Whether the declaration is a host call's: a function the host invokes, which the evaluator never does. */
@@ -239,7 +239,7 @@ export class LexicaModule {
 
         const declarationName = name === null ? undefined : String(name ?? declaration.name);
 
-        for (const key of Object.keys(LexicaModule.#withoutUndefinedValues(declaration))) {
+        for (const key of Object.keys(NexoModule.#withoutUndefinedValues(declaration))) {
             if (!keys.includes(key)) {
                 fail(unknownKeyCode, `${declaringSubject} declares ${keys.join(', ')}, and '${key}' is none of them`, declarationName, key);
             }
@@ -252,13 +252,13 @@ export class LexicaModule {
     }
 
     static #freezeItems(items) {
-        return Object.freeze(items.map(item => LexicaModule.#deepFreeze(item)));
+        return Object.freeze(items.map(item => NexoModule.#deepFreeze(item)));
     }
 
     /** Freezes the data a declaration holds, leaving its implementation, a function its module owns, as it is. */
     static #deepFreeze(value) {
         if (value !== null && typeof value === 'object') {
-            Object.values(value).forEach(item => LexicaModule.#deepFreeze(item));
+            Object.values(value).forEach(item => NexoModule.#deepFreeze(item));
             Object.freeze(value);
         }
 
@@ -305,11 +305,11 @@ export class LexicaModule {
     /** A copy of a declaration's data, through its lists and objects, each function in it kept as it is. */
     static #copyOf(value) {
         if (Array.isArray(value)) {
-            return value.map(item => LexicaModule.#copyOf(item));
+            return value.map(item => NexoModule.#copyOf(item));
         }
 
         if (ObjectUtils.isPlainObject(value)) {
-            return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, LexicaModule.#copyOf(item)]));
+            return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, NexoModule.#copyOf(item)]));
         }
 
         return value;
@@ -349,10 +349,10 @@ export class LexicaModule {
         const names = new Set();
 
         for (const type of types) {
-            LexicaModule.#validateTypeDeclaration(type, fail, failWithin);
+            NexoModule.#validateTypeDeclaration(type, fail, failWithin);
 
             // A type and an extension are named once among a module's types, by their local names, the parameters a name declares taking no part.
-            const { name } = LexicaModule.#parseDeclaredName(type.name);
+            const { name } = NexoModule.#parseDeclaredName(type.name);
 
             if (names.has(name)) {
                 fail('NEXO4033', `The type '${name}' is declared already`, name);
@@ -391,7 +391,7 @@ export class LexicaModule {
 
     /** Refuses a declared name's failed parameters (NEXO4010) and a parameter it declares twice (NEXO4041), answering its local name and its parameters. */
     static #validateDeclaredName(written, fail, declarationKey = 'name') {
-        const parsed = LexicaModule.#parseDeclaredName(written);
+        const parsed = NexoModule.#parseDeclaredName(written);
 
         if (parsed.failure !== undefined) {
             fail('NEXO4010', parsed.failure, String(parsed.name), declarationKey);
@@ -411,9 +411,9 @@ export class LexicaModule {
             fail('NEXO4554', type.kind === undefined ? `A type declares its kind, ${TYPE_KINDS.join(' or ')}` : `A type is of the kind ${TYPE_KINDS.join(' or ')}, and '${String(type.kind)}' is none of them`, String(type.name), 'kind');
         }
 
-        LexicaModule.#validateKeys(type, TYPE_KEYS_BY_KIND[type?.kind] ?? TYPE_KEYS_BY_KIND.structured, type?.kind === 'extension' ? 'An extension' : `A ${type?.kind ?? 'structured'} type`, fail);
+        NexoModule.#validateKeys(type, TYPE_KEYS_BY_KIND[type?.kind] ?? TYPE_KEYS_BY_KIND.structured, type?.kind === 'extension' ? 'An extension' : `A ${type?.kind ?? 'structured'} type`, fail);
 
-        const { name, typeParameters } = LexicaModule.#validateDeclaredName(type.name, fail);
+        const { name, typeParameters } = NexoModule.#validateDeclaredName(type.name, fail);
 
         if (!Names.isIdentifier(name)) {
             fail('NEXO4552', 'A type is named by an identifier, a letter followed by letters and digits', String(name), 'name');
@@ -425,7 +425,7 @@ export class LexicaModule {
         }
 
         if (type.kind === 'extension') {
-            LexicaModule.#validateExtensionTarget(type, name, fail);
+            NexoModule.#validateExtensionTarget(type, name, fail);
         }
 
         const imports = type.import ?? [];
@@ -440,13 +440,13 @@ export class LexicaModule {
             fail('NEXO4508', `The type imports the module '${repeated}' twice`, type.name, 'import');
         }
 
-        LexicaModule.#validateInternal(type, name, fail);
+        NexoModule.#validateInternal(type, name, fail);
 
         if (type.kind === 'reference') {
-            LexicaModule.#validateReferenceType(type, fail);
+            NexoModule.#validateReferenceType(type, fail);
         }
 
-        LexicaModule.#validateOwnMembers(type, fail, failWithin(name), typeParameters);
+        NexoModule.#validateOwnMembers(type, fail, failWithin(name), typeParameters);
     }
 
     /** Refuses an extension that names no target (NEXO4012), one that is no type (NEXO4512), and one that is `Any` or nullable (NEXO4559): its one target, a type or a parameter it declares, which a member is read on a value of. */
@@ -455,7 +455,7 @@ export class LexicaModule {
             fail('NEXO4012', 'An extension names its target, the type its members extend', name, 'target');
         }
 
-        if (!LexicaModule.#isTypeNotation(extension.target)) {
+        if (!NexoModule.#isTypeNotation(extension.target)) {
             fail('NEXO4512', 'An extension names its target as a type', name, 'target');
         }
 
@@ -476,7 +476,7 @@ export class LexicaModule {
             fail('NEXO4051', "A reference type's isInstance is a function, which answers whether a value belongs to it", type.name, 'isInstance');
         }
 
-        if (type.supertype !== undefined && !LexicaModule.#isTypeNotation(type.supertype)) {
+        if (type.supertype !== undefined && !NexoModule.#isTypeNotation(type.supertype)) {
             fail('NEXO4512', 'A reference type names its supertype as a type', type.name, 'supertype');
         }
 
@@ -498,19 +498,19 @@ export class LexicaModule {
             fail('NEXO4503', "A type's members are a list", type.name, 'members');
         }
 
-        type.members.forEach(member => LexicaModule.#validateMember(LexicaModule.#withoutUndefinedValues(member), failWithinType, type.kind, typeParameters));
+        type.members.forEach(member => NexoModule.#validateMember(NexoModule.#withoutUndefinedValues(member), failWithinType, type.kind, typeParameters));
     }
 
     /** Creates the stored copy of a valid type: its data, named by its local name with the type parameters it declares beside it, and each of its own members as a member's stored copy is created. */
     static #createTypeCopy(type) {
-        const copy = { ...LexicaModule.#copyOf(type), ...LexicaModule.#namedCopyOf(type.name) };
+        const copy = { ...NexoModule.#copyOf(type), ...NexoModule.#namedCopyOf(type.name) };
 
-        return type.members === undefined ? copy : { ...copy, members: type.members.map(member => LexicaModule.#createMemberCopy(LexicaModule.#withoutUndefinedValues(member))) };
+        return type.members === undefined ? copy : { ...copy, members: type.members.map(member => NexoModule.#createMemberCopy(NexoModule.#withoutUndefinedValues(member))) };
     }
 
     /** The keys a declared name gives its stored copy: its local name, and the type parameters it declares, `typeParameters`, where it declares any. */
     static #namedCopyOf(written) {
-        const { name, typeParameters } = LexicaModule.#parseDeclaredName(written);
+        const { name, typeParameters } = NexoModule.#parseDeclaredName(written);
 
         return typeParameters.length === 0 ? { name } : { name, typeParameters: Object.freeze(typeParameters) };
     }
@@ -520,7 +520,7 @@ export class LexicaModule {
         const names = new Set();
 
         for (const selector of selectors) {
-            LexicaModule.#validateKeys(selector, TYPE_SELECTOR_KEYS, 'A type selector', fail);
+            NexoModule.#validateKeys(selector, TYPE_SELECTOR_KEYS, 'A type selector', fail);
 
             if (!Names.isIdentifier(selector.name)) {
                 fail('NEXO4006', 'A type selector is named as a name is', String(selector.name), 'name');
@@ -539,7 +539,7 @@ export class LexicaModule {
         const keys = new Set();
 
         for (const mapping of mappings) {
-            LexicaModule.#validateMapping(mapping, fail);
+            NexoModule.#validateMapping(mapping, fail);
 
             const key = JSON.stringify([mapping.selector, mapping.key]);
 
@@ -553,7 +553,7 @@ export class LexicaModule {
 
     /** Validates a mapping: the selector it belongs to, its key, any string, as a fixed argument may give any, and the type it maps the key to. A mapping is located by its key, as its selector's keys are told apart. */
     static #validateMapping(mapping, fail) {
-        LexicaModule.#validateKeys(mapping, MAPPING_KEYS, 'A mapping', fail, ObjectUtils.isNonArrayObject(mapping) && typeof mapping.key === 'string' ? mapping.key : null);
+        NexoModule.#validateKeys(mapping, MAPPING_KEYS, 'A mapping', fail, ObjectUtils.isNonArrayObject(mapping) && typeof mapping.key === 'string' ? mapping.key : null);
 
         if (typeof mapping.key !== 'string') {
             fail('NEXO4008', 'A mapping declares its key, a string, as a fixed argument gives it', undefined, 'key');
@@ -564,7 +564,7 @@ export class LexicaModule {
             fail(mapping.selector === undefined ? 'NEXO4008' : 'NEXO4039', 'A mapping names the type selector it belongs to', mapping.key, 'selector');
         }
 
-        if (!LexicaModule.#isTypeNotation(mapping.type)) {
+        if (!NexoModule.#isTypeNotation(mapping.type)) {
             fail(mapping.type === undefined ? 'NEXO4008' : 'NEXO4512', 'A mapping declares the type its key maps to', mapping.key, 'type');
         }
     }
@@ -576,9 +576,9 @@ export class LexicaModule {
      * @param {boolean} takesReceiver Whether it takes a receiver, which a module member takes none of.
      */
     static #validateUpdates(member, parameters, takesReceiver, name, fail) {
-        const updates = LexicaModule.#withoutUndefinedValues(member.updates);
+        const updates = NexoModule.#withoutUndefinedValues(member.updates);
 
-        LexicaModule.#validateKeys(updates, UPDATES_KEYS, 'Its updates', LexicaModule.#failUnder(fail, 'updates'), name);
+        NexoModule.#validateKeys(updates, UPDATES_KEYS, 'Its updates', NexoModule.#failUnder(fail, 'updates'), name);
 
         if (!CHANGE_CATEGORIES.includes(updates.changes) || !READING_MODES.includes(updates.reads)) {
             const updatesKey = CHANGE_CATEGORIES.includes(updates.changes) ? 'reads' : 'changes';
@@ -614,7 +614,7 @@ export class LexicaModule {
         }
 
         for (const observationDeclaration of observations) {
-            LexicaModule.#validateObservation(observationDeclaration, parameters, takesReceiver, name, fail);
+            NexoModule.#validateObservation(observationDeclaration, parameters, takesReceiver, name, fail);
         }
     }
 
@@ -635,7 +635,7 @@ export class LexicaModule {
 
         // A target is named as a name is, and whether its observation type's module declares it is the registry's to check, which knows every module.
         // Whether `of` takes a form an observation may name, an identifier or an argument reference; that the target it names exists, registration checks.
-        const namesObserved = Names.isIdentifier(observationDeclaration.of) || LexicaModule.#isArgumentReference(observationDeclaration.of, parameters);
+        const namesObserved = Names.isIdentifier(observationDeclaration.of) || NexoModule.#isArgumentReference(observationDeclaration.of, parameters);
 
         if (!namesObserved) {
             fail('NEXO4060', `The observation '${observationDeclaration.type}' observes the receiver, an argument of the member or an observation target by its name, and not '${JSON.stringify(observationDeclaration.of)}'`, name, declarationKey);
@@ -646,8 +646,8 @@ export class LexicaModule {
         }
 
         for (const [key, value] of Object.entries(observationDeclaration)) {
-            if (key !== 'type' && key !== 'of' && !LexicaModule.#isObservationArgument(value, parameters)) {
-                fail(LexicaModule.#isMisplacedPrefix(value, parameters) ? 'NEXO4061' : 'NEXO4060', `The observation '${observationDeclaration.type}' gives '${key}' a value that is no literal, list of literals or argument of the member, which a prefix, a string, is joined to only where its parameter is a value parameter of type string`, name, declarationKey);
+            if (key !== 'type' && key !== 'of' && !NexoModule.#isObservationArgument(value, parameters)) {
+                fail(NexoModule.#isMisplacedPrefix(value, parameters) ? 'NEXO4061' : 'NEXO4060', `The observation '${observationDeclaration.type}' gives '${key}' a value that is no literal, list of literals or argument of the member, which a prefix, a string, is joined to only where its parameter is a value parameter of type string`, name, declarationKey);
             }
         }
     }
@@ -685,10 +685,10 @@ export class LexicaModule {
         }
 
         if (Array.isArray(value)) {
-            return value.every(item => LexicaModule.#isObservationArgument(item, parameters));
+            return value.every(item => NexoModule.#isObservationArgument(item, parameters));
         }
 
-        return LexicaModule.#isArgumentReference(value, parameters) || LexicaModule.#isPrefixedArgumentReference(value, parameters);
+        return NexoModule.#isArgumentReference(value, parameters) || NexoModule.#isPrefixedArgumentReference(value, parameters);
     }
 
     /** Validates the targets a module declares: each named once, never `receiver`, found from the receiver where it says `from: 'receiver'`, and several where it says `count: 'many'`. */
@@ -696,7 +696,7 @@ export class LexicaModule {
         const names = new Set();
 
         for (const target of targets) {
-            LexicaModule.#validateKeys(target, OBSERVATION_TARGET_KEYS, 'An observation target', fail);
+            NexoModule.#validateKeys(target, OBSERVATION_TARGET_KEYS, 'An observation target', fail);
 
             if (!Names.isIdentifier(target.name)) {
                 fail('NEXO4006', 'An observation target is named as a name is', String(target.name), 'name');
@@ -727,7 +727,7 @@ export class LexicaModule {
         const names = new Set();
 
         for (const type of types) {
-            LexicaModule.#validateObservationType(type, fail);
+            NexoModule.#validateObservationType(type, fail);
 
             if (names.has(type.name)) {
                 fail('NEXO4007', `The observation type '${type.name}' is declared twice`, type.name, 'name');
@@ -738,7 +738,7 @@ export class LexicaModule {
     }
 
     static #validateObservationType(type, fail) {
-        LexicaModule.#validateKeys(type, OBSERVATION_TYPE_KEYS, 'An observation type', fail);
+        NexoModule.#validateKeys(type, OBSERVATION_TYPE_KEYS, 'An observation type', fail);
 
         const identity = type?.identity ?? [];
 
@@ -754,12 +754,12 @@ export class LexicaModule {
             fail('NEXO4522', 'It declares whether observations are shared, as a Boolean', type.name, 'shared');
         }
 
-        LexicaModule.#validateImplementation(type, type.name, fail);
+        NexoModule.#validateImplementation(type, type.name, fail);
     }
 
     /** Creates the stored copy of a valid observation type, its identity none and its observations shared where it says neither. */
     static #createObservationTypeCopy(type) {
-        return LexicaModule.#copyOf({ identity: [], shared: true, ...type });
+        return NexoModule.#copyOf({ identity: [], shared: true, ...type });
     }
 
     /** Validates the module members a module declares, each named once in the module, since its namespace reaches it by its name alone. */
@@ -767,7 +767,7 @@ export class LexicaModule {
         const moduleMemberNames = new Set();
 
         for (const member of members) {
-            LexicaModule.#validateMember(member, fail);
+            NexoModule.#validateMember(member, fail);
 
             if (moduleMemberNames.has(member.name)) {
                 fail('NEXO4549', `The module member '${member.name}' is declared already`, member.name, 'name');
@@ -794,7 +794,7 @@ export class LexicaModule {
 
         // An unnamed indexer declares no name, and is located as its access is written; any other member declares its own type parameters in its name.
         const isUnnamedIndexer = member.kind === 'indexer' && member.name === undefined;
-        const declared = isUnnamedIndexer ? { name: member.name, typeParameters: [] } : LexicaModule.#validateDeclaredName(member.name, fail);
+        const declared = isUnnamedIndexer ? { name: member.name, typeParameters: [] } : NexoModule.#validateDeclaredName(member.name, fail);
         const name = isUnnamedIndexer ? UNNAMED_INDEXER_NAME : declared.name;
         const ownParameter = declared.typeParameters.find(parameter => containingParameters.includes(parameter));
 
@@ -812,23 +812,23 @@ export class LexicaModule {
         }
 
         if (member.kind === 'operator') {
-            LexicaModule.#validateOperator(member, declared, takesReceiver, name, fail);
+            NexoModule.#validateOperator(member, declared, takesReceiver, name, fail);
         }
 
-        LexicaModule.#validateKeys(member, [...memberKeys, ...kindKeys], isDataProperty ? "A property of a structured type's data" : `A member of kind '${member.kind}'`, fail, isUnnamedIndexer ? UNNAMED_INDEXER_NAME : undefined);
+        NexoModule.#validateKeys(member, [...memberKeys, ...kindKeys], isDataProperty ? "A property of a structured type's data" : `A member of kind '${member.kind}'`, fail, isUnnamedIndexer ? UNNAMED_INDEXER_NAME : undefined);
 
         if (member.invokedBy !== undefined && !INVOKERS.includes(member.invokedBy)) {
             fail('NEXO4525', `A function is invoked by one of ${INVOKERS.join(', ')}, the evaluator where it says none`, name, 'invokedBy');
         }
 
-        const isInvokedByHost = LexicaModule.isInvokedByHost(member);
+        const isInvokedByHost = NexoModule.isInvokedByHost(member);
 
         // A host call's result is the type of each value its host supplies, and one that supplies none declares none.
-        if (!(isInvokedByHost && member.result === undefined) && !LexicaModule.#isTypeNotation(member.result)) {
+        if (!(isInvokedByHost && member.result === undefined) && !NexoModule.#isTypeNotation(member.result)) {
             fail(member.result === undefined ? 'NEXO4003' : 'NEXO4512', isInvokedByHost ? 'It declares the type of each value its host supplies, or none, where it supplies none' : 'It declares the type of its result', name, 'result');
         }
 
-        const parameters = Array.isArray(member.parameters) ? member.parameters.map(parameter => LexicaModule.#withoutUndefinedValues(parameter)) : (member.parameters ?? []);
+        const parameters = Array.isArray(member.parameters) ? member.parameters.map(parameter => NexoModule.#withoutUndefinedValues(parameter)) : (member.parameters ?? []);
 
         if (!Array.isArray(parameters)) {
             fail('NEXO4526', 'Its parameters are a list', name, 'parameters');
@@ -837,7 +837,7 @@ export class LexicaModule {
         const parameterNames = new Set();
 
         for (const parameter of parameters) {
-            LexicaModule.#validateParameter(parameter, name, fail);
+            NexoModule.#validateParameter(parameter, name, fail);
 
             if (parameterNames.has(parameter.name)) {
                 fail('NEXO4527', `The parameter '${parameter.name}' is declared twice`, name, 'parameters');
@@ -847,11 +847,11 @@ export class LexicaModule {
         }
 
         if (isInvokedByHost) {
-            LexicaModule.#validateHostInvokedFunction(member, parameters, name, fail);
+            NexoModule.#validateHostInvokedFunction(member, parameters, name, fail);
         }
 
-        LexicaModule.#validateSelections(member, parameters, name, fail);
-        LexicaModule.#validateForm(member, parameters, takesReceiver, name, fail);
+        NexoModule.#validateSelections(member, parameters, name, fail);
+        NexoModule.#validateForm(member, parameters, takesReceiver, name, fail);
 
         if (kindKeys.includes('updates') && !isInvokedByHost) {
             // A property declared directly in a structured type without updates is its data, which Nexo reads; any other property declares how it changes and how it reads, as a function does.
@@ -863,11 +863,11 @@ export class LexicaModule {
                 fail('NEXO4003', 'It declares its updates, how it changes and how it reads', name, 'updates');
             }
 
-            LexicaModule.#validateUpdates(member, new Map(parameters.map(parameter => [parameter.name, parameter])), takesReceiver, name, fail);
+            NexoModule.#validateUpdates(member, new Map(parameters.map(parameter => [parameter.name, parameter])), takesReceiver, name, fail);
         }
 
-        LexicaModule.#validateInternal(member, name, fail);
-        LexicaModule.#validateImplementation(member, name, fail);
+        NexoModule.#validateInternal(member, name, fail);
+        NexoModule.#validateImplementation(member, name, fail);
     }
 
     /**
@@ -897,13 +897,13 @@ export class LexicaModule {
 
     /** Creates the stored copy of a valid member: its updates' observations none where it names none, and its parameters each without its keys that hold undefined. */
     static #createMemberCopy(member) {
-        const parameters = (member.parameters ?? []).map(parameter => LexicaModule.#withoutUndefinedValues(parameter));
-        const updates = member.updates === undefined ? {} : { updates: { observations: [], ...LexicaModule.#withoutUndefinedValues(member.updates) } };
+        const parameters = (member.parameters ?? []).map(parameter => NexoModule.#withoutUndefinedValues(parameter));
+        const updates = member.updates === undefined ? {} : { updates: { observations: [], ...NexoModule.#withoutUndefinedValues(member.updates) } };
         // A member that declares its own type parameters is named by its local name, and keeps them beside it.
-        const named = member.name === undefined ? {} : LexicaModule.#namedCopyOf(member.name);
+        const named = member.name === undefined ? {} : NexoModule.#namedCopyOf(member.name);
 
         // A property is read with no arguments, so it keeps an empty list of parameters, which every member then has.
-        return LexicaModule.#copyOf({ ...member, ...named, parameters, ...updates });
+        return NexoModule.#copyOf({ ...member, ...named, parameters, ...updates });
     }
 
     /**
@@ -939,11 +939,11 @@ export class LexicaModule {
             fail('NEXO4009', `A function has one parameter at most that selects a type, since its result writes one @selected, and ${typeSelectingParameters.map(parameter => `'${parameter.name}'`).join(' and ')} each select one`, name, 'parameters');
         }
 
-        if (typeSelectingParameters.length === 1 && !LexicaModule.#writesSelected(member.result)) {
+        if (typeSelectingParameters.length === 1 && !NexoModule.#writesSelected(member.result)) {
             fail('NEXO4529', `Its parameter '${typeSelectingParameters[0].name}' selects a type, so its result writes @selected where that type stands`, name, 'result');
         }
 
-        if (typeSelectingParameters.length === 0 && LexicaModule.#writesSelected(member.result)) {
+        if (typeSelectingParameters.length === 0 && NexoModule.#writesSelected(member.result)) {
             fail('NEXO4040', 'Its result writes @selected, and none of its parameters selects a type', name, 'result');
         }
     }
@@ -954,11 +954,11 @@ export class LexicaModule {
      */
     static #validateForm(member, parameters, takesReceiver, name, fail) {
         if (member.kind === 'indexer') {
-            LexicaModule.#validateIndexer(parameters, takesReceiver, name, fail);
+            NexoModule.#validateIndexer(parameters, takesReceiver, name, fail);
         }
 
         if (member.kind === 'function') {
-            LexicaModule.#validateArgumentForm(member, parameters, name, fail);
+            NexoModule.#validateArgumentForm(member, parameters, name, fail);
         }
     }
 
@@ -999,7 +999,7 @@ export class LexicaModule {
     }
 
     static #validateParameter(parameter, memberName, fail) {
-        LexicaModule.#validateKeys(parameter, PARAMETER_KEYS, 'A parameter', LexicaModule.#failUnder(fail, 'parameters'), memberName);
+        NexoModule.#validateKeys(parameter, PARAMETER_KEYS, 'A parameter', NexoModule.#failUnder(fail, 'parameters'), memberName);
 
         const declarationKey = 'parameters';
 
@@ -1010,13 +1010,13 @@ export class LexicaModule {
             fail(parameter.kind === 'function' && !hasValidNullPolicy ? 'NEXO4054' : 'NEXO4536', 'A parameter declares its name, its kind, whether it is required and how it handles null, which a function parameter leaves out', memberName, declarationKey);
         }
 
-        if (!LexicaModule.#isTypeNotation(parameter.type)) {
+        if (!NexoModule.#isTypeNotation(parameter.type)) {
             fail(parameter.type === undefined ? 'NEXO4536' : 'NEXO4512', `The parameter '${parameter.name}' declares a type`, memberName, declarationKey);
         }
 
         // A function parameter's contract declares the type of each argument the member calls the function with, in order, and, as its type, the type of the result it takes from it.
         if (parameter.kind === 'function') {
-            if (!Array.isArray(parameter.parameterTypes) || !parameter.parameterTypes.every(type => LexicaModule.#isTypeNotation(type))) {
+            if (!Array.isArray(parameter.parameterTypes) || !parameter.parameterTypes.every(type => NexoModule.#isTypeNotation(type))) {
                 fail(Array.isArray(parameter.parameterTypes) ? 'NEXO4512' : 'NEXO4537', `The parameter '${parameter.name}' is a function that declares its parameterTypes, a list of the types it is called with`, memberName, declarationKey);
             }
 

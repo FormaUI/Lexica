@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TypeNameScope } from '#lexica/language/vocabulary/TypeNameScope.mjs';
+import { TypeNameScope } from '#nexo/language/vocabulary/TypeNameScope.mjs';
 
 /** The parts of a scope, its declaring module, its imports, whether it reaches every module and whether it names modules by their own names. */
 const partsOf = scope => ({ declaringModule: scope.declaringModule, imports: scope.imports, reachesEveryModule: scope.reachesEveryModule, namesModulesByOwnName: scope.namesModulesByOwnName });

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { repositoryRoot } from '../support/paths.mjs';
 
 /** The imports a text is read with where it reads the examples' namespaces, which a text without imports reads as parameters. */
@@ -34,7 +34,7 @@ const blocksOf = source => [...source.matchAll(/^```nexo\n([\s\S]*?)^```$/gm)].m
 const definitionOf = text => {
     for (const imports of [[], EXAMPLE_IMPORTS]) {
         try {
-            return { definition: lexica.parse(text, { imports }), imports };
+            return { definition: nexo.parse(text, { imports }), imports };
         } catch {
             // A text that reads as no script, or not without the imports, is tried with them, and otherwise is no script.
         }
@@ -58,14 +58,14 @@ describe('canonical text', () => {
         expect(scripts.length).toBeGreaterThan(500);
 
         for (const { text, read: { definition, imports } } of scripts) {
-            const formatted = lexica.format(definition);
-            const quoted = lexica.quote(definition);
+            const formatted = nexo.format(definition);
+            const quoted = nexo.quote(definition);
 
-            expect(lexica.parse(formatted), `format of ${JSON.stringify(text)}`).toEqual(definition);
-            expect(lexica.parse(quoted), `quote of ${JSON.stringify(text)}`).toEqual(definition);
-            expect(lexica.format(formatted), `format of format of ${JSON.stringify(text)}`).toBe(formatted);
-            expect(lexica.quote(quoted), `quote of quote of ${JSON.stringify(text)}`).toBe(quoted);
-            expect(lexica.parse(lexica.quote(definition, { imports }), { imports }), `quote of ${JSON.stringify(text)} with its imports supplied`).toEqual(definition);
+            expect(nexo.parse(formatted), `format of ${JSON.stringify(text)}`).toEqual(definition);
+            expect(nexo.parse(quoted), `quote of ${JSON.stringify(text)}`).toEqual(definition);
+            expect(nexo.format(formatted), `format of format of ${JSON.stringify(text)}`).toBe(formatted);
+            expect(nexo.quote(quoted), `quote of quote of ${JSON.stringify(text)}`).toBe(quoted);
+            expect(nexo.parse(nexo.quote(definition, { imports }), { imports }), `quote of ${JSON.stringify(text)} with its imports supplied`).toEqual(definition);
         }
     });
 
@@ -74,23 +74,23 @@ describe('canonical text', () => {
         const block = 'do\n    let a = 1\n    return a\nend';
         const local = 'let f = function(x)\n    let y = x\n    return y\nend\nreturn f(1)';
 
-        expect([lexica.format(body), lexica.quote(body)]).toEqual([body, body]);
-        expect([lexica.format('do\nlet a = 1\nreturn a\nend'), lexica.quote('do\nlet a = 1\nreturn a\nend')]).toEqual([block, block]);
-        expect([lexica.format(local), lexica.quote(local)]).toEqual([local, local]);
+        expect([nexo.format(body), nexo.quote(body)]).toEqual([body, body]);
+        expect([nexo.format('do\nlet a = 1\nreturn a\nend'), nexo.quote('do\nlet a = 1\nreturn a\nend')]).toEqual([block, block]);
+        expect([nexo.format(local), nexo.quote(local)]).toEqual([local, local]);
     });
 
     it('writes a function expression or a do block whose one expression spans lines in block form, and one whose expression does not on one line', () => {
         const spanning = 'let f = function(x)\n    if x then\n        let y = 1\n        return y\n    else\n        return 0\n    end\nend\nreturn f(true)';
 
-        expect([lexica.format(spanning), lexica.quote(spanning)]).toEqual([spanning, spanning]);
-        expect(lexica.quote('let f = function(x) x end\nreturn do f(1) end')).toBe('let f = function(x) x end\nreturn do f(1) end');
+        expect([nexo.format(spanning), nexo.quote(spanning)]).toEqual([spanning, spanning]);
+        expect(nexo.quote('let f = function(x) x end\nreturn do f(1) end')).toBe('let f = function(x) x end\nreturn do f(1) end');
     });
 
     it('writes a conditional with an elseif in block form laid out, and on one line compact where nothing in it spans lines', () => {
         const text = 'if a then 1 elseif b then 2 else 3 end';
 
-        expect(lexica.format(text)).toBe('if a then\n    1\nelseif b then\n    2\nelse\n    3\nend');
-        expect(lexica.quote(text)).toBe(text);
+        expect(nexo.format(text)).toBe('if a then\n    1\nelseif b then\n    2\nelse\n    3\nend');
+        expect(nexo.quote(text)).toBe(text);
     });
 
     it('propagates block form outward from a body nested in an object, a call and a conditional, continuing after the end on its own line', () => {
@@ -100,26 +100,26 @@ describe('canonical text', () => {
         const conditional = 'if c then\n    do\n        let x = 1\n        return x\n    end\nelse\n    0\nend';
         const grouped = `(${inner}\n) + 2`;
 
-        expect([lexica.format(object), lexica.quote(object)]).toEqual([object, object]);
-        expect([lexica.format(call), lexica.quote(call)]).toEqual([call, 'f(if c then { a = 1, b = 2 } else null end, 2)']);
-        expect([lexica.format(conditional), lexica.quote(conditional)]).toEqual([conditional, conditional]);
-        expect([lexica.format(grouped), lexica.quote(grouped)]).toEqual([grouped, grouped]);
-        expect(lexica.quote('{\n    a = 1,\n    b = 2\n}')).toBe('{ a = 1, b = 2 }');
+        expect([nexo.format(object), nexo.quote(object)]).toEqual([object, object]);
+        expect([nexo.format(call), nexo.quote(call)]).toEqual([call, 'f(if c then { a = 1, b = 2 } else null end, 2)']);
+        expect([nexo.format(conditional), nexo.quote(conditional)]).toEqual([conditional, conditional]);
+        expect([nexo.format(grouped), nexo.quote(grouped)]).toEqual([grouped, grouped]);
+        expect(nexo.quote('{\n    a = 1,\n    b = 2\n}')).toBe('{ a = 1, b = 2 }');
     });
 
     it('writes imports with aliases and type imports, each on a line of its own in order of its local name, leaving out those the destination supplies', () => {
         const text = 'import Measures = Measurements\nimport Home.Sensor\nimport HomeLight = Home.Light\nMeasures.reading';
 
-        expect(lexica.format(text)).toBe('import HomeLight = Home.Light\nimport Measures = Measurements\nimport Home.Sensor\n\nMeasures.reading');
-        expect(lexica.quote(text)).toBe('import HomeLight = Home.Light\nimport Measures = Measurements\nimport Home.Sensor\nMeasures.reading');
-        expect(lexica.quote(text, { imports: [{ module: 'Measurements', alias: 'Measures' }] })).toBe('import HomeLight = Home.Light\nimport Home.Sensor\nMeasures.reading');
-        expect(lexica.format(text, { imports: [{ module: 'Measurements', alias: 'Measures' }, { module: 'Home', type: 'Sensor' }] })).toBe('import HomeLight = Home.Light\n\nMeasures.reading');
+        expect(nexo.format(text)).toBe('import HomeLight = Home.Light\nimport Measures = Measurements\nimport Home.Sensor\n\nMeasures.reading');
+        expect(nexo.quote(text)).toBe('import HomeLight = Home.Light\nimport Measures = Measurements\nimport Home.Sensor\nMeasures.reading');
+        expect(nexo.quote(text, { imports: [{ module: 'Measurements', alias: 'Measures' }] })).toBe('import HomeLight = Home.Light\nimport Home.Sensor\nMeasures.reading');
+        expect(nexo.format(text, { imports: [{ module: 'Measurements', alias: 'Measures' }, { module: 'Home', type: 'Sensor' }] })).toBe('import HomeLight = Home.Light\n\nMeasures.reading');
     });
 
     it('keeps an expression with no block in it on one line, however deeply nested', () => {
         const text = 'room { lit = it.devices.where(d => d.active() and not d.dimmed).count + (it.climate?.temperature ?? 0) * 2, name = $"{it.name}!" }';
 
-        expect(lexica.quote(text)).toBe(text);
-        expect(lexica.format('room.devices.where(d => d.active() and not d.dimmed).count + (room.climate?.temperature ?? 0) * 2')).toBe('room.devices.where(d => d.active() and not d.dimmed).count + (room.climate?.temperature ?? 0) * 2');
+        expect(nexo.quote(text)).toBe(text);
+        expect(nexo.format('room.devices.where(d => d.active() and not d.dimmed).count + (room.climate?.temperature ?? 0) * 2')).toBe('room.devices.where(d => d.active() and not d.dimmed).count + (room.climate?.temperature ?? 0) * 2');
     });
 });

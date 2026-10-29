@@ -3,7 +3,7 @@
  */
 
 import { Imports } from './Imports.mjs';
-import { LexicaErrors } from './LexicaError.mjs';
+import { NexoErrors } from './NexoError.mjs';
 import { LineStructure } from './LineStructure.mjs';
 import { Names } from './Names.mjs';
 import { SyntaxTree } from './SyntaxTree.mjs';
@@ -134,7 +134,7 @@ export class Parser {
         const declaration = { kind: 'import-declaration', children };
         const entry = SyntaxTree.importOf(declaration, this.#text);
 
-        if (entry.module === Names.lexicaModuleName) {
+        if (entry.module === Names.nexoModuleName) {
             throw this.#createSyntaxError('NEXO1046', "Nexo's own vocabulary is always available, so no script imports it or one of its types", moduleToken.start);
         }
 
@@ -1629,7 +1629,7 @@ export class Parser {
      * a foundation for it alone: recovering also needs points to resume from, missing and unexpected tokens handled, and progress through the text guaranteed.
      */
     #createSyntaxError(code, message, offset) {
-        return LexicaErrors.syntax(code, message, this.#text, offset);
+        return NexoErrors.syntax(code, message, this.#text, offset);
     }
 
     /** Creates the syntax error of a token other than the one expected, which its caller throws: of the code given, or of the one of an `=` written where no name takes its value. */

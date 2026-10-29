@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ItemPositions } from '#lexica/language/vocabulary/ItemPositions.mjs';
+import { ItemPositions } from '#nexo/language/vocabulary/ItemPositions.mjs';
 
 describe('ItemPositions', () => {
     it("answers the receiver's items at the positions, in their order, a position given twice giving its item twice, as a frozen list keeping a frozen copy of the positions", () => {

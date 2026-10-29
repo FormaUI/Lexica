@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { Evaluator } from '#lexica/language/Evaluator.mjs';
-import { LanguageResolver } from '#lexica/language/LanguageResolver.mjs';
-import { ParameterBindings } from '#lexica/language/ParameterBindings.mjs';
-import { ParsedTexts } from '#lexica/language/ParsedTexts.mjs';
-import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
-import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { Evaluator } from '#nexo/language/Evaluator.mjs';
+import { LanguageResolver } from '#nexo/language/LanguageResolver.mjs';
+import { ParameterBindings } from '#nexo/language/ParameterBindings.mjs';
+import { ParsedTexts } from '#nexo/language/ParsedTexts.mjs';
+import { Declarations } from '#nexo/language/vocabulary/Declarations.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
+import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../support/home.mjs';
 import { constantUpdates } from '../support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration } from '../support/declarations.mjs';
@@ -21,7 +21,7 @@ const parts = [new Light('a'), new Light('b')];
 const twins = [new Light('a'), new Light('a'), new Light('b')];
 
 /** A plain host's module on names: a size measured within half a unit, a length, a list of references, a crowd holding one of them twice, twins labelled alike, and each reference's label. */
-const shapes = new LexicaModule('shapes', withHome({
+const shapes = new NexoModule('shapes', withHome({
     types: [
         { name: 'Size', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number', height: 'Number' }) },
         extensionDeclaration('Names', 'String', [
@@ -39,7 +39,7 @@ const shapes = new LexicaModule('shapes', withHome({
 
 /** The resolution of the text against a registry of Nexo's own module and the shapes, and an evaluation of it with the bindings given. */
 const resolve = (text, values = { name: 'tea' }) => {
-    const registry = new LexicaRegistry([Vocabulary.module, shapes]);
+    const registry = new NexoRegistry([Vocabulary.module, shapes]);
     const definition = parseImporting(registry, text);
     const bindings = new ParameterBindings(registry, values);
     const locations = ParsedTexts.locationsOf(definition);

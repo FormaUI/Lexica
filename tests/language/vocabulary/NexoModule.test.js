@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 import { expectModuleError } from '../../support/errors.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, operatorDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
 
 /** The declaration and the declaration key a module error's location names, beside a fragment of its message. */
 const refusal = (contents, declarationName, declarationKey, fragment) => {
-    const refused = expectModuleError(() => new LexicaModule('charts', contents));
+    const refused = expectModuleError(() => new NexoModule('charts', contents));
 
     expect({ declaration: refused.declaration, declarationKey: refused.declarationKey }).toEqual({ declaration: declarationName, declarationKey });
     expect(refused.message).toContain(fragment);
@@ -15,16 +15,16 @@ const refusal = (contents, declarationName, declarationKey, fragment) => {
 /** A module's contents holding the members given in an extension of strings, which take a string as their receiver. */
 const onStrings = members => ({ types: [extensionDeclaration('Words', 'String', members)] });
 
-describe('LexicaModule', () => {
+describe('NexoModule', () => {
     it('names a member in a message as an access writes it, an unnamed indexer by its brackets', () => {
-        expect(LexicaModule.writtenNameOf(propertyDeclaration({ name: 'zoom' }))).toBe('zoom');
-        expect(LexicaModule.writtenNameOf(indexerDeclaration({ name: 'cell' }))).toBe('cell');
-        expect(LexicaModule.writtenNameOf(indexerDeclaration())).toBe('[…]');
+        expect(NexoModule.writtenNameOf(propertyDeclaration({ name: 'zoom' }))).toBe('zoom');
+        expect(NexoModule.writtenNameOf(indexerDeclaration({ name: 'cell' }))).toBe('cell');
+        expect(NexoModule.writtenNameOf(indexerDeclaration())).toBe('[…]');
     });
 
     it('keeps its declarations as frozen data, each implementation the function its module gave', () => {
         const implementation = () => 2;
-        const module = new LexicaModule('charts', { members: [propertyDeclaration({ name: 'charts', impl: implementation })] });
+        const module = new NexoModule('charts', { members: [propertyDeclaration({ name: 'charts', impl: implementation })] });
 
         expect(module.members[0]).toMatchObject({ name: 'charts', parameters: [], updates: { changes: 'constant', reads: 'fresh', observations: [] } });
         expect(module.members[0].impl).toBe(implementation);
@@ -35,19 +35,19 @@ describe('LexicaModule', () => {
 
     it('keeps a reference type\'s own members as frozen copies within it, each validated where it stands and located at its type', () => {
         const lamp = members => ({ name: 'Lamp', kind: 'reference', isInstance: () => true, members });
-        const [type] = new LexicaModule('charts', { types: [lamp([propertyDeclaration()])] }).types;
+        const [type] = new NexoModule('charts', { types: [lamp([propertyDeclaration()])] }).types;
 
         expect(type.members).toEqual([expect.objectContaining({ name: 'zoom', kind: 'property', result: 'Number', parameters: [] })]);
         expect(Object.isFrozen(type.members[0]) && Object.isFrozen(type.members)).toBe(true);
-        expect(expectModuleError(() => new LexicaModule('charts', { types: [lamp([propertyDeclaration({ target: 'Lamp' })])] }))).toMatchObject({ module: 'charts', type: 'Lamp', declaration: 'zoom', declarationKey: 'target' });
-        expect(expectModuleError(() => new LexicaModule('charts', { types: [lamp([propertyDeclaration({ result: undefined })])] }))).toMatchObject({ module: 'charts', type: 'Lamp', declaration: 'zoom', declarationKey: 'result' });
-        expect(expectModuleError(() => new LexicaModule('charts', { types: [lamp({})] }))).toEqual({ message: expect.stringContaining('members are a list'), module: 'charts', declaration: 'Lamp', declarationKey: 'members' });
+        expect(expectModuleError(() => new NexoModule('charts', { types: [lamp([propertyDeclaration({ target: 'Lamp' })])] }))).toMatchObject({ module: 'charts', type: 'Lamp', declaration: 'zoom', declarationKey: 'target' });
+        expect(expectModuleError(() => new NexoModule('charts', { types: [lamp([propertyDeclaration({ result: undefined })])] }))).toMatchObject({ module: 'charts', type: 'Lamp', declaration: 'zoom', declarationKey: 'result' });
+        expect(expectModuleError(() => new NexoModule('charts', { types: [lamp({})] }))).toEqual({ message: expect.stringContaining('members are a list'), module: 'charts', declaration: 'Lamp', declarationKey: 'members' });
     });
 
     it('refuses the key implementation on a member, an observation type and an operator, each carrying its code as its impl', () => {
         const implementation = () => 1;
         const refused = contents => {
-            const { module, declaration, declarationKey } = expectModuleError(() => new LexicaModule('charts', contents));
+            const { module, declaration, declarationKey } = expectModuleError(() => new NexoModule('charts', contents));
 
             return { module, declaration, declarationKey };
         };
@@ -55,7 +55,7 @@ describe('LexicaModule', () => {
         expect(refused({ members: [propertyDeclaration({ implementation })] })).toEqual({ module: 'charts', declaration: 'zoom', declarationKey: 'implementation' });
         expect(refused({ observationTypes: [{ name: 'tick', contract: 'invalidation', implementation }] })).toEqual({ module: 'charts', declaration: 'tick', declarationKey: 'implementation' });
         expect(refused({ types: [{ name: 'Cup', kind: 'structured', members: [...dataPropertyDeclarations({ size: 'Number' }), { ...operatorDeclaration('convert', 'String'), implementation }] }] })).toEqual({ module: 'charts', declaration: 'convert', declarationKey: 'implementation' });
-        expect(expectModuleError(() => new LexicaModule('charts', { members: [propertyDeclaration({ impl: 'size' })] }))).toEqual({ message: expect.stringContaining('Its `impl` is a function'), module: 'charts', declaration: 'zoom', declarationKey: 'impl' });
+        expect(expectModuleError(() => new NexoModule('charts', { members: [propertyDeclaration({ impl: 'size' })] }))).toEqual({ message: expect.stringContaining('Its `impl` is a function'), module: 'charts', declaration: 'zoom', declarationKey: 'impl' });
     });
 
     it('refuses a declaration whose data reaches itself, at its declaration key, and takes data two parts share and a function that holds itself', () => {
@@ -79,14 +79,14 @@ describe('LexicaModule', () => {
 
         implementation.self = implementation;
 
-        expect(() => new LexicaModule('charts', {
+        expect(() => new NexoModule('charts', {
             members: [
                 functionDeclaration({ name: 'pan', impl: implementation, parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
                 functionDeclaration({ name: 'zoom', parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared })] }),
             ],
         })).not.toThrow();
         // Two parts of one declaration share a value, which reaches itself through neither.
-        expect(() => new LexicaModule('charts', {
+        expect(() => new NexoModule('charts', {
             members: [functionDeclaration({
                 name: 'pan',
                 parameters: [parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: shared }), parameterDeclaration({ name: 'to', type: 'List<Number>', required: false, default: shared })],
@@ -108,7 +108,7 @@ describe('LexicaModule', () => {
         const option = parameterDeclaration({ name: 'by', type: 'List<Number>', required: false, default: [1, 2] });
         const declared = functionDeclaration({ name: 'pan', parameters: [option] });
         const type = { name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) };
-        const module = new LexicaModule('charts', { types: [type], members: [declared] });
+        const module = new NexoModule('charts', { types: [type], members: [declared] });
 
         expect([declared, declared.parameters, option, option.default, type, type.members, type.members[0]].map(part => Object.isFrozen(part))).toEqual([false, false, false, false, false, false, false]);
         expect([module.members[0].parameters[0].default, module.types[0].members, module.types[0].members[0]].map(part => Object.isFrozen(part))).toEqual([true, true, true]);
@@ -116,7 +116,7 @@ describe('LexicaModule', () => {
     });
 
     it('keeps a member as it is declared, an indexer named or unnamed, filling no key its kind does not take', () => {
-        const { members } = new LexicaModule('charts', onStrings([functionDeclaration({ name: 'level' }), indexerDeclaration({ name: 'key' }), indexerDeclaration()])).types[0];
+        const { members } = new NexoModule('charts', onStrings([functionDeclaration({ name: 'level' }), indexerDeclaration({ name: 'key' }), indexerDeclaration()])).types[0];
 
         expect(members.map(member => [member.kind, member.name, member.arguments])).toEqual([['function', 'level', 'positional'], ['indexer', 'key', undefined], ['indexer', undefined, undefined]]);
         expect(members.every(member => !('syntax' in member) && !('default' in member) && !('target' in member))).toBe(true);
@@ -124,34 +124,34 @@ describe('LexicaModule', () => {
 
     it('refuses a name with a hyphen, which no name holds', () => {
         refusal({ members: [propertyDeclaration({ name: 'chart-size' })] }, 'chart-size', 'name', 'named as a name is');
-        expect(expectModuleError(() => new LexicaModule('chart-tools', {})).message).toContain('named as a name is');
+        expect(expectModuleError(() => new NexoModule('chart-tools', {})).message).toContain('named as a name is');
     });
 
     it('names a property, a function, an indexer and a field of a structured type with any word, a keyword and a literal\'s word among them, read after a dot or a colon', () => {
         const chart = members => ({ types: [{ name: 'Chart', kind: 'structured', members: [...dataPropertyDeclarations({ else: 'Number' }), ...members] }] });
         const key = [parameterDeclaration({ name: 'key', type: 'String' })];
 
-        expect(() => new LexicaModule('charts', chart([propertyDeclaration({ name: 'then' }), functionDeclaration({ name: 'if', parameters: key })]))).not.toThrow();
-        expect(() => new LexicaModule('charts', chart([indexerDeclaration({ name: 'if', parameters: key })]))).not.toThrow();
-        expect(() => new LexicaModule('charts', chart([propertyDeclaration({ name: 'null' })]))).not.toThrow();
+        expect(() => new NexoModule('charts', chart([propertyDeclaration({ name: 'then' }), functionDeclaration({ name: 'if', parameters: key })]))).not.toThrow();
+        expect(() => new NexoModule('charts', chart([indexerDeclaration({ name: 'if', parameters: key })]))).not.toThrow();
+        expect(() => new NexoModule('charts', chart([propertyDeclaration({ name: 'null' })]))).not.toThrow();
     });
 
     it('offers no way to make a module exempt from the registry\'s rules, whatever its name', () => {
-        expect(LexicaModule.createBuiltIn).toBeUndefined();
-        expect('isBuiltIn' in new LexicaModule('Nexo', {})).toBe(false);
+        expect(NexoModule.createBuiltIn).toBeUndefined();
+        expect('isBuiltIn' in new NexoModule('Nexo', {})).toBe(false);
         expect(Vocabulary.module).toBe(Vocabulary.module);
     });
 
     it('refuses what a module does not declare, naming it', () => {
-        expect(expectModuleError(() => new LexicaModule('charts', { predicates: [] }))).toMatchObject({ module: 'charts', declarationKey: 'predicates', message: expect.stringMatching(/and 'predicates' is none of them \(/) });
-        expect(expectModuleError(() => new LexicaModule('charts', { member: [] })).message).toContain("A module declares typeOf, types, members, typeSelectors, mappings, observationTypes, observationTargets, and 'member' is none of them");
-        expect(expectModuleError(() => new LexicaModule('charts', null)).message).toContain("A module's contents are an object declaring typeOf, types, members, typeSelectors");
-        expect(expectModuleError(() => new LexicaModule('charts', { members: {} })).message).toContain("A module's members are a list");
-        expect(expectModuleError(() => new LexicaModule('charts', { members: [null] })).message).toContain('A member is an object declaring');
+        expect(expectModuleError(() => new NexoModule('charts', { predicates: [] }))).toMatchObject({ module: 'charts', declarationKey: 'predicates', message: expect.stringMatching(/and 'predicates' is none of them \(/) });
+        expect(expectModuleError(() => new NexoModule('charts', { member: [] })).message).toContain("A module declares typeOf, types, members, typeSelectors, mappings, observationTypes, observationTargets, and 'member' is none of them");
+        expect(expectModuleError(() => new NexoModule('charts', null)).message).toContain("A module's contents are an object declaring typeOf, types, members, typeSelectors");
+        expect(expectModuleError(() => new NexoModule('charts', { members: {} })).message).toContain("A module's members are a list");
+        expect(expectModuleError(() => new NexoModule('charts', { members: [null] })).message).toContain('A member is an object declaring');
     });
 
     it('takes no second argument of functions, each implementation being its declaration\'s own', () => {
-        const module = new LexicaModule('charts', {}, { zoom: () => 1 });
+        const module = new NexoModule('charts', {}, { zoom: () => 1 });
 
         expect('functions' in module).toBe(false);
     });
@@ -202,8 +202,8 @@ describe('LexicaModule', () => {
         it('declare the form of their arguments where they have parameters, an optional one included, and refuse one where they have none', () => {
             const two = [parameterDeclaration({ name: 'first' }), parameterDeclaration({ name: 'second', required: false, default: 1 })];
 
-            expect(() => new LexicaModule('charts', { members: [functionDeclaration({ arguments: 'options', parameters: two })] })).not.toThrow();
-            expect(() => new LexicaModule('charts', { members: [functionDeclaration({ arguments: 'positional', parameters: two })] })).not.toThrow();
+            expect(() => new NexoModule('charts', { members: [functionDeclaration({ arguments: 'options', parameters: two })] })).not.toThrow();
+            expect(() => new NexoModule('charts', { members: [functionDeclaration({ arguments: 'positional', parameters: two })] })).not.toThrow();
             refusal({ members: [functionDeclaration({ arguments: undefined, parameters: [parameterDeclaration({ required: false, default: 1 })] })] }, 'zoom', 'arguments', 'It has parameters, so it declares the form of its arguments');
             refusal({ members: [functionDeclaration({ parameters: [] })] }, 'zoom', 'arguments', 'It has no parameters, so it declares no form of its arguments');
             refusal({ members: [functionDeclaration({ parameters: [...two].reverse() })] }, 'zoom', 'parameters', "The required parameter 'first' follows an optional one");
@@ -212,7 +212,7 @@ describe('LexicaModule', () => {
         it('take a function parameter in a function the evaluator invokes', () => {
             const callback = parameterDeclaration({ name: 'f', kind: 'function', parameterTypes: [], nulls: undefined });
 
-            expect(() => new LexicaModule('charts', { members: [functionDeclaration({ parameters: [callback] })] })).not.toThrow();
+            expect(() => new NexoModule('charts', { members: [functionDeclaration({ parameters: [callback] })] })).not.toThrow();
             refusal({ members: [propertyDeclaration({ parameters: [callback] })] }, 'zoom', 'parameters', "A member of kind 'property' declares");
         });
 
@@ -225,10 +225,10 @@ describe('LexicaModule', () => {
         const hostCall = (overrides = {}) => functionDeclaration({ name: 'dim', invokedBy: 'host', updates: undefined, ...overrides });
 
         it('are kept as declared, with value parameters, a result where the host supplies values and none where it supplies none', () => {
-            const module = new LexicaModule('charts', { members: [hostCall(), hostCall({ name: 'hold', result: undefined }), hostCall({ name: 'reset', parameters: [], arguments: undefined })] });
+            const module = new NexoModule('charts', { members: [hostCall(), hostCall({ name: 'hold', result: undefined }), hostCall({ name: 'reset', parameters: [], arguments: undefined })] });
 
             expect(module.members.map(member => [member.name, member.invokedBy, member.kind, member.result, 'updates' in member])).toEqual([['dim', 'host', 'function', 'Number', false], ['hold', 'host', 'function', undefined, false], ['reset', 'host', 'function', 'Number', false]]);
-            expect(() => new LexicaModule('charts', { members: [functionDeclaration({ invokedBy: 'evaluator' })] })).not.toThrow();
+            expect(() => new NexoModule('charts', { members: [functionDeclaration({ invokedBy: 'evaluator' })] })).not.toThrow();
         });
 
         it('are invoked by the evaluator or by the host, a function alone saying which', () => {
@@ -252,7 +252,7 @@ describe('LexicaModule', () => {
 
     describe('module members, which take no receiver', () => {
         it('are read through the namespace, any kind among them', () => {
-            const module = new LexicaModule('charts', { members: [propertyDeclaration(), functionDeclaration({ name: 'scale' })] });
+            const module = new NexoModule('charts', { members: [propertyDeclaration(), functionDeclaration({ name: 'scale' })] });
 
             expect(module.members.map(member => [member.name, member.kind])).toEqual([['zoom', 'property'], ['scale', 'function']]);
         });
@@ -261,16 +261,16 @@ describe('LexicaModule', () => {
             refusal({ members: [indexerDeclaration()] }, '[]', 'kind', 'a module member takes none');
             refusal({ members: [propertyDeclaration({ updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'resize', of: 'receiver' }] } })] }, 'zoom', 'updates.observations', 'a module member takes no receiver');
 
-            expect(() => new LexicaModule('charts', { members: [propertyDeclaration({ updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'visibility', of: 'document' }] } })] })).not.toThrow();
+            expect(() => new NexoModule('charts', { members: [propertyDeclaration({ updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'visibility', of: 'document' }] } })] })).not.toThrow();
         });
     });
 
     describe('type selectors and their keys', () => {
-        const fails = contents => expectModuleError(() => new LexicaModule('charts', contents));
+        const fails = contents => expectModuleError(() => new NexoModule('charts', contents));
         const selecting = (overrides = {}) => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector: 'report' })], ...overrides });
 
         it('are kept as frozen data, a selector by its name alone and a key with the selector it belongs to and the type it maps to', () => {
-            const module = new LexicaModule('charts', { typeSelectors: [{ name: 'report' }], mappings: [{ key: 'motion', selector: 'report', type: 'Number' }, { key: 'door:open', selector: 'report', type: 'List<String>' }] });
+            const module = new NexoModule('charts', { typeSelectors: [{ name: 'report' }], mappings: [{ key: 'motion', selector: 'report', type: 'Number' }, { key: 'door:open', selector: 'report', type: 'List<String>' }] });
 
             expect(module.typeSelectors).toEqual([{ name: 'report' }]);
             expect(module.mappings).toEqual([{ key: 'motion', selector: 'report', type: 'Number' }, { key: 'door:open', selector: 'report', type: 'List<String>' }]);
@@ -284,7 +284,7 @@ describe('LexicaModule', () => {
         });
 
         it('map a key, any string, of the selector it belongs to, to the type it maps to, and declare nothing else of it', () => {
-            expect(() => new LexicaModule('charts', { mappings: [{ selector: 'report', key: '1st report', type: 'Number' }] })).not.toThrow();
+            expect(() => new NexoModule('charts', { mappings: [{ selector: 'report', key: '1st report', type: 'Number' }] })).not.toThrow();
             expect(fails({ mappings: [{ selector: 'report', key: null, type: 'Number' }] })).toMatchObject({ declarationKey: 'key' });
             expect(fails({ mappings: [{ key: 'motion', type: 'Number' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'selector' });
             expect(fails({ mappings: [{ key: 'motion', selector: 'report', type: 'List<' }] })).toMatchObject({ declaration: 'motion', declarationKey: 'type' });
@@ -292,7 +292,7 @@ describe('LexicaModule', () => {
         });
 
         it('are selected through by a function\'s one fixed parameter that names its selector, whose result writes @selected', () => {
-            expect(() => new LexicaModule('charts', { members: [selecting(), selecting({ name: 'reports', result: 'List<@selected>' })] })).not.toThrow();
+            expect(() => new NexoModule('charts', { members: [selecting(), selecting({ name: 'reports', result: 'List<@selected>' })] })).not.toThrow();
             expect(fails({ members: [selecting({ parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type' })] })] }).message).toContain("The fixed parameter 'kind' selects a type, so it names the type selector it selects through");
             expect(fails({ members: [selecting({ parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'predicate', selector: 'report' })] })] }).message).toContain("The fixed parameter 'kind' declares what it selects, one of type; a test of the receiver is passed as a function, to a function parameter");
             expect(fails({ members: [selecting({ parameters: [parameterDeclaration({ name: 'kind', type: 'String', selector: 'report' })] })] }).message).toContain("The parameter 'kind' selects nothing, since it is not fixed");
@@ -309,11 +309,11 @@ describe('LexicaModule', () => {
     });
 
     describe('observation targets', () => {
-        const fails = observationTargets => expectModuleError(() => new LexicaModule('charts', { observationTargets }));
+        const fails = observationTargets => expectModuleError(() => new NexoModule('charts', { observationTargets }));
 
         it('are kept as frozen data, each found from the receiver or independent of it, one target or several', () => {
             const declared = [{ name: 'page' }, { name: 'frame', from: 'receiver' }, { name: 'frames', from: 'receiver', count: 'many' }];
-            const module = new LexicaModule('charts', { observationTargets: declared });
+            const module = new NexoModule('charts', { observationTargets: declared });
 
             expect(module.observationTargets).toEqual(declared);
             expect(module.observationTargets[0]).not.toBe(declared[0]);
@@ -351,33 +351,33 @@ describe('LexicaModule', () => {
         it('name observations where a member changes observably or partly observably, and none otherwise', () => {
             const attributes = { type: 'mutation', of: 'receiver', attributes: true };
 
-            expect(() => new LexicaModule('charts', updating({ changes: 'observable', reads: 'fresh', observations: [attributes] }))).not.toThrow();
+            expect(() => new NexoModule('charts', updating({ changes: 'observable', reads: 'fresh', observations: [attributes] }))).not.toThrow();
             refusal(updating({ changes: 'observable', reads: 'fresh' }), 'zoom', 'updates.observations', 'names the observations that cover its changes');
             refusal(updating({ changes: 'derived', reads: 'derived', observations: [attributes] }), 'zoom', 'updates.observations', 'names no observations');
         });
 
         it('take a tolerance that is not negative, leaving whether its result holds a number to registration, which knows every type', () => {
-            expect(() => new LexicaModule('charts', updating({ changes: 'unobserved', reads: 'fresh', tolerance: 0.5 }))).not.toThrow();
-            expect(() => new LexicaModule('charts', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }], members: [propertyDeclaration({ result: 'Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
+            expect(() => new NexoModule('charts', updating({ changes: 'unobserved', reads: 'fresh', tolerance: 0.5 }))).not.toThrow();
+            expect(() => new NexoModule('charts', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }], members: [propertyDeclaration({ result: 'Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
 
             for (const tolerance of [-1, '1', Infinity, null]) {
                 refusal(updating({ changes: 'unobserved', reads: 'fresh', tolerance }), 'zoom', 'updates.tolerance', 'tolerance');
             }
 
-            expect(() => new LexicaModule('charts', { members: [propertyDeclaration({ result: 'String', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
+            expect(() => new NexoModule('charts', { members: [propertyDeclaration({ result: 'String', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] })).not.toThrow();
         });
     });
 
     describe('observations', () => {
         const attributes = { type: 'mutation', of: 'receiver', attributes: true };
         const observed = (observations, overrides = {}) => propertyDeclaration({ name: 'charts', updates: { changes: 'observable', reads: 'fresh', observations }, ...overrides });
-        const fails = contents => expectModuleError(() => new LexicaModule('charts', contents));
+        const fails = contents => expectModuleError(() => new NexoModule('charts', contents));
 
         it('observe the receiver, an argument of the member or an observation target by its name, which the registry finds', () => {
             const parameters = [parameterDeclaration({ name: 'other', type: 'Element' })];
 
-            expect(() => new LexicaModule('charts', onStrings([observed([{ type: 'resize', of: { argument: 'other' } }], { kind: 'function', arguments: 'positional', parameters })]))).not.toThrow();
-            expect(() => new LexicaModule('charts', onStrings([observed([{ type: 'event', of: 'window', types: ['focus'] }, { type: 'visibility', of: 'parent' }])]))).not.toThrow();
+            expect(() => new NexoModule('charts', onStrings([observed([{ type: 'resize', of: { argument: 'other' } }], { kind: 'function', arguments: 'positional', parameters })]))).not.toThrow();
+            expect(() => new NexoModule('charts', onStrings([observed([{ type: 'event', of: 'window', types: ['focus'] }, { type: 'visibility', of: 'parent' }])]))).not.toThrow();
             expect(fails(onStrings([observed([{ type: 'resize', of: 'chart-area' }])]))).toMatchObject({ declaration: 'charts', declarationKey: 'updates.observations' });
             expect(fails(onStrings([observed([{ type: 'resize', of: { argument: 'missing' } }])])).message).toContain('observes the receiver, an argument of the member or an observation target by its name');
             expect(fails(onStrings([observed([{ type: 'resize' }])])).message).toContain('observes the receiver');
@@ -386,7 +386,7 @@ describe('LexicaModule', () => {
         it('give their arguments literals, lists of literals and arguments of the member', () => {
             const parameters = [parameterDeclaration({ name: 'name', type: 'String' })];
 
-            expect(() => new LexicaModule('charts', onStrings([observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name' }, 'type'], subtree: false, depth: 2 }], { kind: 'function', arguments: 'positional', parameters })]))).not.toThrow();
+            expect(() => new NexoModule('charts', onStrings([observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name' }, 'type'], subtree: false, depth: 2 }], { kind: 'function', arguments: 'positional', parameters })]))).not.toThrow();
             expect(fails(onStrings([observed([{ type: 'mutation', of: 'receiver', attributes: { anything: 1 } }])])).message).toContain('no literal, list of literals or argument of the member');
             expect(fails(onStrings([observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'missing' }] }])])).message).toContain('no literal, list of literals or argument of the member');
         });
@@ -395,7 +395,7 @@ describe('LexicaModule', () => {
             const prefixed = (prefix, type = 'String', kind = 'value') => onStrings([observed([{ type: 'mutation', of: 'receiver', attributes: [{ argument: 'name', prefix }] }], { kind: 'function', arguments: 'positional', parameters: [parameterDeclaration({ name: 'name', type, kind, ...(kind === 'expression' ? { context: 'item' } : {}) })] })]);
             const message = 'which a prefix, a string, is joined to only where its parameter is a value parameter of type string';
 
-            expect(() => new LexicaModule('charts', prefixed('aria-'))).not.toThrow();
+            expect(() => new NexoModule('charts', prefixed('aria-'))).not.toThrow();
             expect(fails(prefixed('')).message).toContain(message);
             expect(fails(prefixed(1)).message).toContain(message);
             expect(fails(prefixed('aria-', 'Number')).message).toContain(message);
@@ -412,7 +412,7 @@ describe('LexicaModule', () => {
         it('are named for a type that is a name, in a list', () => {
             expect(fails(onStrings([observed([{ type: 'Not a name', of: 'receiver' }])])).message).toContain('names its type as a name is');
             expect(fails(onStrings([observed('resize')]))).toMatchObject({ declarationKey: 'updates.observations' });
-            expect(() => new LexicaModule('charts', onStrings([observed([attributes])]))).not.toThrow();
+            expect(() => new NexoModule('charts', onStrings([observed([attributes])]))).not.toThrow();
         });
     });
 
@@ -429,7 +429,7 @@ describe('LexicaModule', () => {
         });
 
         it('leave out a field that holds undefined, a required parameter\'s default among them', () => {
-            const module = new LexicaModule('charts', declaring({ default: undefined, selects: undefined }));
+            const module = new NexoModule('charts', declaring({ default: undefined, selects: undefined }));
 
             expect(Object.keys(module.members[0].parameters[0])).not.toContain('default');
         });
@@ -464,7 +464,7 @@ describe('LexicaModule', () => {
 
         it('are members as any other, each a function whose result is a boolean, with its updates and its implementation', () => {
             const implementation = () => true;
-            const [kept] = new LexicaModule('lit', onStrings([test({ impl: implementation })])).types[0].members;
+            const [kept] = new NexoModule('lit', onStrings([test({ impl: implementation })])).types[0].members;
 
             expect(kept).toMatchObject({ name: 'lit', kind: 'function', result: 'Boolean', parameters: [] });
             expect(kept.impl).toBe(implementation);
@@ -472,7 +472,7 @@ describe('LexicaModule', () => {
 
         it('are named as every member is, so a name joined by a hyphen is refused, and is written as one name', () => {
             refusal(onStrings([test({ name: 'focus-within' })]), 'focus-within', 'name', 'A member is named as a name is');
-            expect(() => new LexicaModule('lit', onStrings([test({ name: 'focusWithin' })]))).not.toThrow();
+            expect(() => new NexoModule('lit', onStrings([test({ name: 'focusWithin' })]))).not.toThrow();
         });
     });
 
@@ -480,7 +480,7 @@ describe('LexicaModule', () => {
         it('take a callback of the receiver\'s own type, an extension\'s target that is a type parameter binding it', () => {
             const tested = functionDeclaration({ name: 'passes', result: 'Boolean', parameters: [parameterDeclaration({ name: 'test', kind: 'function', type: 'Boolean', parameterTypes: ['T'], nulls: undefined })], updates: { changes: 'derived', reads: 'derived' } });
 
-            expect(new LexicaModule('charts', { types: [extensionDeclaration('Values<T>', 'T', [tested])] }).types[0].members[0]).toMatchObject({ parameters: [{ kind: 'function', parameterTypes: ['T'], type: 'Boolean' }] });
+            expect(new NexoModule('charts', { types: [extensionDeclaration('Values<T>', 'T', [tested])] }).types[0].members[0]).toMatchObject({ parameters: [{ kind: 'function', parameterTypes: ['T'], type: 'Boolean' }] });
         });
     });
 
@@ -490,19 +490,19 @@ describe('LexicaModule', () => {
         });
 
         it.each(['Number', 'List', 'Null', 'Never', 'chart', 'null', 'number'])('take a structured type named %s, a casing that is a convention and a name another declaration may share', name => {
-            expect(new LexicaModule('charts', { types: [{ name, kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] }).types[0].name).toBe(name);
+            expect(new NexoModule('charts', { types: [{ name, kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] }).types[0].name).toBe(name);
         });
 
         it('take a structured type named by one capital letter, a name a declaration reads as a type parameter only where it declares one', () => {
-            expect(new LexicaModule('charts', { types: [{ name: 'X', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] }).types[0].name).toBe('X');
+            expect(new NexoModule('charts', { types: [{ name: 'X', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] }).types[0].name).toBe('X');
         });
 
         it('take a structured type named as a node of Nexo\'s, which its module tells apart', () => {
-            expect(() => new LexicaModule('charts', { types: [{ name: 'Element', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] })).not.toThrow();
+            expect(() => new NexoModule('charts', { types: [{ name: 'Element', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }) }] })).not.toThrow();
         });
 
         it('take the modules a structured type imports, by their names, each once', () => {
-            expect(new LexicaModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }), import: ['axes'] }] }).types[0].import).toEqual(['axes']);
+            expect(new NexoModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }), import: ['axes'] }] }).types[0].import).toEqual(['axes']);
             refusal({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }), import: 'axes' }] }, 'Chart', 'import', 'A type imports modules by their names, as a list');
             refusal({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ level: 'Number' }), import: ['axes', 'axes'] }] }, 'Chart', 'import', "imports the module 'axes' twice");
         });
@@ -518,7 +518,7 @@ describe('LexicaModule', () => {
 
         it('are kept as data, with the arguments of their identity, whether they are shared, and their implementation', () => {
             const implementation = () => ({ stop() {} });
-            const module = new LexicaModule('charts', { observationTypes: [type(), type({ name: 'sampled', contract: 'maintained', identity: ['root'], shared: false, impl: implementation })] });
+            const module = new NexoModule('charts', { observationTypes: [type(), type({ name: 'sampled', contract: 'maintained', identity: ['root'], shared: false, impl: implementation })] });
 
             expect(module.observationTypes.map(declared => [declared.name, declared.identity, declared.shared])).toEqual([['ticks', [], true], ['sampled', ['root'], false]]);
             expect(module.observationTypes[1].impl).toBe(implementation);
@@ -542,7 +542,7 @@ describe('operators', () => {
 
     it('are kept as members of their type, each named for its operation, its destination its result, with its implementation', () => {
         const implementation = ({ value }) => String(value.points);
-        const [, operator] = new LexicaModule('charts', chart([operatorDeclaration('convert', 'String', implementation), operatorDeclaration('cast', 'Chart')])).types[0].members;
+        const [, operator] = new NexoModule('charts', chart([operatorDeclaration('convert', 'String', implementation), operatorDeclaration('cast', 'Chart')])).types[0].members;
 
         expect(operator).toMatchObject({ kind: 'operator', name: 'convert', result: 'String', parameters: [], impl: implementation });
     });
@@ -551,7 +551,7 @@ describe('operators', () => {
         refusal(chart([operatorDeclaration('parse', 'String')]), 'parse', 'name', 'An operator is named cast or convert');
         refusal(chart([operatorDeclaration('convert<T>', 'T')]), 'convert', 'name', 'declares type parameters, which its destination never binds');
         refusal({ members: [operatorDeclaration('convert', 'String')] }, 'convert', 'kind', 'An operator is invoked on a value of its type, and a module member takes none');
-        expect(() => new LexicaModule('charts', onStrings([operatorDeclaration('convert', 'Number')]))).not.toThrow();
+        expect(() => new NexoModule('charts', onStrings([operatorDeclaration('convert', 'Number')]))).not.toThrow();
     });
 
     it('take a name, a kind, a result, an implementation that is a function and internal alone, its destination required', () => {
@@ -562,8 +562,8 @@ describe('operators', () => {
     });
 
     it('take to as a member name, a property, a function call or an indexer, since it converts only after a value', () => {
-        expect(new LexicaModule('charts', { members: [functionDeclaration({ name: 'to' })] }).members[0].kind).toBe('function');
-        expect(new LexicaModule('charts', { members: [propertyDeclaration({ name: 'to' })] }).members[0].name).toBe('to');
-        expect(new LexicaModule('charts', onStrings([indexerDeclaration({ name: 'to' })])).types[0].members[0].kind).toBe('indexer');
+        expect(new NexoModule('charts', { members: [functionDeclaration({ name: 'to' })] }).members[0].kind).toBe('function');
+        expect(new NexoModule('charts', { members: [propertyDeclaration({ name: 'to' })] }).members[0].name).toBe('to');
+        expect(new NexoModule('charts', onStrings([indexerDeclaration({ name: 'to' })])).types[0].members[0].kind).toBe('indexer');
     });
 });

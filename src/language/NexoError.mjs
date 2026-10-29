@@ -1,5 +1,5 @@
 /**
- * LexicaError — a Nexo failure, the code of its condition and its location
+ * NexoError — a Nexo failure, the code of its condition and its location
  */
 
 /** The first code of each kind's range of Nexo's own codes, which runs a thousand codes. */
@@ -16,7 +16,7 @@ const CODE_RANGE_STARTS = { syntax: 1000, structure: 2000, validation: 3000, mod
  * @property {string} [declaration] The failing declaration's name.
  */
 
-export class LexicaError extends Error {
+export class NexoError extends Error {
     /** The code of the condition that failed: `NEXO` and four digits for Nexo's own, a host's own prefix for a host's. */
     code;
 
@@ -34,10 +34,10 @@ export class LexicaError extends Error {
      * @param {{ cause?: unknown }} [options] What caused it.
      */
     constructor(kind, code, message, location, options = undefined) {
-        LexicaError.#requireCode(kind, code);
-        const place = LexicaError.#describe(location);
+        NexoError.#requireCode(kind, code);
+        const place = NexoError.#describe(location);
         super(place === '' ? message : `${message} (${place})`, options);
-        this.name = 'LexicaError';
+        this.name = 'NexoError';
         this.code = code;
         this.kind = kind;
         this.location = location;
@@ -45,27 +45,27 @@ export class LexicaError extends Error {
 
     /** A text that does not follow the syntax, failing at the offset. */
     static syntax(code, message, text, offset) {
-        return new LexicaError('syntax', code, message, LexicaError.locate(text, offset));
+        return new NexoError('syntax', code, message, NexoError.locate(text, offset));
     }
 
     /** A definition, or a binding, that does not follow the structure, failing at the location. */
     static structure(code, message, location) {
-        return new LexicaError('structure', code, message, location);
+        return new NexoError('structure', code, message, location);
     }
 
     /** A request that does not follow the vocabulary, failing at the location. */
     static validation(code, message, location) {
-        return new LexicaError('validation', code, message, location);
+        return new NexoError('validation', code, message, location);
     }
 
     /** A request that fails as it is carried out, at the location of the part that failed. */
     static evaluation(code, message, location, options) {
-        return new LexicaError('evaluation', code, message, location, options);
+        return new NexoError('evaluation', code, message, location, options);
     }
 
     /** A module whose declarations do not follow the declaration contract, failing at the location. */
     static module(code, message, location) {
-        return new LexicaError('module', code, message, location);
+        return new NexoError('module', code, message, location);
     }
 
     /** Refuses a code that is not one, or one of Nexo's own outside its kind's range, which is a mistake in the code raising it. */
@@ -133,7 +133,7 @@ export class LexicaError extends Error {
     }
 }
 
-/** The errors Nexo's own code raised, each made by LexicaErrors; one a host builds with the class's factories is not among them. @type {WeakSet<LexicaError>} */
+/** The errors Nexo's own code raised, each made by NexoErrors; one a host builds with the class's factories is not among them. @type {WeakSet<NexoError>} */
 const raisedErrors = new WeakSet();
 
 /** The error, marked as one Nexo raised. */
@@ -144,15 +144,15 @@ const raise = error => {
 };
 
 /**
- * The factories Nexo's own code raises its errors with, each marking the error as one Nexo raised, and `isRaisedByLexica`, whether that marker is on an error, which a failure passing through a host's code keeps as it
- * is: a LexicaError a host builds with the exported class carries none, so it stays apart from Nexo's own.
+ * The factories Nexo's own code raises its errors with, each marking the error as one Nexo raised, and `isRaisedByNexo`, whether that marker is on an error, which a failure passing through a host's code keeps as it
+ * is: a NexoError a host builds with the exported class carries none, so it stays apart from Nexo's own.
  * The package exports the class alone, whose factories a host builds its own errors with, so a host's error is never taken for Nexo's.
  */
-export const LexicaErrors = Object.freeze({
-    syntax: (code, message, text, offset) => raise(LexicaError.syntax(code, message, text, offset)),
-    structure: (code, message, location) => raise(LexicaError.structure(code, message, location)),
-    validation: (code, message, location) => raise(LexicaError.validation(code, message, location)),
-    evaluation: (code, message, location, options) => raise(LexicaError.evaluation(code, message, location, options)),
-    module: (code, message, location) => raise(LexicaError.module(code, message, location)),
-    isRaisedByLexica: error => raisedErrors.has(error),
+export const NexoErrors = Object.freeze({
+    syntax: (code, message, text, offset) => raise(NexoError.syntax(code, message, text, offset)),
+    structure: (code, message, location) => raise(NexoError.structure(code, message, location)),
+    validation: (code, message, location) => raise(NexoError.validation(code, message, location)),
+    evaluation: (code, message, location, options) => raise(NexoError.evaluation(code, message, location, options)),
+    module: (code, message, location) => raise(NexoError.module(code, message, location)),
+    isRaisedByNexo: error => raisedErrors.has(error),
 });

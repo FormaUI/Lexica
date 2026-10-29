@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Device, Light, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { extensionDeclaration } from './support/declarations.mjs';
 
-const { createPropertyDeclaration } = lexica.declarations;
+const { createPropertyDeclaration } = nexo.declarations;
 
 const lamp = new Light('lamp');
 const fan = new Device('fan');
@@ -14,7 +14,7 @@ const fan = new Device('fan');
 let seen = [];
 
 /** A probe of the home: each number's `seen`, which records the number and answers it, so an expression reading it is counted. */
-const createProbe = () => lexica.createModule('Probe', withHome({ types: [extensionDeclaration('Numbers', 'Number', [createPropertyDeclaration('seen', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (seen.push(receiver), receiver) })])] }));
+const createProbe = () => nexo.createModule('Probe', withHome({ types: [extensionDeclaration('Numbers', 'Number', [createPropertyDeclaration('seen', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (seen.push(receiver), receiver) })])] }));
 
 const values = {
     xs: [3, 1, 2],
@@ -32,7 +32,7 @@ const values = {
 const evaluate = text => {
     seen = [];
 
-    const resolution = lexica.createRegistry([createProbe()]).resolve(text, values, { imports: ['Probe'] });
+    const resolution = nexo.createRegistry([createProbe()]).resolve(text, values, { imports: ['Probe'] });
 
     return { value: resolution.createEvaluator(values).evaluate().value, type: resolution.type };
 };

@@ -2,10 +2,10 @@
  * The specification's examples' vocabulary, as its document sets it out: the modules `Home` and `Energy`, written once, and the home they read, its rooms and devices, a host binds to every example
  */
 
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Device, Light, Room, Sensor, Thermostat, homeTypeOf, homeTypes } from './home.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = nexo.declarations;
 
 /** A member's updates: how its answer changes, what it reads, the observations covering its changes and its tolerance, where it has one. */
 const updates = (changes, reads, observations = [], extras = {}) => ({ changes, reads, ...(observations.length === 0 ? {} : { observations }), ...extras });
@@ -29,7 +29,7 @@ const field = (name, result, fieldUpdates) => createPropertyDeclaration(name, re
  * The module `Home`: its rooms and devices, lights, thermostats and sensors among them, each a reference type with identity, and its structured types of data, `Climate`, `Change` and `Motion`; its members, its tests, its
  * observation types and the target `Home`; the host calls `on`, `dim` and `hold`; and the selector `event`. Its module members read the home given.
  */
-export const createExamplesHome = home => lexica.createModule('Home', {
+export const createExamplesHome = home => nexo.createModule('Home', {
     typeOf: homeTypeOf,
     types: [
         ...homeTypes.map(type => ({ ...type, members: HOME_MEMBERS[type.name] })),
@@ -101,7 +101,7 @@ const HOME_MEMBERS = {
  * The module `Energy`: its extension `Device` of the home's devices, their usage, the power their meter measures and their meter; the reference type `Meter`, every device as its meter sees it, with its declared cast to
  * the home's `Device`; and its observation type `meter`.
  */
-export const createExamplesEnergy = () => lexica.createModule('Energy', {
+export const createExamplesEnergy = () => nexo.createModule('Energy', {
     types: [
         { name: 'Meter', kind: 'reference', isInstance: value => value instanceof Device, members: [{ kind: 'operator', name: 'cast', result: 'Home.Device' }] },
         {

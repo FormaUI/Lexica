@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
+import { Declarations } from '#nexo/language/vocabulary/Declarations.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
 import { errorThrownBy } from '../../support/errors.mjs';
 import { constantUpdates } from '../../support/updates.mjs';
 
 /** The module error creating a module of the members throws, as its code and location. */
 const refusalOf = members => {
-    const error = errorThrownBy(() => new LexicaModule('shop', { members }));
+    const error = errorThrownBy(() => new NexoModule('shop', { members }));
 
     return { code: error.code, location: error.location };
 };
@@ -23,8 +23,8 @@ describe('Declarations', () => {
     it('creates a property without updates as a property of a structured type\'s data, which a module member is refused for lacking', () => {
         expect(Declarations.createPropertyDeclaration('price', 'Number')).toEqual({ name: 'price', kind: 'property', result: 'Number' });
         expect(refusalOf([Declarations.createPropertyDeclaration('price', 'Number', { impl: () => 1 })])).toEqual({ code: 'NEXO4032', location: { module: 'shop', declaration: 'price', declarationKey: 'updates' } });
-        expect(() => new LexicaModule('shop', { types: [{ name: 'Cup', kind: 'structured', members: [Declarations.createPropertyDeclaration('price', 'Number')] }] })).not.toThrow();
-        expect(() => new LexicaModule('shop', { members: [Declarations.createPropertyDeclaration('price', 'Number', { updates: constantUpdates, impl: () => 1 })] })).not.toThrow();
+        expect(() => new NexoModule('shop', { types: [{ name: 'Cup', kind: 'structured', members: [Declarations.createPropertyDeclaration('price', 'Number')] }] })).not.toThrow();
+        expect(() => new NexoModule('shop', { members: [Declarations.createPropertyDeclaration('price', 'Number', { updates: constantUpdates, impl: () => 1 })] })).not.toThrow();
     });
 
     it('writes no updates for a function the host invokes, whatever it is given', () => {

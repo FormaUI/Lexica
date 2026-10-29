@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { extensionDeclaration, receiverTestsDeclaration } from './support/declarations.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 import { evaluateWithCreatedBindings, resolveWith, createImportingRegistry } from './support/pipeline.mjs';
 
-const { createPropertyDeclaration, createFunctionParameterDeclaration, createValueParameterDeclaration, createExpressionParameterDeclaration, createPredicateParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionParameterDeclaration, createValueParameterDeclaration, createExpressionParameterDeclaration, createPredicateParameterDeclaration, createFunctionDeclaration } = nexo.declarations;
 
 /**
  * A pantry's module on words: a word's size, its weight and whether it is vegan, the last two also module members of the word, which a script names by reference; members that keep the predicate or the expression they are
@@ -15,7 +15,7 @@ const { createPropertyDeclaration, createFunctionParameterDeclaration, createVal
 const createPantry = (held = {}) => {
     let kept = null;
 
-    return lexica.createModule('pantry', {
+    return nexo.createModule('pantry', {
         types: [
             receiverTestsDeclaration(),
             extensionDeclaration('StringExtensions', 'String', [

@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { lexica, LexicaError } from '#lexica/lexica.js';
+import { nexo, NexoError } from '#nexo/nexo.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
 import { createImportingRegistry } from './support/pipeline.mjs';
 
-const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = nexo.declarations;
 
 /** A plain host's module, of no domain: an order's total within a cent, a discount by code, and a product's stock, maintained by an observation the host samples. */
-const createShop = () => lexica.createModule('shop', {
+const createShop = () => nexo.createModule('shop', {
     types: [
         { name: 'Price', kind: 'structured', members: dataPropertyDeclarations({ amount: 'Number', currency: 'String' }) },
         { name: 'Supplier', kind: 'reference', isInstance: value => value?.isSupplier === true },
@@ -115,7 +115,7 @@ describe('a host of plain data', () => {
 
         expect(evaluator.evaluate().value).toBe(7);
 
-        registry.registerModule(lexica.createModule('extra', { typeOf: () => null }));
+        registry.registerModule(nexo.createModule('extra', { typeOf: () => null }));
 
         expect(resolution.isCurrent).toBe(false);
         expect(errorThrownBy(() => evaluator.evaluate())).toMatchObject({ kind: 'structure', message: expect.stringContaining('its resolution is stale; resolve the script again') });
@@ -124,7 +124,7 @@ describe('a host of plain data', () => {
 
     describe('across a registration', () => {
         /** A module of nothing but a recognition, which tells a value's type to whatever may recognize it. */
-        const createRecognizing = () => lexica.createModule('recognizing', { typeOf: () => null });
+        const createRecognizing = () => nexo.createModule('recognizing', { typeOf: () => null });
 
         it('keeps a resolution that may not recognize current, so its evaluator evaluates on and its results\' origins stay comparable with those before', () => {
             const registry = createImportingRegistry([createShop()]);
@@ -132,7 +132,7 @@ describe('a host of plain data', () => {
             const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' });
             const before = evaluator.evaluate();
 
-            registry.registerModule(lexica.createModule('extra', {}));
+            registry.registerModule(nexo.createModule('extra', {}));
             registry.registerModule(createRecognizing());
 
             const after = evaluator.evaluate();
@@ -149,7 +149,7 @@ describe('a host of plain data', () => {
             const call = resolution.createEvaluator({ order: 'a', code: 'TEN' }).prepareHostCall();
             const before = call.project(3);
 
-            registry.registerModule(lexica.createModule('extra', {}));
+            registry.registerModule(nexo.createModule('extra', {}));
 
             const after = call.project(4);
 
@@ -187,12 +187,12 @@ describe('a host of plain data', () => {
             const registry = createImportingRegistry([createShop(), createRecognizing()]);
             const resolution = registry.resolve('order.held', { order: 'a' });
 
-            registry.registerModule(lexica.createModule('extra', {}));
+            registry.registerModule(nexo.createModule('extra', {}));
 
             expect(resolution.isCurrent).toBe(true);
             expect(resolution.createEvaluator({ order: 'a' }).evaluate().value).toBe(7);
 
-            registry.registerModule(lexica.createModule('later', { typeOf: () => null }));
+            registry.registerModule(nexo.createModule('later', { typeOf: () => null }));
 
             expect(resolution.isCurrent).toBe(false);
         });
@@ -204,7 +204,7 @@ describe('a host of plain data', () => {
 
             expect(evaluator.evaluate().value).toBe(0);
 
-            registry.registerModule(lexica.createModule('extra', {}));
+            registry.registerModule(nexo.createModule('extra', {}));
 
             expect(resolution.isCurrent).toBe(true);
             expect(evaluator.evaluate().value).toBe(0);
@@ -219,7 +219,7 @@ describe('a host of plain data', () => {
     it('registers a module and answers nothing, so no registration hands out the registry behind it', () => {
         const registry = createImportingRegistry([createShop()]);
 
-        expect(registry.registerModule(lexica.createModule('extra', {}))).toBeUndefined();
+        expect(registry.registerModule(nexo.createModule('extra', {}))).toBeUndefined();
         expect(registry.moduleNames).toContain('extra');
     });
 
@@ -227,7 +227,7 @@ describe('a host of plain data', () => {
         const invoked = [];
         const add = type => createFunctionDeclaration('add', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('amount', type)], impl: ({ receiver, args }) => (invoked.push(args.amount), receiver + args.amount) });
         const none = createPropertyDeclaration('none', 'Number?', { updates: constantUpdates, impl: () => null });
-        const sums = type => createImportingRegistry([lexica.createModule('sums', { types: [extensionDeclaration('Sums', 'Number', [add(type), none])] })]);
+        const sums = type => createImportingRegistry([nexo.createModule('sums', { types: [extensionDeclaration('Sums', 'Number', [add(type), none])] })]);
         const resolve = (type, text) => sums(type).resolve(text, { n: 1 });
 
         for (const type of ['Number', 'Number?']) {
@@ -247,31 +247,31 @@ describe('a host of plain data', () => {
 
         evaluator.evaluate({ beforeInvoke: () => { inner = errorThrownBy(() => evaluator.evaluate()); } });
 
-        expect(inner).toBeInstanceOf(LexicaError);
+        expect(inner).toBeInstanceOf(NexoError);
         expect(inner.message).toContain('one evaluation at a time');
         expect(evaluator.evaluate().value).toBe(10);
     });
 
     it('quotes and locates source, and refuses a pointer the definition does not hold', () => {
-        const definition = lexica.parse('{ total = order.total }');
+        const definition = nexo.parse('{ total = order.total }');
 
-        expect(lexica.quote('{\n    total = order.total\n}')).toBe('{ total = order.total }');
-        expect(lexica.getLocation(definition, '/expression/objectFields/0/value')).toMatchObject({ line: 1, column: 11 });
-        expect(lexica.getLocation(lexica.validate({ version: lexica.info.versions.definition, imports: [], expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
-        expect(errorThrownBy(() => lexica.getLocation(definition, '/expression/objectFields/9'))).toMatchObject({ kind: 'structure' });
+        expect(nexo.quote('{\n    total = order.total\n}')).toBe('{ total = order.total }');
+        expect(nexo.getLocation(definition, '/expression/objectFields/0/value')).toMatchObject({ line: 1, column: 11 });
+        expect(nexo.getLocation(nexo.validate({ version: nexo.info.versions.definition, imports: [], expression: { kind: 'literal', value: 1 } }), '/expression')).toEqual({ pointer: '/expression' });
+        expect(errorThrownBy(() => nexo.getLocation(definition, '/expression/objectFields/9'))).toMatchObject({ kind: 'structure' });
     });
 
     it('checks a result path and reads the value it reaches', () => {
-        expect(lexica.paths.valueAt({ total: { amount: 3 } }, ['total', 'amount'])).toBe(3);
-        expect(errorThrownBy(() => lexica.paths.validate(['total', -1]))).toMatchObject({ kind: 'structure' });
+        expect(nexo.paths.valueAt({ total: { amount: 3 } }, ['total', 'amount'])).toBe(3);
+        expect(errorThrownBy(() => nexo.paths.validate(['total', -1]))).toMatchObject({ kind: 'structure' });
     });
 });
 
 describe('the declaration shape', () => {
-    const { createPropertyDeclaration, createValueParameterDeclaration } = lexica.declarations;
+    const { createPropertyDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
     /** A module of a cafe's menu, each implementation recording the one object it was given. */
-    const createMenu = (received = []) => lexica.createModule('menu', {
+    const createMenu = (received = []) => nexo.createModule('menu', {
         types: [
             extensionDeclaration('StringExtensions', 'String', [
                 createPropertyDeclaration('price', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: input => (received.push(input), input.receiver.length) }),
@@ -325,12 +325,12 @@ describe('the declaration shape', () => {
 
     it('reads a required parameter whose default holds undefined as one that declares none, so its argument is still required', () => {
         const percent = { ...createValueParameterDeclaration('percent', 'Number'), default: undefined };
-        const registry = createImportingRegistry([lexica.createModule('cut', {
+        const registry = createImportingRegistry([nexo.createModule('cut', {
             types: [extensionDeclaration('StringExtensions', 'String', [createFunctionDeclaration('cut', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [percent], impl: ({ args }) => args.percent })])],
         })]);
 
         expect(registry.resolve('item.cut(5)', { item: 'latte' }).createEvaluator({ item: 'latte' }).evaluate().value).toBe(5);
-        expect(errorThrownBy(() => registry.resolve('item.cut()', { item: 'latte' }))).toBeInstanceOf(LexicaError);
+        expect(errorThrownBy(() => registry.resolve('item.cut()', { item: 'latte' }))).toBeInstanceOf(NexoError);
     });
 
     it('refuses a function call written as an indexer, giving the call to write', () => {
@@ -344,7 +344,7 @@ describe('the declaration shape', () => {
     });
 
     it('refuses to evaluate an expression that converts through a conversion without an implementation, in a branch it may not take as well', () => {
-        const cups = lexica.createModule('cups', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup')])] });
+        const cups = nexo.createModule('cups', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Orders', 'String', [operatorDeclaration('convert', 'Cup')])] });
         const resolution = createImportingRegistry([cups]).resolve('if large then (order to Cup).size else 0 end', { order: 'tall', large: false });
 
         expect(errorThrownBy(() => resolution.createEvaluator({ order: 'tall', large: false }))).toMatchObject({ kind: 'module', message: expect.stringContaining('The conversion from String to Cup has no implementation'), location: { module: 'cups', type: 'Orders', declaration: 'convert', declarationKey: 'impl' } });
@@ -352,7 +352,7 @@ describe('the declaration shape', () => {
 
     it('registers a module member, which has no target, beside the members of a type, read through its namespace and answered by no receiver, its implementation given no receiver', () => {
         const received = [];
-        const registry = createImportingRegistry([lexica.createModule('clock', {
+        const registry = createImportingRegistry([nexo.createModule('clock', {
             types: [
                 extensionDeclaration('StringExtensions', 'String', [
                     createPropertyDeclaration('length', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length }),
@@ -366,11 +366,11 @@ describe('the declaration shape', () => {
         expect(registry.moduleNames).toEqual(['Nexo', 'clock']);
         expect(registry.resolve('import clock\n{ length = item.length, zone = clock.zone }', { item: 'latte' }).createEvaluator({ item: 'latte' }, { rate: 1 }).evaluate().value).toEqual({ length: 5, zone: 'UTC' });
         expect(received).toEqual([{ args: {}, env: { rate: 1 } }]);
-        expect(errorThrownBy(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(LexicaError);
+        expect(errorThrownBy(() => registry.resolve('item.zone', { item: 'latte' }))).toBeInstanceOf(NexoError);
     });
 
     it('registers a module member and an extension member of one name in one module, the namespace reading the module member and a receiver the extension\'s', () => {
-        const registry = createImportingRegistry([lexica.createModule('clock', {
+        const registry = createImportingRegistry([nexo.createModule('clock', {
             types: [extensionDeclaration('Words', 'String', [createPropertyDeclaration('now', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver.length })])],
             members: [createPropertyDeclaration('now', 'Number', { updates: { changes: 'unobserved', reads: 'fresh' }, impl: () => 0 })],
         })]);

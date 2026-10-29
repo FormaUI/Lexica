@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { Range } from '#lexica/language/Range.mjs';
-import { Type } from '#lexica/language/Type.mjs';
-import { ItemPositions } from '#lexica/language/vocabulary/ItemPositions.mjs';
-import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { Range } from '#nexo/language/Range.mjs';
+import { Type } from '#nexo/language/Type.mjs';
+import { ItemPositions } from '#nexo/language/vocabulary/ItemPositions.mjs';
+import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 
 describe('Vocabulary', () => {
-    const registry = new LexicaRegistry([Vocabulary.module]);
+    const registry = new NexoRegistry([Vocabulary.module]);
     const { module } = Vocabulary;
     const list = Vocabulary.getTypeDeclaration('List');
     const [nestedLists] = module.types;

@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { lexica, LexicaError } from '#lexica/lexica.js';
+import { nexo, NexoError } from '#nexo/nexo.js';
 import { Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, hostFunctionDeclaration } from './support/declarations.mjs';
 import { resolveWith, createImportingRegistry } from './support/pipeline.mjs';
 
-const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createValueParameterDeclaration, createFunctionDeclaration } = nexo.declarations;
 
 /** A host call of a device, named by a string: a function its host invokes, which supplies values of the result's type, or none where it declares none. */
 
@@ -14,7 +14,7 @@ const { createPropertyDeclaration, createValueParameterDeclaration, createFuncti
  * each of the type the selector `event` maps the kind to; a device's reading of a name, of the type the selector `reading` maps the name to; a device's room; the level a device is set to and whether a room is occupied, each read
  * from the environment as it is when read; and a device's partner, which none has. The room and the level record each invocation, so a test sees which ran.
  */
-const createHome = (invoked = []) => lexica.createModule('home', {
+const createHome = (invoked = []) => nexo.createModule('home', {
     types: [
         { name: 'Motion', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number', strength: 'Number' }) },
         { name: 'Change', kind: 'structured', members: dataPropertyDeclarations({ setting: 'String', value: 'String?' }) },
@@ -64,7 +64,7 @@ describe('host calls', () => {
 
         const refused = errorThrownBy(() => resolve('thermostat.hold({ target = 21 })').typeAt([]));
 
-        expect(refused).toBeInstanceOf(LexicaError);
+        expect(refused).toBeInstanceOf(NexoError);
         expect(refused).toMatchObject({ kind: 'validation', location: { pointer: '/expression' } });
         expect(refused.message).toContain("The script ends in the host call 'hold', whose host supplies no values, so it has no result for a path to reach");
     });
@@ -93,7 +93,7 @@ describe('host calls', () => {
         for (const [text, pointer, message] of refusals) {
             const refused = errorThrownBy(() => resolve(text));
 
-            expect(refused, text).toBeInstanceOf(LexicaError);
+            expect(refused, text).toBeInstanceOf(NexoError);
             expect({ kind: refused.kind, pointer: refused.location.pointer }, text).toEqual({ kind: 'validation', pointer });
             expect(refused.message, text).toContain(message);
         }
@@ -107,7 +107,7 @@ describe('host calls', () => {
     });
 
     it('on a receiver of unknown type, keep their name and have no declaration yet, and are refused where the declarations disagree on who invokes them', () => {
-        const dimmer = lexica.createModule('dimmer', {
+        const dimmer = nexo.createModule('dimmer', {
             types: [extensionDeclaration('NumberExtensions', 'Number', [createFunctionDeclaration('dim', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, arguments: 'options', parameters: [createValueParameterDeclaration('to', 'Number')], impl: ({ args }) => args.to })])],
         });
 
@@ -147,10 +147,10 @@ describe('host calls', () => {
     });
 
     it('leave the definition as version 31 writes any call, validated and formatted as one', () => {
-        const definition = lexica.parse('let target = 21\nreturn thermostat.hold({ target = target })');
+        const definition = nexo.parse('let target = 21\nreturn thermostat.hold({ target = target })');
 
-        expect(lexica.validate(definition)).toEqual(definition);
-        expect(lexica.format(definition)).toBe('let target = 21\nreturn thermostat.hold({ target = target })');
+        expect(nexo.validate(definition)).toEqual(definition);
+        expect(nexo.format(definition)).toBe('let target = 21\nreturn thermostat.hold({ target = target })');
     });
 });
 
@@ -168,14 +168,14 @@ describe('prepared calls', () => {
         const call = evaluator.prepareHostCall();
 
         expect(call).toMatchObject({ kind: 'prepared', declaration: home.types[2].members[0], receiver: 'hall', args: { to: 40 }, pointer: '/expression' });
-        expect(lexica.getLocation(lexica.parse('light.dim({ to = 40 })'), call.pointer)).toMatchObject({ pointer: '/expression', line: 1, column: 1 });
+        expect(nexo.getLocation(nexo.parse('light.dim({ to = 40 })'), call.pointer)).toMatchObject({ pointer: '/expression', line: 1, column: 1 });
         expect(typeof call.project).toBe('function');
         expect(Object.isFrozen(call)).toBe(true);
     });
 
     it('describe a field of an object a local built before the call as an evaluation does, by the branch its value took, in every projection', () => {
         const tolerant = tolerance => ({ updates: { changes: 'constant', reads: 'fresh', tolerance } });
-        const module = lexica.createModule('home', {
+        const module = nexo.createModule('home', {
             types: [
                 extensionDeclaration('StringExtensions', 'String', [
                     createPropertyDeclaration('fine', 'Number', { ...tolerant(0.1), impl: () => 1 }),
@@ -309,7 +309,7 @@ describe('prepared calls', () => {
         const { evaluator, registry } = evaluatorOf('light.dim({ to = 40 })');
         const call = evaluator.prepareHostCall();
 
-        registry.registerModule(lexica.createModule('later', { typeOf: () => null }));
+        registry.registerModule(nexo.createModule('later', { typeOf: () => null }));
 
         expect(call.project(35).value).toBe(35);
     });
@@ -321,7 +321,7 @@ describe('values a host supplies', () => {
     const heater = new Thermostat('heater');
 
     /** A desk's module: a report its host supplies, with references, data and spots nested in it; a spot that may be none; and a spot a member answers, which its implementation answers with no label. */
-    const createReports = () => lexica.createModule('reports', withHome({
+    const createReports = () => nexo.createModule('reports', withHome({
         types: [
             { name: 'Spot', kind: 'structured', members: dataPropertyDeclarations({ x: 'Number', label: 'String?' }) },
             { name: 'Report', kind: 'structured', members: dataPropertyDeclarations({ target: 'Light?', owner: 'Light', note: 'String?', count: 'Number', spot: 'Spot?', spots: 'List<Spot>' }) },

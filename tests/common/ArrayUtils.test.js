@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ArrayUtils } from '#lexica/common/ArrayUtils.mjs';
+import { ArrayUtils } from '#nexo/common/ArrayUtils.mjs';
 
 describe('ArrayUtils', () => {
     describe('findMissingIndex', () => {

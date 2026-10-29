@@ -2,7 +2,7 @@
  * TextLocations — where in a source text each part of its definition came from, by JSON Pointer
  */
 
-import { LexicaError } from './LexicaError.mjs';
+import { NexoError } from './NexoError.mjs';
 
 /** @typedef {import('./Parser.mjs').Span} Span */
 
@@ -37,7 +37,7 @@ export class TextLocations {
     locateSpan(span) {
         const pointer = [...this.#spans].find(([, candidate]) => candidate === span)?.[0] ?? '/expression';
 
-        return { pointer, ...LexicaError.locate(this.#text, span.start) };
+        return { pointer, ...NexoError.locate(this.#text, span.start) };
     }
 
     /** The text position the pointer's part began at, or the nearest enclosing part's. */
@@ -46,7 +46,7 @@ export class TextLocations {
             const span = this.#spans.get(current);
 
             if (span) {
-                return { pointer, ...LexicaError.locate(this.#text, span.start) };
+                return { pointer, ...NexoError.locate(this.#text, span.start) };
             }
 
             if (current === '') {

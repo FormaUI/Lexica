@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { lexica, LexicaError } from '#lexica/lexica.js';
+import { nexo, NexoError } from '#nexo/nexo.js';
 import { withHome } from '../support/home.mjs';
-import { errorThrownBy, expectLexicaError, expectModuleError } from '../support/errors.mjs';
+import { errorThrownBy, expectNexoError, expectModuleError } from '../support/errors.mjs';
 import { constantUpdates } from '../support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, operatorDeclaration, parameterDeclaration, propertyDeclaration } from '../support/declarations.mjs';
 
@@ -17,11 +17,11 @@ const selecting = (overrides = {}) => parameterDeclaration({ name: 'kind', type:
 const hostCall = (overrides = {}) => functionDeclaration({ invokedBy: 'host', updates: undefined, ...overrides });
 
 /** Asserts that the call fails with a module error of the code. */
-const expectModuleCode = (call, code) => expectLexicaError(errorThrownBy(call), code, 'module');
+const expectModuleCode = (call, code) => expectNexoError(errorThrownBy(call), code, 'module');
 
-const creating = contents => () => lexica.createModule('charts', contents);
-const registering = (...modules) => () => lexica.createRegistry(modules);
-const module = (name, contents) => lexica.createModule(name, contents);
+const creating = contents => () => nexo.createModule('charts', contents);
+const registering = (...modules) => () => nexo.createRegistry(modules);
+const module = (name, contents) => nexo.createModule(name, contents);
 
 /** A module's contents, those given beside the members given, which stand in an extension of strings and take a string as their receiver. */
 const onStrings = (members, contents = {}) => ({ ...contents, types: [...(contents.types ?? []), extensionDeclaration('Words', 'String', members)] });
@@ -29,7 +29,7 @@ const onStrings = (members, contents = {}) => ({ ...contents, types: [...(conten
 describe('the module error codes', () => {
     describe('of creating a module', () => {
         it('NEXO4500: a module whose name is not an identifier', () => {
-            expectModuleCode(() => lexica.createModule('chart-tools', {}), 'NEXO4500');
+            expectModuleCode(() => nexo.createModule('chart-tools', {}), 'NEXO4500');
         });
 
         it('NEXO4501: a module whose contents are not an object', () => {
@@ -114,10 +114,10 @@ describe('the module error codes', () => {
 
         it('takes a type of any name, a lowercase one and one Nexo\'s own types spell among them, and a structured type of no data property', () => {
             for (const name of ['chart', 'Number', 'Null', 'List']) {
-                expect(() => lexica.createRegistry([module('charts', { types: [structured({ name })] })])).not.toThrow();
+                expect(() => nexo.createRegistry([module('charts', { types: [structured({ name })] })])).not.toThrow();
             }
 
-            expect(lexica.createRegistry([module('charts', { types: [structured({ members: [] }), structured({ name: 'Axis', members: undefined })] })]).moduleNames).toContain('charts');
+            expect(nexo.createRegistry([module('charts', { types: [structured({ members: [] }), structured({ name: 'Axis', members: undefined })] })]).moduleNames).toContain('charts');
         });
 
         it('NEXO4552: a type whose name is not an identifier', () => {
@@ -173,7 +173,7 @@ describe('the module error codes', () => {
         });
 
         it('takes a mapping\'s key of any string, as a fixed argument may give any', () => {
-            expect(() => lexica.createRegistry([module('charts', { typeSelectors: [{ name: 'report' }], mappings: [{ selector: 'report', key: 'chart click', type: 'Number' }, { selector: 'report', key: '', type: 'String' }] })])).not.toThrow();
+            expect(() => nexo.createRegistry([module('charts', { typeSelectors: [{ name: 'report' }], mappings: [{ selector: 'report', key: 'chart click', type: 'Number' }, { selector: 'report', key: '', type: 'String' }] })])).not.toThrow();
         });
 
         it('NEXO4039: a mapping of a selector no module declares', () => {
@@ -514,7 +514,7 @@ describe('the module error codes', () => {
             const [declared] = module('energy', { types: [extension({ name: 'Middles<T>', target: 'List<T>', members: [propertyDeclaration({ name: 'middle', result: 'T?' })] })] }).types;
 
             expect(declared).toMatchObject({ name: 'Middles', typeParameters: ['T'], kind: 'extension', target: 'List<T>' });
-            expect(() => lexica.createRegistry([module('energy', { types: [extension()] })])).not.toThrow();
+            expect(() => nexo.createRegistry([module('energy', { types: [extension()] })])).not.toThrow();
         });
 
         it('NEXO4012: an extension that names no target', () => {
@@ -556,13 +556,13 @@ describe('the module error codes', () => {
             expectModuleCode(registering(module('words', { types: [extension({ name: 'Usage<String>', target: 'List<String>' })] })), 'NEXO4042');
             expectModuleCode(registering(module('words', { types: [extension({ name: 'Usage<Never>', target: 'List<Never>' })] })), 'NEXO4042');
             expectModuleCode(registering(module('words', { types: [{ name: 'Word', kind: 'structured', members: [] }], members: [functionDeclaration({ name: 'pick<Word>', parameters: [parameterDeclaration({ type: 'Word' })], result: 'Word' })] })), 'NEXO4042');
-            expect(() => lexica.createRegistry([module('words', { members: [functionDeclaration({ name: 'pick<Item>', parameters: [parameterDeclaration({ type: 'Item' })], result: 'Item' })] })])).not.toThrow();
+            expect(() => nexo.createRegistry([module('words', { members: [functionDeclaration({ name: 'pick<Item>', parameters: [parameterDeclaration({ type: 'Item' })], result: 'Item' })] })])).not.toThrow();
         });
 
         it('NEXO4011: a member whose result writes a type parameter nothing binds', () => {
             expectModuleCode(registering(module('words', { members: [functionDeclaration({ name: 'make<T>', parameters: [], arguments: undefined, result: 'T' })] })), 'NEXO4011');
             expectModuleCode(registering(module('words', { types: [extension({ name: 'Usage<T>', members: [propertyDeclaration({ name: 'usage', result: 'T' })] })] })), 'NEXO4011');
-            expect(() => lexica.createRegistry([module('words', { types: [extension({ name: 'Usage<T>', target: 'List<T>', members: [propertyDeclaration({ name: 'usage', result: 'T?' })] })] })])).not.toThrow();
+            expect(() => nexo.createRegistry([module('words', { types: [extension({ name: 'Usage<T>', target: 'List<T>', members: [propertyDeclaration({ name: 'usage', result: 'T?' })] })] })])).not.toThrow();
         });
 
         it('NEXO4044: a member whose callback\'s input writes a type parameter only another callback\'s result binds', () => {
@@ -592,14 +592,14 @@ describe('the module error codes', () => {
             expectModuleCode(registering(readings({ types: [state], members: [functionDeclaration({ parameters: [parameterDeclaration({ type: 'List<ReadingState>' })] })] })), 'NEXO4052');
             expectModuleCode(registering(readings({ types: [{ ...reading(), name: 'Inner', internal: true }, reading([], { supertype: 'Inner' })] })), 'NEXO4052');
             expectModuleCode(registering(readings({ types: [state], typeSelectors: [{ name: 'report' }], mappings: [{ selector: 'report', key: 'state', type: 'ReadingState' }] })), 'NEXO4052');
-            expect(() => lexica.createRegistry([readings({ types: [state], members: [propertyDeclaration({ result: 'ReadingState', internal: true })] })])).not.toThrow();
-            expect(() => lexica.createRegistry([readings({ types: [state, reading([propertyDeclaration({ name: 'state', result: 'ReadingState', internal: true })])] })])).not.toThrow();
+            expect(() => nexo.createRegistry([readings({ types: [state], members: [propertyDeclaration({ result: 'ReadingState', internal: true })] })])).not.toThrow();
+            expect(() => nexo.createRegistry([readings({ types: [state, reading([propertyDeclaration({ name: 'state', result: 'ReadingState', internal: true })])] })])).not.toThrow();
         });
 
         it('takes a member within an internal type as internal, whatever its own flag says, so it exposes the type\'s internal types freely', () => {
             const inner = { ...reading([propertyDeclaration({ name: 'state', result: 'ReadingState', internal: false })]), internal: true };
 
-            expect(() => lexica.createRegistry([readings({ types: [state, inner] })])).not.toThrow();
+            expect(() => nexo.createRegistry([readings({ types: [state, inner] })])).not.toThrow();
         });
 
         it('NEXO4018: a declaration naming another module\'s internal type', () => {
@@ -623,7 +623,7 @@ describe('the module error codes', () => {
             expectModuleCode(registering(module('NEXO', {})), 'NEXO4035');
             // Nexo's own module is spelled as the specification spells it, which another spelling of its name collides with.
             expect(expectModuleError(registering(module('nexo', {}))).message).toContain("'Nexo' is registered already");
-            expect(lexica.createRegistry([module('Charts', {})]).moduleNames).toContain('Charts');
+            expect(nexo.createRegistry([module('Charts', {})]).moduleNames).toContain('Charts');
         });
 
         it('NEXO4033: a type of a name its module already declares', () => {

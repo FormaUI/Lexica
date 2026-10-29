@@ -3,7 +3,7 @@
  */
 
 import { Type } from './Type.mjs';
-import { LexicaModule } from './vocabulary/LexicaModule.mjs';
+import { NexoModule } from './vocabulary/NexoModule.mjs';
 
 /**
  * The answers to whether a value of one type is assignable to another: assignable, assignable once its value is checked when it is evaluated, as a value of `Any` is, or refused.
@@ -167,7 +167,7 @@ export class TypeChecker {
 
     /** Whether values of the type are compared with each other by an equality, rather than with null alone: strings, numbers and Booleans by their values, and references by their identity. */
     isComparable(type) {
-        return type.kind === 'named' && ((type.moduleName === null && LexicaModule.scalarTypeNames.includes(type.name)) || this.#registry.isReferenceType(type));
+        return type.kind === 'named' && ((type.moduleName === null && NexoModule.scalarTypeNames.includes(type.name)) || this.#registry.isReferenceType(type));
     }
 
     /** Whether the member applies to the receiver, by one of its receiver types, as inferring its receiver's type arguments succeeds; it records nothing. */

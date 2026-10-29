@@ -1,7 +1,7 @@
 /**
  * Declarations as a module writes them, raw records a test changes the parts of, so a test of a shape the helpers would never build still builds it; and a host function as a host declares one through the declaration helpers
  */
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 
 /** A property, constant and fresh, in the declaration shape, with what a test changes: a module member where it stands among a module's members, and a member of its type or its extension's target within either. */
 export const propertyDeclaration = (overrides = {}) => ({
@@ -19,7 +19,7 @@ export const functionDeclaration = (overrides = {}) => propertyDeclaration({ kin
 export const parameterDeclaration = (overrides = {}) => ({ name: 'amount', kind: 'value', type: 'Number', required: true, nulls: 'propagate', ...overrides });
 
 /** A function the host invokes, declared through the declaration helpers as a host declares one, of the result given. */
-export const hostFunctionDeclaration = (name, result, options = {}) => lexica.declarations.createFunctionDeclaration(name, result, { invokedBy: 'host', ...options });
+export const hostFunctionDeclaration = (name, result, options = {}) => nexo.declarations.createFunctionDeclaration(name, result, { invokedBy: 'host', ...options });
 
 /** The data properties of a structured type's data shape, in the declaration shape, from the type of each property by its name: each a property without updates, which Nexo reads from the data. */
 export const dataPropertyDeclarations = shape => Object.entries(shape).map(([name, result]) => ({ name, kind: 'property', result }));
@@ -38,9 +38,9 @@ export const operatorDeclaration = (name, result, impl) => ({ kind: 'operator', 
  * since Nexo declares none.
  */
 export const receiverTestsDeclaration = () => extensionDeclaration('Checks<T>', 'T', [
-    lexica.declarations.createFunctionDeclaration('is', 'Boolean', {
+    nexo.declarations.createFunctionDeclaration('is', 'Boolean', {
         updates: { changes: 'derived', reads: 'derived' },
-        parameters: [lexica.declarations.createFunctionParameterDeclaration('test', 'Boolean', ['T'])],
+        parameters: [nexo.declarations.createFunctionParameterDeclaration('test', 'Boolean', ['T'])],
         impl: ({ receiver, args }) => args.test(receiver),
     }),
 ]);

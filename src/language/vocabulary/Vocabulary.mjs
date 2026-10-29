@@ -8,7 +8,7 @@ import { Names } from '../Names.mjs';
 import { Pair } from '../Pair.mjs';
 import { Declarations } from './Declarations.mjs';
 import { ItemPositions } from './ItemPositions.mjs';
-import { LexicaModule } from './LexicaModule.mjs';
+import { NexoModule } from './NexoModule.mjs';
 import { ListOrdering } from './ListOrdering.mjs';
 import { MemberFailure } from './MemberFailure.mjs';
 
@@ -23,7 +23,7 @@ const DERIVED_UPDATES = Object.freeze({ changes: 'derived', reads: 'derived' });
 
 export class Vocabulary {
     /** The name of Nexo's own module, spelled as the specification spells it. */
-    static moduleName = Names.lexicaModuleName;
+    static moduleName = Names.nexoModuleName;
 
     /** @type {readonly object[] | undefined} */
     static #valueTypes;
@@ -37,7 +37,7 @@ export class Vocabulary {
      */
     static get valueTypes() {
         return Vocabulary.#valueTypes ??= Object.freeze([
-            ...LexicaModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar', members: Vocabulary.#createMembers(name, name, [...Vocabulary.#createConversions(name), ...Vocabulary.#createScalarMembers(name)]) })),
+            ...NexoModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar', members: Vocabulary.#createMembers(name, name, [...Vocabulary.#createConversions(name), ...Vocabulary.#createScalarMembers(name)]) })),
             Object.freeze({ name: 'List', kind: 'generic', typeParameters: Object.freeze(['T']), variances: Object.freeze(['covariant']), members: Vocabulary.#createMembers('List<T>', 'List<T>', Vocabulary.#createListMembers()) }),
             Object.freeze({ name: 'Dictionary', kind: 'generic', typeParameters: Object.freeze(['K', 'V']), variances: Object.freeze(['invariant', 'covariant']), members: Vocabulary.#createMembers('Dictionary<K, V>', 'Dictionary<K, V>', Vocabulary.#createDictionaryMembers()) }),
             ...['Index', 'Range'].map(name => Object.freeze({ name, kind: 'position', members: Object.freeze([]) })),
@@ -97,16 +97,16 @@ export class Vocabulary {
         return Vocabulary.valueTypes.find(type => type.name === name);
     }
 
-    /** @type {LexicaModule | undefined} */
+    /** @type {NexoModule | undefined} */
     static #module;
 
     /**
-     * Nexo's own module, each member and operator carrying its implementation: one module, created here alone, which every registry `lexica.createRegistry` makes holds and whose conversions between the language's
+     * Nexo's own module, each member and operator carrying its implementation: one module, created here alone, which every registry `nexo.createRegistry` makes holds and whose conversions between the language's
      * types no other module may declare. It declares `flatten` in `NestedListExtensions<T>`, an extension of lists of lists, and owns the value types, whose members and operators the registry registers with it.
      * A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
      */
     static get module() {
-        return Vocabulary.#module ??= new LexicaModule(Vocabulary.moduleName, {
+        return Vocabulary.#module ??= new NexoModule(Vocabulary.moduleName, {
             types: [
                 // A list of lists flattens to their items, each inner list's in order; an inner list that can be null is no list of lists, so none is ever treated as empty.
                 { name: 'NestedListExtensions<T>', kind: 'extension', target: 'List<List<T>>', members: [Declarations.createPropertyDeclaration('flatten', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.flat() })] },
@@ -119,7 +119,7 @@ export class Vocabulary {
      * scope its members read, a list's `T` among them, and no module declares Nexo's value types, whose form is Nexo's alone.
      */
     static #createMembers(name, target, members) {
-        return new LexicaModule(Vocabulary.moduleName, { types: [{ name, kind: 'extension', target, members }] }).types[0].members;
+        return new NexoModule(Vocabulary.moduleName, { types: [{ name, kind: 'extension', target, members }] }).types[0].members;
     }
 
     /**

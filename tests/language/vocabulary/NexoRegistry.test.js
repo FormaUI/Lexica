@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Type } from '#lexica/language/Type.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
-import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
-import { TypeNameScope } from '#lexica/language/vocabulary/TypeNameScope.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { Type } from '#nexo/language/Type.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
+import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
+import { TypeNameScope } from '#nexo/language/vocabulary/TypeNameScope.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 import { Light, withHome } from '../../support/home.mjs';
 import { errorThrownBy, expectModuleError } from '../../support/errors.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, indexerDeclaration, operatorDeclaration, parameterDeclaration, propertyDeclaration } from '../../support/declarations.mjs';
@@ -11,8 +11,8 @@ import { dataPropertyDeclarations, extensionDeclaration, functionDeclaration, in
 /** A module's contents holding the members given in an extension of strings, which take a string as their receiver. */
 const onStrings = members => ({ types: [extensionDeclaration('Words', 'String', members)] });
 
-describe('LexicaRegistry', () => {
-    const own = () => new LexicaModule('charts', {
+describe('NexoRegistry', () => {
+    const own = () => new NexoModule('charts', {
         types: [
             { name: 'Chart', kind: 'structured', members: [...dataPropertyDeclarations({ points: 'Number' }), propertyDeclaration({ name: 'scale' })] },
             extensionDeclaration('Words', 'String', [propertyDeclaration({ name: 'charts' })]),
@@ -20,11 +20,11 @@ describe('LexicaRegistry', () => {
     });
 
     it('registers Nexo\'s own module and a module beside it', () => {
-        expect(new LexicaRegistry([Vocabulary.module, own()]).moduleNames).toEqual(['Nexo', 'charts']);
+        expect(new NexoRegistry([Vocabulary.module, own()]).moduleNames).toEqual(['Nexo', 'charts']);
     });
 
     it('gives the type or the extension a module declares under a local name, as its types hold it', () => {
-        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Words', 'String', [propertyDeclaration()])] })]);
+        const registry = new NexoRegistry([Vocabulary.module, new NexoModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }, extensionDeclaration('Words', 'String', [propertyDeclaration()])] })]);
 
         expect(registry.getModuleType('charts', 'Chart')).toMatchObject({ name: 'Chart', kind: 'structured' });
         expect(registry.getModuleType('charts', 'Words')).toMatchObject({ name: 'Words', kind: 'extension' });
@@ -32,16 +32,16 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a module registered twice', () => {
-        expect(expectModuleError(() => new LexicaRegistry([own(), own()])).message).toContain("'charts' is registered already");
-        expect(expectModuleError(() => new LexicaRegistry([own(), new LexicaModule('CHARTS', {})])).message).toContain("'charts' is registered already");
+        expect(expectModuleError(() => new NexoRegistry([own(), own()])).message).toContain("'charts' is registered already");
+        expect(expectModuleError(() => new NexoRegistry([own(), new NexoModule('CHARTS', {})])).message).toContain("'charts' is registered already");
     });
 
     it('refuses what no createModule made, naming it', () => {
-        expect(expectModuleError(() => new LexicaRegistry([{ name: 'fake', members: [] }])).message).toContain('A module is registered as createModule makes it');
+        expect(expectModuleError(() => new NexoRegistry([{ name: 'fake', members: [] }])).message).toContain('A module is registered as createModule makes it');
     });
 
     it('refuses a type a declaration names that neither Nexo nor a module registered with it declares', () => {
-        const failing = contents => expectModuleError(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', contents)])).message;
+        const failing = contents => expectModuleError(() => new NexoRegistry([Vocabulary.module, new NexoModule('charts', contents)])).message;
 
         expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'Chart' })] })).toContain("'Chart' names the type 'Chart', which neither Nexo nor a module registered with it declares");
         expect(failing({ members: [propertyDeclaration({ name: 'charts', result: 'List<Chart?>' })] })).toContain("'List<Chart?>' names the type 'Chart'");
@@ -52,28 +52,28 @@ describe('LexicaRegistry', () => {
 
     it('takes Any in a declaration\'s result and its parameters, a value of any type, and any data as its default', () => {
         for (const notation of ['Any', 'Any?', 'List<Any>']) {
-            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [propertyDeclaration({ name: 'charts', result: notation })] })]);
+            const registry = new NexoRegistry([Vocabulary.module, new NexoModule('charts', { members: [propertyDeclaration({ name: 'charts', result: notation })] })]);
 
             expect(registry.getDeclaredType(registry.getModule('charts').members[0], notation).toString(), notation).toBe(notation);
         }
 
-        expect(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { members: [functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', type: 'Any?', required: false, default: { a: [1] } })] })] })])).not.toThrow();
+        expect(() => new NexoRegistry([Vocabulary.module, new NexoModule('charts', { members: [functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', type: 'Any?', required: false, default: { a: [1] } })] })] })])).not.toThrow();
     });
 
     it('takes a type the module declares wherever it declares it, and one an earlier module declares, qualified, whatever the order of the declarations', () => {
-        const axes = new LexicaModule('axes', { types: [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ length: 'Number' }) }] });
-        const charts = new LexicaModule('charts', {
+        const axes = new NexoModule('axes', { types: [{ name: 'Axis', kind: 'structured', members: dataPropertyDeclarations({ length: 'Number' }) }] });
+        const charts = new NexoModule('charts', {
             members: [propertyDeclaration({ name: 'charts', result: 'Chart' })],
             types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ axis: 'axes.Axis', domain: 'List<Number>' }) }],
         });
 
-        expect(() => new LexicaRegistry([Vocabulary.module, axes, charts])).not.toThrow();
-        expect(expectModuleError(() => new LexicaRegistry([Vocabulary.module, charts, axes])).message).toContain("names the type 'axes.Axis', and no module named 'axes' is registered");
+        expect(() => new NexoRegistry([Vocabulary.module, axes, charts])).not.toThrow();
+        expect(expectModuleError(() => new NexoRegistry([Vocabulary.module, charts, axes])).message).toContain("names the type 'axes.Axis', and no module named 'axes' is registered");
     });
 
     it('refuses a default its parameter does not admit, by its type, its nullability and a structure\'s fields', () => {
-        const range = new LexicaModule('ranges', { types: [{ name: 'Range', kind: 'structured', members: dataPropertyDeclarations({ start: 'Number', end: 'Number?' }) }] });
-        const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, range, new LexicaModule('charts', withHome({
+        const range = new NexoModule('ranges', { types: [{ name: 'Range', kind: 'structured', members: dataPropertyDeclarations({ start: 'Number', end: 'Number?' }) }] });
+        const registering = (type, value) => () => new NexoRegistry([Vocabulary.module, range, new NexoModule('charts', withHome({
             members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'value', type, required: false, default: value })] })],
         }))]);
 
@@ -89,8 +89,8 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a default holding a number that is not finite or a list with a hole, at the top level and nested, as no evaluation produces them', () => {
-        const range = new LexicaModule('ranges', { types: [{ name: 'Range', kind: 'structured', members: dataPropertyDeclarations({ start: 'Number', points: 'List<Number>' }) }] });
-        const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, range, new LexicaModule('charts', withHome({
+        const range = new NexoModule('ranges', { types: [{ name: 'Range', kind: 'structured', members: dataPropertyDeclarations({ start: 'Number', points: 'List<Number>' }) }] });
+        const registering = (type, value) => () => new NexoRegistry([Vocabulary.module, range, new NexoModule('charts', withHome({
             members: [functionDeclaration({ name: 'charts', parameters: [parameterDeclaration({ name: 'value', type, required: false, default: value })] })],
         }))]);
         const refused = [['Number', Infinity], ['Number', -Infinity], ['Number?', NaN], ['List<Number>', [1, , 3]], ['List<Number>', [1, NaN]], ['List<List<Number>>', [[1], [2, , 4]]], ['ranges.Range', { start: Infinity, points: [] }], ['ranges.Range', { start: 0, points: [, 1] }]];
@@ -105,7 +105,7 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a type parameter\'s default that is no data, at the top level and within another type, and takes any data, whatever the parameter binds to', () => {
-        const registering = (type, value) => () => new LexicaRegistry([Vocabulary.module, new LexicaModule('lists', {
+        const registering = (type, value) => () => new NexoRegistry([Vocabulary.module, new NexoModule('lists', {
             types: [extensionDeclaration('Lists<T>', 'List<T>', [functionDeclaration({ name: 'pick', result: 'T?', parameters: [parameterDeclaration({ name: 'fallback', type, required: false, default: value })] })])],
         })]);
         const refused = [['T', Infinity], ['T', NaN], ['T', () => 1], ['T', [1, , 3]], ['T', [1, Infinity]], ['T', { f: () => 1 }], ['T', new Date(0)], ['List<T>', [Infinity]]];
@@ -120,46 +120,46 @@ describe('LexicaRegistry', () => {
     });
 
     it('takes a tolerance for a result of a structured type, whichever module declares it, now that every type is known', () => {
-        const boxes = new LexicaModule('boxes', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }] });
-        const sized = new LexicaModule('sized', { members: [propertyDeclaration({ name: 'bounds', result: 'boxes.Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });
+        const boxes = new NexoModule('boxes', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }] });
+        const sized = new NexoModule('sized', { members: [propertyDeclaration({ name: 'bounds', result: 'boxes.Box?', updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });
 
-        expect(() => new LexicaRegistry([Vocabulary.module, boxes, sized])).not.toThrow();
+        expect(() => new NexoRegistry([Vocabulary.module, boxes, sized])).not.toThrow();
     });
 
     it('refuses a tolerance on a result that holds no number, a scalar of no number, a list and a reference type among them, at its member and the tolerance', () => {
         for (const result of ['String', 'Boolean?', 'List<Number>']) {
-            const tolerant = new LexicaModule('charts', { members: [propertyDeclaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });
+            const tolerant = new NexoModule('charts', { members: [propertyDeclaration({ result, updates: { changes: 'unobserved', reads: 'fresh', tolerance: 1 } })] });
 
-            expect(errorThrownBy(() => new LexicaRegistry([Vocabulary.module, tolerant])), result).toMatchObject({ code: 'NEXO4026', location: { module: 'charts', declaration: 'zoom', declarationKey: 'updates.tolerance' } });
+            expect(errorThrownBy(() => new NexoRegistry([Vocabulary.module, tolerant])), result).toMatchObject({ code: 'NEXO4026', location: { module: 'charts', declaration: 'zoom', declarationKey: 'updates.tolerance' } });
         }
     });
 
     it('lets a module declare a member of any name on a type another module or the language declares', () => {
-        const charts = new LexicaModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] });
-        const zoom = new LexicaModule('zoom', { types: [extensionDeclaration('Charts', 'charts.Chart', [propertyDeclaration({ name: 'scale' })]), extensionDeclaration('Words', 'String', [propertyDeclaration({ name: 'level' })])] });
-        const registry = new LexicaRegistry([Vocabulary.module, charts, zoom]);
+        const charts = new NexoModule('charts', { types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] });
+        const zoom = new NexoModule('zoom', { types: [extensionDeclaration('Charts', 'charts.Chart', [propertyDeclaration({ name: 'scale' })]), extensionDeclaration('Words', 'String', [propertyDeclaration({ name: 'level' })])] });
+        const registry = new NexoRegistry([Vocabulary.module, charts, zoom]);
 
         expect(registry.getReceiverMembers('scale').map(member => registry.getDeclaringModuleName(member))).toEqual(['zoom']);
         expect(registry.getReceiverMembers('level').flatMap(member => registry.getReceiverTypes(member)).map(String)).toEqual(['String']);
     });
 
     it('refuses a member its module declares already on the same receiver, at its name, and registers one of its name another module declares, which an access selects among', () => {
-        const module = new LexicaModule('charts', onStrings([propertyDeclaration({ name: 'charts' }), propertyDeclaration({ name: 'charts' })]));
+        const module = new NexoModule('charts', onStrings([propertyDeclaration({ name: 'charts' }), propertyDeclaration({ name: 'charts' })]));
 
-        expect(expectModuleError(() => new LexicaRegistry([module]))).toMatchObject({ type: 'Words', declaration: 'charts', declarationKey: 'name' });
-        expect(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('count', { types: [extensionDeclaration('Numbers', 'List<Number>', [propertyDeclaration({ name: 'count' })])] })])).not.toThrow();
+        expect(expectModuleError(() => new NexoRegistry([module]))).toMatchObject({ type: 'Words', declaration: 'charts', declarationKey: 'name' });
+        expect(() => new NexoRegistry([Vocabulary.module, new NexoModule('count', { types: [extensionDeclaration('Numbers', 'List<Number>', [propertyDeclaration({ name: 'count' })])] })])).not.toThrow();
     });
 
     it('registers members of one name that different modules declare on overlapping receivers, a type and the type beneath it', () => {
-        const home = new LexicaModule('home', withHome());
-        const owners = new LexicaModule('owner', { types: [extensionDeclaration('Devices', 'home.Device', [propertyDeclaration({ name: 'owner' })])] });
-        const others = new LexicaModule('other', { types: [extensionDeclaration('Lights', 'home.Light', [propertyDeclaration({ name: 'other' })]), extensionDeclaration('Thermostats', 'home.Thermostat', [propertyDeclaration({ name: 'owner' })])] });
+        const home = new NexoModule('home', withHome());
+        const owners = new NexoModule('owner', { types: [extensionDeclaration('Devices', 'home.Device', [propertyDeclaration({ name: 'owner' })])] });
+        const others = new NexoModule('other', { types: [extensionDeclaration('Lights', 'home.Light', [propertyDeclaration({ name: 'other' })]), extensionDeclaration('Thermostats', 'home.Thermostat', [propertyDeclaration({ name: 'owner' })])] });
 
-        expect(new LexicaRegistry([Vocabulary.module, home, owners, others]).getReceiverMembers('owner')).toHaveLength(2);
+        expect(new NexoRegistry([Vocabulary.module, home, owners, others]).getReceiverMembers('owner')).toHaveLength(2);
     });
 
     it('lets one name answer on different receivers', () => {
-        const registry = new LexicaRegistry([new LexicaModule('host', withHome({}, { Room: [propertyDeclaration({ name: 'size' })], Device: [propertyDeclaration({ name: 'size' })] }))]);
+        const registry = new NexoRegistry([new NexoModule('host', withHome({}, { Room: [propertyDeclaration({ name: 'size' })], Device: [propertyDeclaration({ name: 'size' })] }))]);
 
         expect(registry.getReceiverMembers('size').flatMap(member => registry.getReceiverTypes(member)).map(type => type.name)).toEqual(['Room', 'Device']);
     });
@@ -168,22 +168,22 @@ describe('LexicaRegistry', () => {
         it('are declared once by name within their module, and register beside an extension\'s member of their name, which is no duplicate', () => {
             const now = propertyDeclaration({ name: 'now' });
 
-            expect(() => new LexicaRegistry([Vocabulary.module, new LexicaModule('home', { ...onStrings([now]), members: [now] })])).not.toThrow();
+            expect(() => new NexoRegistry([Vocabulary.module, new NexoModule('home', { ...onStrings([now]), members: [now] })])).not.toThrow();
 
-            expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('home', { members: [propertyDeclaration({ name: 'now' }), propertyDeclaration({ name: 'now' })] })]))).toMatchObject({ declaration: 'now', declarationKey: 'name' });
+            expect(expectModuleError(() => new NexoRegistry([new NexoModule('home', { members: [propertyDeclaration({ name: 'now' }), propertyDeclaration({ name: 'now' })] })]))).toMatchObject({ declaration: 'now', declarationKey: 'name' });
         });
 
         it('leave a member of their name on a receiver to another module, whose namespace is its own', () => {
-            const home = new LexicaModule('home', { members: [propertyDeclaration({ name: 'now' })] });
-            const office = new LexicaModule('office', onStrings([propertyDeclaration({ name: 'now' })]));
+            const home = new NexoModule('home', { members: [propertyDeclaration({ name: 'now' })] });
+            const office = new NexoModule('office', onStrings([propertyDeclaration({ name: 'now' })]));
 
-            expect(() => new LexicaRegistry([Vocabulary.module, home, office])).not.toThrow();
+            expect(() => new NexoRegistry([Vocabulary.module, home, office])).not.toThrow();
         });
 
         it('take one name in two modules, each read through its own namespace', () => {
-            const declaring = name => new LexicaModule(name, { members: [propertyDeclaration({ name: 'now' })] });
+            const declaring = name => new NexoModule(name, { members: [propertyDeclaration({ name: 'now' })] });
             const [home, office] = [declaring('home'), declaring('office')];
-            const registry = new LexicaRegistry([home, office]);
+            const registry = new NexoRegistry([home, office]);
 
             expect([home, office].map(module => registry.getDeclaringModuleName(module.members[0]))).toEqual(['home', 'office']);
             expect(registry.getReceiverMembers('now')).toEqual([]);
@@ -192,7 +192,7 @@ describe('LexicaRegistry', () => {
 
     describe('the queries a declaration is read through', () => {
         const indexer = indexerDeclaration({ name: 'letter' });
-        const declaring = () => new LexicaModule('home', {
+        const declaring = () => new NexoModule('home', {
             types: [
                 { name: 'Room', kind: 'structured', members: [...dataPropertyDeclarations({ area: 'Number' }), propertyDeclaration({ name: 'size' })] },
                 extensionDeclaration('Words', 'String', [functionDeclaration({ name: 'size' }), indexer]),
@@ -202,7 +202,7 @@ describe('LexicaRegistry', () => {
 
         it('tell a member that takes a receiver, within a type or an extension, from a module member, which takes none', () => {
             const home = declaring();
-            const registry = new LexicaRegistry([home]);
+            const registry = new NexoRegistry([home]);
             const [room, words] = home.types;
 
             expect([home.members[0], ...room.members, ...words.members].map(member => registry.takesReceiver(member))).toEqual([false, true, true, true, true]);
@@ -210,7 +210,7 @@ describe('LexicaRegistry', () => {
 
         it('answer the unnamed indexers, which no name finds, apart from the named ones, which their names do', () => {
             const unnamed = indexerDeclaration();
-            const registry = new LexicaRegistry([new LexicaModule('home', onStrings([indexerDeclaration({ name: 'letter' }), unnamed]))]);
+            const registry = new NexoRegistry([new NexoModule('home', onStrings([indexerDeclaration({ name: 'letter' }), unnamed]))]);
 
             expect(registry.getUnnamedIndexers()).toEqual([expect.objectContaining({ kind: 'indexer', parameters: unnamed.parameters })]);
             expect(registry.getUnnamedIndexers()[0]).not.toHaveProperty('name');
@@ -220,8 +220,8 @@ describe('LexicaRegistry', () => {
 
         it('find the members of one name a module\'s namespace reaches, its module members and its own types\' members, and none of an extension\'s or another module\'s', () => {
             const home = declaring();
-            const office = new LexicaModule('office', { types: [extensionDeclaration('Numbers', 'Number', [propertyDeclaration({ name: 'size' })])] });
-            const registry = new LexicaRegistry([home, office]);
+            const office = new NexoModule('office', { types: [extensionDeclaration('Numbers', 'Number', [propertyDeclaration({ name: 'size' })])] });
+            const registry = new NexoRegistry([home, office]);
 
             expect(registry.getMembersDeclaredBy('home', 'size')).toEqual([home.types[0].members[1]]);
             expect(registry.getMembersDeclaredBy('home', 'now')).toEqual([home.members[0]]);
@@ -230,7 +230,7 @@ describe('LexicaRegistry', () => {
         });
 
         it('answer a structured type\'s data shape, its data properties and their types in declaration order, kept once read; and null for a type that is no structure', () => {
-            const registry = new LexicaRegistry([declaring()]);
+            const registry = new NexoRegistry([declaring()]);
             const room = Type.createNamedType('Room', false, 'home');
             const shape = registry.getDataShape(room);
 
@@ -243,8 +243,8 @@ describe('LexicaRegistry', () => {
         });
 
         it('answer every value type\'s declaration through one lookup, its kind an attribute, Nexo\'s own among them, and none for an extension, which no value is of', () => {
-            const words = new LexicaModule('words', { types: [{ name: 'Shouting', kind: 'extension', target: 'String', members: [] }] });
-            const registry = new LexicaRegistry([Vocabulary.module, declaring(), words]);
+            const words = new NexoModule('words', { types: [{ name: 'Shouting', kind: 'extension', target: 'String', members: [] }] });
+            const registry = new NexoRegistry([Vocabulary.module, declaring(), words]);
             const kindOf = type => registry.getTypeDeclaration(type)?.kind;
 
             expect([Type.createNamedType('Room', false, 'home'), Type.createNamedType('Number', true), Type.createListType(Type.createNamedType('Room', false, 'home'))].map(kindOf)).toEqual(['structured', 'scalar', 'generic']);
@@ -254,7 +254,7 @@ describe('LexicaRegistry', () => {
         });
 
         it('name List among Nexo\'s own types, written unqualified with no module declaring it, as a declared binding type names it', () => {
-            const registry = new LexicaRegistry([Vocabulary.module]);
+            const registry = new NexoRegistry([Vocabulary.module]);
 
             expect(registry.resolveTypeName('List', TypeNameScope.bindingScope)).toEqual({ types: [Type.createNamedType('List')] });
             expect(registry.resolveTypeName('Shouting', TypeNameScope.bindingScope)).toEqual({ types: [] });
@@ -263,10 +263,10 @@ describe('LexicaRegistry', () => {
 
     describe('a type name, read through one path in each scope', () => {
         const structured = name => ({ name, kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) });
-        const registry = new LexicaRegistry([
+        const registry = new NexoRegistry([
             Vocabulary.module,
-            new LexicaModule('home', { types: [structured('Room'), structured('Number'), { ...structured('Vault'), internal: true }, extensionDeclaration('Words', 'String', [])] }),
-            new LexicaModule('office', { types: [structured('Room'), structured('Desk')] }),
+            new NexoModule('home', { types: [structured('Room'), structured('Number'), { ...structured('Vault'), internal: true }, extensionDeclaration('Words', 'String', [])] }),
+            new NexoModule('office', { types: [structured('Room'), structured('Desk')] }),
         ]);
         const named = (name, moduleName = null) => Type.createNamedType(name, false, moduleName);
 
@@ -304,7 +304,7 @@ describe('LexicaRegistry', () => {
     });
 
     it('resolves every notation before the rules that read a resolved type, so a later name no type has is reported before an earlier default its type does not admit', () => {
-        const registering = () => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {
+        const registering = () => new NexoRegistry([Vocabulary.module, new NexoModule('charts', {
             members: [
                 functionDeclaration({ name: 'pan', parameters: [parameterDeclaration({ name: 'by', type: 'Number', required: false, default: 'far' })] }),
                 functionDeclaration({ name: 'zoom', result: 'Nothing' }),
@@ -315,15 +315,15 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a notation that names no type at its module and its declaration, an operator at the type it stands in', () => {
-        const registering = contents => () => new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', contents)]);
+        const registering = contents => () => new NexoRegistry([Vocabulary.module, new NexoModule('charts', contents)]);
 
         expect(expectModuleError(registering({ members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] }))).toMatchObject({ module: 'charts', declaration: 'pan', message: expect.stringContaining("names the type 'Nothing'") });
         expect(expectModuleError(registering({ types: [{ name: 'Chart', kind: 'structured', members: [...dataPropertyDeclarations({ points: 'Number' }), operatorDeclaration('convert', 'Nothing')] }] }))).toMatchObject({ module: 'charts', type: 'Chart', declaration: 'convert' });
     });
 
     it('names the module each declaration belongs to once its module is registered, and none for a refused module\'s, which it records as registration starts', () => {
-        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', onStrings([functionDeclaration({ name: 'zoom' })]))]);
-        const refused = new LexicaModule('broken', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }], members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] });
+        const registry = new NexoRegistry([Vocabulary.module, new NexoModule('charts', onStrings([functionDeclaration({ name: 'zoom' })]))]);
+        const refused = new NexoModule('broken', { types: [{ name: 'Box', kind: 'structured', members: dataPropertyDeclarations({ width: 'Number' }) }], members: [functionDeclaration({ name: 'pan', result: 'Nothing' })] });
 
         expect(() => registry.registerModule(refused)).toThrow("names the type 'Nothing'");
         expect([refused.types[0], refused.members[0]].map(declaration => registry.getDeclaringModuleName(declaration))).toEqual([undefined, undefined]);
@@ -331,11 +331,11 @@ describe('LexicaRegistry', () => {
     });
 
     it('refuses a type declared twice in its module, and takes one name in two modules, each type its own', () => {
-        const pings = (name, types = [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number' }) }]) => new LexicaModule(name, { types });
+        const pings = (name, types = [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number' }) }]) => new NexoModule(name, { types });
 
         expect(expectModuleError(() => pings('first', [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ at: 'Number' }) }, { name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ on: 'Number' }) }]))).toMatchObject({ module: 'first', declaration: 'Ping', message: expect.stringContaining("The type 'Ping' is declared already") });
 
-        const registry = new LexicaRegistry([pings('first'), pings('second', [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ on: 'Boolean' }) }])]);
+        const registry = new NexoRegistry([pings('first'), pings('second', [{ name: 'Ping', kind: 'structured', members: dataPropertyDeclarations({ on: 'Boolean' }) }])]);
 
         expect(['first', 'second'].map(module => registry.getTypeDeclaration(Type.createNamedType('Ping', false, module)).members.map(member => member.name))).toEqual([['at'], ['on']]);
     });
@@ -344,53 +344,53 @@ describe('LexicaRegistry', () => {
         const startTicks = () => ({ stop() {} });
         const types = [{ name: 'ticks', contract: 'invalidation', impl: startTicks }, { name: 'sampled', contract: 'maintained' }];
         const targets = [{ name: 'page' }, { name: 'frame', from: 'receiver' }, { name: 'frames', from: 'receiver', count: 'many' }];
-        const watching = (updates = {}, moduleTypes = types) => new LexicaModule('charts', {
+        const watching = (updates = {}, moduleTypes = types) => new NexoModule('charts', {
             observationTypes: moduleTypes,
             observationTargets: targets,
             ...onStrings([propertyDeclaration({ name: 'charts', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'ticks', of: 'receiver' }], ...updates } })]),
         });
         // A member of a module of its own, which observes, through the charts module's types, the targets it declares.
         const observed = of => propertyDeclaration({ name: 'later', updates: { changes: 'observable', reads: 'fresh', observations: [{ type: 'ticks', of }] } });
-        const observingFrom = of => new LexicaModule('later', onStrings([observed(of)]));
+        const observingFrom = of => new NexoModule('later', onStrings([observed(of)]));
 
         it('are declared by a module, which its members and the members of later modules use', () => {
-            expect(() => new LexicaRegistry([watching(), observingFrom('receiver')])).not.toThrow();
-            expect(new LexicaRegistry([watching()]).getObservationType('ticks')).toMatchObject({ name: 'ticks', contract: 'invalidation', shared: true });
+            expect(() => new NexoRegistry([watching(), observingFrom('receiver')])).not.toThrow();
+            expect(new NexoRegistry([watching()]).getObservationType('ticks')).toMatchObject({ name: 'ticks', contract: 'invalidation', shared: true });
         });
 
         it('are declared once', () => {
-            expect(expectModuleError(() => new LexicaRegistry([watching(), new LexicaModule('again', { observationTypes: [types[0]] })])).message).toContain("observation type 'ticks' is declared already");
+            expect(expectModuleError(() => new NexoRegistry([watching(), new NexoModule('again', { observationTypes: [types[0]] })])).message).toContain("observation type 'ticks' is declared already");
         });
 
         it('are declared by some module for every observation a member names', () => {
-            expect(expectModuleError(() => new LexicaRegistry([watching({ observations: [{ type: 'unknown', of: 'receiver' }] })]))).toMatchObject({ declaration: 'charts', declarationKey: 'updates.observations' });
+            expect(expectModuleError(() => new NexoRegistry([watching({ observations: [{ type: 'unknown', of: 'receiver' }] })]))).toMatchObject({ declaration: 'charts', declarationKey: 'updates.observations' });
         });
 
         it('give a member that reads maintained values a maintained observation, and give no other member one', () => {
-            expect(() => new LexicaRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'receiver' }] })])).not.toThrow();
-            expect(expectModuleError(() => new LexicaRegistry([watching({ reads: 'maintained' })])).message).toContain('names a maintained observation');
-            expect(expectModuleError(() => new LexicaRegistry([watching({ observations: [{ type: 'sampled', of: 'receiver' }] })])).message).toContain('reads maintained values');
+            expect(() => new NexoRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'receiver' }] })])).not.toThrow();
+            expect(expectModuleError(() => new NexoRegistry([watching({ reads: 'maintained' })])).message).toContain('names a maintained observation');
+            expect(expectModuleError(() => new NexoRegistry([watching({ observations: [{ type: 'sampled', of: 'receiver' }] })])).message).toContain('reads maintained values');
         });
 
         it('observe a target the module declaring their type declares, whichever module names it', () => {
-            expect(() => new LexicaRegistry([watching({ observations: [{ type: 'ticks', of: 'page' }, { type: 'ticks', of: 'frames' }] })])).not.toThrow();
-            expect(() => new LexicaRegistry([watching(), observingFrom('frame')])).not.toThrow();
-            expect(expectModuleError(() => new LexicaRegistry([watching(), observingFrom('panel')]))).toMatchObject({ declaration: 'later', declarationKey: 'updates.observations' });
-            expect(expectModuleError(() => new LexicaRegistry([watching(), observingFrom('panel')])).message).toContain("The observation 'ticks' observes 'panel', and the module 'charts', which declares 'ticks', declares no target of that name");
+            expect(() => new NexoRegistry([watching({ observations: [{ type: 'ticks', of: 'page' }, { type: 'ticks', of: 'frames' }] })])).not.toThrow();
+            expect(() => new NexoRegistry([watching(), observingFrom('frame')])).not.toThrow();
+            expect(expectModuleError(() => new NexoRegistry([watching(), observingFrom('panel')]))).toMatchObject({ declaration: 'later', declarationKey: 'updates.observations' });
+            expect(expectModuleError(() => new NexoRegistry([watching(), observingFrom('panel')])).message).toContain("The observation 'ticks' observes 'panel', and the module 'charts', which declares 'ticks', declares no target of that name");
         });
 
         it('observe a target found from the receiver for a member that takes one alone', () => {
-            expect(() => new LexicaRegistry([watching(), new LexicaModule('later', { members: [observed('page')] })])).not.toThrow();
-            expect(expectModuleError(() => new LexicaRegistry([watching(), new LexicaModule('later', { members: [observed('frames')] })])).message).toContain("The observation 'ticks' observes 'frames', a target found from the receiver, and a module member takes no receiver");
+            expect(() => new NexoRegistry([watching(), new NexoModule('later', { members: [observed('page')] })])).not.toThrow();
+            expect(expectModuleError(() => new NexoRegistry([watching(), new NexoModule('later', { members: [observed('frames')] })])).message).toContain("The observation 'ticks' observes 'frames', a target found from the receiver, and a module member takes no receiver");
         });
 
         it('give a maintained observation one target, never a target of several', () => {
-            expect(() => new LexicaRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'frame' }] })])).not.toThrow();
-            expect(expectModuleError(() => new LexicaRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'frames' }] })])).message).toContain("The maintained observation 'sampled' gives one sample, so it observes one target, never 'frames', a target of several");
+            expect(() => new NexoRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'frame' }] })])).not.toThrow();
+            expect(expectModuleError(() => new NexoRegistry([watching({ reads: 'maintained', observations: [{ type: 'sampled', of: 'frames' }] })])).message).toContain("The maintained observation 'sampled' gives one sample, so it observes one target, never 'frames', a target of several");
         });
 
         it('start with the implementation their module gives', () => {
-            const registry = new LexicaRegistry([watching()]);
+            const registry = new NexoRegistry([watching()]);
 
             expect(registry.getImplementation(registry.getObservationType('ticks'))).toBe(startTicks);
             expect(registry.getImplementation(registry.getObservationType('sampled'))).toBeUndefined();
@@ -399,12 +399,12 @@ describe('LexicaRegistry', () => {
 });
 
 describe('type selectors', () => {
-    const reports = () => new LexicaModule('reports', { typeSelectors: [{ name: 'report' }], mappings: [{ key: 'motion', selector: 'report', type: 'Number' }] });
-    const keys = (name, mappings, contents = {}) => new LexicaModule(name, { mappings, ...contents });
+    const reports = () => new NexoModule('reports', { typeSelectors: [{ name: 'report' }], mappings: [{ key: 'motion', selector: 'report', type: 'Number' }] });
+    const keys = (name, mappings, contents = {}) => new NexoModule(name, { mappings, ...contents });
     const selecting = selector => functionDeclaration({ name: 'report', result: '@selected', parameters: [parameterDeclaration({ name: 'kind', type: 'String', fixed: true, selects: 'type', selector })] });
 
     it('map each key to its type, a selector and its keys owned by the modules that declare them', () => {
-        const registry = new LexicaRegistry([reports(), keys('doors', [{ key: 'door:open', selector: 'report', type: 'Boolean' }])]);
+        const registry = new NexoRegistry([reports(), keys('doors', [{ key: 'door:open', selector: 'report', type: 'Boolean' }])]);
 
         expect(registry.getMapping('report', 'motion')).toEqual({ key: 'motion', selector: 'report', type: 'Number' });
         expect(registry.getMapping('report', 'smoke')).toBeUndefined();
@@ -414,25 +414,25 @@ describe('type selectors', () => {
     });
 
     it('are named once across every module', () => {
-        expect(expectModuleError(() => new LexicaRegistry([reports(), new LexicaModule('again', { typeSelectors: [{ name: 'report' }] })]))).toMatchObject({ module: 'again', declaration: 'report', declarationKey: 'name', message: expect.stringContaining("The type selector 'report' is declared already, by the module 'reports'") });
+        expect(expectModuleError(() => new NexoRegistry([reports(), new NexoModule('again', { typeSelectors: [{ name: 'report' }] })]))).toMatchObject({ module: 'again', declaration: 'report', declarationKey: 'name', message: expect.stringContaining("The type selector 'report' is declared already, by the module 'reports'") });
     });
 
     it('take each key once, from the module that declares it first, and never replace it', () => {
         const message = "The type selector 'report' maps the key 'motion' already, as the module 'reports' declared it, and a key is never replaced";
 
-        expect(expectModuleError(() => new LexicaRegistry([reports(), keys('sensors', [{ key: 'motion', selector: 'report', type: 'String' }])]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'key', message: expect.stringContaining(message) });
+        expect(expectModuleError(() => new NexoRegistry([reports(), keys('sensors', [{ key: 'motion', selector: 'report', type: 'String' }])]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'key', message: expect.stringContaining(message) });
         expect(expectModuleError(() => keys('reports', [{ key: 'motion', selector: 'report', type: 'Number' }, { key: 'motion', selector: 'report', type: 'String' }], { typeSelectors: [{ name: 'report' }] })).message).toContain(message);
     });
 
     it('take keys of a selector its own module or one registered before it declares, and of no other', () => {
-        expect(() => new LexicaRegistry([keys('reports', [{ key: 'motion', selector: 'report', type: 'Number' }], { typeSelectors: [{ name: 'report' }] })])).not.toThrow();
-        expect(expectModuleError(() => new LexicaRegistry([keys('sensors', [{ key: 'motion', selector: 'report', type: 'Number' }]), reports()]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'selector', message: expect.stringContaining("The key 'motion' belongs to the type selector 'report', which no module registered declares") });
+        expect(() => new NexoRegistry([keys('reports', [{ key: 'motion', selector: 'report', type: 'Number' }], { typeSelectors: [{ name: 'report' }] })])).not.toThrow();
+        expect(expectModuleError(() => new NexoRegistry([keys('sensors', [{ key: 'motion', selector: 'report', type: 'Number' }]), reports()]))).toMatchObject({ module: 'sensors', declaration: 'motion', declarationKey: 'selector', message: expect.stringContaining("The key 'motion' belongs to the type selector 'report', which no module registered declares") });
     });
 
     it('are selected through by a parameter only once a module declares them, and map keys to types a module declares', () => {
-        expect(() => new LexicaRegistry([reports(), new LexicaModule('charts', { members: [selecting('report')] })])).not.toThrow();
-        expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('charts', { members: [selecting('report')] })]))).toMatchObject({ declaration: 'report', declarationKey: 'parameters', message: expect.stringContaining("The parameter 'kind' selects a type through 'report', which no module registered declares") });
-        expect(expectModuleError(() => new LexicaRegistry([reports(), keys('doors', [{ key: 'door:open', selector: 'report', type: 'door' }])])).message).toContain("'door' names the type 'door', which neither Nexo nor a module registered with it declares");
+        expect(() => new NexoRegistry([reports(), new NexoModule('charts', { members: [selecting('report')] })])).not.toThrow();
+        expect(expectModuleError(() => new NexoRegistry([new NexoModule('charts', { members: [selecting('report')] })]))).toMatchObject({ declaration: 'report', declarationKey: 'parameters', message: expect.stringContaining("The parameter 'kind' selects a type through 'report', which no module registered declares") });
+        expect(expectModuleError(() => new NexoRegistry([reports(), keys('doors', [{ key: 'door:open', selector: 'report', type: 'door' }])])).message).toContain("'door' names the type 'door', which neither Nexo nor a module registered with it declares");
     });
 });
 
@@ -442,11 +442,11 @@ describe('operators', () => {
     const convert = (result, impl) => operatorDeclaration('convert', result, impl);
 
     /** A module of charts: its chart of the points given, holding the operators given, an extension of strings holding the string operators given, and the contents given beside them. */
-    const charts = ({ chart = [], strings = [], points = 'Number' } = {}, contents = {}) => new LexicaModule('charts', {
+    const charts = ({ chart = [], strings = [], points = 'Number' } = {}, contents = {}) => new NexoModule('charts', {
         ...contents,
         types: [{ name: 'Chart', kind: 'structured', members: [...dataPropertyDeclarations({ points }), ...chart] }, ...(strings.length === 0 ? [] : [extensionDeclaration('Strings', 'String', strings)]), ...(contents.types ?? [])],
     });
-    const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, ...modules]);
+    const registering = (...modules) => () => new NexoRegistry([Vocabulary.module, ...modules]);
 
     it('are found by their operation, each with its destination, named by their receiver and destination, and never as members', () => {
         const parse = ({ value }) => ({ points: value.length });
@@ -466,14 +466,14 @@ describe('operators', () => {
 
     it('convert to or from a type of their own module, Nexo\'s own module alone converting between the language\'s types', () => {
         expect(expectModuleError(registering(charts({ strings: [convert('Number')] }))).message).toContain("A conversion operator converts to or from one of its module's own types, and String to Number does neither");
-        expect(expectModuleError(() => new LexicaRegistry([new LexicaModule('Nexo', { types: [extensionDeclaration('Strings', 'String', [convert('Number')])] })])).message).toContain("converts to or from one of its module's own types");
-        const lexicaOnly = new LexicaRegistry([Vocabulary.module]);
+        expect(expectModuleError(() => new NexoRegistry([new NexoModule('Nexo', { types: [extensionDeclaration('Strings', 'String', [convert('Number')])] })])).message).toContain("converts to or from one of its module's own types");
+        const nexoOnly = new NexoRegistry([Vocabulary.module]);
 
-        expect(lexicaOnly.getOperators('convert').map(operator => lexicaOnly.getDeclaringModuleName(operator))).toEqual(['Nexo', 'Nexo', 'Nexo', 'Nexo']);
+        expect(nexoOnly.getOperators('convert').map(operator => nexoOnly.getDeclaringModuleName(operator))).toEqual(['Nexo', 'Nexo', 'Nexo', 'Nexo']);
     });
 
     it('convert between types of data, each named as it is declared, never a reference type, one holding a reference, a list or a type to itself', () => {
-        expect(expectModuleError(registering(new LexicaModule('charts', withHome({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] }, { Light: [convert('Chart')] })))).message).toContain('its receiver, Light, is none of them');
+        expect(expectModuleError(registering(new NexoModule('charts', withHome({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] }, { Light: [convert('Chart')] })))).message).toContain('its receiver, Light, is none of them');
         expect(expectModuleError(registering(charts({ points: 'Light' }, withHome({ types: [extensionDeclaration('Strings', 'String', [convert('Chart')])] })))).message).toContain('its destination, Chart, is none of them');
         expect(expectModuleError(registering(charts({}, { types: [extensionDeclaration('Lists', 'List<Number>', [convert('Chart')])] }))).message).toContain('its receiver, List<Number>, is none of them');
         expect(expectModuleError(registering(charts({ chart: [convert('Chart')] }))).message).toContain('A value already of Chart converts to itself');
@@ -489,7 +489,7 @@ describe('operators', () => {
     });
 
     it('cast from one reference type to another outside its hierarchy alone, a type and its own hierarchy cast without one', () => {
-        const meters = ({ meter = [], types = [] }) => new LexicaModule('meters', withHome({ types: [{ name: 'Meter', kind: 'reference', isInstance: () => false, members: meter }, ...types] }));
+        const meters = ({ meter = [], types = [] }) => new NexoModule('meters', withHome({ types: [{ name: 'Meter', kind: 'reference', isInstance: () => false, members: meter }, ...types] }));
         const cast = result => operatorDeclaration('cast', result);
 
         expect(() => registering(meters({ meter: [cast('Device')] }))()).not.toThrow();
@@ -504,7 +504,7 @@ describe('data', () => {
     const chart = { name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) };
 
     it('classify a type as data where its values are data, an object type and a structure that holds itself among them, and a reference type or a structure holding one as no data', () => {
-        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', withHome({
+        const registry = new NexoRegistry([Vocabulary.module, new NexoModule('charts', withHome({
             types: [chart, { name: 'Tree', kind: 'structured', members: dataPropertyDeclarations({ children: 'List<Tree>' }) }, { name: 'Holder', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light' }) }],
         }))]);
         const named = name => Type.createNamedType(name, false, 'charts');
@@ -518,18 +518,18 @@ describe('data', () => {
 
 describe('recognition', () => {
     it('records the revision the last module declaring a typeOf was registered at, which a module declaring none leaves as it was', () => {
-        const registry = new LexicaRegistry([Vocabulary.module]);
+        const registry = new NexoRegistry([Vocabulary.module]);
 
         expect(registry.recognitionRevision).toBe(0);
 
-        registry.registerModule(new LexicaModule('home', withHome()));
-        registry.registerModule(new LexicaModule('plain', {}));
+        registry.registerModule(new NexoModule('home', withHome()));
+        registry.registerModule(new NexoModule('plain', {}));
 
         expect([registry.revision, registry.recognitionRevision]).toEqual([3, 2]);
     });
 
     it('tells a type holding a nullable reference type anywhere, through lists, objects and a structure\'s data shape, from one holding none, a structure that holds itself among them', () => {
-        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('home', withHome({
+        const registry = new NexoRegistry([Vocabulary.module, new NexoModule('home', withHome({
             types: [
                 { name: 'Spot', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light?', next: 'Spot?' }) },
                 { name: 'Plain', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light', next: 'Plain?' }) },
@@ -558,7 +558,7 @@ describe('recognition', () => {
             selecting('Any'),
             selecting('Number'),
         ];
-        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {
+        const registry = new NexoRegistry([Vocabulary.module, new NexoModule('charts', {
             types: [holding, nested, plain, extensionDeclaration('Words', 'String', members)],
             typeSelectors: [{ name: 'loose' }, { name: 'strict' }],
             mappings: [{ selector: 'loose', key: 'held', type: 'Holding' }, { selector: 'strict', key: 'plain', type: 'Plain' }],
@@ -572,23 +572,23 @@ describe('recognition', () => {
 
 describe("a module's own collisions", () => {
     const lit = (overrides = {}) => propertyDeclaration({ name: 'lit', kind: 'function', result: 'Boolean', parameters: [], ...overrides });
-    const registering = (...modules) => () => new LexicaRegistry([Vocabulary.module, ...modules]);
+    const registering = (...modules) => () => new NexoRegistry([Vocabulary.module, ...modules]);
 
     it('refuse members of one name on one receiver type, an exact duplicate, and register them on overlapping receivers, a type and the type beneath it among them', () => {
-        expect(expectModuleError(registering(new LexicaModule('lit', withHome({}, { Light: [lit(), lit()] }))))).toMatchObject({ type: 'Light', declaration: 'lit', declarationKey: 'name', message: expect.stringContaining("'lit' is declared already for Light") });
-        expect(registering(new LexicaModule('lit', withHome({}, { Light: [lit()], Device: [lit()] })))().getReceiverMembers('lit')).toHaveLength(2);
-        expect(registering(new LexicaModule('lit', withHome({}, { Light: [lit()], Device: [propertyDeclaration({ name: 'lit' })] })))().getReceiverMembers('lit')).toHaveLength(2);
+        expect(expectModuleError(registering(new NexoModule('lit', withHome({}, { Light: [lit(), lit()] }))))).toMatchObject({ type: 'Light', declaration: 'lit', declarationKey: 'name', message: expect.stringContaining("'lit' is declared already for Light") });
+        expect(registering(new NexoModule('lit', withHome({}, { Light: [lit()], Device: [lit()] })))().getReceiverMembers('lit')).toHaveLength(2);
+        expect(registering(new NexoModule('lit', withHome({}, { Light: [lit()], Device: [propertyDeclaration({ name: 'lit' })] })))().getReceiverMembers('lit')).toHaveLength(2);
     });
 
     it('take one name on receivers that do not overlap, each receiver selecting its own', () => {
         const view = name => ({ name, kind: 'structured', members: [...dataPropertyDeclarations({ a: 'Number' }), lit()] });
-        const views = new LexicaModule('views', { types: [view('PanelView'), view('RowView')] });
+        const views = new NexoModule('views', { types: [view('PanelView'), view('RowView')] });
 
         expect(registering(views)().getReceiverMembers('lit')).toHaveLength(2);
     });
 
     it('find a module by its name', () => {
-        const views = new LexicaModule('views', withHome({}, { Light: [lit()] }));
+        const views = new NexoModule('views', withHome({}, { Light: [lit()] }));
         const registry = registering(views)();
 
         expect(registry.getModule('views')).toBe(views);
@@ -597,7 +597,7 @@ describe("a module's own collisions", () => {
 });
 
 describe("a binding's declared type", () => {
-    const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', withHome({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] }))]);
+    const registry = new NexoRegistry([Vocabulary.module, new NexoModule('charts', withHome({ types: [{ name: 'Chart', kind: 'structured', members: dataPropertyDeclarations({ points: 'Number' }) }] }))]);
     const failure = notation => errorThrownBy(() => registry.resolveBindingType(notation, (code, message) => {
         throw Object.assign(new Error(message), { code });
     }));

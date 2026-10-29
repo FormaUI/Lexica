@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { Dictionary } from '#lexica/language/Dictionary.mjs';
-import { Pair } from '#lexica/language/Pair.mjs';
-import { Type } from '#lexica/language/Type.mjs';
+import { Dictionary } from '#nexo/language/Dictionary.mjs';
+import { Pair } from '#nexo/language/Pair.mjs';
+import { Type } from '#nexo/language/Type.mjs';
 
 describe('Dictionary', () => {
     it('keeps its entries in their order, each key once by Nexo\'s key equality, frozen', () => {

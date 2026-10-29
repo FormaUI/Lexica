@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { dataPropertyDeclarations } from './support/declarations.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
 /** A board, a reference its module recognizes, which places points, and a pin, a reference of another type. */
 class Board {}
@@ -24,7 +24,7 @@ const taking = (name, parameters, options = {}) => createFunctionDeclaration(nam
  * The board's module: a point of a number and an optional label, a vector of a number alone, a frame of an origin and its corners, and buttons holding the board they belong to; and the board's members, each
  * taking one of them, its points, a value of Any, a member answering what it is given, a host call taking a point, and an unnamed indexer taking a point or a vector.
  */
-const createBoards = () => lexica.createModule('Boards', {
+const createBoards = () => nexo.createModule('Boards', {
     typeOf: value => (value instanceof Board ? 'Board' : value instanceof Pin ? 'Pin' : null),
     types: [
         { name: 'Point', kind: 'structured', members: dataPropertyDeclarations({ x: 'Number', label: 'String?' }) },
@@ -54,7 +54,7 @@ const createBoards = () => lexica.createModule('Boards', {
 });
 
 const board = new Board();
-const registry = lexica.createRegistry([createBoards()]);
+const registry = nexo.createRegistry([createBoards()]);
 const resolve = (text, values = {}) => registry.resolve(text, { board, ...values }, { imports: ['Boards'] });
 const evaluate = (text, values = {}) => resolve(text, values).createEvaluator({ board, ...values }).evaluate().value;
 
@@ -189,7 +189,7 @@ describe('a structured value bound', () => {
 
 describe('a structure expected in one reading of a node', () => {
     /** A module whose `distance` is both a module member taking two points and a point's own member taking another, and whose `show` is a module member taking a point and a count beside a point's own `show`. */
-    const createGeo = () => lexica.createModule('Geo', {
+    const createGeo = () => nexo.createModule('Geo', {
         types: [{
             name: 'Point',
             kind: 'structured',
@@ -204,7 +204,7 @@ describe('a structure expected in one reading of a node', () => {
             createFunctionDeclaration('show', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('at', 'Point'), createValueParameterDeclaration('count', 'Number')], impl: () => 1 }),
         ],
     });
-    const geo = lexica.createRegistry([createGeo()]);
+    const geo = nexo.createRegistry([createGeo()]);
     const resolveGeo = text => geo.resolve(text, {}, { imports: ['Geo'] });
 
     it('expects nothing of it in another reading, so a qualified form\'s receiver, which no structure\'s type reaches, constructs nothing', () => {
@@ -219,7 +219,7 @@ describe('a structure expected in one reading of a node', () => {
 
 describe("a structure's type through a value of Any", () => {
     /** A module whose point has a member of its own, which a member answering its argument as a value of Any passes on, and a host call supplying a point. */
-    const createMarks = () => lexica.createModule('Marks', {
+    const createMarks = () => nexo.createModule('Marks', {
         typeOf: value => (value instanceof Board ? 'Sheet' : null),
         types: [
             { name: 'Point', kind: 'structured', members: [...dataPropertyDeclarations({ x: 'Number' }), createFunctionDeclaration('double', 'Number', { updates: constantUpdates, impl: ({ receiver }) => receiver.x * 2 })] },
@@ -234,7 +234,7 @@ describe("a structure's type through a value of Any", () => {
             },
         ],
     });
-    const marks = lexica.createRegistry([createMarks()]);
+    const marks = nexo.createRegistry([createMarks()]);
     const sheet = new Board();
     const evaluateMarks = (text, bindings) => marks.resolve(text, bindings, { imports: ['Marks'] }).createEvaluator(bindings).evaluate().value;
 
@@ -253,7 +253,7 @@ describe("a structure's type through a value of Any", () => {
 
 describe('declared data that no binding or capture holds', () => {
     /** A module of a chain of links, a structure that holds itself, a bag holding a value of Any, and a host call supplying a link. */
-    const createChains = () => lexica.createModule('Chains', {
+    const createChains = () => nexo.createModule('Chains', {
         typeOf: value => (value instanceof Board ? 'Keeper' : null),
         types: [
             { name: 'Link', kind: 'structured', members: dataPropertyDeclarations({ value: 'Number', next: 'Link?' }) },
@@ -261,7 +261,7 @@ describe('declared data that no binding or capture holds', () => {
             { name: 'Keeper', kind: 'reference', isInstance: value => value instanceof Board, members: [createFunctionDeclaration('latest', 'Link', { invokedBy: 'host' })] },
         ],
     });
-    const chains = lexica.createRegistry([createChains()]);
+    const chains = nexo.createRegistry([createChains()]);
     const looped = () => {
         const link = { value: 1 };
 

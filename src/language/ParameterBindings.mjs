@@ -5,14 +5,14 @@
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { Dictionary } from './Dictionary.mjs';
-import { LexicaErrors } from './LexicaError.mjs';
+import { NexoErrors } from './NexoError.mjs';
 import { Names } from './Names.mjs';
 import { Pair } from './Pair.mjs';
 import { Type } from './Type.mjs';
 import { ValueCapture } from './ValueCapture.mjs';
 
 export class ParameterBindings {
-    /** @type {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} */
+    /** @type {import('./vocabulary/NexoRegistry.mjs').NexoRegistry} */
     #registry;
 
     /** @type {Map<string, unknown>} */
@@ -25,7 +25,7 @@ export class ParameterBindings {
      * Binds each value to its name, asking the registry's modules which values are references before copying anything: a reference is kept as it is, by its identity, a reference nested in data among them, and the rest of the data
      * is copied and frozen. A top-level binding's declared type, a notation the registry resolves, is its type in place of recognition: a reference type's value checked by the type's membership, and any other
      * type's value captured as that type.
-     * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry The registry the bindings belong to.
+     * @param {import('./vocabulary/NexoRegistry.mjs').NexoRegistry} registry The registry the bindings belong to.
      * @param {Record<string, unknown>} parameters Each parameter's name and the value it is bound to.
      * @param {{ types?: Record<string, string> }} [options] The type declared for a top-level binding, by its name, as a notation.
      */
@@ -33,25 +33,25 @@ export class ParameterBindings {
         this.#registry = registry;
 
         if (!ObjectUtils.isPlainObject(parameters)) {
-            throw LexicaErrors.structure('NEXO2020', 'Bindings are a plain object of names and the values bound to them', {});
+            throw NexoErrors.structure('NEXO2020', 'Bindings are a plain object of names and the values bound to them', {});
         }
 
         const declaredTypeNames = options?.types ?? {};
 
         if (!ObjectUtils.isPlainObject(options ?? {}) || !ObjectUtils.isPlainObject(declaredTypeNames)) {
-            throw LexicaErrors.structure('NEXO2020', "A binding's options are a plain object, and the types it declares a plain object of top-level bindings' names and the types declared for them", {});
+            throw NexoErrors.structure('NEXO2020', "A binding's options are a plain object, and the types it declares a plain object of top-level bindings' names and the types declared for them", {});
         }
 
         for (const name of Object.keys(declaredTypeNames)) {
             if (!Object.hasOwn(parameters, name)) {
-                throw LexicaErrors.structure('NEXO2039', `A type is declared for a top-level binding alone, and no binding is named '${name}'`, { binding: name });
+                throw NexoErrors.structure('NEXO2039', `A type is declared for a top-level binding alone, and no binding is named '${name}'`, { binding: name });
             }
         }
 
         for (const [name, value] of Object.entries(parameters)) {
             // A binding a reserved word names is read as `~` and its name, which written alone keeps its own meaning.
             if (!Names.isIdentifier(name)) {
-                throw LexicaErrors.structure('NEXO2033', 'A binding is named by a letter followed by letters and digits', { binding: name });
+                throw NexoErrors.structure('NEXO2033', 'A binding is named by a letter followed by letters and digits', { binding: name });
             }
 
             const bound = Object.hasOwn(declaredTypeNames, name) ? this.#bindDeclared(name, value, declaredTypeNames[name]) : this.#bind(name, value, new Set());
@@ -101,7 +101,7 @@ export class ParameterBindings {
      */
     #bindDeclared(name, value, typeName) {
         const fail = (code, message) => {
-            throw LexicaErrors.structure(code, `The type declared for '${name}': ${message}`, { binding: name });
+            throw NexoErrors.structure(code, `The type declared for '${name}': ${message}`, { binding: name });
         };
         const type = typeof typeName === 'string' ? this.#registry.resolveBindingType(typeName, fail) : fail('NEXO2036', `${String(typeName)} is no public type`);
 
@@ -111,11 +111,11 @@ export class ParameterBindings {
             }
 
             if (value === null || typeof value !== 'object') {
-                throw LexicaErrors.structure('NEXO2038', `A type is declared for a reference, and '${name}' is bound to data`, { binding: name });
+                throw NexoErrors.structure('NEXO2038', `A type is declared for a reference, and '${name}' is bound to data`, { binding: name });
             }
 
             if (!this.#registry.belongsTo(value, type, `the binding '${name}'`)) {
-                throw LexicaErrors.structure('NEXO2036', `The value bound to '${name}' doesn't belong to its declared type, ${type}`, { binding: name });
+                throw NexoErrors.structure('NEXO2036', `The value bound to '${name}' doesn't belong to its declared type, ${type}`, { binding: name });
             }
 
             return { type, value };
@@ -127,12 +127,12 @@ export class ParameterBindings {
 
         const captured = new ValueCapture(this.#registry).capture(value, type, (path, part, partType, reason) => {
             if (reason === 'cycle') {
-                throw LexicaErrors.structure('NEXO2022', `A binding holds a cycle, a list or an object that reaches itself, which data never does${path === '' ? '' : `, at '${path}'`}`, { binding: name });
+                throw NexoErrors.structure('NEXO2022', `A binding holds a cycle, a list or an object that reaches itself, which data never does${path === '' ? '' : `, at '${path}'`}`, { binding: name });
             }
 
             const given = path === '' ? `it is given ${ParameterBindings.#describe(part)}` : part === undefined ? `it is given a value without '${path}'` : `its '${path}' is ${ParameterBindings.#describe(part)}`;
 
-            throw LexicaErrors.structure('NEXO2045', `The value bound to '${name}' is declared ${type}, and ${given}, where ${partType} is declared`, { binding: name });
+            throw NexoErrors.structure('NEXO2045', `The value bound to '${name}' is declared ${type}, and ${given}, where ${partType} is declared`, { binding: name });
         }, `the binding '${name}'`);
 
         return { type, value: this.#freezeAs(captured, type) };
@@ -238,7 +238,7 @@ export class ParameterBindings {
             }
 
             if (ancestors.has(value)) {
-                throw LexicaErrors.structure('NEXO2022', 'A binding holds a cycle, a list or an object that reaches itself, which data never does', { binding: name });
+                throw NexoErrors.structure('NEXO2022', 'A binding holds a cycle, a list or an object that reaches itself, which data never does', { binding: name });
             }
 
             if (Array.isArray(value) && ArrayUtils.findMissingIndex(value) === -1) {
@@ -263,7 +263,7 @@ export class ParameterBindings {
             }
         }
 
-        throw LexicaErrors.structure('NEXO2034', 'A binding is a reference a registered module recognizes, or data: a number, a string, a Boolean, null, a list holding a value at every index, or an object', { binding: name });
+        throw NexoErrors.structure('NEXO2034', 'A binding is a reference a registered module recognizes, or data: a number, a string, a Boolean, null, a list holding a value at every index, or an object', { binding: name });
     }
 
     /** A list, typed by the type its items share, the nearest supertype references of different types share, made nullable where one of them is null, and the empty list's being never; copied and frozen. Its type merges as each item is bound, so binding stops at the first item whose type shares none with those before it. */
@@ -279,7 +279,7 @@ export class ParameterBindings {
             itemType = this.#registry.typeChecker.merge(itemType, bound.type);
 
             if (itemType === null) {
-                throw LexicaErrors.structure('NEXO2021', 'A list whose items have different types has no type, since Nexo has no union types and a list holds items of one type', { binding: name });
+                throw NexoErrors.structure('NEXO2021', 'A list whose items have different types has no type, since Nexo has no union types and a list holds items of one type', { binding: name });
             }
 
             items.push(bound.value);
@@ -305,7 +305,7 @@ export class ParameterBindings {
             const boundKey = this.#bind(name, key, ancestors);
 
             if (!this.#registry.isKeyType(boundKey.type)) {
-                throw LexicaErrors.structure('NEXO2041', `A dictionary's key is a number, a string, a Boolean, a reference or null, which Nexo's key equality compares exactly, and one bound to '${name}' is of ${boundKey.type}`, { binding: name });
+                throw NexoErrors.structure('NEXO2041', `A dictionary's key is a number, a string, a Boolean, a reference or null, which Nexo's key equality compares exactly, and one bound to '${name}' is of ${boundKey.type}`, { binding: name });
             }
 
             const boundValue = this.#bind(name, value, ancestors);
@@ -314,7 +314,7 @@ export class ParameterBindings {
             valueType = valueType === null ? null : this.#registry.typeChecker.merge(valueType, boundValue.type);
 
             if (keyType === null || valueType === null) {
-                throw LexicaErrors.structure('NEXO2042', `A dictionary whose ${keyType === null ? 'keys' : 'values'} have different types has no type, since Nexo has no union types and a dictionary holds keys of one type and values of one type`, { binding: name });
+                throw NexoErrors.structure('NEXO2042', `A dictionary whose ${keyType === null ? 'keys' : 'values'} have different types has no type, since Nexo has no union types and a dictionary holds keys of one type and values of one type`, { binding: name });
             }
 
             bound.push([boundKey.value, boundValue.value]);
@@ -361,7 +361,7 @@ export class ParameterBindings {
         const specific = types.find(type => types.every(other => this.#registry.typeChecker.isAssignable(type, other)));
 
         if (specific === undefined) {
-            throw LexicaErrors.structure('NEXO2035', `The value bound to '${name}' is recognized as ${types.map(type => type.toString(true)).join(' and ')}, of which none is beneath the others`, { binding: name });
+            throw NexoErrors.structure('NEXO2035', `The value bound to '${name}' is recognized as ${types.map(type => type.toString(true)).join(' and ')}, of which none is beneath the others`, { binding: name });
         }
 
         return specific;

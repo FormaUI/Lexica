@@ -2,7 +2,7 @@
  * ResultPath — a path into an expression's result, of field names and list indices: its shape, the type it reaches and the value it reads
  */
 
-import { LexicaErrors } from './LexicaError.mjs';
+import { NexoErrors } from './NexoError.mjs';
 import { Names } from './Names.mjs';
 import { Type } from './Type.mjs';
 
@@ -14,7 +14,7 @@ export class ResultPath {
 
             // A field a result holds is named by any word, a reserved word among them.
             if (!isIndex && !Names.isIdentifier(item)) {
-                throw LexicaErrors.structure('NEXO2646', `A path holds the names of fields and list indices that are whole numbers and not negative, and ${JSON.stringify(item) ?? String(item)} is neither`, {});
+                throw NexoErrors.structure('NEXO2646', `A path holds the names of fields and list indices that are whole numbers and not negative, and ${JSON.stringify(item) ?? String(item)} is neither`, {});
             }
         }
     }
@@ -23,7 +23,7 @@ export class ResultPath {
      * The type the path reaches in the result's type, nullable where a step it passes is; a type that says nothing of its value takes any path, which is checked once its type is known.
      * @param {Type} resultType The result's type.
      * @param {(string | number)[]} path
-     * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry Where a structured type's fields are declared.
+     * @param {import('./vocabulary/NexoRegistry.mjs').NexoRegistry} registry Where a structured type's fields are declared.
      * @param {() => object} locationOf Where a path that does not fit the result is refused, found only when one is.
      */
     static typeAt(resultType, path, registry, locationOf) {
@@ -39,7 +39,7 @@ export class ResultPath {
 
             if (typeof item === 'number') {
                 if (!type.isList) {
-                    throw LexicaErrors.validation('NEXO3601', `The path indexes ${type.toNonNullable()}, which is no list`, locationOf());
+                    throw NexoErrors.validation('NEXO3601', `The path indexes ${type.toNonNullable()}, which is no list`, locationOf());
                 }
 
                 // An index out of range gives null.
@@ -52,7 +52,7 @@ export class ResultPath {
             const nextType = type.kind === 'object' ? type.getObjectFieldType(item) : (registry.getDataShape(type)?.get(item) ?? null);
 
             if (nextType === null) {
-                throw LexicaErrors.validation('NEXO3602', `The path names '${item}', which ${type.toNonNullable()} does not hold`, locationOf());
+                throw NexoErrors.validation('NEXO3602', `The path names '${item}', which ${type.toNonNullable()} does not hold`, locationOf());
             }
 
             type = nextType;

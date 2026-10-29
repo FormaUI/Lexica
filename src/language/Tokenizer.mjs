@@ -2,7 +2,7 @@
  * Tokenizer — the tokens of a Nexo text: strictly, as parsing reads them, refusing the first text that is no token, or tolerantly, as tooling reads any text, an invalid token standing for each such text with its diagnostic
  */
 
-import { LexicaErrors } from './LexicaError.mjs';
+import { NexoErrors } from './NexoError.mjs';
 import { Names } from './Names.mjs';
 
 /**
@@ -79,7 +79,7 @@ export class Tokenizer {
 
         for (const token of tokens) {
             if (token.type === 'invalid') {
-                throw LexicaErrors.syntax(token.diagnostic.code, token.diagnostic.message, this.#text, token.diagnostic.offset);
+                throw NexoErrors.syntax(token.diagnostic.code, token.diagnostic.message, this.#text, token.diagnostic.offset);
             }
         }
 

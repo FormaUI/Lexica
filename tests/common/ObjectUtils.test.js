@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ObjectUtils } from '#lexica/common/ObjectUtils.mjs';
+import { ObjectUtils } from '#nexo/common/ObjectUtils.mjs';
 
 describe('ObjectUtils', () => {
     class Point {

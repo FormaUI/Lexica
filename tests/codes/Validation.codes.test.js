@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { lexica, LexicaError } from '#lexica/lexica.js';
+import { nexo, NexoError } from '#nexo/nexo.js';
 import { Light, Room, withHome } from '../support/home.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
 import { constantUpdates } from '../support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, hostFunctionDeclaration, operatorDeclaration } from '../support/declarations.mjs';
 
-const { createValueParameterDeclaration, createExpressionParameterDeclaration, createFunctionParameterDeclaration, createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration } = lexica.declarations;
+const { createValueParameterDeclaration, createExpressionParameterDeclaration, createFunctionParameterDeclaration, createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration } = nexo.declarations;
 
 /** A property, a member a script calls and an indexer, each unevaluated by these tests. */
 const property = (name, result) => createPropertyDeclaration(name, result, { updates: constantUpdates });
@@ -27,7 +27,7 @@ const tillMembers = () => [
  * parameters on a list, on a word and on no receiver, members of one name for two kinds of list, module members, host calls and a structured type converted from a word, each on a word declared in an extension of
  * strings; and its own type, a till, whose members its namespace reaches, as no extension's are, for the qualified forms and the function references.
  */
-const createShop = () => lexica.createModule('shop', withHome({
+const createShop = () => nexo.createModule('shop', withHome({
     types: [
         // A cup's function of the name a till's has, so a reference to the name names two functions.
         { name: 'Cup', kind: 'structured', members: [...dataPropertyDeclarations({ size: 'Number' }), call('fits', 'Boolean')] },
@@ -67,16 +67,16 @@ const createShop = () => lexica.createModule('shop', withHome({
 const values = { s: 'oat', xs: [1, 2], ys: [3], e: [], nothing: null, no: false, flag: true, p: 'size' };
 
 /** The error resolving the text against a registry of the shop, and of the other modules given, each imported, throws, with the script parameters given. */
-const refusalOf = (text, bound = values, modules = []) => errorThrownBy(() => lexica.createRegistry([createShop(), ...modules]).resolve(text, bound, { imports: ['shop', ...modules.map(module => module.name)] }));
+const refusalOf = (text, bound = values, modules = []) => errorThrownBy(() => nexo.createRegistry([createShop(), ...modules]).resolve(text, bound, { imports: ['shop', ...modules.map(module => module.name)] }));
 
 /** The error resolving the text against a registry of the shop and of the other modules given throws, with the script parameters given and no import a host supplies. */
-const refusalWithoutImportsOf = (text, bound = values, modules = []) => errorThrownBy(() => lexica.createRegistry([createShop(), ...modules]).resolve(text, bound));
+const refusalWithoutImportsOf = (text, bound = values, modules = []) => errorThrownBy(() => nexo.createRegistry([createShop(), ...modules]).resolve(text, bound));
 
 /** Expects the text's resolution to fail with the code, of the kind given. */
 const expectResolutionCode = (text, code, kind = 'validation', bound = values, modules = []) => {
     const error = refusalOf(text, bound, modules);
 
-    expect(error).toBeInstanceOf(LexicaError);
+    expect(error).toBeInstanceOf(NexoError);
     expect({ code: error.code, kind: error.kind }).toEqual({ code, kind });
 };
 
@@ -84,31 +84,31 @@ describe('the codes of resolution', () => {
     describe('imports', () => {
         it('NEXO3002, an import of a module the registry does not hold', () => {
             expect(refusalWithoutImportsOf('import shop\nimport elsewhere\n1')).toMatchObject({ code: 'NEXO3002', kind: 'validation', location: { pointer: '/imports/0', line: 2, column: 1 }, message: expect.stringContaining("'import elsewhere' imports the module 'elsewhere', which the registry does not hold") });
-            expect(errorThrownBy(() => lexica.createRegistry([]).resolve('1', {}, { imports: ['shop'] }))).toMatchObject({ code: 'NEXO3002', location: { pointer: '/imports/0' } });
+            expect(errorThrownBy(() => nexo.createRegistry([]).resolve('1', {}, { imports: ['shop'] }))).toMatchObject({ code: 'NEXO3002', location: { pointer: '/imports/0' } });
         });
         it('NEXO3052, an import of a type its module does not declare', () => expect(refusalWithoutImportsOf('import shop.Mug\n1')).toMatchObject({ code: 'NEXO3052', location: { pointer: '/imports/0' }, message: expect.stringContaining("imports 'shop.Mug', which its module does not declare") }));
         it('takes an import of an extension by its name, which names no type, and refuses an internal one with NEXO3053', () => {
-            expect(lexica.createRegistry([createShop()]).resolve('import shop.Words\n1', values).type).toBe('Number');
+            expect(nexo.createRegistry([createShop()]).resolve('import shop.Words\n1', values).type).toBe('Number');
             expect(refusalWithoutImportsOf('import shop.Words\n"oat" as Words')).toMatchObject({ code: 'NEXO3019' });
 
-            const secret = lexica.createModule('secret', { types: [{ ...extensionDeclaration('Hidden', 'String', [call('hide', 'String')]), internal: true }] });
+            const secret = nexo.createModule('secret', { types: [{ ...extensionDeclaration('Hidden', 'String', [call('hide', 'String')]), internal: true }] });
 
             expect(refusalWithoutImportsOf('import secret.Hidden\n1', values, [secret])).toMatchObject({ code: 'NEXO3053', location: { pointer: '/imports/0' }, message: expect.stringContaining("imports 'secret.Hidden', which is internal to its module") });
         });
         it('NEXO3053, an import of an internal type', () => {
-            const secret = lexica.createModule('secret', { types: [{ name: 'Vault', kind: 'structured', internal: true, members: dataPropertyDeclarations({ size: 'Number' }) }] });
+            const secret = nexo.createModule('secret', { types: [{ name: 'Vault', kind: 'structured', internal: true, members: dataPropertyDeclarations({ size: 'Number' }) }] });
 
             expect(refusalWithoutImportsOf('import secret.Vault\n1', values, [secret])).toMatchObject({ code: 'NEXO3053', location: { pointer: '/imports/0' }, message: expect.stringContaining("imports 'secret.Vault', which is internal to its module") });
         });
         it("NEXO3003, a registered module's name read where a value stands, which no import gives and no binding has", () => {
             expect(refusalWithoutImportsOf('shop.open')).toMatchObject({ code: 'NEXO3003', location: { pointer: '/expression/receiver' }, message: expect.stringContaining("write 'import shop' at the script's start") });
-            expect(lexica.createRegistry([createShop()]).resolve('shop == "oat"', { shop: 'oat' }).type).toBe('Boolean');
+            expect(nexo.createRegistry([createShop()]).resolve('shop == "oat"', { shop: 'oat' }).type).toBe('Boolean');
             expect(refusalWithoutImportsOf('import Store = shop\nshop.open').code).toBe('NEXO3003');
-            expect(lexica.createRegistry([createShop()]).resolve('import Store = shop\nStore.open').type).toBe('Boolean');
+            expect(nexo.createRegistry([createShop()]).resolve('import Store = shop\nStore.open').type).toBe('Boolean');
         });
         it('NEXO3005, a member declared on its receiver only by modules, types or extensions the script does not import', () => {
             expect(refusalWithoutImportsOf('word.size', { word: 'oat' })).toMatchObject({ code: 'NEXO3005', location: { pointer: '/expression' }, message: expect.stringContaining("'size' on String is declared only by 'shop', which the script does not import: write 'import shop'") });
-            expect(lexica.createRegistry([createShop()]).resolve('word.size', { word: 'oat' }, { imports: ['shop'] }).type).toBe('Number');
+            expect(nexo.createRegistry([createShop()]).resolve('word.size', { word: 'oat' }, { imports: ['shop'] }).type).toBe('Number');
         });
     });
 
@@ -120,7 +120,7 @@ describe('the codes of resolution', () => {
         });
         it('NEXO3027, an extension access whose receiver does not satisfy the extension\'s target', () => expect(refusalWithoutImportsOf('import shop\nxs:Words.size')).toMatchObject({ code: 'NEXO3027', location: { pointer: '/expression' } }));
         it('NEXO3061, an extension access naming one several extensions share unqualified', () => {
-            const other = lexica.createModule('other', { types: [extensionDeclaration('Words', 'String', [property('size', 'Number')])] });
+            const other = nexo.createModule('other', { types: [extensionDeclaration('Words', 'String', [property('size', 'Number')])] });
 
             expect(refusalWithoutImportsOf('import shop\nimport other\ns:Words.size', values, [other])).toMatchObject({ code: 'NEXO3061', message: expect.stringContaining("'other.Words' or 'shop.Words'") });
         });
@@ -165,7 +165,7 @@ describe('the codes of resolution', () => {
         it('NEXO3017, a module property called', () => expectResolutionCode('shop.open()', 'NEXO3017'));
         it('NEXO3024, a member several declarations take on a List<Never>', () => expectResolutionCode('e.total()', 'NEXO3024'));
         it('NEXO3025, a receiver of unknown type whose candidates disagree on who invokes them', () => {
-            const cafe = lexica.createModule('cafe', { types: [extensionDeclaration('Orders', 'Number', [call('order', 'Number', { parameters: [createValueParameterDeclaration('count', 'Number')] })])] });
+            const cafe = nexo.createModule('cafe', { types: [extensionDeclaration('Orders', 'Number', [call('order', 'Number', { parameters: [createValueParameterDeclaration('count', 'Number')] })])] });
 
             expectResolutionCode('nothing?.order(1)', 'NEXO3025', 'validation', values, [cafe]);
         });
@@ -201,7 +201,7 @@ describe('the codes of resolution', () => {
         it('NEXO3042, a qualified form given a function as its receiver', () => expectResolutionCode('let g = x => x\nreturn shop.wipe(g)', 'NEXO3042'));
         it('NEXO3042, an expression argument of the wrong type', () => expectResolutionCode('xs.max("a")', 'NEXO3042'));
         it('NEXO3011, a named indexer called through its namespace', () => {
-            const words = lexica.createModule('words', { types: [{ name: 'Glyphs', kind: 'reference', isInstance: () => false, members: [indexer('glyph', 'String?', { parameters: [createValueParameterDeclaration('index', 'Number')] })] }] });
+            const words = nexo.createModule('words', { types: [{ name: 'Glyphs', kind: 'reference', isInstance: () => false, members: [indexer('glyph', 'String?', { parameters: [createValueParameterDeclaration('index', 'Number')] })] }] });
 
             expectResolutionCode('words.glyph(s, 1)', 'NEXO3011', 'validation', values, [words]);
         });
@@ -275,7 +275,7 @@ describe('the codes of resolution', () => {
         });
         it('NEXO3019, a type qualified by a module that does not declare it', () => expectResolutionCode('s to shop.Mug', 'NEXO3019'));
         it('NEXO3059, a type several modules share unqualified', () => {
-            const mugs = lexica.createModule('mugs', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }] });
+            const mugs = nexo.createModule('mugs', { types: [{ name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number' }) }] });
 
             expectResolutionCode('s to Cup', 'NEXO3059', 'validation', values, [mugs]);
         });

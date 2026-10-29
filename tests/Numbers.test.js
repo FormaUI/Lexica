@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { errorThrownBy } from './support/errors.mjs';
 
-const registry = lexica.createRegistry();
+const registry = nexo.createRegistry();
 const evaluate = (text, values = {}) => registry.resolve(text, values).createEvaluator(values).evaluate().value;
 
 describe("a number's members", () => {

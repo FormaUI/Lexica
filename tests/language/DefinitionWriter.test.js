@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
-import { DefinitionValidator } from '#lexica/language/DefinitionValidator.mjs';
-import { DefinitionWriter } from '#lexica/language/DefinitionWriter.mjs';
-import { Versions } from '#lexica/language/Versions.mjs';
+import { nexo } from '#nexo/nexo.js';
+import { DefinitionValidator } from '#nexo/language/DefinitionValidator.mjs';
+import { DefinitionWriter } from '#nexo/language/DefinitionWriter.mjs';
+import { Versions } from '#nexo/language/Versions.mjs';
 
 const literal = value => ({ kind: 'literal', value });
 const parameter = name => ({ kind: 'scriptParameter', name });
@@ -49,10 +49,10 @@ describe('DefinitionWriter', () => {
     });
 
     it("starts a call's argument after one ending in a block's end on the next line, since only closing punctuation follows end on its line", () => {
-        const formatted = lexica.format('f(if c then { a = 1, b = 2 } else null end, 2)');
+        const formatted = nexo.format('f(if c then { a = 1, b = 2 } else null end, 2)');
 
         expect(formatted).toBe('f(if c then\n    {\n        a = 1,\n        b = 2\n    }\nelse\n    null\nend,\n2)');
-        expect(lexica.parse(formatted)).toEqual(lexica.parse('f(if c then { a = 1, b = 2 } else null end, 2)'));
+        expect(nexo.parse(formatted)).toEqual(nexo.parse('f(if c then { a = 1, b = 2 } else null end, 2)'));
     });
 
     it("writes a script's imports before its body, each on a line of its own in the definition's order, an alias and = before its source, leaving out those its destination supplies", () => {

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { derivedUpdates } from './support/updates.mjs';
 
-const { createFunctionDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration, createExpressionParameterDeclaration } = lexica.declarations;
+const { createFunctionDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration, createExpressionParameterDeclaration } = nexo.declarations;
 
 /** A value parameter that accepts null, so a call given null is invoked with it. */
 const accepting = (name, type) => createValueParameterDeclaration(name, type, { nulls: 'accept' });
@@ -13,7 +13,7 @@ const accepting = (name, type) => createValueParameterDeclaration(name, type, { 
  * A kit of generic members on the home: a list's projections by a function and by an expression, each binding its result's `U` from what its callback gives; and module members binding their own `T` from their value
  * arguments, a value as it is, one that may be null, two of one type, a list's items, and a value an option chooses after a test written before it.
  */
-const createKit = () => lexica.createModule('kit', withHome({
+const createKit = () => nexo.createModule('kit', withHome({
     types: [{
         name: 'ListExtensions<T>',
         kind: 'extension',
@@ -43,11 +43,11 @@ const heater = new Thermostat('heater');
 const values = { lamp, heater, flag: true, numbers: [1, 2], words: ['oat', 'rye'], empty: [] };
 
 /** The type the text resolves to against a registry of the kit, as a message writes it. */
-const typeOf = text => lexica.createRegistry([createKit()]).resolve(text, values, { imports: ['kit'] }).type;
+const typeOf = text => nexo.createRegistry([createKit()]).resolve(text, values, { imports: ['kit'] }).type;
 
 /** What the text evaluates to against a registry of the kit. */
 const evaluate = text => {
-    const registry = lexica.createRegistry([createKit()]);
+    const registry = nexo.createRegistry([createKit()]);
     const bindings = registry.createBindings(values);
 
     return registry.resolve(text, bindings, { imports: ['kit'] }).createEvaluator(bindings).evaluate().value;

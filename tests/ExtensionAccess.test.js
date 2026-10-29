@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Device, Light, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 import { extensionDeclaration, hostFunctionDeclaration } from './support/declarations.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
 /** What the home holds, each a value of Any its `item` answers by its key. */
 const held = { lamp: new Light('lamp'), word: 'oat' };
 
 /** The home: its devices, each labelled by its own `label`, a device found by its name, which may be none, and a value of Any by its key. */
-const createHome = () => lexica.createModule('Home', withHome({
+const createHome = () => nexo.createModule('Home', withHome({
     members: [
         createFunctionDeclaration('find', 'Device?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('name', 'String')], impl: ({ args }) => (args.name === 'fan' ? new Device('fan') : null) }),
         createFunctionDeclaration('item', 'Any', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')], impl: ({ args }) => held[args.key] }),
@@ -24,7 +24,7 @@ const createHome = () => lexica.createModule('Home', withHome({
  * Energy's extension of the home's devices: a usage, a label of its own, a reset to a level, a weight of an amount, whether it is active, a setting by its key, its unnamed indexer, and an order its host invokes; and its
  * extension of lights, which glow.
  */
-const createEnergy = () => lexica.createModule('Energy', {
+const createEnergy = () => nexo.createModule('Energy', {
     types: [
         extensionDeclaration('Device', 'Home.Device', [
             createPropertyDeclaration('usage', 'Number', { updates: derivedUpdates, impl: ({ receiver }) => receiver.name.length }),
@@ -40,12 +40,12 @@ const createEnergy = () => lexica.createModule('Energy', {
 });
 
 /** Solar's extension of the home's devices, of the same name as Energy's, which also reads a usage. */
-const createSolar = () => lexica.createModule('Solar', { types: [extensionDeclaration('Device', 'Home.Device', [createPropertyDeclaration('usage', 'Number', { updates: derivedUpdates, impl: () => 0 })])] });
+const createSolar = () => nexo.createModule('Solar', { types: [extensionDeclaration('Device', 'Home.Device', [createPropertyDeclaration('usage', 'Number', { updates: derivedUpdates, impl: () => 0 })])] });
 
 const values = { fan: new Device('fan'), lamp: new Light('lamp'), counts: [1, 2, 3] };
 
 /** The resolution of the text against a registry of the home, Energy and Solar, read with the imports given. */
-const resolve = (text, imports = ['Home', 'Energy']) => lexica.createRegistry([createHome(), createEnergy(), createSolar()]).resolve(text, values, { imports });
+const resolve = (text, imports = ['Home', 'Energy']) => nexo.createRegistry([createHome(), createEnergy(), createSolar()]).resolve(text, values, { imports });
 
 /** What the text evaluates to, read with the imports given. */
 const evaluate = (text, imports) => resolve(text, imports).createEvaluator(values).evaluate().value;
@@ -59,8 +59,8 @@ const failure = (text, imports) => errorThrownBy(() => evaluate(text, imports));
 describe('extension access', () => {
     describe('in text and definitions', () => {
         it("makes a grouped chain optional with '?:' as with '?.', so it stands as a cast's target within an optional enclosed access", () => {
-            const extended = lexica.parse('(?((x?:E.y) as Light).w)').expression;
-            const dotted = lexica.parse('(?((x?.y) as Light).w)').expression;
+            const extended = nexo.parse('(?((x?:E.y) as Light).w)').expression;
+            const dotted = nexo.parse('(?((x?.y) as Light).w)').expression;
 
             expect(extended.chain.receiver.operand).toEqual({ kind: 'optionalChain', chain: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'x' }, name: 'y', optional: true, extension: { name: 'E' } } });
             expect(dotted.chain.receiver.operand).toEqual({ kind: 'optionalChain', chain: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'x' }, name: 'y', optional: true } });
@@ -78,29 +78,29 @@ describe('extension access', () => {
             };
 
             for (const [text, expression] of Object.entries(definitions)) {
-                const definition = lexica.parse(text, { imports: ['Energy'] });
+                const definition = nexo.parse(text, { imports: ['Energy'] });
 
                 expect(definition.expression, text).toEqual(expression);
-                expect(lexica.format(definition, { imports: ['Energy'] }), text).toBe(text);
+                expect(nexo.format(definition, { imports: ['Energy'] }), text).toBe(text);
             }
         });
 
         it('applies a selection to one member operation, a later colon selecting another for its answer, and binds as a member access does', () => {
-            expect(lexica.parse('fan:Device.reset(1):Words.size').expression).toMatchObject({ kind: 'memberAccess', name: 'size', extension: { name: 'Words' }, receiver: { kind: 'call', callee: { name: 'reset', extension: { name: 'Device' } } } });
-            expect(lexica.parse('a + b:Numbers.half').expression).toMatchObject({ kind: 'arithmetic', right: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'b' }, extension: { name: 'Numbers' } } });
-            expect(lexica.parse('(a + b):Numbers.half').expression).toMatchObject({ kind: 'memberAccess', receiver: { kind: 'arithmetic' } });
+            expect(nexo.parse('fan:Device.reset(1):Words.size').expression).toMatchObject({ kind: 'memberAccess', name: 'size', extension: { name: 'Words' }, receiver: { kind: 'call', callee: { name: 'reset', extension: { name: 'Device' } } } });
+            expect(nexo.parse('a + b:Numbers.half').expression).toMatchObject({ kind: 'arithmetic', right: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'b' }, extension: { name: 'Numbers' } } });
+            expect(nexo.parse('(a + b):Numbers.half').expression).toMatchObject({ kind: 'memberAccess', receiver: { kind: 'arithmetic' } });
         });
 
         it('reads an extension access within an argument, a colon a space follows starting no argument but a named one, and a word named as a module the imports give as its qualifier', () => {
-            expect(lexica.parse('f(x:Device.usage)').expression.arguments[0]).toMatchObject({ kind: 'memberAccess', extension: { name: 'Device' } });
-            expect(errorThrownBy(() => lexica.parse('f(x: Device.usage)'))).toMatchObject({ code: 'NEXO1012' });
-            expect(errorThrownBy(() => lexica.parse('fan:Energy.usage', { imports: ['Energy'] }))).toMatchObject({ code: 'NEXO1000', location: { offset: 16 } });
+            expect(nexo.parse('f(x:Device.usage)').expression.arguments[0]).toMatchObject({ kind: 'memberAccess', extension: { name: 'Device' } });
+            expect(errorThrownBy(() => nexo.parse('f(x: Device.usage)'))).toMatchObject({ code: 'NEXO1012' });
+            expect(errorThrownBy(() => nexo.parse('fan:Energy.usage', { imports: ['Energy'] }))).toMatchObject({ code: 'NEXO1000', location: { offset: 16 } });
         });
 
         it('refuses a colon brackets follow directly, giving the unnamed indexer and the computed property access, and an extension named with no member after it', () => {
-            expect(errorThrownBy(() => lexica.parse('it:["mode"]'))).toMatchObject({ code: 'NEXO1014', message: expect.stringContaining("write 'it[…]' for the unnamed indexer, or 'it.[…]'") });
-            expect(errorThrownBy(() => lexica.parse('it?:["mode"]'))).toMatchObject({ code: 'NEXO1014', message: expect.stringContaining("write 'it?[…]' for the unnamed indexer, or 'it?.[…]'") });
-            expect(errorThrownBy(() => lexica.parse('a.b ?: c'))).toMatchObject({ code: 'NEXO1000', message: expect.stringContaining("no '?:' chooses between two values, which '??' does") });
+            expect(errorThrownBy(() => nexo.parse('it:["mode"]'))).toMatchObject({ code: 'NEXO1014', message: expect.stringContaining("write 'it[…]' for the unnamed indexer, or 'it.[…]'") });
+            expect(errorThrownBy(() => nexo.parse('it?:["mode"]'))).toMatchObject({ code: 'NEXO1014', message: expect.stringContaining("write 'it?[…]' for the unnamed indexer, or 'it?.[…]'") });
+            expect(errorThrownBy(() => nexo.parse('a.b ?: c'))).toMatchObject({ code: 'NEXO1000', message: expect.stringContaining("no '?:' chooses between two values, which '??' does") });
         });
     });
 

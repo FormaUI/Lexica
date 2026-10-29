@@ -8,42 +8,42 @@ Nexo is one ES module with its type declarations. Neither package is published y
 
 | Package | Import |
 | --- | --- |
-| npm, `@formaui/lexica` | `import { lexica, LexicaError } from '@formaui/lexica';` |
+| npm, `@formaui/lexica` | `import { nexo, NexoError } from '@formaui/lexica';` |
 | NuGet, `formaui-net.Lexica` | The bundle is served at `_content/lexica/lexica.js` |
 
 ## Read and write text
 
-`lexica.parse` reads text into a definition, the script's frozen JSON form. `lexica.format` writes any definition, or text, back as canonical text, and `lexica.getLocation` finds where a definition node came from:
+`nexo.parse` reads text into a definition, the script's frozen JSON form. `nexo.format` writes any definition, or text, back as canonical text, and `nexo.getLocation` finds where a definition node came from:
 
 ```js
-const definition = lexica.parse('{ total = price  *  quantity }');
+const definition = nexo.parse('{ total = price  *  quantity }');
 
-lexica.format(definition); // '{ total = price * quantity }'
-lexica.getLocation(definition, '/expression/objectFields/0/value'); // { pointer: '/expression/objectFields/0/value', offset: 10, line: 1, column: 11 }
+nexo.format(definition); // '{ total = price * quantity }'
+nexo.getLocation(definition, '/expression/objectFields/0/value'); // { pointer: '/expression/objectFields/0/value', offset: 10, line: 1, column: 11 }
 ```
 
 None of these needs a domain: reading, checking and formatting know the language and the script's imports alone. A script imports each module whose namespace it reads, at its start, and a host whose scripts all use its module supplies the import instead, which formatting for that host leaves out:
 
 ```js
-lexica.parse('import Shop\nShop.open').imports;      // [{ module: 'Shop' }]
-lexica.parse('Shop.open', { imports: ['Shop'] });    // the same definition
-lexica.format('Shop.open', { imports: ['Shop'] });   // 'Shop.open'
-lexica.format('import Store = Shop\nStore.open');   // 'import Store = Shop\n\nStore.open'
-lexica.quote('{\n    open = Shop.open\n}', { imports: ['Shop'] }); // '{ open = Shop.open }'
+nexo.parse('import Shop\nShop.open').imports;      // [{ module: 'Shop' }]
+nexo.parse('Shop.open', { imports: ['Shop'] });    // the same definition
+nexo.format('Shop.open', { imports: ['Shop'] });   // 'Shop.open'
+nexo.format('import Store = Shop\nStore.open');   // 'import Store = Shop\n\nStore.open'
+nexo.quote('{\n    open = Shop.open\n}', { imports: ['Shop'] }); // '{ open = Shop.open }'
 ```
 
-`lexica.quote` writes the compact text a diagnostic quotes, which reads back as the same definition: on one line, but where a body that uses `return` puts each local and its `return` on a line of its own.
+`nexo.quote` writes the compact text a diagnostic quotes, which reads back as the same definition: on one line, but where a body that uses `return` puts each local and its `return` on a line of its own.
 
-A registry reads no text of its own: `lexica.parse`, `lexica.format` and `lexica.quote` read and write a text alike for every registry, and `registry.resolve(script, bindings, { imports })` reads a text as `lexica.parse` does; registering a module changes how no text reads.
+A registry reads no text of its own: `nexo.parse`, `nexo.format` and `nexo.quote` read and write a text alike for every registry, and `registry.resolve(script, bindings, { imports })` reads a text as `nexo.parse` does; registering a module changes how no text reads.
 
 ## Declare a domain
 
 A module declares what scripts can read: its types, with their members, and the members it adds to other types in extensions, each with its signature, how its value changes, and the implementation that answers it. The declaration helpers fill in the defaults, and where a member stands gives it its receiver:
 
 ```js
-const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
-const shop = lexica.createModule('Shop', {
+const shop = nexo.createModule('Shop', {
     types: [
         { name: 'Price', kind: 'structured', members: [createPropertyDeclaration('amount', 'Number'), createPropertyDeclaration('currency', 'String')] },
         {
@@ -73,7 +73,7 @@ An implementation receives one object and reads what it needs by name: its `rece
 A registry holds the modules a host registers. Resolving a script against it checks every member, argument and type before anything runs, among what the script's imports make available, a module's members through its import and Nexo's own always, so a member of a module no import names is refused, giving the import to write:
 
 ```js
-const registry = lexica.createRegistry([shop]);
+const registry = nexo.createRegistry([shop]);
 const bindings = registry.createBindings({ product: 'tea', code: 'TEN' });
 const resolution = registry.resolve('{ price = product.price, cut = product.discount(code) }', bindings, { imports: ['Shop'] });
 
@@ -91,7 +91,7 @@ A host's map binds as a dictionary, read by key, and a set as a list in its orde
 ```js
 const menu = { prices: new Map([['coffee', 3], ['tea', 2]]) };
 
-lexica.createRegistry([]).resolve('{ tea = prices["tea"], all = prices }', menu).createEvaluator(menu).evaluate().value;
+nexo.createRegistry([]).resolve('{ tea = prices["tea"], all = prices }', menu).createEvaluator(menu).evaluate().value;
 // { tea: 2, all: { entries: [{ key: 'coffee', value: 3 }, { key: 'tea', value: 2 }] } }
 ```
 
@@ -128,7 +128,7 @@ Only the reads an evaluation reaches are reported: a branch not taken reports no
 
 ## Handle errors
 
-Every failure is a `LexicaError` with the code of its condition, a `kind` and the location it concerns:
+Every failure is a `NexoError` with the code of its condition, a `kind` and the location it concerns:
 
 ```js
 try {

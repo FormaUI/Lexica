@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { Evaluator } from '#lexica/language/Evaluator.mjs';
-import { LanguageResolver } from '#lexica/language/LanguageResolver.mjs';
-import { ParameterBindings } from '#lexica/language/ParameterBindings.mjs';
-import { ParsedTexts } from '#lexica/language/ParsedTexts.mjs';
-import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
-import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { Evaluator } from '#nexo/language/Evaluator.mjs';
+import { LanguageResolver } from '#nexo/language/LanguageResolver.mjs';
+import { ParameterBindings } from '#nexo/language/ParameterBindings.mjs';
+import { ParsedTexts } from '#nexo/language/ParsedTexts.mjs';
+import { Declarations } from '#nexo/language/vocabulary/Declarations.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
+import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 import { extensionDeclaration } from '../support/declarations.mjs';
 import { errorThrownBy } from '../support/errors.mjs';
 import { parseImporting } from '../support/pipeline.mjs';
@@ -17,7 +17,7 @@ const { createPropertyDeclaration } = Declarations;
  * A plain application-data host's module on names: a price read from a name, a rate the environment holds, and a quote maintained by an observation, which a host samples.
  * Every implementation records its receiver, so a test sees which invocations ran.
  */
-const createPrices = invoked => new LexicaModule('prices', {
+const createPrices = invoked => new NexoModule('prices', {
     observationTypes: [{ name: 'quote', contract: 'maintained', impl: () => ({ stop: () => {}, sample: () => ({ pending: false, value: 1 }) }) }],
     types: [
         extensionDeclaration('StringExtensions', 'String', [
@@ -30,7 +30,7 @@ const createPrices = invoked => new LexicaModule('prices', {
 
 /** An evaluator of the text against a registry holding Nexo's own module and the prices module, with the bindings and the environment given. */
 const createEvaluator = (text, values, { env = {}, invoked = [] } = {}) => {
-    const registry = new LexicaRegistry([Vocabulary.module, createPrices(invoked)]);
+    const registry = new NexoRegistry([Vocabulary.module, createPrices(invoked)]);
     const definition = parseImporting(registry, text);
     const bindings = new ParameterBindings(registry, values);
     const locations = ParsedTexts.locationsOf(definition);

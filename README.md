@@ -41,10 +41,10 @@ The implementation's version is declared in its sources and carried by its packa
 ## Use it
 
 ```js
-import { lexica } from '@formaui/lexica';
+import { nexo } from '@formaui/lexica';
 
-const definition = lexica.parse('{ total = price * quantity }');
-const registry = lexica.createRegistry();
+const definition = nexo.parse('{ total = price * quantity }');
+const registry = nexo.createRegistry();
 const bindings = registry.createBindings({ price: 4, quantity: 3 });
 const resolution = registry.resolve(definition, bindings);
 

@@ -33,7 +33,7 @@ export class ImportedVocabulary {
     #declarationLocalNames = new Map();
 
     /**
-     * @param {import('./vocabulary/LexicaRegistry.mjs').LexicaRegistry} registry The registry the imports name declarations of.
+     * @param {import('./vocabulary/NexoRegistry.mjs').NexoRegistry} registry The registry the imports name declarations of.
      * @param {readonly object[]} imports The script's imports, in a definition's shape, each naming a module the registry holds and, for a type import, a public type or extension it declares.
      */
     constructor(registry, imports) {

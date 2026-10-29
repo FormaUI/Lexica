@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { SYNTAX_NODE_KINDS, SyntaxTree } from '#lexica/language/SyntaxTree.mjs';
-import { Tokenizer } from '#lexica/language/Tokenizer.mjs';
+import { SYNTAX_NODE_KINDS, SyntaxTree } from '#nexo/language/SyntaxTree.mjs';
+import { Tokenizer } from '#nexo/language/Tokenizer.mjs';
 
 describe('SyntaxTree', () => {
     it('answers the word a token writes as the text spells it, whatever the token is', () => {

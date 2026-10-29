@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { Type } from '#lexica/language/Type.mjs';
-import { TypeChecker } from '#lexica/language/TypeChecker.mjs';
-import { Declarations } from '#lexica/language/vocabulary/Declarations.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
-import { LexicaRegistry } from '#lexica/language/vocabulary/LexicaRegistry.mjs';
-import { Vocabulary } from '#lexica/language/vocabulary/Vocabulary.mjs';
+import { Type } from '#nexo/language/Type.mjs';
+import { TypeChecker } from '#nexo/language/TypeChecker.mjs';
+import { Declarations } from '#nexo/language/vocabulary/Declarations.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
+import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
+import { Vocabulary } from '#nexo/language/vocabulary/Vocabulary.mjs';
 import { extensionDeclaration, receiverTestsDeclaration } from '../support/declarations.mjs';
 import { withHome } from '../support/home.mjs';
 
 /** The checker of a registry of the home's types: a light and a thermostat beneath a device, and a room of a hierarchy of its own. */
-const checker = new LexicaRegistry([Vocabulary.module, new LexicaModule('home', withHome())]).typeChecker;
+const checker = new NexoRegistry([Vocabulary.module, new NexoModule('home', withHome())]).typeChecker;
 
 /** The type the notation writes, or an object type of the fields given. */
 const typeOf = text => (typeof text === 'string' ? Type.parse(text) : Type.createObjectType(new Map(Object.entries(text).map(([name, fieldText]) => [name, typeOf(fieldText)]))));
@@ -257,7 +257,7 @@ describe('TypeChecker', () => {
     describe('resolveApplyingReceiverType, matchesReceiver and inferReceiverTypeArguments', () => {
         it('resolves the receiver type the receiver applies to a member by, its extension\'s target, a type parameter alone taking any value, which a never and null take neither of, and none for a module member', () => {
             const property = name => Declarations.createPropertyDeclaration(name, 'String', { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ receiver }) => receiver });
-            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', {
+            const registry = new NexoRegistry([Vocabulary.module, new NexoModule('charts', {
                 types: [extensionDeclaration('Values<T>', 'T', [property('dim')]), extensionDeclaration('Words', 'String', [property('glow')])],
                 members: [property('fade')],
             })]);
@@ -276,7 +276,7 @@ describe('TypeChecker', () => {
         });
 
         it('applies a member to a receiver its receiver types match, inferring the type arguments it binds, and a receiver of any type to any value', () => {
-            const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('charts', { types: [receiverTestsDeclaration()] })]);
+            const registry = new NexoRegistry([Vocabulary.module, new NexoModule('charts', { types: [receiverTestsDeclaration()] })]);
             const [count] = registry.getReceiverMembers('count');
             const [is] = registry.getReceiverMembers('is');
 

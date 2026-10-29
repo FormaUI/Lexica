@@ -14,9 +14,9 @@ const run = source => {
 describe('the package', () => {
     it('serves a plain host by its name, through its entry point alone', () => {
         const { output, status, error } = run(`
-            import { lexica } from '@formaui/lexica';
+            import { nexo } from '@formaui/lexica';
 
-            const resolution = lexica.createRegistry().resolve('{ total = price * quantity }', { price: 2, quantity: 3 });
+            const resolution = nexo.createRegistry().resolve('{ total = price * quantity }', { price: 2, quantity: 3 });
             const { value, metadata } = resolution.createEvaluator({ price: 2, quantity: 3 }).evaluate();
 
             console.log(JSON.stringify({ value, type: resolution.type, tolerance: metadata.objectFields.total.tolerance }));

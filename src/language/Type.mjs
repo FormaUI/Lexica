@@ -7,7 +7,7 @@ const NAME = /^@?[A-Za-z][A-Za-z0-9]*$/;
 const TYPE_PARAMETER = /^(?:[A-Z]|@[A-Za-z][A-Za-z0-9]*)$/;
 
 /** The name of the type of a JavaScript primitive, by what `typeof` answers for it. */
-/** The scalar types' names by the JavaScript type of their values: `LexicaModule.scalarTypeNames`, which a test keeps this map to, by `typeof`, since `Type` imports nothing of the vocabulary. */
+/** The scalar types' names by the JavaScript type of their values: `NexoModule.scalarTypeNames`, which a test keeps this map to, by `typeof`, since `Type` imports nothing of the vocabulary. */
 const PRIMITIVE_TYPE_NAMES = Object.freeze({ string: 'String', number: 'Number', boolean: 'Boolean' });
 
 /** How many type arguments each of Nexo's own generic types takes, by its name: the generic value types `Vocabulary` declares, which a test keeps this table to, since `Type` imports nothing of the vocabulary. */

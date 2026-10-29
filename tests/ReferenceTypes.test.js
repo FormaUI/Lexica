@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { lexica, LexicaError } from '#lexica/lexica.js';
+import { nexo, NexoError } from '#nexo/nexo.js';
 import { extensionDeclaration } from './support/declarations.mjs';
 import { Device, Light, Room, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { evaluateWithCreatedBindings, createImportingRegistry } from './support/pipeline.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration } = nexo.declarations;
 
 /** The home's module: a device's name, which a light and a thermostat read as devices, a light's brightness, a room's devices and the device a room names. */
-const createHome = () => lexica.createModule('home', withHome({}, {
+const createHome = () => nexo.createModule('home', withHome({}, {
     Device: [createPropertyDeclaration('name', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.name })],
     Light: [createPropertyDeclaration('brightness', 'Number', { updates: constantUpdates, impl: () => 40 })],
     Room: [
@@ -56,7 +56,7 @@ describe('reference types', () => {
     it('merge two types of one hierarchy to the nearest supertype they share, and refuse two hierarchies', () => {
         expect(evaluate('let d = if flag then lamp else heater end\nreturn d.name', { flag: true, lamp, heater })).toBe('lamp');
         expect(errorThrownBy(() => home().resolve('let d = if flag then lamp else heater end\nreturn d.brightness', { flag: true, lamp, heater }))).toMatchObject({ code: 'NEXO3001' });
-        expect(errorThrownBy(() => home().resolve('if flag then lamp else room end', { flag: true, lamp, room: kitchen }))).toBeInstanceOf(LexicaError);
+        expect(errorThrownBy(() => home().resolve('if flag then lamp else room end', { flag: true, lamp, room: kitchen }))).toBeInstanceOf(NexoError);
     });
 
     it('compare two references of one hierarchy by their identity, and refuse two of different hierarchies', () => {
@@ -74,7 +74,7 @@ describe('reference types', () => {
     });
 
     it('write a binding\'s type in its resolution key by its qualified identity, so two modules\' types of one name keep two keys', () => {
-        const office = lexica.createModule('office', { typeOf: value => (value instanceof Device ? 'Device' : null), types: [{ name: 'Device', kind: 'reference', isInstance: value => value instanceof Device }] });
+        const office = nexo.createModule('office', { typeOf: value => (value instanceof Device ? 'Device' : null), types: [{ name: 'Device', kind: 'reference', isInstance: value => value instanceof Device }] });
 
         expect(home().createBindings({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:home.Device');
         expect(createImportingRegistry([office]).createBindings({ lamp: new Device('lamp') }).resolutionKey).toBe('lamp:office.Device');
@@ -84,7 +84,7 @@ describe('reference types', () => {
 
     it('register one module\'s members of one name on related receivers, an access resolving through its receiver\'s type, the most specific declaration hiding one above it', () => {
         const key = createValueParameterDeclaration('key', 'String');
-        const active = lexica.createModule('home', withHome({}, {
+        const active = nexo.createModule('home', withHome({}, {
             Device: [
                 createPropertyDeclaration('active', 'Boolean', { updates: constantUpdates, impl: () => false }),
                 createIndexerDeclaration(null, 'String?', { updates: constantUpdates, parameters: [key], impl: () => 'device' }),
@@ -107,7 +107,7 @@ describe('reference types', () => {
     });
 
     it('read brackets after a name by the most specific member of it, a property hiding a named indexer above it and an indexer one', () => {
-        const settings = (propertyType, indexerType) => createImportingRegistry([lexica.createModule('home', withHome({}, {
+        const settings = (propertyType, indexerType) => createImportingRegistry([nexo.createModule('home', withHome({}, {
             [propertyType]: [createPropertyDeclaration('setting', 'Boolean', { updates: constantUpdates, impl: () => true })],
             [indexerType]: [createIndexerDeclaration('setting', 'String?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')], impl: () => 'indexer' })],
         }))]);
@@ -121,7 +121,7 @@ describe('reference types', () => {
 
     it('resolve an empty list by the most specific applicable declaration, and refuse it, naming the competing ones, where none is', () => {
         // One extension for each target, its name declaring the parameter a target writes.
-        const totals = (...targets) => createImportingRegistry([lexica.createModule('shop', {
+        const totals = (...targets) => createImportingRegistry([nexo.createModule('shop', {
             types: targets.map((target, index) => extensionDeclaration(`Totals${index}${target.includes('<T>') ? '<T>' : ''}`, target, [createPropertyDeclaration('total', 'String', { updates: constantUpdates, impl: () => target })])),
         })]);
         const evaluateWith = (registry, values) => registry.resolve('items.total', values).createEvaluator(values).evaluate().value;
@@ -136,7 +136,7 @@ describe('reference types', () => {
     });
 
     it('register a module member beside a receiver\'s member of its name, a qualified call taking the one reading resolution accepts and refused where both are accepted', () => {
-        const members = moduleMemberParameter => lexica.createModule('home', withHome({
+        const members = moduleMemberParameter => nexo.createModule('home', withHome({
             members: [createFunctionDeclaration('label', 'String', { updates: constantUpdates, parameters: [createValueParameterDeclaration('of', moduleMemberParameter)], impl: ({ args }) => `module ${args.of.name ?? args.of}` })],
         }, {
             Room: [createPropertyDeclaration('label', 'String', { updates: constantUpdates, impl: ({ receiver }) => `room ${receiver.name}` })],
@@ -150,7 +150,7 @@ describe('reference types', () => {
     });
 
     it('check a member\'s answer by its declared type\'s membership, a reference of another type refused', () => {
-        const wrong = lexica.createModule('wrong', withHome({ types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('lamp', 'Light', { updates: constantUpdates, impl: () => heater })])] }));
+        const wrong = nexo.createModule('wrong', withHome({ types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('lamp', 'Light', { updates: constantUpdates, impl: () => heater })])] }));
         const registry = createImportingRegistry([wrong]);
 
         expect(errorThrownBy(() => registry.resolve('(word.lamp as Light) == null', { word: 'a' }).createEvaluator({ word: 'a' }).evaluate())).toMatchObject({ code: 'NEXO5006' });
@@ -159,7 +159,7 @@ describe('reference types', () => {
 
 describe('an internal reference type', () => {
     it('is no type a typeOf names, which exposes a value to scripts as a public type alone: naming one is a fault of its module', () => {
-        const lamps = lexica.createModule('lamps', { typeOf: () => 'Lamp', types: [{ name: 'Lamp', kind: 'reference', isInstance: () => true, internal: true }] });
+        const lamps = nexo.createModule('lamps', { typeOf: () => 'Lamp', types: [{ name: 'Lamp', kind: 'reference', isInstance: () => true, internal: true }] });
 
         expect(errorThrownBy(() => createImportingRegistry([lamps]).createBindings({ lamp }))).toMatchObject({ code: 'NEXO5002', kind: 'evaluation', message: expect.stringContaining('the internal type Lamp, which no script names') });
     });
@@ -169,7 +169,7 @@ describe('members declared within their reference type', () => {
     const glow = createPropertyDeclaration('glow', 'String', { updates: constantUpdates, impl: ({ receiver }) => `${receiver.name} glows` });
 
     /** A module of lamps, a reference type holding the members given, and the declaration keys given. */
-    const lamps = (members, type = {}) => lexica.createModule('lamps', {
+    const lamps = (members, type = {}) => nexo.createModule('lamps', {
         typeOf: value => (value instanceof Light ? 'Lamp' : null),
         types: [{ name: 'Lamp', kind: 'reference', isInstance: value => value instanceof Light, members, ...type }],
     });
@@ -193,7 +193,7 @@ describe('members declared within their reference type', () => {
     it('read their notations through their type\'s import, a notation naming no type refused at their type', () => {
         const room = createPropertyDeclaration('room', 'Room?', { updates: constantUpdates, impl: () => null });
         // A home declaring rooms, which recognizes no value, so the lamp is the lamps' alone.
-        const rooms = () => lexica.createModule('home', { types: [{ name: 'Room', kind: 'reference', isInstance: value => value instanceof Room }] });
+        const rooms = () => nexo.createModule('home', { types: [{ name: 'Room', kind: 'reference', isInstance: value => value instanceof Room }] });
 
         expect(createImportingRegistry([rooms(), lamps([room], { import: ['home'] })]).resolve('lamp.room == null', { lamp }).usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Lamp.room']);
         expect(errorThrownBy(() => createImportingRegistry([rooms(), lamps([room])]))).toMatchObject({ code: 'NEXO4049', location: { module: 'lamps', type: 'Lamp', declaration: 'room' } });

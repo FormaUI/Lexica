@@ -20,7 +20,7 @@ Each condition a diagnostic reports gets a stable **code**, `NEXO` and four digi
 
 - **A diagnostic** is `{ code, kind, message, location }`. Its message may change; its code never does.
 - **A code is stable once assigned.** A condition that is removed retires its code, which is never reused; a condition split in two keeps its code for one part and assigns a new one to the other.
-- **An error carries its code.** `LexicaError` gains `code`, beside `kind` and `location`.
+- **An error carries its code.** `NexoError` gains `code`, beside `kind` and `location`.
 - **One catalog.** Every code is assigned in one table of the specification's diagnostics document, each with its condition and its kind, and each error table there names the code of each row.
 - **Tolerant reading collects them.** A tolerant reading, which tooling uses, answers every diagnostic with its code; a strict operation throws the first, as it throws its error today.
 

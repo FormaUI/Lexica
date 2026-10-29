@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = nexo.declarations;
 
 /**
  * A module of extensions on Nexo's own types: a string's shout, a list's middle item, its `T` the list's items, and a receiver of any type's echo, its `T` the receiver's own type, each a member of its extension, which
  * names no target of its own.
  */
-const createWords = () => lexica.createModule('words', {
+const createWords = () => nexo.createModule('words', {
     types: [
         { name: 'Shouting', kind: 'extension', target: 'String', members: [createPropertyDeclaration('shout', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver.toUpperCase() })] },
         { name: 'Middles<Item>', kind: 'extension', target: 'List<Item>', members: [createPropertyDeclaration('middle', 'Item?', { updates: derivedUpdates, impl: ({ receiver }) => receiver[Math.floor(receiver.length / 2)] ?? null })] },
@@ -25,7 +25,7 @@ const createWords = () => lexica.createModule('words', {
 const values = { word: 'oat', counts: [1, 2, 3] };
 
 /** The resolution of the text against a registry of the words. */
-const resolve = text => lexica.createRegistry([createWords()]).resolve(text, values, { imports: ['words'] });
+const resolve = text => nexo.createRegistry([createWords()]).resolve(text, values, { imports: ['words'] });
 
 /** The value the text evaluates to against a registry of the words. */
 const evaluate = text => resolve(text).createEvaluator(values).evaluate().value;
@@ -50,7 +50,7 @@ describe('extensions', () => {
     });
 
     it('read a name no declaration around them declares as a type\'s, whatever its length', () => {
-        const refused = errorThrownBy(() => lexica.createRegistry([lexica.createModule('words', { types: [{ name: 'Lasts', kind: 'extension', target: 'List<T>', members: [] }] })]));
+        const refused = errorThrownBy(() => nexo.createRegistry([nexo.createModule('words', { types: [{ name: 'Lasts', kind: 'extension', target: 'List<T>', members: [] }] })]));
 
         expect(refused).toMatchObject({ code: 'NEXO4047', location: { module: 'words', declaration: 'Lasts' } });
     });

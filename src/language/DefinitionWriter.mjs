@@ -43,7 +43,7 @@ export class DefinitionWriter {
     }
 
     /**
-     * The canonical text of a script's definition, as `lexica.format` gives it: each import it records but those its destination supplies, on a line of its own in order of the local name it gives, an empty line, and its
+     * The canonical text of a script's definition, as `nexo.format` gives it: each import it records but those its destination supplies, on a line of its own in order of the local name it gives, an empty line, and its
      * body laid out on lines, its namespaces written by the local names every import gives.
      * @param {object} definition A validated definition.
      * @param {readonly object[]} [suppliedImports] The imports the text's destination supplies, which it leaves out.
@@ -56,7 +56,7 @@ export class DefinitionWriter {
     }
 
     /**
-     * The compact text of a script's definition, as `lexica.quote` gives it: each import it records but those its destination supplies, on a line of its own, since each begins one, and its compact body on the next line,
+     * The compact text of a script's definition, as `nexo.quote` gives it: each import it records but those its destination supplies, on a line of its own, since each begins one, and its compact body on the next line,
      * as a diagnostic quotes it.
      * @param {object} definition A validated definition.
      * @param {readonly object[]} [suppliedImports] The imports the text's destination supplies, which it leaves out.

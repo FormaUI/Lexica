@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { StructureTypes } from '#lexica/language/StructureTypes.mjs';
-import { Type } from '#lexica/language/Type.mjs';
+import { StructureTypes } from '#nexo/language/StructureTypes.mjs';
+import { Type } from '#nexo/language/Type.mjs';
 
 describe('StructureTypes', () => {
     const registry = {};

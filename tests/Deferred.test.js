@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Device, Light, Thermostat, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates, derivedUpdates } from './support/updates.mjs';
 import { dataPropertyDeclarations, extensionDeclaration } from './support/declarations.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createIndexerDeclaration, createValueParameterDeclaration, createFunctionParameterDeclaration } = nexo.declarations;
 
 /** A value parameter that accepts null, so a call given null is invoked with it. */
 const accepting = (name, type) => createValueParameterDeclaration(name, type, { nulls: 'accept' });
@@ -28,7 +28,7 @@ const held = {
  * A shelf of values of Any on the home: its module members answer a value it holds, one that may be null, the value they are given and a cup, and double a number. A device's members answer its power, dim it, answer
  * nothing, take options, echo what they are given, index it by a key and are ordered by the host, and a light glows; a cup describes itself, and a word shouts.
  */
-const createShelf = () => lexica.createModule('shelf', withHome({
+const createShelf = () => nexo.createModule('shelf', withHome({
     types: [
         { name: 'Cup', kind: 'structured', members: [...dataPropertyDeclarations({ size: 'Number' }), createFunctionDeclaration('describe', 'String', { updates: derivedUpdates, impl: ({ receiver }) => `a cup of ${receiver.size}` })] },
         extensionDeclaration('Words', 'String', [createPropertyDeclaration('shout', 'String', { updates: derivedUpdates, impl: ({ receiver }) => receiver.toUpperCase() })]),
@@ -56,7 +56,7 @@ const createShelf = () => lexica.createModule('shelf', withHome({
 }));
 
 /** The resolution of the text against a registry of the shelf. */
-const resolve = text => lexica.createRegistry([createShelf()]).resolve(text, {}, { imports: ['shelf'] });
+const resolve = text => nexo.createRegistry([createShelf()]).resolve(text, {}, { imports: ['shelf'] });
 
 /** What the text evaluates to against a registry of the shelf, with the hooks given. */
 const evaluate = (text, hooks = null) => resolve(text).createEvaluator({}).evaluate(hooks).value;
@@ -212,7 +212,7 @@ describe('values of Any', () => {
 
         it('checks a function\'s or an expression\'s answer of Any against the result its callback contract declares', () => {
             const values = { numbers: [1, 2] };
-            const evaluateOver = text => lexica.createRegistry([createShelf()]).resolve(text, values, { imports: ['shelf'] }).createEvaluator(values).evaluate().value;
+            const evaluateOver = text => nexo.createRegistry([createShelf()]).resolve(text, values, { imports: ['shelf'] }).createEvaluator(values).evaluate().value;
 
             expect(evaluateOver('numbers.sum(n => shelf.item("number"))')).toBe(4);
             expect(evaluateOver('numbers.sum(shelf.item("number"))')).toBe(4);

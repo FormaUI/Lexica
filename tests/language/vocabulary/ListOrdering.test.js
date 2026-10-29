@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { ItemPositions } from '#lexica/language/vocabulary/ItemPositions.mjs';
-import { ListOrdering } from '#lexica/language/vocabulary/ListOrdering.mjs';
-import { MemberFailure } from '#lexica/language/vocabulary/MemberFailure.mjs';
+import { ItemPositions } from '#nexo/language/vocabulary/ItemPositions.mjs';
+import { ListOrdering } from '#nexo/language/vocabulary/ListOrdering.mjs';
+import { MemberFailure } from '#nexo/language/vocabulary/MemberFailure.mjs';
 
 const byName = item => item.name;
 const byGroup = item => item.group;

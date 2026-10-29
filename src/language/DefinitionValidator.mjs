@@ -5,7 +5,7 @@
 import { ObjectUtils } from '../common/ObjectUtils.mjs';
 import { DefinitionLocations } from './DefinitionLocations.mjs';
 import { Imports } from './Imports.mjs';
-import { LexicaErrors } from './LexicaError.mjs';
+import { NexoErrors } from './NexoError.mjs';
 import { Names } from './Names.mjs';
 import { Versions } from './Versions.mjs';
 
@@ -1162,6 +1162,6 @@ export class DefinitionValidator {
 
     /** Refuses the definition with a structure error of the code and the message, located at the source of the pointer. */
     #fail(code, message, pointer) {
-        throw LexicaErrors.structure(code, message, this.#locations?.locate(pointer) ?? { pointer });
+        throw NexoErrors.structure(code, message, this.#locations?.locate(pointer) ?? { pointer });
     }
 }

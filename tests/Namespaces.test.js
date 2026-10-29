@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { lexica, LexicaError } from '#lexica/lexica.js';
+import { nexo, NexoError } from '#nexo/nexo.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { resolveWith } from './support/pipeline.mjs';
 import { receiverTestsDeclaration } from './support/declarations.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration, createExpressionParameterDeclaration, createFunctionParameterDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration, createValueParameterDeclaration, createExpressionParameterDeclaration, createFunctionParameterDeclaration } = nexo.declarations;
 
 /** A word the shop sells, a value with identity its module recognizes, written as its text. */
 class Word {
@@ -25,7 +25,7 @@ class Bag {
  * A shop's module of its own types, a word and a bag, whose members its namespace reaches: whether it is open and a greeting, its module members; a word's size, padded, whether it is vegan, and its partner, which a word
  * of `p` lacks; a test of a word's fit beside one of a bag's; and an order its host invokes. Every implementation records what it was given, a word by its text, so a test sees which ran.
  */
-const createShop = (invoked = []) => lexica.createModule('shop', {
+const createShop = (invoked = []) => nexo.createModule('shop', {
     typeOf: value => (value instanceof Word ? 'Word' : value instanceof Bag ? 'Bag' : null),
     types: [
         receiverTestsDeclaration(),
@@ -55,7 +55,7 @@ const values = { word: new Word('oat'), other: new Word('milk'), bag: new Bag(7)
 /** What the text evaluates to against a registry of the shop, which supplies its import, with what each implementation was given. */
 const evaluate = (text, bound = values) => {
     const invoked = [];
-    const registry = lexica.createRegistry([createShop(invoked)]);
+    const registry = nexo.createRegistry([createShop(invoked)]);
     const bindings = registry.createBindings(bound);
     const value = registry.resolve(text, bindings, { imports: ['shop'] }).createEvaluator(bindings).evaluate().value;
 
@@ -66,89 +66,89 @@ const evaluate = (text, bound = values) => {
 const resolve = (text, bound = values) => resolveWith([createShop()], text, bound);
 
 describe("a script's imports", () => {
-    const registry = lexica.createRegistry([createShop()]);
+    const registry = nexo.createRegistry([createShop()]);
 
     it("read an imported module's local name as its namespace, and write a local and a script parameter of that name with @ and ~, so its canonical text reads back as the same definition", () => {
         const text = 'import shop\n{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }';
-        const formatted = lexica.format(text);
+        const formatted = nexo.format(text);
 
-        expect(lexica.parse('import shop\nshop.open')).toEqual({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
+        expect(nexo.parse('import shop\nshop.open')).toEqual({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
         expect(formatted).toBe('import shop\n\n{\n    let shop = 2,\n    local = @shop,\n    parameter = ~shop,\n    namespace = shop.open\n}');
-        expect(lexica.parse(formatted)).toEqual(lexica.parse(text));
-        expect(lexica.format(formatted)).toBe(formatted);
-        expect(lexica.quote(text)).toBe('import shop\n{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }');
+        expect(nexo.parse(formatted)).toEqual(nexo.parse(text));
+        expect(nexo.format(formatted)).toBe(formatted);
+        expect(nexo.quote(text)).toBe('import shop\n{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }');
     });
 
     it("write a definition's script parameter named after a namespace its imports give as they read it, a definition created directly among them", () => {
-        const definition = lexica.validate({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
+        const definition = nexo.validate({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
 
-        expect(lexica.format({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
-        expect(lexica.format({ version: 36, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
-        expect(lexica.parse(lexica.format(definition))).toEqual(definition);
+        expect(nexo.format({ version: 36, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
+        expect(nexo.format({ version: 36, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
+        expect(nexo.parse(nexo.format(definition))).toEqual(definition);
     });
 
     it('are the only thing that makes a name a namespace: every reader reads a text alike, and registering a module changes how no text reads', () => {
-        const growing = lexica.createRegistry([]);
-        const before = lexica.parse('shop.open');
+        const growing = nexo.createRegistry([]);
+        const before = nexo.parse('shop.open');
 
         expect(before.expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'shop' }, name: 'open' });
 
         growing.registerModule(createShop());
 
-        expect(lexica.parse('shop.open')).toBe(before);
+        expect(nexo.parse('shop.open')).toBe(before);
         expect(growing.resolve('shop.open', { shop: { open: true } }).definition).toBe(before);
         expect(['parse', 'format', 'quote'].filter(name => name in growing)).toEqual([]);
-        expect(lexica.format('{ shop = shop.size }')).toBe('{ shop = shop.size }');
+        expect(nexo.format('{ shop = shop.size }')).toBe('{ shop = shop.size }');
         expect(registry.resolve('import shop.Word\nshop.size', { shop: new Word('oat') }).type).toBe('Number');
     });
 
     it('give a module a local name of their own with an alias, which replaces its own, and import one type under its name or an alias', () => {
-        const aliased = lexica.parse('import Store = shop\nimport shop.Word\nimport Item = shop.Word\n{ a = Store.open, b = shop }');
+        const aliased = nexo.parse('import Store = shop\nimport shop.Word\nimport Item = shop.Word\n{ a = Store.open, b = shop }');
 
         expect(aliased.imports).toEqual([{ module: 'shop', type: 'Word', alias: 'Item' }, { module: 'shop', alias: 'Store' }, { module: 'shop', type: 'Word' }]);
         expect(aliased.expression.objectFields.map(field => field.value)).toEqual([{ kind: 'memberAccess', receiver: { kind: 'namespace', name: 'Store' }, name: 'open' }, { kind: 'scriptParameter', name: 'shop' }]);
-        expect(lexica.format(aliased)).toBe('import Item = shop.Word\nimport Store = shop\nimport shop.Word\n\n{\n    a = Store.open,\n    b = shop\n}');
+        expect(nexo.format(aliased)).toBe('import Item = shop.Word\nimport Store = shop\nimport shop.Word\n\n{\n    a = Store.open,\n    b = shop\n}');
         expect(registry.resolve('import Store = shop\nStore.greet("ann")').type).toBe('String');
         expect(registry.resolve('import Item = shop.Word\n(word as Item).size', { word: new Word('oat') }).type).toBe('Number');
-        expect(lexica.parse('import shop\nimport shop\nimport Store = shop\n1').imports).toEqual([{ module: 'shop', alias: 'Store' }, { module: 'shop' }]);
+        expect(nexo.parse('import shop\nimport shop\nimport Store = shop\n1').imports).toEqual([{ module: 'shop', alias: 'Store' }, { module: 'shop' }]);
     });
 
     it('read an import binding with @ where no local of its name is in scope, the namespace a reserved word names among them, and a local of its name first', () => {
-        const reserved = lexica.createRegistry([lexica.createModule('if', { members: [createPropertyDeclaration('open', 'Boolean', { updates: constantUpdates, impl: () => true })] })]);
+        const reserved = nexo.createRegistry([nexo.createModule('if', { members: [createPropertyDeclaration('open', 'Boolean', { updates: constantUpdates, impl: () => true })] })]);
 
-        expect(lexica.parse('import if\n@if.open').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'namespace', name: 'if' }, name: 'open' });
-        expect(lexica.parse('import shop\nlet shop = { open = 1 }\nreturn @shop.open').expression.result).toEqual({ kind: 'memberAccess', receiver: { kind: 'local', name: 'shop' }, name: 'open' });
-        expect(lexica.format('import if\n@if.open')).toBe('import if\n\n@if.open');
+        expect(nexo.parse('import if\n@if.open').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'namespace', name: 'if' }, name: 'open' });
+        expect(nexo.parse('import shop\nlet shop = { open = 1 }\nreturn @shop.open').expression.result).toEqual({ kind: 'memberAccess', receiver: { kind: 'local', name: 'shop' }, name: 'open' });
+        expect(nexo.format('import if\n@if.open')).toBe('import if\n\n@if.open');
         expect(reserved.resolve('import if\n@if.open').createEvaluator({}).evaluate().value).toBe(true);
-        expect(lexica.createRegistry([createShop()]).resolve('import to = shop\n@to.open').type).toBe('Boolean');
+        expect(nexo.createRegistry([createShop()]).resolve('import to = shop\n@to.open').type).toBe('Boolean');
     });
 
     it('take the imports a host supplies beside the script\'s own, which formatting for that host leaves out', () => {
         const supplied = { imports: ['shop', { module: 'shop', type: 'Word', alias: 'Item' }] };
-        const definition = lexica.parse('shop.open', supplied);
+        const definition = nexo.parse('shop.open', supplied);
 
         expect(definition.imports).toEqual([{ module: 'shop', type: 'Word', alias: 'Item' }, { module: 'shop' }]);
-        expect(lexica.parse('shop.open', supplied)).toBe(definition);
-        expect(lexica.parse('shop.open')).not.toBe(definition);
-        expect(lexica.format('shop.open', supplied)).toBe('shop.open');
-        expect(lexica.format(definition)).toBe('import Item = shop.Word\nimport shop\n\nshop.open');
-        expect(lexica.quote('import shop\nshop.open', { imports: ['shop'] })).toBe('shop.open');
-        expect(registry.resolve('shop.greet("ann")', {}, { imports: ['shop'] }).definition).toBe(lexica.parse('shop.greet("ann")', { imports: ['shop'] }));
+        expect(nexo.parse('shop.open', supplied)).toBe(definition);
+        expect(nexo.parse('shop.open')).not.toBe(definition);
+        expect(nexo.format('shop.open', supplied)).toBe('shop.open');
+        expect(nexo.format(definition)).toBe('import Item = shop.Word\nimport shop\n\nshop.open');
+        expect(nexo.quote('import shop\nshop.open', { imports: ['shop'] })).toBe('shop.open');
+        expect(registry.resolve('shop.greet("ann")', {}, { imports: ['shop'] }).definition).toBe(nexo.parse('shop.greet("ann")', { imports: ['shop'] }));
         expect(registry.resolve('shop.greet("ann")', {}, { imports: ['shop'] }).type).toBe('String');
-        expect(lexica.parse('import shop\nshop.open', { imports: ['shop'] }).imports).toEqual([{ module: 'shop' }]);
+        expect(nexo.parse('import shop\nshop.open', { imports: ['shop'] }).imports).toEqual([{ module: 'shop' }]);
     });
 
     it("refuse a host's import that breaks an import's rules, and two of them giving one local name to different declarations", () => {
         for (const imports of ['shop', [1], [{ module: 'Nexo' }], [{ module: 'shop', alias: 'shop' }], [{ module: 'shop', alias: 'S' }, { module: 'home', alias: 'S' }]]) {
-            expect(errorThrownBy(() => lexica.parse('1', { imports })), JSON.stringify(imports)).toMatchObject({ kind: 'structure', code: 'NEXO2008' });
+            expect(errorThrownBy(() => nexo.parse('1', { imports })), JSON.stringify(imports)).toMatchObject({ kind: 'structure', code: 'NEXO2008' });
         }
 
-        expect(errorThrownBy(() => lexica.parse('import S = home\n1', { imports: [{ module: 'shop', alias: 'S' }] }))).toMatchObject({ kind: 'syntax', code: 'NEXO1048', location: { line: 1, column: 1 } });
+        expect(errorThrownBy(() => nexo.parse('import S = home\n1', { imports: [{ module: 'shop', alias: 'S' }] }))).toMatchObject({ kind: 'syntax', code: 'NEXO1048', location: { line: 1, column: 1 } });
     });
 
     it('take a module a reserved word names, which an import binding read with @ reaches', () => {
         for (const name of ['it', 'root', 'true', 'null', 'if', 'to']) {
-            expect(lexica.createRegistry([lexica.createModule(name, {})]).moduleNames).toContain(name);
+            expect(nexo.createRegistry([nexo.createModule(name, {})]).moduleNames).toContain(name);
         }
     });
 
@@ -168,7 +168,7 @@ describe('module members', () => {
 
     it('are refused in a form they do not take, and never reached from a receiver', () => {
         expect(errorThrownBy(() => resolve('shop.open()'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'shop.open' is a property, read as shop.open, and takes no argument") });
-        expect(errorThrownBy(() => resolve('word.open'))).toBeInstanceOf(LexicaError);
+        expect(errorThrownBy(() => resolve('word.open'))).toBeInstanceOf(NexoError);
         expect(errorThrownBy(() => resolve('shop.nothing'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The module 'shop' declares no member 'nothing'") });
     });
 });
@@ -200,7 +200,7 @@ describe('qualified forms', () => {
     });
 
     it('prepare a host call through its module, its receiver the first argument, and skip it where that receiver is null', () => {
-        const registry = lexica.createRegistry([createShop()]);
+        const registry = nexo.createRegistry([createShop()]);
         const prepared = registry.resolve('shop.order(word, 2)', values, { imports: ['shop'] }).createEvaluator(values).prepareHostCall();
 
         expect(prepared).toMatchObject({ kind: 'prepared', receiver: values.word, args: { count: 2 } });
@@ -279,7 +279,7 @@ describe('a call of a delegate', () => {
     const createWords = (invoked = []) => {
         const word = createValueParameterDeclaration('word', 'String');
 
-        return lexica.createModule('words', {
+        return nexo.createModule('words', {
             members: [
                 createFunctionDeclaration('cut', 'String', { updates: constantUpdates, parameters: [word, createValueParameterDeclaration('width', 'Number', { default: 2 })], impl: ({ args }) => (invoked.push(['cut', args]), args.word.slice(0, args.width)) }),
                 createFunctionDeclaration('trim', 'String', { updates: constantUpdates, parameters: [word, createValueParameterDeclaration('width', 'Number?', { default: 2, nulls: 'accept' })], impl: ({ args }) => (invoked.push(['trim', args]), args.word.slice(0, args.width ?? 1)) }),
@@ -292,7 +292,7 @@ describe('a call of a delegate', () => {
     /** What the text evaluates to against the words and the shop, with what the words' implementations were given. */
     const evaluateWords = text => {
         const invoked = [];
-        const registry = lexica.createRegistry([createWords(invoked), createShop()]);
+        const registry = nexo.createRegistry([createWords(invoked), createShop()]);
 
         return { value: registry.resolve(text, bound, { imports: ['words', 'shop'] }).createEvaluator(bound).evaluate().value, invoked };
     };
@@ -318,7 +318,7 @@ describe('a call of a delegate', () => {
 
 describe('the answer of a held reference', () => {
     /** A module of lists: `head`, a generic module member answering what the test gives it for the list it is given, and `apply`, a list's member calling the function it is given with its receiver. */
-    const createLists = (answer, invoked = []) => lexica.createModule('lists', {
+    const createLists = (answer, invoked = []) => nexo.createModule('lists', {
         types: [
             {
                 name: 'ListExtensions<T>',
@@ -334,7 +334,7 @@ describe('the answer of a held reference', () => {
     const choosing = 'let none = (list) => null\nlet pick = if flag then lists.head else none end\nreturn ';
 
     /** What the text evaluates to against the lists, `head` answering as given. */
-    const evaluateLists = (text, answer, invoked = []) => lexica.createRegistry([createLists(answer, invoked)]).resolve(text, bound, { imports: ['lists'] }).createEvaluator(bound).evaluate().value;
+    const evaluateLists = (text, answer, invoked = []) => nexo.createRegistry([createLists(answer, invoked)]).resolve(text, bound, { imports: ['lists'] }).createEvaluator(bound).evaluate().value;
 
     it('is checked against its result type resolved for the call, as its qualified form\'s is, held, chosen among functions or given to a member', () => {
         const wrong = () => 'x';

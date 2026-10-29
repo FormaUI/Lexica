@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { repositoryRoot } from './support/paths.mjs';
 import { createExamplesEnergy, createExamplesFixtures, createExamplesHome } from './support/examples.mjs';
 
@@ -39,7 +39,7 @@ const COMPARED = '(%) != null';
 
 /** The examples' home, its modules written once, the registry they are registered with, and the bindings its host gives every example, each of the type the examples' vocabulary gives its name. */
 const { home, values, types } = createExamplesFixtures();
-const examples = lexica.createRegistry([createExamplesHome(home), createExamplesEnergy()]);
+const examples = nexo.createRegistry([createExamplesHome(home), createExamplesEnergy()]);
 const bindings = examples.createBindings(values, { types });
 
 /** The imports the examples' host supplies every script, so no example writes them. */
@@ -158,10 +158,10 @@ describe('the examples of the documents', () => {
         it.each(entries.map((entry, index) => [`${entry.about}, the block at line ${blocks[index]?.line}`, entry, blocks[index]]))('%s', (_, entry, block) => {
             textsOf(block, entry).forEach(text => {
                 const written = (entry.context ?? '%').replace('%', () => text);
-                const formatted = lexica.format(written);
+                const formatted = nexo.format(written);
 
-                expect(lexica.format(formatted), text).toBe(formatted);
-                expect(lexica.parse(formatted), text).toEqual(lexica.parse(written));
+                expect(nexo.format(formatted), text).toBe(formatted);
+                expect(nexo.parse(formatted), text).toEqual(nexo.parse(written));
 
                 if (entry.refused !== undefined) {
                     expect(() => examples.resolve(written, bindings, { imports: IMPORTS }), text).toThrow(expect.objectContaining({ kind: entry.refused }));

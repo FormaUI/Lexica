@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Type } from '#lexica/language/Type.mjs';
-import { LexicaModule } from '#lexica/language/vocabulary/LexicaModule.mjs';
+import { Type } from '#nexo/language/Type.mjs';
+import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
 
 describe('Type', () => {
     describe('parse', () => {
@@ -132,7 +132,7 @@ describe('Type', () => {
     describe('createPrimitiveType', () => {
         it('types a string, a number and a Boolean as the scalar types Nexo\'s own module names, each by its JavaScript type', () => {
             expect(['oat', 1, true].map(value => String(Type.createPrimitiveType(value)))).toEqual(['String', 'Number', 'Boolean']);
-            expect(['oat', 1, true].map(value => String(Type.createPrimitiveType(value))).sort()).toEqual([...LexicaModule.scalarTypeNames].sort());
+            expect(['oat', 1, true].map(value => String(Type.createPrimitiveType(value))).sort()).toEqual([...NexoModule.scalarTypeNames].sort());
         });
     });
 

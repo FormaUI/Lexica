@@ -7,7 +7,7 @@ A **module** is a named set of declarations a host registers: the types it owns 
 A module's declarations are data, apart from the code that carries them out, so a tool reads them and checks a script against them without running anything. Here the examples' `Home` module declares the type `Room`, with its member `device(name)`, and is registered with a registry of its own:
 
 ```js
-const home = lexica.createModule('Home', {
+const home = nexo.createModule('Home', {
     typeOf: value => homeTypeOf(value),
     types: [
         {
@@ -34,7 +34,7 @@ const home = lexica.createModule('Home', {
     observationTypes: [/* placement, state, climate, presence, reading */],
     observationTargets: [{ name: 'Home' }],
 });
-const registry = lexica.createRegistry([home]);
+const registry = nexo.createRegistry([home]);
 ```
 
 In this document:
@@ -181,13 +181,13 @@ A declaration without an `impl` is resolved against as any other, so a tool read
 
 ## Registries
 
-A **registry** holds the modules a host resolves and evaluates against. `lexica.createRegistry(modules)` creates one holding Nexo's own module and the modules given, registered in the order given, as `registerModule` registers each, so a module names the types of those before it; no registry is shared, so two hosts never see each other's modules.
+A **registry** holds the modules a host resolves and evaluates against. `nexo.createRegistry(modules)` creates one holding Nexo's own module and the modules given, registered in the order given, as `registerModule` registers each, so a module names the types of those before it; no registry is shared, so two hosts never see each other's modules.
 
 - **The registry holds definitions.** A registry holds the declarations of every module registered with it, shared by all the host's callers. What a host's callers start through host calls, and the state it keeps, is scoped to those callers, never to the registry.
-- **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. Module names conventionally use PascalCase, but casing is not enforced. At registration, module names are compared case-insensitively for uniqueness. A registration is refused if an existing module has the same name under that comparison. The original spelling is preserved, so `Nexo`, the built-in module's name, refuses `lexica` as any registered name refuses another spelling of itself. A type is named once within its module; type selectors and observation types are each named once across every module, Nexo's own included, a mapping's key stands once in its selector, and a name or a key already declared is refused. A type a declaration names resolves to one the module declares or a module registered before it declares, as [type identity](types.md#types-type-identity) sets out, and an `import` that does not name a registered module, a reference that resolves to no type or to several, and a foreign type named unqualified outside its import are refused; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
+- **Registering checks the module whole.** `registerModule` indexes every type the module declares, then checks every declaration against them and the registry before it registers any, so a module refused leaves nothing of itself registered and advances no revision. Module names conventionally use PascalCase, but casing is not enforced. At registration, module names are compared case-insensitively for uniqueness. A registration is refused if an existing module has the same name under that comparison. The original spelling is preserved, so `Nexo`, the built-in module's name, refuses `nexo` as any registered name refuses another spelling of itself. A type is named once within its module; type selectors and observation types are each named once across every module, Nexo's own included, a mapping's key stands once in its selector, and a name or a key already declared is refused. A type a declaration names resolves to one the module declares or a module registered before it declares, as [type identity](types.md#types-type-identity) sets out, and an `import` that does not name a registered module, a reference that resolves to no type or to several, and a foreign type named unqualified outside its import are refused; a supertype is a reference type, and no hierarchy is a cycle; a declaration names no other module's [internal](#modules-internal-declarations) declaration, and a public one exposes no internal type.
 - **Ambiguity at a reference.** Ambiguity is checked when resolving a reference, against the declarations applicable at that location. Declarations are not refused merely because their names could become ambiguous in another context.
 - **Its revision.** A registry answers a revision that changes whenever its vocabulary does; whether a resolution made before a registration is still current is the resolution's own to say, as [reusing a resolution](runtime.md#runtime-reuse) sets out.
-- **It reads no text of its own.** A script's [imports](scripts.md#scripts-imports) decide which of its names are namespaces, so a text reads alike whatever registry resolves it: `lexica.parse(source, options)`, `lexica.format(script, options)` and `lexica.quote(script, options)` read and write it for every registry, and `registry.resolve` reads a text as `lexica.parse` does; [module names in text](#names-and-reserved-words-module-names) sets out how a name reads.
+- **It reads no text of its own.** A script's [imports](scripts.md#scripts-imports) decide which of its names are namespaces, so a text reads alike whatever registry resolves it: `nexo.parse(source, options)`, `nexo.format(script, options)` and `nexo.quote(script, options)` read and write it for every registry, and `registry.resolve` reads a text as `nexo.parse` does; [module names in text](#names-and-reserved-words-module-names) sets out how a name reads.
 - **Registering is not invoking.** Registering a module makes its capability understood; a host invoking one of its host calls starts what that call starts, for its caller, and ending it leaves the module registered.
 - **Registering comes first.** A module is registered before a script importing it is resolved, and an import naming a module the registry does not hold is a validation error naming it, as is a member no module the script imports declares, which gives the import where a registered module declares it.
 
@@ -258,7 +258,7 @@ A module member, which has no receiver, and a member of its name on a receiver b
 
 ### Module names in text
 
-A module's name decides how a text reads, so a script's [imports](scripts.md#scripts-imports) decide which of its names are namespaces, and a text reads alike wherever it is read: `lexica.parse` gives one text one definition, which every registry resolves, and registering a module never changes how a text reads.
+A module's name decides how a text reads, so a script's [imports](scripts.md#scripts-imports) decide which of its names are namespaces, and a text reads alike wherever it is read: `nexo.parse` gives one text one definition, which every registry resolves, and registering a module never changes how a text reads.
 
 A module's name is an identifier, conventionally written in PascalCase, `Home` and `SmartHome`, so a qualified name reads alike for a type, `Home.Device`, a module member, `Home.rooms`, and an extension, `device:Energy.Device.usage`. In a script importing the module, the local name its import gives it, its own or an [alias](scripts.md#scripts-imports), `Measures`, begins that module's namespace where it stands unprefixed in place of a value, as `Home` and `Energy` do in the examples. It is a contextual name, never a reserved word of the language: `Home.rooms` reads the module's member, `@Home` the nearest local, object field, conditional binding or function parameter named `Home`, and otherwise the import binding `Home`, and `~Home` the script parameter `Home`, and a position that expects a name reads it in that role, so a member, an object field, a local or a function parameter named `Home` is declared and read as any is, importing the module invalidating none of them. A module may be named by a word the language reserves, and imported under one: the bare word keeps its language meaning where a value stands, so the import binding is read with `@`, as `@if.rooms`. In a script that does not import `Home`, `Home` is an identifier, read as any name is, and resolution refuses it as a missing import where the registry holds a module of its name and no script parameter of its name is bound.
 
@@ -273,7 +273,7 @@ Parsing reads an import and its namespace without asking a registry, so whether 
 An **extension** is a named group of the members and indexers a module declares on a type another module owns, as `Energy`'s `Device` adds `device.usage` to `Home`'s `Device`. A module declares each among its `types`, of `kind: 'extension'`, naming the `target` its members extend, which take that type as their receiver as a type's own members do:
 
 ```js
-const energy = lexica.createModule('Energy', {
+const energy = nexo.createModule('Energy', {
     types: [
         {
             name: 'Device',

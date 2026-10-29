@@ -21,7 +21,7 @@ export class Names {
     static noNamespaceNames = NO_NAMESPACE_NAMES;
 
     /** The name of Nexo's own module, which every script has and none imports. */
-    static lexicaModuleName = 'Nexo';
+    static nexoModuleName = 'Nexo';
 
     /** Whether the text is spelled as an identifier: a letter followed by letters and digits, a reserved word among them, since a position that expects a name tells it from the word. */
     static isIdentifier(text) {

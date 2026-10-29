@@ -20,7 +20,7 @@ Update the specification before implementing a language change, and the design b
 
 | Path | Responsibility |
 | --- | --- |
-| `src/lexica.js` | Entry point that composes the library's modules, declared in `src/lexica.d.ts` |
+| `src/nexo.js` | Entry point that composes the library's modules, declared in `src/nexo.d.ts` |
 | `src/language/` | Text, definitions, types, resolution, errors and locations |
 | `src/language/vocabulary/` | Modules, their registry, and Nexo's built-in vocabulary |
 | `src/common/` | Object and array operations independent of the language |

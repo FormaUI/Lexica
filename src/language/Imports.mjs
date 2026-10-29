@@ -2,7 +2,7 @@
  * Imports — a script's imports in a definition's shape: the local name each gives, the imports a host supplies, checked as a definition's are, and the imports a definition records, each once, in order of the local name it gives
  */
 
-import { LexicaErrors } from './LexicaError.mjs';
+import { NexoErrors } from './NexoError.mjs';
 import { Names } from './Names.mjs';
 
 /** The keys an import holds: its module, its type where it imports one, and its alias where it gives a local name other than its own. */
@@ -73,14 +73,14 @@ export class Imports {
         }
 
         if (!Array.isArray(supplied)) {
-            throw LexicaErrors.structure('NEXO2008', "A host's imports are a list, each a module's name or an import, as { module: 'Home' }", {});
+            throw NexoErrors.structure('NEXO2008', "A host's imports are a list, each a module's name or an import, as { module: 'Home' }", {});
         }
 
         const imports = supplied.map(item => {
             const entry = typeof item === 'string' ? { module: item } : item;
 
             Imports.validateImport(entry, message => {
-                throw LexicaErrors.structure('NEXO2008', `${message}, and the host supplies ${Imports.#describe(item)}`, {});
+                throw NexoErrors.structure('NEXO2008', `${message}, and the host supplies ${Imports.#describe(item)}`, {});
             });
 
             return Object.freeze(Object.fromEntries(IMPORT_KEYS.filter(key => entry[key] !== undefined).map(key => [key, entry[key]])));
@@ -88,7 +88,7 @@ export class Imports {
         const conflict = Imports.findConflict(imports);
 
         if (conflict !== null) {
-            throw LexicaErrors.structure('NEXO2008', Imports.describeConflict(conflict), {});
+            throw NexoErrors.structure('NEXO2008', Imports.describeConflict(conflict), {});
         }
 
         return Imports.mergeImports(imports);
@@ -107,7 +107,7 @@ export class Imports {
             fail("An import's module is a registered module's name, a letter followed by letters and digits");
         }
 
-        if (entry.module === Names.lexicaModuleName) {
+        if (entry.module === Names.nexoModuleName) {
             fail("Nexo's own vocabulary is always available, so no script imports it or one of its types");
         }
 

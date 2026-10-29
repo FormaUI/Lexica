@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { Device, Light, withHome } from './support/home.mjs';
 import { errorThrownBy } from './support/errors.mjs';
 import { dataPropertyDeclarations, extensionDeclaration, operatorDeclaration } from './support/declarations.mjs';
@@ -16,7 +16,7 @@ class Meter {
 class DeviceMeter extends Device {}
 
 /** The home, which owns its devices, and a temperature it converts to and from text, its own conversion to text in its type. */
-const createHome = () => lexica.createModule('Home', withHome({
+const createHome = () => nexo.createModule('Home', withHome({
     types: [
         { name: 'Temperature', kind: 'structured', members: [...dataPropertyDeclarations({ degrees: 'Number' }), operatorDeclaration('convert', 'String', ({ value }) => `${value.degrees} degrees`)] },
         extensionDeclaration('Readings', 'String', [operatorDeclaration('convert', 'Temperature', ({ value, reject }) => (/^\d+$/.test(value) ? { degrees: Number(value) } : reject(`"${value}" is no temperature`)))]),
@@ -24,7 +24,7 @@ const createHome = () => lexica.createModule('Home', withHome({
 }));
 
 /** Energy, whose meters cast to the home's devices by the cast operator given. */
-const createEnergy = cast => lexica.createModule('Energy', {
+const createEnergy = cast => nexo.createModule('Energy', {
     typeOf: value => (value instanceof Meter ? 'Meter' : null),
     types: [
         { name: 'Meter', kind: 'reference', isInstance: value => value instanceof Meter || value instanceof DeviceMeter, members: [cast] },

@@ -32,7 +32,7 @@ Run the full build from the repository root:
 
 | Location | Contents |
 | --- | --- |
-| `src/lexica.js` | The entry point, `lexica`, and its declarations in `src/lexica.d.ts` |
+| `src/nexo.js` | The entry point, `nexo`, and its declarations in `src/nexo.d.ts` |
 | `src/language/` | The language: text, definitions, types, resolution, errors and locations |
 | `src/language/vocabulary/` | Modules, their registry, and Nexo's built-in vocabulary |
 | `src/common/` | Object and array operations independent of the language |

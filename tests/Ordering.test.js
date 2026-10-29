@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { lexica } from '#lexica/lexica.js';
+import { nexo } from '#nexo/nexo.js';
 import { errorThrownBy } from './support/errors.mjs';
 import { constantUpdates } from './support/updates.mjs';
 import { dataPropertyDeclarations } from './support/declarations.mjs';
 
-const { createPropertyDeclaration, createFunctionDeclaration } = lexica.declarations;
+const { createPropertyDeclaration, createFunctionDeclaration } = nexo.declarations;
 
 /** The people whose weight was read, in order, so a test sees how often an ordering evaluated a key. */
 let weighed = [];
 
 /** A team of structured people, each with a weight a module computes and counts, whose list a member answers, so the evaluation copies it as it copies any structure. */
-const createTeam = () => lexica.createModule('Team', {
+const createTeam = () => nexo.createModule('Team', {
     types: [{ name: 'Person', kind: 'structured', members: [...dataPropertyDeclarations({ name: 'String', age: 'Number?' }), createPropertyDeclaration('weight', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (weighed.push(receiver.name), receiver.age ?? 0) })] }],
     members: [
         createFunctionDeclaration('members', 'List<Person>', { updates: constantUpdates, impl: () => [{ name: 'bo', age: 30 }, { name: 'al', age: null }, { name: 'cy', age: 30 }, { name: 'al', age: 20 }] }),
@@ -21,7 +21,7 @@ const createTeam = () => lexica.createModule('Team', {
 const people = [{ name: 'b', age: 30 }, { name: 'a', age: null }, { name: 'c', age: 30 }, { name: 'a', age: 20 }];
 
 /** What the text evaluates to against a registry of the team, the team imported, with the values given. */
-const evaluate = (text, values = { people }) => lexica.createRegistry([createTeam()]).resolve(text, values, { imports: ['Team'] }).createEvaluator(values).evaluate().value;
+const evaluate = (text, values = { people }) => nexo.createRegistry([createTeam()]).resolve(text, values, { imports: ['Team'] }).createEvaluator(values).evaluate().value;
 
 /** The error evaluating the text throws. */
 const failure = (text, values = { people }) => errorThrownBy(() => evaluate(text, values));
@@ -95,6 +95,6 @@ describe('ordering a list', () => {
     });
 
     it("leaves string ordering to the collection's members: an ordering between strings in an expression is still refused", () => {
-        expect(errorThrownBy(() => lexica.createRegistry([]).resolve('"a" < "b"', {}))).toMatchObject({ code: 'NEXO3078' });
+        expect(errorThrownBy(() => nexo.createRegistry([]).resolve('"a" < "b"', {}))).toMatchObject({ code: 'NEXO3078' });
     });
 });

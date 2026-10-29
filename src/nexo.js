@@ -8,14 +8,14 @@ import { DefinitionWriter } from './language/DefinitionWriter.mjs';
 import { Evaluator } from './language/Evaluator.mjs';
 import { Imports } from './language/Imports.mjs';
 import { LanguageResolver } from './language/LanguageResolver.mjs';
-import { LexicaError, LexicaErrors } from './language/LexicaError.mjs';
+import { NexoError, NexoErrors } from './language/NexoError.mjs';
 import { ParameterBindings } from './language/ParameterBindings.mjs';
 import { ParsedTexts } from './language/ParsedTexts.mjs';
 import { ResultPath } from './language/ResultPath.mjs';
 import { Versions } from './language/Versions.mjs';
 import { Declarations } from './language/vocabulary/Declarations.mjs';
-import { LexicaModule } from './language/vocabulary/LexicaModule.mjs';
-import { LexicaRegistry } from './language/vocabulary/LexicaRegistry.mjs';
+import { NexoModule } from './language/vocabulary/NexoModule.mjs';
+import { NexoRegistry } from './language/vocabulary/NexoRegistry.mjs';
 import { Vocabulary } from './language/vocabulary/Vocabulary.mjs';
 
 /** The parameter bindings each bindings object a registry's `createBindings` created stands for. @type {WeakMap<object, ParameterBindings>} */
@@ -33,7 +33,7 @@ const definitionOf = (script, suppliedImports = []) => (typeof script === 'strin
 /** What `parse` reads, a script's source, read with the imports a host supplies. */
 const parse = (source, options) => {
     if (typeof source !== 'string') {
-        throw LexicaErrors.structure('NEXO2645', "What parse reads is a script's source", {});
+        throw NexoErrors.structure('NEXO2645', "What parse reads is a script's source", {});
     }
 
     return ParsedTexts.parse(source, suppliedImportsOf(options));
@@ -77,7 +77,7 @@ const getParameterBindings = (registry, bindings) => {
     }
 
     if (parameterBindings.registry !== registry) {
-        throw LexicaErrors.structure('NEXO2024', 'These bindings belong to another registry, which recognized their references; bind them with this registry', {});
+        throw NexoErrors.structure('NEXO2024', 'These bindings belong to another registry, which recognized their references; bind them with this registry', {});
     }
 
     return parameterBindings;
@@ -86,14 +86,14 @@ const getParameterBindings = (registry, bindings) => {
 /** Where a pointer stands in the source a definition was read from, or the pointer alone for a definition given directly; a pointer the definition does not hold is refused. */
 const locate = (definition, pointer) => {
     if (typeof pointer !== 'string' || !(pointer === '' || pointer.startsWith('/'))) {
-        throw LexicaErrors.structure('NEXO2643', 'A pointer is a JSON Pointer into the definition, as /expression/objectFields/0', {});
+        throw NexoErrors.structure('NEXO2643', 'A pointer is a JSON Pointer into the definition, as /expression/objectFields/0', {});
     }
 
     let node = definition;
 
     for (const segment of pointer.split('/').slice(1).map(part => part.replaceAll('~1', '/').replaceAll('~0', '~'))) {
         if (node === null || typeof node !== 'object' || !Object.hasOwn(node, segment)) {
-            throw LexicaErrors.structure('NEXO2644', `The definition holds nothing at ${pointer}`, { pointer });
+            throw NexoErrors.structure('NEXO2644', `The definition holds nothing at ${pointer}`, { pointer });
         }
 
         node = node[segment];
@@ -121,7 +121,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
     const requireCurrent = () => {
         if (!isCurrent()) {
-            throw LexicaErrors.structure('NEXO2040', 'A module declaring a typeOf was registered since this script was resolved, and the script may recognize values as it is evaluated, so its resolution is stale; resolve the script again', {});
+            throw NexoErrors.structure('NEXO2040', 'A module declaring a typeOf was registered since this script was resolved, and the script may recognize values as it is evaluated, so its resolution is stale; resolve the script again', {});
         }
     };
 
@@ -130,14 +130,14 @@ const resolutionOf = (registry, definition, parameterBindings) => {
         const evaluatorBindings = getParameterBindings(registry, bindings) ?? new ParameterBindings(registry, bindings ?? {});
 
         if (evaluatorBindings.resolutionKey !== resolutionKey) {
-            throw LexicaErrors.structure('NEXO2025', 'These bindings resolve the script otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
+            throw NexoErrors.structure('NEXO2025', 'These bindings resolve the script otherwise than the bindings it was resolved with, by a type or a value that selects; resolve it with these bindings', {});
         }
 
         requireCurrent();
 
         // A declaration without an implementation is resolved against and never invoked, so a script that uses one, in a branch it may not take among them, is refused before anything is evaluated; a host call has none, its host invoking it.
         // A structured type's data property is read from the data, and a cast operator permits its cast, so neither takes an implementation.
-        const unimplemented = usedDeclarations.find(({ declaration }) => registry.getImplementation(declaration) === undefined && !LexicaModule.isInvokedByHost(declaration) && !registry.isDataProperty(declaration) && !(declaration.kind === 'operator' && declaration.name === 'cast'));
+        const unimplemented = usedDeclarations.find(({ declaration }) => registry.getImplementation(declaration) === undefined && !NexoModule.isInvokedByHost(declaration) && !registry.isDataProperty(declaration) && !(declaration.kind === 'operator' && declaration.name === 'cast'));
 
         if (unimplemented !== undefined) {
             const { declaration, qualifiedName } = unimplemented;
@@ -146,7 +146,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
             const location = { module: registry.getDeclaringModuleName(declaration), ...(containing === undefined ? {} : { type: containing.name }), declaration: declaration.name, declarationKey: 'impl' };
             const subject = declaration.kind === 'operator' ? `The conversion from ${qualifiedName}` : `'${qualifiedName}'`;
 
-            throw LexicaErrors.module('NEXO4001', `${subject} has no implementation, so a script that uses it is resolved and never evaluated`, location);
+            throw NexoErrors.module('NEXO4001', `${subject} has no implementation, so a script that uses it is resolved and never evaluated`, location);
         }
 
         const evaluator = new Evaluator(registry, resolved, evaluatorBindings, env, locations);
@@ -157,7 +157,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
             requireCurrent();
 
             if (isEvaluating) {
-                throw LexicaErrors.evaluation('NEXO5010', 'An evaluator evaluates one evaluation at a time, and this one is evaluating; evaluate with an evaluator of its own', {});
+                throw NexoErrors.evaluation('NEXO5010', 'An evaluator evaluates one evaluation at a time, and this one is evaluating; evaluate with an evaluator of its own', {});
             }
 
             isEvaluating = true;
@@ -187,7 +187,7 @@ const resolutionOf = (registry, definition, parameterBindings) => {
     // A host call that supplies nothing gives no result, so no path reaches into one.
     const typeAt = path => {
         if (resolved.type === null) {
-            throw LexicaErrors.validation('NEXO3600', `The script ends in the host call '${hostCall.name}', whose host supplies no values, so it has no result for a path to reach`, locate(definition, '/expression'));
+            throw NexoErrors.validation('NEXO3600', `The script ends in the host call '${hostCall.name}', whose host supplies no values, so it has no result for a path to reach`, locate(definition, '/expression'));
         }
 
         return String(ResultPath.typeAt(resolved.type, path, registry, () => locate(definition, '/expression')));
@@ -211,10 +211,10 @@ const resolutionOf = (registry, definition, parameterBindings) => {
 
 /**
  * A registry a host resolves scripts against: Nexo's own module and the modules the host registers, each module's vocabulary in effect for every script resolved after it.
- * It reads no text of its own: a script's imports decide which of its names are namespaces, so `lexica.parse`, `format` and `quote` read and write a text alike for every registry, and registering a module changes how no text reads. No registry is shared, so two hosts never see each other's modules.
+ * It reads no text of its own: a script's imports decide which of its names are namespaces, so `nexo.parse`, `format` and `quote` read and write a text alike for every registry, and registering a module changes how no text reads. No registry is shared, so two hosts never see each other's modules.
  */
 const createRegistry = modules => {
-    const registry = new LexicaRegistry([Vocabulary.module, ...modules]);
+    const registry = new NexoRegistry([Vocabulary.module, ...modules]);
 
     return Object.freeze({
         registerModule: module => {
@@ -257,17 +257,17 @@ const paths = Object.freeze({
 });
 
 /** Nexo: reads, checks and writes source and definitions, declares and registers vocabulary, binds values, resolves and evaluates, and says which build it is and which specification it follows. */
-export const lexica = Object.freeze({
+export const nexo = Object.freeze({
     parse: (source, options) => parse(source, options),
     validate: definition => new DefinitionValidator().validate(definition),
     format: (script, options) => write(script, options, false),
     quote: (script, options) => write(script, options, true),
     getLocation: locate,
-    createModule: (name, contents) => new LexicaModule(name, contents),
+    createModule: (name, contents) => new NexoModule(name, contents),
     declarations,
     createRegistry: (modules = []) => createRegistry(modules),
     paths,
     info: Object.freeze({ versions: Object.freeze({ implementation: Versions.implementation, language: Versions.language, definition: Versions.definition }) }),
 });
 
-export { LexicaError };
+export { NexoError };
