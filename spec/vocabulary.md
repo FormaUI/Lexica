@@ -17,68 +17,7 @@ In this document:
 
 ## Nexo's own vocabulary
 
-Nexo's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
-
-<a id="vocabulary-list-members"></a>
-
-### List members
-
-A member following a list is a member of the list itself: `room.devices.count` counts the room's devices. Nexo's own module declares the members below, and its unnamed indexer, and each reads and changes as the items it selects and the expression it evaluates do.
-
-| List member | Contract |
-| --- | --- |
-| `count` | The number of items, 0 for an empty list |
-| `first`, `last` | The first or the last item, null for an empty list |
-| The unnamed indexer, `[index]` | The item at the index counted from zero, and null for an index past the end, for a negative one, which never counts from the end, and for a fractional one; `-0` is `0` |
-| The unnamed indexer, `[^n]` | The item at the [index](types.md#types-positions) counted from the end, `^1` the last, and null for `^0` and for an index before the start |
-| The unnamed indexer, `[range]` | A `List<T>`, the items within the [range](types.md#types-positions), applied to the list's length once, in order; a range whose start stands after its end, or either beyond the list, is refused where it is evaluated (NEXO5033), never trimmed, and equal boundaries give an empty list, so `take` and `drop` are the tolerant partitions |
-| `where` | The items its predicate is truthy for, in the list's order, leaving out an item whose predicate is null or false; the predicate may produce any value |
-| `max`, `min`, `sum`, `average` | Evaluate a number expression against each item and require `Number?`; `average` the mean of the numbers |
-| `entry[index]`, `entry[^n]` | The item at the index as a `Pair<Number, T>`, its index from the start and the item, null wherever the unnamed indexer answers null for an index the list has no item at |
-| `pick(positions)` | A `List<T>`, the item at each of the positions, a `List<Number>`, in the positions' order, a position given twice giving its item twice; a position no item stands at, a fractional or negative one among them, is refused (NEXO5034) |
-| `select(expression)` | A `List<U>`, the expression's value for every item in order, a null item among them, the expression's `it` of the item's type, so `items.select(it)` keeps the list and `items.select(it ?? 0)` replaces its nulls |
-| `selectMany(expression)` | A `List<U>`, the lists the expression gives the items joined in order; an item's list that is null, a null item's among them, is refused (NEXO5031), never treated as empty |
-| `concat(other)` | The items, then those of `other`, a `List<T>` of the receiver's `T`, which a later argument never widens |
-| `flatten` | On a `List<List<T>>`, the items of each inner list in order, a list whose inner lists can be null having none |
-| `take(count)`, `drop(count)` | The items at an index less than the count, and those at the count or past it, whatever number the count is: one past the end takes or leaves every item, and one of zero or less none |
-| `takeWhile`, `dropWhile` | The items before the first its predicate is falsy for, and the items from that one on, the predicate evaluated against none after it |
-| `any`, `all` | Whether its predicate is truthy for some item, false for none and stopping at the first it is truthy for, and whether for every item, true for none and stopping at the first it is not |
-| `contains(value)` | Whether an item equals the value by [key equality](types.md#types-dictionaries-and-pairs), stopping at the first that does, null equal to a null item |
-| `indexOf(value)` | The position of the value's first occurrence, a `Number?`, compared as `contains` compares, null equal to a null item, and null where no item equals it |
-| `indexWhere(predicate)` | The position of the first item its predicate is truthy for, a `Number?`, null where none is, evaluating it against no item after that one |
-| `single` | The one item, null for an empty list, and refused for a list of several (NEXO5030) |
-| `minBy`, `maxBy` | The first item whose key is the least or the greatest, keys compared as [ordering](#vocabulary-list-ordering) compares them, items whose key is null skipped, null where none gives one |
-| `orderBy(key)`, `orderByDescending(key)` | The items ordered by their keys, ascending or descending, as [ordering](#vocabulary-list-ordering) sets out |
-| `thenBy(key)`, `thenByDescending(key)` | The items of a list `orderBy` ordered, each run of items whose keys so far are equal ordered within itself by another key, as [ordering](#vocabulary-list-ordering) sets out |
-| `distinct`, `distinctBy(expression)` | Each item's first occurrence, in order, items compared by key equality; and each key's first item, its key the expression's value, keys compared alike |
-| `reverse` | The items in the opposite order |
-| `toDictionary(expression)` | A `Dictionary<K, T>` of the items by the key the expression gives each, in the items' order, two items of one key refused (NEXO5029), which `groupBy` collects instead |
-| `groupBy(expression)` | A `Dictionary<K, List<T>>` of the items by their keys, each key's items in their order, the keys in the order their first items stand |
-
-Each signature of the unnamed indexer and of `entry` is one of an [indexer's signatures](members.md#property-access-calls-and-indexers-unnamed-indexers), selected by its key's type: a number and an index are looked up tolerantly, and a range slices strictly.
-
-A number generates numbers apart from any range, as [number members](#vocabulary-number-members) set out.
-
-`where`, `first`, `last` and the unnamed indexer preserve `T` from a `List<T>`, the type parameter `List` declares, so `rooms.first` is a `Room?` for a `List<Room>`. A key `toDictionary`, `groupBy` or `distinctBy` gives is of a key type, `K` its expression's type, so keys of another type are refused where they are resolved (NEXO3083).
-
-An item's body reads the item as a value that is not null, as an object projection reads it, so a null item answers null and the body is never evaluated against it: `where`, `takeWhile`, `dropWhile`, `any`, `all` and `indexWhere` find null falsy, the aggregates skip it, and `toDictionary` and `groupBy` key it by null. `select` alone evaluates its body against every item, its `it` the item's type, null included. A function of the item is called with each item as it is, whichever member it is given to.
-
-A search answers null where it finds nothing, never `-1`, as a lookup by an index answers null where no item stands. Aggregates consume null per item rather than propagating it to the entire call. `max`, `min` and `average` skip items whose expression is null, and answer null where every item was skipped or the list is empty. `sum` skips null values and answers 0 where every item was skipped or the list is empty. Each member evaluates its expression or its predicate at most once for each item it visits, and a member that stops at a decisive item evaluates none after it. Thus `room.devices.max(it.battery)` and `Home.rooms.where(it.climate?.temperature).count` are valid even though the expressions can return null.
-
-<a id="vocabulary-list-ordering"></a>
-
-#### Ordering
-
-`orderBy` and `orderByDescending` order a list's items by the key their expression gives each, and `thenBy` and `thenByDescending` refine that order by another key. Each answers a new `List<T>`, its receiver unchanged.
-
-- **Keys.** A key is a number, a string, a Boolean or null, and every key of one criterion that isn't null is of one of those domains: numbers compare numerically, `-0` equal to `0`; strings by their code units, without any locale; and Booleans false before true. A key of another kind, a list, an object or a reference, and keys of two domains in one criterion, are refused where the call is evaluated (NEXO5036), as a key of `Any` is checked as it is evaluated. Comparing strings is the members' contract alone, so `"a" < "b"` stays refused in an expression.
-- **Nulls.** A null key, a null item's among them, orders after every other key in either direction. A script orders nulls first by ordering by whether its key is null first, `items.orderBy(it.date != null).thenBy(it.date)`. A body's key is null for a null item, which an item's body never reads, so that ordering puts null items last; a list whose items can be null orders them first by a function, which reads each item as it is: `items.orderBy(item => item != null).thenBy(it)`.
-- **Stability.** Items of equal keys keep their order, in either direction.
-- **Each key once.** A criterion evaluates its expression once for each item, whichever direction, and never again.
-- **Refinement.** `thenBy` takes a list `orderBy` or `thenBy` answered, which a local holding it keeps, and orders each run of items whose keys so far are equal by its own key, leaving every run where the order before it put it, so it refines and never sorts again. Its answer keeps the keys of every criterion, so another `thenBy` refines it further. A list no `orderBy` ordered, one another member answered of an ordered list among them, is refused (NEXO5037), so `items.orderBy(it.a).where(it.b).thenBy(it.c)` orders by `c` within `where`'s answer only after `orderBy` again.
-- **What it keeps.** The keys are the evaluation's, kept with the list they ordered, never as the expressions that gave them, and no result records them: an ordered list's record realigns its items' lineage as any reordering does, as [provenance](runtime.md#runtime-results-provenance) sets out.
-
-An expression parameter declares the item type it evaluates against and the result type it requires. A predicate parameter accepts a value expression and receives its truthiness as a Boolean. Either takes a function of the item in place of its body, `room.devices.max(d => d.power)`, as [argument kinds](members.md#arguments-kinds) set out.
+Nexo's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, which [collections](collections.md) set out, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-number-members"></a>
 
@@ -103,7 +42,7 @@ A member following a number is a member of the number itself, and reads and chan
 
 ### String members
 
-A member following a string is a member of the string itself, and reads and changes as the string does. Each counts in UTF-16 code units, as [ordering](#vocabulary-list-ordering) compares strings and as a host's text holds them, and joining texts is [interpolation](expressions.md#interpolated-strings)'s, `$"{prefix}{name}"`.
+A member following a string is a member of the string itself, and reads and changes as the string does. Each counts in UTF-16 code units, as [ordering](collections.md#collections-list-ordering) compares strings and as a host's text holds them, and joining texts is [interpolation](expressions.md#interpolated-strings)'s, `$"{prefix}{name}"`.
 
 | String member | Contract |
 | --- | --- |
@@ -114,33 +53,12 @@ A member following a string is a member of the string itself, and reads and chan
 | `indexOf(text)` | The position of `text`'s first occurrence, a `Number?`, null where it stands nowhere |
 | `replace(old, new)` | The string with every occurrence of `old` replaced by `new`, literally, left to right, no two overlapping |
 | `split(separator)` | A `List<String>`, the parts between the occurrences of `separator`, in order: an empty part where two occurrences meet or one stands at either end, and the string alone where it holds none |
-| The unnamed indexer, `[range]` | A `String`, the code units within the [range](types.md#types-positions), applied to its length once; a range whose start stands after its end, or either beyond the string, is refused where it is evaluated (NEXO5033), as a list's slice is |
+| The unnamed indexer, `[range]` | A `String`, the code units within the [range](collections.md#collections-positions), applied to its length once; a range whose start stands after its end, or either beyond the string, is refused where it is evaluated (NEXO5033), as a list's slice is |
 
 - **The empty text** stands at every position, so `startsWith("")`, `endsWith("")` and `contains("")` are true and `indexOf("")` is `0`. It has no occurrence to replace or to split at, so `replace("", new)` and `split("")` are refused where they are evaluated (NEXO5040), never inserting between code units or splitting into them.
 - **Characters kept whole.** A slice's boundary standing between the two halves of a surrogate pair is refused where it is evaluated (NEXO5041), so slicing never makes a well-formed text ill-formed. The other members compare code units exactly, so a text holding a lone surrogate, which only a host can give, is matched as it is: `split` at one parts a pair it finds.
 - **What it doesn't do.** No member reads a regular expression, a locale's case or comparison, or a number's format: a text whose domain gives it a form of its own, as `"120px"`, is read by that domain's members or conversions.
 - **Nexo's own.** `String` is Nexo's own type, so its members, and its unnamed indexer, win over a member of the same name, or an unnamed indexer, that a module's extension of `String` declares, as [owners and extensions](modules.md#namespaces-owners-and-extensions) set out.
-
-<a id="vocabulary-dictionary-members"></a>
-
-### Dictionary and pair members
-
-A member following a dictionary is a member of the dictionary itself, and each reads and changes as the entries it reads do; a lookup's key consumes null, as [dictionaries](types.md#types-dictionaries-and-pairs) set out.
-
-| Dictionary member | Contract |
-| --- | --- |
-| `count` | The number of entries, 0 for an empty dictionary |
-| The unnamed indexer, `[key]` | The key's value, a `V?`, null for an absent key and for a key whose value is null |
-| `entry[key]` | The key's entry, a `Pair<K, V>?`, null for an absent key alone |
-| `containsKey(key)` | Whether the dictionary holds the key, a key whose value is null among them |
-| `keys`, `values` | The keys, a `List<K>`, and the values, a `List<V>`, in the entries' order |
-| `entries` | The entries, a `List<Pair<K, V>>`, in their order |
-| `where` | The entries whose value its predicate is truthy for, a `Dictionary<K, V>`, each keeping its key and its place |
-| `select(expression)` | A `Dictionary<K, U>`, each entry's value replaced by the expression's, every value null included, each keeping its key and its place |
-
-A dictionary's value operations read each entry's value as their `it`, so `prices.where(it > 2)` keeps the entries of prices above 2; an operation needing the key reads the `entries`, as `prices.entries.where(it.key != "tea")` does.
-
-A pair's `key` and `value` read its two parts, of its `K` and its `V`.
 
 <a id="vocabulary-boolean-functions"></a>
 <a id="predicates"></a>

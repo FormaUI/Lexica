@@ -110,7 +110,7 @@ A module declares each type it owns in its `types`, its `kind` saying which fami
 - **A type's name** is unique within its module, conventionally in PascalCase, as [type names](types.md#types-type-names) set out, and the type is identified by its module and that name.
 - **Its imports.** A reference type and a structured type may declare `import`, the names of modules whose public types its declaration names unqualified, `import: ['Home']`; every other foreign type it names is qualified, `Home.Device`, as [type identity](types.md#types-type-identity) sets out.
 
-Nexo's own `List<T>` is the one generic value type, its parameter `T` the type of its items, which its members' declarations write. A module's own reference and structured types don't declare type parameters, and an extension and a member declare their own, as [type parameters](types.md#types-type-parameters) set out.
+Nexo's own `List<T>`, `Dictionary<K, V>` and `Pair<K, V>` are the generic value types, their parameters the types of their items, keys and values, which their members' declarations write, as [collections](collections.md) set out. A module's own reference and structured types don't declare type parameters, and an extension and a member declare their own, as [type parameters](types.md#types-type-parameters) set out.
 
 <a id="modules-operators"></a>
 

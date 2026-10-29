@@ -85,7 +85,7 @@ A list's own members find items, never where they stand, so a script can't tell 
 
 | Member | Answers |
 | --- | --- |
-| `indexOf(value)` | The position of the value's first occurrence, by [key equality](../../spec/types.md#types-dictionaries-and-pairs), a reference's by its identity, a `Number?` null where none stands |
+| `indexOf(value)` | The position of the value's first occurrence, by [key equality](../../spec/collections.md#collections-dictionaries-and-pairs), a reference's by its identity, a `Number?` null where none stands |
 | `indexWhere(predicate)` | The position of the first item its predicate is truthy for, a `Number?` null where none is, evaluating it against no item after that one |
 
 Null rather than `-1`, as a lookup by an index answers null where no item stands. `indexOf` compares as `contains` does, null equal to a null item; `indexWhere` reads its items as `where` does, a null item falsy.
@@ -105,7 +105,7 @@ Text is joined by interpolation already, `$"{prefix}{name}"`, but Nexo's `String
 | `indexOf(text)` | The position of `text`'s first occurrence, a `Number?` null where it stands nowhere |
 | `replace(old, new)` | The text with every occurrence of `old` replaced by `new`, literally, left to right, none overlapping |
 | `split(separator)` | A `List<String>`, the parts between each occurrence of `separator`, in order, an empty part where two occurrences meet or one stands at either end, and the text alone where it holds none |
-| The unnamed indexer, `[range]` | The code units within the [range](../../spec/types.md#types-positions), strict as a list's slice |
+| The unnamed indexer, `[range]` | The code units within the [range](../../spec/collections.md#collections-positions), strict as a list's slice |
 
 - **The empty text.** It stands at every position, so `startsWith("")`, `endsWith("")` and `contains("")` are true and `indexOf("")` is `0`. It has no occurrence to replace or split at, so `replace("", …)` and `split("")` are refused where they are evaluated, each saying so, never inserting between, or splitting into, code units.
 - **Code units, kept whole.** A boundary of a slice standing between the two halves of a surrogate pair is refused where it is evaluated, so slicing never makes a well-formed text ill-formed; the other members compare code units exactly, so a text holding a lone surrogate, which only a host can give, is found and split where it stands; a position past the text, or a start after the end, is refused as a list's slice refuses it.

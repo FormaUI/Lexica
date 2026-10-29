@@ -1,6 +1,6 @@
 # Proposal: collections
 
-**State: accepted in part.** The direction and the decisions under [accepted decisions](#accepted-decisions) are accepted; the contracts under [open contracts](#open-contracts) are proposed and not settled, but the lineage representation, the foundation, construction and operations, positional operations and ordering, which are settled, specified and implemented. Explicit identity, which the foundation does not require, is deferred, as [the status overview](../features-status.md#deferred) records; [unit 4](../features-status.md#unit-4--collections) of the implementation plan settles the open contracts, specifies each part and implements it.
+**State: accepted in part.** The direction and the decisions under [accepted decisions](#accepted-decisions) are accepted; the contracts under [open contracts](#open-contracts) are proposed and not settled, but the lineage representation, the foundation, construction and operations, positional operations and ordering, which are settled, implemented and specified in [collections](../../spec/collections.md). Explicit identity, which the foundation does not require, is deferred, as [the status overview](../features-status.md#deferred) records; [unit 4](../features-status.md#unit-4--collections) of the implementation plan settles the open contracts, specifies each part and implements it.
 
 Related proposals: [contract generics](contract-generics.md), whose inference collection members follow, [`Any` and deferred selection](any-and-deferred-selection.md), whose identity rules values in collections keep, and [line structure](line-structure.md), which collection syntax extends.
 
@@ -57,7 +57,7 @@ The design comes in four parts, each settled, specified and implemented in turn:
 
     Each final item retains enough provenance for a host to recognize its original reference source, while each projection's `sources` still records its actual immediate input. Lineage need not retain every intermediate object or the whole history of every transformation.
 11. **Full scope, staged.** Collection expressions, ranges and slicing are planned work, delivered in the parts above, never dropped.
-12. **Collection expressions.** ✅ Specified in [collection expressions](../../spec/values.md#lists-collection-expressions) and implemented as definition version 35, as [I36](implementation-decisions.md) records. The written form decides the kind a collection expression constructs, and its context never changes what it constructs:
+12. **Collection expressions.** ✅ Specified in [collection expressions](../../spec/collections.md#collections-collection-expressions) and implemented as definition version 35, as [I36](implementation-decisions.md) records. The written form decides the kind a collection expression constructs, and its context never changes what it constructs:
 
     ```text
     [10, 20, 30]                 // List<Number>
@@ -89,7 +89,7 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### Foundation
 
-✅ **Settled,** as [dictionaries and pairs](../../spec/types.md#types-dictionaries-and-pairs), [how a binding is typed](../../spec/scripts.md#bindings) and [results](../../spec/values.md#values-results) specify and [I35](implementation-decisions.md) records, with the choices below as proposed; duplicate keys at construction, and a list's typing from a collection expression, land with construction.
+✅ **Settled,** as [dictionaries and pairs](../../spec/collections.md#collections-dictionaries-and-pairs), [how a binding is typed](../../spec/scripts.md#bindings) and [results](../../spec/values.md#values-results) specify and [I35](implementation-decisions.md) records, with the choices below as proposed; duplicate keys at construction, and a list's typing from a collection expression, land with construction.
 
 
 - **Host capture:** a dense array as a `List<T>`; a `Map` as a `Dictionary<K, V>`; a `Set` as a `List<T>` in its traversal order, its uniqueness not making later projections sets; a plain record as an object; a domain member's collection as its declared native type; and a general iterable only through an explicit finite materialization. Recognition keeps its precedence, a value recognized as a module's reference staying a reference, and a captured binding is never a live view.
@@ -98,7 +98,7 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### Construction and operations
 
-✅ **Settled,** as [Nexo's vocabulary](../../spec/vocabulary.md#vocabulary-list-members), [null arguments](../../spec/members.md#nullability-a-null-argument-follows-the-parameter) and [provenance](../../spec/runtime.md#runtime-results-provenance) specify and [I37](implementation-decisions.md) records, but `pick`, which positional operations settle.
+✅ **Settled,** as [Nexo's vocabulary](../../spec/collections.md#collections-list-members), [null arguments](../../spec/members.md#nullability-a-null-argument-follows-the-parameter) and [provenance](../../spec/runtime.md#runtime-results-provenance) specify and [I37](implementation-decisions.md) records, but `pick`, which positional operations settle.
 
 - **Collection expressions,** beyond decision 12: a list dense and immutable, a trailing comma allowed in source, holes refused, no spread, items as simple expressions under the existing recursive restrictions, and delegates kept out of collection data.
 - **Dictionary construction:** `people.toDictionary(it.id)`, a dictionary of the people by their ids; `.select(…)` giving other values; and `groupBy`, a `Dictionary<K, List<T>>`.
@@ -108,7 +108,7 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### Positional operations
 
-✅ **Settled,** as [positions](../../spec/types.md#types-positions), [Nexo's vocabulary](../../spec/vocabulary.md#vocabulary-list-members) and [an indexer's signatures](../../spec/members.md#property-access-calls-and-indexers-unnamed-indexers) specify and [I38](implementation-decisions.md) records: an `Index` counts from the end alone, a number from the start.
+✅ **Settled,** as [positions](../../spec/collections.md#collections-positions), [Nexo's vocabulary](../../spec/collections.md#collections-list-members) and [an indexer's signatures](../../spec/members.md#property-access-calls-and-indexers-unnamed-indexers) specify and [I38](implementation-decisions.md) records: an `Index` counts from the end alone, a number from the start.
 
 - **Indices and ranges:** an `Index`, an offset from the beginning or, written `^n`, from the end, and a `Range`, two boundaries of a half-open interval, `items[1..4]`, `items[..4]`, `items[4..]`, `items[^3..]`, `items[..^1]` and `items[..]`, reusable as values, `let middle = 1..^1`, capturing no collection and generating no numbers; offsets nonnegative safe integers, never rounded.
 - **Lookup and slicing:** scalar lookup tolerant as today, a missing, negative or fractional position giving null and `items[^0]` null; slicing strict, `0 <= start <= end <= L` against one captured length, a reversed or out-of-bounds range a located error, equal boundaries an empty list; and `take` and `drop` the tolerant partitions.
@@ -118,7 +118,7 @@ Each contract below is proposed; the stage that depends on it settles it first.
 
 ### Ordering
 
-✅ **Settled,** as [ordering](../../spec/vocabulary.md#vocabulary-list-ordering) specifies and [I39](implementation-decisions.md) records: a descending variant of each member states direction, and a script orders nulls first by ordering by whether a key is null first.
+✅ **Settled,** as [ordering](../../spec/collections.md#collections-list-ordering) specifies and [I39](implementation-decisions.md) records: a descending variant of each member states direction, and a script orders nulls first by ordering by whether a key is null first.
 
 `orderBy` and `thenBy`, nonmutating and stable; numbers numerically, strings by code unit without a host's locale, Booleans false before true, nulls last by default with their placement independent of direction, and unsupported key domains refused; each key evaluated once per item and criterion; `thenBy` refining ties without re-sorting; and ordering information that survives a local alias and another `thenBy`, retained as evaluated keys, never as callbacks. String ordering is a collection operation's contract, never making `"a" < "b"` valid in expressions.
 

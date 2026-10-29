@@ -28,16 +28,17 @@ Start with [scripts](scripts.md), which shows a complete script with its paramet
 
 1. [Scripts](scripts.md): what a script is, its parameters and bindings, names and scope, the implicit parameter, bodies and locals.
 2. [Lexical structure](lexical-structure.md): tokens, names and reserved words, strings and escapes, comments and case.
-3. [Values](values.md): objects and the object root, lists, null, supplied data, results and conversions.
+3. [Values](values.md): objects and the object root, null, supplied data, results and conversions.
 4. [Types](types.md): type families, type parameters, reference types, nullability, receivers of unknown type, values of `Any` and casts.
-5. [Expressions](expressions.md): precedence, tests, truthiness, equalities, arithmetic, comparisons, logical expressions, conditionals, `do` expressions, coalescing, attempts, interpolated strings and simple expressions.
-6. [Functions](functions.md): regular and arrow functions declared in a script, their values, references to a module's functions, what they see, what a call reads, and implicit bodies.
-7. [Members](members.md): member kinds, writing a member, computed property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
-8. [Modules](modules.md): creating a module, its declarations, registries, namespaces and extensions.
-9. [Vocabulary](vocabulary.md): Nexo's own vocabulary, Boolean functions, observations, type selectors and conversions.
-10. [Host contract](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
-11. [Definition](definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
-12. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
-13. [Grammar](grammar.md): the formal grammar, grouped by subject.
-14. [Terms](terms.md): the glossary.
-15. [The examples' vocabulary](examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
+5. [Collections](collections.md): lists, dictionaries and pairs, collection expressions, positions, variance, and the members of lists, dictionaries and pairs.
+6. [Expressions](expressions.md): precedence, tests, truthiness, equalities, arithmetic, comparisons, logical expressions, conditionals, `do` expressions, coalescing, attempts, interpolated strings and simple expressions.
+7. [Functions](functions.md): regular and arrow functions declared in a script, their values, references to a module's functions, what they see, what a call reads, and implicit bodies.
+8. [Members](members.md): member kinds, writing a member, computed property access, parameters and arguments, declaring a member, how a member reads and changes, and host calls.
+9. [Modules](modules.md): creating a module, its declarations, registries, namespaces and extensions.
+10. [Vocabulary](vocabulary.md): Nexo's own vocabulary of numbers and strings, Boolean functions, observations, type selectors and conversions.
+11. [Host contract](runtime.md): bindings, resolution, evaluation, results and their metadata, and preparing and projecting host calls.
+12. [Definition](definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
+13. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
+14. [Grammar](grammar.md): the formal grammar, grouped by subject.
+15. [Terms](terms.md): the glossary.
+16. [The examples' vocabulary](examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.

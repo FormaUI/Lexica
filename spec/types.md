@@ -2,7 +2,7 @@
 
 <a id="types"></a>
 
-Every value has a type, and every expression is typed before it is evaluated. The language defines the scalar types, lists and object types; a module declares the rest, its reference types and its structured types. A script never declares a type: Nexo infers each expression's type from the types its bindings and its vocabulary give it. Every type a script names already exists, the language's own or one a module declares, and a script names one in two places alone: a [cast](#casts), which answers a reference as another type the hierarchy or a declared cast permits, and a [conversion](values.md#conversions), which converts data to another type of data. `device as Light` and `value to Number` each name an existing type, written bare as a member's name is.
+Every value has a type, and every expression is typed before it is evaluated. The language defines the scalar types, the [collections](collections.md), positions and object types; a module declares the rest, its reference types and its structured types. A script never declares a type: Nexo infers each expression's type from the types its bindings and its vocabulary give it. Every type a script names already exists, the language's own or one a module declares, and a script names one in two places alone: a [cast](#casts), which answers a reference as another type the hierarchy or a declared cast permits, and a [conversion](values.md#conversions), which converts data to another type of data. `device as Light` and `value to Number` each name an existing type, written bare as a member's name is.
 
 Every member declares the types it accepts and returns, and resolution checks every expression against them before evaluation, an access on a [value of `Any`](#types-any) waiting for the value to be known. A script that cannot be typed fails with a validation error identifying the location, the expected type and the actual type.
 
@@ -39,7 +39,7 @@ In this document:
 | Lists | `List<T>`, a list whose items have type `T` |
 | Dictionaries | `Dictionary<K, V>`, a dictionary whose keys have type `K` and whose values have type `V` |
 | Pairs | `Pair<K, V>`, a key of type `K` and its value of type `V`, as a dictionary's entries give them |
-| Positions | `Index`, an offset from a list's end, and `Range`, a half-open interval of two boundaries, as [positions](#types-positions) set out |
+| Positions | `Index`, an offset from a list's end, and `Range`, a half-open interval of two boundaries, as [positions](collections.md#collections-positions) set out |
 | Structured values | Data a module declares, its data shape the properties its type declares directly without `updates`, as `Climate` |
 | Object types | The object field types inferred from an object expression, as `{ name: String, count: Number }` |
 | `Any` | A value of any type that isn't null, its concrete type known when it is evaluated, as [values of `Any`](#types-any) set out |
@@ -121,7 +121,7 @@ A type parameter stands for a type a declaration leaves open, so that a member's
 }
 ```
 
-- **Where they are declared.** A declaration's name declares its parameters, bare, in angle brackets after its local name: a member's own, `identity<T>`, whoever declares the member, a type, an extension or the module itself; and an [extension](modules.md#extensions)'s, `ListExtensions<T>`, which its target and its members share. An operator declares none, since its destination selects it and no rule binds a parameter from a destination, so `convert<T>` and `cast<T>` are refused; it uses its extension's, which the receiver binds. Nexo's own `List<T>` is the one generic value type, declared through the declaration form [Nexo's own module](modules.md#modules-declarations) alone uses. Reference and structured types can't declare type parameters, so a type's data is never generic, and a type that declares any is refused at registration.
+- **Where they are declared.** A declaration's name declares its parameters, bare, in angle brackets after its local name: a member's own, `identity<T>`, whoever declares the member, a type, an extension or the module itself; and an [extension](modules.md#extensions)'s, `ListExtensions<T>`, which its target and its members share. An operator declares none, since its destination selects it and no rule binds a parameter from a destination, so `convert<T>` and `cast<T>` are refused; it uses its extension's, which the receiver binds. Nexo's own `List<T>`, `Dictionary<K, V>` and `Pair<K, V>` are the generic value types, declared through the declaration form [Nexo's own module](modules.md#modules-declarations) alone uses, each with the [variance](collections.md#collections-variance) it declares. Reference and structured types can't declare type parameters, so a type's data is never generic, and a type that declares any is refused at registration.
 - **Declaring and referring positions.** A declaration's name declares, and every other position refers: an extension's `target`, a member's `result`, a parameter's type and a callback's types. A name in a referring position that a declaration around it declares is that parameter, and any other names a type, an unknown type where none exists, whatever its length, so a module may name a type `T`, and `T` there is that type. Whether a name is a parameter is never decided by whether a type of its name happens to exist.
 - **Scope.** An extension's parameters stand within it and every one of its members, and `List<T>`'s within its members, the receiver binding them at each access, so no member infers them again; a member's own stand within that member alone.
 - **Its local name.** Registration separates a declaration's local name from the parameters it declares: `ListExtensions<T>` is named `ListExtensions`, identified by its module and that name as every declaration is, its parameters never taking part, so a module declares that name once.
@@ -151,7 +151,7 @@ Inference satisfies the whole call, so the order of a call's arguments never dec
 
 - **The receiver establishes an extension's parameters.** The extension's target is matched against the receiver's non-null branch, which strips the receiver's outer nullability alone, so the items of a `List<Device?>` keep theirs. A null receiver is never silently accepted: an access with `.` on a receiver that can be null is refused as [nullability](#nullability) sets out, and an optional access answers null without invoking the member.
 - **Extracting a binding is exact.** Matching `T` against a type gives `T` that type as a candidate, nullable or not; matching `T?` against a type gives it that type without null; and matching `List<P>` against `List<Y>` matches `P` against `Y`. Matching `List<Device>` against `List<T>` establishes `T` as `Device`.
-- **Checking compatibility follows the type rules.** A later argument satisfies an established binding without changing it: where a receiver binds `T` to `Device`, a `Device?` given for a parameter of type `T` is checked by that parameter's null policy, and never makes `T` a `Device?`. A concrete part is checked as any type is, so a `List<Light>` given where a `List<Device>` is declared is accepted, by [list covariance](#types-type-parameters-list-covariance), however exact extraction is.
+- **Checking compatibility follows the type rules.** A later argument satisfies an established binding without changing it: where a receiver binds `T` to `Device`, a `Device?` given for a parameter of type `T` is checked by that parameter's null policy, and never makes `T` a `Device?`. A concrete part is checked as any type is, so a `List<Light>` given where a `List<Device>` is declared is accepted, by [list covariance](collections.md#collections-variance), however exact extraction is.
 - **A member's own parameters come from its value arguments and its callbacks' results.** Every value argument's binding is collected before any callback is resolved, whatever the order of the arguments.
 - **Nullable candidates combine, different types do not.** A member's own parameter whose candidates are one type differing only in nullability takes the nullable type, so a `Device` and a `Device?` give `Device?`. Candidates of different types are refused as inconsistent, whichever comes first: a member taking two arguments of `T`, given a `Device` and a `Light`, is refused, and a common base type is never inferred.
 - **Null and `Never` are different evidence.** `Never`, the item of an empty list, isn't evidence of any type. A null argument given for an occurrence written `T` is evidence that the occurrence accepts null, which inference keeps even where it cannot determine an underlying type; one given for an occurrence written `T?` adds no constraint, since that occurrence accepts null already.
@@ -174,46 +174,6 @@ Inference satisfies the whole call, so the order of a call's arguments never dec
 ### Registration checks that inference is possible
 
 A type parameter must have a supported source from which it can be bound: the receiver, through the target of the extension that declares it, a value parameter's type, or a callback's result contract. A member is refused at registration where a parameter its result writes has none, and where its callback's input writes a parameter whose only source is another callback's result, since callback results do not chain. The receiver binds its extension's parameters before any callback runs, so a callback's input may write one the extension's target supplies, even where the member writes it nowhere else. Registration checks this structurally; a particular call can still be refused where the types it gives are incompatible or insufficient.
-
-<a id="types-type-parameters-list-covariance"></a>
-
-<a id="types-collection-variance"></a>
-
-### Collection variance
-
-Collections are immutable values, so each of Nexo's own generic types declares how its type arguments relate, its **variance**, and no module declares a generic type:
-
-| Type | Variance |
-| --- | --- |
-| `List<T>` | Covariant in `T`: a `List<Light>` stands where a `List<Device>` is declared, its items checked by their own types |
-| `Dictionary<K, V>` | Invariant in `K`, which a lookup takes, and covariant in `V`: a `Dictionary<String, Light>` stands where a `Dictionary<String, Device>` is declared, never where a `Dictionary<String?, Light>` is |
-| `Pair<K, V>` | Covariant in both |
-
-A covariant argument relates by assignability and merges as types merge; an invariant one relates by equality and merges where the two are equal. An invariant argument of `Never` fits any and merges to the other, since the one invariant argument, a dictionary's key, is `Never` only for a dictionary of no entries, which no lookup can mistake.
-
-<a id="types-dictionaries-and-pairs"></a>
-
-## Dictionaries and pairs
-
-A **dictionary** is addressed by key, its keys unique and its values free to repeat, and a **pair** is immutable data of a `key` and its `value`, which a dictionary's entries give: `dictionary.entries` is a `List<Pair<K, V>>`, and `dictionary.entry[key]` a `Pair<K, V>?`. A dictionary becomes neither a list nor an object implicitly, and an object becomes no dictionary.
-
-- **Its keys** are of a **key type**, a type whose values one exact equality compares: `Number`, `String`, `Boolean`, a reference type and `null`, nullable or not, a type parameter, which a dictionary binds to its own key type, and `Never`, an empty dictionary's. A list, an object, a structured value, a dictionary, a pair and a value of `Any` are no key: a declaration naming a dictionary of another key type is a module error (NEXO4563), and a bound map holding one a structure error (NEXO2041).
-- **Key equality** is exact: a number by its value, `-0` equal to `0`, a string by its code units, a Boolean by its value, a reference by its established identity, and null as one key of its own, a real key where `K` admits null. No host language's own equality takes part, and a snapshot's tolerance never does.
-- **Insertion order.** A dictionary's entries are ordered by insertion, the order its source gave them; order never addresses one, so `dictionary[2]` reads the key `2`, never the third entry, and a dictionary is not sorted.
-- **Duplicate keys.** A dictionary holds each key once; constructing one from duplicate keys fails with a located evaluation error, never keeping the first or the last.
-- **Positions address no dictionary.** A dictionary is addressed by key alone, so an index or a range is no key of one, refused as any key of another type is.
-- **Lookup and presence.** `dictionary[key]` answers the key's value or null, so a key whose value is null reads as an absent key does; `containsKey(key)` tells them apart, and `entry[key]` answers the pair, null where the key is absent, so a missing pair and a pair whose value is null are told apart too. A lookup's key may be null, which reads the null key where `K` admits one and an absent key otherwise, so a key's parameter consumes null, never propagating it.
-
-<a id="types-positions"></a>
-
-## Positions
-
-A list's item stands at a **position**: a `Number`, its offset from the list's start, `0` the first item, or an **index**, an `Index`, written `^n`, its offset from the list's end, `^1` the last item and `^0` the end past it. A **range**, a `Range`, is a half-open interval of two boundaries, each a position or left out, written `start..end`: `items[1..4]`, `items[..4]`, `items[4..]`, `items[^3..]`, `items[..^1]` and `items[..]`, a start left out the list's start and an end left out its end. An index and a range are values, so `let middle = 1..^1` serves any list, and neither holds a collection nor generates numbers.
-
-- **Offsets** are nonnegative safe integers, never rounded: an index's offset and a range's boundary that is a number of any other value fails where it is evaluated (NEXO5032), so `^1.5` and `-1..2` are refused, while a lookup by a number stays tolerant, as [a list's members](vocabulary.md#vocabulary-nexos-own) set out.
-- **Against a list.** A range is applied to one length, captured once: a start or an end that is a number stands at its offset, an index at the length less its offset, so `..^1` is every item but the last.
-- **Not data.** Neither is data, so a result holding one is refused (NEXO3043); neither is a dictionary's key, and no equality compares them.
-- **Their operands.** `^` takes a `Number`, and a range's boundaries are each a `Number` or an `Index`, none nullable (NEXO3085). A range's boundary is a position, never an operator expression unless grouped, and never another range, as [the grammar](grammar.md#grammar-the-grammar) sets out.
 
 <a id="reference-types"></a>
 
@@ -262,7 +222,7 @@ A value stands where a type is declared, a parameter's, a callback's or a result
 | `null` | Every nullable type |
 | A nullable type, `T?` | A nullable type `U?` that `T` is assignable to |
 | A named type | The same type, by its [identity](#types-type-identity), and each supertype above it, as [reference types](#reference-types) set out |
-| `List<T>` | `List<U>`, where `T` is assignable to `U`, by [collection variance](#types-collection-variance) |
+| `List<T>` | `List<U>`, where `T` is assignable to `U`, by [collection variance](collections.md#collections-variance) |
 | `Dictionary<K, V>` | `Dictionary<K, W>`, where `V` is assignable to `W`, and `Dictionary<J, W>` for any `J` where `K` is `Never` |
 | `Pair<K, V>` | `Pair<J, W>`, where `K` is assignable to `J` and `V` to `W` |
 | An object type | An object type of the same object field names, each object field's type assignable to the type of the object field of its name; an object field more or an object field fewer is refused |

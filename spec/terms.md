@@ -7,10 +7,11 @@ Each term the specification uses, what it means, and where its authoritative exp
 In this document:
 
 1. [Scripts, values and results](#expressions-and-results)
-2. [Chains and members](#chains-and-members)
-3. [Operators, conditionals and strings](#expressions-1)
-4. [Vocabulary and host calls](#vocabulary-and-host-calls)
-5. [Names for implementations](#names-for-implementations)
+2. [Collections](#terms-collections)
+3. [Chains and members](#chains-and-members)
+4. [Operators, conditionals and strings](#expressions-1)
+5. [Vocabulary and host calls](#vocabulary-and-host-calls)
+6. [Names for implementations](#names-for-implementations)
 
 <a id="expressions-and-results"></a>
 
@@ -64,6 +65,24 @@ In this document:
 | Keyword | A reserved word other than the literals' words and `root`, as `let`, `if` and `it` | [Names and reserved words](lexical-structure.md#names-and-reserved-words) |
 | Lexical reference | `@` and an identifier, as `@to`, reading the nearest local, object field, conditional binding or function parameter of that name, and otherwise resolving the import binding of that name, needed where the identifier alone means something else | [Lexical references](lexical-structure.md#names-and-reserved-words-lexical-references) |
 | Implicit parameter | The value against which the current expression runs, read as `it` | [Names and resolution](scripts.md#names-and-resolution) |
+
+<a id="terms-collections"></a>
+
+## Collections
+
+| Term | Meaning | Reference |
+| --- | --- | --- |
+| Collection | A list or a dictionary, an immutable value whose members Nexo's own module declares | [Collections](collections.md#collections) |
+| List | `List<T>`, items of type `T` in order, each at a position | [Lists](collections.md#collections-lists) |
+| Dictionary | `Dictionary<K, V>`, entries addressed by key, each key once, ordered by insertion | [Dictionaries and pairs](collections.md#collections-dictionaries-and-pairs) |
+| Pair | `Pair<K, V>`, immutable data of a `key` and its `value`, as a dictionary's entries give them | [Dictionaries and pairs](collections.md#collections-dictionaries-and-pairs) |
+| Key type | A type whose values one exact equality compares, which a dictionary's keys, grouping, membership and distinctness use | [Dictionaries and pairs](collections.md#collections-dictionaries-and-pairs) |
+| Collection expression | `[…]`, a list of its items or a dictionary of its entries written where a value stands, `[]` and `[=]` the empty ones | [Collection expressions](collections.md#collections-collection-expressions) |
+| Position | Where a list's item stands: a number, its offset from the start, or an index | [Positions](collections.md#collections-positions) |
+| Index | `^n`, an `Index`, a position counted from a list's end, `^1` the last item | [Positions](collections.md#collections-positions) |
+| Range | `start..end`, a `Range`, a half-open interval of two positions, either left out, which slices a list or a string | [Positions](collections.md#collections-positions) |
+| Variance | How a generic type's arguments relate: `List<T>` covariant, `Dictionary<K, V>` invariant in `K` and covariant in `V`, `Pair<K, V>` covariant in both | [Variance](collections.md#collections-variance) |
+| Ordering | `orderBy` and its kin, ordering a list's items by keys stably, `thenBy` refining an order already made | [Ordering](collections.md#collections-list-ordering) |
 
 <a id="chains-and-members"></a>
 

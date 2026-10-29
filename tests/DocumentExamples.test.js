@@ -78,15 +78,27 @@ const DOCUMENTS = {
         { about: 'values of each kind' },
         { about: 'the object root', evaluates: { bar: 4, inner: { bar: 2, nearest: 2, outermost: 4 } } },
         { about: 'a field of the object root still being built', refused: 'validation' },
-        {
-            about: 'collection expressions',
-            evaluates: { sizes: [10, 20, 30], stock: { entries: [{ key: 'coffee', value: 3 }, { key: 'tea', value: 2 }] }, none: [], empty: { entries: [] } },
-        },
         { about: 'conversions', each: true },
     ],
     'spec/types.md': [
         { about: 'types a script infers' },
         { about: 'casts', each: true, context: COMPARED },
+    ],
+    'spec/collections.md': [
+        {
+            about: 'the members of lists and dictionaries',
+            evaluates: {
+                names: ['lamp', 'heater', 'sensor'],
+                lastTwo: [{ name: 'heater' }, { name: 'sensor' }],
+                strongest: 'heater',
+                byPower: [{ name: 'heater' }, { name: 'lamp' }, { name: 'sensor' }],
+                inStock: ['coffee'],
+            },
+        },
+        {
+            about: 'collection expressions',
+            evaluates: { sizes: [10, 20, 30], stock: { entries: [{ key: 'coffee', value: 3 }, { key: 'tea', value: 2 }] }, none: [], empty: { entries: [] } },
+        },
     ],
     'spec/expressions.md': [
         { about: 'tests', each: true },
