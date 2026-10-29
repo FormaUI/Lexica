@@ -305,13 +305,13 @@ describe('prepared calls', () => {
         expect(call.project(35).value).toEqual({ reached: 35, asked: 40 });
     });
 
-    it('project through the checks every evaluation goes through, refusing a resolution a registration made stale', () => {
+    it('project through the checks every evaluation goes through, a call supplying a number, which capturing never recognizes, projecting on across a module declaring a typeOf', () => {
         const { evaluator, registry } = evaluatorOf('light.dim({ to = 40 })');
         const call = evaluator.prepareHostCall();
 
         registry.registerModule(lexica.createModule('later', { typeOf: () => null }));
 
-        expect(errorThrownBy(() => call.project(35))).toMatchObject({ kind: 'structure', message: expect.stringContaining('stale') });
+        expect(call.project(35).value).toBe(35);
     });
 });
 

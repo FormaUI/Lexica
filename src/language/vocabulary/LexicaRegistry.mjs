@@ -1121,15 +1121,52 @@ export class LexicaRegistry {
     }
 
     /**
-     * Whether the declaration's signature holds `Any`, the one way a value of `Any` reaches an evaluation: its result, a parameter's type, a callback's types, and, for a member whose fixed argument selects its result's
-     * type, the type of any key its selector maps; each through lists, dictionaries, pairs, objects and a structure's data shape.
+     * Whether the declaration gives a script a value of `Any`, the one way such a value reaches an evaluation: through its result, the arguments a function parameter's callback is called with, and, for a member
+     * whose fixed argument selects its result's type, the type of any key its selector maps; each through lists, dictionaries, pairs, objects and a structure's data shape. A parameter's own type gives the script
+     * nothing, since the script supplies its argument and the member receives it.
      */
-    holdsAnyInSignature(declaration) {
-        const notations = [declaration.result, ...(declaration.parameters ?? []).flatMap(parameter => [parameter.type, ...(parameter.parameterTypes ?? [])])].filter(notation => notation !== undefined);
+    givesAny(declaration) {
+        const notations = [declaration.result, ...(declaration.parameters ?? []).flatMap(parameter => parameter.parameterTypes ?? [])].filter(notation => notation !== undefined);
         const selector = (declaration.parameters ?? []).find(parameter => parameter.selects === 'type')?.selector;
         const selected = selector === undefined ? [] : [...(this.#mappings.get(selector)?.values() ?? [])].map(mapping => this.getDeclaredType(mapping, mapping.type));
 
         return [...notations.map(notation => this.getDeclaredType(declaration, notation)), ...selected].some(type => this.#holdsAny(type, new Set()));
+    }
+
+    /**
+     * Whether the type holds a nullable reference type anywhere: itself, a type argument, an object field, or a property of a structure's data shape, a structure already being walked counting as holding none. Capturing
+     * a supplied value recognizes it there alone, telling a reference of another type, which is null, from mistyped data.
+     */
+    holdsNullableReference(type) {
+        return this.#holdsNullableReference(type, new Set());
+    }
+
+    #holdsNullableReference(type, walking) {
+        switch (type.kind) {
+            case 'object':
+                return [...type.fieldTypes.values()].some(fieldType => this.#holdsNullableReference(fieldType, walking));
+            case 'named': {
+                if (type.typeArguments.length > 0) {
+                    return type.typeArguments.some(typeArgument => this.#holdsNullableReference(typeArgument, walking));
+                }
+
+                if (this.isReferenceType(type)) {
+                    return type.isNullable;
+                }
+
+                const shape = this.getDataShape(type);
+
+                if (shape === null || walking.has(type.identity)) {
+                    return false;
+                }
+
+                walking.add(type.identity);
+
+                return [...shape.values()].some(propertyType => this.#holdsNullableReference(propertyType, walking));
+            }
+            default:
+                return false;
+        }
     }
 
     /** Whether the type holds `Any` anywhere: itself, a type argument, an object field, or a property of a structure's data shape, a structure already being walked counting as holding none, since its properties are walked where it is first met. */

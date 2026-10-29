@@ -204,7 +204,10 @@ describe('LanguageResolver', () => {
 
     describe('whether it may recognize a value', () => {
         const recognizing = new LexicaRegistry([Vocabulary.module, new LexicaModule('shop', {
+            types: [{ name: 'Supplier', kind: 'reference', isInstance: () => true }],
             members: [
+                Declarations.createFunctionDeclaration('supplier', 'Supplier?', { invokedBy: 'host' }),
+                Declarations.createFunctionDeclaration('takes', 'Number', { updates: constantUpdates, parameters: [Declarations.createValueParameterDeclaration('value', 'Any')], impl: () => 1 }),
                 Declarations.createFunctionDeclaration('held', 'Any', { updates: constantUpdates, impl: () => 'oat' }),
                 Declarations.createFunctionDeclaration('count', 'Number', { updates: constantUpdates, impl: () => 1 }),
                 Declarations.createFunctionDeclaration('restocks', 'Number', { invokedBy: 'host' }),
@@ -217,12 +220,12 @@ describe('LanguageResolver', () => {
             return new LanguageResolver(recognizing, new ParameterBindings(recognizing, { wanted: false }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition).mayRecognize;
         };
 
-        it('may where a declaration it uses holds Any, in a branch evaluation never takes among them, or where it ends in a host call that supplies values', () => {
-            expect([mayRecognize('shop.held()'), mayRecognize('if wanted then shop.held() else 0 end'), mayRecognize('shop.restocks()'), mayRecognize('shop.restocks() { n = it }')]).toEqual([true, true, true, true]);
+        it('may where a declaration it uses gives it a value of Any, in a branch evaluation never takes among them, or where it ends in a host call supplying a nullable reference', () => {
+            expect([mayRecognize('shop.held()'), mayRecognize('if wanted then shop.held() else 0 end'), mayRecognize('shop.supplier() { found = it != null }'), mayRecognize('shop.restocks() { n = it, h = shop.held() }')]).toEqual([true, true, true, true]);
         });
 
-        it('may not where nothing it uses holds Any and its host call, if any, supplies nothing', () => {
-            expect([mayRecognize('shop.count() + 1'), mayRecognize('shop.close()')]).toEqual([false, false]);
+        it('may not where nothing it uses gives it a value of Any and its host call supplies no nullable reference, a value parameter of Any and a host call supplying a number among them', () => {
+            expect([mayRecognize('shop.count() + 1'), mayRecognize('shop.close()'), mayRecognize('shop.restocks()'), mayRecognize('shop.takes(1)')]).toEqual([false, false, false, false]);
         });
     });
 });

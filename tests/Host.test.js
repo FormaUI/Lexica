@@ -11,12 +11,15 @@ const { createPropertyDeclaration, createValueParameterDeclaration, createFuncti
 const createShop = () => lexica.createModule('shop', {
     types: [
         { name: 'Price', kind: 'structured', members: dataPropertyDeclarations({ amount: 'Number', currency: 'String' }) },
+        { name: 'Supplier', kind: 'reference', isInstance: value => value?.isSupplier === true },
         extensionDeclaration('StringExtensions', 'String', [
             createPropertyDeclaration('total', 'Price', { updates: { changes: 'constant', reads: 'fresh', tolerance: 0.01 }, impl: ({ receiver, env }) => ({ amount: env.prices[receiver], currency: 'EUR' }) }),
             createFunctionDeclaration('discount', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [createValueParameterDeclaration('code', 'String')], impl: ({ args }) => (args.code === 'TEN' ? 10 : 0) }),
             createPropertyDeclaration('stock', 'Number?', { updates: { changes: 'observable', reads: 'maintained', observations: [{ type: 'stock', of: 'receiver' }] }, impl: ({ samples: [count] }) => count }),
             createPropertyDeclaration('held', 'Any', { updates: { changes: 'constant', reads: 'fresh' }, impl: () => 7 }),
             createFunctionDeclaration('restocks', 'Number', { invokedBy: 'host' }),
+            createFunctionDeclaration('supplier', 'Supplier?', { invokedBy: 'host' }),
+            createFunctionDeclaration('takes', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [createValueParameterDeclaration('value', 'Any')], impl: () => 1 }),
             createFunctionDeclaration('close', undefined, { invokedBy: 'host' }),
         ]),
     ],
@@ -155,18 +158,43 @@ describe('a host of plain data', () => {
             expect(after.metadata.objectFields.cut.origin).toBe(before.metadata.objectFields.cut.origin);
         });
 
-        it('makes a host call that supplies values stale once a module declaring a typeOf registers, since capturing a value may recognize it, and keeps one that supplies nothing current', () => {
+        it('makes a host call supplying a nullable reference stale once a module declaring a typeOf registers, since capturing one may recognize it, and keeps current one that supplies data or nothing', () => {
             const registry = createImportingRegistry([createShop()]);
-            const supplying = registry.resolve('order.restocks()', { order: 'a' });
-            const call = supplying.createEvaluator({ order: 'a' }).prepareHostCall();
+            const supplier = registry.resolve('order.supplier() { found = it != null }', { order: 'a' });
+            const call = supplier.createEvaluator({ order: 'a' }).prepareHostCall();
+            const restocks = registry.resolve('order.restocks()', { order: 'a' });
+            const counted = restocks.createEvaluator({ order: 'a' }).prepareHostCall();
             const closing = registry.resolve('order.close()', { order: 'a' });
 
             registry.registerModule(createRecognizing());
 
-            expect(supplying.isCurrent).toBe(false);
-            expect(errorThrownBy(() => call.project(4))).toMatchObject({ code: 'LEXICA2040' });
-            expect(closing.isCurrent).toBe(true);
-            expect(closing.createEvaluator({ order: 'a' }).prepareHostCall().kind).toBe('prepared');
+            expect([supplier.isCurrent, restocks.isCurrent, closing.isCurrent]).toEqual([false, true, true]);
+            expect(errorThrownBy(() => call.project(null))).toMatchObject({ code: 'LEXICA2040' });
+            expect(counted.project(4).value).toBe(4);
+        });
+
+        it('keeps current a resolution given a value parameter of Any, which gives the script no value of Any, whatever registers', () => {
+            const registry = createImportingRegistry([createShop()]);
+            const resolution = registry.resolve('order.takes(order)', { order: 'a' });
+
+            registry.registerModule(createRecognizing());
+
+            expect(resolution.isCurrent).toBe(true);
+            expect(resolution.createEvaluator({ order: 'a' }).evaluate().value).toBe(1);
+        });
+
+        it('keeps a resolution that may recognize current across a module declaring no typeOf, where one declaring a typeOf was registered before it, and stale after the next that declares one', () => {
+            const registry = createImportingRegistry([createShop(), createRecognizing()]);
+            const resolution = registry.resolve('order.held', { order: 'a' });
+
+            registry.registerModule(lexica.createModule('extra', {}));
+
+            expect(resolution.isCurrent).toBe(true);
+            expect(resolution.createEvaluator({ order: 'a' }).evaluate().value).toBe(7);
+
+            registry.registerModule(lexica.createModule('later', { typeOf: () => null }));
+
+            expect(resolution.isCurrent).toBe(false);
         });
 
         it('makes a resolution stale that may recognize through a branch no evaluation takes, once a module declaring a typeOf registers, and keeps it current through any other registration', () => {

@@ -571,7 +571,7 @@ export interface LexicaResolution {
     getLocation(pointer: string): LexicaLocation;
     /**
      * Whether it is current, so its evaluators evaluate and their prepared calls project: false once a module declaring a `typeOf` is registered where it may recognize values as it is evaluated, a declaration it uses,
-     * in any branch, holding `Any` in its signature, or its host call supplying values; true for good where it may not.
+     * in any branch, giving it a value of `Any`, or its host call supplying a type that holds a nullable reference; true for good where it may not.
      */
     readonly isCurrent: boolean;
     /**

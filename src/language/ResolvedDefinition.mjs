@@ -26,9 +26,10 @@ export class ResolvedDefinition {
      * @param {{ name: string | null, pointer: string, candidates: object[] }[]} deferredAccesses The accesses whose member is selected during evaluation, each with the name it accesses, null for an unnamed indexer,
      * and the declarations its selection could choose, each a use at its pointer.
      * @param {{ node: object, pointer: string, bodyPointer: string }[]} functionBodyCopies The copy of a function's body each call resolved, with the pointer it was resolved under and the pointer of the body it copies.
-     * @param {boolean} mayRecognize Whether evaluating it may ask a module's `typeOf` of a value, in any branch, reached or not.
+     * @param {boolean} mayRecognize Whether evaluating it may ask a module's `typeOf` of a value, in any branch, reached or not; true where left out, so a resolution that doesn't say is made stale by every module
+     * declaring a `typeOf`, never kept current past one.
      */
-    constructor(definition, type, hostCall, resolutions, usedDeclarations, deferredAccesses, functionBodyCopies = [], mayRecognize = false) {
+    constructor(definition, type, hostCall, resolutions, usedDeclarations, deferredAccesses, functionBodyCopies = [], mayRecognize = true) {
         this.#mayRecognize = mayRecognize;
         this.#definition = definition;
         this.#type = type;
@@ -101,8 +102,8 @@ export class ResolvedDefinition {
     #mayRecognize;
 
     /**
-     * Whether evaluating it may recognize a value, asking each module's `typeOf`, in any branch, reached or not: where a declaration it uses holds `Any` in its signature, a deferred access among them, or it ends in a
-     * host call that supplies values. A registration changes a resolution through recognition alone, so one that may not stays current whatever is registered after it.
+     * Whether evaluating it may recognize a value, asking each module's `typeOf`, in any branch, reached or not: where a declaration it uses gives the script a value of `Any`, a deferred access among them, or it ends
+     * in a host call whose supplied type holds a nullable reference type. A registration changes a resolution through recognition alone, so one that may not stays current whatever is registered after it.
      */
     get mayRecognize() {
         return this.#mayRecognize;

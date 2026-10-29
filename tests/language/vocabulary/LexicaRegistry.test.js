@@ -528,7 +528,22 @@ describe('recognition', () => {
         expect([registry.revision, registry.recognitionRevision]).toEqual([3, 2]);
     });
 
-    it('tells a declaration whose signature holds Any, through its result, a parameter, a callback, a list, an object, a structure\'s data shape and a selected key\'s type, from one that holds none', () => {
+    it('tells a type holding a nullable reference type anywhere, through lists, objects and a structure\'s data shape, from one holding none, a structure that holds itself among them', () => {
+        const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('home', withHome({
+            types: [
+                { name: 'Spot', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light?', next: 'Spot?' }) },
+                { name: 'Plain', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Light', next: 'Plain?' }) },
+            ],
+        }))]);
+        const named = name => Type.createNamedType(name, false, 'home');
+        const holding = [named('Light').toNullable(), named('Spot'), Type.createListType(named('Spot')), Type.createObjectType(new Map([['lamp', named('Light').toNullable()]]))];
+        const holdingNone = [named('Light'), named('Plain'), Type.parse('List<Number?>'), Type.parse('String?')];
+
+        expect(holding.map(type => registry.holdsNullableReference(type))).toEqual(holding.map(() => true));
+        expect(holdingNone.map(type => registry.holdsNullableReference(type))).toEqual(holdingNone.map(() => false));
+    });
+
+    it('tells a declaration giving a script a value of Any, through its result, a callback\'s arguments, a list, an object, a structure\'s data shape and a selected key\'s type, from one that gives none', () => {
         const holding = { name: 'Holding', kind: 'structured', members: dataPropertyDeclarations({ inner: 'Any?' }) };
         const nested = { name: 'Nested', kind: 'structured', members: dataPropertyDeclarations({ holding: 'Holding', self: 'Nested?' }) };
         const plain = { name: 'Plain', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number', self: 'Plain?' }) };
@@ -548,9 +563,10 @@ describe('recognition', () => {
             typeSelectors: [{ name: 'loose' }, { name: 'strict' }],
             mappings: [{ selector: 'loose', key: 'held', type: 'Holding' }, { selector: 'strict', key: 'plain', type: 'Plain' }],
         })]);
-        const holds = registry.getModuleType('charts', 'Words').members.map(member => [member.name, registry.holdsAnyInSignature(member)]);
+        const holds = registry.getModuleType('charts', 'Words').members.map(member => [member.name, registry.givesAny(member)]);
 
-        expect(holds).toEqual([['any', true], ['takesAny', true], ['callsAny', true], ['nested', true], ['shaped', false], ['counts', false], ['onAny', true], ['onNumber', false]]);
+        // A value parameter's own type gives the script nothing: the script supplies its argument.
+        expect(holds).toEqual([['any', true], ['takesAny', false], ['callsAny', true], ['nested', true], ['shaped', false], ['counts', false], ['onAny', true], ['onNumber', false]]);
     });
 });
 

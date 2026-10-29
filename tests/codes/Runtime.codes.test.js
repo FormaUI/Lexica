@@ -217,7 +217,7 @@ describe('the runtime codes', () => {
             const growing = createImportingRegistry([createPantry()]);
             const resolution = growing.resolve('word.held', { word: 'oat' });
             const evaluator = resolution.createEvaluator({ word: 'oat' });
-            const call = growing.resolve('word.order(2)', { word: 'oat' }).createEvaluator({ word: 'oat' }).prepareHostCall();
+            const call = growing.resolve('word.order(2) { count = it, held = word.held }', { word: 'oat' }).createEvaluator({ word: 'oat' }).prepareHostCall();
 
             growing.registerModule(lexica.createModule('bakery', { typeOf: () => null }));
 

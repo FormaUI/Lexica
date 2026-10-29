@@ -1102,8 +1102,9 @@ export class Evaluator {
         const evaluateArguments = resolution.arguments.map(argument => this.#getCompiledFunction(argument.node));
         const followsOptionalAccess = Evaluator.#followsOptionalAccess(receiverNode);
         const written = Evaluator.#writtenNameOf(node);
-        // The selection made for each actual type the access meets, by the type's qualified text. It is kept with the compilation, which its resolved definition and its registry hold, so a registry whose contents changed,
-        // which resolves anew, never reads it, and it is released with the resolved definition. It saves selecting, binding the type parameters the receiver writes and compiling the parameters' checks at every evaluation.
+        // The selection made for each actual type the access meets, by the type's qualified text. It is kept with the compilation, which its resolved definition and its registry hold, and released with the resolved
+        // definition. It stays valid while that resolution is current: its candidates were fixed at resolution and no registration changes a type's hierarchy, so only a module declaring a `typeOf`, which changes
+        // the actual types values are found of, could change a selection, and such a registration makes the resolution stale, an access on a value of Any always recognizing. It saves selecting, binding the type parameters the receiver writes and compiling the parameters' checks at every evaluation.
         const selections = new Map();
 
         return (evaluator, context) => {
