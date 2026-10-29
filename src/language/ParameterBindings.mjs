@@ -120,11 +120,15 @@ export class ParameterBindings {
             return { type, value };
         }
 
-        if (!ParameterBindings.#holdsBoundValues(type)) {
-            fail('LEXICA2044', `${typeName} is a type no binding holds, as Any, Never, an Index and a Range are`);
+        if (!this.#holdsBoundValues(type, new Set())) {
+            fail('LEXICA2044', `${typeName} is a type no binding holds, or holds one in its data, as Any, Never, an Index and a Range are`);
         }
 
-        const captured = new ValueCapture(this.#registry).capture(value, type, (path, part, partType) => {
+        const captured = new ValueCapture(this.#registry).capture(value, type, (path, part, partType, reason) => {
+            if (reason === 'cycle') {
+                throw LexicaErrors.structure('LEXICA2022', `A binding holds a cycle, a list or an object that reaches itself, which data never does${path === '' ? '' : `, at '${path}'`}`, { binding: name });
+            }
+
             const given = path === '' ? `it is given ${ParameterBindings.#describe(part)}` : part === undefined ? `it is given a value without '${path}'` : `its '${path}' is ${ParameterBindings.#describe(part)}`;
 
             throw LexicaErrors.structure('LEXICA2045', `The value bound to '${name}' is declared ${type}, and ${given}, where ${partType} is declared`, { binding: name });
@@ -133,16 +137,36 @@ export class ParameterBindings {
         return { type, value: this.#freezeAs(captured, type) };
     }
 
-    /** Whether values of the type are ones a binding holds, at any depth: never `Any`, `Never` or a position, which no host gives a script. */
-    static #holdsBoundValues(type) {
+    /**
+     * Whether values of the type are ones a binding holds, at any depth, its type arguments, its object fields and a structure's data shape among them: never `Any`, `Never` or a position, which no host gives a
+     * script, a structure already being walked counting as holding none, since its properties are walked where it is first met.
+     */
+    #holdsBoundValues(type, walking) {
         switch (type.kind) {
             case 'any':
             case 'never':
                 return false;
             case 'object':
-                return [...type.fieldTypes.values()].every(fieldType => ParameterBindings.#holdsBoundValues(fieldType));
-            case 'named':
-                return !(type.moduleName === null && ['Index', 'Range'].includes(type.name)) && type.typeArguments.every(typeArgument => ParameterBindings.#holdsBoundValues(typeArgument));
+                return [...type.fieldTypes.values()].every(fieldType => this.#holdsBoundValues(fieldType, walking));
+            case 'named': {
+                if (type.moduleName === null && ['Index', 'Range'].includes(type.name)) {
+                    return false;
+                }
+
+                if (type.typeArguments.length > 0) {
+                    return type.typeArguments.every(typeArgument => this.#holdsBoundValues(typeArgument, walking));
+                }
+
+                const shape = this.#registry.getDataShape(type);
+
+                if (shape === null || walking.has(type.identity)) {
+                    return true;
+                }
+
+                walking.add(type.identity);
+
+                return [...shape.values()].every(propertyType => this.#holdsBoundValues(propertyType, walking));
+            }
             default:
                 return true;
         }
@@ -175,6 +199,11 @@ export class ParameterBindings {
     static #describe(value) {
         if (value === undefined) {
             return 'nothing';
+        }
+
+        // JSON writes a number that isn't finite as null, which would name another value.
+        if (typeof value === 'number' && !Number.isFinite(value)) {
+            return String(value);
         }
 
         try {

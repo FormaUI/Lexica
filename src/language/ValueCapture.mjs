@@ -21,16 +21,36 @@ export class ValueCapture {
     /**
      * The value captured as its type at every level of it: a value its type admits taken, a structure as its declared fields alone and a list item by item; nothing, or null, null where its type is nullable; and a
      * reference of another type null where a nullable reference type is declared, so the value keeps only the reference its type names. Anything else is given to `fail`, which throws, with the part of the value
-     * by its path within it, the value itself by none, the part and the type it is declared.
+     * by its path within it, the value itself by none, the part and the type it is declared; and data that reaches itself, a list or an object holding one of the lists or objects it lies within, is given to `fail`
+     * as well, with the reason `'cycle'`, since data never does.
      * @param {unknown} value
      * @param {import('./Type.mjs').Type} type
-     * @param {(path: string, part: unknown, type: import('./Type.mjs').Type) => never} fail
+     * @param {(path: string, part: unknown, type: import('./Type.mjs').Type, reason?: 'cycle') => never} fail
      * @param {string} [asked] What asks for the capture, as a recognition's fault names it.
      */
     capture(value, type, fail, asked = 'capturing a supplied value') {
         this.#asked = asked;
+        this.#enclosing = new Set();
 
         return this.#capture(value, type, '', fail);
+    }
+
+    /** The lists and objects the part being captured lies within, which it never holds, since data doesn't reach itself. */
+    #enclosing = new Set();
+
+    /** The parts of the value captured within it, the lists and objects of data it holds, a part that is one of the value's enclosing ones refused. */
+    #captureWithin(value, type, path, fail, captureParts) {
+        if (this.#enclosing.has(value)) {
+            fail(path, value, type, 'cycle');
+        }
+
+        this.#enclosing.add(value);
+
+        try {
+            return captureParts();
+        } finally {
+            this.#enclosing.delete(value);
+        }
     }
 
     /** What the capture under way was asked by, which a module's recognition, faulting, names. */
@@ -50,7 +70,7 @@ export class ValueCapture {
                 fail(path, value, type);
             }
 
-            return value.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail));
+            return this.#captureWithin(value, type, path, fail, () => value.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail)));
         }
 
         // A dictionary is supplied as a map or the language's, each key and value captured as its type declares, and a pair as the language's or an object of a key and a value alone.
@@ -58,7 +78,7 @@ export class ValueCapture {
             const entries = value instanceof Map ? [...value] : value instanceof Dictionary ? value.entries.map(entry => [entry.key, entry.value]) : fail(path, value, type);
             const [keyType, valueType] = type.typeArguments;
 
-            return new Dictionary(entries.map(([key, entry], index) => [this.#capture(key, keyType, `${path}.entries[${index}].key`, fail), this.#capture(entry, valueType, `${path}.entries[${index}].value`, fail)]));
+            return this.#captureWithin(value, type, path, fail, () => new Dictionary(entries.map(([key, entry], index) => [this.#capture(key, keyType, `${path}.entries[${index}].key`, fail), this.#capture(entry, valueType, `${path}.entries[${index}].value`, fail)])));
         }
 
         if (type.isPair) {
@@ -70,7 +90,7 @@ export class ValueCapture {
 
             const [keyType, valueType] = type.typeArguments;
 
-            return new Pair(this.#capture(value.key, keyType, ValueCapture.#pathOf(path, 'key'), fail), this.#capture(value.value, valueType, ValueCapture.#pathOf(path, 'value'), fail));
+            return this.#captureWithin(value, type, path, fail, () => new Pair(this.#capture(value.key, keyType, ValueCapture.#pathOf(path, 'key'), fail), this.#capture(value.value, valueType, ValueCapture.#pathOf(path, 'value'), fail)));
         }
 
         switch (type.kind) {
@@ -81,7 +101,7 @@ export class ValueCapture {
                     fail(path, value, type);
                 }
 
-                return Object.fromEntries([...type.fieldTypes].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, ValueCapture.#pathOf(path, name), fail)]));
+                return this.#captureWithin(value, type, path, fail, () => Object.fromEntries([...type.fieldTypes].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, ValueCapture.#pathOf(path, name), fail)])));
             default:
                 return this.#captureNamed(value, type, path, fail);
         }
@@ -121,7 +141,7 @@ export class ValueCapture {
             fail(path, value, type);
         }
 
-        const structure = Object.fromEntries([...this.#registry.getDataShape(type)].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, ValueCapture.#pathOf(path, name), fail)]));
+        const structure = this.#captureWithin(value, type, path, fail, () => Object.fromEntries([...this.#registry.getDataShape(type)].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, ValueCapture.#pathOf(path, name), fail)])));
 
         // A captured structure keeps its type through a value of Any, as one a member answers does.
         StructureTypes.recordType(structure, this.#registry, type.toNonNullable());

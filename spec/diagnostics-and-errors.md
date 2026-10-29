@@ -191,9 +191,9 @@ An evaluation error fails the entire result and is delivered to the host in its 
 | `LEXICA2041` | A bound map holding a key that is no key type, a list, an object, a structured value, a dictionary or a pair | A structure error naming the binding and the key's type |
 | `LEXICA2042` | A bound map whose keys, or whose values, share no type | A structure error naming the binding and which of them |
 | `LEXICA2043` | Two entries of one dictionary a collection expression writes sharing a key, compared exactly | A structure error at the later entry, naming the key |
-| `LEXICA2022` | A bound value holding a cycle | A structure error of its own naming the binding |
+| `LEXICA2022` | A bound value holding a cycle, a declared type's data among them | A structure error of its own naming the binding, and where it reaches itself in data a declared type captures |
 | `LEXICA2038` | A reference type declared for a value that is not a reference, null aside where the type is nullable | A structure error naming the binding |
-| `LEXICA2044` | A declared binding type no binding holds: a notation that writes no type, `Any`, `Never`, a position, or a dictionary keyed by no key type | A structure error naming the binding and the type |
+| `LEXICA2044` | A declared binding type no binding holds: a notation that writes no type, `Any`, `Never`, a position, a type holding one at any depth, a structure's data shape among it, or a dictionary keyed by no key type | A structure error naming the binding and the type |
 | `LEXICA2045` | A value its binding's declared data type, or a part of it, doesn't admit, as [declared types](runtime.md#runtime-bindings) set out | A structure error naming the binding, the part and the type |
 | `LEXICA2039` | A type declared for anything but a top-level binding | A structure error naming the binding |
 | `LEXICA2024` | Resolving or evaluating with a binding set another registry made | A structure error saying to bind with that registry |
@@ -479,7 +479,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5013` | A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |
 | `LEXICA5014` | Preparing a script that ends in no host call | An evaluation error, as [host calls](runtime.md#runtime-host-calls) set out |
 | `LEXICA5023` | Evaluating a script that ends in a host call | An evaluation error, as [host calls](runtime.md#runtime-host-calls) set out |
-| `LEXICA5015` | A value a host supplies, or a part of it, that its host call's declared result does not admit, as [capturing a supplied value](runtime.md#runtime-host-calls-capturing) sets out | An evaluation error naming the call and the part |
+| `LEXICA5015` | A value a host supplies, or a part of it, that its host call's declared result does not admit, or that reaches itself, as [capturing a supplied value](runtime.md#runtime-host-calls-capturing) sets out | An evaluation error naming the call and the part |
 | `LEXICA5503` | A function a member calls with arguments other than its callback contract declares, in number or in type | An evaluation error naming the function and the member |
 | `LEXICA5504` | A function or a body given to a member that answers, when it is evaluated, a value its callback contract's result type does not admit, as an answer of `Any` can be | An evaluation error naming the function, the member and the value |
 

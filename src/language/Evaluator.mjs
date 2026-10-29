@@ -346,7 +346,11 @@ export class Evaluator {
         const { type: resultType } = this.#resolvedDefinition.resolutionOf(node);
 
         // A part of the value is named by its path within it, the value itself by none.
-        const fail = (path, part, partType) => {
+        const fail = (path, part, partType, reason) => {
+            if (reason === 'cycle') {
+                this.#fail('LEXICA5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied a value that reaches itself${path === '' ? '' : ` at '${path}'`}, which data never does`, pointer);
+            }
+
             const supplied = path === '' ? Evaluator.#describe(part) : part === undefined ? `a value without '${path}'` : `a value whose '${path}' is ${Evaluator.#describe(part)}`;
 
             this.#fail('LEXICA5015', `The host call '${LexicaModule.writtenNameOf(declaration)}' supplied ${supplied}, and ${path === '' ? 'it declares' : `'${path}' is declared`} ${partType}`, pointer);

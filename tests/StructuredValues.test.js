@@ -250,3 +250,42 @@ describe("a structure's type through a value of Any", () => {
         expect(call.project({ x: 4 }).value).toEqual({ doubled: 8 });
     });
 });
+
+describe('declared data that no binding or capture holds', () => {
+    /** A module of a chain of links, a structure that holds itself, a bag holding a value of Any, and a host call supplying a link. */
+    const createChains = () => lexica.createModule('Chains', {
+        typeOf: value => (value instanceof Board ? 'Keeper' : null),
+        types: [
+            { name: 'Link', kind: 'structured', members: dataPropertyDeclarations({ value: 'Number', next: 'Link?' }) },
+            { name: 'Bag', kind: 'structured', members: dataPropertyDeclarations({ held: 'Any?' }) },
+            { name: 'Keeper', kind: 'reference', isInstance: value => value instanceof Board, members: [createFunctionDeclaration('latest', 'Link', { invokedBy: 'host' })] },
+        ],
+    });
+    const chains = lexica.createRegistry([createChains()]);
+    const looped = () => {
+        const link = { value: 1 };
+
+        link.next = link;
+
+        return link;
+    };
+
+    it('refuses a binding of a declared type whose data reaches itself as any bound cycle is refused, naming where it does', () => {
+        expect(errorThrownBy(() => chains.createBindings({ link: looped() }, { types: { link: 'Link' } }))).toMatchObject({ code: 'LEXICA2022', kind: 'structure', location: { binding: 'link' }, message: expect.stringContaining("reaches itself, which data never does, at 'next'") });
+    });
+
+    it('refuses a value a host call supplies that reaches itself where it is captured', () => {
+        const keeper = new Board();
+        const call = chains.resolve('keeper.latest()', { keeper }, { imports: ['Chains'] }).createEvaluator({ keeper }).prepareHostCall();
+
+        expect(errorThrownBy(() => call.project(looped()))).toMatchObject({ code: 'LEXICA5015', kind: 'evaluation', message: expect.stringContaining("supplied a value that reaches itself at 'next'") });
+    });
+
+    it('refuses a declared type that holds Any, Never or a position anywhere in its data, before any value is captured', () => {
+        expect(errorThrownBy(() => chains.createBindings({ bag: { held: 1 } }, { types: { bag: 'Bag' } }))).toMatchObject({ code: 'LEXICA2044', location: { binding: 'bag' }, message: expect.stringContaining('Bag is a type no binding holds, or holds one in its data') });
+    });
+
+    it('names a number that isn\'t finite as itself where data its type doesn\'t admit is refused', () => {
+        expect(errorThrownBy(() => chains.createBindings({ size: NaN }, { types: { size: 'Number' } }))).toMatchObject({ code: 'LEXICA2045', message: expect.stringContaining('it is given NaN, where Number is declared') });
+    });
+});

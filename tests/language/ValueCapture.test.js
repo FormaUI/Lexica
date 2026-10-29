@@ -54,3 +54,23 @@ describe('ValueCapture', () => {
         expect([ValueCapture.belongsToScalar(1, 'Number'), ValueCapture.belongsToScalar(Infinity, 'Number'), ValueCapture.belongsToScalar('a', 'String'), ValueCapture.belongsToScalar(false, 'Boolean'), ValueCapture.belongsToScalar(1, 'List')]).toEqual([true, false, true, true, false]);
     });
 });
+
+describe('ValueCapture of data reaching itself', () => {
+    const registry = new LexicaRegistry([Vocabulary.module, new LexicaModule('chains', { types: [{ name: 'Link', kind: 'structured', members: dataPropertyDeclarations({ value: 'Number', next: 'Link?' }) }] })]);
+
+    it('gives fail the reason cycle and the path where the data reaches itself, and captures a chain that ends', () => {
+        const link = { value: 1 };
+        const reasons = [];
+
+        link.next = link;
+
+        expect(() => new ValueCapture(registry).capture(link, Type.createNamedType('Link', false, 'chains'), (path, part, type, reason) => {
+            reasons.push([path, reason]);
+            throw new Error('refused');
+        })).toThrow('refused');
+        expect(reasons).toEqual([['next', 'cycle']]);
+        expect(new ValueCapture(registry).capture({ value: 1, next: { value: 2 } }, Type.createNamedType('Link', false, 'chains'), () => {
+            throw new Error('refused');
+        })).toEqual({ value: 1, next: { value: 2, next: null } });
+    });
+});
