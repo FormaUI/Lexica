@@ -65,8 +65,9 @@ const HOME_MEMBERS = {
         field('climate', 'Climate?', climate),
         field('highestTemperature', 'Number?', updates('observable', 'captured', [ofReceiver('climate')], { tolerance: 0.5 })),
         createFunctionDeclaration('device', 'Device?', { updates: placement, parameters: [createValueParameterDeclaration('name', 'String')], impl: ({ receiver, args }) => receiver.devices.find(device => device.name === args.name) ?? null }),
-        // Whether the test holds for one of the room's devices, a function of a device answering a Boolean, called on each in turn until it does.
-        createFunctionDeclaration('anyDevice', 'Boolean', { updates: updates('derived', 'derived'), parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['Device'])], impl: ({ receiver, args }) => receiver.devices.some(device => args.test(device)) }),
+        // Whether the test holds for one of the room's devices, a function of a device answering a Boolean, called on each in turn until it does; it reads the room's devices, which change as placement does,
+        // and what the test reads its calls report.
+        createFunctionDeclaration('anyDevice', 'Boolean', { updates: placement, parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['Device'])], impl: ({ receiver, args }) => receiver.devices.some(device => args.test(device)) }),
         test('occupied', updates('observable', 'fresh', [ofReceiver('presence')])),
         test('reserved', updates('observable', 'fresh', [ofReceiver('presence')])),
     ],

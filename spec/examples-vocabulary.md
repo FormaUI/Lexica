@@ -31,7 +31,7 @@ An example's bindings are supplied parameters, each bound by the host to a value
 | `room.climate` | `Climate?`, null where the room has no sensor | Observable: `climate` | Fresh | |
 | `room.highestTemperature` | `Number?`, in degrees, the highest temperature the room has reported since its host began to hold the evaluation, null where the room has no sensor | Observable: `climate` | Captured | `0.5` |
 | `room.device(name)` | `name`: `String` → `Device?` | Observable: `placement` | Fresh | |
-| `room.anyDevice(test)` | `test`: a function of a `Device` answering a `Boolean` → `Boolean`, whether it holds for one of the room's devices, called on each until it does | Derived | Derived | |
+| `room.anyDevice(test)` | `test`: a function of a `Device` answering a `Boolean` → `Boolean`, whether it holds for one of the room's devices, called on each until it does, what the test reads reported by its calls | Observable: `placement` | Fresh | |
 | `device.name` | `String` | Constant | Fresh | |
 | `device.room` | `Room` | Observable: `placement` | Fresh | |
 | `device.power` | `Number`, in watts | Observable: `state` | Fresh | `1` |
