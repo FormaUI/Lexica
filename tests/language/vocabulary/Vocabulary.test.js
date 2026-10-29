@@ -123,8 +123,17 @@ describe('Vocabulary', () => {
         expect([read(verb, 'oat', { test: receiver => receiver === 'oat' }), read(verb, 'milk', { test: receiver => receiver === 'oat' })]).toEqual([true, false]);
     });
 
+    it('declares the members of a number and of a string, a string\'s slice its unnamed indexer, and none of a Boolean', () => {
+        const ownMembers = name => Vocabulary.getTypeDeclaration(name).members.filter(member => member.kind !== 'operator').map(member => member.name ?? '[]');
+
+        expect(ownMembers('Number')).toEqual(['round', 'floor', 'ceiling', 'truncate', 'abs', 'min', 'max', 'clamp', 'sequence']);
+        expect(ownMembers('String')).toEqual(['length', 'trim', 'lowercase', 'uppercase', 'startsWith', 'endsWith', 'contains', 'indexOf', 'replace', 'split', '[]']);
+        expect(ownMembers('Boolean')).toEqual([]);
+        expect(Vocabulary.getTypeDeclaration('String').members.at(-1)).toMatchObject({ kind: 'indexer', result: 'String', parameters: [{ name: 'range', type: 'Range' }] });
+    });
+
     it('reads a list\'s count, its first and last item, and, through its unnamed indexer, the item at a whole index from zero, null where there is none', () => {
-        const [unnamedIndexer] = registry.getUnnamedIndexers();
+        const unnamedIndexer = registry.getUnnamedIndexers().find(indexer => list.members.includes(indexer));
 
         expect(read('count', [1, 2, 3])).toBe(3);
         expect([read('first', [1, 2]), read('last', [1, 2]), read('first', [])]).toEqual([1, 2, null]);

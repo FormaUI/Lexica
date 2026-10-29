@@ -152,7 +152,7 @@ describe('the codes of resolution', () => {
         it('LEXICA3011, a named indexer written without its key', () => expectResolutionCode('s.letter', 'LEXICA3011'));
         it('LEXICA3011, a named indexer written as a call', () => expectResolutionCode('s.letter(1)', 'LEXICA3011'));
         it('LEXICA3054, a function written with its argument in brackets', () => expectResolutionCode('s.pad[3]', 'LEXICA3054'));
-        it('LEXICA3012, an unnamed indexer on a type that declares none', () => expectResolutionCode('s[0]', 'LEXICA3012'));
+        it('LEXICA3012, an unnamed indexer on a type that declares none', () => expectResolutionCode('no[0]', 'LEXICA3012'));
         it('LEXICA3012, an unnamed indexer on root', () => expectResolutionCode('{ a = 1, b = root[0] }', 'LEXICA3012'));
         it('LEXICA3017, a property called', () => expectResolutionCode('s.size()', 'LEXICA3017'));
         it('LEXICA3017, a property called on a script parameter a local hides, the access to write naming it with ~ as it reads in place', () => {

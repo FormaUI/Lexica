@@ -159,7 +159,7 @@ describe('indexers and computed properties', () => {
         it('is named in a message as its access is written, brackets alone, a receiver known to be null\'s candidates among them', () => {
             expect(refusalOf('pairs[true]', { pairs: new Map([['oat', 1]]) })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'key' of '[…]'") });
             expect(refusalOf('words[true]', { words: ['oat'] })).toMatchObject({ code: 'LEXICA3084', message: expect.stringContaining('The unnamed indexer of List<String> takes Number, Index or Range, and is given Boolean') });
-            expect(refusalOf('nothing?[true]', { nothing: null })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'index' of '[…]' expects Number and finds Boolean") });
+            expect(refusalOf('nothing?[true]', { nothing: null })).toMatchObject({ code: 'LEXICA3042', message: expect.stringContaining("The argument 'range' of '[…]' expects Range and finds Boolean") });
         });
 
         it('indexes what the property before its brackets answers, where the receiver\'s type has no named indexer of that name', () => {
@@ -177,8 +177,8 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses a receiver whose type has none, giving the computed property access a string key may mean', () => {
-            expect(refusalOf('item[0]', { item: 'latte' }).message).toContain('String has no unnamed indexer');
-            expect(refusalOf('item["words"]', { item: 'latte' }).message).toContain("write 'item.[\"words\"]'");
+            expect(refusalOf('item[0]', { item: 2 }).message).toContain('Number has no unnamed indexer');
+            expect(refusalOf('item["round"]', { item: 2 }).message).toContain("write 'item.[\"round\"]'");
         });
 
         it('is what a number where a computed property\'s name stands means', () => {

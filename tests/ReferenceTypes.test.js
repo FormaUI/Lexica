@@ -108,7 +108,7 @@ describe('reference types', () => {
 
     it('read brackets after a name by the most specific member of it, a property hiding a named indexer above it and an indexer one', () => {
         const settings = (propertyType, indexerType) => createImportingRegistry([lexica.createModule('home', withHome({}, {
-            [propertyType]: [createPropertyDeclaration('setting', 'String', { updates: constantUpdates, impl: () => 'property' })],
+            [propertyType]: [createPropertyDeclaration('setting', 'Boolean', { updates: constantUpdates, impl: () => true })],
             [indexerType]: [createIndexerDeclaration('setting', 'String?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')], impl: () => 'indexer' })],
         }))]);
         const evaluateWith = (registry, text, values) => registry.resolve(text, values).createEvaluator(values).evaluate().value;
@@ -116,7 +116,7 @@ describe('reference types', () => {
         expect(errorThrownBy(() => settings('Light', 'Device').resolve('lamp.setting["mode"]', { lamp }))).toMatchObject({ code: 'LEXICA3012' });
         expect(evaluateWith(settings('Light', 'Device'), 'heater.setting["mode"]', { heater })).toBe('indexer');
         expect(evaluateWith(settings('Device', 'Light'), 'lamp.setting["mode"]', { lamp })).toBe('indexer');
-        expect(evaluateWith(settings('Device', 'Light'), 'heater.setting', { heater })).toBe('property');
+        expect(evaluateWith(settings('Device', 'Light'), 'heater.setting', { heater })).toBe(true);
     });
 
     it('resolve an empty list by the most specific applicable declaration, and refuse it, naming the competing ones, where none is', () => {

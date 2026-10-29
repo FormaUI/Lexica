@@ -37,7 +37,7 @@ export class Vocabulary {
      */
     static get valueTypes() {
         return Vocabulary.#valueTypes ??= Object.freeze([
-            ...LexicaModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar', members: Vocabulary.#createMembers(name, name, [...Vocabulary.#createConversions(name), ...(name === 'Number' ? Vocabulary.#createNumberMembers() : [])]) })),
+            ...LexicaModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar', members: Vocabulary.#createMembers(name, name, [...Vocabulary.#createConversions(name), ...Vocabulary.#createScalarMembers(name)]) })),
             Object.freeze({ name: 'List', kind: 'generic', typeParameters: Object.freeze(['T']), variances: Object.freeze(['covariant']), members: Vocabulary.#createMembers('List<T>', 'List<T>', Vocabulary.#createListMembers()) }),
             Object.freeze({ name: 'Dictionary', kind: 'generic', typeParameters: Object.freeze(['K', 'V']), variances: Object.freeze(['invariant', 'covariant']), members: Vocabulary.#createMembers('Dictionary<K, V>', 'Dictionary<K, V>', Vocabulary.#createDictionaryMembers()) }),
             ...['Index', 'Range'].map(name => Object.freeze({ name, kind: 'position', members: Object.freeze([]) })),
@@ -166,6 +166,72 @@ export class Vocabulary {
             default:
                 return [convert('String', ({ value }) => String(value))];
         }
+    }
+
+    /** The members of the scalar type beside its conversions: a number's and a string's, and none of a Boolean. */
+    static #createScalarMembers(name) {
+        switch (name) {
+            case 'Number':
+                return Vocabulary.#createNumberMembers();
+            case 'String':
+                return Vocabulary.#createStringMembers();
+            default:
+                return [];
+        }
+    }
+
+    /**
+     * The members of a string, each counting UTF-16 code units, as ordering compares strings: its length; the text trimmed of whitespace and in either case, without a locale; whether it begins with, ends with or
+     * holds a text, and where it first does; the text with a text replaced, and split at a separator, each refusing the empty text, which stands at every position; and its slice by a range, strict as a list's, which
+     * never parts a surrogate pair.
+     */
+    static #createStringMembers() {
+        const of = (name, result, compute) => Declarations.createPropertyDeclaration(name, result, { updates: DERIVED_UPDATES, impl: ({ receiver }) => compute(receiver) });
+        const textParameter = name => Declarations.createValueParameterDeclaration(name, 'String');
+        const testing = (name, test) => Declarations.createFunctionDeclaration(name, 'Boolean', { updates: DERIVED_UPDATES, parameters: [textParameter('text')], impl: ({ receiver, args }) => test(receiver, args.text) });
+        // The empty text stands at every position, so it has no occurrence to replace or to split at.
+        const requireOccurrence = (member, text) => {
+            if (text === '') {
+                throw new MemberFailure('LEXICA5040', `'${member}' is given the empty text, which stands at every position and has no occurrence to ${member === 'replace' ? 'replace' : 'split at'}`);
+            }
+        };
+
+        return [
+            of('length', 'Number', text => text.length),
+            // Tab, line feed, vertical tab, form feed, carriage return, U+FEFF, U+2028, U+2029 and every space separator, at either end.
+            of('trim', 'String', text => text.trim()),
+            of('lowercase', 'String', text => text.toLowerCase()),
+            of('uppercase', 'String', text => text.toUpperCase()),
+            testing('startsWith', (text, prefix) => text.startsWith(prefix)),
+            testing('endsWith', (text, suffix) => text.endsWith(suffix)),
+            testing('contains', (text, part) => text.includes(part)),
+            Declarations.createFunctionDeclaration('indexOf', 'Number?', { updates: DERIVED_UPDATES, parameters: [textParameter('text')], impl: ({ receiver, args }) => Vocabulary.#positionOrNull(receiver.indexOf(args.text)) }),
+            Declarations.createFunctionDeclaration('replace', 'String', {
+                updates: DERIVED_UPDATES,
+                parameters: [textParameter('old'), textParameter('new')],
+                impl: ({ receiver, args }) => (requireOccurrence('replace', args.old), receiver.split(args.old).join(args.new)),
+            }),
+            Declarations.createFunctionDeclaration('split', 'List<String>', { updates: DERIVED_UPDATES, parameters: [textParameter('separator')], impl: ({ receiver, args }) => (requireOccurrence('split', args.separator), receiver.split(args.separator)) }),
+            Declarations.createIndexerDeclaration(null, 'String', { updates: DERIVED_UPDATES, parameters: [Declarations.createValueParameterDeclaration('range', 'Range')], impl: ({ receiver, args }) => Vocabulary.#sliceText(receiver, args.range) }),
+        ];
+    }
+
+    /** The code units within the range, applied to the text's length once, its start at or before its end and both within the text, neither parting a surrogate pair, or refused. */
+    static #sliceText(text, range) {
+        const { start, end } = range.resolveIn(text.length);
+
+        if (start < 0 || end > text.length || start > end) {
+            throw new MemberFailure('LEXICA5033', `The range ${range} is applied to a text of ${text.length} code units, and gives ${start}..${end}, which ${start > end ? 'starts after it ends' : 'stands beyond the text'}`);
+        }
+
+        // A boundary between a high and a low surrogate would leave half a character on either side.
+        const parts = boundary => boundary > 0 && boundary < text.length && /[\uD800-\uDBFF]/.test(text[boundary - 1]) && /[\uDC00-\uDFFF]/.test(text[boundary]);
+
+        if (parts(start) || parts(end)) {
+            throw new MemberFailure('LEXICA5041', `The range ${range} gives ${start}..${end}, which parts the surrogate pair at ${parts(start) ? start : end}, so the slice would hold half a character`);
+        }
+
+        return text.slice(start, end);
     }
 
     /**

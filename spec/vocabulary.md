@@ -17,7 +17,7 @@ In this document:
 
 ## Lexica's own vocabulary
 
-Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; the members of a number, its rounding among them; and the conversions between the language's types of data, as operators of those types.
+Lexica's own module owns the language's types, `List`, `Dictionary`, `Pair`, `Number`, `String` and `Boolean` among them, and has no namespace. It declares `List<T>`, `Dictionary<K, V>` and `Pair<K, V>`, with their members, whose type parameters the receiver supplies, so no member of them infers one again, a member declaring its own, as `select<U>` does, inferring it from its arguments as any member's are; an extension of lists of lists, `NestedListExtensions<T>`, whose `flatten` a list of lists alone has; the three verbs that test a receiver, in `VerbExtensions<T>`, an extension targeting its parameter `T`, so on any type; the members of a number, its rounding among them, and of a string, which interpolation alone joins; and the conversions between the language's types of data, as operators of those types.
 
 <a id="vocabulary-list-members"></a>
 
@@ -98,6 +98,28 @@ A member following a number is a member of the number itself, and reads and chan
 - **Properties and functions.** A member that takes nothing is a property, as a list's `reverse` is, and one that takes a number a function.
 - **Rounding.** `round` is symmetric under negation, `(-x).round == -(x.round)`, which offsets and differences that can be negative need, so it rounds a negative half away from zero where ECMAScript's `Math.round` rounds it toward positive infinity. Rounding to a step is written by arithmetic around it, `(x * 2).round / 2`.
 - **Zero.** Each member answers `0` where it would answer `-0`, so `(-0.4).round` is `0`.
+
+<a id="vocabulary-string-members"></a>
+
+### String members
+
+A member following a string is a member of the string itself, and reads and changes as the string does. Each counts in UTF-16 code units, as [ordering](#vocabulary-list-ordering) compares strings and as a host's text holds them, and joining texts is [interpolation](expressions.md#interpolated-strings)'s, `$"{prefix}{name}"`.
+
+| String member | Contract |
+| --- | --- |
+| `length` | The number of code units, so a character outside the basic plane counts two |
+| `trim` | The text without the whitespace at either end: tab, line feed, vertical tab, form feed, carriage return, U+FEFF, U+2028, U+2029 and every space separator |
+| `lowercase`, `uppercase` | The text under Unicode's default case conversion, its full mappings, without a locale, so its length can change, as `"ß".uppercase` is `"SS"` |
+| `startsWith(text)`, `endsWith(text)`, `contains(text)` | Whether the string begins with, ends with or holds `text`, exactly by code unit |
+| `indexOf(text)` | The position of `text`'s first occurrence, a `Number?`, null where it stands nowhere |
+| `replace(old, new)` | The string with every occurrence of `old` replaced by `new`, literally, left to right, no two overlapping |
+| `split(separator)` | A `List<String>`, the parts between the occurrences of `separator`, in order: an empty part where two occurrences meet or one stands at either end, and the string alone where it holds none |
+| The unnamed indexer, `[range]` | A `String`, the code units within the [range](types.md#types-positions), applied to its length once; a range whose start stands after its end, or either beyond the string, is refused where it is evaluated (LEXICA5033), as a list's slice is |
+
+- **The empty text** stands at every position, so `startsWith("")`, `endsWith("")` and `contains("")` are true and `indexOf("")` is `0`. It has no occurrence to replace or to split at, so `replace("", new)` and `split("")` are refused where they are evaluated (LEXICA5040), never inserting between code units or splitting into them.
+- **Characters kept whole.** A slice's boundary standing between the two halves of a surrogate pair is refused where it is evaluated (LEXICA5041), so slicing never makes a well-formed text ill-formed.
+- **What it doesn't do.** No member reads a regular expression, a locale's case or comparison, or a number's format: a text whose domain gives it a form of its own, as `"120px"`, is read by that domain's members or conversions.
+- **Lexica's own.** `String` is Lexica's own type, so its members, and its unnamed indexer, win over a member of the same name, or an unnamed indexer, that a module's extension of `String` declares, as [owners and extensions](modules.md#namespaces-owners-and-extensions) set out.
 
 <a id="vocabulary-dictionary-members"></a>
 

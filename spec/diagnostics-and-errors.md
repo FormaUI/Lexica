@@ -466,12 +466,14 @@ A module whose declarations break the declaration contract, a type or a member n
 | `LEXICA5030` | `single` of a list of several items | An evaluation error at the access, naming how many |
 | `LEXICA5031` | `selectMany` given null for an item's list | An evaluation error at the call |
 | `LEXICA5032` | An index's offset or a range's boundary that is no nonnegative safe integer, nor an index for a boundary, when it is evaluated, as `^1.5` and a value of `Any` of another kind | An evaluation error at the index or the range |
-| `LEXICA5033` | A range sliced from a list whose start stands after its end, or either beyond the list | An evaluation error at the indexer, naming the range and the length |
+| `LEXICA5033` | A range sliced from a list or a string whose start stands after its end, or either beyond the list or the string | An evaluation error at the indexer, naming the range and the length |
 | `LEXICA5034` | `pick` given a position no item stands at | An evaluation error at the call, naming the position |
 | `LEXICA5035` | `sequence` given a count that is no nonnegative safe integer | An evaluation error at the call, naming the count |
 | `LEXICA5036` | An ordering key that is no number, string, Boolean or null, or keys of two of those domains in one criterion, of `orderBy`, `orderByDescending`, `thenBy`, `thenByDescending`, `minBy` or `maxBy` | An evaluation error at the call, naming the member and the key's kind or the two domains |
 | `LEXICA5037` | `thenBy` or `thenByDescending` of a list no `orderBy` ordered | An evaluation error at the call, giving `orderBy` |
 | `LEXICA5039` | `clamp` given a low greater than its high | An evaluation error at the call, naming both |
+| `LEXICA5040` | `replace` or `split` given the empty text, which stands at every position | An evaluation error at the call, naming the member |
+| `LEXICA5041` | A string's slice by a range whose start or end stands between the two halves of a surrogate pair | An evaluation error at the indexer, naming the range and the boundary |
 | `LEXICA5038` | A value of `Any` an object expression gives a structure's property that is found, when it is evaluated, not to be of the property's type | An evaluation error at the object expression, naming the property, its type and the value |
 | `LEXICA5028` | A result holding a value of `Any` that is found, when it is evaluated, to be no data, a reference or a function | An evaluation error at the result |
 | `LEXICA5013` | A deferred access whose selection would be a host call | An evaluation error, before anything is invoked, saying to make the receiver known or to select its extension explicitly |

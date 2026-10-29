@@ -112,6 +112,7 @@ describe('values of Any', () => {
                 ['item', 'shelf.item', '/expression/objectFields/2/value/receiver'],
                 ['glow', 'Light.glow', '/expression/objectFields/0/value'],
                 ['shout', 'String.shout', '/expression/objectFields/1/value'],
+                [null, 'String[]', '/expression/objectFields/2/value'],
                 [null, 'List[]', '/expression/objectFields/2/value'],
                 [null, 'List[]', '/expression/objectFields/2/value'],
                 [null, 'List[]', '/expression/objectFields/2/value'],
