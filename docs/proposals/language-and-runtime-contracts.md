@@ -1,6 +1,6 @@
 # Proposal: the language contract and the runtime contract
 
-**State: accepted.** Not implemented. It reorganizes the [specification](../../spec/README.md) and changes no rule, so neither the language's version nor the definition format's advances.
+**State: accepted and implemented.** Each of its [steps](#steps) landed in a commit of its own, the language keeping a document of its own for extensions, as its table records. It reorganizes the [specification](../../spec/README.md) and changes no rule, so neither the language's version nor the definition format's advances.
 
 The specification holds two contracts for two readers, and today it interleaves them. Someone learning the language reads a script's meaning and meets `createModule`, declaration keys and hook answers on the way; someone integrating Nexo reads the host API and meets grammar, truthiness and precedence on the way. This proposal separates the **language contract**, what a script means, from the **runtime contract**, how a host prepares, evaluates and supplies what a script reads. Each is readable on its own, and explicit links stand where the two meet.
 

@@ -8,7 +8,7 @@ Read the documents that govern the affected contract:
 
 | Document | Authority |
 | --- | --- |
-| [Specification](spec/README.md) | Language syntax, resolution, values, requests, vocabulary contracts, definitions and diagnostics, one document per subject |
+| [Specification](spec/README.md) | Two contracts, one document per subject: the language's, in `spec/language/`, what a script means, and the runtime's, in `spec/runtime/`, how a host binds, resolves, evaluates, declares and registers; state a rule in the contract it belongs to |
 | [Design](docs/nexo-design.md) | Architecture: the stages, modules and their registration, evaluation and tooling |
 | [Status](docs/features-status.md) | What is implemented, what is in progress, what remains, open decisions and the gaps between the design and the code |
 | [Guide](docs/embedding-guide.md) | Embedding Nexo, by example |
@@ -27,7 +27,7 @@ Update the specification before implementing a language change, and the design b
 | `tests/` | Tests mirroring the source folders, run in Node |
 | `scripts/` | Bundling scripts |
 | `nuget/` | The package project, which distributes the bundle |
-| `spec/` | The specification, one document per subject, indexed by `spec/README.md` |
+| `spec/` | The specification: `language/` and `runtime/`, one document per subject, indexed by `spec/README.md` |
 | `docs/` | The design, the guide and the status overview |
 | `.local/` | Personal experiments, spikes and notes; ignored by Git |
 
