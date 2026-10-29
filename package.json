@@ -1,12 +1,12 @@
 {
-    "name": "@formaui/lexica",
+    "name": "@formaui/nexo",
     "version": "1.0.0-alpha.37",
     "description": "Nexo is a general-purpose, embeddable language that evaluates scripts against what a host binds, through a vocabulary its modules declare for the domain, and produces immutable data.",
     "license": "Apache-2.0",
     "author": "Eyal Alon",
     "repository": {
         "type": "git",
-        "url": "https://github.com/FormaUI/Lexica.git"
+        "url": "https://github.com/FormaUI/Nexo.git"
     },
     "type": "module",
     "exports": {

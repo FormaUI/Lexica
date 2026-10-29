@@ -243,6 +243,7 @@ Contract: [Host additions](proposals/host-additions.md).
 | Verbs | `is`, `has` and `supports`, Nexo's own on every receiver | None: a module declares a test of any receiver for its own domain, in an extension of every type | Drop the verbs wherever DOMQL documents them as another way to call a Boolean function: `spec/vocabulary.md:18`, the section `:402` to `:408`, whose links to Nexo's `#vocabulary-verbs` no longer resolve, `:526`, and `nuget/README.md:528`; DOMQL's queries call none, and its Boolean functions are called or passed by reference as before |
 | Name | The language Lexica, its codes `LEXICA` and four digits, its own module `lexica` | Nexo, its codes `NEXO` and the same four digits, its own module `Nexo`, which no script imports and no module is named, in any case | Call the language Nexo where DOMQL names it, 242 times at `7406eb4`, most in `docs/features-status.md`, `spec/vocabulary.md`, `CLAUDE.md`, `docs/domql-design.md` and `build.ps1`; expect `['Nexo', 'domql']` of `moduleNames` at `tests/dom/BrowserVocabularyDeclarations.test.js:34`; and assert `NEXO` codes, since DOMQL asserts none of Lexica's yet |
 | API | `lexica`, `LexicaError` and each type whose name begins `Lexica`, from the files `lexica.js`, `LexicaError.mjs`, `LexicaModule.mjs` and `LexicaRegistry.mjs` | `nexo`, `NexoError` and each type beginning `Nexo`, from `nexo.js`, `NexoError.mjs`, `NexoModule.mjs` and `NexoRegistry.mjs`; the earlier checkpoints' lines name the API so | Import `nexo` and `NexoError` where DOMQL imports `lexica` and `LexicaError`, in `src/domql.js:15`, nine more of its sources and six of its tests; rename `LexicaErrorLocation` and `LexicaEvaluator` in `src/domql.d.ts` and `src/dom/QueryEvaluator.mjs`; and reach the renamed files where its tests import them through `#lexica/`, as `tests/language/LanguageResolver.test.js:4` to `:9` does |
+| Package | The npm package `@formaui/lexica`, the NuGet package `formaui-net.Lexica` serving `_content/lexica/lexica.js`, from the repository `FormaUI/Lexica` checked out as `formaui-net.Lexica` | `@formaui/nexo`, `formaui-net.Nexo` serving `_content/nexo/nexo.js`, from `FormaUI/Nexo` checked out as `formaui-net.Nexo` | Depend on `@formaui/nexo` where `package.json:12` depends on `@formaui/lexica`, and import it by that name in the sources and tests the API line names, `tests/Boundary.test.js:16`, `build.ps1:121` and the `#lexica/` alias of `tests/vitest.config.js:12` and its three siblings; take the checkout from `formaui-net.Nexo` in `build.ps1:35`, and from `FormaUI/Nexo` in `.github/workflows/ci.yml:45` to `:47` and `:96` to `:98` |
 | Definition version | 33 | 36, refusing an import of `Nexo` | Write `version: 36` where DOMQL writes a definition, `tests/Domql.test.js:43`, `:211`, `:260`, `:299` and `:342`, and the specification's examples its `tests/DocumentExamples.test.js:85` dates |
 | Language version | `nexo.info.versions.language`, `1.0.0-alpha.35` | `1.0.0-alpha.38` | Name it in DOMQL's status table, which `tests/Alignment.test.js:31` compares with `domql.info.versions.language`, `src/Versions.mjs:15`'s |
 
@@ -262,8 +263,8 @@ References: [Syntax tree](nexo-design.md#the-syntax-tree), [tooling](nexo-design
 
 | Package | Contents or delivery |
 | --- | --- |
-| npm: `@formaui/lexica` | JavaScript bundle and type declarations |
-| NuGet: `formaui-net.Lexica` | `lexica.js` and `lexica.d.ts` served at `_content/lexica/` |
+| npm: `@formaui/nexo` | JavaScript bundle and type declarations |
+| NuGet: `formaui-net.Nexo` | `nexo.js` and `nexo.d.ts` served at `_content/nexo/` |
 
 Publish both, and test them as consumers install them: NuGet in a published application, and npm installed, bundled, and loaded in Chromium.
 

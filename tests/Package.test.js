@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { describe, it, expect } from 'vitest';
 import { repositoryRoot } from './support/paths.mjs';
 
-// The package's folder, from which Node resolves `@formaui/lexica` through the package's own exports, as a consumer that installed it does.
+// The package's folder, from which Node resolves `@formaui/nexo` through the package's own exports, as a consumer that installed it does.
 
 /** What a module run in the package's folder prints, run by Node. */
 const run = source => {
@@ -14,7 +14,7 @@ const run = source => {
 describe('the package', () => {
     it('serves a plain host by its name, through its entry point alone', () => {
         const { output, status, error } = run(`
-            import { nexo } from '@formaui/lexica';
+            import { nexo } from '@formaui/nexo';
 
             const resolution = nexo.createRegistry().resolve('{ total = price * quantity }', { price: 2, quantity: 3 });
             const { value, metadata } = resolution.createEvaluator({ price: 2, quantity: 3 }).evaluate();
@@ -30,7 +30,7 @@ describe('the package', () => {
     it('exports its entry point alone, refusing a module of its sources', () => {
         const { output } = run(`
             try {
-                await import('@formaui/lexica/language/Evaluator.mjs');
+                await import('@formaui/nexo/language/Evaluator.mjs');
                 console.log('imported');
             } catch (error) {
                 console.log(error.code);

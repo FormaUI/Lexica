@@ -1,6 +1,6 @@
 # Working on Nexo
 
-Nexo is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its grammar, definitions, types, resolution, functions and vocabulary contracts are the language's, and a host registers the vocabulary its expressions read. It knows no domain of its own: a host's modules declare one. Source ES modules live in `src/`; the build produces one minified bundle, distributed by the `formaui-net.Lexica` NuGet package, and the npm package `@formaui/lexica` ships the sources.
+Nexo is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its grammar, definitions, types, resolution, functions and vocabulary contracts are the language's, and a host registers the vocabulary its expressions read. It knows no domain of its own: a host's modules declare one. Source ES modules live in `src/`; the build produces one minified bundle, distributed by the `formaui-net.Nexo` NuGet package, and the npm package `@formaui/nexo` ships the sources.
 
 ## Before making a change
 

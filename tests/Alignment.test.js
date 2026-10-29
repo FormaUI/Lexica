@@ -12,7 +12,7 @@ describe('Alignment', () => {
     const specification = read('spec/README.md');
     const status = read('docs/features-status.md');
     const design = read('docs/nexo-design.md');
-    const project = read('nuget/Forma.Lexica.csproj');
+    const project = read('nuget/Forma.Nexo.csproj');
     const npmPackage = JSON.parse(read('package.json'));
 
     it('has a specification and a design titled with the one version the specification describes, which its version line names', () => {

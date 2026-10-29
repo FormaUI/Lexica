@@ -5,18 +5,18 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
-        <StaticWebAssetBasePath>_content/lexica</StaticWebAssetBasePath>
+        <StaticWebAssetBasePath>_content/nexo</StaticWebAssetBasePath>
     </PropertyGroup>
 
-    <!-- The package a host references. It ships Nexo as the one bundled file wwwroot/lexica.js, which scripts/bundle.mjs makes from src/. -->
+    <!-- The package a host references. It ships Nexo as the one bundled file wwwroot/nexo.js, which scripts/bundle.mjs makes from src/. -->
     <PropertyGroup>
         <IsPackable>true</IsPackable>
-        <PackageId>formaui-net.Lexica</PackageId>
+        <PackageId>formaui-net.Nexo</PackageId>
         <Authors>Eyal Alon</Authors>
         <Description>Nexo is a general-purpose, embeddable language that evaluates scripts against what a host binds, through a vocabulary its modules declare for the domain, and produces immutable data.</Description>
-        <PackageTags>lexica;expression;language;javascript;dotnet;forma;formaui</PackageTags>
-        <PackageProjectUrl>https://github.com/FormaUI/Lexica</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/FormaUI/Lexica</RepositoryUrl>
+        <PackageTags>nexo;expression;language;javascript;dotnet;forma;formaui</PackageTags>
+        <PackageProjectUrl>https://github.com/FormaUI/Nexo</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/FormaUI/Nexo</RepositoryUrl>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
@@ -36,8 +36,8 @@
 
     <!-- A package without the bundle would ship nothing, and one whose bundle answers another version would misreport itself, so packing stops until publish.ps1 has made the bundle of this version. -->
     <Target Name="EnsureBundle" BeforeTargets="Pack">
-        <Error Condition="!Exists('$(MSBuildProjectDirectory)\wwwroot\lexica.js')" Text="wwwroot/lexica.js is missing; run ./publish.ps1, which bundles Nexo and packs it." />
-        <Error Condition="!$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\wwwroot\lexica.js').Contains('&quot;$(Version)&quot;'))" Text="wwwroot/lexica.js answers another version than $(Version); run ./publish.ps1, which bundles Nexo of this version and packs it." />
+        <Error Condition="!Exists('$(MSBuildProjectDirectory)\wwwroot\nexo.js')" Text="wwwroot/nexo.js is missing; run ./publish.ps1, which bundles Nexo and packs it." />
+        <Error Condition="!$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\wwwroot\nexo.js').Contains('&quot;$(Version)&quot;'))" Text="wwwroot/nexo.js answers another version than $(Version); run ./publish.ps1, which bundles Nexo of this version and packs it." />
     </Target>
 
 </Project>

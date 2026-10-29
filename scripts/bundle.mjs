@@ -11,10 +11,10 @@ import { Versions } from '../src/language/Versions.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Where the package serves the bundle from. */
-export const bundlePath = resolve(root, 'nuget', 'wwwroot', 'lexica.js');
+export const bundlePath = resolve(root, 'nuget', 'wwwroot', 'nexo.js');
 
 /** Where the package serves the declarations of the bundle's API from, beside the bundle. */
-export const declarationsPath = resolve(root, 'nuget', 'wwwroot', 'lexica.d.ts');
+export const declarationsPath = resolve(root, 'nuget', 'wwwroot', 'nexo.d.ts');
 
 /** Bundles the entry and every module it imports into one minified ES module, answering its text. */
 export async function bundle() {

@@ -24,7 +24,7 @@ $artifacts = Join-Path $root 'artifacts'
 Write-Host 'Packing the NuGet package'
 Push-Location $nuget
 try {
-    dotnet pack Forma.Lexica.csproj -c Release -nologo -o $artifacts
+    dotnet pack Forma.Nexo.csproj -c Release -nologo -o $artifacts
     if ($LASTEXITCODE -ne 0) {
         throw 'dotnet pack failed.'
     }

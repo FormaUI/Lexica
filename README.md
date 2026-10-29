@@ -10,7 +10,7 @@ return {
 }
 ```
 
-> **Alpha.** Nexo implements language version `1.0.0-alpha.38` in part: definition version 36, its imports and extension access, its declarations, types and member selection, its collections, dictionaries, pairs, collection expressions, positions and ordering among them, structured values a script constructs or a host binds, the members of numbers and strings, resolutions that stay current across registrations, and its line structure and canonical text. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md).
+> **Alpha.** Nexo implements language version `1.0.0-alpha.38` in part: definition version 36, its imports and extension access, its declarations, types and member selection, its collections, dictionaries, pairs, collection expressions, positions and ordering among them, structured values a script constructs or a host binds, the members of numbers and strings, resolutions that stay current across registrations, and its line structure and canonical text. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Nexo/blob/main/docs/features-status.md).
 
 ## Features
 
@@ -41,7 +41,7 @@ The implementation's version is declared in its sources and carried by its packa
 ## Use it
 
 ```js
-import { nexo } from '@formaui/lexica';
+import { nexo } from '@formaui/nexo';
 
 const definition = nexo.parse('{ total = price * quantity }');
 const registry = nexo.createRegistry();
@@ -52,17 +52,17 @@ resolution.type; // '{ total: Number }'
 resolution.createEvaluator(bindings).evaluate().value; // { total: 12 }
 ```
 
-[Embedding Nexo](https://github.com/FormaUI/Lexica/blob/main/docs/embedding-guide.md) goes on to declaring a domain, evaluating against it and following what an evaluation reads.
+[Embedding Nexo](https://github.com/FormaUI/Nexo/blob/main/docs/embedding-guide.md) goes on to declaring a domain, evaluating against it and following what an evaluation reads.
 
 ## Documents
 
 | Document | What it holds |
 | --- | --- |
-| [Specification](https://github.com/FormaUI/Lexica/blob/main/spec/README.md) | The language, its vocabulary contracts and its definition format: the contract |
-| [Guide](https://github.com/FormaUI/Lexica/blob/main/docs/embedding-guide.md) | Embedding Nexo in a host, by example |
-| [Design](https://github.com/FormaUI/Lexica/blob/main/docs/nexo-design.md) | How Nexo is built: its stages, modules, evaluation and tooling |
-| [Status](https://github.com/FormaUI/Lexica/blob/main/docs/features-status.md) | What is implemented, what is being built, and what remains |
-| [Contributing](https://github.com/FormaUI/Lexica/blob/main/CONTRIBUTING.md) | Report a bug, develop a change and run the checks |
+| [Specification](https://github.com/FormaUI/Nexo/blob/main/spec/README.md) | The language, its vocabulary contracts and its definition format: the contract |
+| [Guide](https://github.com/FormaUI/Nexo/blob/main/docs/embedding-guide.md) | Embedding Nexo in a host, by example |
+| [Design](https://github.com/FormaUI/Nexo/blob/main/docs/nexo-design.md) | How Nexo is built: its stages, modules, evaluation and tooling |
+| [Status](https://github.com/FormaUI/Nexo/blob/main/docs/features-status.md) | What is implemented, what is being built, and what remains |
+| [Contributing](https://github.com/FormaUI/Nexo/blob/main/CONTRIBUTING.md) | Report a bug, develop a change and run the checks |
 
 ## Build
 
@@ -74,4 +74,4 @@ The gate runs the tests, bundles Nexo, builds the NuGet package project with no 
 
 ## License
 
-Apache License 2.0; see [LICENSE](https://github.com/FormaUI/Lexica/blob/main/LICENSE) and [NOTICE](https://github.com/FormaUI/Lexica/blob/main/NOTICE).
+Apache License 2.0; see [LICENSE](https://github.com/FormaUI/Nexo/blob/main/LICENSE) and [NOTICE](https://github.com/FormaUI/Nexo/blob/main/NOTICE).

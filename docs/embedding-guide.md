@@ -8,8 +8,8 @@ Nexo is one ES module with its type declarations. Neither package is published y
 
 | Package | Import |
 | --- | --- |
-| npm, `@formaui/lexica` | `import { nexo, NexoError } from '@formaui/lexica';` |
-| NuGet, `formaui-net.Lexica` | The bundle is served at `_content/lexica/lexica.js` |
+| npm, `@formaui/nexo` | `import { nexo, NexoError } from '@formaui/nexo';` |
+| NuGet, `formaui-net.Nexo` | The bundle is served at `_content/nexo/nexo.js` |
 
 ## Read and write text
 

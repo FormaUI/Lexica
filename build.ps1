@@ -18,7 +18,7 @@ $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
 $nuget = Join-Path $root 'nuget'
-$solution = 'Forma.Lexica.slnx'
+$solution = 'Forma.Nexo.slnx'
 $tests = Join-Path $root 'tests'
 $artifacts = Join-Path $root 'artifacts'
 
@@ -66,7 +66,7 @@ try {
     Write-Host 'Checking formatting'
     dotnet format $solution --verify-no-changes
     if ($LASTEXITCODE -ne 0) {
-        throw 'dotnet format found changes to make; run: dotnet format Forma.Lexica.slnx from nuget/'
+        throw 'dotnet format found changes to make; run: dotnet format Forma.Nexo.slnx from nuget/'
     }
 }
 finally {
