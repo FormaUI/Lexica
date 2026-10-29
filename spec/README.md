@@ -22,7 +22,12 @@ Three layers meet whenever a script runs, and this specification covers the firs
 
 ## Reading this specification
 
-Start with [scripts](language/scripts.md), which shows a complete script with its parameters and its result. Examples illustrate the rules. Code containing `…` is a fragment, and examples explicitly described as errors are intentionally invalid. Type notation such as `T?`, `List<T>` and `Never` describes types; it does not declare a type in a script. Every example reads the fictional vocabulary that [the examples' vocabulary](language/examples-vocabulary.md) declares.
+The specification holds two contracts, each readable on its own, and a reader starts with the one that answers their question:
+
+- **What a script means.** A script's author, or anyone implementing the language, reads [the language](#the-language), starting with [scripts](language/scripts.md), which shows a complete script with its parameters and its result. It sets out the language's grammar, names, values, types, expressions and functions, how a script reaches a module's vocabulary, and the conditions a script fails on, without the API that carries them out.
+- **What a host provides.** A host integrating Nexo reads [the runtime](#the-runtime), starting with [hosting Nexo](runtime/hosting.md), which shows the steps from a host's values to a result. It sets out binding, resolving and evaluating a script, declaring and registering modules and their implementations, the definition a host exchanges, and errors as a host handles them, without restating the language's rules.
+
+Where the two meet, a document explains the other contract's part briefly and links it. Examples illustrate the rules of the document holding them: scripts in the language, and host code in the runtime. Code containing `…` is a fragment, and examples explicitly described as errors are intentionally invalid. Type notation such as `T?`, `List<T>` and `Never` describes types; it does not declare a type in a script. Every example reads the fictional vocabulary that [the examples' vocabulary](language/examples-vocabulary.md) declares.
 
 ## Documents
 
@@ -43,7 +48,8 @@ Start with [scripts](language/scripts.md), which shows a complete script with it
 11. [Vocabulary](language/vocabulary.md): Nexo's own vocabulary of numbers and strings, Boolean functions and type selectors.
 12. [Errors](language/errors.md): the conditions a script fails on, each with its kind and code.
 13. [Grammar](language/grammar.md): the formal grammar, grouped by subject.
-14. [The examples' vocabulary](language/examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
+14. [Terms](language/terms.md): the language's glossary.
+15. [The examples' vocabulary](language/examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
 
 <a id="the-runtime"></a>
 
@@ -62,7 +68,4 @@ Start with [scripts](language/scripts.md), which shows a complete script with it
 11. [Definition](runtime/definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
 12. [Versions](runtime/versions.md): the versions an implementation reports.
 13. [Errors](runtime/errors.md): the error object, codes, locations, the conditions of definitions, bindings, declarations, host code and the API's use, and tolerant reading.
-
-### Beside both
-
-1. [Terms](terms.md): the glossary.
+14. [Terms](runtime/terms.md): the runtime's glossary.

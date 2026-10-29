@@ -36,3 +36,5 @@ Each part of the contract has a document of its own:
 | [Type selectors](type-selectors.md) | Declaring type selectors and their keys |
 | [Definition](definition.md) | The JSON definition, its structural validation and its canonical text |
 | [Versions](versions.md) | The versions an implementation reports |
+| [Errors](errors.md) | The error object, codes, locations, and the conditions of definitions, bindings, declarations, host code and the API's use |
+| [Terms](terms.md) | The runtime's glossary |
