@@ -1,6 +1,6 @@
 # Proposal: diagnostic codes
 
-**State: accepted.** Specified in the catalog of [diagnostics and errors](../../spec/diagnostics-and-errors.md#diagnostics-codes), and implemented: [unit 0](../features-status.md#unit-0--decisions-and-the-specification)'s third stage coded every existing condition. It changes the contract [diagnostics and errors](../../spec/diagnostics-and-errors.md) sets out, as [settled rules](#settled-rules) record.
+**State: accepted.** Specified in the catalog of [diagnostics and errors](../../spec/runtime/errors.md#diagnostics-codes), and implemented: [unit 0](../features-status.md#unit-0--decisions-and-the-specification)'s third stage coded every existing condition. It changes the contract [diagnostics and errors](../../spec/runtime/errors.md) sets out, as [settled rules](#settled-rules) record.
 
 ## The problem
 

@@ -66,7 +66,7 @@ Neither `typeAt` nor `valueAt` checks a path's shape: a host checks a path it di
 
 ## Locations
 
-`nexo.getLocation(definition, pointer)` answers where a definition pointer stands, a frozen location of the script group [a location](../diagnostics-and-errors.md#validation-diagnostics) sets out: for a definition read from text, the pointer with the position in the text of its node, or of the nearest node enclosing it that has text of its own; for a definition given directly, `{ pointer }` alone. `resolution.getLocation(pointer)` answers as `nexo.getLocation` does given the resolution's definition. Each refuses a pointer that is no JSON Pointer (`NEXO2643`) and one the definition holds nothing at (`NEXO2644`), as structure errors. Every pointer a resolution, a hook's request or a prepared call gives is one they expand.
+`nexo.getLocation(definition, pointer)` answers where a definition pointer stands, a frozen location of the script group [a location](errors.md#validation-diagnostics) sets out: for a definition read from text, the pointer with the position in the text of its node, or of the nearest node enclosing it that has text of its own; for a definition given directly, `{ pointer }` alone. `resolution.getLocation(pointer)` answers as `nexo.getLocation` does given the resolution's definition. Each refuses a pointer that is no JSON Pointer (`NEXO2643`) and one the definition holds nothing at (`NEXO2644`), as structure errors. Every pointer a resolution, a hook's request or a prepared call gives is one they expand.
 
 <a id="runtime-reuse"></a>
 

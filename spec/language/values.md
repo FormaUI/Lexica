@@ -93,7 +93,7 @@ Where a conditional or `??` can give either of two references, both must refer t
 
 Null answers both "there is no such value", as when `room.device(name)` finds no device, and "the value is unavailable", as when a sensor has reported no temperature yet. One null for both keeps results simple, at the cost of telling the two apart; a member whose consumers need the difference offers it separately, as `device.offline()` says whether a device has stopped reporting.
 
-A member's signature declares its result type, as [types](types.md) set out, and a result marked `?` can be null by itself; an optional access answers null where its receiver is null, and any member answers null where an argument is null and its parameter propagates null. An optional access of null answers null and ends its chain. `??` supplies a fallback for null. Errors fail the result rather than becoming null; see [diagnostics and errors](../diagnostics-and-errors.md).
+A member's signature declares its result type, as [types](types.md) set out, and a result marked `?` can be null by itself; an optional access answers null where its receiver is null, and any member answers null where an argument is null and its parameter propagates null. An optional access of null answers null and ends its chain. `??` supplies a fallback for null. Errors fail the result rather than becoming null; see [diagnostics and errors](../runtime/errors.md).
 
 <a id="nullability-a-written-null-is-an-expression-that-produces-null"></a>
 

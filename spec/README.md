@@ -41,8 +41,9 @@ Start with [scripts](language/scripts.md), which shows a complete script with it
 9. [Modules](language/modules.md): imports, namespaces, module members, qualified access, indexer selection, a module's own collisions and module names in text.
 10. [Extensions](language/extensions.md): how owners and extensions are selected, extensions on different targets, extension access and an extension's type parameters.
 11. [Vocabulary](language/vocabulary.md): Nexo's own vocabulary of numbers and strings, Boolean functions and type selectors.
-12. [Grammar](language/grammar.md): the formal grammar, grouped by subject.
-13. [The examples' vocabulary](language/examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
+12. [Errors](language/errors.md): the conditions a script fails on, each with its kind and code.
+13. [Grammar](language/grammar.md): the formal grammar, grouped by subject.
+14. [The examples' vocabulary](language/examples-vocabulary.md): the fictional `Home` and `Energy` modules every example reads.
 
 <a id="the-runtime"></a>
 
@@ -60,8 +61,8 @@ Start with [scripts](language/scripts.md), which shows a complete script with it
 10. [Type selectors](runtime/type-selectors.md): declaring type selectors and their keys.
 11. [Definition](runtime/definition.md): the JSON definition, its nodes, its structural validation and its canonical text.
 12. [Versions](runtime/versions.md): the versions an implementation reports.
+13. [Errors](runtime/errors.md): the error object, codes, locations, the conditions of definitions, bindings, declarations, host code and the API's use, and tolerant reading.
 
 ### Beside both
 
-1. [Diagnostics and errors](diagnostics-and-errors.md): the kinds of failure, where each is located, and tolerant reading.
-2. [Terms](terms.md): the glossary.
+1. [Terms](terms.md): the glossary.

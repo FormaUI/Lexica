@@ -279,7 +279,7 @@ Beta means no breaking redesign is planned and remaining limitations are documen
 
 ## Temporary implementation coverage
 
-Conditions the implementation reported that only language `1.0.0-alpha.33` had, coded so every diagnostic it threw carried a code while units 1 to 3 removed them; none remains, each retired to the specification's ledger as its unit landed. They stay out of the specification's catalog; each code retires to its [ledger](../spec/diagnostics-and-errors.md#diagnostics-retired-codes) when its condition's unit lands, and is never reused.
+Conditions the implementation reported that only language `1.0.0-alpha.33` had, coded so every diagnostic it threw carried a code while units 1 to 3 removed them; none remains, each retired to the specification's ledger as its unit landed. They stay out of the specification's catalog; each code retires to the retired codes of its catalog, [the language's](../spec/language/errors.md#diagnostics-retired-codes) or [the runtime's](../spec/runtime/errors.md#runtime-retired-codes), when its condition's unit lands, and is never reused.
 
 ## Implemented capabilities
 
@@ -303,7 +303,7 @@ These capabilities work in the current implementation. The planned replacements 
 | Text and definitions | Parse, validate, format, quote, and get a location, each with the imports a host supplies; canonical text for definition version 36, its imports, collection expressions and positions among it | [Definition](../spec/runtime/definition.md) |
 | Types | Reference types with their hierarchy, membership and recognition, structured types and the structures an object expression constructs where they are declared, extensions, declared type parameters, `Any`, `List<T>`, `Dictionary<K, V>` and `Pair<K, V>` with their variances, `Index` and `Range`, one type relation, and casts, a declared cast across hierarchies among them | [Types](../spec/language/types.md) |
 | Runtime | Bindings a registry makes, recognizing references or capturing data as a declared type, resolution with its used declarations, deferred accesses and candidate declarations, reuse by resolution key while a resolution is current, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime/bindings.md#runtime-bindings), [evaluation](../spec/runtime/evaluation.md#runtime-evaluation), [results](../spec/runtime/evaluation.md#runtime-results) |
-| Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/diagnostics-and-errors.md) |
+| Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [Diagnostics](../spec/runtime/errors.md) |
 | Build | Bundle and type declarations | [Build](../README.md#build) |
 
 ### Type identity and names

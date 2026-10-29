@@ -22,12 +22,20 @@ const sourcesOf = folder =>
         return entry.isDirectory() ? sourcesOf(path) : /\.m?js$/.test(entry.name) ? [readFileSync(path, 'utf8')] : [];
     });
 
-const retired = new Set(codesOfTable('spec/diagnostics-and-errors.md', '## Retired codes'));
-const catalog = new Set(codesOfTable('spec/diagnostics-and-errors.md').filter(code => !retired.has(code)));
+/** The two catalogs, the language's conditions and the runtime's, which together catalog every code once. */
+const CATALOGS = ['spec/language/errors.md', 'spec/runtime/errors.md'];
+
+const retired = new Set(CATALOGS.flatMap(file => codesOfTable(file, '## Retired codes')));
+const catalogued = CATALOGS.flatMap(file => codesOfTable(file));
+const catalog = new Set(catalogued.filter(code => !retired.has(code)));
 const temporary = new Set(codesOfTable('docs/features-status.md', '## Temporary implementation coverage'));
 const used = new Set(sourcesOf(join(repositoryRoot, 'src')).flatMap(source => [...source.matchAll(/'(NEXO\d{4})'/g)].map(match => match[1])));
 
 describe('the diagnostic codes', () => {
+    it('catalogs each code once, in the catalog of the language or of the runtime', () => {
+        expect(catalogued.filter((code, index) => catalogued.indexOf(code) !== index)).toEqual([]);
+    });
+
     it('each code the sources raise is in the catalog or among the temporary codes', () => {
         expect([...used].filter(code => !catalog.has(code) && !temporary.has(code))).toEqual([]);
     });

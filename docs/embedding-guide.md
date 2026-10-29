@@ -141,6 +141,6 @@ try {
 }
 ```
 
-The code identifies the condition and keeps it whatever the message says, so a host reacts to a condition by its code, never by its message; [the catalog](../spec/diagnostics-and-errors.md#diagnostics-codes) lists every code. A value a hook or a member's implementation throws reaches the host as the `cause` of Nexo's own error, unchanged.
+The code identifies the condition and keeps it whatever the message says, so a host reacts to a condition by its code, never by its message; the catalogs of [the language](../spec/language/errors.md) and [the runtime](../spec/runtime/errors.md) list every code, as [codes](../spec/runtime/errors.md#diagnostics-codes) set out. A value a hook or a member's implementation throws reaches the host as the `cause` of Nexo's own error, unchanged.
 
-The kinds, `syntax`, `structure`, `validation`, `module` and `evaluation`, and what each reports, are in [diagnostics and errors](../spec/diagnostics-and-errors.md).
+The kinds, `syntax`, `structure`, `validation`, `module` and `evaluation`, and what each reports, are in [errors](../spec/runtime/errors.md).

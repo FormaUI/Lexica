@@ -171,7 +171,7 @@ In this document:
 | Host | The application around an implementation of Nexo, which registers modules, binds values, evaluates, invokes its host calls and decides what to do with each result | [Host contract](runtime/hosting.md#runtime) |
 | Registry | What holds the modules a host resolves and evaluates against | [Registries](runtime/modules.md#modules-registries) |
 | Resolution | A script resolved against a registry with bindings of one resolution key: its type and the declarations it uses | [Resolution](runtime/resolution.md#runtime-bindings-and-resolution) |
-| Diagnostic | A description of one problem, its kind, message and location, which a strict operation throws as an error | [Diagnostics and errors](diagnostics-and-errors.md#diagnostics-and-errors) |
+| Diagnostic | A description of one problem, its kind, message and location, which a strict operation throws as an error | [Diagnostics and errors](runtime/errors.md#diagnostics-and-errors) |
 
 <a id="names-for-implementations"></a>
 
