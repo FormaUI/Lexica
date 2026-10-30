@@ -328,7 +328,8 @@ Forty decisions were taken while implementing the declarations, member selection
 
 *October 30, 2026*
 
-- **Kind:** Process.
+- **Kind:** Process, approved.
 - **Decision:** the README's example declares a vocabulary of its own, a billing module, rather than the examples' vocabulary the specification shares. A test runs the README's JavaScript against its script, and checks the result, the type and the refusals the README states.
+- **Reference date:** the example's date is one the application gives the evaluation, which the README's text names, never the clock. The test runs under a clock set years later, so the result it shows stays right.
 - **Why:** a reader meets a use case they recognize, and the integration they would write. Running the README's own code keeps all of it true.
 - **Declined:** adding billing types to the examples' vocabulary, which would grow a domain the specification's examples do not use; and checking the script alone, which would leave the JavaScript untested.

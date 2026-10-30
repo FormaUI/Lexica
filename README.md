@@ -6,7 +6,7 @@ The application declares what scripts may use: its records, their properties and
 
 ## An example
 
-A billing application keeps customers and their invoices. It gives each script one `customer`, with a name, a credit limit and invoices. It declares what scripts can read: a customer's `invoices`, an invoice's `amount`, whether it is `paid`, and `daysOverdue`, which the application computes from the invoice's due date and today.
+A billing application keeps customers and their invoices. It gives each script one `customer`, with a name, a credit limit and invoices. It declares what scripts can read: a customer's `invoices`, an invoice's `amount`, whether it is `paid`, and `daysOverdue`, which the application computes from the invoice's due date and the date it gives the evaluation.
 
 This script summarizes what a customer owes, charging a 5% late fee on any invoice more than 30 days overdue:
 
@@ -29,7 +29,7 @@ return {
 }
 ```
 
-Northwind Traders has four invoices on November 1, 2026: one paid, one 42 days overdue, one 7 days overdue and one not yet due. Its credit limit is 1,000. The script gives:
+The application evaluates the script on November 1, 2026. Northwind Traders then has four invoices: one paid, one 42 days overdue, one 7 days overdue and one not yet due. Its credit limit is 1,000. The script gives:
 
 ```json
 {
@@ -55,13 +55,13 @@ What the example shows:
 
 | Strength | Why it matters |
 | --- | --- |
-| The application's own vocabulary | Scripts work with `customer.invoices` and `daysOverdue`, not a generic data model. An application exposes its concepts and its operations, and rules are written in those terms. |
-| Checked before it runs | A script is resolved against the vocabulary before anything is evaluated. A misspelt member, a missing import or a comparison of text with a number is refused with its location: writing `it.amout` in the total above gives "'amout' is no member of the vocabulary", at line 5, column 28. |
-| Expressions, collections and structured output | Filters, totals, conditions, text and the shape of the result are written together, so one script turns application data into a useful result. |
-| Functions and composition | A rule such as `lateFee` is written once and reused wherever it applies, so scripts grow without repeating themselves. |
-| An explicit host boundary | A script reads only what the application binds and declares, and changes nothing itself. The application implements every operation it declares, and carries out any call that acts. |
-| Definitions as data, with canonical text | A script parses into a JSON definition an application can store, inspect and rewrite, and formats back into one canonical text, so generated and hand-written scripts read alike. |
-| Reads reported as it evaluates | An evaluation reports each member it invokes, such as each invoice's `daysOverdue`, and every member declares how its value changes. An integration learns what a result depends on, and when to evaluate it again. |
+| The application's own vocabulary | The script works with `customer.invoices` and `daysOverdue`, the billing application's concepts, not a generic data model. `daysOverdue` is an operation the application implements. |
+| Checked before it runs | Writing `it.amout` in the total is refused before anything runs: "'amout' is no member of the vocabulary", at line 5, column 28. Leaving out `import Billing`, or comparing `customer.name` with a number, is refused the same way, with its location. |
+| Expressions, collections and structured output | One script filters the invoices, totals them, checks the credit limit, writes the summary's text and shapes the result. |
+| Functions and composition | `lateFee` is written once, and both the total and each overdue line apply it, so the fee changes in one place. |
+| An explicit host boundary | The script reads only the `customer` the application binds, as a frozen copy, through members `Billing` and Nexo declare. `daysOverdue` runs the application's code, and nothing the script does changes the application's data. |
+| Definitions as data, with canonical text | `nexo.parse` gives the script as a JSON definition to store or inspect, and `nexo.format` gives the text above back from it, so a definition a tool generates reads as a script written by hand. |
+| Reads reported as it evaluates | Hooks the application gives an evaluation are told of each member it invokes, `daysOverdue` among them, so the application knows what the summary read. Each member also declares how it changes: `daysOverdue` is `unobserved`, since nothing signals that a day has passed, so when to evaluate again is the application's choice. |
 
 ## Run it
 
@@ -88,7 +88,8 @@ const billing = nexo.createModule('Billing', {
                 property('amount', 'Number'),
                 property('paid', 'Boolean'),
                 property('dueDate', 'String'),
-                // Computed by the application, from the date it evaluates on.
+                // The application's code, reading the date it gives the evaluation. Nothing signals
+                // that the date has moved on, so the property is unobserved.
                 property('daysOverdue', 'Number', {
                     updates: { changes: 'unobserved', reads: 'fresh' },
                     impl: ({ receiver, env }) => Math.max(0, Math.round((env.today - Date.parse(receiver.dueDate)) / DAY)),
@@ -120,7 +121,7 @@ resolution.type; // '{ account: String, amountDue: Number, status: String, overd
 const summary = resolution.createEvaluator(bindings, { today: Date.parse('2026-11-01') }).evaluate().value;
 ```
 
-`summary` is the result shown above. A resolution serves any bindings of the same types, so the script is resolved once and evaluated for each customer. [Embedding Nexo](https://github.com/FormaUI/Nexo/blob/main/docs/embedding-guide.md) goes on to functions a module declares, calls the application carries out, and following what an evaluation reads.
+`summary` is the result shown above, on any day, since the date comes from the evaluation and not the clock. A resolution serves any bindings of the same types, so the script is resolved once and evaluated for each customer. [Embedding Nexo](https://github.com/FormaUI/Nexo/blob/main/docs/embedding-guide.md) goes on to functions a module declares, calls the application carries out, and following what an evaluation reads.
 
 ## Availability
 
