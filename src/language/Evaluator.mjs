@@ -261,6 +261,8 @@ export class Evaluator {
     prepareHostCall() {
         const { hostCall } = this.#resolvedDefinition;
 
+        this.#closableCallbacks.clear();
+
         if (hostCall === null) {
             this.#fail('NEXO5014', 'The script gives a value and ends in no host call, so there is nothing to prepare; evaluate it', '/expression');
         }
@@ -378,6 +380,7 @@ export class Evaluator {
     #evaluateForHost(hooks, produce) {
         this.#hooks = hooks;
         this.#isPending = false;
+        this.#closableCallbacks.clear();
 
         let outcome = null;
 
@@ -1718,13 +1721,17 @@ export class Evaluator {
             }
         };
 
-        this.#callbackLifetimes.set(callback, lifetime);
+        this.#closableCallbacks.set(callback, lifetime);
 
         return callback;
     }
 
-    /** The lifetime of each function given to a member, open while the member's invocation lasts. @type {WeakMap<Function, { isOpen: boolean }>} */
-    #callbackLifetimes = new WeakMap();
+    /**
+     * The lifetime of each function given to a member that its invocation has yet to close, by the function. Each is removed as it is closed; one the evaluator never closes, given to a host call or to an invocation
+     * an argument's failure prevented, keeps its lifetime as it is and leaves this index when the next evaluation, preparation or projection begins, since no invocation of this evaluator is under way then.
+     * @type {Map<Function, { isOpen: boolean }>}
+     */
+    #closableCallbacks = new Map();
 
     /** The errors a function given to a member raised, which reach the expression as they are, not as the member's failure. @type {WeakSet<object>} */
     #callbackErrors = new WeakSet();
@@ -2369,10 +2376,11 @@ export class Evaluator {
         } finally {
             // A function the member was given is called only while its invocation lasts.
             for (const name in args) {
-                const lifetime = this.#callbackLifetimes.get(args[name]);
+                const lifetime = this.#closableCallbacks.get(args[name]);
 
                 if (lifetime !== undefined) {
                     lifetime.isOpen = false;
+                    this.#closableCallbacks.delete(args[name]);
                 }
             }
         }

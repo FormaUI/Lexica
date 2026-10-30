@@ -157,6 +157,22 @@ describe('functions passed to members', () => {
             expect(errorThrownBy(() => held.test('oat')), test).toMatchObject({ code: 'NEXO5008', kind: 'evaluation' });
         }
     });
+
+    it('expire at each evaluation of one evaluator, the function an earlier evaluation gave refused still while a later one runs', () => {
+        const held = {};
+        const registry = nexo.createRegistry([createPantry([], held)]);
+        const bindings = registry.createBindings(values);
+        const evaluator = registry.resolve('word:keepAndFail(w => w:size > 2)', bindings, { imports: ['pantry'] }).createEvaluator(bindings);
+
+        expect(errorThrownBy(() => evaluator.evaluate())).toMatchObject({ code: 'NEXO5007' });
+
+        const first = held.test;
+
+        expect(errorThrownBy(() => evaluator.evaluate())).toMatchObject({ code: 'NEXO5007' });
+        expect(held.test).not.toBe(first);
+        expect(errorThrownBy(() => first('oat'))).toMatchObject({ code: 'NEXO5008' });
+        expect(errorThrownBy(() => held.test('oat'))).toMatchObject({ code: 'NEXO5008' });
+    });
 });
 
 describe('a reference bound to its receiver', () => {
