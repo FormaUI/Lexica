@@ -32,35 +32,74 @@ export class ValueCapture {
     capture(value, type, fail, asked = 'capturing a supplied value') {
         this.#asked = asked;
         this.#enclosing = new Set();
+        this.#steps = [];
 
-        return this.#capture(value, type, '', fail);
+        return this.#capture(value, type, fail);
     }
 
     /** The lists and objects the part being captured lies within, which it never holds, since data doesn't reach itself. */
     #enclosing = new Set();
 
-    /** The parts of the value captured within it, the lists and objects of data it holds, a part that is one of the value's enclosing ones refused. */
-    #captureWithin(value, type, path, fail, captureParts) {
-        if (this.#enclosing.has(value)) {
-            fail(path, value, type, 'cycle');
-        }
-
-        this.#enclosing.add(value);
-
-        try {
-            return captureParts();
-        } finally {
-            this.#enclosing.delete(value);
-        }
-    }
+    /**
+     * The steps from the value to the part being captured: a field's name, a list item's index, or a dictionary entry's key or value. The path they make is written only where a part fails, so a capture that succeeds
+     * writes none.
+     * @type {(string | number | { entry: number, part: 'key' | 'value' })[]}
+     */
+    #steps = [];
 
     /** What the capture under way was asked by, which a module's recognition, faulting, names. */
     #asked = 'capturing a supplied value';
 
-    #capture(value, type, path, fail) {
+    /** The path of the part being captured within the value, as `fail` is given it: `rooms[2].name`, and a dictionary entry's part as `.entries[0].key`. */
+    #path() {
+        let path = '';
+
+        for (const step of this.#steps) {
+            path = typeof step === 'number' ? `${path}[${step}]` : typeof step === 'string' ? ValueCapture.#pathOf(path, step) : `${path}.entries[${step.entry}].${step.part}`;
+        }
+
+        return path;
+    }
+
+    /** A part of the value captured as its type, one step further along the path. */
+    #captureStep(value, type, step, fail) {
+        this.#steps.push(step);
+
+        const captured = this.#capture(value, type, fail);
+
+        this.#steps.pop();
+
+        return captured;
+    }
+
+    /** Enters a list or an object of data, whose parts are captured next, refusing one of those it lies within; `#leave` releases it once they are. */
+    #enter(value, type, fail) {
+        if (this.#enclosing.has(value)) {
+            fail(this.#path(), value, type, 'cycle');
+        }
+
+        this.#enclosing.add(value);
+    }
+
+    #leave(value) {
+        this.#enclosing.delete(value);
+    }
+
+    /** The fields of an object or a structure, each captured as its type and defined as an ordinary field, in the order of their types. */
+    #captureFields(value, fieldTypes, fail) {
+        const captured = {};
+
+        for (const [name, fieldType] of fieldTypes) {
+            ObjectUtils.defineDataProperty(captured, name, this.#captureStep(value[name], fieldType, name, fail));
+        }
+
+        return captured;
+    }
+
+    #capture(value, type, fail) {
         if (value === undefined || value === null) {
             if (!type.isNullable) {
-                fail(path, value, type);
+                fail(this.#path(), value, type);
             }
 
             return null;
@@ -71,30 +110,54 @@ export class ValueCapture {
             const items = value instanceof Set ? [...value] : value;
 
             if (!Array.isArray(items) || ArrayUtils.findMissingIndex(items) !== -1) {
-                fail(path, value, type);
+                fail(this.#path(), value, type);
             }
 
-            return this.#captureWithin(value, type, path, fail, () => items.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail)));
+            this.#enter(value, type, fail);
+
+            try {
+                const captured = new Array(items.length);
+
+                for (let index = 0; index < items.length; index++) {
+                    captured[index] = this.#captureStep(items[index], type.itemType, index, fail);
+                }
+
+                return captured;
+            } finally {
+                this.#leave(value);
+            }
         }
 
         // A dictionary is supplied as a map or the language's, each key and value captured as its type declares, and a pair as the language's or an object of a key and a value alone.
         if (type.isDictionary) {
-            const entries = value instanceof Map ? [...value] : value instanceof Dictionary ? value.entries.map(entry => [entry.key, entry.value]) : fail(path, value, type);
+            const entries = value instanceof Map ? [...value] : value instanceof Dictionary ? value.entries.map(entry => [entry.key, entry.value]) : fail(this.#path(), value, type);
             const [keyType, valueType] = type.typeArguments;
 
-            return this.#captureWithin(value, type, path, fail, () => new Dictionary(entries.map(([key, entry], index) => [this.#capture(key, keyType, `${path}.entries[${index}].key`, fail), this.#capture(entry, valueType, `${path}.entries[${index}].value`, fail)])));
+            this.#enter(value, type, fail);
+
+            try {
+                return new Dictionary(entries.map(([key, entry], index) => [this.#captureStep(key, keyType, { entry: index, part: 'key' }, fail), this.#captureStep(entry, valueType, { entry: index, part: 'value' }, fail)]));
+            } finally {
+                this.#leave(value);
+            }
         }
 
         if (type.isPair) {
             const isPair = value instanceof Pair || (ObjectUtils.isPlainObject(value) && Object.keys(value).length === 2 && Object.hasOwn(value, 'key') && Object.hasOwn(value, 'value'));
 
             if (!isPair) {
-                fail(path, value, type);
+                fail(this.#path(), value, type);
             }
 
             const [keyType, valueType] = type.typeArguments;
 
-            return this.#captureWithin(value, type, path, fail, () => new Pair(this.#capture(value.key, keyType, ValueCapture.#pathOf(path, 'key'), fail), this.#capture(value.value, valueType, ValueCapture.#pathOf(path, 'value'), fail)));
+            this.#enter(value, type, fail);
+
+            try {
+                return new Pair(this.#captureStep(value.key, keyType, 'key', fail), this.#captureStep(value.value, valueType, 'value', fail));
+            } finally {
+                this.#leave(value);
+            }
         }
 
         switch (type.kind) {
@@ -102,12 +165,18 @@ export class ValueCapture {
                 return value;
             case 'object':
                 if (!ObjectUtils.isNonArrayObject(value)) {
-                    fail(path, value, type);
+                    fail(this.#path(), value, type);
                 }
 
-                return this.#captureWithin(value, type, path, fail, () => Object.fromEntries([...type.fieldTypes].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, ValueCapture.#pathOf(path, name), fail)])));
+                this.#enter(value, type, fail);
+
+                try {
+                    return this.#captureFields(value, type.fieldTypes, fail);
+                } finally {
+                    this.#leave(value);
+                }
             default:
-                return this.#captureNamed(value, type, path, fail);
+                return this.#captureNamed(value, type, fail);
         }
     }
 
@@ -116,16 +185,18 @@ export class ValueCapture {
      * fields, each captured in turn. A value from outside has no type until it is captured, so where it doesn't belong to a reference type, the registry's recognition tells a reference of another type from mistyped
      * data, which fails whatever its nullability.
      */
-    #captureNamed(value, type, path, fail) {
+    #captureNamed(value, type, fail) {
         if (type.moduleName === null && NexoModule.scalarTypeNames.includes(type.name)) {
             if (!ValueCapture.belongsToScalar(value, type.name)) {
-                fail(path, value, type);
+                fail(this.#path(), value, type);
             }
 
             return value;
         }
 
-        if (this.#registry.isReferenceType(type)) {
+        const declaration = this.#registry.getTypeDeclaration(type);
+
+        if (declaration?.kind === 'reference') {
             const asked = this.#asked;
 
             if (this.#registry.belongsTo(value, type, asked)) {
@@ -136,16 +207,22 @@ export class ValueCapture {
                 return null;
             }
 
-            fail(path, value, type);
+            fail(this.#path(), value, type);
         }
 
-        const isStructured = this.#registry.getTypeDeclaration(type)?.kind === 'structured';
-
-        if (!isStructured || !ObjectUtils.isNonArrayObject(value)) {
-            fail(path, value, type);
+        if (declaration?.kind !== 'structured' || !ObjectUtils.isNonArrayObject(value)) {
+            fail(this.#path(), value, type);
         }
 
-        const structure = this.#captureWithin(value, type, path, fail, () => Object.fromEntries([...this.#registry.getDataShape(type)].map(([name, fieldType]) => [name, this.#capture(value[name], fieldType, ValueCapture.#pathOf(path, name), fail)])));
+        this.#enter(value, type, fail);
+
+        let structure;
+
+        try {
+            structure = this.#captureFields(value, this.#registry.getDataShape(type), fail);
+        } finally {
+            this.#leave(value);
+        }
 
         // A captured structure keeps its type through a value of Any, as one a member answers does.
         StructureTypes.recordType(structure, this.#registry, type.toNonNullable());

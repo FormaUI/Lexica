@@ -60,6 +60,17 @@ describe('ValueCapture', () => {
         expect(capturedAs(null, Type.parse('Number')).failure).toMatchObject({ path: '', part: null });
     });
 
+    it('names a dictionary entry\'s key or value, a pair\'s part and an object\'s field by their paths, the value captured whole once one has failed and again', () => {
+        const sized = Type.createListType(Type.createObjectType(new Map([['size', Type.parse('Number')]])));
+        const rooms = Type.createDictionaryType(Type.parse('String'), sized);
+
+        expect(capturedAs(new Map([['hall', [{ size: 1 }]], ['den', [{ size: 2 }, { size: 'x' }]]]), rooms).failure).toMatchObject({ path: '.entries[1].value[1].size', part: 'x', type: 'Number' });
+        expect(capturedAs(new Map([[1, []]]), rooms).failure).toMatchObject({ path: '.entries[0].key', part: 1, type: 'String' });
+        expect(capturedAs({ key: 'a', value: 'b' }, Type.parse('Pair<String, Number>')).failure).toMatchObject({ path: 'value', part: 'b', type: 'Number' });
+        expect(capturedAs({ spots: [{ size: 1 }, { size: true }] }, Type.createObjectType(new Map([['spots', sized]]))).failure).toMatchObject({ path: 'spots[1].size', part: true, type: 'Number' });
+        expect(capturedAs(new Map([['hall', [{ size: 1 }]]]), rooms).value).toBeInstanceOf(Dictionary);
+    });
+
     it('tells a scalar type\'s values: a finite number, a string and a Boolean', () => {
         expect([ValueCapture.belongsToScalar(1, 'Number'), ValueCapture.belongsToScalar(Infinity, 'Number'), ValueCapture.belongsToScalar('a', 'String'), ValueCapture.belongsToScalar(false, 'Boolean'), ValueCapture.belongsToScalar(1, 'List')]).toEqual([true, false, true, true, false]);
     });
