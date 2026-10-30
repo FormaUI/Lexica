@@ -256,4 +256,38 @@ describe('extension access', () => {
             expect(failure('Home.item("lamp").usage')).toMatchObject({ code: 'NEXO5012', message: expect.stringContaining("'usage' is not available on Light") });
         });
     });
+
+    describe('named indexers', () => {
+        /** A string answer an indexer of the extension the module declares gives, naming the receiver and the key. */
+        const indexing = (name, keyType, label) => createIndexerDeclaration(name, 'String', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', keyType)], impl: ({ receiver, args }) => `${receiver.name} ${label} ${args.key}` });
+        const evaluateWith = (modules, text, imports) => nexo.createRegistry([createHome(), ...modules]).resolve(text, values, { imports }).createEvaluator(values).evaluate().value;
+        const refusalWith = (modules, text, imports) => errorThrownBy(() => nexo.createRegistry([createHome(), ...modules]).resolve(text, values, { imports }));
+
+        it('reads brackets after the member as its key where the member the access selects for the receiver is a named indexer, and as a key of its answer otherwise', () => {
+            const lamps = nexo.createModule('Lamps', { types: [extensionDeclaration('Lights', 'Home.Light', [indexing('setting', 'String', 'lamp')])] });
+            const config = nexo.createModule('Config', { types: [extensionDeclaration('Devices', 'Home.Device', [createPropertyDeclaration('setting', 'Dictionary<String, String>', { updates: constantUpdates, impl: () => new Map([['mode', 'eco']]) })])] });
+
+            expect(evaluateWith([lamps, config], '{ device = fan:setting["mode"], light = lamp:setting["mode"] }', ['Home', 'Lamps', 'Config'])).toEqual({ device: 'eco', light: 'lamp lamp mode' });
+            expect(evaluateWith([lamps, config], '{ property = lamp:Devices.setting["mode"], indexer = lamp:Lights.setting["mode"] }', ['Home', 'Lamps', 'Config'])).toEqual({ property: 'eco', indexer: 'lamp lamp mode' });
+        });
+
+        it('selects among an indexer\'s signatures by its key, in each form of the access', () => {
+            const cells = nexo.createModule('Cells', { types: [extensionDeclaration('Grid', 'Home.Device', [indexing('cell', 'Number', 'row'), indexing('cell', 'String', 'column')])] });
+
+            expect(evaluateWith([cells], '{ row = fan:cell[1], column = fan:Grid.cell["a"], qualified = fan:Cells.Grid.cell[2] }', ['Home', 'Cells'])).toEqual({ row: 'fan row 1', column: 'fan column a', qualified: 'fan row 2' });
+            expect(refusalWith([cells], 'fan:cell[true]', ['Home', 'Cells'])).toMatchObject({ code: 'NEXO3084' });
+        });
+
+        it('takes an optional receiver with ?:, a value of Any selecting it as it is evaluated, and refuses a function written with brackets, giving its call', () => {
+            expect(evaluate('{ found = Home.find("fan")?:setting["mode"], none = Home.find("none")?:setting["mode"], held = Home.item("lamp"):setting["k"] }')).toEqual({ found: 'fan.mode', none: null, held: 'lamp.k' });
+            expect(refusal('fan:reset[3]')).toMatchObject({ code: 'NEXO3054', message: expect.stringContaining("'reset' uses call syntax: write 'fan:reset(3)'") });
+        });
+
+        it('refuses an extension declaring an indexer without a name, giving the named form', () => {
+            expect(errorThrownBy(() => nexo.createRegistry([createHome(), nexo.createModule('Grids', { types: [extensionDeclaration('Grid', 'Home.Device', [indexing(null, 'Number', 'cell')])] })]))).toMatchObject({
+                code: 'NEXO4564',
+                message: expect.stringContaining("an extension's indexers are named, since brackets alone read the receiver's owner's indexer: name it, and read it as 'receiver:name[key]'"),
+            });
+        });
+    });
 });

@@ -883,9 +883,9 @@ export class NexoRegistry {
                 fail('NEXO4045', `The extension '${type.name}' targets ${target}, a type its own module owns, which takes its members within its own declaration`, type.name, 'target');
             }
 
-            // Brackets after a value read its type's owner's unnamed indexer alone, so no form would reach an extension's.
+            // An extension's indexers are named, read after ':' as its other members are, and brackets after a value alone read its type's owner's unnamed indexer.
             if (type.members.some(member => member.kind === 'indexer' && member.name === undefined)) {
-                fail('NEXO4564', `The extension '${type.name}' declares an indexer without a name, which no access reaches: an unnamed indexer is its target's owner's alone, and an extension names its indexers`, type.name, 'members');
+                fail('NEXO4564', `The extension '${type.name}' declares an indexer without a name, and an extension's indexers are named, since brackets alone read the receiver's owner's indexer: name it, and read it as 'receiver:name[key]'`, type.name, 'members');
             }
         }
 

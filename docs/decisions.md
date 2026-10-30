@@ -160,14 +160,15 @@ Each entry is one of four kinds:
 
 <a id="d14"></a>
 
-## D14 — An extension declares no unnamed indexer
+## D14 — An extension's indexers are named
 
-*October 30, 2026*
+*October 30, 2026, revised the same day*
 
-- **Kind:** Current restriction.
-- **Decision:** an unnamed extension indexer is currently unsupported, and its declaration is refused early (NEXO4564), rather than accepted and never reachable. `x[key]` reads the receiver's owner's alone. Supporting one later needs a deliberate access syntax and a resolution rule.
-- **Why:** with extension members read through `:`, an unnamed one has no form: `x:[key]` is no access, and `x:Extension[key]` would read `Extension` as a member's name.
-- **Declined:** a colon indexer form, which the owner ruled out. Removing the capability is a decision of its own, not a consequence of reading named extension members with `:`.
+- **Kind:** Approved rule.
+- **Decision:** an extension declares indexers, each named, read `device:setting["mode"]`, through its extension and its module as any extension member is, with its signatures. Brackets after the member are its key where the member the access selects for the receiver is a named indexer, and otherwise index the member's answer. An extension declaring an indexer without a name is refused (NEXO4564), giving the named form.
+- **Why:** the owner's decision. Brackets after a value alone write no name, so they can't show where the indexer comes from, which reading extension members with `:` exists to show; they read the receiver's owner's unnamed indexer.
+- **Revised:** the first version recorded an unnamed extension indexer as a current restriction, which a later design might lift. It is a rule: an extension indexes by name.
+- **Declined:** a colon indexer form, `x:[key]`, which the owner ruled out.
 
 <a id="d15"></a>
 

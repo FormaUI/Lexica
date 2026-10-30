@@ -1721,22 +1721,23 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves brackets after an extension access's member, the access as its names read, given its receiver resolved: an extension's named indexer of the member's name, the access giving its receiver, its name and its
-     * selection and never read alone, where the extension it names, or for an access naming none an extension the script's imports make available, declares one; and otherwise the unnamed indexer of what the member
-     * answers, as brackets after any member's answer index it.
+     * Resolves brackets after an extension access's member, the access as its names read, given its receiver resolved: where the member the access selects for the receiver, among the extension it names or the
+     * extensions the script's imports make available, is a named indexer, the brackets are its key, the access giving its receiver, its name and its selection and never read alone; and otherwise they index what the
+     * member answers, as brackets after any member's answer do.
      */
     #resolveExtensionIndexerAccess(node, pointer, scope, access, accessReceiver, extensionPointer) {
         const accessPointer = `${pointer}/receiver`;
         const extension = access.extension.name === undefined ? null : this.#resolveExtension(access.extension, extensionPointer);
-        const declared = extension === null ? this.#imported.getAvailable(this.#membersReadBy(access)) : this.#registry.getReceiverMembers(access.name).filter(declaration => this.#registry.getContainingType(declaration) === extension);
-        const isNamedIndexer = declared.some(declaration => declaration.kind === 'indexer');
+        const candidates = extension === null ? this.#imported.getAvailable(this.#membersReadBy(access)) : this.#registry.getReceiverMembers(access.name).filter(declaration => this.#registry.getContainingType(declaration) === extension);
+        // The member the access selects for its receiver decides how its brackets read, as it does after a dot: a named indexer's key, or a key of what the member answers.
+        const kind = this.#memberKindNamedBy(access, accessReceiver, candidates);
 
         // A function's arguments are written in parentheses, so brackets after its name are a call written as an indexer.
-        if (!isNamedIndexer && declared.length > 0 && declared.every(declaration => declaration.kind === 'function')) {
+        if (kind === 'function') {
             this.#fail('NEXO3054', `'${access.name}' uses call syntax: write '${DefinitionWriter.quote(LanguageResolver.#createCall(access, [node.argument]), this.#namespaceNames)}'`, pointer);
         }
 
-        if (!isNamedIndexer) {
+        if (kind !== 'indexer') {
             const accessResult = this.#resolveMemberAccess(access, accessPointer, scope, { receiver: accessReceiver, extensionPointer });
 
             return this.#resolveMemberAccess(node, pointer, scope, { receiver: accessResult });
@@ -2118,8 +2119,8 @@ export class LanguageResolver {
      * The kind of the member the access names on its receiver's type, `indexer` for a named indexer and `function` for a function, among the declarations of its name for that type, or, on a receiver of unknown type,
      * `indexer` where any declaration of its name is a named indexer; null where none is either, as a property's or a field's name is, given the access's receiver as it resolved. It decides how brackets after the access read.
      */
-    #memberKindNamedBy(access, receiver) {
-        const declarations = this.#receiverMembersNamed(access.name).filter(declaration => declaration.kind !== 'property');
+    #memberKindNamedBy(access, receiver, candidates = this.#receiverMembersNamed(access.name)) {
+        const declarations = candidates.filter(declaration => declaration.kind !== 'property');
 
         if (declarations.length === 0 || receiver.kind !== 'value') {
             return null;
@@ -2131,12 +2132,13 @@ export class LanguageResolver {
             return declarations.some(declaration => declaration.kind === 'indexer') ? 'indexer' : null;
         }
 
-        if (receiverType.kind === 'objectRoot' || (receiverType.kind === 'object' ? receiverType.getObjectFieldType(access.name) : (this.#registry.getDataShape(receiverType)?.get(access.name) ?? null)) !== null) {
+        // An extension access reads extension members alone, never an object's field or a structure's data.
+        if (access.extension === undefined && (receiverType.kind === 'objectRoot' || (receiverType.kind === 'object' ? receiverType.getObjectFieldType(access.name) : (this.#registry.getDataShape(receiverType)?.get(access.name) ?? null)) !== null)) {
             return null;
         }
 
         // The member of the name the receiver selects decides, a property among them, which hides an indexer of its name above it.
-        const selection = this.#memberSelector.select(this.#receiverMembersNamed(access.name), receiverType);
+        const selection = this.#memberSelector.select(candidates, receiverType);
 
         return selection.kind !== 'selected' || selection.declaration.kind === 'property' ? null : selection.declaration.kind;
     }
