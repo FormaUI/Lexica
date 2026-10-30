@@ -61,7 +61,8 @@ describe('collection expressions', () => {
             expect(errorThrownBy(() => nexo.parse('["a" = do 1 end]'))).toMatchObject({ code: 'NEXO2011', message: expect.stringContaining("A dictionary's value is a simple expression") });
             expect(errorThrownBy(() => nexo.parse('[x => 1]'))).toMatchObject({ code: 'NEXO1057', kind: 'syntax', location: { offset: 1 }, message: expect.stringContaining("A list's item is data, never a function") });
             expect(errorThrownBy(() => nexo.parse('["a" = x => 1]'))).toMatchObject({ code: 'NEXO1057', kind: 'syntax', location: { offset: 7 }, message: expect.stringContaining("A dictionary's value is data, never a function") });
-            expect(errorThrownBy(() => nexo.parse('xs[y => 1]'))).toMatchObject({ code: 'NEXO1057', kind: 'syntax' });
+            expect(errorThrownBy(() => nexo.parse('xs[y => 1]'))).toMatchObject({ code: 'NEXO1057', kind: 'syntax', location: { offset: 3 }, message: expect.stringContaining("An indexer's key is data, never a function") });
+            expect(errorThrownBy(() => nexo.parse('xs.at[(y) => 1]'))).toMatchObject({ code: 'NEXO1057', message: expect.stringContaining("An indexer's key is data") });
 
             const arrow = { kind: 'function', arrow: true, parameters: ['x'], body: { kind: 'literal', value: 1 } };
 

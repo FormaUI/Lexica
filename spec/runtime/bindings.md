@@ -27,7 +27,7 @@ A binding takes its type from its value, unless the host declares it.
 - A number, a string and a Boolean are `Number`, `String` and `Boolean`.
 - Null is of the type `null`.
 - A list is a `List<T>`, `T` the type its items share, the nearest supertype they share for references of different types, made nullable where one of them is null: `[light, thermostat]` is a `List<Device>` and `[light, null]` a `List<Light?>`. A declared cast between two types gives them no type to share. A list of nulls alone, `[null]` or `[null, null]`, is a `List<null>`, whose items can only be null, and the empty list is a `List<Never>`, which does not hold an item.
-- A set is a `List<T>` of its items in its traversal order, its uniqueness making no later projection a set.
+- A set is a `List<T>` of its items in its iteration order, which follows list semantics and keeps none of the set's uniqueness. A declared `List<T>` captures one as [capturing a supplied value](host-calls.md#runtime-host-calls-capturing) sets out.
 - A map is a `Dictionary<K, V>`, its entries in their order, `K` the type its keys share and `V` the type its values share, each merging as a list's items do, so an empty map is a `Dictionary<Never, Never>`. A key that is no key type, as a list or an object, is a structure error (NEXO2041), and keys or values that share no type are too (NEXO2042). A dictionary and a pair the language gave, bound again, are bound as they are.
 - An object is of the object type of its object fields' types, each typed as a binding is, an object of a `key` and a `value` among them, which never becomes a pair, and one of `entries` never a dictionary.
 - Any other iterable, a generator among them, is no binding: a host materializes it, finite, as an array, a set or a map first.

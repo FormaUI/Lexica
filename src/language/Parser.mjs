@@ -1256,6 +1256,8 @@ export class Parser {
             throw this.#createSyntaxError('NEXO1017', 'An indexer takes one key in its brackets', this.#token.start);
         }
 
+        this.#refuseFunctionAsData("An indexer's key");
+
         const key = this.#parseExpression();
 
         if (this.#token.type === ',') {
@@ -1489,7 +1491,7 @@ export class Parser {
     #parseListItem() {
         const start = this.#token.start;
 
-        this.#refuseCollectionFunction("A list's item");
+        this.#refuseFunctionAsData("A list's item");
 
         const item = this.#parseExpression();
 
@@ -1500,8 +1502,8 @@ export class Parser {
         return item;
     }
 
-    /** Refuses an arrow function where a collection expression holds the part named, an item or an entry's value, since a collection holds data, never a function (NEXO1057). */
-    #refuseCollectionFunction(part) {
+    /** Refuses an arrow function where the part named stands, a list's item, a dictionary's value or an indexer's key, which is data, never a function (NEXO1057). */
+    #refuseFunctionAsData(part) {
         if (this.#startsArrowFunction()) {
             throw this.#createSyntaxError('NEXO1057', `${part} is data, never a function: an arrow function is the value of a local or an argument, so call one and hold what it answers`, this.#token.start);
         }
@@ -1515,7 +1517,7 @@ export class Parser {
         const key = this.#take();
         const equals = this.#take();
 
-        this.#refuseCollectionFunction("A dictionary's value");
+        this.#refuseFunctionAsData("A dictionary's value");
 
         const value = this.#parseExpression();
         const isInlineString = key.type === 'literal' && typeof key.value === 'string' && key.delimiter === 1;

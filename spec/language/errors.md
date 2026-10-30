@@ -73,7 +73,7 @@ In this document:
 | `NEXO1032` | A local declaration or a `return` written where a simple expression's value stands, as in an argument | A syntax error |
 | `NEXO1033` | `return` among an object's fields | A syntax error |
 | `NEXO1034` as syntax, `NEXO2004` as structure | A function that is not a local's initializer | A syntax error in text, and a structure error in a definition |
-| `NEXO1057` as syntax, `NEXO2027` as structure | An arrow function that is neither a local's initializer nor an argument | A syntax error in text, and a structure error in a definition |
+| `NEXO1057` as syntax, `NEXO2027` as structure | An arrow function that is neither a local's initializer nor an argument, a list's item, a dictionary's value and an indexer's key among them | A syntax error in text, saying an item, a value or a key is data where one stands there, and a structure error in a definition |
 | `NEXO1035` as syntax, `NEXO2005` as structure | A regular function written directly as an argument | A syntax error in text, and a structure error in a definition: `A function declared with 'function' cannot appear directly as an argument. Bind it to a local and pass its name, or use an arrow function.` |
 | `NEXO1036` as syntax, `NEXO2006` as structure | An arrow function whose body is not a simple expression | A syntax error in text, and a structure error in a definition, saying its body is a simple expression |
 | `NEXO1037` | A line break written in an inline string, raw or not and interpolated or not | A syntax error at the line break, suggesting `\n` or a block |
@@ -217,7 +217,7 @@ In this document:
 | `NEXO3089` | An object expression given as an indexer's key that constructs the keys of two or more of its signatures alike | A validation error at the key, naming the structures |
 | `NEXO3090` | An extension member read with `.`, as `device.usage` | A validation error giving `device:usage` |
 | `NEXO3091` | An extension access whose names read more than one way, as `name:size.width` where `size` is an extension member and an extension declaring `width` | A validation error giving the text that writes each way: a group, `(name:size).width`, and the extension named through its module |
-| `NEXO3082` | A function as a collection expression's item or value, or as an indexer's key | A validation error at the item, saying a collection holds data and references |
+| `NEXO3082` | A function resolution finds as a collection expression's item or value, or as an indexer's key: a script's function, a reference or a local holding one | A validation error at the item, the value or the key, saying it is data |
 | `NEXO3043` | A result that would contain a reference value | A validation error |
 | `NEXO3044` | An object field read through `root` whose initializer has not completed where `root` is written | A validation error naming the object fields completed there |
 | `NEXO3045` | A conditional or a coalescing operator choosing between `root` references of different object roots or object field sets | A validation error naming them |
