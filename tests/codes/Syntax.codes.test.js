@@ -270,7 +270,7 @@ describe('the codes of syntax errors', () => {
         });
 
         it('gives NEXO1057 to an arrow function that is neither a local initializer nor an argument', () => {
-            expectSyntaxCode('NEXO1057', ['1 + x => x', '{ a = x => x }']);
+            expectSyntaxCode('NEXO1057', ['1 + x => x', '{ a = x => x }', '[x => 1]', '["a" = x => 1]', 'xs[x => 1]']);
         });
 
         it('gives NEXO1501 to a chain continuing a conversion without a group', () => {

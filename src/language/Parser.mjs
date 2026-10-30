@@ -1505,16 +1505,26 @@ export class Parser {
         return this.#tokens[this.#index + 1].type === '=' && this.#token.type !== ',' && this.#token.type !== ']';
     }
 
-    /** Reads a list's item: an expression, or an arrow function, which the lowering keeps for validation to refuse; one an `=` follows is a dictionary's key no single token writes, which is refused (NEXO1066). */
+    /** Reads a list's item: an expression, never an arrow function, since a collection holds data (NEXO1057); one an `=` follows is a dictionary's key no single token writes, which is refused (NEXO1066). */
     #parseListItem() {
         const start = this.#token.start;
-        const item = this.#startsArrowFunction() ? this.#parseArrowFunction() : this.#parseExpression();
+
+        this.#refuseCollectionFunction("A list's item");
+
+        const item = this.#parseExpression();
 
         if (this.#token.type === '=') {
             throw this.#createSyntaxError('NEXO1066', "A dictionary key must be an inline string literal, as [\"coffee\" = 3]. For a computed key, construct the dictionary with toDictionary.", start);
         }
 
         return item;
+    }
+
+    /** Refuses an arrow function where a collection expression holds the part named, an item or an entry's value, since a collection holds data, never a function (NEXO1057). */
+    #refuseCollectionFunction(part) {
+        if (this.#startsArrowFunction()) {
+            throw this.#createSyntaxError('NEXO1057', `${part} is data, never a function: an arrow function is the value of a local or an argument, so call one and hold what it answers`, this.#token.start);
+        }
     }
 
     /**
@@ -1524,7 +1534,10 @@ export class Parser {
     #parseDictionaryEntry() {
         const key = this.#take();
         const equals = this.#take();
-        const value = this.#startsArrowFunction() ? this.#parseArrowFunction() : this.#parseExpression();
+
+        this.#refuseCollectionFunction("A dictionary's value");
+
+        const value = this.#parseExpression();
         const isInlineString = key.type === 'literal' && typeof key.value === 'string' && key.delimiter === 1;
 
         if (!isInlineString) {

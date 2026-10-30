@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.40` and definition version 37, but for the gaps below.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
+**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.40` and definition version 37.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -235,10 +235,6 @@ These gaps between the specification and the code, found by audits and by the re
 - **Codes.** NEXO5012 is raised for an ambiguous deferred selection and for each argument a selected member can't take, and for a value of `Any` an extension access is given outside the extension's target, conditions its catalogue row doesn't name, against the rule that distinct conditions never share a code; NEXO3045, NEXO3065, NEXO4021 and NEXO4067 are catalogued and never raised.
 - **Declarations.** `createPredicateParameterDeclaration` takes no options, which `nexo.d.ts` declares; a member helper drops `internal` and passes `invokedBy` to a property, which `createModule` then refuses; a value parameter's `context` is never checked; and a type's copy keeps a key holding `undefined`, which [valid declarations](../spec/runtime/modules.md#modules-declarations) count as left out.
 - **Errors.** `NexoError` exposes `syntax`, `module` and `locate`, beside the three factories `nexo.d.ts` declares, and result paths are validated by `nexo.paths.validate` alone, never by `typeAt` and `valueAt`.
-
-These are decided, as [decisions](decisions.md) records, and wait for the implementation to follow:
-
-- **A function as a collection item.** Text writing an arrow function as a list's item or a dictionary's value is refused as a syntax error (NEXO1057), as the catalog says; `[x => 1]` gives the structure error NEXO2027.
 
 Deferred items below require their stated trigger before design or implementation resumes.
 

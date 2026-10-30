@@ -18,6 +18,7 @@ Until the beta, a version may break what the one before it allowed, and each ent
 - [Extension access](spec/language/extensions.md#extensions-access): a call or a key closes the access. Ordinary access on a bare member's answer is grouped, `(device:readings).first`.
 - [Extension access](spec/language/extensions.md#extensions-access): a function reference bound to its receiver takes its member's argument kinds wherever it is called, a local holding it included.
 - [Indexer selection](spec/language/modules.md#namespaces-indexers): `x[key]` reads the unnamed indexer of the receiver's owner alone, and an extension's named indexer is read as `x:name[key]`.
+- [Collection expressions](spec/language/collections.md#collections-collection-expressions): an arrow function written as a list's item or a dictionary's value is a syntax error (NEXO1057), and an indexer's key is never a function (NEXO3082).
 
 **Runtime**
 

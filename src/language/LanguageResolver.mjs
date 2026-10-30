@@ -890,6 +890,13 @@ export class LanguageResolver {
         return { type: from.isNullable ? to.toNullable() : to, kind: 'value', isFixed: false };
     }
 
+    /** Refuses an indexer's key that holds a function, since a key is data, as a collection's item is (NEXO3082). */
+    #refuseFunctionKey(result, pointer) {
+        if (result.kind === 'value' && LanguageResolver.#heldReferenceOf(result.type) === 'function') {
+            this.#fail('NEXO3082', "An indexer's key is data, and this one holds a function, which no key is: call it, and index by what it answers", pointer);
+        }
+    }
+
     /**
      * Resolves a collection expression's items, a list's or a dictionary's values, in order, and answers the type they merge to, a never where it holds none: each is a value, never a host call (NEXO3048) nor a function,
      * since a collection holds data and references (NEXO3082), and items of no common type are refused (NEXO3081), never widened to Any.
@@ -987,6 +994,8 @@ export class LanguageResolver {
         }
 
         const keyType = outcome.result.type;
+
+        this.#refuseFunctionKey(outcome.result, keyPointer);
 
         if (keyType.kind === 'null' || keyType.kind === 'never') {
             return signatures[0];
@@ -2960,6 +2969,11 @@ export class LanguageResolver {
                 }
             } else {
                 result = this.#resolveExpecting(given.node, valuePointer, argumentScope, expected);
+
+                if (node.kind === 'indexerAccess') {
+                    this.#refuseFunctionKey(result, valuePointer);
+                }
+
                 this.#requireValueArgument(result, parameter, declaration, valuePointer);
 
                 if (this.#requireArgumentType(result, expected, parameter, declaration, valuePointer, { allowsCheck: true }) === 'checked') {

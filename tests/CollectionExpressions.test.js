@@ -59,7 +59,14 @@ describe('collection expressions', () => {
         it('holds simple expressions alone, refusing a do block and an arrow function as an item, and validates a definition\'s key as a string', () => {
             expect(errorThrownBy(() => nexo.parse('[do 1 end]'))).toMatchObject({ code: 'NEXO2011', message: expect.stringContaining("A list's item is a simple expression") });
             expect(errorThrownBy(() => nexo.parse('["a" = do 1 end]'))).toMatchObject({ code: 'NEXO2011', message: expect.stringContaining("A dictionary's value is a simple expression") });
-            expect(errorThrownBy(() => nexo.parse('[x => 1]'))).toMatchObject({ code: 'NEXO2027', location: { pointer: '/expression/items/0' } });
+            expect(errorThrownBy(() => nexo.parse('[x => 1]'))).toMatchObject({ code: 'NEXO1057', kind: 'syntax', location: { offset: 1 }, message: expect.stringContaining("A list's item is data, never a function") });
+            expect(errorThrownBy(() => nexo.parse('["a" = x => 1]'))).toMatchObject({ code: 'NEXO1057', kind: 'syntax', location: { offset: 7 }, message: expect.stringContaining("A dictionary's value is data, never a function") });
+            expect(errorThrownBy(() => nexo.parse('xs[y => 1]'))).toMatchObject({ code: 'NEXO1057', kind: 'syntax' });
+
+            const arrow = { kind: 'function', arrow: true, parameters: ['x'], body: { kind: 'literal', value: 1 } };
+
+            expect(errorThrownBy(() => nexo.validate({ version: 37, imports: [], expression: { kind: 'list', items: [arrow] } }))).toMatchObject({ code: 'NEXO2027', location: { pointer: '/expression/items/0' } });
+            expect(errorThrownBy(() => nexo.validate({ version: 37, imports: [], expression: { kind: 'dictionary', entries: [{ key: 'a', value: arrow }] } }))).toMatchObject({ code: 'NEXO2027', location: { pointer: '/expression/entries/0/value' } });
             expect(errorThrownBy(() => nexo.validate({ version: 37, imports: [], expression: { kind: 'dictionary', entries: [{ key: 1, value: { kind: 'literal', value: 1 } }] } }))).toMatchObject({ code: 'NEXO2000', location: { pointer: '/expression/entries/0/key' } });
         });
 
@@ -111,10 +118,14 @@ describe('collection expressions', () => {
             expect(evaluated('let stock = ["coffee" = 3]\nreturn [stock.entries[0]]').type).toBe('List<Pair<String, Number>?>');
         });
 
-        it('refuses items or values of no common type, never widening them to Any, and a function as an item', () => {
+        it('refuses items or values of no common type, never widening them to Any, and a function as an item, a value or an indexer\'s key, a call answering one taken', () => {
             expect(refusalOf('[1, "two"]')).toMatchObject({ code: 'NEXO3081', kind: 'validation', location: { pointer: '/expression' }, message: expect.stringContaining("A list's items share no type: Number, String") });
             expect(refusalOf('["a" = 1, "b" = true]')).toMatchObject({ code: 'NEXO3081', message: expect.stringContaining("A dictionary's values share no type: Number, Boolean") });
             expect(refusalOf('let f = x => x\nreturn [f]')).toMatchObject({ code: 'NEXO3082', location: { pointer: '/expression/result/items/0' } });
+            expect(refusalOf('let f = function(x)\n    return x\nend\nreturn ["a" = f]')).toMatchObject({ code: 'NEXO3082', location: { pointer: '/expression/result/entries/0/value' } });
+            expect(refusalOf('let f = x => x\nreturn [1, 2][f]')).toMatchObject({ code: 'NEXO3082', location: { pointer: '/expression/result/argument' }, message: expect.stringContaining("An indexer's key is data") });
+            expect(refusalOf('let f = x => x\nreturn ["a" = 1][f]')).toMatchObject({ code: 'NEXO3082', location: { pointer: '/expression/result/argument' } });
+            expect(evaluated('let f = x => x + 1\nreturn { items = [f(1)], values = ["a" = f(2)], key = [10, 20][f(0)] }').value).toEqual({ items: [2], values: { entries: [{ key: 'a', value: 3 }] }, key: 20 });
         });
 
         it('reads a dictionary it wrote by key and a list by position, as any of its kind is read', () => {

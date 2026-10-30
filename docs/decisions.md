@@ -172,6 +172,16 @@ Decisions taken without stopping to ask, kept here so they can be reviewed and r
 - **Why:** the owner decided it. A member's answer and an undeclared binding already took a set, so capture now treats a host's collections one way wherever a type is declared. It clarifies the contract, so it keeps `1.0.0-alpha.40`, by [D9](#d9).
 - **Declined:** a set type in the language, which no script needs to tell from a list.
 
+<a id="d18"></a>
+
+## D18 — A function is never a collection's item, value or key
+
+*October 30, 2026*
+
+- **Decision:** a function, an arrow function, a script's function or a reference, is never a list's item, a dictionary's value or an indexer's key. Each is reported where it is found: an arrow function in text as a syntax error (NEXO1057), one in a definition as a structure error (NEXO2027), and one resolution finds as a validation error (NEXO3082). A call answering a valid item stays allowed.
+- **Why:** the owner decided it. The catalog already gave text NEXO1057 for an arrow function outside a local or an argument, so `[x => 1]` follows it; an indexer's key is data as an item is, so it shares NEXO3082 rather than taking a code of its own.
+- **Declined:** a new code for a function as a key, which would split one condition.
+
 <a id="implementation-decisions-reviewed"></a>
 
 ## The implementation decisions, reviewed

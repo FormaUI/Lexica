@@ -300,7 +300,7 @@ When the name is a string literal that is a Nexo name, its definition is the sam
 
 ## Parameters and arguments
 
-A member declares its **parameters**, and a script gives it **arguments**. A function call takes its arguments by position, none or several, and an indexer its one key, each a simple expression; the member's declaration states the form those arguments take, its **argument form**, positional or options. A member *has parameters* where it declares one or more, an optional one included.
+A member declares its **parameters**, and a script gives it **arguments**. A function call takes its arguments by position, none or several, and an indexer its one key, each a simple expression, a key data and never a function, as a collection's item is (NEXO1057, NEXO3082); the member's declaration states the form those arguments take, its **argument form**, positional or options. A member *has parameters* where it declares one or more, an optional one included.
 
 <a id="arguments-positional"></a>
 
