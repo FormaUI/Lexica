@@ -62,6 +62,18 @@ describe('Type', () => {
             expect(Type.parse('List<Number>').identity).toBe('List');
         });
 
+        it('keeps the identity it first wrote, the type frozen and equal to a type it was not kept for, and none for a type that is not named', () => {
+            const sensor = Type.createNamedType('Sensor', true, 'home');
+
+            expect(sensor.identity).toBe('home.Sensor');
+            expect(sensor.identity).toBe(sensor.identity);
+            expect(Object.isFrozen(sensor)).toBe(true);
+            expect(sensor.equals(Type.createNamedType('Sensor', true, 'home'))).toBe(true);
+            expect(sensor.toNonNullable().identity).toBe('home.Sensor');
+            expect(Type.createObjectType(new Map()).identity).toBeNull();
+            expect(Type.createObjectType(new Map()).identity).toBeNull();
+        });
+
         it('writes two types by their local names, and both qualified where those read alike', () => {
             expect(String(Type.parse('home.Sensor'))).toBe('Sensor');
             expect(Type.namesOf(Type.parse('home.Sensor?'), Type.parse('garden.Sensor?'))).toEqual(['home.Sensor?', 'garden.Sensor?']);

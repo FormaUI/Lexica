@@ -70,13 +70,20 @@ export class Type {
         return new Type('named', { name, moduleName, isNullable });
     }
 
+    /**
+     * The identity, written once it is first read: valid for good, since a type never changes, and released with the type. Registries look types up by it wherever a value is captured, copied or checked, and a string
+     * joined anew for each lookup is hashed anew.
+     * @type {string | null | undefined}
+     */
+    #identity;
+
     /** A named type's identity, its module's name and its local name, or its local name alone for one of Nexo's own types; null for any other type. */
     get identity() {
-        if (this.kind !== 'named') {
-            return null;
+        if (this.#identity === undefined) {
+            this.#identity = this.kind !== 'named' ? null : this.moduleName === null ? this.name : `${this.moduleName}.${this.name}`;
         }
 
-        return this.moduleName === null ? this.name : `${this.moduleName}.${this.name}`;
+        return this.#identity;
     }
 
     /** The type of a string, a number or a Boolean, the language's `String`, `Number` or `Boolean`. */
