@@ -156,9 +156,6 @@ const DOCUMENTS = {
     'docs/features-status.md': [],
     'docs/decisions.md': [],
     'LANGUAGE-HISTORY.md': [],
-    'README.md': [
-        { about: 'a body that counts the rows shown', evaluates: { count: 2, label: '2 of 3 shown' } },
-    ],
 };
 
 /** What the example gives against the examples' home: its value, or, for a host call, its prepared call and the projection of the value its host supplies, where it supplies values. */

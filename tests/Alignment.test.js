@@ -58,12 +58,11 @@ describe('Alignment', () => {
         expect(Number(format)).toBe(Number(definition));
     });
 
-    it('has a README that heads the language\'s features with the version the specification describes, and the implementation\'s with the version it reports', () => {
+    it('has a README that names the implementation\'s version and the language version it implements, the one the specification describes', () => {
         const readme = read('README.md');
         const [, described] = specification.match(/^# Nexo Specification v(\S+)$/m);
 
-        expect(readme).toContain(`### Language (\`${described}\`)`);
-        expect(readme).toContain(`### Implementation (\`${nexo.info.versions.implementation}\`)`);
-        expect(readme).toContain(`implements language version \`${nexo.info.versions.language}\``);
+        expect(nexo.info.versions.language).toBe(described);
+        expect(readme).toContain(`The implementation, \`${nexo.info.versions.implementation}\`, implements language version \`${described}\`.`);
     });
 });

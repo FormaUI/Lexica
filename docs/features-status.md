@@ -9,7 +9,7 @@
 | Language | `1.0.0-alpha.41` | `1.0.0-alpha.41` |
 | Definition format | 38 | 38 |
 
-The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Every example the specification and the README give resolves against [the examples' vocabulary](../spec/language/examples-vocabulary.md) and evaluates in the gate, a host call's preparation and projection among them, and each example the specification gives as an error is refused.
+The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Every example the specification gives resolves against [the examples' vocabulary](../spec/language/examples-vocabulary.md) and evaluates in the gate, a host call's preparation and projection among them, and each example the specification gives as an error is refused. The README's example runs as it is written, against the vocabulary its own JavaScript declares, as [decisions](decisions.md#d24) records.
 
 The [specification](../spec/README.md) defines the contract; the [design](nexo-design.md) explains the architecture. This file tracks implementation and the remaining work. "Implemented" means built and tested in the gate for the current implementation version; it does not imply that later specification changes are implemented.
 
@@ -209,7 +209,7 @@ References: [Syntax tree](nexo-design.md#the-syntax-tree), [tooling](nexo-design
 
 Publish both, and test them as consumers install them: NuGet in a published application, and npm installed, bundled, and loaded in Chromium.
 
-Before publishing, advance the package version from `1.0.0-alpha.37`, which waits for publication as [decisions](decisions.md#d23) records, and check that the README and `nexo.info.versions` name the language and definition versions the package implements.
+Before publishing, advance the package version from `1.0.0-alpha.37`, which waits for publication as [decisions](decisions.md#d23) records, and check that the README names the package's version and the language version it implements, and that `nexo.info.versions` names the language and definition versions.
 
 **Beta.** The documents and module API have been audited, and the behavior of a cast inside an optional enclosed access is settled. What remains:
 

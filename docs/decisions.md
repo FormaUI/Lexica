@@ -319,5 +319,16 @@ Forty decisions were taken while implementing the declarations, member selection
 *October 30, 2026*
 
 - **Kind:** Process.
-- **Decision:** the package keeps `1.0.0-alpha.37` while nothing is published. The next published package takes the version due then, and its README and `nexo.info.versions` name the language and definition versions it implements.
+- **Decision:** the package keeps `1.0.0-alpha.37` while nothing is published. The next published package takes the version due then. Its README names it and the language version it implements, and `nexo.info.versions` names the language and definition versions.
 - **Why:** a package version names what was published, and an unpublished working tree need not track every language revision.
+
+<a id="d24"></a>
+
+## D24 — The README's example runs as it is written
+
+*October 30, 2026*
+
+- **Kind:** Process.
+- **Decision:** the README's example declares a vocabulary of its own, a billing module, rather than the examples' vocabulary the specification shares. A test runs the README's JavaScript against its script, and checks the result, the type and the refusals the README states.
+- **Why:** a reader meets a use case they recognize, and the integration they would write. Running the README's own code keeps all of it true.
+- **Declined:** adding billing types to the examples' vocabulary, which would grow a domain the specification's examples do not use; and checking the script alone, which would leave the JavaScript untested.
