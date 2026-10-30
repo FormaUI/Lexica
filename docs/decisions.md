@@ -1,127 +1,148 @@
 # Decisions
 
-The decisions taken while carrying out work without stopping for a question, each with what it settles, what was decided and why, and what was declined, so their owner can review them and reverse any. A decision that settles a rule of the language or the runtime is stated in the [specification](../spec/README.md) too, where its subject lives; this record keeps the reasoning.
+Decisions taken without stopping to ask, kept here so they can be reviewed and reversed.
+
+- Each entry says what was decided, why, and what was declined.
+- A rule a decision settles is stated in the [specification](../spec/README.md) too.
+- Questions not yet decided are in the status overview's [open decisions](features-status.md#open-decisions).
 
 <a id="d1"></a>
 
 ## D1 — The language advances to `1.0.0-alpha.39`
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** Since the implementation followed language `1.0.0-alpha.38`, the specification's contract changed without its version advancing: the host API was renamed, `nexo`, `NexoError` and each type beginning `Nexo` in place of their former names; the host API a host could reach only through the type declarations was specified; and rules settled while implementing were stated, a value's actual type for deferred selection, an imported type's inherited members on a supertype's receiver, a type selector's key needing no import, and the order of a definition's imports. Two builds both reporting `1.0.0-alpha.38` exposed different host APIs.
-
-**Decision.** Advance the language version to `1.0.0-alpha.39`, which the specification, the design, the README, the status overview and the implementation report, the definition format staying at 36 since its contract did not change.
-
-**Why.** A version identifies a contract: a host pins one and expects the contract it names, and DOMQL's checkpoints name the version they migrate to. The specification states that its version advances whenever the language's contract does, and a renamed API is a change of the runtime's contract, which the same version covers.
-
-**Declined.** Counting the rename part of `1.0.0-alpha.38`, as one change made in two commits on one day: it leaves the version naming two contracts, and it would have made every later change that slipped past a version advance a matter of judgment rather than of the record.
+- **Decision:** the language version is `1.0.0-alpha.39`. The definition format stays at 36.
+- **Why:** after the implementation followed `1.0.0-alpha.38`, the host API was renamed and more of the contract was specified, with no version change. Two builds both reporting `1.0.0-alpha.38` had different APIs. A version must name one contract.
+- **Declined:** counting the rename as part of `1.0.0-alpha.38`.
 
 <a id="d2"></a>
 
-## D2 — The language history summarizes `1.0.0-alpha.1` to `1.0.0-alpha.32` in one entry
+## D2 — The history's earliest entry covers everything before `1.0.0-alpha.33`
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** The [language history](../LANGUAGE-HISTORY.md) was to summarize the early versions, up to `1.0.0-alpha.33`, in one entry, since the record keeps no boundaries between them.
-
-**Decision.** One entry covers `1.0.0-alpha.1` to `1.0.0-alpha.32`, and `1.0.0-alpha.33` has an entry of its own.
-
-**Why.** The specification first declared its version in one place at `1.0.0-alpha.32`, on October 21, 2026, and every version from `1.0.0-alpha.33` on has a commit that advanced it and a commit in which the implementation followed it, so its changes can be told apart from its neighbours' exactly. Summarizing a version whose boundaries are known would give up precision the record has.
-
-**Declined.** Ending the summary at `1.0.0-alpha.33`, as first estimated, before the record was read.
-
-*Revised by [D9](#d9): no version was ever numbered `1.0.0-alpha.1` to `1.0.0-alpha.30`, so the entry is the one before `1.0.0-alpha.33`.*
+- **Decision:** one entry, *Before `1.0.0-alpha.33`*, tells the language's origin: DOMQL's query language, its port as Lexica, and the numbering of its versions. Every version from `1.0.0-alpha.33` on has its own entry.
+- **Why:** versions were first numbered on October 21, 2026, to match the definition format. No version was ever called `1.0.0-alpha.1` to `.30`. From `.33` on, the record shows each version's boundaries exactly.
+- **Declined:** a heading of `1.0.0-alpha.1` to `.32`, which names versions that never existed.
 
 <a id="d3"></a>
 
-## D3 — A change stands in the first version whose implementation follows it
+## D3 — A change belongs to the first version whose implementation has it
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** The specification sometimes changed after the implementation had declared that it followed a version, without the version advancing, so a change's version was ambiguous: lineage was specified after the implementation followed `1.0.0-alpha.34`, the verbs were removed after it followed `1.0.0-alpha.36`, and type names were required to begin with a capital after it followed `1.0.0-alpha.33`, then made a convention before it followed `1.0.0-alpha.34`.
-
-**Decision.** Each change stands in the first version whose implementation follows it: lineage in `1.0.0-alpha.35`, the verbs' removal in `1.0.0-alpha.37`, and the enforced capital in none, since no implementation following a version ever enforced it. Each version is dated by the day the specification first described it.
-
-**Why.** A host reads the history to learn what an implementation reporting a version does, and the implementation's following a version is what fixes that. The version the specification's title carried when a change was written would put the verbs' removal in a version whose implementation still has the verbs.
-
-**Declined.** Placing a change by the version the specification carried when it was written, which is quicker to read off the record and wrong for the history's readers.
+- **Decision:** a change is listed under the first version whose implementation follows it. So lineage is in `.35`, the verbs' removal in `.37`, and the briefly enforced capital letter in no version.
+- **Why:** a host reads the history to learn what an implementation reporting a version does. Some specification changes landed after the implementation had followed a version, without a version change.
+- **Declined:** placing a change by the version the specification carried when it was written. That would put the verbs' removal in a version whose implementation still has them.
 
 <a id="d4"></a>
 
-## D4 — An entry covers both contracts and states what it breaks
+## D4 — A history entry covers both contracts, and what breaks
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** C#'s version history, which this one follows, lists a compiler-independent language; Nexo's version names the specification's whole contract, the language and the runtime a host builds on.
-
-**Decision.** Each entry lists the language's changes and the runtime's apart, a change to the specification's organization apart again, and ends with what it breaks, a version that breaks nothing saying so.
-
-**Why.** A host migrating between versions needs the runtime's changes as much as a script's author needs the language's, and until the beta every version may break what the one before allowed, so what breaks is the line a reader looks for first.
-
-**Declined.** A language-only history, which would leave a host's changes, the renamed API among them, recorded nowhere.
+- **Decision:** each entry lists the language's changes and the runtime's separately, then what the version breaks.
+- **Why:** a language version names the whole specification, so a host needs the runtime's changes too. Until the beta any version may break the one before.
+- **Declined:** a language-only history, which would record the renamed API nowhere.
 
 <a id="d5"></a>
 
-## D5 — The history is held to the specification's version by a test and a rule
+## D5 — A test and a rule keep the history current
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** A history kept by hand falls behind the version it records.
-
-**Decision.** The alignment test requires the history's newest entry to be the language version the specification describes, with its definition format, and the working instructions require a commit that advances the version to add its entry.
-
-**Why.** The gate then refuses a version advance that leaves the history behind, as it already refuses one that leaves the README, the design or the status overview behind.
+- **Decision:** the alignment test requires the history's newest entry to match the specification's version. The working instructions require a version advance to add its entry.
+- **Why:** a history kept by hand falls behind. The gate already holds the README, the design and the status overview to the version.
 
 <a id="d6"></a>
 
-## D6 — The runtime's feature status reshapes the status overview rather than adding a document
+## D6 — Feature status lives in the status overview
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** A feature status for the runtime, as Roslyn keeps one for its compiler, was to be added under `docs/`, beside the status overview that already tracks what the implementation implements.
-
-**Decision.** The status overview takes Roslyn's shape: a table of features, each with the contract that states it, its state and the language version the implementation follows it since, the language's and the runtime's apart. Roslyn's columns for branches, developers, reviewers and IDE buddies are left out, and the sections a table cannot hold, DOMQL's migration, tooling, the release, the open decisions and the deferred work, stay below it.
-
-**Why.** Nexo has one implementation, so the runtime's feature status and the implementation's status are one subject, and the working instructions give each subject one home; a second document would split it and drift from the first. The columns left out name the people of a team this project does not have.
-
-**Declined.** A separate `docs/` document beside the status overview.
+- **Decision:** the status overview takes Roslyn's feature-table shape. No separate runtime status document is added. Roslyn's people columns are left out.
+- **Why:** Nexo has one implementation, so its runtime status and its implementation status are one subject, and each subject has one home.
+- **Declined:** a second document under `docs/`.
 
 <a id="d7"></a>
 
-## D7 — A feature's version is the language version the implementation follows, not the implementation's own
+## D7 — A feature is dated by language version
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** Roslyn records the version a feature merged into, and Nexo carries two versions: the implementation's, its packages' release version, and the language's, the specification it follows.
-
-**Decision.** Each feature names the language version the implementation has followed it since, linking that version's entry in the language history.
-
-**Why.** The implementation's version has stood at `1.0.0-alpha.37` throughout, since no package has been published, so every feature would name it; the language version is the one that moved with each feature, and the one a host pins.
-
-**Declined.** The implementation's version, which says nothing until a release advances it.
+- **Decision:** each feature names the language version the implementation has followed it since.
+- **Why:** the implementation's own version is a package version. It has stayed at `1.0.0-alpha.37` because nothing is published, so it would date every feature alike.
 
 <a id="d8"></a>
 
-## D8 — A feature's state names the gap or the deferral it keeps
+## D8 — A feature's state names its gaps
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** The status overview recorded the gaps between the specification and the code, and the deferred work, apart from the capabilities they affect, so a reader of a capability could not see them.
-
-**Decision.** A feature's state says *Implemented*, *Implemented, with a gap*, naming the gap and linking the open decisions, *Implemented in part*, linking what is deferred, or *Planned*.
-
-**Why.** A host choosing whether to rely on a feature needs its gaps beside it, and the open decisions and the deferred work stay where their reasoning is kept.
+- **Decision:** a feature's state is *Implemented*, *Implemented, with a gap*, *Implemented in part* or *Planned*, and names the gap or deferral it links to.
+- **Why:** a host deciding whether to rely on a feature needs its gaps beside it.
 
 <a id="d9"></a>
 
-## D9 — The earliest entry tells the language's origin, and names no versions that never existed
+## D9 — Stating existing behaviour keeps the version
 
-*October 30, 2026.*
+*October 30, 2026*
 
-**What it settles.** The language history's earliest entry was headed `1.0.0-alpha.1` to `1.0.0-alpha.32`, and the history was to record the language's departure from DOMQL, its name Lexica and its renaming to Nexo, though the documents had been cleared of the former name.
+- **Decision:** rules that state what the implementation already does, where the specification was silent, join `1.0.0-alpha.39` without advancing the version.
+- **Why:** an implementation reporting `1.0.0-alpha.39` already behaves this way, so the version still names one contract. A rename or a new rule, which changes what an implementation does, advances it, as [D1](#d1) did.
+- **Declined:** a new version for each rule written down, which would date the specification's text rather than the language.
 
-**Decision.** The earliest entry is headed *Before `1.0.0-alpha.33`*, spans definition formats 1 to 32, and tells the language's origin in order: DOMQL's query language, its port as Lexica at version `1.0.0-alpha`, and the numbering of its versions. `1.0.0-alpha.38` records that Lexica was renamed Nexo. The history names Lexica as part of the language's past; elsewhere the former name stands only where DOMQL's checkpoints describe what DOMQL still uses.
+<a id="implementation-decisions-reviewed"></a>
 
-**Why.** The record shows that no version was numbered before October 21, 2026, when the versions were declared in one place and numbered to match the definition format then current, which began at 1 in DOMQL; a heading naming `1.0.0-alpha.1` invents versions a reader would look for in vain. A history that hides a former name leaves a reader of DOMQL's or of git's history unable to connect it to the language.
+## The implementation decisions, reviewed
 
-**Declined.** Keeping the `1.0.0-alpha.1` heading, which reads as a version range and is not one.
+Forty decisions were taken while implementing the declarations, member selection, script text and collections, and reviewed together on October 30, 2026. Each went one of four ways:
+
+- **Specified:** the specification already states it.
+- **Now specified:** behaviour the implementation had, stated in the specification by the review.
+- **Internal:** how the work landed, private code or test fixtures, with nothing a script or a host sees.
+- **Open:** a question no one has decided, moved to the status overview's [open decisions](features-status.md#open-decisions).
+
+| ID | What it settled | Outcome |
+| --- | --- | --- |
+| I1 | Where a module error stands | Specified: [locations](../spec/runtime/errors.md#validation-diagnostics) |
+| I2 | How nested declarations landed | Internal |
+| I3 | Where a nested member's collision stands | Specified: [locations](../spec/runtime/errors.md#validation-diagnostics) |
+| I4 | A type's `members` that are not a list | Now specified: [NEXO4503](../spec/runtime/errors.md#module-errors) |
+| I5 | A data property, read and never invoked | Specified: [what an implementation receives](../spec/runtime/members.md#members-what-an-implementation-receives) |
+| I6 | A structured type with no data property | Specified: [retired codes](../spec/runtime/errors.md#runtime-retired-codes) |
+| I7 | An unnamed indexer's use, `List[]` | Specified: [resolution](../spec/runtime/resolution.md#runtime-bindings-and-resolution) |
+| I8 | The indexer helper | Specified: [declaration helpers](../spec/runtime/members.md#members-declaration-helpers) |
+| I9 | Where an unnamed indexer stands | Now specified: [locations](../spec/runtime/errors.md#validation-diagnostics) |
+| I10 | A mapping's key | Now specified: [NEXO4008 and locations](../spec/runtime/errors.md#validation-diagnostics) |
+| I11 | An internal type as an extension's target | Specified: [internal declarations](../spec/runtime/modules.md#modules-internal-declarations) |
+| I12 | Where the scalar type names live | Internal |
+| I13 | How named extension types landed | Internal |
+| I14 | Implicit type parameters of the flat form | Internal: the flat form is gone |
+| I15 | How Nexo declares its own value types | Internal |
+| I16 | When a tolerance is checked | Now specified: [numeric tolerance](../spec/runtime/members.md#what-a-member-declares-numeric-tolerance) |
+| I17 | How the tests moved | Internal |
+| I18 | `target` refused, and a parameter as receiver | Specified: [collisions](../spec/language/modules.md#namespaces-a-modules-own-collisions) |
+| I19 | The order of inference | Specified: [binding a call's parameters](../spec/language/types.md#types-type-parameters-binding) |
+| I20 | Owner first, then specificity | Specified: [owners and extensions](../spec/language/extensions.md#extensions-owners) |
+| I21 | A cast operator's rejection | Now specified: [NEXO5004](../spec/runtime/errors.md#runtime-evaluation-errors) |
+| I22 | Deferred calls, and a value's actual type | Specified: [deferred member selection](../spec/language/types.md#types-any-deferred-selection) |
+| I23 | The shapes of a resolution's reports | Specified: [resolution](../spec/runtime/resolution.md#runtime-bindings-and-resolution) |
+| I24 | A receiver of unknown type, evaluated | Specified: [what it answers](../spec/language/types.md#receivers-of-unknown-type-what-it-answers) |
+| I25 | A callback answering `Any` | Specified: [functions passed to members](../spec/language/functions.md#functions-passed-to-members) |
+| I26 | Line endings | Specified: [line breaks](../spec/language/lexical-structure.md#line-structure-line-breaks) |
+| I27 | `import` as a keyword | Specified: [names and reserved words](../spec/language/lexical-structure.md#names-and-reserved-words) |
+| I28 | The order and conflicts of imports | Specified: [the definition](../spec/runtime/definition.md#definition) |
+| I29 | What an import makes available | Specified: [imports](../spec/language/modules.md#scripts-imports) |
+| I30 | Extension access | Now specified: [NEXO3026 and used declarations](../spec/runtime/resolution.md#runtime-bindings-and-resolution); two questions [open](features-status.md#open-decisions) |
+| I31 | Line structure's refusals | Now specified: [where a line breaks](../spec/language/lexical-structure.md#line-structure-where-a-line-breaks) |
+| I32 | Compact text's layout | Now specified: [canonical text](../spec/runtime/definition.md#definition-canonical-text) |
+| I33 | The order a message lists types in | Now specified: [type name lookup](../spec/language/types.md#types-type-name-lookup) |
+| I34 | Lineage | Specified: [provenance](../spec/runtime/evaluation.md#runtime-results-provenance) |
+| I35 | The collection foundation | Now specified: [parameter defaults](../spec/runtime/members.md#members-parameter-declaration-keys); one question [open](features-status.md#open-decisions) |
+| I36 | Collection expressions | Now specified: [one-line constructs](../spec/language/lexical-structure.md#line-structure-where-a-line-breaks); one question [open](features-status.md#open-decisions) |
+| I37 | The members of collections | Specified: [list members](../spec/language/collections.md#collections-list-members) |
+| I38 | Indexer signatures | Now specified: [unnamed indexers](../spec/language/members.md#property-access-calls-and-indexers-unnamed-indexers) |
+| I39 | Ordering | Specified: [ordering](../spec/language/collections.md#collections-list-ordering) |
+| I40 | The examples' fixtures | Internal |

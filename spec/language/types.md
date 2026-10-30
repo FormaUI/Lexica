@@ -104,6 +104,8 @@ An unqualified type name is looked up through the tiers its position sets out, n
 
 A module's own type comes before Nexo's own of its name in its declarations, so where `Home` declares `Number`, `Number` in `Home`'s declarations names `Home.Number`. Nexo's own types have no qualified spelling, so `Home`'s declarations can't name Nexo's `Number` then, a limitation the language leaves open.
 
+A diagnostic that gives several types of one name lists their qualified names in the order their modules registered.
+
 <a id="types-type-parameters"></a>
 
 ## Type parameters

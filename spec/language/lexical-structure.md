@@ -287,6 +287,7 @@ Every position between two tokens is one of three kinds: inside a one-line const
 | A dictionary entry's head, its key and `=` | `"coffee" =` |
 | An index from the end, `^` and its offset | `^1` |
 | A range, its boundaries and its `..` | `1..^1`, `..4` |
+| An empty dictionary | `[=]` |
 | A member step, `.`, `?.`, `:` or `?:` with the name after it | `.where`, `?.temperature` |
 | A computed property access's opening | `x.[`, `x?.[` |
 | A call's `(`, on the line of the name it calls | `device(`, `double(` |
@@ -334,6 +335,11 @@ room {
     end
 }
 ```
+
+A position that no break point or boundary names refuses a line break (NEXO1041), as before a comma, after `return` and before a cast's `as`.
+
+- **Where a refusal stands:** at the token after the gap, and an operator's (NEXO1042, NEXO1064) at the operator.
+- **Which error comes first:** line structure is checked once the text follows the grammar, so a syntax error is reported first, wherever each stands.
 
 <a id="line-structure-operator-expressions"></a>
 

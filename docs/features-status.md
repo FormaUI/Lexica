@@ -2,7 +2,7 @@
 
 ## Current state
 
-**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.39` and definition version 36.** What remains is DOMQL's migration to them, the review of the [implementation decisions](#open-decisions), then [tooling](#tooling) and [the release](#release).
+**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.39` and definition version 36.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
@@ -20,8 +20,7 @@ The [specification](../spec/README.md) defines the contract; the [design](nexo-d
 | Work | State |
 | --- | --- |
 | [DOMQL's migration](#domqls-migration) | Its four checkpoints await DOMQL |
-| [Reviewing the implementation decisions](#open-decisions) | Before tooling |
-| [Tooling](#tooling) | Next, once the decisions are reviewed |
+| [Tooling](#tooling) | Next |
 | [Release](#release) | Planned |
 
 - **A change is a commit,** each passing the gate, and moving each aspect once: a declaration, a test or a document takes its final form the first time the aspect changes.
@@ -221,21 +220,25 @@ Beta means no breaking redesign is planned and remaining limitations are documen
 
 ## Open decisions
 
-The decisions taken while implementing, each without a review of its own, are recorded in [implementation decisions](proposals/implementation-decisions.md), and are reviewed together before [tooling](#tooling). A first review kept the design and corrected lineage that followed equal values rather than occurrences, and lineage a filtered selection, a slice, `pick` and an ordering of a list of collections lost; it also corrected [I39](proposals/implementation-decisions.md)'s recipe for null items first, which [ordering](../spec/language/collections.md#collections-list-ordering) now gives as a function.
+The decisions taken while implementing were reviewed together, and the outcome of each is in [decisions](decisions.md#implementation-decisions-reviewed): the rules they settled are stated in the specification, and the questions they left open are below.
 
 Two open decisions are recorded. The first: a module that declares a type spelled as one of Nexo's own, as `Home.Number`, can't name Nexo's own type of that name in its own declarations, since [type name lookup](../spec/language/types.md#types-type-name-lookup) finds the module's own first and Nexo's own types have no qualified spelling. Giving Nexo a permanent namespace for that was declined; the limitation stands until another spelling is chosen.
 
 The second: a type parameter's default is checked at registration to be data, and against what the parameter binds to nowhere, since resolution checks the arguments a call gives and passes a default left out as it is, so `0` reaches an implementation whose `T` is `String`. Whether resolution refuses such a call, or a parameter of a type parameter takes no default, is open.
 
-An audit of the specification against the code found these gaps between them, each open until it is decided and closed:
+These gaps between the specification and the code, found by audits and by the review above, are each open until decided:
 
 - **Parameter defaults.** [Null arguments](../spec/language/members.md#nullability-a-null-argument-follows-the-parameter) make propagating null a parameter's default, and a parameter required unless marked optional, while `createModule` requires `required` and `nulls` of every parameter (NEXO4536), and only the [declaration helpers](../spec/runtime/members.md#members-declaration-helpers) supply defaults.
 - **`distinctBy`'s key.** [List members](../spec/language/collections.md#collections-list-members) refuse a key of no key type that `distinctBy` gives (NEXO3083), while the resolver refuses one only where a call answers a dictionary, so `xs.distinctBy({ a = it })` is accepted.
 - **Membership of other values.** `contains`, `indexOf`, `distinct` and `distinctBy` compare by [key equality](../spec/language/collections.md#collections-dictionaries-and-pairs), which defines none for an object, a list or a structured value, while the evaluator compares those by identity, so `[[1], [1]].distinct.count` is 2.
 - **A dictionary's metadata.** [Provenance](../spec/runtime/evaluation.md#runtime-results-provenance) gives a list's lineage through filtering and reordering alone, while the collections proposal's decision 9 keeps a retained entry's metadata too; a dictionary's `where` and `select` record none.
-- **Codes.** NEXO5012 is raised for an ambiguous deferred selection and for each argument a selected member can't take, conditions its catalogue row doesn't name, against the rule that distinct conditions never share a code; NEXO3045, NEXO3065, NEXO4021 and NEXO4067 are catalogued and never raised.
+- **Codes.** NEXO5012 is raised for an ambiguous deferred selection and for each argument a selected member can't take, and for a value of `Any` an extension access is given outside the extension's target, conditions its catalogue row doesn't name, against the rule that distinct conditions never share a code; NEXO3045, NEXO3065, NEXO4021 and NEXO4067 are catalogued and never raised.
 - **Declarations.** `createPredicateParameterDeclaration` takes no options, which `nexo.d.ts` declares; a member helper drops `internal` and passes `invokedBy` to a property, which `createModule` then refuses; a value parameter's `context` is never checked; and a type's copy keeps a key holding `undefined`, which [valid declarations](../spec/runtime/modules.md#modules-declarations) count as left out.
 - **Errors.** `NexoError` exposes `syntax`, `module` and `locate`, beside the three factories `nexo.d.ts` declares, and result paths are validated by `nexo.paths.validate` alone, never by `typeAt` and `valueAt`.
+- **A bound extension reference.** A reference such as `let k = words:Words.keep` is called by its member's rules, but takes values alone: `k(it.length > 1)` is refused (NEXO3010). Should it take its member's argument kinds, as a held reference to a module's function does?
+- **A space after `:`.** `f(a: B.c)` is refused as a named argument (NEXO1012) while `f(a:B.c)` is an extension access, and `count: it.devices.count` reads as one at the top level. Should a space decide between them, though trivia never matters elsewhere?
+- **Collections a host supplies.** A declared binding and a host call's supplied value accept a map and a `{ key, value }` object, but refuse a set (NEXO2045, NEXO5015), which an undeclared binding and a member's answer accept. Should capture accept a set too?
+- **An arrow function as a collection item.** `[x => 1]` gives the structure error NEXO2027, where the catalog gives text the syntax error NEXO1057, as `{ a = x => x }` does. Which code is right?
 
 Deferred items below require their stated trigger before design or implementation resumes.
 
@@ -255,8 +258,8 @@ Deferred items below require their stated trigger before design or implementatio
 | Selecting a module's operator when several compete | No syntax selects an operator by module; qualified calls cannot reach operators. | Competing operators in real use |
 | Structured-data casts, reference/data conversions, and operators beyond `cast` and `convert` | Each needs rules for checking and copying. | A use the two operators do not serve |
 | Object-typed parameter defaults, under the ordinary compatibility rules | No parameter can be object-typed while an object type has no notation a declaration writes. | An object type's notation in declarations |
-| A value of `Any` a callback contract passes to a function reference whose parameter declares a concrete type, which [assignability](../spec/language/types.md#types-assignability) accepts and checks | Nothing stands between a callback and the reference's implementation to check what it is called with, so such a reference is refused with NEXO3036, as [I25](proposals/implementation-decisions.md) records. | A host whose callback contract passes `Any` to a typed reference |
-| A function given to a deferred call, as [deferred member selection](../spec/language/types.md#types-any-deferred-selection) accepts one | A function's reading is the declaration's, chosen only as the call is evaluated, so a deferred call takes values alone, as [I22](proposals/implementation-decisions.md) records. | A host whose deferred call needs one |
+| A value of `Any` a callback contract passes to a function reference whose parameter declares a concrete type, which [assignability](../spec/language/types.md#types-assignability) accepts and checks | Nothing stands between a callback and the reference's implementation to check what it is called with, so such a reference is refused with NEXO3036. | A host whose callback contract passes `Any` to a typed reference |
+| A function given to a deferred call, as [deferred member selection](../spec/language/types.md#types-any-deferred-selection) accepts one | A function's reading is the declaration's, chosen only as the call is evaluated, so a deferred call takes values alone. | A host whose deferred call needs one |
 | Calling a module's internal declarations through Nexo | JavaScript implementations can reach their own values directly. | An internal-call API with a defined module context |
 | Wrapping canonical text by width | `format` follows the structural layout alone and never wraps; a width needs a layout policy of its own that keeps canonical text deterministic and every one-line construct whole past it | A host or a tool that needs text kept within a width |
 | Equality of structured values, objects and lists, as keys, members and distinct items | Key equality covers numbers, strings, Booleans, references and null; the equality of the rest needs its hashing, type identity and capture designed together | A host whose keys or distinct items are data of those kinds |

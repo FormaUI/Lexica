@@ -30,6 +30,7 @@ Until the beta, a version may break what the one before it allowed, and each ent
 **Specification**
 
 - [The specification](spec/README.md): organized as its two contracts, the language's and the runtime's, each with its glossary and its error catalog, and collections and extensions are each a document of their own.
+- [Decisions](docs/decisions.md#implementation-decisions-reviewed): behaviour the implementation already had is stated where the specification was silent, among it where a refused line break stands, compact text's indentation, and where an unnamed indexer's and a mapping's errors stand.
 
 **Breaking:** a host imports `nexo` and `NexoError`, and names each type `Nexo…`, where it imported `lexica` and `LexicaError` and named each type `Lexica…`.
 

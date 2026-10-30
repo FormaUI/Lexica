@@ -77,7 +77,7 @@ A parameter is a value, an expression, a predicate or a function. An expression 
 | `kind` | `value`, `expression`, `predicate` or `function` |
 | `type` | A value's type, the type an expression produces, `Boolean` for a predicate, the truthiness its implementation receives (NEXO4540), and a function's result's |
 | `required` | Whether its argument must be given, a Boolean |
-| `default` | The value a missing optional argument takes; a required parameter declares none (NEXO4538) |
+| `default` | The value a missing optional argument takes; a required parameter declares none (NEXO4538). A parameter of a dictionary, a pair or a position type takes no default but null (NEXO4548), since no default holds one |
 | `nulls` | Its [null policy](../language/members.md#nullability-a-null-argument-follows-the-parameter), `propagate` or `accept`; a function parameter leaves it out (NEXO4054) |
 | `fixed` | Whether its argument is [fixed](../language/members.md#arguments-fixed), a Boolean (NEXO4541), which a function parameter leaves out; a fixed parameter is a value parameter of type `String` (NEXO4545) |
 | `selects`, `selector` | What a fixed parameter selects, `type`, and the type selector it selects through, which a parameter that is not fixed declares neither of (NEXO4542) |
@@ -127,6 +127,8 @@ A member's evaluation contract is grouped under `updates`: how it reads, `reads`
 ### Numeric tolerance
 
 A member may declare a tolerance for its numeric result and every number within a structured result, as `sensor.temperature` declares `0.5`. A result's [metadata](evaluation.md#runtime-results) carries it, and a host that compares results treats an absolute difference no greater than it as unchanged, and compares exactly where the member declares none. The rule applies regardless of the member's form. `tolerance` is taken by a member whose result is a `Number`, a `Number?` or a structured type, nullable or not, where it applies to every number the structure holds, and refused by any other, a list among them.
+
+A tolerance that is no non-negative number is refused when the module is created (NEXO4515). A tolerance on a result that holds no number is refused when the module is registered (NEXO4026).
 
 <a id="members-what-an-implementation-receives"></a>
 

@@ -69,6 +69,7 @@ A **location** says where a failure stands by one group of fields, never two, th
 | Module | `module`, the module's name; `type`, the type a nested declaration, a member a type declares among them, stands in; `declaration`, the declaration's name; and `declarationKey`, the key the failure concerns, a declaration's, as `updates.misses`, or, with no declaration, the module's own; each but `module` only where the failure concerns it | A module error |
 
 - **A position counts from the text's start.** `offset` counts the text's UTF-16 code units from 0, and `line` and `column` count from 1. Each line break, LF, CRLF or a lone CR, begins a line, so CRLF begins one, its two characters both counted in the offset.
+- **An unnamed indexer and a mapping** have no name, so a module error names an unnamed indexer `[]` as its `declaration`, and a mapping by its key. Two unnamed indexers that collide (NEXO4068) stand at the declaration key `kind`.
 - **A node without text of its own** is positioned at the nearest node enclosing it that has some, its `pointer` still its own.
 - **A failure of the API's use that stands nowhere** carries an empty location, `{}`: imports a host supplies that are refused, `NEXO2008`, bindings or their options that are not a plain object, `NEXO2020`, bindings another registry made, `NEXO2024`, bindings of another resolution key, `NEXO2025`, a resolution no longer current, `NEXO2040`, a pointer that is no JSON Pointer, `NEXO2643`, reading what is not a script's source, `NEXO2645`, a result path of another shape, `NEXO2646`, and evaluating an evaluator from within its own evaluation, `NEXO5010`.
 
@@ -135,7 +136,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `NEXO4006` | A type selector, an observation type or an observation target named by what is not an identifier | A module error naming the declaration |
 | `NEXO4037` | An observation target named `receiver` | A module error naming the target |
 | `NEXO4007` | A type selector or an observation type named as one any module already declares | A module error naming it and the module that declared it |
-| `NEXO4008` | A mapping without its `selector`, `key` or `type` | A module error naming the declaration key |
+| `NEXO4008` | A mapping without its `selector` or its `type`, or whose `key` is no string | A module error naming the declaration key |
 | `NEXO4038` | A mapping whose key already stands in its selector | A module error naming the selector, the key and the module that declared it first |
 | `NEXO4039` | A mapping of a selector no registered module declares | A module error naming the selector |
 | `NEXO4009` | A function with more than one parameter that selects a type | A module error naming the function |
@@ -189,7 +190,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `NEXO4500` | A module whose name is not an identifier | A module error naming the module |
 | `NEXO4501` | A module's contents that are not an object | A module error naming what a module declares |
 | `NEXO4502` | A module's contents declaring what a module does not declare | A module error naming what a module declares |
-| `NEXO4503` | A module's declarations of one kind that are not a list | A module error naming the kind |
+| `NEXO4503` | A module's declarations of one kind, or a type's or an extension's `members`, that are not a list | A module error naming the kind |
 | `NEXO4504` | A declaration, its `updates`, a parameter or an observation that is not an object | A module error naming the declaration keys it takes |
 | `NEXO4505` | An `impl` that is not a function | A module error naming the declaration |
 | `NEXO4507` | A type's `import` that is not a list of modules' names | A module error naming the type |
@@ -260,7 +261,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `NEXO5003` | A conversion that throws | A fault naming the conversion |
 | `NEXO5018` | A conversion that rejects with a reason that is not a string, or rejects and then answers | A fault naming the conversion |
 | `NEXO5019` | A conversion that answers null or a value not of its type | A fault naming the conversion |
-| `NEXO5004` | A cast operator's `impl` failing other than by its `reject` | A fault naming the operator |
+| `NEXO5004` | A cast operator's `impl` failing other than by its `reject`, rejecting with a reason that is no string, or rejecting and then answering | A fault naming the operator |
 | `NEXO5006` | A module returning a value of a type other than the one it declared | An evaluation error naming the member and its module |
 | `NEXO5007` | A member failing unexpectedly while it evaluates, its implementation throwing | An evaluation error at the member, its `cause` exactly what the implementation threw, as [the evaluator](evaluation.md#runtime-evaluation) sets out |
 | `NEXO5008` | A function given to a member called after that member's invocation has ended | An evaluation error |
