@@ -30,6 +30,8 @@ The decisions taken while carrying out work without stopping for a question, eac
 
 **Declined.** Ending the summary at `1.0.0-alpha.33`, as first estimated, before the record was read.
 
+*Revised by [D9](#d9): no version was ever numbered `1.0.0-alpha.1` to `1.0.0-alpha.30`, so the entry is the one before `1.0.0-alpha.33`.*
+
 <a id="d3"></a>
 
 ## D3 — A change stands in the first version whose implementation follows it
@@ -109,3 +111,17 @@ The decisions taken while carrying out work without stopping for a question, eac
 **Decision.** A feature's state says *Implemented*, *Implemented, with a gap*, naming the gap and linking the open decisions, *Implemented in part*, linking what is deferred, or *Planned*.
 
 **Why.** A host choosing whether to rely on a feature needs its gaps beside it, and the open decisions and the deferred work stay where their reasoning is kept.
+
+<a id="d9"></a>
+
+## D9 — The earliest entry tells the language's origin, and names no versions that never existed
+
+*October 30, 2026.*
+
+**What it settles.** The language history's earliest entry was headed `1.0.0-alpha.1` to `1.0.0-alpha.32`, and the history was to record the language's departure from DOMQL, its name Lexica and its renaming to Nexo, though the documents had been cleared of the former name.
+
+**Decision.** The earliest entry is headed *Before `1.0.0-alpha.33`*, spans definition formats 1 to 32, and tells the language's origin in order: DOMQL's query language, its port as Lexica at version `1.0.0-alpha`, and the numbering of its versions. `1.0.0-alpha.38` records that Lexica was renamed Nexo. The history names Lexica as part of the language's past; elsewhere the former name stands only where DOMQL's checkpoints describe what DOMQL still uses.
+
+**Why.** The record shows that no version was numbered before October 21, 2026, when the versions were declared in one place and numbered to match the definition format then current, which began at 1 in DOMQL; a heading naming `1.0.0-alpha.1` invents versions a reader would look for in vain. A history that hides a former name leaves a reader of DOMQL's or of git's history unable to connect it to the language.
+
+**Declined.** Keeping the `1.0.0-alpha.1` heading, which reads as a version range and is not one.

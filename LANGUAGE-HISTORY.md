@@ -31,7 +31,7 @@ Until the beta, a version may break what the one before it allowed, and each ent
 
 - [The specification](spec/README.md): organized as its two contracts, the language's and the runtime's, each with its glossary and its error catalog, and collections and extensions are each a document of their own.
 
-**Breaking:** a host imports `nexo` and `NexoError`, and names each type `Nexo…`, in place of the API's former names.
+**Breaking:** a host imports `nexo` and `NexoError`, and names each type `Nexo…`, where it imported `lexica` and `LexicaError` and named each type `Lexica…`.
 
 <a id="v1-0-0-alpha-38"></a>
 
@@ -41,7 +41,7 @@ Until the beta, a version may break what the one before it allowed, and each ent
 
 **Language**
 
-- [The specification](spec/README.md): the language is named Nexo.
+- [The specification](spec/README.md): the language Lexica is renamed Nexo.
 - [Imports](spec/language/modules.md#scripts-imports): the language's own module is `Nexo`, which no script imports.
 - [Codes](spec/runtime/errors.md#diagnostics-codes): every diagnostic code is `NEXO` and four digits.
 
@@ -49,7 +49,7 @@ Until the beta, a version may break what the one before it allowed, and each ent
 
 - [The definition](spec/runtime/definition.md#definition): definition format 36 refuses an import of `Nexo`.
 
-**Breaking:** every diagnostic code begins `NEXO`, the language's own module is `Nexo`, and an implementation reads definitions of format 36 alone.
+**Breaking:** every diagnostic code begins `NEXO`, where it began `LEXICA`, the language's own module is `Nexo`, where it was `Lexica`, and an implementation reads definitions of format 36 alone.
 
 <a id="v1-0-0-alpha-37"></a>
 
@@ -163,13 +163,19 @@ Until the beta, a version may break what the one before it allowed, and each ent
 
 **Breaking:** a property read by a name an expression gives is written `x.[p]`, where it was `x[p]`, which now reads a type's unnamed indexer; and an implementation reads definitions of format 33 alone.
 
-<a id="v1-0-0-alpha-1-to-32"></a>
+<a id="before-v1-0-0-alpha-33"></a>
 
-## `1.0.0-alpha.1` to `1.0.0-alpha.32`
+## Before `1.0.0-alpha.33`
 
-*Through October 21, 2026 · definition formats to 32*
+*October 9 to 21, 2026 · definition formats 1 to 32*
 
-The versions before the specification declared its version in one place, whose boundaries the record does not keep. Together they built the foundation:
+The language began inside DOMQL, and left it to stand alone before its versions were numbered:
+
+- **DOMQL's query language,** October 9, 2026: a language for querying the DOM, read from text into a definition of format 1, which grew within DOMQL to definition format 30.
+- **Lexica,** October 19, 2026: ported from DOMQL as an extensible language of its own, named Lexica, at version `1.0.0-alpha`, the modules a host registers declaring its domain, and DOMQL building on it from then.
+- **Numbered versions,** October 21, 2026: each language version declared in one place, numbered to match the definition format then current, the specification describing `1.0.0-alpha.32` and the implementation following `1.0.0-alpha.31`.
+
+Together they built the foundation every later version extends:
 
 - [Scripts](spec/language/scripts.md#scripts): their parameters a host binds, bodies and locals.
 - [Values](spec/language/values.md): objects and the object root, lists and null.

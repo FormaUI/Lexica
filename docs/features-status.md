@@ -39,14 +39,14 @@ Each feature, the contract that states it, its state in the implementation, and 
 
 | Feature | Contract | State | Since |
 | --- | --- | --- | --- |
-| Scripts, their parameters, bodies and locals | [Scripts](../spec/language/scripts.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
-| Tokens, names, strings and comments | [Lexical structure](../spec/language/lexical-structure.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Scripts, their parameters, bodies and locals | [Scripts](../spec/language/scripts.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
+| Tokens, names, strings and comments | [Lexical structure](../spec/language/lexical-structure.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | Line structure | [Line structure](../spec/language/lexical-structure.md#line-structure) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
-| Objects, the object root and null | [Values](../spec/language/values.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
-| Tests, equality, arithmetic, comparisons, logic, conditionals, coalescing, attempts and interpolated strings | [Expressions](../spec/language/expressions.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
-| Casts and conversions | [Casts](../spec/language/types.md#casts), [conversions](../spec/language/values.md#conversions) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
-| Functions a script declares, and function references | [Functions](../spec/language/functions.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
-| Members, their arguments and their kinds, and host calls in a script | [Members](../spec/language/members.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Objects, the object root and null | [Values](../spec/language/values.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
+| Tests, equality, arithmetic, comparisons, logic, conditionals, coalescing, attempts and interpolated strings | [Expressions](../spec/language/expressions.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
+| Casts and conversions | [Casts](../spec/language/types.md#casts), [conversions](../spec/language/values.md#conversions) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
+| Functions a script declares, and function references | [Functions](../spec/language/functions.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
+| Members, their arguments and their kinds, and host calls in a script | [Members](../spec/language/members.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | Indexers and computed property access | [Named indexers](../spec/language/members.md#property-access-calls-and-indexers-named-indexers), [computed property access](../spec/language/members.md#computed-property-access) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
 | Types identified by their module | [Type identity](../spec/language/types.md#types-type-identity) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
 | Imports, aliases and type imports, a host's among them, namespaces, module members and qualified access | [Imports](../spec/language/modules.md#scripts-imports), [namespaces](../spec/language/modules.md#namespaces) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
@@ -58,27 +58,27 @@ Each feature, the contract that states it, its state in the implementation, and 
 | Lists, dictionaries, pairs and collection expressions, with their members | [Collections](../spec/language/collections.md) | Implemented, with a [gap](#open-decisions): `distinctBy`'s key, and the membership of values key equality doesn't compare | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
 | Positions, ranges, slicing and ordering | [Positions](../spec/language/collections.md#collections-positions), [ordering](../spec/language/collections.md#collections-list-ordering) | Implemented | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
 | The members of numbers and strings | [Number members](../spec/language/vocabulary.md#vocabulary-number-members), [string members](../spec/language/vocabulary.md#vocabulary-string-members) | Implemented | [`alpha.36`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-36) |
-| Boolean functions, the tests a module declares | [Boolean functions](../spec/language/vocabulary.md#vocabulary-boolean-functions) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
-| Type selectors | [Type selectors](../spec/language/vocabulary.md#vocabulary-type-selectors) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Boolean functions, the tests a module declares | [Boolean functions](../spec/language/vocabulary.md#vocabulary-boolean-functions) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
+| Type selectors | [Type selectors](../spec/language/vocabulary.md#vocabulary-type-selectors) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | The conditions a script fails on, each with its code | [Errors](../spec/language/errors.md) | Implemented, with a [gap](#open-decisions): NEXO5012 shared by several conditions, and four codes never raised | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
 
 ### The runtime
 
 | Feature | Contract | State | Since |
 | --- | --- | --- | --- |
-| Bindings, recognition and declared types | [Bindings](../spec/runtime/bindings.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
-| Resolution, its reports, result paths and locations | [Resolution](../spec/runtime/resolution.md) | Implemented, with a [gap](#open-decisions): a path validated by `nexo.paths.validate` alone | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Bindings, recognition and declared types | [Bindings](../spec/runtime/bindings.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
+| Resolution, its reports, result paths and locations | [Resolution](../spec/runtime/resolution.md) | Implemented, with a [gap](#open-decisions): a path validated by `nexo.paths.validate` alone | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | Resolutions that stay current across registrations | [Reusing a resolution](../spec/runtime/resolution.md#runtime-reuse) | Implemented | [`alpha.36`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-36) |
-| Evaluation, its hooks, and results with their metadata | [Evaluation](../spec/runtime/evaluation.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Evaluation, its hooks, and results with their metadata | [Evaluation](../spec/runtime/evaluation.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | The lineage of projected items | [Provenance](../spec/runtime/evaluation.md#runtime-results-provenance) | Implemented, with a [gap](#open-decisions): a dictionary's metadata | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
 | Values in a host's forms | [A value in a host's form](../spec/runtime/evaluation.md#runtime-host-forms) | Implemented | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
-| Preparing host calls and projecting what their host supplies | [Host calls](../spec/runtime/host-calls.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Preparing host calls and projecting what their host supplies | [Host calls](../spec/runtime/host-calls.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | Modules: their declarations, operators, internal declarations, duplicates and registries | [Modules](../spec/runtime/modules.md) | Implemented, with a [gap](#open-decisions): a type's copy keeps a key holding `undefined` | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
-| Declaring members, their parameter keys and the declaration helpers | [Members](../spec/runtime/members.md) | Implemented, with a [gap](#open-decisions): parameter defaults, options the helpers drop, and a value parameter's `context` left unchecked | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Declaring members, their parameter keys and the declaration helpers | [Members](../spec/runtime/members.md) | Implemented, with a [gap](#open-decisions): parameter defaults, options the helpers drop, and a value parameter's `context` left unchecked | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | Extensions a module declares | [Extensions](../spec/runtime/extensions.md) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
-| Observation types and targets | [Observations](../spec/runtime/observations.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Observation types and targets | [Observations](../spec/runtime/observations.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | Type selectors' keys as mappings | [Type selectors](../spec/runtime/type-selectors.md) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
-| The definition, its structural validation and canonical text | [Definition](../spec/runtime/definition.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| The definition, its structural validation and canonical text | [Definition](../spec/runtime/definition.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | The error object, its factories and locations | [Errors](../spec/runtime/errors.md) | Implemented, with a [gap](#open-decisions): `NexoError`'s undeclared methods | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
 | The host API named for Nexo | [Hosting Nexo](../spec/runtime/hosting.md) | Implemented | [`alpha.39`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-39) |
 | A tolerant reading that collects diagnostics without throwing | [Tooling](#tooling) | Planned | — |
