@@ -333,3 +333,19 @@ Forty decisions were taken while implementing the declarations, member selection
 - **Reference date:** the example's date is one the application gives the evaluation, which the README's text names, never the clock. The test runs under a clock set years later, so the result it shows stays right.
 - **Why:** a reader meets a use case they recognize, and the integration they would write. Running the README's own code keeps all of it true.
 - **Declined:** adding billing types to the examples' vocabulary, which would grow a domain the specification's examples do not use; and checking the script alone, which would leave the JavaScript untested.
+
+<a id="d25"></a>
+
+## D25 — A performance change keeps every behaviour
+
+*October 30, 2026*
+
+- **Kind:** Process.
+- **Decision:** a change made for speed or memory keeps every behaviour the contract states, errors and their paths, hook requests, metadata and the checks among them. Each change is measured alone against the commit before it, and kept only where the benchmark shows it helps. A test pins any behaviour a change reimplements, run against the code before and after it.
+- **Why:** the user asked for safe improvements. A faster Nexo that answers differently is a different Nexo.
+- **Declined:**
+  - Skipping the checks of Nexo's own members' answers, about a tenth of an evaluation. It relies on no implementation changing a value it is given, which the contract doesn't state, so it is an [open decision](features-status.md#open-decisions).
+  - Collecting a text's locations at its first error, about a tenth of a parse. A kept script would hold its lowered definition beside its validated one.
+  - A structure-type table for each registry, and one empty list shared by every type without type arguments. Neither measured beyond noise.
+  - Freezing a filter's positions in place. `pick` gives the script's own list as its positions.
+- **Correction:** the commit that keeps a structure's unchanged record says it saves a quarter of the portfolio report's allocation. Measured alone, it saves 9%.

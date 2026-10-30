@@ -106,3 +106,33 @@ The benchmark measures Nexo against the work a script stands for. It is a billin
 | Preparing the account summary | Parsing a text no parse has kept, resolving it, and creating an evaluator |
 
 Each case reports the median time of one operation, warmed up and with a full collection before each sample, and the bytes it allocates, which V8's GC profiler counts across collections. `node benchmarks/run.mjs --save` keeps a run and `--compare` shows another's change from it, as [contributing](../CONTRIBUTING.md#measure-performance) sets out.
+
+### The first performance pass
+
+Measured on October 30, 2026, on Node 24 and an Intel Core i7-10700F. A time varies by about a tenth from run to run; an allocation varies far less.
+
+| Case | JavaScript | Nexo before | Nexo after |
+| --- | --- | --- | --- |
+| Account summary: evaluate | 2.7 µs, 1.4 KB | 37 µs, 32 KB | 33 to 38 µs, 22 to 25 KB |
+| Account summary: evaluate, reporting reads | | 71 µs, 45 KB | 35 to 39 µs, 24 KB |
+| Account summary: bind and evaluate | | 90 µs, 83 KB | 58 µs, 40 KB |
+| Portfolio report: evaluate | 2.1 ms, 1.3 MB | 33 ms, 24 MB | 28 to 31 ms, 12 MB |
+| Portfolio report: bind | | 45 ms, 41 MB | 17 ms, 10 MB |
+| Preparing: parse, resolve | | 0.2 to 0.3 ms each | unchanged |
+
+What changed, each change measured alone and kept where it helped:
+
+- **A type's identity** is written once, when first read, rather than joined at every registry lookup.
+- **Capture** writes a part's path only when the part fails, and builds a structure field by field.
+- **A request's pointer** is resolved once for each pointer, so reporting reads costs little more than not reporting.
+- **Answer checks** run as the type's own check where null and nothing refuse themselves, a scalar's check is chosen once, and fields are checked in a loop.
+- **A structure's record** is kept where it is recorded again as the same type.
+- **Callbacks** are closed through an index of those still open, rather than a weak map of every one.
+- **A call's parameters** are bound without temporary arrays.
+
+What remains is mostly what the contract asks for:
+
+- **Every answer is checked** against its declared type, a list item by item and a structure field by field, and so is every value a member gives a callback. Skipping the answers of Nexo's own members would save about a tenth of an evaluation, which the status overview's [open decisions](features-status.md#open-decisions) weigh.
+- **Every structured value Nexo makes is recorded** by the value in a weak map, so a value of `Any` keeps its type. Recording is about a third of binding, and a table for each registry saves nothing.
+- **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
+- **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.

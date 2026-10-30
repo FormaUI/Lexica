@@ -224,9 +224,11 @@ Beta means no breaking redesign is planned and remaining limitations are documen
 
 The decisions taken while implementing were reviewed together, and the outcome of each is in [decisions](decisions.md#implementation-decisions-reviewed): the rules they settled are stated in the specification, and the questions they left open are below.
 
-Two open decisions are recorded. The first: a module that declares a type spelled as one of Nexo's own, as `Home.Number`, can't name Nexo's own type of that name in its own declarations, since [type name lookup](../spec/language/types.md#types-type-name-lookup) finds the module's own first and Nexo's own types have no qualified spelling. Giving Nexo a permanent namespace for that was declined; the limitation stands until another spelling is chosen.
+Three open decisions are recorded. The first: a module that declares a type spelled as one of Nexo's own, as `Home.Number`, can't name Nexo's own type of that name in its own declarations, since [type name lookup](../spec/language/types.md#types-type-name-lookup) finds the module's own first and Nexo's own types have no qualified spelling. Giving Nexo a permanent namespace for that was declined; the limitation stands until another spelling is chosen.
 
 The second: a type parameter's default is checked at registration to be data, and against what the parameter binds to nowhere, since resolution checks the arguments a call gives and passes a default left out as it is, so `0` reaches an implementation whose `T` is `String`. Whether resolution refuses such a call, or a parameter of a type parameter takes no default, is open.
+
+The third: every answer is checked against its declared type, a list item by item and a structure field by field, Nexo's own members' answers among them. A list member of Nexo's own that answers its receiver's items answers values checked already, unless an implementation changed one it was given, which the contract doesn't forbid. Skipping those checks saves about a tenth of an evaluation, as the [design](nexo-design.md#the-first-performance-pass) measures. Whether the contract forbids changing a value an implementation is given, and Nexo's own answers go unchecked, is open.
 
 These gaps between the specification and the code, found by audits and by the review above, are each open until decided:
 
