@@ -973,6 +973,10 @@ export class Evaluator {
         const checksReceiver = resolution.checksReceiver === true;
         const evaluateNode = receiverNode === undefined ? null : this.#getCompiledFunction(receiverNode);
         const evaluateReceiver = resolution.readsBoundReceiver === true ? (evaluator, context) => evaluateNode(evaluator, context).receiver : evaluateNode;
+        // A local that may hold several functions of one contract invokes the one it holds, each with its own result type, the arguments the contract read named by that function's own parameters.
+        const alternatives = resolution.alternatives === undefined ? null : new Map(resolution.alternatives.map(alternative => [alternative.declaration, { invocation: this.#getCompiledInvocation(alternative.declaration, alternative.type), parameterNames: alternative.parameterNames }]));
+        const evaluateCallee = alternatives === null ? null : this.#getCompiledFunction(node.callee);
+        const parameterNames = declaration.parameters?.map(parameter => parameter.name) ?? [];
         const invocation = this.#getCompiledInvocation(declaration, resultType);
         const evaluateArguments = this.#compileArguments(resolution);
 
@@ -994,8 +998,30 @@ export class Evaluator {
 
             const args = evaluateArguments(evaluator, context);
 
-            return args === null ? null : evaluator.#invokeImplementation(invocation, receiver, args, node);
+            if (args === null) {
+                return null;
+            }
+
+            if (alternatives === null) {
+                return evaluator.#invokeImplementation(invocation, receiver, args, node);
+            }
+
+            const callee = evaluateCallee(evaluator, context);
+            const chosen = alternatives.get(callee.reference);
+
+            (evaluator.#selections ??= new Map()).set(node, callee.reference);
+
+            return evaluator.#invokeImplementation(chosen.invocation, receiver, Evaluator.#renameArguments(args, parameterNames, chosen.parameterNames), node);
         };
+    }
+
+    /** The arguments, named by one declaration's parameters, named by another's of the same positions, as functions of one contract name them apart. */
+    static #renameArguments(args, names, ownNames) {
+        if (names.every((name, index) => name === ownNames[index])) {
+            return args;
+        }
+
+        return Object.fromEntries(names.filter(name => Object.hasOwn(args, name)).map(name => [ownNames[names.indexOf(name)], args[name]]));
     }
 
     /**

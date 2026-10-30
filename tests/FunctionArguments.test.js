@@ -177,7 +177,33 @@ describe('a reference bound to its receiver', () => {
         expect(invoked).toEqual([['vegan', 'oat'], ['vegan', 'oat']]);
     });
 
-    it('takes values alone where the local may hold one of several functions, as a held reference to a module\'s function does', () => {
-        expect(errorThrownBy(() => resolve('let test = if word == "oat" then word:is else other:is end\nreturn test(it:size > 2)'))).toMatchObject({ code: 'NEXO3010' });
+    it('reads its arguments by the one contract the functions a local may hold share, invoking the one it holds, each by its own parameters\' names', () => {
+        const text = 'let test = if word == "oat" then word:is else other:is end\nreturn test(it:size > 3)';
+
+        expect(evaluate(text).value).toBe(false);
+        expect(evaluate(text, { ...values, word: 'oats' }).value).toBe(true);
+        expect(evaluate('let test = if word == "oat" then word:keep else other:is end\nreturn test(w => w:vegan())').value).toBe(true);
+
+        const rules = nexo.createModule('rules', {
+            types: [extensionDeclaration('Words', 'String', [
+                createFunctionDeclaration('keeps', 'String', { updates: constantUpdates, parameters: [createFunctionParameterDeclaration('test', 'Boolean', ['String'])], impl: ({ receiver, args }) => `${receiver} keeps ${args.test(receiver)}` }),
+                createFunctionDeclaration('holds', 'String', { updates: constantUpdates, parameters: [createFunctionParameterDeclaration('rule', 'Boolean', ['String'])], impl: ({ receiver, args }) => `${receiver} holds ${args.rule(receiver)}` }),
+            ])],
+        });
+        const evaluateRules = (bound, script) => resolveWith([rules], script, bound).createEvaluator(bound).evaluate().value;
+        const chosen = 'let call = if word == "oat" then word:keeps else word:holds end\nreturn call(it.length > 2)';
+
+        expect([evaluateRules({ word: 'oat' }, chosen), evaluateRules({ word: 'rye!' }, chosen)]).toEqual(['oat keeps true', 'rye! holds true']);
+    });
+
+    it('refuses a call its possible functions read differently, naming where they part', () => {
+        expect(errorThrownBy(() => resolve('let test = if word == "oat" then word:is else count:is end\nreturn test(it > 1)', { ...values, count: 2 }))).toMatchObject({
+            code: 'NEXO3079',
+            message: expect.stringContaining("'test' may hold 'String.is' or 'Number.is', which read its arguments differently: 'String.is' takes its argument 'test' as a function of String answering Boolean, and 'Number.is' as a function of Number answering Boolean"),
+        });
+        expect(errorThrownBy(() => resolve('let own = function(w)\n    return true\nend\nlet test = if word == "oat" then own else word:is end\nreturn test(it:size > 2)'))).toMatchObject({
+            code: 'NEXO3079',
+            message: expect.stringContaining('a function the script declares takes values alone'),
+        });
     });
 });

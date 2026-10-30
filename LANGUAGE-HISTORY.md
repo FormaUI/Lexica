@@ -15,6 +15,7 @@ Until the beta, a version may break what the one before it allowed, and each ent
 - [Reading an access's names](spec/language/extensions.md#extensions-reading-names): an extension access's names are read by the declarations they name, so ordinary access continues after the member in each form, as `name:size.width` and `device:Energy.Device.power.round` read.
 - [Reading an access's names](spec/language/extensions.md#extensions-reading-names): names that read more than one way are refused (NEXO3091), and a group or a named extension writes one; a group is needed only there.
 - [Owners and extensions](spec/language/extensions.md#extensions-owners): how a member is declared decides how it is read, `.` for one declared within a type and `:` for one declared within an extension, whichever module declares it; `flatten` is a member `List<T>` declares as its own for a list of lists.
+- [Function references](spec/language/functions.md#functions-module-functions): a call of a local that may hold several functions reads its arguments by the contract they share, as each one's call would, and is refused where their contracts read them differently (NEXO3079).
 - [Whitespace in access expressions](spec/language/lexical-structure.md#tokens-and-whitespace-access-expressions): spaces and tabs between an access's tokens change nothing, in a property access, a computed one and an extension access alike, and a line break before a step is the line structure's, an extension access's colon and dots among them.
 
 **Runtime**

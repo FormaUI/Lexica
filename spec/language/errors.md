@@ -205,7 +205,7 @@ In this document:
 | `NEXO3040` | An `and` or an `or` whose operands give values no one type holds | A validation error naming them, and the conditional to write where null is an acceptable alternative |
 | `NEXO3041` | Branches of different types | A validation error naming the types |
 | `NEXO3042` | A receiver, an argument, an expression or a binding of the wrong type | A validation error naming where, the expected type and the type found |
-| `NEXO3079` | An argument of the wrong kind | A validation error naming the argument and the kind it takes |
+| `NEXO3079` | An argument of the wrong kind, and a call of a local whose possible functions read its arguments differently | A validation error naming the argument and the kind it takes, or the functions and where their contracts part |
 | `NEXO3080` | A missing required argument | A validation error naming the argument |
 | `NEXO3081` | A collection expression whose items, or whose dictionary's values, share no type | A validation error naming the types |
 | `NEXO3083` | A dictionary a call answers keyed by a type no key is of, as `toDictionary` and `groupBy` given a key expression of an object type | A validation error at the call, naming the key type |

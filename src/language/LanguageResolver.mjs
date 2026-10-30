@@ -1183,6 +1183,11 @@ export class LanguageResolver {
             }
         }
 
+        // A call of several possible functions gives them one argument list, which their one contract reads where one of them takes an argument of another kind than a value.
+        if (functions.length > 1 && functions.some(target => target.reference !== undefined && !LanguageResolver.#takesValuesAlone(target.reference))) {
+            return this.#resolveSharedContractCall(node, pointer, scope, functions);
+        }
+
         for (const target of functions) {
             if (target.reference !== undefined) {
                 continue;
@@ -1243,6 +1248,139 @@ export class LanguageResolver {
             receiverOf: `'${node.callee.name}' holds a reference to '${written}', which takes a receiver of`,
             nameOf: () => written,
         }));
+    }
+
+    /**
+     * Resolves a call of a local that may hold several functions, one of which takes an argument of another kind than a value: the one argument contract every function shares reads the call's arguments, as a call
+     * of any one of them would, and evaluation invokes the function the local holds. They share one where every one is a reference to a module's function, all bound to their receivers or all taking their receiver
+     * as the call's first argument, and agree on their argument form, on each parameter's name, kind, requirement, null policy, default and type, a callback's parameter types among them, once their receivers bind
+     * what their types write, and on type parameters of their own, which only one declaration binds. Where they read the arguments differently, the call is refused, naming where they part (NEXO3079): no one argument
+     * list fits functions whose contracts read it differently.
+     */
+    #resolveSharedContractCall(node, pointer, scope, functions) {
+        const written = node.callee.name;
+        // A reference bound to its receiver is named by its receiver's type, and any other as its qualified form names it.
+        const nameOf = target => {
+            if (target.reference === undefined) {
+                return 'a function the script declares';
+            }
+
+            return `'${target.isBound === true ? `${target.receiverType}.${target.reference.name}` : this.#referenceNameOf(target.reference)}'`;
+        };
+        const refuse = (first, other, difference) => this.#fail('NEXO3079', `'${written}' may hold ${nameOf(first)} or ${nameOf(other)}, which read its arguments differently: ${difference}; call each through a local that holds it alone`, pointer);
+        const scriptFunction = functions.find(target => target.reference === undefined);
+        const [firstTarget] = functions.filter(target => target.reference !== undefined && !LanguageResolver.#takesValuesAlone(target.reference));
+
+        if (scriptFunction !== undefined) {
+            refuse(scriptFunction, firstTarget, `a function the script declares takes values alone, and ${nameOf(firstTarget)} an argument of another kind`);
+        }
+
+        const isBound = firstTarget.isBound === true;
+        const takesReceiver = !isBound && this.#registry.takesReceiver(firstTarget.reference);
+
+        for (const target of functions) {
+            if ((target.isBound === true) !== isBound || (!isBound && this.#registry.takesReceiver(target.reference) !== takesReceiver)) {
+                refuse(firstTarget, target, 'one takes its receiver as its first argument, and the other has it already, or takes none');
+            }
+
+            if (isBound && target.receiverType.kind === 'any') {
+                refuse(firstTarget, target, 'a receiver of Any selects its member only as it is evaluated');
+            }
+        }
+
+        if (takesReceiver && node.arguments.length === 0) {
+            this.#fail('NEXO3080', `'${written}' holds a reference to a function that takes its receiver as its first argument, and is given none`, pointer);
+        }
+
+        // A receiver argument is resolved once, before the contract reads the call's own arguments, and binds what every declaration's receiver type writes.
+        const receiverArgument = takesReceiver ? this.#resolveNode(node.arguments[0], `${pointer}/arguments/0`, scope) : null;
+        const contracts = functions.map(target => {
+            const receiverType = isBound ? target.receiverType : (receiverArgument?.type.toNonNullable() ?? null);
+            const isKnown = receiverType !== null && !LanguageResolver.#isNullOrNever(receiverType);
+
+            return { target, declaration: target.reference, typeArguments: (isKnown ? this.#typeChecker.inferReceiverTypeArguments(target.reference, receiverType) : null) ?? new Map() };
+        });
+        const [first] = contracts.filter(contract => contract.target === firstTarget);
+
+        for (const contract of contracts) {
+            const difference = this.#describeContractDifference(first, contract, nameOf);
+
+            if (difference !== null) {
+                refuse(first.target, contract.target, difference);
+            }
+        }
+
+        const receiver = isBound
+            ? { node: node.callee, type: firstTarget.receiverType, isNullable: false }
+            : (takesReceiver ? { node: node.arguments[0], type: receiverArgument.type.toNonNullable(), isNullable: receiverArgument.type.isNullable || receiverArgument.type.kind === 'null' } : null);
+        const resolved = this.#resolveInvocation(first.declaration, node, pointer, scope, receiver, written);
+        const alternatives = contracts.map(({ declaration, typeArguments }) => ({
+            declaration,
+            type: this.#registry.getDeclaredType(declaration, declaration.result).resolveTypeParameters(typeArguments),
+            parameterNames: declaration.parameters.map(parameter => parameter.name),
+        }));
+        const merged = alternatives.reduce((type, alternative) => (type === null ? null : this.#typeChecker.merge(type, alternative.type)), Type.never);
+
+        if (merged === null) {
+            this.#fail('NEXO3070', `'${written}' may be any of ${alternatives.length} functions, whose results are of no one type: ${alternatives.map(alternative => alternative.type).join(', ')}`, pointer);
+        }
+
+        // The callee is the local the call reads its function reference from, which evaluation invokes the declaration of, its arguments named by that declaration's parameters.
+        this.#resolutions.set(pointer, { ...resolved.resolution, alternatives, ...(isBound ? { readsBoundReceiver: true } : {}) });
+
+        return { type: resolved.result.type.isNullable ? merged.toNullable() : merged, kind: 'value', isFixed: false };
+    }
+
+    /**
+     * Where two functions a local may hold read a call's arguments differently, said for a message, or null where their contracts agree: their argument forms, each parameter's name, where the options form
+     * names it, its kind, its requirement, its null policy, its default and its type, a callback's parameter types among them, once each receiver binds what its type writes; and type parameters of their own, or a
+     * parameter selecting a type, which only one declaration shares with itself.
+     */
+    #describeContractDifference(first, other, nameOf) {
+        const [a, b] = [first.declaration, other.declaration];
+        const [nameA, nameB] = [first.target, other.target].map(nameOf);
+        const ownsTypes = declaration => (declaration.typeParameters ?? []).length > 0 || declaration.parameters.some(parameter => parameter.fixed === true);
+
+        if (a !== b && (ownsTypes(a) || ownsTypes(b))) {
+            return `${ownsTypes(a) ? nameA : nameB} binds type parameters of its own from what it is given`;
+        }
+
+        if ((a.arguments ?? 'positional') !== (b.arguments ?? 'positional') || a.parameters.length !== b.parameters.length) {
+            return `${nameA} takes ${a.parameters.length} arguments, ${a.arguments ?? 'positional'}, and ${nameB} ${b.parameters.length}, ${b.arguments ?? 'positional'}`;
+        }
+
+        const typesOf = (declaration, typeArguments, parameter) => [parameter.type, ...(parameter.parameterTypes ?? [])].map(notation => this.#registry.getDeclaredType(declaration, notation).resolveTypeParameters(typeArguments));
+
+        for (const [index, parameter] of a.parameters.entries()) {
+            const counterpart = b.parameters[index];
+            const typesA = typesOf(a, first.typeArguments, parameter);
+            const typesB = typesOf(b, other.typeArguments, counterpart);
+            const where = `its argument '${parameter.name}'`;
+
+            if (parameter.kind !== counterpart.kind) {
+                return `${nameA} takes ${where} as ${parameter.kind === 'value' ? 'a value' : `an ${parameter.kind}`}, and ${nameB} as ${counterpart.kind === 'value' ? 'a value' : `an ${counterpart.kind}`}`;
+            }
+
+            if (typesA.length !== typesB.length || typesA.some((type, at) => !type.equals(typesB[at]))) {
+                const typeText = ([result, ...parameterTypes]) => (parameter.kind === 'function' ? `a function of ${parameterTypes.join(', ')} answering ${result}` : `${result}`);
+
+                return `${nameA} takes ${where} as ${typeText(typesA)}, and ${nameB} as ${typeText(typesB)}`;
+            }
+
+            const isNamed = (a.arguments ?? 'positional') === 'options' && parameter.name !== counterpart.name;
+            const differs = ['required', 'nulls', 'context'].some(key => parameter[key] !== counterpart[key]) || JSON.stringify(parameter.default) !== JSON.stringify(counterpart.default);
+
+            if (isNamed || differs) {
+                return `${nameA} and ${nameB} declare ${where} apart, by its name, its requirement, its null policy or its default`;
+            }
+        }
+
+        return null;
+    }
+
+    /** Whether the declaration takes its arguments as values alone, by position, which a call of a value that may be one of several functions gives each of them. */
+    static #takesValuesAlone(declaration) {
+        return declaration.arguments !== 'options' && declaration.parameters.every(parameter => parameter.kind === 'value');
     }
 
     /**
