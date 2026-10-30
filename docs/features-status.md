@@ -209,6 +209,8 @@ References: [Syntax tree](nexo-design.md#the-syntax-tree), [tooling](nexo-design
 
 Publish both, and test them as consumers install them: NuGet in a published application, and npm installed, bundled, and loaded in Chromium.
 
+Before publishing, advance the package version from `1.0.0-alpha.37`, which waits for publication as [decisions](decisions.md#d23) records, and check that the README and `nexo.info.versions` name the language and definition versions the package implements.
+
 **Beta.** The documents and module API have been audited, and the behavior of a cast inside an optional enclosed access is settled. What remains:
 
 - Add `CHANGELOG.md`, empty until the first change after the beta.
