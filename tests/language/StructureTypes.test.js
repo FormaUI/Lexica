@@ -25,4 +25,19 @@ describe('StructureTypes', () => {
 
         expect(StructureTypes.getType(value, registry)).toBe(vector);
     });
+
+    it('keeps a value\'s record where it is recorded again as the same type, and gives it to another registry that records it', () => {
+        const value = { x: 1 };
+        const other = {};
+
+        StructureTypes.recordType(value, registry, point);
+        StructureTypes.recordType(value, registry, point);
+
+        expect(StructureTypes.getType(value, registry)).toBe(point);
+
+        StructureTypes.recordType(value, other, point);
+
+        expect(StructureTypes.getType(value, other)).toBe(point);
+        expect(StructureTypes.getType(value, registry)).toBeUndefined();
+    });
 });

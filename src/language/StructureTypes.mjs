@@ -11,9 +11,13 @@ export class StructureTypes {
      */
     static #types = new WeakMap();
 
-    /** Records the structured value as of the type, a non-null structured type the registry declares. */
+    /** Records the structured value as of the type, a non-null structured type the registry declares; a value recorded already as the same type by the same registry, as an answer copied again is, keeps its record. */
     static recordType(value, registry, type) {
-        StructureTypes.#types.set(value, { registry, type });
+        const recorded = StructureTypes.#types.get(value);
+
+        if (recorded?.registry !== registry || recorded.type !== type) {
+            StructureTypes.#types.set(value, { registry, type });
+        }
     }
 
     /** The structured type the value was recorded as, where the registry given recorded it, and undefined otherwise. */
