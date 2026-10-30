@@ -10,11 +10,12 @@ Read the documents that govern the affected contract:
 | --- | --- |
 | [Specification](spec/README.md) | Two contracts, one document per subject: the language's, in `spec/language/`, what a script means, and the runtime's, in `spec/runtime/`, how a host binds, resolves, evaluates, declares and registers; state a rule in the contract it belongs to |
 | [Design](docs/nexo-design.md) | Architecture: the stages, modules and their registration, evaluation and tooling |
+| [Language history](LANGUAGE-HISTORY.md) | Each language version, newest first, with what it changed in both contracts and what it breaks |
 | [Status](docs/features-status.md) | What is implemented, what is in progress, what remains, open decisions and the gaps between the design and the code |
 | [Guide](docs/embedding-guide.md) | Embedding Nexo, by example |
 | `.editorconfig` | Code style; read it before writing C# |
 
-Update the specification before implementing a language change, and the design before changing a module or tooling contract. Each subject has one home: state a rule where it belongs and link to it elsewhere. Record a gap between the design and the code in the status overview until it closes, and update the status entries a change affects in the same commit as the change.
+Update the specification before implementing a language change, and the design before changing a module or tooling contract. Advance the language version whenever either contract changes, and add the version's entry to the [language history](LANGUAGE-HISTORY.md) in the same commit. Each subject has one home: state a rule where it belongs and link to it elsewhere. Record a gap between the design and the code in the status overview until it closes, and update the status entries a change affects in the same commit as the change.
 
 ## Repository structure
 

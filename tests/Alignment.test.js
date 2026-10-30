@@ -48,6 +48,16 @@ describe('Alignment', () => {
         expect(await bundle()).toContain(JSON.stringify(Versions.implementation));
     });
 
+    it('has a language history whose newest entry is the version the specification describes, with its definition format', () => {
+        const history = read('LANGUAGE-HISTORY.md');
+        const [, newest, format] = history.match(/^## `([^`]+)`\r?\n\r?\n\*[^·*]+· definition format (\d+)\*/m);
+        const [, described] = specification.match(/^# Nexo Specification v(\S+)$/m);
+        const [, definition] = specification.match(/describes definition version (\d+)\./);
+
+        expect(newest).toBe(described);
+        expect(Number(format)).toBe(Number(definition));
+    });
+
     it('has a README that heads the language\'s features with the version the specification describes, and the implementation\'s with the version it reports', () => {
         const readme = read('README.md');
         const [, described] = specification.match(/^# Nexo Specification v(\S+)$/m);
