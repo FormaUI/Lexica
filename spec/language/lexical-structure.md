@@ -45,9 +45,26 @@ Whitespace, including [line breaks](#line-structure-line-breaks), and comments a
 Object fields, locals and conditional bindings put `=` between a name and its value. A colon in a chain begins an [extension access](extensions.md#extensions-access), `device:usage`, and anywhere else belongs only inside strings and comments.
 
 - A colon after an object field's, a local's or a conditional binding's name is a syntax error that suggests `count = …`.
-- Elsewhere a colon after a name begins an extension access, whatever the spacing, never a named argument: `f(count: it.devices.count)` reads `count:it.devices.count`.
+- Elsewhere a colon after a name begins an extension access, whatever the spacing, never a named argument: `f(a:b)`, `f(a: b)` and `f(a : b)` each give `f` what `a:b` answers, and `f(count: it.devices.count)` reads `count:it.devices.count`.
 - `=` in another position is a syntax error that explains that `==` compares values.
 - Computed property access is written after a dot. `it:[name]` and `it?:[name]`, which name no member, are syntax errors that suggest `it[name]` for an unnamed indexer or `it.[name]` for a computed property access, and their optional forms.
+
+<a id="tokens-and-whitespace-access-expressions"></a>
+
+### Whitespace in access expressions
+
+Spaces and tabs may appear between the tokens of an access expression without changing its meaning. This applies to ordinary property access, computed property access and extension member access, including qualified extension names. Whitespace does not determine whether a name denotes a module, an extension or a member.
+
+| Access | Equivalent forms |
+| --- | --- |
+| Property access | `x.y`, `x. y`, `x .y`, `x . y` |
+| Extension access | `x:y`, `x: y`, `x :y`, `x : y` |
+| Computed property access | `x.[name]`, `x. [name]`, `x .[name]`, `x . [ name ]` |
+| Qualified extension access | `x:Module.Extension.member`, `x : Module . Extension . member` |
+
+- **Within a token, never.** Whitespace separates tokens and never splits one, so `x? .y` is no optional access: `?.` is one token, as the table above sets out.
+- **Line breaks** follow the [line structure](#line-structure): a step's `.`, `?.`, `:` or `?:` stands on the line of the name after it, and a line may break before it, as before any step of a chain. They decide nothing an access's names mean either, as [reading an access's names](extensions.md#extensions-reading-names) sets out.
+- **An object field's name** takes `=`, so `{ count: 1 }` is refused wherever its colon stands, as [assignment and member punctuation](#tokens-and-whitespace-assignment-and-member-punctuation) sets out; the parser knows it reads a field's name there, which no spacing changes.
 
 <a id="tokens-and-whitespace-numbers-and-the-minus-sign"></a>
 
@@ -293,7 +310,6 @@ Every position between two tokens is one of three kinds: inside a one-line const
 | A computed property access's opening | `x.[`, `x?.[` |
 | A call's `(`, on the line of the name it calls | `device(`, `double(` |
 | An indexer's opening bracket, on the line of what it indexes | `setting[`, `rooms[`, `x?[` |
-| An extension access's `:` or `?:` with its first name | `:usage`, `?:Energy` |
 | A qualified name in a type position, after `as`, `to` or `import` | `as Home.Device`, `to Measures.Temperature` |
 | A cast's or a conversion's keyword with its type | `as Light`, `to Number` |
 | A prefix operator with the start of its operand | `-padding`, `not it.occupied()`, `try value to Number` |

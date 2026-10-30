@@ -106,6 +106,26 @@ describe('extension access', () => {
             expect(nexo.parse('(a + b):half').expression).toMatchObject({ kind: 'memberAccess', receiver: { kind: 'arithmetic' } });
         });
 
+        it('reads an access alike whatever spaces and tabs stand between its tokens, a property access, a computed one and an extension access, qualified or not', () => {
+            const alike = [
+                ['x.y', 'x. y', 'x .y', 'x . y', 'x\t.\ty'],
+                ['x:y', 'x: y', 'x :y', 'x : y'],
+                ['x.[name]', 'x. [name]', 'x .[name]', 'x . [name]', 'x . [ name ]'],
+                ['x:Extension.member', 'x : Extension . member'],
+                ['x:Module.Extension.member', 'x : Module . Extension . member'],
+                ['f(a:b)', 'f(a: b)', 'f(a : b)'],
+            ];
+
+            for (const [written, ...spaced] of alike) {
+                for (const text of spaced) {
+                    expect(nexo.parse(text, { imports: ['Module'] }), text).toEqual(nexo.parse(written, { imports: ['Module'] }));
+                }
+            }
+
+            expect(errorThrownBy(() => nexo.parse('x? .y'))).toMatchObject({ code: 'NEXO1001' });
+            expect(evaluate('fan : Device . label . length')).toBe(10);
+        });
+
         it('reads a colon after a name as an extension access wherever an expression stands, whatever its spacing, never as a named argument', () => {
             expect(nexo.parse('f(x: Device.usage)')).toEqual(nexo.parse('f(x:Device.usage)'));
             expect(nexo.parse('f(x:Device.usage)').expression.arguments[0]).toEqual(then(first({ kind: 'scriptParameter', name: 'x' }, 'Device'), 'usage'));

@@ -119,7 +119,7 @@ A call or a key after the last name applies to it, whichever way the names read.
   - a group, `(name:size).width`, or the member's own extension, `name:Metrics.size.width`, reads `size` as the member;
   - the extension named through its module, `name:Measurements.size.width`, reads `width` as the member of the extension `size`.
 - **No way.** Where none fits, the access is refused as the way its first name comes closest to reads it: a module's name as way 3, an extension's anywhere as way 2, and any other first name followed by more names as naming neither an extension nor an extension member of the receiver (NEXO3026).
-- **Spacing and lines never decide.** `name: size.width` reads as `name:size.width`. A line may break before each later dot, as before any step of a chain, and the names continue.
+- **Whitespace and line breaks never decide.** Spaces and tabs between an access's tokens change nothing, as [whitespace in access expressions](lexical-structure.md#tokens-and-whitespace-access-expressions) sets out, so `name : size . width` reads as `name:size.width`. Line breaks follow the [line structure](lexical-structure.md#line-structure), which gives an extension access no rule of its own: each `:` or `.` stands on the line of the name after it, and a line may break before it, as before any step of a chain. A break before a dot is trivia, as a space is, so `fan:Device` with `.label` on the next line reads as `fan:Device.label`, its names read the one way the declarations allow.
 - **A group ends the names.** `(name:size).width` reads `size` as the access's member and `width` as an ordinary access, whatever an extension is named.
 
 <a id="extensions-type-parameters"></a>
