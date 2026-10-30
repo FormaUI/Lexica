@@ -84,6 +84,17 @@ describe('Evaluator', () => {
         expect(ParsedTexts.locationsOf(ParsedTexts.parse(text)).locate(requests[0].pointer)).toMatchObject({ line: 2, column: 12 });
     });
 
+    it('names an invocation by the same pointer at every evaluation, its request naming its parts in order', () => {
+        const evaluator = createEvaluator('let f = function(n)\n    return n:price\nend\nreturn { a = f(name), b = f(other) }', { name: 'tea', other: 'milk' });
+        const requests = [];
+
+        evaluator.evaluate({ beforeInvoke: request => void requests.push(request) });
+        evaluator.evaluate({ beforeInvoke: request => void requests.push(request) });
+
+        expect(requests.map(request => request.pointer)).toEqual(Array(4).fill('/expression/locals/0/value/body/result'));
+        expect(requests.map(request => Object.keys(request))).toEqual(Array(4).fill(['declaration', 'receiver', 'args', 'pointer', 'isDeferred']));
+    });
+
     it('calls the hooks for the invocations an evaluation reaches alone', () => {
         const host = createHost();
         const invoked = [];

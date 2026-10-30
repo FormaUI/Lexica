@@ -78,9 +78,23 @@ export class ResolvedDefinition {
         return [...kept.values()];
     }
 
+    /**
+     * The pointer into the definition each pointer resolved to, by the pointer: valid for good, since the body copies never change, and released with this resolved definition. An evaluation with hooks resolves the pointer
+     * of every invocation it reports, which would scan the body copies each time.
+     * @type {Map<string, string>}
+     */
+    #definitionPointers = new Map();
+
     /** Resolves the pointer into the definition a pointer names, a pointer into a call's copy of a function's body naming the part of the body it copies, and any other pointer itself. */
     resolveDefinitionPointer(pointer) {
-        return ResolvedDefinition.resolveDefinitionPointer(pointer, this.#functionBodyCopies);
+        let definitionPointer = this.#definitionPointers.get(pointer);
+
+        if (definitionPointer === undefined) {
+            definitionPointer = ResolvedDefinition.resolveDefinitionPointer(pointer, this.#functionBodyCopies);
+            this.#definitionPointers.set(pointer, definitionPointer);
+        }
+
+        return definitionPointer;
     }
 
     /** The pointer into the definition a pointer names among the function body copies, each call's copy of a function's body taken back to the body it copies, a copy within a copy as many times as it is one. */

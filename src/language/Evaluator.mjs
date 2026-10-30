@@ -2300,7 +2300,8 @@ export class Evaluator {
         // A module member is read and called through its namespace, and has no receiver.
         const received = takesReceiver ? { receiver } : {};
         // A request names its call by where it stands in the definition, so a call within a script function's body names the part of the body it is, whichever call of the function reached it.
-        const request = this.#hooks === null ? null : { declaration, ...received, args, pointer: this.#resolvedDefinition.resolveDefinitionPointer(this.#pointerOf(node)), isDeferred };
+        const pointer = this.#hooks === null ? null : this.#resolvedDefinition.resolveDefinitionPointer(this.#pointerOf(node));
+        const request = this.#hooks === null ? null : takesReceiver ? { declaration, receiver, args, pointer, isDeferred } : { declaration, args, pointer, isDeferred };
         const samples = this.#beforeInvoke(request, declaration, node);
 
         if (samples === null) {
