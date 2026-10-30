@@ -463,7 +463,7 @@ describe('the runtime codes', () => {
         });
 
         it('NEXO5022: a direct access on null at a deferred access', () => {
-            expectNexoError(holding({ inner: null }, '(word:held).inner.size'), 'NEXO5022', 'evaluation');
+            expectNexoError(holding({ inner: null }, 'word:held.inner.size'), 'NEXO5022', 'evaluation');
         });
 
         it('NEXO5024: an equality of values of types that fit neither way', () => {

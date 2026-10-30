@@ -126,7 +126,10 @@ const DOCUMENTS = {
         { about: 'host calls', each: true },
     ],
     'spec/language/modules.md': [],
-    'spec/language/extensions.md': [{ about: 'extensions selected by ownership and explicitly', evaluates: { usage: 0.4, power: 60, metered: 60 } }],
+    'spec/language/extensions.md': [
+        { about: 'extensions selected by ownership and explicitly', evaluates: { usage: 0.4, power: 60, metered: 60 } },
+        { about: 'ordinary access after an extension member, in each form', evaluates: { unnamed: 60, named: 60, qualified: 60 } },
+    ],
     'spec/language/vocabulary.md': [],
     'spec/runtime/host-calls.md': [
         { about: 'a result projection reading a local before its host call', projects: { at: 12, isOccupied: true, wasOccupied: true } },

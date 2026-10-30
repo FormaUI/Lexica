@@ -985,7 +985,7 @@ export class Evaluator {
             const receiver = evaluateReceiver === null ? undefined : evaluateReceiver(evaluator, context);
 
             if (receiver === null) {
-                return checksReceiver ? evaluator.#answerNullReceiver(node, receiverNode) : null;
+                return checksReceiver ? evaluator.#answerNullReceiver(node, resolution) : null;
             }
 
             if (checksReceiver) {
@@ -1042,7 +1042,7 @@ export class Evaluator {
             const receiver = evaluateReceiver(evaluator, context);
 
             if (receiver === null) {
-                return checksReceiver ? evaluator.#answerNullReceiver(node, receiverNode) : null;
+                return checksReceiver ? evaluator.#answerNullReceiver(node, resolution) : null;
             }
 
             if (checksReceiver) {
@@ -1057,12 +1057,12 @@ export class Evaluator {
      * What an extension access on a value of Any answers where that value is null: null where the access is optional or an optional access before it in its chain met null, which ends the chain, and otherwise the
      * failure of a direct access on null (NEXO5022), as a deferred access fails.
      */
-    #answerNullReceiver(node, receiverNode) {
+    #answerNullReceiver(node, { receiverNode, isOptional }) {
         const isAnswered = this.#nullAnswer === receiverNode;
 
         this.#nullAnswer = null;
 
-        if (Evaluator.#accessOf(node).optional === true || (Evaluator.#followsOptionalAccess(receiverNode) && !isAnswered)) {
+        if (isOptional === true || Evaluator.#accessOf(node).optional === true || (Evaluator.#followsOptionalAccess(receiverNode) && !isAnswered)) {
             return null;
         }
 
@@ -1118,16 +1118,16 @@ export class Evaluator {
 
                 evaluator.#nullAnswer = null;
 
-                if (Evaluator.#accessOf(node).optional === true || (followsOptionalAccess && !isAnswered)) {
+                if (resolution.isOptional === true || Evaluator.#accessOf(node).optional === true || (followsOptionalAccess && !isAnswered)) {
                     return null;
                 }
 
-                evaluator.#fail('NEXO5022', `'${written}' is read on a value of Any, and its receiver is null: write '${Evaluator.#accessOf(node).extension === undefined ? '?.' : '?:'}' before it to read it where its receiver is not null`, evaluator.#pointerOf(node));
+                evaluator.#fail('NEXO5022', `'${written}' is read on a value of Any, and its receiver is null: write '${resolution.readsExtensionMembers === true ? '?:' : '?.'}' before it to read it where its receiver is not null`, evaluator.#pointerOf(node));
             }
 
             const receiverType = evaluator.#getActualType(receiver, `the access '${written}'`, evaluator.#failSelectionOf(node));
             // A plain object's object fields are its data, found on each object, since objects of one type need not hold the same fields; an extension access reads extension members alone.
-            const isObjectField = node.kind === 'memberAccess' && node.extension === undefined && receiverType.kind === 'object' && Object.hasOwn(receiver, node.name);
+            const isObjectField = node.kind === 'memberAccess' && resolution.readsExtensionMembers !== true && receiverType.kind === 'object' && Object.hasOwn(receiver, node.name);
             const value = isObjectField ? evaluator.#readStoredValue(receiver, node.name) : evaluator.#evaluateDeferredSelection(node, resolution.candidates, receiver, receiverType, selections, evaluateArguments, context);
 
             if (value === null) {

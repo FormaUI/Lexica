@@ -94,7 +94,6 @@ In this document:
 | `NEXO1068` | An item left out between the commas of a collection expression, as `[1, , 2]` | A syntax error at the comma |
 | `NEXO1069` | A range's boundary written as an operator expression, as `a + 1..b` | A syntax error at the boundary, giving the grouped form |
 | `NEXO1070` | A range written as another range's boundary, as `1..2..3` | A syntax error saying a range has two boundaries |
-| `NEXO1071` | An extension access whose names fit none of its forms: more than three, or three whose first names no module the script imports, as `f(count: it.devices.count)` | A syntax error naming the name that fills no role |
 | `NEXO1043` | A conditional, a `do` block or a function expression spanning lines outside block form, or followed on its `end`'s line by anything but closing punctuation | A syntax error giving its block form |
 | `NEXO1044` | An import, a script's body after its imports, or a local or `return` of a body that uses `return`, sharing its line with earlier code | A syntax error saying it starts on a line of its own |
 | `NEXO1045` | `import` anywhere but a script's start, as after its first local or expression | A syntax error saying imports stand at the start of the script |
@@ -172,7 +171,7 @@ In this document:
 | `NEXO3023` | A script reaching an internal declaration of any module, through any form | A validation error naming the declaration, as if no declaration of its name were accessible |
 | `NEXO3024` | Several applicable declarations a reference can't choose among: applicable extensions, or applicable operators of one destination, none of them the owner's, none of whose targets is more specific than every other's, two on one target among them; one module's members, unnamed indexers or operators applicable to a receiver, none of whose receiver types is more specific than every other's, as unrelated ones a `List<Never>` satisfies; and a qualified call a module member and a receiver's member of its name both take | A validation error naming the modules, and the extension accesses to write where they are extension members and each has a spelling that selects it alone |
 | `NEXO3025` | A receiver of unknown type whose candidate declarations disagree on who invokes them | A validation error saying a cast names which is meant |
-| `NEXO3026` | An extension access naming no extension, or written on a namespace, which no extension extends | A validation error giving the written name, saying so where only an ordinary type has it; `device:readings.first` gives `(device:readings).first` where an applicable extension declares `readings` |
+| `NEXO3026` | An extension access whose first name, followed by others, names neither an extension nor an extension member of its receiver, a name that names no extension where the access reads it as one, or an access on a namespace, which no extension extends | A validation error at the name, saying where only an ordinary type has it |
 | `NEXO3061` | An extension access naming one several extensions share unqualified | A validation error giving the qualified names where each selects one alone |
 | `NEXO3062` | An extension access whose member no applicable extension declares, or the extension it names does not | A validation error giving the member, and the extension where it names one; `device:power` on a type no extension extends gives `device.power` where the owner declares it |
 | `NEXO3027` | An extension access whose receiver does not satisfy the extension's target | A validation error naming the target and the receiver's type |
@@ -217,6 +216,7 @@ In this document:
 | `NEXO3088` | An object expression constructing a structure that gives a property a value its type doesn't take | A validation error at the value, naming the property, its type and the value's |
 | `NEXO3089` | An object expression given as an indexer's key that constructs the keys of two or more of its signatures alike | A validation error at the key, naming the structures |
 | `NEXO3090` | An extension member read with `.`, as `device.usage` | A validation error giving `device:usage` |
+| `NEXO3091` | An extension access whose names read more than one way, as `name:size.width` where `size` is an extension member and an extension declaring `width` | A validation error giving the text that writes each way: a group, `(name:size).width`, and the extension named through its module |
 | `NEXO3082` | A function as a collection expression's item or value, or as an indexer's key | A validation error at the item, saying a collection holds data and references |
 | `NEXO3043` | A result that would contain a reference value | A validation error |
 | `NEXO3044` | An object field read through `root` whose initializer has not completed where `root` is written | A validation error naming the object fields completed there |
@@ -277,3 +277,4 @@ A code of the language's conditions leaves its table only by being retired here,
 | `NEXO1047` | An import whose local name begins with no capital letter, a casing that is a convention and never enforced | `1.0.0-alpha.34` |
 | `NEXO1065` | An import whose local name is a reserved word, `Nexo` or the name of one of Nexo's own types or extensions, each a name `@` or the import's own declaration distinguishes | `1.0.0-alpha.34` |
 | `NEXO1500` | A colon or `?:` in a chain followed by a name, which language `1.0.0-alpha.33` refused, a code of that language alone: it begins an extension access, and one brackets follow directly is `NEXO1014` | `1.0.0-alpha.34` |
+| `NEXO1071` | An extension access whose names fitted none of its forms, more than three or three whose first named no module, which language `1.0.0-alpha.40` refused as it read them, a code of that language alone: the declarations its names name decide how they read | `1.0.0-alpha.41` |

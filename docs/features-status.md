@@ -2,12 +2,12 @@
 
 ## Current state
 
-**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.40` and definition version 37.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
+**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.41` and definition version 38.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.40` | `1.0.0-alpha.40` |
-| Definition format | 37 | 37 |
+| Language | `1.0.0-alpha.41` | `1.0.0-alpha.41` |
+| Definition format | 38 | 38 |
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Every example the specification and the README give resolves against [the examples' vocabulary](../spec/language/examples-vocabulary.md) and evaluates in the gate, a host call's preparation and projection among them, and each example the specification gives as an error is refused.
 
@@ -49,7 +49,7 @@ Each feature, the contract that states it, its state in the implementation, and 
 | Indexers and computed property access | [Named indexers](../spec/language/members.md#property-access-calls-and-indexers-named-indexers), [computed property access](../spec/language/members.md#computed-property-access) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
 | Types identified by their module | [Type identity](../spec/language/types.md#types-type-identity) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
 | Imports, aliases and type imports, a host's among them, namespaces, module members and qualified access | [Imports](../spec/language/modules.md#scripts-imports), [namespaces](../spec/language/modules.md#namespaces) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
-| Extensions: the owner's members read with `.`, extension members with `:`, the most specific extension selected | [Extensions](../spec/language/extensions.md) | Implemented | [`alpha.40`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-40) |
+| Extensions: the owner's members read with `.`, extension members with `:`, the most specific extension selected, an access's names read by the declarations they name | [Extensions](../spec/language/extensions.md) | Implemented | [`alpha.40`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-40) |
 | Type parameters, inferred at each call | [Type parameters](../spec/language/types.md#types-type-parameters) | Implemented; a type parameter's default is an [open decision](#open-decisions) | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
 | `Any`, its members selected as it is evaluated | [Values of `Any`](../spec/language/types.md#types-any) | Implemented in part: a function given to a deferred call is [deferred](#deferred) | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
 | Reference types in hierarchies, and the casts among them | [Reference types](../spec/language/types.md#reference-types) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |

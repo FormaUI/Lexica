@@ -121,10 +121,10 @@ describe('the codes of resolution', () => {
     });
 
     describe('extension access', () => {
-        it('NEXO3026, an extension access naming no extension, a call\'s located at its callee\'s selection, giving the member of that name where the receiver has one', () => {
-            expect(refusalWithoutImportsOf('import shop\ns:Nothing.size')).toMatchObject({ code: 'NEXO3026', location: { pointer: '/expression/extension' } });
-            expect(refusalWithoutImportsOf('import shop\ns:Nothing.pad(1)')).toMatchObject({ code: 'NEXO3026', location: { pointer: '/expression/callee/extension' } });
-            expect(refusalWithoutImportsOf('import shop\ns:size.round')).toMatchObject({ code: 'NEXO3026', message: expect.stringContaining("write '(s:size).round' for the access of what the extension member 'size' answers") });
+        it('NEXO3026, an extension access whose first name names neither an extension nor an extension member of its receiver, located at that name', () => {
+            expect(refusalWithoutImportsOf('import shop\ns:Nothing.size')).toMatchObject({ code: 'NEXO3026', location: { pointer: '/expression/receiver' }, message: expect.stringContaining("'Nothing' names no extension the script reaches, and no extension member of String has it") });
+            expect(refusalWithoutImportsOf('import shop\ns:Nothing.pad(1)')).toMatchObject({ code: 'NEXO3026', location: { pointer: '/expression/callee/receiver' } });
+            expect(nexo.createRegistry([createShop()]).resolve('import shop\ns:size.round', values).type).toBe('Number');
         });
         it('NEXO3027, an extension access whose receiver does not satisfy the extension\'s target', () => expect(refusalWithoutImportsOf('import shop\nxs:Words.size')).toMatchObject({ code: 'NEXO3027', location: { pointer: '/expression' } }));
         it('NEXO3061, an extension access naming one several extensions share unqualified', () => {
@@ -135,6 +135,11 @@ describe('the codes of resolution', () => {
         it('NEXO3062, an extension access naming a member the extension does not declare', () => expect(refusalWithoutImportsOf('import shop\ns:Words.missing')).toMatchObject({ code: 'NEXO3062', location: { pointer: '/expression' } }));
         it('NEXO3063, an extension access written with : whose receiver can be null', () => expect(refusalWithoutImportsOf('import shop\ns:partner:Words.size')).toMatchObject({ code: 'NEXO3063', message: expect.stringContaining("write 's:partner?:Words.size'") }));
         it('NEXO3090, an extension member read with .', () => expect(refusalOf('s.size')).toMatchObject({ code: 'NEXO3090', message: expect.stringContaining("write 's:size'") }));
+        it('NEXO3091, an extension access whose names read more than one way', () => {
+            const sizes = nexo.createModule('sizes', { types: [extensionDeclaration('size', 'String', [property('round', 'Number')])] });
+
+            expect(refusalOf('s:size.round', values, [sizes])).toMatchObject({ code: 'NEXO3091', message: expect.stringContaining("written '(s:size).round'") });
+        });
     });
 
     describe('names and scope', () => {
@@ -146,10 +151,10 @@ describe('the codes of resolution', () => {
             expect(refusalOf('let q = 1\nreturn ~q', values).message).toContain("and '~q' reads a script parameter alone: write 'q' for the local, object field, conditional binding or function parameter of that name");
         });
         it('NEXO3051, a script parameter the host did not bind, written with ~ where no local has its name', () => expectResolutionCode('~nobody', 'NEXO3051'));
-        it('NEXO3051, a definition\'s script parameter the host did not bind', () => expectResolutionCode({ version: 37, imports: [], expression: { kind: 'scriptParameter', name: 'nobody' } }, 'NEXO3051'));
+        it('NEXO3051, a definition\'s script parameter the host did not bind', () => expectResolutionCode({ version: 38, imports: [], expression: { kind: 'scriptParameter', name: 'nobody' } }, 'NEXO3051'));
         it('NEXO3010, it within an argument where nothing gives it a value', () => expectResolutionCode('xs.where(x => it)', 'NEXO3010'));
-        it('NEXO2012, a definition\'s local no local in scope answers', () => expectResolutionCode({ version: 37, imports: [], expression: { kind: 'local', name: 'q' } }, 'NEXO2012', 'structure'));
-        it('NEXO2018, root outside every object expression', () => expectResolutionCode({ version: 37, imports: [], expression: { kind: 'root' } }, 'NEXO2018', 'structure'));
+        it('NEXO2012, a definition\'s local no local in scope answers', () => expectResolutionCode({ version: 38, imports: [], expression: { kind: 'local', name: 'q' } }, 'NEXO2012', 'structure'));
+        it('NEXO2018, root outside every object expression', () => expectResolutionCode({ version: 38, imports: [], expression: { kind: 'root' } }, 'NEXO2018', 'structure'));
     });
 
     describe('members', () => {
@@ -157,7 +162,7 @@ describe('the codes of resolution', () => {
         it('NEXO3001, a member a declaration has on another receiver', () => expectResolutionCode('xs.pad(1)', 'NEXO3001'));
         it('NEXO3001, a member a module does not declare, read through its namespace', () => expectResolutionCode('shop.nope', 'NEXO3001'));
         it('NEXO3001, a member called on a receiver of unknown type that no declaration has', () => expectResolutionCode('nothing?.nope(1)', 'NEXO3001'));
-        it('NEXO3008, a member read with . on a receiver that can be null', () => expectResolutionCode('(s:partner).size', 'NEXO3008'));
+        it('NEXO3008, a member read with . on a receiver that can be null', () => expectResolutionCode('s:partner.size', 'NEXO3008'));
         it('NEXO3011, a named indexer written without its key', () => expectResolutionCode('s:letter', 'NEXO3011'));
         it('NEXO3011, a named indexer written as a call', () => expectResolutionCode('s:letter(1)', 'NEXO3011'));
         it('NEXO3054, a function written with its argument in brackets', () => expectResolutionCode('s:pad[3]', 'NEXO3054'));

@@ -52,7 +52,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('reads a name after a colon as an extension member\'s, a named indexer\'s among them, and refuses a colon brackets follow, giving the forms with a dot and the brackets', () => {
-            expect(nexo.parse('device:setting["mode"]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'device' }, name: 'setting', extension: {} }, argument: { kind: 'literal', value: 'mode' } });
+            expect(nexo.parse('device:setting["mode"]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'device' }, name: 'setting', extension: true }, argument: { kind: 'literal', value: 'mode' } });
             expect(errorThrownBy(() => nexo.parse('it:["mode"]')).message).toContain("'it.[…]'");
             expect(errorThrownBy(() => nexo.parse('it?:["mode"]')).message).toContain("'it?.[…]'");
             expect(errorThrownBy(() => nexo.parse('a.b ?: 0'))).toMatchObject({ kind: 'syntax' });
@@ -65,7 +65,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses an indexer node holding a name, and a definition of version 32', () => {
-            const named = { version: 37, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
+            const named = { version: 38, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
 
             expect(errorThrownBy(() => nexo.validate(named))).toMatchObject({ kind: 'structure' });
             expect(errorThrownBy(() => nexo.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });

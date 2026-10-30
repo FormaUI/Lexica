@@ -4,6 +4,27 @@ Each version of the Nexo language, newest first, with what it changed. A languag
 
 Until the beta, a version may break what the one before it allowed, and each entry says what it breaks.
 
+<a id="v1-0-0-alpha-41"></a>
+
+## `1.0.0-alpha.41`
+
+*October 30, 2026 · definition format 38*
+
+**Language**
+
+- [Reading an access's names](spec/language/extensions.md#extensions-reading-names): an extension access's names are read by the declarations they name, so ordinary access continues after the member in each form, as `name:size.width` and `device:Energy.Device.power.round` read.
+- [Reading an access's names](spec/language/extensions.md#extensions-reading-names): names that read more than one way are refused (NEXO3091), and a group or a named extension writes one; a group is needed only there.
+
+**Runtime**
+
+- [The definition](spec/runtime/definition.md#definition): an extension access records each name as written, its first holding `extension: true` and each later one `continues: true`.
+
+**Breaking:**
+
+- Names `1.0.0-alpha.40` read as an extension and its member are refused where an extension member of the first name applies too (NEXO3091).
+- NEXO1071 is retired.
+- A definition is of version 38.
+
 <a id="v1-0-0-alpha-40"></a>
 
 ## `1.0.0-alpha.40`

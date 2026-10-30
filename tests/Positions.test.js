@@ -47,7 +47,7 @@ describe('positions', () => {
 
         it('validates a definition\'s index and range, a range holding a start, an end, both or neither and an index its offset', () => {
             const literal = value => ({ kind: 'literal', value });
-            const validating = expression => () => nexo.validate({ version: 37, imports: [], expression });
+            const validating = expression => () => nexo.validate({ version: 38, imports: [], expression });
 
             expect(validating({ kind: 'range' })().expression).toEqual({ kind: 'range' });
             expect(errorThrownBy(validating({ kind: 'range', start: literal(1), step: literal(2) }))).toMatchObject({ code: 'NEXO2000', location: { pointer: '/expression' }, message: expect.stringContaining("'step' is no property") });

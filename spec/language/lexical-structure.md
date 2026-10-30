@@ -45,7 +45,7 @@ Whitespace, including [line breaks](#line-structure-line-breaks), and comments a
 Object fields, locals and conditional bindings put `=` between a name and its value. A colon in a chain begins an [extension access](extensions.md#extensions-access), `device:usage`, and anywhere else belongs only inside strings and comments.
 
 - A colon after an object field's, a local's or a conditional binding's name is a syntax error that suggests `count = …`.
-- Elsewhere a colon after a name begins an extension access, whatever the spacing. `f(count: it.devices.count)` is refused because `it` names no module, never read as a named argument.
+- Elsewhere a colon after a name begins an extension access, whatever the spacing, never a named argument: `f(count: it.devices.count)` reads `count:it.devices.count`.
 - `=` in another position is a syntax error that explains that `==` compares values.
 - Computed property access is written after a dot. `it:[name]` and `it?:[name]`, which name no member, are syntax errors that suggest `it[name]` for an unnamed indexer or `it.[name]` for a computed property access, and their optional forms.
 
@@ -293,7 +293,7 @@ Every position between two tokens is one of three kinds: inside a one-line const
 | A computed property access's opening | `x.[`, `x?.[` |
 | A call's `(`, on the line of the name it calls | `device(`, `double(` |
 | An indexer's opening bracket, on the line of what it indexes | `setting[`, `rooms[`, `x?[` |
-| An extension access's `:` or `?:` with its names | `:usage`, `?:Energy.Device.usage` |
+| An extension access's `:` or `?:` with its first name | `:usage`, `?:Energy` |
 | A qualified name in a type position, after `as`, `to` or `import` | `as Home.Device`, `to Measures.Temperature` |
 | A cast's or a conversion's keyword with its type | `as Light`, `to Number` |
 | A prefix operator with the start of its operand | `-padding`, `not it.occupied()`, `try value to Number` |

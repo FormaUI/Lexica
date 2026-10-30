@@ -174,11 +174,15 @@ export class LineStructure {
             case 'computed-property-access':
                 return index === 1 ? { kind: 'refused', construct: "A computed property access's '.' and its '['" } : ALLOWED;
             case 'extension-access': {
-                // Its names stand on its colon's line, and a call's arguments break as any call's do.
+                // Its first name stands on its colon's line, a line may break before each later dot as before any step of a chain, and a call's arguments break as any call's do.
                 const opening = node.children.findIndex(part => is(part, '('));
 
+                if (index === 1) {
+                    return { kind: 'refused', construct: "An extension access's ':' and its first name" };
+                }
+
                 if (opening === -1 || index < opening) {
-                    return { kind: 'refused', construct: "An extension access's ':' and its names" };
+                    return is(child, '.') ? ALLOWED : { kind: 'refused', construct: "A member step's '.' and its name" };
                 }
 
                 if (index === opening) {

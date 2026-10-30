@@ -198,13 +198,12 @@ A form these rules leave without a meaning is refused with the form that has one
 | Written | Refused, giving |
 | --- | --- |
 | `device.usage`, an extension's member read with `.` | `device:usage` |
-| `device:readings.first`, a member's name where an extension's stands | `(device:readings).first`, where no extension has that name |
 | `it:[name]` or `it?:[name]`, brackets where a member's name stands | `it[name]` for an unnamed indexer, or `it.[name]` for a computed property access |
 | `rooms.[0]`, a number where a computed property's name stands | `rooms[0]` |
 | `room["name"]` on a type without an unnamed indexer | `room.["name"]` |
 | `room.device["lamp"]`, a function's argument in brackets | `room.device("lamp")` |
 
-The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace, and the module qualifying an extension's name, are recognized by the script's imports, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
+The text alone determines construct boundaries. Parsing does not consult the vocabulary or the number of parameters a member declares; a namespace is recognized by the script's imports, and an extension access's names are read when the script is resolved, as [module names in text](modules.md#names-and-reserved-words-module-names) sets out.
 
 <a id="computed-property-access"></a>
 <a id="bracket-property-access"></a>

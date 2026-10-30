@@ -128,7 +128,7 @@ describe('implicit bodies', () => {
     it('are recorded as written, an argument node like any other, the resolution telling them apart', () => {
         const registry = nexo.createRegistry([createPantry()]);
 
-        expect(nexo.parse('word:is(it:size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size', extension: {} }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
+        expect(nexo.parse('word:is(it:size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size', extension: true }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
         expect(nexo.format('word:is(it:size > 2)')).toBe('word:is(it:size > 2)');
     });
 });

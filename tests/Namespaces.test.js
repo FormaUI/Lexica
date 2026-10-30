@@ -72,7 +72,7 @@ describe("a script's imports", () => {
         const text = 'import shop\n{ let shop = 2, local = @shop, parameter = ~shop, namespace = shop.open }';
         const formatted = nexo.format(text);
 
-        expect(nexo.parse('import shop\nshop.open')).toEqual({ version: 37, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
+        expect(nexo.parse('import shop\nshop.open')).toEqual({ version: 38, imports: [{ module: 'shop' }], expression: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'open' } });
         expect(formatted).toBe('import shop\n\n{\n    let shop = 2,\n    local = @shop,\n    parameter = ~shop,\n    namespace = shop.open\n}');
         expect(nexo.parse(formatted)).toEqual(nexo.parse(text));
         expect(nexo.format(formatted)).toBe(formatted);
@@ -80,10 +80,10 @@ describe("a script's imports", () => {
     });
 
     it("write a definition's script parameter named after a namespace its imports give as they read it, a definition created directly among them", () => {
-        const definition = nexo.validate({ version: 37, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
+        const definition = nexo.validate({ version: 38, imports: [{ module: 'shop' }], expression: { kind: 'arithmetic', operator: '+', left: { kind: 'scriptParameter', name: 'shop' }, right: { kind: 'memberAccess', receiver: { kind: 'namespace', name: 'shop' }, name: 'size' } } });
 
-        expect(nexo.format({ version: 37, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
-        expect(nexo.format({ version: 37, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
+        expect(nexo.format({ version: 38, imports: [{ module: 'shop' }], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('import shop\n\n~shop');
+        expect(nexo.format({ version: 38, imports: [], expression: { kind: 'scriptParameter', name: 'shop' } })).toBe('shop');
         expect(nexo.parse(nexo.format(definition))).toEqual(definition);
     });
 

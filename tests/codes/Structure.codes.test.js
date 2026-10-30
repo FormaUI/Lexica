@@ -116,11 +116,10 @@ describe('the structure codes of a definition', () => {
         expect(refusalOf(literal(1), [{ module: 'Measurements', alias: 'Measures' }, { module: 'Home', type: 'Sensor', alias: 'Measures' }]).message).toContain("'Measures' is the local name both 'import Measures = Measurements' and 'import Measures = Home.Sensor' give");
     });
 
-    it("NEXO2028: a namespace or an extension selection's module naming a module no import gives that local name", () => {
+    it('NEXO2028: a namespace naming a module no import gives that local name', () => {
         expectNexoError(refusalOf(member(namespace('Home'), 'rooms')), 'NEXO2028', 'structure');
         expect(refusalOf(member(namespace('Home'), 'rooms'), [{ module: 'Home', alias: 'House' }]).location).toEqual({ pointer: '/expression/receiver' });
         expect(refusalOf(member(namespace('Sensor'), 'rooms'), [{ module: 'Home', type: 'Sensor' }]).code).toBe('NEXO2028');
-        expect(refusalOf(member(parameter('x'), 'usage', { extension: { name: 'Device', module: 'Energy' } })).location).toEqual({ pointer: '/expression/extension/module' });
         expect(nexo.validate(definitionOf(member(namespace('House'), 'rooms'), [{ module: 'Home', alias: 'House' }])).expression).toEqual(member(namespace('House'), 'rooms'));
     });
 

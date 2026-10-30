@@ -19,7 +19,8 @@ In this document:
 1. [Owners and extensions](#extensions-owners)
 2. [Extensions on different targets](#extensions-different-targets)
 3. [Extension access](#extensions-access)
-4. [Type parameters](#extensions-type-parameters)
+4. [Reading an access's names](#extensions-reading-names)
+5. [Type parameters](#extensions-type-parameters)
 
 <a id="extensions-owners"></a>
 
@@ -62,13 +63,25 @@ An empty list, a `List<Never>`, satisfies both targets through list covariance, 
 
 ## Extension access
 
-An **extension access** reads an extension member with `:`. It takes one of three forms, and the last name is always the member:
+An **extension access** reads an extension member with `:`. It names the member alone, or through its extension, which its module may qualify:
 
 | Form | Example | What it names |
 | --- | --- | --- |
 | `receiver:member` | `device:usage` | The member, among the extensions that apply to the receiver |
 | `receiver:Extension.member` | `device:Device.usage` | The member of that extension |
 | `receiver:Module.Extension.member` | `device:Energy.Device.usage` | The member of that extension, the extension qualified by its module |
+
+Ordinary access continues after the member, on what it answers, in each form:
+
+```nexo
+{
+    unnamed = device:power.round,                 // Energy's power, then its answer's round.
+    named = device:Device.power.round,            // Through Energy's extension Device.
+    qualified = device:Energy.Device.power.round  // Device qualified by its module.
+}
+```
+
+Which names are the extension's and which are ordinary access is read by the declarations they name, as [reading an access's names](#extensions-reading-names) sets out.
 
 The member keeps its own form, a property, a function or a named indexer, and `?:` is the optional form:
 
@@ -78,16 +91,36 @@ The member keeps its own form, a property, a function or a named indexer, and `?
 | Function | `device:reset(3)` | `device?:reset(3)` |
 | Named indexer | `device:setting["mode"]` | `device?:setting["mode"]` |
 
-- **Each name has one role.** Before the member stands the extension's name, qualified by its module or not. A module's name is one the script's [imports](modules.md#scripts-imports) give a module, its own or an alias. A name that doesn't fill its role is refused, never read as a shorter access followed by ordinary access: `count: it.devices.count` is refused, since `it` names no module.
-- **Spacing never decides.** `device: usage` and `device:usage` are one access, as every token's spacing is.
 - **The extension's name** is read as a script's [type name](types.md#types-type-identity) is: an extension the script imports by name first, `values:Numeric.total` after `import Numeric = Measurements.NumericList`, then the public extensions of Nexo's own module and of the modules the script imports. Ordinary types take no part, so beside `Home`'s type `Device`, `device:Device.usage` names `Energy`'s extension. A name no extension has, several extensions share unqualified, or a namespace stands before is refused (NEXO3026, NEXO3061).
 - **Its members alone.** A named extension's lookup is limited to its members, so a member it does not declare is refused (NEXO3062), never falling through to another extension or to the owner's members.
-- **After the member.** A call or a key closes the access, and what follows applies to its answer: `device:reset(3).ok`, `device:readings[0].value`. A `.` after a member with neither would make that member the extension's name, so ordinary access on its answer is written in parentheses: `(device:readings).first`.
 - **A postfix of its receiver.** It binds as a member access does, so in `left + right:description` it belongs to `right`, and in `(left + right):description` to the sum.
 - **Null.** `:` takes a receiver that cannot be null, and one that can is refused with the form `?:` (NEXO3063), as `.` is with `?.`. `?:` evaluates its receiver once and, where it is null, answers null without evaluating the member's arguments or keys. The items of a `List<Device?>` don't make the list null.
 - **A function without a call** is a function reference bound to its receiver: `device:active` evaluates and captures `device` once, when the reference is created. It takes the member's own arguments, of every kind the member takes, wherever it is called from, a local holding it included, under the restrictions every [reference to a module's function](functions.md#functions-module-functions) follows, so a function the host invokes has none. Where the receiver is supplied later, an arrow function writes it: `d => d:active()`.
 - **A receiver of `Any`.** The member is selected when the receiver is evaluated, among the extensions that apply to its actual type, as [values of `Any`](types.md#types-any) set out; a named extension's target is checked against it then.
 - **Evaluation.** The receiver is evaluated once and checked against the target, and a failed check invokes nothing. The arguments or keys follow the member's contract, the host's `beforeInvoke` decides before the member is invoked, and the answer is checked as any member's is. A host call reached this way keeps its terminal position, its preparation and its projection.
+
+<a id="extensions-reading-names"></a>
+
+## Reading an access's names
+
+The names after an access's colon, up to anything but a dot and a name, are read by the declarations they name. They read up to three ways:
+
+| Way | The first names | Then |
+| --- | --- | --- |
+| 1 | An extension member that applies to the receiver | Its answer's members |
+| 2 | An extension the script reaches, which declares the second | The second's answer's members |
+| 3 | A module the script's imports name, whose public extension the second is, declaring the third | The third's answer's members |
+
+A call or a key after the last name applies to it, whichever way the names read.
+
+- **Roles.** A name fills a role only where it names what the role needs. A local or a parameter never names an extension or a module, so `count:it.devices.count` reads `it` as an extension member of `count`, or is refused.
+- **One way.** Where exactly one way fits, the access reads that way: `name:size.width` reads `size` as an extension member where no extension is named `size`.
+- **Several ways.** Where more than one fits, the access is refused as ambiguous (NEXO3091), giving the text that writes each. Where `size` is both an extension member and an extension:
+  - a group, `(name:size).width`, or the member's own extension, `name:Metrics.size.width`, reads `size` as the member;
+  - the extension named through its module, `name:Measurements.size.width`, reads `width` as the member of the extension `size`.
+- **No way.** Where none fits, the access is refused as the way its first name comes closest to reads it: a module's name as way 3, an extension's anywhere as way 2, and any other first name followed by more names as naming neither an extension nor an extension member of the receiver (NEXO3026).
+- **Spacing and lines never decide.** `name: size.width` reads as `name:size.width`. A line may break before each later dot, as before any step of a chain, and the names continue.
+- **A group ends the names.** `(name:size).width` reads `size` as the access's member and `width` as an ordinary access, whatever an extension is named.
 
 <a id="extensions-type-parameters"></a>
 

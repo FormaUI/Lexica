@@ -1266,9 +1266,9 @@ export class Parser {
     }
 
     /**
-     * Reads an extension access: `:`, or `?:` where it is optional, its names, each after a dot but the first, and a call's arguments where parentheses follow. Its names are one to three, its member last, its extension's
-     * name before it and that extension's module's before that, which the script's imports give a module, whatever its spacing: names that fit none of these forms are refused, never read as a shorter access and an
-     * ordinary one after it (NEXO1071). A colon no name follows names no member, brackets after it giving the unnamed indexer and the computed property access they may mean (NEXO1014).
+     * Reads an extension access: `:`, or `?:` where it is optional, its names, each after a dot but the first, and a call's arguments where parentheses follow its last. Which of its names is the member, which name its
+     * extension and that extension's module, and which are ordinary accesses of the member's answer, is resolution's to read, so the text records them as written. A colon no name follows names no member, brackets after
+     * it giving the unnamed indexer and the computed property access they may mean (NEXO1014).
      */
     #parseExtensionAccess(start) {
         const colon = this.#token;
@@ -1295,8 +1295,6 @@ export class Parser {
             names.push(name);
         }
 
-        this.#refuseExtensionNames(written, colon, names);
-
         const member = names.at(-1);
         const memberName = SyntaxTree.wordOf(member, this.#text);
 
@@ -1309,24 +1307,6 @@ export class Parser {
         }
 
         return Parser.#node('extension-access', children);
-    }
-
-    /**
-     * Refuses an extension access's names where they fit none of its forms (NEXO1071): more than three, or three whose first is no name the script's imports give a module, each name filling one role alone, so the
-     * names are never read as a shorter access with another after it.
-     */
-    #refuseExtensionNames(written, colon, names) {
-        const text = names.map(name => SyntaxTree.wordOf(name, this.#text)).join('.');
-
-        if (names.length > 3) {
-            throw this.#createSyntaxError('NEXO1071', `An extension access names its member last, after its extension and that extension's module, three names at most, and '${written}${colon.type}${text}' writes ${names.length}: group the access before reading what it answers, as '(${written}${colon.type}${names.slice(0, 3).map(name => SyntaxTree.wordOf(name, this.#text)).join('.')})'`, names[3].start);
-        }
-
-        const [first] = names;
-
-        if (names.length === 3 && !(first.type === 'identifier' && this.#namespaceNames.has(first.value))) {
-            throw this.#createSyntaxError('NEXO1071', `'${SyntaxTree.wordOf(first, this.#text)}' names no module the script imports, and the first of an extension access's three names is its extension's module: '${written}${colon.type}${text}' fits no extension access`, first.start);
-        }
     }
 
     /** Reads what follows a dot, or the `?.` of an optional access: a property read by a computed name in brackets, a dot property access, or a member call. */

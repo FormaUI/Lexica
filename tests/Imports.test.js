@@ -77,8 +77,8 @@ describe('what a script\'s imports make available', () => {
 
         it('leave a dependency\'s type whole without its module\'s import, whose members, its data among them, need it', () => {
             expect(evaluate('import Energy\ndevice:meter')).toEqual({ degrees: 21 });
-            expect(refusal('import Energy\n(device:meter).degrees')).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("'degrees' on Reading is declared only by 'Garden'") });
-            expect(evaluate('import Energy\nimport Garden\n(device:meter).degrees')).toBe(21);
+            expect(refusal('import Energy\ndevice:meter.degrees')).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("'degrees' on Reading is declared only by 'Garden'") });
+            expect(evaluate('import Energy\nimport Garden\ndevice:meter.degrees')).toBe(21);
         });
 
         it('include an unnamed indexer and an operator, each by its declaring module\'s import', () => {

@@ -29,19 +29,17 @@ export interface NexoScriptOptions {
     readonly imports?: readonly NexoSuppliedImport[];
 }
 
-/** An extension access's selection: the extension's name as written, where the access names one, and its module's local name where the module qualifies it; empty where the member alone is written. */
-export interface NexoDefinitionExtension {
-    readonly name?: string;
-    readonly module?: string;
-}
-
-/** A property access, the member a call names, or a named indexer's name: its receiver, its name or a computed property access's expression, whether it is optional, and, for an extension access, its selection. */
+/**
+ * A property access, the member a call names, or a named indexer's name: its receiver, its name or a computed property access's expression, and whether it is optional; an extension access's first name holds
+ * `extension`, and each later name `continues`, which resolution reads as the access's member, its extension, that extension's module, or an ordinary access of the member's answer.
+ */
 export interface NexoDefinitionMemberAccess {
     readonly kind: 'memberAccess';
     readonly receiver: NexoDefinitionNode;
     readonly name: string | NexoDefinitionNode;
     readonly optional?: true;
-    readonly extension?: NexoDefinitionExtension;
+    readonly extension?: true;
+    readonly continues?: true;
 }
 
 /** A node of a definition. */

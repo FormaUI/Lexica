@@ -19,7 +19,7 @@ const NODE_PROPERTIES = {
     root: { properties: ['kind'], required: [] },
     namespace: { properties: ['kind', 'name'], required: ['name'] },
     local: { properties: ['kind', 'name'], required: ['name'] },
-    memberAccess: { properties: ['kind', 'receiver', 'name', 'optional', 'extension'], required: ['receiver', 'name'] },
+    memberAccess: { properties: ['kind', 'receiver', 'name', 'optional', 'extension', 'continues'], required: ['receiver', 'name'] },
     call: { properties: ['kind', 'callee', 'arguments'], required: ['callee', 'arguments'] },
     indexerAccess: { properties: ['kind', 'receiver', 'optional', 'argument'], required: ['receiver', 'argument'] },
     object: { properties: ['kind', 'context', 'locals', 'objectFields'], required: ['objectFields'] },
@@ -57,9 +57,6 @@ const CAST_RECEIVER_KINDS = new Set(['it', 'scriptParameter', 'root', 'namespace
 
 /** The keys a dictionary's entry holds, both written: its key, the string its key literal writes, and its value. */
 const DICTIONARY_ENTRY_PROPERTIES = { properties: ['key', 'value'], required: ['key', 'value'] };
-
-/** The properties an extension access's selection holds: the extension's name, as written, where one is, and its module's local name, where it qualifies it; none where the member alone is written. */
-const EXTENSION_PROPERTIES = { properties: ['name', 'module'], required: [] };
 
 /** The operators an arithmetic node holds. */
 const ARITHMETIC_OPERATORS = ['+', '-', '*', '/', '%'];
@@ -925,9 +922,11 @@ export class DefinitionValidator {
             this.#optionalChain.hasOptional = true;
         }
 
-        const extension = node.extension === undefined ? undefined : this.#validateExtension(node, pointer);
+        this.#validateExtensionAccess(node, pointer);
+
         const receiver = node.receiver?.kind === 'namespace' ? this.#validateNamespace(node, pointer) : this.#validateNode(node.receiver, `${pointer}/receiver`, contextAvailability);
-        const access = Object.freeze({ kind: node.kind, receiver, ...(name === undefined ? {} : { name }), ...(node.optional === true ? { optional: true } : {}), ...(extension === undefined ? {} : { extension }) });
+        const marks = { ...(node.extension === true ? { extension: true } : {}), ...(node.continues === true ? { continues: true } : {}) };
+        const access = Object.freeze({ kind: node.kind, receiver, ...(name === undefined ? {} : { name }), ...(node.optional === true ? { optional: true } : {}), ...marks });
 
         if (node.kind === 'memberAccess') {
             return access;
@@ -939,35 +938,33 @@ export class DefinitionValidator {
     }
 
     /**
-     * Validates an extension access's selection: empty where the member alone is written; otherwise the extension's name as written, an identifier, and its module, where it qualifies that name, a local name the
-     * definition's imports give a module (NEXO2028). A computed property access is no extension access, since it reads a property by a name it computes.
+     * Validates the marks of an extension access's names: `extension`, true on its first name, which the colon is written before, and `continues`, true on each later one, which a dot joins to the one before it, its
+     * receiver, a name of the access, so neither is optional, both being written by name, and no name is both. A computed property access is no name of one, since it reads a property by a name it computes.
      */
-    #validateExtension(node, pointer) {
-        const extensionPointer = `${pointer}/extension`;
-        const { extension } = node;
-
-        if (node.kind === 'memberAccess' && typeof node.name !== 'string') {
-            this.#fail('NEXO2000', 'A computed property access reads a property by the name it computes, and selects no extension', extensionPointer);
+    #validateExtensionAccess(node, pointer) {
+        if (node.extension !== undefined && node.extension !== true) {
+            this.#fail('NEXO2000', "An extension access's first name holds extension: true", `${pointer}/extension`);
         }
 
-        this.#requireProperties(extension, extensionPointer, EXTENSION_PROPERTIES);
+        if (node.continues !== undefined && node.continues !== true) {
+            this.#fail('NEXO2000', "A name continuing an extension access holds continues: true", `${pointer}/continues`);
+        }
 
-        if (extension.name === undefined) {
-            if (extension.module !== undefined) {
-                this.#fail('NEXO2000', "An extension's module qualifies the extension's name, which the selection holds beside it", `${extensionPointer}/module`);
+        if (node.extension === undefined && node.continues === undefined) {
+            return;
+        }
+
+        if (node.kind !== 'memberAccess' || typeof node.name !== 'string') {
+            this.#fail('NEXO2000', "An extension access's names are written names, never a computed property access's", pointer);
+        }
+
+        if (node.continues === true) {
+            const { receiver } = node;
+
+            if (node.extension === true || node.optional === true || receiver?.kind !== 'memberAccess' || (receiver.extension !== true && receiver.continues !== true)) {
+                this.#fail('NEXO2000', "A name continuing an extension access follows one of its names after a dot, and is neither optional nor its first", `${pointer}/continues`);
             }
-
-            return Object.freeze({});
         }
-
-        this.#requireName(extension.name, `${extensionPointer}/name`);
-
-        if (extension.module !== undefined) {
-            this.#requireName(extension.module, `${extensionPointer}/module`);
-            this.#requireImportedNamespace(extension.module, `${extensionPointer}/module`);
-        }
-
-        return Object.freeze({ name: extension.name, ...(extension.module === undefined ? {} : { module: extension.module }) });
     }
 
     /** Refuses a namespace's or an extension's module named by a local name the definition's imports give no module (NEXO2028). */

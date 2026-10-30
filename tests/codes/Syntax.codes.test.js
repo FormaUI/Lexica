@@ -95,7 +95,7 @@ describe('the codes of syntax errors', () => {
             expectSyntaxCode('NEXO1000', ['import', 'import Home.', 'import A =', 'import 1']);
             expect(nexo.parse('~import').expression).toEqual({ kind: 'scriptParameter', name: 'import' });
             expect(nexo.parse('item.import').expression).toEqual({ kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'item' }, name: 'import' });
-            expect(nexo.format({ version: 37, imports: [], expression: { kind: 'scriptParameter', name: 'import' } })).toBe('~import');
+            expect(nexo.format({ version: 38, imports: [], expression: { kind: 'scriptParameter', name: 'import' } })).toBe('~import');
         });
 
         it('gives NEXO1044 to an import, or the body after the imports, sharing its line with earlier code', () => {
@@ -136,10 +136,6 @@ describe('the codes of syntax errors', () => {
 
         it('gives NEXO1014 to a colon in a chain that no member\'s name follows', () => {
             expectSyntaxCode('NEXO1014', ['it:["mode"]', 'it?:["mode"]', 'a.b(name: 1)', 'a ?: 0']);
-        });
-
-        it('gives NEXO1071 to an extension access whose names fit none of its forms', () => {
-            expectSyntaxCode('NEXO1071', ['count: it.devices.count', 'a:b.c.d.e']);
         });
 
         it('gives NEXO1015 to an optional enclosed access written directly as an argument', () => {

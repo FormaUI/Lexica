@@ -23,7 +23,7 @@ In this document:
 | Functions | `function-expression`, `function-parameter-list`, `function-parameter`, `arrow-function`, `arrow-parameters`, `function-call` | [Functions](functions.md) |
 | Operators | `coalescing`, `disjunction`, `conjunction`, `negation`, `equality`, `comparison`, `additive`, `multiplicative`, `arithmetic-negation` and their operands | [Expressions](expressions.md) |
 | Casts, conversions and attempts | `cast`, `cast-target`, `conversion`, `conversion-target`, `attempt`, `attempted-operation`, `type-name` | [Casts](types.md#casts), [conversions](values.md#conversions), [attempts](expressions.md#attempts) |
-| Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `computed-property-access`, `member-call`, `indexer-access`, `extension-access`, `extension-name`, `extension-member`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
+| Chains and members | `chain`, `chain-input`, `input`, `receiver`, `member-chain`, `member-expression`, `dot-property-access`, `computed-property-access`, `member-call`, `indexer-access`, `extension-access`, `extension-names`, `optional-enclosed-access`, `argument-list`, `argument` | [Members](members.md) |
 | Simple expressions | `simple-expression`, `simple-value-expression` | [Simple expressions](expressions.md#simple-expressions) |
 | Names and references | `value`, `identifier`, `local-name`, `object-field-name`, `member-name`, `namespace-name`, `module-name`, `lexical-reference`, `script-parameter`, `namespace-access`, `reserved-word`, `keyword` | [Lexical structure](lexical-structure.md#names-and-reserved-words), [script parameters](scripts.md#scripts-script-parameters), [namespaces](modules.md#namespaces) |
 | Objects | `object`, `object-content`, `object-field` | [Objects](values.md#objects) |
@@ -158,15 +158,14 @@ computed-property-access      = ( "." | "?." ) "[" simple-expression "]"
 member-call                   = ( "." | "?." ) member-name
                                 "(" [ argument-list ] ")"
 indexer-access                = ( "[" | "?[" ) simple-expression "]"
-extension-access              = ( ":" | "?:" ) extension-member
+extension-access              = ( ":" | "?:" ) extension-names
                                 [ "(" [ argument-list ] ")" ]
-extension-member              = [ extension-name "." ] member-name
-extension-name                = [ namespace-name "." ] identifier
-                              (* the names after the colon, up to anything but a
-                                 dot and a name, are one to three: the member last,
-                                 the extension's name before it, and before that a
-                                 namespace-name, where the script's imports give a
-                                 module that name *)
+extension-names               = member-name { "." member-name }
+                              (* every name after the colon, up to anything but a
+                                 dot and a name; which name its extension's module,
+                                 its extension and its member are, and which are
+                                 ordinary accesses of its answer, the declarations
+                                 they name decide *)
 
 collection-expression         = list-expression | dictionary-expression
                               (* "[" begins one where an input stands, and an indexer
@@ -269,7 +268,7 @@ The grammar uses several terms more narrowly than the prose:
 | `namespace-name` | An identifier naming a module's namespace where a value stands, or qualifying a type's or an extension's name: the local name the script's imports give a module, its own or an alias |
 | `module-name` | An identifier naming a registered module by its own name, as an import's source names the module it imports from |
 | `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; a script importing no module has none |
-| `extension-access` | An extension member read with `:` or `?:`: the member's name last, after its extension's name where one is written, itself after its module's local name where one qualifies it; a call's arguments follow a function's name, and a named indexer's key follows as an `indexer-access`, as after a `dot-property-access` |
+| `extension-access` | An extension member read with `:` or `?:` and its names, which [reading an access's names](extensions.md#extensions-reading-names) reads as the member alone, through its extension, or through that extension's module, any later ones ordinary accesses of its answer; a call's arguments follow the last name, and a named indexer's key follows as an `indexer-access`, as after a `dot-property-access` |
 | `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by the local name the script's imports give its module and a dot where written so; a qualified name parses alike whatever the script imports, and resolution decides whether the script imports the module |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |

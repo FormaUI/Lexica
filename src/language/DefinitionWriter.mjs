@@ -196,25 +196,35 @@ export class DefinitionWriter {
         return node.optional === true ? '?.' : '.';
     }
 
-    /** What joins a named access to its receiver: its dot, or, for an extension access, `:` or `?:` and the names before its member's, as the definition holds them, each followed by a dot. */
+    /**
+     * What joins a named access to its receiver: its dot, a dot for a name that continues an extension access, or `:` or `?:` for an extension access's first name; a selection a resolver gives an access it reads,
+     * an extension's name, qualified by its module or not, follows the colon with a dot after each name.
+     */
     static #joiner(node) {
         if (node.extension === undefined) {
             return DefinitionWriter.#dot(node);
         }
 
+        const colon = node.optional === true ? '?:' : ':';
+
+        if (node.extension === true) {
+            return colon;
+        }
+
         const { module, name } = node.extension;
 
-        return `${node.optional === true ? '?:' : ':'}${module === undefined ? '' : `${module}.`}${name === undefined ? '' : `${name}.`}`;
+        return `${colon}${module === undefined ? '' : `${module}.`}${name === undefined ? '' : `${name}.`}`;
     }
 
     /**
-     * The receiver of a named access as it is written before its joiner: grouped where it is an extension access's member read without a call and a dot follows it, which would make its member the extension's name,
-     * as `(device:readings).first` writes it, and as its precedence writes it otherwise.
+     * The receiver of a named access as it is written before its joiner: grouped where it is a name of an extension access and an ordinary dot follows it, which would continue the access's names, as
+     * `(device:readings).first` writes it, and as its precedence writes it otherwise.
      */
     static #receiverText(node, level) {
         const { receiver } = node;
+        const continuesAccess = node.extension !== undefined || node.continues === true || node.optional === true;
 
-        if (node.extension === undefined && receiver.kind === 'memberAccess' && receiver.extension !== undefined) {
+        if (!continuesAccess && receiver.kind === 'memberAccess' && (receiver.extension !== undefined || receiver.continues === true)) {
             return `(${DefinitionWriter.#write(receiver, level)})`;
         }
 

@@ -27,7 +27,7 @@ Each node is an object whose `kind` says what it is:
 | `root` | None | The object root |
 | `namespace` | `name`, the local name the script's imports give the module | A module's namespace, the receiver of a `memberAccess` node that reads one of the module's members, or names one a call calls, a qualified form among them, through it |
 | `local` | `name` | A use of a local, a function parameter or an object field, one in scope where it stands |
-| `memberAccess` | `name`, the member's name, or for a computed property access whose expression is not a string literal that is a name, that expression's node; `receiver`, the value it accesses; `optional`, true, where it is written with `?.` or `?:`; and `extension`, for an extension access, its selection: the extension's `name` where one is written and, where its module qualifies it, its `module`, and empty, `{}`, where the member alone is written | A property access, a computed property access, an extension access, or the member a call calls |
+| `memberAccess` | `name`, the member's name, or for a computed property access whose expression is not a string literal that is a name, that expression's node; `receiver`, the value it accesses; `optional`, true, where it is written with `?.` or `?:`; `extension`, true, on an extension access's first name, which its colon is written before; and `continues`, true, on each later name of one, its receiver the name before it, which [reading an access's names](../language/extensions.md#extensions-reading-names) reads as the access's member, its extension, that extension's module or an ordinary access of the member's answer | A property access, a computed property access, a name of an extension access, or the member a call calls |
 | `call` | `callee`, what it calls: a `memberAccess` node, the member, its receiver, whether it is optional and the extension it selects, or a `local` node, the local, the function parameter or the conditional binding holding the function; and `arguments`, its arguments in order, empty where it is given none | A function call: a member's, a qualified form's through a namespace, or of the function a name holds |
 | `indexerAccess` | `argument`, its key; `receiver`, the value it indexes, or for a named indexer the `memberAccess` node of its name, which [resolution reads](../language/members.md#property-access-calls-and-indexers-named-indexers) as one where the receiver's type declares it, or where an extension access names it; and `optional`, true, where it is written with `?[` | An indexer: the receiver's unnamed indexer, a named indexer, or the unnamed indexer of a property's answer |
 | `list` | `items`, its items in order, each a node, empty where it holds none | A list a [collection expression](../language/collections.md#collections-collection-expressions) writes |
@@ -74,7 +74,7 @@ An object field is an object holding its `name` and its `value` node, both requi
 
 ```json
 {
-  "version": 37,
+  "version": 38,
   "imports": [{ "module": "Energy" }, { "module": "Home" }],
   "expression": {
     "kind": "object",
@@ -127,7 +127,7 @@ Text must follow the syntax. A directly created definition must follow the same 
 | Script parameters | A definition's `scriptParameter` node, written with `~` when necessary, reads the script parameter regardless of local declarations. |
 | Simple expressions | Arguments, indexer keys, computed property names and interpolations obey the restrictions recursively; an object expression within one, as an options object, declares no locals, though it may use those in scope. |
 | Members | Every property access and indexer has a receiver, and every call a callee, a `memberAccess` or a `local` node. |
-| Extension accesses | An `extension` holds a `name`, an identifier, as written, where the access names its extension, and a `module` only beside a `name` its module qualifies, a local name the definition's imports give a module; it is empty, `{}`, where the access writes its member alone. A computed property access and an `indexerAccess` hold none; a named indexer's extension access is the `memberAccess` node of its name. |
+| Extension accesses | An extension access's first name holds `extension: true`, and each later name `continues: true`, a written name never optional whose receiver is a name of the access; a computed property access and an `indexerAccess` hold neither. A group ends an access's names, so a name a group's dot follows holds no `continues`. |
 | Collection expressions | A list's `items` and a dictionary's `entries` are lists; each entry holds its `key`, a string, and its `value`, a node, and no two entries of one dictionary share a key, compared exactly; each item and each value obeys the simple-expression restrictions, and none is a function. |
 | Equality | Both operands are present. |
 | Comparisons | At least two operands; exactly one operator between each pair; every operator is one of `<`, `<=`, `>`, `>=` and points in the same direction. |

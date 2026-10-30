@@ -105,23 +105,24 @@ Decisions taken without stopping to ask, kept here so they can be reviewed and r
 
 <a id="d11"></a>
 
-## D11 — The last name is the member
+## D11 — The last name of the extension reference is the member
 
-*October 30, 2026*
+*October 30, 2026, revised the same day*
 
-- **Decision:** an extension access writes one to three names: the member, its extension's name before it, and that extension's module's before that. Each name fills its role, whatever the spacing, and names that fit no form are refused (NEXO1071).
-- **Why:** the owner's model: in `device:Device.details.name`, `Device.details` qualifies and `name` is the member. Reading a shorter access followed by ordinary access would make spacing or vocabulary decide what the text means.
-- **Declined:** reading `count: it.devices.count` as a named argument or as `count:it` followed by `.devices.count`.
+- **Decision:** an extension reference writes one to three names: the member, its extension's name before it, and that extension's module's before that. Each name fills its role, whatever the spacing. The rule applies to the reference, not to every name that follows it.
+- **Revised:** the first version read every dotted name after the colon as part of the reference, refusing more than three (NEXO1071). The owner sent it back: that was a decision of its own, not a consequence of the three forms.
+- **Declined:** reading `count: it.devices.count` as a named argument.
 
 <a id="d12"></a>
 
-## D12 — A dot after a bare extension member needs a group
+## D12 — An access's names are read by the declarations they name
 
-*October 30, 2026*
+*October 30, 2026, revised the same day*
 
-- **Decision:** a call or a key closes an extension access. Ordinary access on a bare member's answer is grouped, `(device:readings).first`, and a line break never ends the names. Canonical text writes the group.
-- **Why:** it follows from [D11](#d11): the names run until something other than a dot and a name. Resolution gives the grouped form where an extension member has the name (NEXO3026).
-- **Declined:** letting resolution decide whether a name is an extension or a member, which would make the vocabulary decide how text reads.
+- **Decision:** resolution reads the names after the colon the ways their declarations allow: the first an extension member; the first an extension declaring the second; or the first a module whose extension the second is, declaring the third. Names after the member are ordinary access of its answer. One way that fits is taken, several are refused as ambiguous (NEXO3091), and a group or a named extension writes one.
+- **Why:** the owner's review. `name:size.width` should read as the extension member `size` and its answer's `width`, and a group is useful only where the names really read two ways. A name still fills a role only where it names what the role needs, never a local or a parameter.
+- **Revised:** the first version required a group after every bare member, `(device:readings).first`, because it read the dotted names greedily.
+- **Declined:** resolving the rest of the chain to choose among ways, which would make a typo in a later name change how the first ones read; the roles of the names decide alone.
 
 <a id="d13"></a>
 
@@ -148,7 +149,7 @@ Decisions taken without stopping to ask, kept here so they can be reviewed and r
 
 *October 30, 2026*
 
-- **Decision:** NEXO3090 refuses an extension member read with `.`. NEXO1071 refuses names that fit no form. NEXO1014 keeps a colon no name follows, now `f(a: 5)` and `a ?: 0` among it. NEXO3062 covers a member no applicable extension declares as well as one a named extension does not. NEXO4564 refuses an extension's unnamed indexer.
+- **Decision:** NEXO3090 refuses an extension member read with `.`. NEXO3091 refuses names that read more than one way, and NEXO3026 a first name that names neither an extension nor an extension member. NEXO1014 keeps a colon no name follows, now `f(a: 5)` and `a ?: 0` among it. NEXO3062 covers a member no applicable extension declares as well as one a named extension does not. NEXO4564 refuses an extension's unnamed indexer. NEXO1071, which the first reading of the names used, is retired.
 - **Why:** each condition has one code. A colon no name follows is one condition however it is spaced or followed, so NEXO1014 stays rather than being retired.
 - **Declined:** retiring NEXO1014 for a new code, which would split one condition.
 
@@ -181,6 +182,16 @@ Decisions taken without stopping to ask, kept here so they can be reviewed and r
 - **Decision:** a function, an arrow function, a script's function or a reference, is never a list's item, a dictionary's value or an indexer's key. Each is reported where it is found: an arrow function in text as a syntax error (NEXO1057), one in a definition as a structure error (NEXO2027), and one resolution finds as a validation error (NEXO3082). A call answering a valid item stays allowed.
 - **Why:** the owner decided it. The catalog already gave text NEXO1057 for an arrow function outside a local or an argument, so `[x => 1]` follows it; an indexer's key is data as an item is, so it shares NEXO3082 rather than taking a code of its own.
 - **Declined:** a new code for a function as a key, which would split one condition.
+
+<a id="d19"></a>
+
+## D19 — The revised reading is `1.0.0-alpha.41`, definition format 38
+
+*October 30, 2026*
+
+- **Decision:** reading an access's names by their declarations advances the language to `1.0.0-alpha.41` and the definition format to 38. A definition records each name as written, its first holding `extension: true` and each later one `continues: true`, and resolution assigns their roles.
+- **Why:** a build already reports `1.0.0-alpha.40` with the greedy reading, and a version names one contract, as [D1](#d1) decided. The text alone can't say which names are the reference's, so the definition keeps every name, and a group, which ends the names, stays distinct from a dot that continues them.
+- **Declined:** revising `1.0.0-alpha.40` in place; and a definition holding the names as one list, which would leave the ordinary accesses after the member without a place of their own for their resolutions and their errors.
 
 <a id="implementation-decisions-reviewed"></a>
 
