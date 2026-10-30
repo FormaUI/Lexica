@@ -22,7 +22,8 @@
         "README.md"
     ],
     "scripts": {
-        "bundle": "node scripts/bundle.mjs"
+        "bundle": "node scripts/bundle.mjs",
+        "benchmark": "node benchmarks/run.mjs"
     },
     "devDependencies": {
         "esbuild": "^0.25.0"

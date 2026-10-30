@@ -26,6 +26,7 @@ Update the specification before implementing a language change, and the design b
 | `src/language/vocabulary/` | Modules, their registry, and Nexo's built-in vocabulary |
 | `src/common/` | Object and array operations independent of the language |
 | `tests/` | Tests mirroring the source folders, run in Node |
+| `benchmarks/` | The benchmark: a billing app in plain JavaScript and in Nexo, timed and measured side by side |
 | `scripts/` | Bundling scripts |
 | `nuget/` | The package project, which distributes the bundle |
 | `spec/` | The specification: `language/` and `runtime/`, one document per subject, indexed by `spec/README.md` |
@@ -76,4 +77,4 @@ Nothing in `src/` imports from outside it or reads a browser global; a test enfo
 
 ## Tests and verification
 
-Add or update a test for every source module changed, asserting exact definitions, error kinds and locations. Run `./build.ps1`, the gate: the tests, the bundle, the package project's build with no warnings, and the format check.
+Add or update a test for every source module changed, asserting exact definitions, error kinds and locations. Measure a change made for speed or memory with the benchmark, against a run saved before it, and keep it only where it helps. Run `./build.ps1`, the gate: the tests, the bundle, the package project's build with no warnings, and the format check.

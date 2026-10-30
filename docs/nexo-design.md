@@ -94,3 +94,15 @@ One parser serves resolution and tooling alike. It reads a text into a lossless 
 - **What it cost.** The tree was measured against the parser before it, before it was kept: the documents' scripts parse 7% slower and malformed texts 8% faster, a 60-field script within 3% with two-thirds more transient allocation, what a kept script retains is unchanged, and the bundle is 3% larger.
 
 The tree is internal until a public tooling API stabilizes it; [the status overview](features-status.md) tracks recovery, that API, source-keeping formatting and editor tooling.
+
+## Performance
+
+The benchmark measures Nexo against the work a script stands for. It is a billing app written twice, as plain JavaScript and as Nexo scripts over the README's vocabulary, and a test keeps the two giving equal results.
+
+| Group | What it measures |
+| --- | --- |
+| Account summary | The README's script for one customer of 1,000: evaluating it, evaluating it with hooks reporting reads, and binding the customer and evaluating |
+| Portfolio report | One script over all 1,000 customers and their nearly 12,000 invoices: evaluating it, and binding the customers |
+| Preparing the account summary | Parsing a text no parse has kept, resolving it, and creating an evaluator |
+
+Each case reports the median time of one operation, warmed up and with a full collection before each sample, and the bytes it allocates, which V8's GC profiler counts across collections. `node benchmarks/run.mjs --save` keeps a run and `--compare` shows another's change from it, as [contributing](../CONTRIBUTING.md#measure-performance) sets out.

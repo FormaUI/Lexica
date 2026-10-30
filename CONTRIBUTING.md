@@ -37,6 +37,7 @@ Run the full build from the repository root:
 | `src/language/vocabulary/` | Modules, their registry, and Nexo's built-in vocabulary |
 | `src/common/` | Object and array operations independent of the language |
 | `tests/` | Tests arranged to match the source folders, run in Node with no browser |
+| `benchmarks/` | The benchmark, a billing app in plain JavaScript and in Nexo |
 | `scripts/` | Bundling scripts |
 | `nuget/` | The NuGet package project |
 | `spec/` | The specification: the language's contract in `language/` and the runtime's in `runtime/`, one document per subject, with its index |
@@ -49,3 +50,17 @@ The [specification](spec/README.md) defines the language and the runtime a host 
 Keep each change focused, and follow the surrounding code's conventions. Use `.editorconfig` for formatting and style. Add or update tests for every source module you change, beside the corresponding source under `tests/`.
 
 Nexo depends on no domain and no browser: nothing in `src/` imports from outside it, which a test enforces, and its tests run in Node.
+
+## Measure performance
+
+The benchmark compares a billing app written in plain JavaScript with the same app written as Nexo scripts. Save a run before a change, and compare a run after it:
+
+```sh
+node benchmarks/run.mjs --save before.json
+node benchmarks/run.mjs --compare before.json
+```
+
+- `--quick` takes fewer, shorter samples.
+- `--filter` runs the cases whose name holds a text, as `--filter portfolio`.
+
+A change made for speed or memory keeps every behaviour the tests check, and is kept only where the benchmark shows it helps.
