@@ -965,12 +965,14 @@ export class Evaluator {
 
     /**
      * An invocation of a member's declaration, with its function, its arguments and the check of its result made once: its receiver evaluated first, the node its resolution records, the access's receiver, the receiver of the access a named
-     * indexer's name is written in, or a qualified call's first argument, a null one answering null before its own arguments are evaluated, and a module member's none; then its arguments, null where one makes the call answer null.
+     * indexer's name is written in, a qualified call's first argument, or the receiver a reference bound to it captured, which the local a call's callee names holds, a null one answering null before its own arguments are
+     * evaluated, and a module member's none; then its arguments, null where one makes the call answer null.
      */
     #compileInvocation(node, resolution) {
         const { type: resultType, declaration, receiverNode } = resolution;
         const checksReceiver = resolution.checksReceiver === true;
-        const evaluateReceiver = receiverNode === undefined ? null : this.#getCompiledFunction(receiverNode);
+        const evaluateNode = receiverNode === undefined ? null : this.#getCompiledFunction(receiverNode);
+        const evaluateReceiver = resolution.readsBoundReceiver === true ? (evaluator, context) => evaluateNode(evaluator, context).receiver : evaluateNode;
         const invocation = this.#getCompiledInvocation(declaration, resultType);
         const evaluateArguments = this.#compileArguments(resolution);
 

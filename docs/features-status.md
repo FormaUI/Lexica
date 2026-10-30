@@ -49,7 +49,7 @@ Each feature, the contract that states it, its state in the implementation, and 
 | Indexers and computed property access | [Named indexers](../spec/language/members.md#property-access-calls-and-indexers-named-indexers), [computed property access](../spec/language/members.md#computed-property-access) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
 | Types identified by their module | [Type identity](../spec/language/types.md#types-type-identity) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
 | Imports, aliases and type imports, a host's among them, namespaces, module members and qualified access | [Imports](../spec/language/modules.md#scripts-imports), [namespaces](../spec/language/modules.md#namespaces) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
-| Extensions: the owner's members read with `.`, extension members with `:`, the most specific extension selected | [Extensions](../spec/language/extensions.md) | Implemented, with a [gap](#open-decisions): a bound extension reference held in a local takes values alone | [`alpha.40`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-40) |
+| Extensions: the owner's members read with `.`, extension members with `:`, the most specific extension selected | [Extensions](../spec/language/extensions.md) | Implemented | [`alpha.40`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-40) |
 | Type parameters, inferred at each call | [Type parameters](../spec/language/types.md#types-type-parameters) | Implemented; a type parameter's default is an [open decision](#open-decisions) | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
 | `Any`, its members selected as it is evaluated | [Values of `Any`](../spec/language/types.md#types-any) | Implemented in part: a function given to a deferred call is [deferred](#deferred) | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
 | Reference types in hierarchies, and the casts among them | [Reference types](../spec/language/types.md#reference-types) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
@@ -238,7 +238,6 @@ These gaps between the specification and the code, found by audits and by the re
 
 These are decided, as [decisions](decisions.md) records, and wait for the implementation to follow:
 
-- **A bound extension reference** keeps its member's argument kinds wherever it is called, as [extension access](../spec/language/extensions.md#extensions-access) states. Held in a local, `let k = words:keep`, it takes values alone: `k(it.length > 1)` is refused (NEXO3010).
 - **Collections a host supplies.** A set is captured as a list wherever a list is declared, its items in their order. A declared binding refuses one (NEXO2045), and so does a host call's supplied value (NEXO5015).
 - **A function as a collection item.** Text writing an arrow function as a list's item or a dictionary's value is refused as a syntax error (NEXO1057), as the catalog says; `[x => 1]` gives the structure error NEXO2027.
 

@@ -173,7 +173,7 @@ describe('extension access', () => {
         it('reads a function without a call as a reference bound to its receiver, which takes the function\'s own arguments, called through a local or given as a callback', () => {
             expect(evaluate('let reset = fan:reset\nreturn reset(2)')).toBe('fan reset 2');
             expect(evaluate('{ unnamed = counts.sum(fan:weigh), named = counts.sum(fan:Device.weigh) }')).toEqual({ unnamed: 12, named: 12 });
-            expect(resolve('let reset = fan:Device.reset\nreturn reset(2)').usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['Device.reset']);
+            expect(resolve('let reset = fan:Device.reset\nreturn reset(2)').usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([['Device.reset', '/expression/locals/0/value'], ['Device.reset', '/expression/result']]);
             expect(refusal('let order = fan:order\nreturn order(1)')).toMatchObject({ code: 'NEXO3076', message: expect.stringContaining("'Device.order' is a host call, which its host invokes, so it has no reference") });
         });
 

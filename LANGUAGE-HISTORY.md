@@ -16,6 +16,7 @@ Until the beta, a version may break what the one before it allowed, and each ent
 - [Extension access](spec/language/extensions.md#extensions-access): an extension member is read as `receiver:member`, `receiver:Extension.member` or `receiver:Module.Extension.member`, the last name always the member.
 - [Extension access](spec/language/extensions.md#extensions-access): each name fills its role, whatever the spacing. Names that fit no form are refused (NEXO1071), never read as a shorter access.
 - [Extension access](spec/language/extensions.md#extensions-access): a call or a key closes the access. Ordinary access on a bare member's answer is grouped, `(device:readings).first`.
+- [Extension access](spec/language/extensions.md#extensions-access): a function reference bound to its receiver takes its member's argument kinds wherever it is called, a local holding it included.
 - [Indexer selection](spec/language/modules.md#namespaces-indexers): `x[key]` reads the unnamed indexer of the receiver's owner alone, and an extension's named indexer is read as `x:name[key]`.
 
 **Runtime**

@@ -158,3 +158,26 @@ describe('functions passed to members', () => {
         }
     });
 });
+
+describe('a reference bound to its receiver', () => {
+    it("takes its member's argument kinds wherever it is called, a local holding it included", () => {
+        expect(evaluate('let test = word:is\nreturn { implicit = test(it:size > 2), arrow = test(w => w:vegan()), reference = test(pantry.vegan) }').value).toEqual({ implicit: true, arrow: true, reference: true });
+        expect(evaluate('let test = other:is\nreturn test(it:size > 5)').value).toBe(false);
+        expect(resolve('let test = word:is\nreturn test(it:size > 2)').usedDeclarations.map(({ qualifiedName, pointer }) => [qualifiedName, pointer])).toEqual([
+            ['is', '/expression/locals/0/value'],
+            ['String.size', '/expression/result/arguments/0/operands/0'],
+            ['is', '/expression/result'],
+        ]);
+    });
+
+    it('is called on the receiver it captured, evaluated once as the reference was created', () => {
+        const { value, invoked } = evaluate('let test = word:is\nreturn { a = test(it:vegan()), b = test(it:vegan()) }');
+
+        expect(value).toEqual({ a: true, b: true });
+        expect(invoked).toEqual([['vegan', 'oat'], ['vegan', 'oat']]);
+    });
+
+    it('takes values alone where the local may hold one of several functions, as a held reference to a module\'s function does', () => {
+        expect(errorThrownBy(() => resolve('let test = if word == "oat" then word:is else other:is end\nreturn test(it:size > 2)'))).toMatchObject({ code: 'NEXO3010' });
+    });
+});

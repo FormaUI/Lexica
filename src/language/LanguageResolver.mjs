@@ -1161,9 +1161,17 @@ export class LanguageResolver {
             this.#fail('NEXO3068', `'${node.callee.name}' may hold null, and only a function is called: bind one to call in its place first, as let call = ${node.callee.name} ?? other`, pointer);
         }
 
-        // A call of one a reference to a module's function alone is the call its qualified form makes, whatever its arguments' kinds.
-        if (functions.length === 1 && functions[0].reference !== undefined && functions[0].isBound !== true) {
-            return this.#resolveReferenceCall(node, pointer, scope, local, functions[0].reference);
+        // A call of one a reference to a module's function alone is the call its qualified form makes, and of one bound to a known receiver the call its extension access makes, whatever its arguments' kinds.
+        if (functions.length === 1 && functions[0].reference !== undefined) {
+            const [target] = functions;
+
+            if (target.isBound !== true) {
+                return this.#resolveReferenceCall(node, pointer, scope, local, target.reference);
+            }
+
+            if (target.receiverType.kind !== 'any') {
+                return this.#resolveBoundReferenceCall(node, pointer, scope, target);
+            }
         }
 
         for (const target of functions) {
@@ -1226,6 +1234,17 @@ export class LanguageResolver {
             receiverOf: `'${node.callee.name}' holds a reference to '${written}', which takes a receiver of`,
             nameOf: () => written,
         }));
+    }
+
+    /**
+     * Resolves a call through a known reference bound to its receiver, the one a local holds: the call its extension access makes, on the receiver the reference captured, which the local holds, its arguments each of the
+     * kind its parameter declares, so `keep(it.length > 1)` after `let keep = words:keep` reads its implicit body as `words:keep(it.length > 1)` does.
+     */
+    #resolveBoundReferenceCall(node, pointer, scope, target) {
+        const declaration = target.reference;
+        const resolved = this.#resolveInvocation(declaration, node, pointer, scope, { node: node.callee, type: target.receiverType, isNullable: false }, this.#qualifiedNameOf(declaration, target.receiverType));
+
+        return this.#storeResolution(pointer, { ...resolved, resolution: { ...resolved.resolution, readsBoundReceiver: true } });
     }
 
     /**

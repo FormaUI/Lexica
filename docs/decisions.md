@@ -152,6 +152,16 @@ Decisions taken without stopping to ask, kept here so they can be reviewed and r
 - **Why:** each condition has one code. A colon no name follows is one condition however it is spaced or followed, so NEXO1014 stays rather than being retired.
 - **Declined:** retiring NEXO1014 for a new code, which would split one condition.
 
+<a id="d16"></a>
+
+## D16 — A bound extension reference keeps its argument kinds
+
+*October 30, 2026*
+
+- **Decision:** `let keep = words:keep` then `keep(it.length > 1)` reads its argument as `words:keep(it.length > 1)` does. The receiver is still captured once, as the reference is created.
+- **Why:** the owner decided it, as a held reference to a module's function already does. It clarifies the agreed contract, so it keeps `1.0.0-alpha.40`, by [D9](#d9).
+- **Declined:** a local that may hold one of several functions taking more than values, since no one declaration gives its arguments their kinds; it gives each values, as before.
+
 <a id="implementation-decisions-reviewed"></a>
 
 ## The implementation decisions, reviewed
