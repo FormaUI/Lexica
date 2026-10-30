@@ -27,6 +27,7 @@ In this document:
 
 1. [Results and their metadata](#runtime-results)
 2. [A value in a host's form](#runtime-host-forms)
+3. [Data shared with a host](#runtime-shared-data)
 
 <a id="runtime-results"></a>
 
@@ -66,3 +67,35 @@ The runtime gives the facts, and a host its policy, as comparing one result with
 A result exports the language's collections as data: a list as an array of its exported items; a pair as `{ key, value }`; and a dictionary as `{ entries: [{ key, value }, …] }`, its entries in their order, each key's type preserved, so a number's key stays a number. A dictionary or a pair is data where every key and every value is, recursively, so one holding a reference, as a key or a value, has no data form and is refused where a result would hold it, as any reference is; a script projects it to data first. Exported data never turns back into a dictionary or a pair when it is bound again.
 
 A member's implementation gives the language's collections in a host's forms where its declaration says so: a set where a list is declared, a map where a dictionary is, and an object of a `key` and a `value` alone where a pair is, captured and validated as [capturing a supplied value](host-calls.md#runtime-host-calls-capturing) sets out, so a set gives a list of its items in its iteration order, keeping none of its uniqueness. It receives a dictionary as the language's, which answers `count`, `has(key)`, `get(key)`, `getEntry(key)`, `keys`, `values` and `entries`, and a pair as one of `key` and `value`. It receives an index as one of its `offset`, and a range as one of its `start` and its `end`, each a number, an index or null where the range leaves it out; each applies itself to a length with `resolveIn(length)`, an index answering the offset from the start it stands at, and a range its `start` and its `end` from the start, a start left out `0` and an end left out the length.
+
+<a id="runtime-shared-data"></a>
+
+## Data shared with a host
+
+During an evaluation, data passes between Nexo and its host in both directions:
+
+| Direction | What passes |
+| --- | --- |
+| From Nexo to the host | An implementation's receiver and arguments, and what a callback it was given answers; a hook's request and the value it reports; the value `typeOf` or `isInstance` is asked about |
+| From the host to Nexo | What an implementation answers, and the arguments it gives a callback |
+
+Data is read-only once it passes, nested data included:
+
+- **Nexo** changes no data, since [values](../language/values.md#values) are immutable.
+- **Data the host is given** is never changed by the host, during the call or after it, through any alias it keeps.
+- **Data the host gives** is never changed by the host once given, through any alias it keeps. An implementation that answers a list it keeps in a cache keeps that list as it answered it.
+
+Where Nexo copies data, the host's own stays the host's:
+
+- **A binding** is a frozen copy of the data its host gives, as [bindings](bindings.md#runtime-bindings) set out, and **a value a host call projects** is captured as a copy, as [capturing a supplied value](host-calls.md#runtime-host-calls-capturing) sets out. The host may change its own data afterwards, which changes nothing Nexo holds.
+- **An answer** is checked, never copied. The data an implementation answers is the data Nexo holds, so the host keeps it as it was answered.
+
+A reference is no data:
+
+- **It passes as itself,** alone or within data, and follows its type's contract.
+- **This rule makes no host object immutable.** Nexo never freezes one, and the object changes as its type's contract allows. The data around a reference is read-only, while the object it identifies is not.
+- **Its membership is its type's to answer.** What the rule gives below holds for data alone, never for a reference's membership.
+
+The environment and the samples a `beforeInvoke` answers are the host's own. Nexo passes them to an implementation without reading what they hold, so this rule doesn't cover them.
+
+**What the rule gives.** Data that never changes stays of the type it was checked as, so Nexo may rely on a check it made of data rather than make it again. Nexo doesn't detect a change made against this rule, and what an evaluation over data so changed answers is unspecified.

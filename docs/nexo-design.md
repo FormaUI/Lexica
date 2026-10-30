@@ -1,6 +1,6 @@
-# Nexo Design v1.0.0-alpha.41
+# Nexo Design v1.0.0-alpha.42
 
-The [Nexo specification](../spec/README.md) is the contract: the [language](../spec/README.md#the-language), and the [runtime](../spec/README.md#the-runtime) its implementations offer a host. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes language version `1.0.0-alpha.41` and definition version 38, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
+The [Nexo specification](../spec/README.md) is the contract: the [language](../spec/README.md#the-language), and the [runtime](../spec/README.md#the-runtime) its implementations offer a host. This design sets out how this implementation is built to meet it, and the reasons behind the choices that shape it. It describes language version `1.0.0-alpha.42` and definition version 38, as the specification does; [the status overview](features-status.md) says where the implementation still differs.
 
 In this document:
 
@@ -146,7 +146,7 @@ What changed, each change measured alone and kept where it helped:
 
 Where the remaining time goes, as profiling found it. The contract requires the guarantees this work gives, not this way of giving them, so a cheaper way that keeps each guarantee may exist:
 
-- **Every answer is checked** against its declared type, a list item by item and a structure field by field, and so is every value a member gives a callback. One run measured skipping the answers of Nexo's own members at about a tenth of an evaluation, no more than runs vary, so that gain is not established. Relying on a check made earlier needs a rule the status overview's [open decisions](features-status.md#open-decisions) weigh.
+- **Every answer is checked** against its declared type, a list item by item and a structure field by field, and so is every value a member gives a callback. One run measured skipping the answers of Nexo's own members at about a tenth of an evaluation, no more than runs vary, so that gain is not established. Since data shared with a host is [read-only once it passes](../spec/runtime/evaluation.md#runtime-shared-data), a check of data holds for as long as the data does, so a check made earlier may be relied on.
 - **Every structured value Nexo makes is recorded** by the value in a weak map, so a value of `Any` keeps its type. Recording is about a third of binding, and a table for each registry measured no saving beyond noise.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
 - **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.

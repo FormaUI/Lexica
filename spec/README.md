@@ -1,4 +1,4 @@
-# Nexo Specification v1.0.0-alpha.41
+# Nexo Specification v1.0.0-alpha.42
 
 Nexo is a general-purpose, embeddable language that lets applications define their own domain as an integral part of the language. Its expressions and data are immutable, and evaluation is read-only; changes to the domain are explicit requests carried out by the host. Nexo has no application domain of its own: modules declare the types and members available to a script, and adding them never changes the grammar.
 
@@ -6,7 +6,7 @@ This specification is the authoritative contract for the language and for the ho
 
 <a id="version"></a>
 
-**Version.** This specification describes language version `1.0.0-alpha.41`, and describes definition version 38. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](runtime/definition.md#definition) sets out; one change can advance both. An implementation says which of each it follows, as [versions](runtime/versions.md#runtime-versions) set out.
+**Version.** This specification describes language version `1.0.0-alpha.42`, and describes definition version 38. The two change apart: the language specification's version as the language's contract does, and the definition format's version as the serialized definition's contract does, as [the definition](runtime/definition.md#definition) sets out; one change can advance both. An implementation says which of each it follows, as [versions](runtime/versions.md#runtime-versions) set out.
 
 ## What it covers
 

@@ -2,11 +2,11 @@
 
 ## Current state
 
-**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.41` and definition version 38.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
+**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.42` and definition version 38.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.41` | `1.0.0-alpha.41` |
+| Language | `1.0.0-alpha.42` | `1.0.0-alpha.42` |
 | Definition format | 38 | 38 |
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Every example the specification gives resolves against [the examples' vocabulary](../spec/language/examples-vocabulary.md) and evaluates in the gate, a host call's preparation and projection among them, and each example the specification gives as an error is refused. The README's example runs as it is written, against the vocabulary its own JavaScript declares, as [decisions](decisions.md#d24) records.
@@ -69,6 +69,7 @@ Each feature, the contract that states it, its state in the implementation, and 
 | Resolution, its reports, result paths and locations | [Resolution](../spec/runtime/resolution.md) | Implemented, with a [gap](#open-decisions): a path validated by `nexo.paths.validate` alone | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
 | Resolutions that stay current across registrations | [Reusing a resolution](../spec/runtime/resolution.md#runtime-reuse) | Implemented | [`alpha.36`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-36) |
 | Evaluation, its hooks, and results with their metadata | [Evaluation](../spec/runtime/evaluation.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
+| Data shared with a host, read-only once it passes | [Data shared with a host](../spec/runtime/evaluation.md#runtime-shared-data) | Implemented: Nexo changes no data it shares, and a host keeps its own part, which Nexo doesn't check | [`alpha.42`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-42) |
 | The lineage of projected items | [Provenance](../spec/runtime/evaluation.md#runtime-results-provenance) | Implemented, with a [gap](#open-decisions): a dictionary's metadata | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
 | Values in a host's forms | [A value in a host's form](../spec/runtime/evaluation.md#runtime-host-forms) | Implemented | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
 | Preparing host calls and projecting what their host supplies | [Host calls](../spec/runtime/host-calls.md) | Implemented | [before `alpha.33`](../LANGUAGE-HISTORY.md#before-v1-0-0-alpha-33) |
@@ -224,11 +225,9 @@ Beta means no breaking redesign is planned and remaining limitations are documen
 
 The decisions taken while implementing were reviewed together, and the outcome of each is in [decisions](decisions.md#implementation-decisions-reviewed): the rules they settled are stated in the specification, and the questions they left open are below.
 
-Three open decisions are recorded. The first: a module that declares a type spelled as one of Nexo's own, as `Home.Number`, can't name Nexo's own type of that name in its own declarations, since [type name lookup](../spec/language/types.md#types-type-name-lookup) finds the module's own first and Nexo's own types have no qualified spelling. Giving Nexo a permanent namespace for that was declined; the limitation stands until another spelling is chosen.
+Two open decisions are recorded, and [decisions](decisions.md#d26) settles a third, who may change data Nexo and its host share. The first: a module that declares a type spelled as one of Nexo's own, as `Home.Number`, can't name Nexo's own type of that name in its own declarations, since [type name lookup](../spec/language/types.md#types-type-name-lookup) finds the module's own first and Nexo's own types have no qualified spelling. Giving Nexo a permanent namespace for that was declined; the limitation stands until another spelling is chosen.
 
 The second: a type parameter's default is checked at registration to be data, and against what the parameter binds to nowhere, since resolution checks the arguments a call gives and passes a default left out as it is, so `0` reaches an implementation whose `T` is `String`. Whether resolution refuses such a call, or a parameter of a type parameter takes no default, is open.
-
-The third: every answer is checked against its declared type, a list item by item and a structure field by field, Nexo's own members' answers among them. A list member of Nexo's own that answers its receiver's items answers values checked already, unless an implementation changed one it was given, which the contract doesn't forbid. One run measured skipping those checks at about a tenth of an evaluation, no more than runs vary, as the [design](nexo-design.md#the-first-performance-pass) notes, so the gain is not established. Whether the contract forbids changing a value an implementation is given, and Nexo's own answers go unchecked, is open.
 
 These gaps between the specification and the code, found by audits and by the review above, are each open until decided:
 

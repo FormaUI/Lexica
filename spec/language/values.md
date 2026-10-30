@@ -5,7 +5,7 @@
 
 A value is a number, a string, a Boolean, null, a list, a dictionary, a pair, an object, a structured value such as a `Climate`, a reference value such as a `Light` or a `Room`, or a function. A script's values enter it through its bindings and its members, and leave it through its result, which holds data alone.
 
-Values are immutable. No expression changes a value once it exists, and none assigns a name twice; a binding is a frozen copy of the data its host gives, and each evaluation produces a new result.
+Values are immutable. No expression changes a value once it exists, and none assigns a name twice; a binding is a frozen copy of the data its host gives, and each evaluation produces a new result. A host keeps the data it shares with an evaluation as it was, as [data shared with a host](../runtime/evaluation.md#runtime-shared-data) sets out.
 
 ```nexo
 room {

@@ -4,6 +4,22 @@ Each version of the Nexo language, newest first, with what it changed. A languag
 
 Until the beta, a version may break what the one before it allowed, and each entry says what it breaks.
 
+<a id="v1-0-0-alpha-42"></a>
+
+## `1.0.0-alpha.42`
+
+*October 31, 2026 · definition format 38*
+
+**Runtime**
+
+- [Data shared with a host](spec/runtime/evaluation.md#runtime-shared-data): data is read-only once it passes between Nexo and its host, in either direction, nested data included. A host changes neither the data it is given nor the data it gave, through any alias it keeps.
+- [Data shared with a host](spec/runtime/evaluation.md#runtime-shared-data): a reference is no data. It passes as itself, and the host object it identifies changes as its type's contract allows.
+- [Data shared with a host](spec/runtime/evaluation.md#runtime-shared-data): Nexo may rely on a check it made of data rather than make it again, never on one of a reference's membership, and what an evaluation over data changed against the rule answers is unspecified.
+
+**Breaking:**
+
+- A host that changes data after giving it, as a list an implementation answered and keeps in a cache, or changes data it was given, breaks the contract, which `1.0.0-alpha.41` left unspecified.
+
 <a id="v1-0-0-alpha-41"></a>
 
 ## `1.0.0-alpha.41`

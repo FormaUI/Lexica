@@ -350,3 +350,20 @@ Forty decisions were taken while implementing the declarations, member selection
   - A structure-type table for each registry, and one empty list shared by every type without type arguments. Neither measured beyond noise.
   - Freezing a filter's positions in place. `pick` gives the script's own list as its positions.
 - **Correction:** the commit that keeps a structure's unchanged record says it saves a quarter of the portfolio report's allocation. Measured alone, it saves 9%.
+
+<a id="d26"></a>
+
+## D26 — Data is read-only once it passes between Nexo and its host
+
+*October 31, 2026*
+
+- **Kind:** Approved rule, as the review of the first performance pass proposed it.
+- **Decision:** data that passes between Nexo and its host, in either direction, is read-only from then on, nested data included. A host changes neither the data it is given nor the data it gave, through any alias it keeps. The rule is stated in [data shared with a host](../spec/runtime/evaluation.md#runtime-shared-data). The language advances to `1.0.0-alpha.42`, and the definition format stays 38.
+- **References:** a reference is no data. The host object it identifies changes as its type's contract allows, and the rule lets Nexo rely on an earlier check of data alone, never on one of a reference's membership.
+- **The boundary:** Nexo copies a binding and a value a host call projects, so the host's own data stays its own. It doesn't copy an answer, so the rule covers what a host gave as well as what it was given.
+- **Why:** the language holds every value immutable, while the runtime left a host free to change data it shares. The rule closes that gap, whatever it saves. A check of data then holds for as long as the data does.
+- **Declined:**
+  - "An implementation may never change a value Nexo gives it", the first wording. It forbids changing the host object a reference identifies too.
+  - Forbidding changes to what an implementation is given alone. An answer the host keeps would stay open to change.
+  - Copying or freezing each answer. It costs what the checks cost, and freezing changes objects the host keeps.
+  - Detecting a change made against the rule. It needs the work the rule saves.

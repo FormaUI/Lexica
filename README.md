@@ -125,7 +125,7 @@ const summary = resolution.createEvaluator(bindings, { today: Date.parse('2026-1
 
 ## Availability
 
-> **Alpha.** Neither package is published yet: build them locally, as [Build](#build) shows, to try Nexo. The implementation, `1.0.0-alpha.37`, implements language version `1.0.0-alpha.41`. [The status overview](https://github.com/FormaUI/Nexo/blob/main/docs/features-status.md) says what is implemented and what remains.
+> **Alpha.** Neither package is published yet: build them locally, as [Build](#build) shows, to try Nexo. The implementation, `1.0.0-alpha.37`, implements language version `1.0.0-alpha.42`. [The status overview](https://github.com/FormaUI/Nexo/blob/main/docs/features-status.md) says what is implemented and what remains.
 
 ## Documents
 
