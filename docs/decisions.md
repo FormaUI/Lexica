@@ -338,10 +338,11 @@ Forty decisions were taken while implementing the declarations, member selection
 
 ## D25 — A performance change keeps every behaviour
 
-*October 30, 2026*
+*October 30, 2026, narrowed October 31 after its review*
 
 - **Kind:** Process.
 - **Decision:** a change made for speed or memory keeps every behaviour the contract states, errors and their paths, hook requests, metadata and the checks among them. Each change is measured alone against the commit before it, and kept only where the benchmark shows it helps. A test pins any behaviour a change reimplements, run against the code before and after it.
+- **Measured in pairs:** a gain is established by paired runs against the commit before it, every round agreeing and the median beyond what a run against an unchanged copy shows. A single run's change can't be told from noise of the same size. Paired runs confirmed the pass, and showed the account summary's evaluation 16% faster, which single runs had put within noise.
 - **Why:** the user asked for safe improvements. A faster Nexo that answers differently is a different Nexo.
 - **Declined:**
   - Skipping the checks of Nexo's own members' answers. One run measured it at about a tenth of an evaluation, no more than runs vary, so the gain is not established. It relies on no implementation changing a value it is given, which the contract doesn't state, so it is an [open decision](features-status.md#open-decisions).

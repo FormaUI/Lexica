@@ -77,4 +77,4 @@ Nothing in `src/` imports from outside it or reads a browser global; a test enfo
 
 ## Tests and verification
 
-Add or update a test for every source module changed, asserting exact definitions, error kinds and locations. Measure a change made for speed or memory with the benchmark, against a run saved before it, and keep it only where it helps. Run `./build.ps1`, the gate: the tests, the bundle, the package project's build with no warnings, and the format check.
+Add or update a test for every source module changed, asserting exact definitions, error kinds and locations. Measure a change made for speed or memory with the benchmark, in paired runs against the commit before it, and keep it only where it helps. Run `./build.ps1`, the gate: the tests, the bundle, the package project's build with no warnings, and the format check.

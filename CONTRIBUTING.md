@@ -65,4 +65,18 @@ node benchmarks/run.mjs --compare before.json
 
 Each case reports its median time and the bytes one operation allocates, whether collected or not. The benchmark doesn't measure the heap an operation retains.
 
-A change made for speed or memory keeps every behaviour the tests check, and is kept only where the benchmark shows it helps.
+A case's figures depend on the cases run before it, so compare runs of the same cases only.
+
+To establish a gain, measure the change in pairs against the commit before it, both run in one process:
+
+```sh
+git worktree add ../nexo-baseline HEAD
+node benchmarks/run.mjs --baseline ../nexo-baseline
+```
+
+- Each round measures both, alternating which runs first. `--rounds` sets how many run, 7 by default.
+- A case's change is the median of the rounds' changes, with their range beside it.
+- Run once against an unchanged copy to see how far rounds differ by chance.
+- A gain is established where every round agrees and the median lies beyond that.
+
+A change made for speed or memory keeps every behaviour the tests check, and is kept only where paired runs show it helps.

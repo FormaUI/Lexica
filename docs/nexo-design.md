@@ -110,20 +110,29 @@ Each case reports two figures:
 - **Time:** the median time of one operation, warmed up, with a full collection before each sample.
 - **Allocation:** the bytes one operation allocates, whether a collection reclaims them or not. V8's GC profiler records the heap before and after each collection, and the heap's growth between collections adds up to them. It doesn't measure the heap an operation retains, which the benchmark leaves unmeasured.
 
-`node benchmarks/run.mjs --save` keeps a run and `--compare` shows another's change from it, as [contributing](../CONTRIBUTING.md#measure-performance) sets out.
+A case's figures depend on the cases run before it in the same process, since V8 optimizes the code they share by what it has run. Binding the portfolio's customers allocates 10 MB after the evaluation case, and up to 18 MB measured alone. Runs compare only where they measure the same cases in the same order.
+
+A change is measured in pairs, against the commit before it. `--baseline` loads that commit's Nexo beside this one, in one process, and each round measures both, alternating which runs first. A case's change is the median of the rounds' own changes, with their range beside it. A gain is established where every round agrees and the median lies beyond what a run against an unchanged copy shows. [Contributing](../CONTRIBUTING.md#measure-performance) sets out the commands, and `--save` and `--compare` compare single runs.
 
 ### The first performance pass
 
-Measured on October 30, 2026, on Node 24 and an Intel Core i7-10700F. A time varies by about a tenth from run to run; an allocation varies far less.
+Measured on October 31, 2026, on Node 24 and an Intel Core i7-10700F, in five paired rounds against the commit before the pass. Each change gives the median of the rounds and, in brackets, their range.
 
-| Case | JavaScript | Nexo before | Nexo after |
-| --- | --- | --- | --- |
-| Account summary: evaluate | 2.7 µs, 1.4 KB | 37 µs, 32 KB | 33 to 38 µs, 22 to 25 KB |
-| Account summary: evaluate, reporting reads | | 71 µs, 45 KB | 35 to 39 µs, 24 KB |
-| Account summary: bind and evaluate | | 90 µs, 83 KB | 58 µs, 40 KB |
-| Portfolio report: evaluate | 2.1 ms, 1.3 MB | 33 ms, 24 MB | 28 to 31 ms, 12 MB |
-| Portfolio report: bind | | 45 ms, 41 MB | 17 ms, 10 MB |
-| Preparing: parse, resolve | | 0.2 to 0.3 ms each | unchanged |
+| Case | JavaScript | Nexo before | Nexo after | Time | Allocation |
+| --- | --- | --- | --- | --- | --- |
+| Account summary: evaluate | 2.7 µs, 1.4 KB | 38 µs, 32 KB | 32 µs, 22 KB | −16% (−23% to −15%) | −29% |
+| Account summary: evaluate, reporting reads | | 71 µs, 45 KB | 34 µs, 25 KB | −53% (−55% to −52%) | −44% |
+| Account summary: bind and evaluate | | 95 µs, 81 KB | 67 µs, 40 KB | −33% (−68% to −3%) | −50% |
+| Portfolio report: evaluate | 2.1 ms, 1.3 MB | 32 ms, 23 MB | 29 ms, 11 MB | −13% (−15% to −8%) | −51% |
+| Portfolio report: bind | | 45 ms, 40 MB | 18 ms, 10 MB | −58% (−63% to −15%) | −74% |
+| Preparing: parse | | 0.34 ms, 215 KB | 0.33 ms, 215 KB | −2% (−22% to +4%) | 0% |
+| Preparing: resolve | | 0.29 ms, 292 KB | 0.30 ms, 293 KB | +1% (0% to +2%) | 0% |
+
+A run of the same commit against an unchanged copy of itself shows the noise:
+
+- **Medians** lay within 3% for every case but one.
+- **Reporting reads** was the exception: its rounds ran from −34% to +126%, and its median was +26%.
+- **Resolve** measured +1% in that run as well, so its +1% above is no change.
 
 What changed, each change measured alone and kept where it helped:
 
