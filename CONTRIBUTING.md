@@ -63,4 +63,6 @@ node benchmarks/run.mjs --compare before.json
 - `--quick` takes fewer, shorter samples.
 - `--filter` runs the cases whose name holds a text, as `--filter portfolio`.
 
+Each case reports its median time and the bytes one operation allocates, whether collected or not. The benchmark doesn't measure the heap an operation retains.
+
 A change made for speed or memory keeps every behaviour the tests check, and is kept only where the benchmark shows it helps.

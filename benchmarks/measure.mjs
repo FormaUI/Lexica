@@ -24,7 +24,7 @@ const time = (operation, count) => {
 
 /**
  * The bytes an operation allocates, on average over the given number of runs: the growth of the heap between each garbage collection, which V8's GC profiler records before and after each, so what a collection
- * reclaims during the runs is still counted.
+ * reclaims during the runs is still counted. It is allocation, not the heap the operation retains.
  */
 const allocated = (operation, count) => {
     const profiler = new v8.GCProfiler();

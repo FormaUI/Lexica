@@ -105,7 +105,12 @@ The benchmark measures Nexo against the work a script stands for. It is a billin
 | Portfolio report | One script over all 1,000 customers and their nearly 12,000 invoices: evaluating it, and binding the customers |
 | Preparing the account summary | Parsing a text no parse has kept, resolving it, and creating an evaluator |
 
-Each case reports the median time of one operation, warmed up and with a full collection before each sample, and the bytes it allocates, which V8's GC profiler counts across collections. `node benchmarks/run.mjs --save` keeps a run and `--compare` shows another's change from it, as [contributing](../CONTRIBUTING.md#measure-performance) sets out.
+Each case reports two figures:
+
+- **Time:** the median time of one operation, warmed up, with a full collection before each sample.
+- **Allocation:** the bytes one operation allocates, whether a collection reclaims them or not. V8's GC profiler records the heap before and after each collection, and the heap's growth between collections adds up to them. It doesn't measure the heap an operation retains, which the benchmark leaves unmeasured.
+
+`node benchmarks/run.mjs --save` keeps a run and `--compare` shows another's change from it, as [contributing](../CONTRIBUTING.md#measure-performance) sets out.
 
 ### The first performance pass
 
@@ -130,9 +135,9 @@ What changed, each change measured alone and kept where it helped:
 - **Callbacks** are closed through an index of those still open, rather than a weak map of every one.
 - **A call's parameters** are bound without temporary arrays.
 
-What remains is mostly what the contract asks for:
+Where the remaining time goes, as profiling found it. The contract requires the guarantees this work gives, not this way of giving them, so a cheaper way that keeps each guarantee may exist:
 
-- **Every answer is checked** against its declared type, a list item by item and a structure field by field, and so is every value a member gives a callback. Skipping the answers of Nexo's own members would save about a tenth of an evaluation, which the status overview's [open decisions](features-status.md#open-decisions) weigh.
-- **Every structured value Nexo makes is recorded** by the value in a weak map, so a value of `Any` keeps its type. Recording is about a third of binding, and a table for each registry saves nothing.
+- **Every answer is checked** against its declared type, a list item by item and a structure field by field, and so is every value a member gives a callback. One run measured skipping the answers of Nexo's own members at about a tenth of an evaluation, no more than runs vary, so that gain is not established. Relying on a check made earlier needs a rule the status overview's [open decisions](features-status.md#open-decisions) weigh.
+- **Every structured value Nexo makes is recorded** by the value in a weak map, so a value of `Any` keeps its type. Recording is about a third of binding, and a table for each registry measured no saving beyond noise.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
 - **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.

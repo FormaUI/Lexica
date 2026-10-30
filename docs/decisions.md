@@ -344,7 +344,7 @@ Forty decisions were taken while implementing the declarations, member selection
 - **Decision:** a change made for speed or memory keeps every behaviour the contract states, errors and their paths, hook requests, metadata and the checks among them. Each change is measured alone against the commit before it, and kept only where the benchmark shows it helps. A test pins any behaviour a change reimplements, run against the code before and after it.
 - **Why:** the user asked for safe improvements. A faster Nexo that answers differently is a different Nexo.
 - **Declined:**
-  - Skipping the checks of Nexo's own members' answers, about a tenth of an evaluation. It relies on no implementation changing a value it is given, which the contract doesn't state, so it is an [open decision](features-status.md#open-decisions).
+  - Skipping the checks of Nexo's own members' answers. One run measured it at about a tenth of an evaluation, no more than runs vary, so the gain is not established. It relies on no implementation changing a value it is given, which the contract doesn't state, so it is an [open decision](features-status.md#open-decisions).
   - Collecting a text's locations at its first error, about a tenth of a parse. A kept script would hold its lowered definition beside its validated one.
   - A structure-type table for each registry, and one empty list shared by every type without type arguments. Neither measured beyond noise.
   - Freezing a filter's positions in place. `pick` gives the script's own list as its positions.
