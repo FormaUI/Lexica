@@ -38,7 +38,7 @@ export class Vocabulary {
     static get valueTypes() {
         return Vocabulary.#valueTypes ??= Object.freeze([
             ...NexoModule.scalarTypeNames.map(name => Object.freeze({ name, kind: 'scalar', members: Vocabulary.#createMembers(name, name, [...Vocabulary.#createConversions(name), ...Vocabulary.#createScalarMembers(name)]) })),
-            Object.freeze({ name: 'List', kind: 'generic', typeParameters: Object.freeze(['T']), variances: Object.freeze(['covariant']), members: Vocabulary.#createMembers('List<T>', 'List<T>', Vocabulary.#createListMembers()) }),
+            Vocabulary.#createListType(),
             Object.freeze({ name: 'Dictionary', kind: 'generic', typeParameters: Object.freeze(['K', 'V']), variances: Object.freeze(['invariant', 'covariant']), members: Vocabulary.#createMembers('Dictionary<K, V>', 'Dictionary<K, V>', Vocabulary.#createDictionaryMembers()) }),
             ...['Index', 'Range'].map(name => Object.freeze({ name, kind: 'position', members: Object.freeze([]) })),
             Object.freeze({ name: 'Pair', kind: 'generic', typeParameters: Object.freeze(['K', 'V']), variances: Object.freeze(['covariant', 'covariant']), members: Vocabulary.#createMembers('Pair<K, V>', 'Pair<K, V>', Vocabulary.#createPairMembers()) }),
@@ -102,15 +102,27 @@ export class Vocabulary {
 
     /**
      * Nexo's own module, each member and operator carrying its implementation: one module, created here alone, which every registry `nexo.createRegistry` makes holds and whose conversions between the language's
-     * types no other module may declare. It declares `flatten` in `NestedListExtensions<T>`, an extension of lists of lists, and owns the value types, whose members and operators the registry registers with it.
-     * A module of its name made elsewhere is an ordinary module, so the exception belongs to this one alone.
+     * types no other module may declare. It owns the value types, whose members and operators the registry registers with it, and declares no extension. A module of its name made elsewhere is an ordinary module,
+     * so the exception belongs to this one alone.
      */
     static get module() {
-        return Vocabulary.#module ??= new NexoModule(Vocabulary.moduleName, {
-            types: [
-                // A list of lists flattens to their items, each inner list's in order; an inner list that can be null is no list of lists, so none is ever treated as empty.
-                { name: 'NestedListExtensions<T>', kind: 'extension', target: 'List<List<T>>', members: [Declarations.createPropertyDeclaration('flatten', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.flat() })] },
-            ],
+        return Vocabulary.#module ??= new NexoModule(Vocabulary.moduleName, {});
+    }
+
+    /**
+     * `List<T>`, its members and those it declares as its own for a list of lists, a receiver narrower than its own, which `receivers` gives each of them by its declaration: `flatten`, the items of each inner list
+     * in order. An inner list that can be null is no list of lists, so none is ever treated as empty.
+     */
+    static #createListType() {
+        const nested = Vocabulary.#createMembers('List<T>', 'List<List<T>>', [Declarations.createPropertyDeclaration('flatten', 'List<T>', { updates: DERIVED_UPDATES, impl: ({ receiver }) => receiver.flat() })]);
+
+        return Object.freeze({
+            name: 'List',
+            kind: 'generic',
+            typeParameters: Object.freeze(['T']),
+            variances: Object.freeze(['covariant']),
+            members: Object.freeze([...Vocabulary.#createMembers('List<T>', 'List<T>', Vocabulary.#createListMembers()), ...nested]),
+            receivers: new Map(nested.map(member => [member, 'List<List<T>>'])),
         });
     }
 

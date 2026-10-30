@@ -126,12 +126,14 @@ Decisions taken without stopping to ask, kept here so they can be reviewed and r
 
 <a id="d13"></a>
 
-## D13 — The owner's extension of its own type is the owner's
+## D13 — A member's declaration decides how it is read
 
-*October 30, 2026*
+*October 30, 2026, revised the same day*
 
-- **Decision:** members a module declares in an extension of a type it owns are read with `.`, as Nexo's own `flatten` is on a list of lists. Only Nexo can declare one, since a host module's extension targets another module's type (NEXO4045).
-- **Why:** they are the owner's members, narrowed to a receiver its own type declarations can't express. Reading them with `:` would make `rooms.flatten` an extension access.
+- **Decision:** a member declared within a type is read with `.`, and one declared within an extension with `:`, whichever module declares it and whichever type it extends. `flatten` is declared among `List<T>`'s own members, for a list of lists, a receiver narrower than `List`'s, so `lists.flatten` reads it. Nexo's module declares no extension.
+- **Why:** the owner's review. Access syntax should follow the declaration, not how the declaring module relates to the receiver's type. `flatten` is a list operation like every other list member, so it is declared as one.
+- **Revised:** the first version read with `.` the members a module declared in an extension of its own type, which `flatten`, then declared through an extension, relied on.
+- **Declined:** reading `flatten` with `:`, which would make one list member unlike the others.
 
 <a id="d14"></a>
 

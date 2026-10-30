@@ -28,8 +28,8 @@ In this document:
 
 The module that declares a type **owns** it. A member another module declares on the type, in one of its [extensions](../runtime/extensions.md#extensions-declaring), is an **extension member**, as `Energy`'s `usage` is on `Home`'s `Device`.
 
-- **`.` reads the owner's members.** `device.power` reads the `power` `Home` declares. A member the owner declares on a supertype it owns takes part too. The owner's members include those it declares in an extension of its own types, as Nexo's own `flatten` is on a list of lists.
-- **`:` reads extension members.** `device:usage` reads `Energy`'s `usage`. An extension member is never read with `.`: `device.usage` is refused, giving `device:usage` (NEXO3090).
+- **`.` reads a type's own members.** A member declared as part of a type, within its declaration, is read with `.`: `device.power` reads the `power` `Home` declares. A member declared on a supertype takes part too.
+- **`:` reads extension members.** A member declared within an extension is read with `:`, whichever module declares it and whichever type it extends: `device:usage` reads `Energy`'s `usage`. An extension member is never read with `.`: `device.usage` is refused, giving `device:usage` (NEXO3090). How a member is declared decides how it is read, never which module owns the type.
 - **The two never compete.** A type's owner and an extension may each declare a member of one name, as `Home` and `Energy` each declare `power`: `device.power` reads `Home`'s and `device:power` reads `Energy`'s.
 
 The declarations an access considers are those of Nexo's own module and of the modules the script [imports](modules.md#scripts-imports). An [internal](../runtime/modules.md#modules-internal-declarations) declaration is never a candidate, and registration order never decides.

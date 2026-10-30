@@ -368,9 +368,11 @@ export class NexoRegistry {
             return [this.getDeclaredType(type, type.target)];
         }
 
-        // Nexo's own value types are named without a module, as a notation writes them.
+        // Nexo's own value types are named without a module, as a notation writes them; a member one declares as its own for a narrower receiver, as `List`'s `flatten` is for a list of lists, is read on that receiver.
         if (type?.kind === 'generic') {
-            return [new Type('named', { name: type.name, typeArguments: type.typeParameters.map(name => Type.createTypeParameter(name)), isNullable: false })];
+            const narrowed = type.receivers?.get(declaration);
+
+            return [narrowed === undefined ? new Type('named', { name: type.name, typeArguments: type.typeParameters.map(name => Type.createTypeParameter(name)), isNullable: false }) : this.getDeclaredType(declaration, narrowed)];
         }
 
         if (type?.kind === 'scalar') {
@@ -876,11 +878,8 @@ export class NexoRegistry {
             const target = this.getDeclaredType(type, type.target);
             const isOwnType = target.kind === 'named' && (target.moduleName === module.name || (target.moduleName === null && module === Vocabulary.module));
 
-            // A type its module owns takes its members in its own declaration, so an extension's target is another module's; Nexo's own extends its value types where a member needs a receiver narrower than
-            // the type, as a list of lists is, which the internal form its value types are declared through gives none.
-            const isNarrowedOwnValueType = module === Vocabulary.module && target.typeArguments.some(argument => argument.kind !== 'typeParameter');
-
-            if (isOwnType && !isNarrowedOwnValueType) {
+            // A type its module owns takes its members in its own declaration, so an extension's target is another module's.
+            if (isOwnType) {
                 fail('NEXO4045', `The extension '${type.name}' targets ${target}, a type its own module owns, which takes its members within its own declaration`, type.name, 'target');
             }
 

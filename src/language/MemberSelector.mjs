@@ -61,14 +61,9 @@ export class MemberSelector {
         return signatures.length > 1 && declarations.every(declaration => signatures.includes(declaration));
     }
 
-    /**
-     * Whether the member is an extension member, which `:` reads and `.` never does: one an extension declares, unless its module owns the extension's target, as Nexo's own `flatten` is, an extension of lists of
-     * lists, whose members are its owner's as the members of the types it declares are.
-     */
+    /** Whether the member is an extension member, which `:` reads and `.` never does: one declared within an extension, whichever module declares it and whichever type it extends. */
     isExtensionMember(declaration) {
-        const containing = this.#registry.getContainingType(declaration);
-
-        return containing?.kind === 'extension' && this.#registry.getDeclaringModuleName(declaration) !== MemberSelector.#ownerOf(this.#registry.getReceiverTypes(declaration)[0]);
+        return this.#registry.getContainingType(declaration)?.kind === 'extension';
     }
 
     /** The candidates a receiver of unknown type may read, which choose no declaration: the accessible ones, an internal one no candidate. */
@@ -85,7 +80,7 @@ export class MemberSelector {
         return type.moduleName ?? Vocabulary.moduleName;
     }
 
-    /** Whether the member is one the owner declares on a type of its own, within the type or Nexo's own value type, or in an extension of a type it owns, never an extension member. */
+    /** Whether the member is one the owner declares within a type of its own, a type or Nexo's own value type, never an extension member. */
     #isOwnedBy(declaration, owner) {
         const containing = this.#registry.getContainingType(declaration);
 

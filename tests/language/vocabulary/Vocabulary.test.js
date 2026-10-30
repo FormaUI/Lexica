@@ -9,7 +9,6 @@ describe('Vocabulary', () => {
     const registry = new NexoRegistry([Vocabulary.module]);
     const { module } = Vocabulary;
     const list = Vocabulary.getTypeDeclaration('List');
-    const [nestedLists] = module.types;
 
     /** What the implementation of a list's member answers for its receiver and its arguments. */
     const read = (name, receiver, args = {}) => list.members.find(member => member.name === name).impl({ receiver, args, env: {} });
@@ -33,7 +32,8 @@ describe('Vocabulary', () => {
         expect(module.name).toBe('Nexo');
         expect(module).toBe(Vocabulary.module);
         expect(conversions.every(operator => operator.kind === 'operator' && operator.name === 'convert' && typeof operator.impl === 'function')).toBe(true);
-        expect([...list.members, ...nestedLists.members].every(member => typeof member.impl === 'function')).toBe(true);
+        expect(list.members.every(member => typeof member.impl === 'function')).toBe(true);
+        expect(module.types).toEqual([]);
     });
 
     it('owns the language\'s value types, declared through its internal form: the scalars, List<T>, covariant in its items, Dictionary<K, V>, invariant in its keys, and Pair<K, V>, whose names are the ones written unqualified', () => {
@@ -61,12 +61,12 @@ describe('Vocabulary', () => {
         expect(list.members.map(writtenOf)).toEqual([
             'List<T>.count', 'List<T>.first', 'List<T>.last', 'List<T>[]', 'List<T>[]', 'List<T>[]', 'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.select', 'List<T>.selectMany', 'List<T>.concat', 'List<T>.take', 'List<T>.drop',
             'List<T>.takeWhile', 'List<T>.dropWhile', 'List<T>.any', 'List<T>.all', 'List<T>.contains', 'List<T>.indexOf', 'List<T>.indexWhere', 'List<T>.single', 'List<T>.average', 'List<T>.minBy', 'List<T>.maxBy', 'List<T>.orderBy', 'List<T>.orderByDescending', 'List<T>.thenBy', 'List<T>.thenByDescending', 'List<T>.distinct', 'List<T>.distinctBy',
-            'List<T>.reverse', 'List<T>.toDictionary', 'List<T>.groupBy', 'List<T>.entry', 'List<T>.entry', 'List<T>.pick',
+            'List<T>.reverse', 'List<T>.toDictionary', 'List<T>.groupBy', 'List<T>.entry', 'List<T>.entry', 'List<T>.pick', 'List<List<T>>.flatten',
         ]);
         expect(Vocabulary.getTypeDeclaration('Dictionary').members.map(writtenOf)).toEqual(['Dictionary<K, V>.count', 'Dictionary<K, V>[]', 'Dictionary<K, V>.entry', 'Dictionary<K, V>.containsKey', 'Dictionary<K, V>.keys', 'Dictionary<K, V>.values', 'Dictionary<K, V>.entries', 'Dictionary<K, V>.where', 'Dictionary<K, V>.select']);
-        // A list of lists alone flattens, through an extension of Nexo's own value type its own declaration's receiver is too wide for.
-        expect(nestedLists).toMatchObject({ name: 'NestedListExtensions', kind: 'extension', typeParameters: ['T'], target: 'List<List<T>>' });
-        expect(nestedLists.members.map(writtenOf)).toEqual(['List<List<T>>.flatten']);
+        // A list of lists alone flattens: List declares flatten as its own member, for a receiver narrower than its own.
+        expect(list.members.filter(member => member.name === 'flatten').map(writtenOf)).toEqual(['List<List<T>>.flatten']);
+        expect(registry.getContainingType(list.members.find(member => member.name === 'flatten'))).toBe(list);
         expect(Vocabulary.getTypeDeclaration('Pair').members.map(writtenOf)).toEqual(['Pair<K, V>.key', 'Pair<K, V>.value']);
         // A dictionary's key parameter consumes null, which reads the null key or an absent one.
         expect(Vocabulary.getTypeDeclaration('Dictionary').members[1].parameters[0]).toMatchObject({ name: 'key', type: 'K?', nulls: 'accept' });
@@ -76,7 +76,7 @@ describe('Vocabulary', () => {
         expect(list.members.filter(member => Vocabulary.answersReceiverItems(member)).map(member => member.name ?? `[${member.parameters[0].type}]`)).toEqual(keeping);
         expect(list.members.filter(member => Vocabulary.projectsItems(member)).map(member => member.name)).toEqual(['select']);
         expect(conversions.map(operator => registry.formatOperator(operator))).toEqual(['Number to String', 'String to Number', 'String to Boolean', 'Boolean to String']);
-        expect([module.types.length, module.members, registry.getReceiverMembers('is')]).toEqual([1, [], []]);
+        expect([module.types.length, module.members, registry.getReceiverMembers('is')]).toEqual([0, [], []]);
         expect(module.observationTypes).toEqual([]);
         expect([module.typeSelectors, module.mappings]).toEqual([[], []]);
     });
