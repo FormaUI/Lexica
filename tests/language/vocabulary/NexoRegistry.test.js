@@ -543,6 +543,21 @@ describe('recognition', () => {
         expect(holdingNone.map(type => registry.holdsNullableReference(type))).toEqual(holdingNone.map(() => false));
     });
 
+    it('tells a type whose value may hold a reference, as a reference type, Any and a type parameter do, through lists, objects and a structure\'s data shape, from one holding none, a structure that holds itself among them', () => {
+        const registry = new NexoRegistry([Vocabulary.module, new NexoModule('home', withHome({
+            types: [
+                { name: 'Spot', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number', lamp: 'Light', next: 'Spot?' }) },
+                { name: 'Plain', kind: 'structured', members: dataPropertyDeclarations({ size: 'Number', next: 'Plain?' }) },
+            ],
+        }))]);
+        const named = name => Type.createNamedType(name, false, 'home');
+        const holding = [named('Light'), named('Spot'), Type.createListType(named('Spot')), Type.createObjectType(new Map([['lamp', named('Light')]])), Type.any, Type.createListType(Type.any), Type.createTypeParameter('T')];
+        const holdingNone = [named('Plain'), Type.createListType(named('Plain')), Type.parse('List<Number?>'), Type.parse('String?'), Type.createObjectType(new Map([['size', Type.parse('Number')]]))];
+
+        expect(holding.map(type => registry.mayHoldReference(type))).toEqual(holding.map(() => true));
+        expect(holdingNone.map(type => registry.mayHoldReference(type))).toEqual(holdingNone.map(() => false));
+    });
+
     it('tells a declaration giving a script a value of Any, through its result, a callback\'s arguments, a list, an object, a structure\'s data shape and a selected key\'s type, from one that gives none', () => {
         const holding = { name: 'Holding', kind: 'structured', members: dataPropertyDeclarations({ inner: 'Any?' }) };
         const nested = { name: 'Nested', kind: 'structured', members: dataPropertyDeclarations({ holding: 'Holding', self: 'Nested?' }) };

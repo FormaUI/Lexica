@@ -980,7 +980,7 @@ export class Evaluator {
         const alternatives = resolution.alternatives === undefined ? null : new Map(resolution.alternatives.map(alternative => [alternative.declaration, { invocation: this.#getCompiledInvocation(alternative.declaration, alternative.type), parameterNames: alternative.parameterNames }]));
         const evaluateCallee = alternatives === null ? null : this.#getCompiledFunction(node.callee);
         const parameterNames = declaration.parameters?.map(parameter => parameter.name) ?? [];
-        const invocation = this.#getCompiledInvocation(declaration, resultType);
+        const invocation = this.#getCompiledInvocation(declaration, resultType, alternatives === null && this.#keepsCheckedItems(declaration, resultType, resolution.receiverType));
         const evaluateArguments = this.#compileArguments(resolution);
 
         return (evaluator, context) => {
@@ -1028,11 +1028,11 @@ export class Evaluator {
     }
 
     /**
-     * The invocation of the declaration whose implementation answers a value of the result type, as the call it serves resolved it: its implementation, whether it takes a receiver, and the check and the copy of its answer, made once for
-     * each declaration and result type and shared by every evaluator of the resolution, so one generic declaration answering two types has two. The result type is the declaration's own, its type parameters bound for the call,
-     * which a null the call propagates or the types of other functions it may call never make wider.
+     * The invocation of the declaration whose implementation answers a value of the result type, as the call it serves resolved it: its implementation, whether it takes a receiver, the check and the copy of its answer, and
+     * whether the call relies on the check its answer's items had, made once for each declaration, result type and reliance and shared by every evaluator of the resolution, so one generic declaration answering two types has
+     * two. The result type is the declaration's own, its type parameters bound for the call, which a null the call propagates or the types of other functions it may call never make wider.
      */
-    #getCompiledInvocation(declaration, resultType) {
+    #getCompiledInvocation(declaration, resultType, keepsCheckedItems = false) {
         let invocations = this.#compiledInvocations.get(declaration);
 
         if (invocations === undefined) {
@@ -1040,7 +1040,7 @@ export class Evaluator {
             this.#compiledInvocations.set(declaration, invocations);
         }
 
-        let invocation = invocations.find(candidate => candidate.resultType.equals(resultType));
+        let invocation = invocations.find(candidate => candidate.resultType.equals(resultType) && candidate.keepsCheckedItems === keepsCheckedItems);
 
         if (invocation === undefined) {
             invocation = Object.freeze({
@@ -1048,6 +1048,7 @@ export class Evaluator {
                 implementation: this.#registry.getImplementation(declaration),
                 takesReceiver: this.#registry.takesReceiver(declaration),
                 resultType,
+                keepsCheckedItems,
                 captureCollections: Evaluator.#compileCollectionCapture(resultType),
                 isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${NexoModule.writtenNameOf(declaration)}'`),
                 copyStructure: Evaluator.#compileStructureCopy(resultType, this.#registry),
@@ -1056,6 +1057,21 @@ export class Evaluator {
         }
 
         return invocation;
+    }
+
+    /**
+     * Whether the answer of a call needs no check of its items: the member is one of Nexo's own lists' that answers items of its receiver, the receiver's type resolution established is a list of the answer's item type, and
+     * that type may hold no reference. Each item was then checked as that type where the receiver was made, and data shared with a host stays as it was checked. A reference's membership is its type's to answer, so an
+     * answer that may hold one is checked again, and so is any other member's.
+     */
+    #keepsCheckedItems(declaration, resultType, receiverType) {
+        if (receiverType === undefined || !Vocabulary.answersReceiverItems(declaration) || !resultType.isList || resultType.isNullable) {
+            return false;
+        }
+
+        const receiverList = receiverType.toNonNullable();
+
+        return receiverList.isList && receiverList.itemType.equals(resultType.itemType) && !this.#registry.mayHoldReference(resultType.itemType);
     }
 
     /**
@@ -2339,7 +2355,7 @@ export class Evaluator {
      * selected as it is evaluated.
      */
     #invokeImplementation(invocation, receiver, args, node, isDeferred = false) {
-        const { declaration, implementation, takesReceiver, resultType, captureCollections, isOfResultType, copyStructure } = invocation;
+        const { declaration, implementation, takesReceiver, resultType, keepsCheckedItems, captureCollections, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
             this.#fail('NEXO4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${NexoModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
@@ -2402,7 +2418,8 @@ export class Evaluator {
             value = captureCollections(value);
         }
 
-        if (!isOfResultType(value)) {
+        // A list of its receiver's items that one of Nexo's own members made, as its positions show, holds items its receiver's check covers where the invocation keeps their checks.
+        if (!(keepsCheckedItems && positions !== undefined) && !isOfResultType(value)) {
             this.#fail('NEXO5006', `${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${resultType}`, this.#pointerOf(node));
         }
 

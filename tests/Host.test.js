@@ -404,4 +404,18 @@ describe('a member\'s answer', () => {
     it.each([['Number?', null], ['Price?', null], ['List<Number?>', [1, null]], ['String?', 'x'], ['Price', { amount: 1, currency: 'EUR' }]])('takes %s answered as %j', (result, answer) => {
         expect(replying(result, answer)()).toEqual(answer);
     });
+
+    it('asks again whether each reference a list member of Nexo\'s own answers is of its type, never relying on the check its receiver had', () => {
+        let asked = 0;
+        const registry = createImportingRegistry([nexo.createModule('lamps', {
+            types: [{ name: 'Lamp', kind: 'reference', isInstance: value => ++asked > 0 && value?.isLamp === true }],
+        })]);
+        const bindings = registry.createBindings({ fixtures: [{ isLamp: true }, { isLamp: true }] }, { types: { fixtures: 'List<lamps.Lamp>' } });
+        const evaluator = registry.resolve('fixtures.reverse.count', bindings).createEvaluator(bindings, {});
+
+        asked = 0;
+
+        expect(evaluator.evaluate().value).toBe(2);
+        expect(asked).toBe(2);
+    });
 });

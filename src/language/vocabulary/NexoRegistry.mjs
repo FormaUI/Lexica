@@ -1173,6 +1173,45 @@ export class NexoRegistry {
         }
     }
 
+    /**
+     * Whether a value of the type may hold a reference anywhere: the type is a reference type, `Any` or a type parameter, or a type argument, an object field or a property of a structure's data shape is, a structure
+     * already being walked counting as holding none. Checking a value of a type that holds none asks no type's membership.
+     */
+    mayHoldReference(type) {
+        return this.#mayHoldReference(type, new Set());
+    }
+
+    #mayHoldReference(type, walking) {
+        switch (type.kind) {
+            case 'any':
+            case 'typeParameter':
+                return true;
+            case 'object':
+                return [...type.fieldTypes.values()].some(fieldType => this.#mayHoldReference(fieldType, walking));
+            case 'named': {
+                if (type.typeArguments.length > 0) {
+                    return type.typeArguments.some(typeArgument => this.#mayHoldReference(typeArgument, walking));
+                }
+
+                if (this.isReferenceType(type)) {
+                    return true;
+                }
+
+                const shape = this.getDataShape(type);
+
+                if (shape === null || walking.has(type.identity)) {
+                    return false;
+                }
+
+                walking.add(type.identity);
+
+                return [...shape.values()].some(propertyType => this.#mayHoldReference(propertyType, walking));
+            }
+            default:
+                return false;
+        }
+    }
+
     /** Whether the type holds `Any` anywhere: itself, a type argument, an object field, or a property of a structure's data shape, a structure already being walked counting as holding none, since its properties are walked where it is first met. */
     #holdsAny(type, walking) {
         switch (type.kind) {

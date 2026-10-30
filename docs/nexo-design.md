@@ -144,9 +144,26 @@ What changed, each change measured alone and kept where it helped:
 - **Callbacks** are closed through an index of those still open, rather than a weak map of every one.
 - **A call's parameters** are bound without temporary arrays.
 
+### Relying on a check of data
+
+Data shared with a host is [read-only once it passes](../spec/runtime/evaluation.md#runtime-shared-data), so a check of data holds for as long as the data does. A list member of Nexo's own that answers items of its receiver, as `where`, `orderBy` and `take` do, relies on the check those items had where all of these hold:
+
+- **Resolution selected the member,** so the receiver's type is established, never a value of `Any`'s.
+- **The answer's item type is the receiver's.**
+- **That type may hold no reference.** A reference's membership is its type's to answer, so an answer that may hold one is checked again.
+- **The member's own positions show** that its answer holds its receiver's items.
+
+The answer is still captured, copied, recorded and reported as before, and every other member's answer is checked. Measured in paired runs against the commit before it:
+
+| Case | Time | Allocation |
+| --- | --- | --- |
+| Account summary: evaluate | −6% (−13% to −1%), all nine rounds faster | unchanged |
+| Portfolio report: evaluate | −2% to −7% across four runs, some rounds slower in three of them, so not established | unchanged |
+
 Where the remaining time goes, as profiling found it. The contract requires the guarantees this work gives, not this way of giving them, so a cheaper way that keeps each guarantee may exist:
 
-- **Every answer is checked** against its declared type, a list item by item and a structure field by field, and so is every value a member gives a callback. One run measured skipping the answers of Nexo's own members at about a tenth of an evaluation, no more than runs vary, so that gain is not established. Since data shared with a host is [read-only once it passes](../spec/runtime/evaluation.md#runtime-shared-data), a check of data holds for as long as the data does, so a check made earlier may be relied on.
+- **Every answer is checked** against its declared type, a list item by item and a structure field by field, but where [a check of data is relied on](#relying-on-a-check-of-data).
+- **Every value a member gives a callback is checked** against the callback's contract, a structure field by field. A list member of Nexo's own gives its callback its receiver's items, which the same reasoning could cover, but only once each member is shown to give nothing else.
 - **Every structured value Nexo makes is recorded** by the value in a weak map, so a value of `Any` keeps its type. Recording is about a third of binding, and a table for each registry measured no saving beyond noise.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
 - **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.
