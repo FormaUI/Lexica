@@ -15,11 +15,13 @@ describe('Alignment', () => {
     const project = read('nuget/Forma.Nexo.csproj');
     const npmPackage = JSON.parse(read('package.json'));
 
-    it('has a specification and a design titled with the one version the specification describes, which its version line names', () => {
+    it('has a specification and a design titled with the one version the specification describes, which its version line names and the design describes, with the definition version', () => {
         const [, described] = specification.match(/^# Nexo Specification v(\S+)$/m);
+        const [, definition] = specification.match(/describes definition version (\d+)\./);
 
         expect(design.match(/^# Nexo Design v(\S+)$/m)[1]).toBe(described);
         expect(specification).toContain(`describes language version \`${described}\``);
+        expect(design).toContain(`describes language version \`${described}\` and definition version ${definition}`);
     });
 
     it('reports the language and definition versions it implements, which the status table names', () => {

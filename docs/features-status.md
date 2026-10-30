@@ -2,11 +2,11 @@
 
 ## Current state
 
-**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.38` and definition version 36.** What remains is DOMQL's migration to them, the review of the [implementation decisions](#open-decisions), then [tooling](#tooling) and [the release](#release).
+**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.39` and definition version 36.** What remains is DOMQL's migration to them, the review of the [implementation decisions](#open-decisions), then [tooling](#tooling) and [the release](#release).
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.38` | `1.0.0-alpha.38` |
+| Language | `1.0.0-alpha.39` | `1.0.0-alpha.39` |
 | Definition format | 36 | 36 |
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Every example the specification and the README give resolves against [the examples' vocabulary](../spec/language/examples-vocabulary.md) and evaluates in the gate, a host call's preparation and projection among them, and each example the specification gives as an error is refused.
@@ -124,7 +124,7 @@ Contract: [Collections](../spec/language/collections.md).
 | Package | The npm package `@formaui/lexica`, the NuGet package `formaui-net.Lexica` serving `_content/lexica/lexica.js`, from the repository `FormaUI/Lexica` checked out as `formaui-net.Lexica` | `@formaui/nexo`, `formaui-net.Nexo` serving `_content/nexo/nexo.js`, from `FormaUI/Nexo` checked out as `formaui-net.Nexo` | Depend on `@formaui/nexo` where `package.json:12` depends on `@formaui/lexica`, and import it by that name in the sources and tests the API line names, `tests/Boundary.test.js:16`, `build.ps1:121` and the `#lexica/` alias of `tests/vitest.config.js:12` and its three siblings; take the checkout from `formaui-net.Nexo` in `build.ps1:35`, and from `FormaUI/Nexo` in `.github/workflows/ci.yml:45` to `:47` and `:96` to `:98` |
 | Specification | One folder, `spec/`, each document holding the language's rules and the runtime's alike | `spec/language/` and `spec/runtime/`, the language's contract of what a script means apart from the runtime's of what a host provides: a mixed document split by contract, `diagnostics-and-errors.md` into each contract's `errors.md`, `terms.md` into each one's glossary and `runtime.md` into the runtime's documents, each section keeping its anchor in the document it moved to | Point DOMQL's 40 links into Nexo's specification at their new documents, each found by its anchor, but `#vocabulary-list-members`, now `language/collections.md#collections-list-members`, and `#vocabulary-verbs`, which the verbs line drops: to `vocabulary.md`, 10 in `spec/vocabulary.md` and 1 in `spec/events.md`; to `members.md`, 9 across `spec/evaluation.md`, `events.md`, `executions.md`, `queries.md`, `terms.md`, `vocabulary.md` and `watches.md`; to `runtime.md`, 8 across `docs/domql-design.md`, `spec/README.md`, `evaluation.md`, `events.md`, `executions.md`, `queries.md` and `results.md`; to `modules.md`, 7 in `spec/vocabulary.md`, `evaluation.md` and `nuget/README.md`; and one each to `scripts.md`, `types.md`, `terms.md`, `definition.md` and `diagnostics-and-errors.md`, from `spec/queries.md`, `nodes-and-shadow-trees.md`, `terms.md` and `api.md`; and replace its links to Nexo's proposals, which are removed once implemented, with the specification's sections they describe: 1 to `collections.md` at `7406eb4`, and 6 to `host-additions.md` its `a66dd77` added to `docs/forma-javascripts-domql-replacement.md` |
 | Definition version | 33 | 36, refusing an import of `Nexo` | Write `version: 36` where DOMQL writes a definition, `tests/Domql.test.js:43`, `:211`, `:260`, `:299` and `:342`, and the specification's examples its `tests/DocumentExamples.test.js:85` dates |
-| Language version | `nexo.info.versions.language`, `1.0.0-alpha.35` | `1.0.0-alpha.38` | Name it in DOMQL's status table, which `tests/Alignment.test.js:31` compares with `domql.info.versions.language`, `src/Versions.mjs:15`'s |
+| Language version | `nexo.info.versions.language`, `1.0.0-alpha.35` | `1.0.0-alpha.39` | Name it in DOMQL's status table, which `tests/Alignment.test.js:31` compares with `domql.info.versions.language`, `src/Versions.mjs:15`'s |
 
 <a id="tooling"></a>
 

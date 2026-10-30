@@ -10,11 +10,11 @@ return {
 }
 ```
 
-> **Alpha.** Nexo implements language version `1.0.0-alpha.38` in part: definition version 36, its imports and extension access, its declarations, types and member selection, its collections, dictionaries, pairs, collection expressions, positions and ordering among them, structured values a script constructs or a host binds, the members of numbers and strings, resolutions that stay current across registrations, and its line structure and canonical text. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Nexo/blob/main/docs/features-status.md).
+> **Alpha.** Nexo implements language version `1.0.0-alpha.39` in part: definition version 36, its imports and extension access, its declarations, types and member selection, its collections, dictionaries, pairs, collection expressions, positions and ordering among them, structured values a script constructs or a host binds, the members of numbers and strings, resolutions that stay current across registrations, and its line structure and canonical text. Neither package is published yet. See [the status overview](https://github.com/FormaUI/Nexo/blob/main/docs/features-status.md).
 
 ## Features
 
-### Language (`1.0.0-alpha.38`)
+### Language (`1.0.0-alpha.39`)
 
 - Typed vocabulary modules, declared as data, imported by the scripts that use them and reached through their namespaces
 - Object expressions and list projections that shape data, and construct a module's structured values where they are declared
@@ -28,7 +28,7 @@ return {
 
 ### Implementation (`1.0.0-alpha.37`)
 
-The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.38` in part.
+The implementation's version is declared in its sources and carried by its packages, and it implements language version `1.0.0-alpha.39` in part.
 
 - Parse scripts into definitions, their imports and those a host supplies deciding their namespaces, validate definitions, and format either as canonical text
 - Locate any part of a definition in the text it was read from

@@ -151,6 +151,7 @@ const DOCUMENTS = {
     'docs/nexo-design.md': [],
     'docs/embedding-guide.md': [],
     'docs/features-status.md': [],
+    'docs/decisions.md': [],
     'README.md': [
         { about: 'a body that counts the rows shown', evaluates: { count: 2, label: '2 of 3 shown' } },
     ],
