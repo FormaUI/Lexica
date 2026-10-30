@@ -162,6 +162,16 @@ Decisions taken without stopping to ask, kept here so they can be reviewed and r
 - **Why:** the owner decided it, as a held reference to a module's function already does. It clarifies the agreed contract, so it keeps `1.0.0-alpha.40`, by [D9](#d9).
 - **Declined:** a local that may hold one of several functions taking more than values, since no one declaration gives its arguments their kinds; it gives each values, as before.
 
+<a id="d17"></a>
+
+## D17 — A set is captured wherever a list is declared
+
+*October 30, 2026*
+
+- **Decision:** a host's set is accepted wherever a value is declared `List<T>`: a declared binding, a member's answer and a host call's supplied value. Its items are captured in traversal order and checked against `T`, at every depth. The list keeps no uniqueness.
+- **Why:** the owner decided it. A member's answer and an undeclared binding already took a set, so capture now treats a host's collections one way wherever a type is declared. It clarifies the contract, so it keeps `1.0.0-alpha.40`, by [D9](#d9).
+- **Declined:** a set type in the language, which no script needs to tell from a list.
+
 <a id="implementation-decisions-reviewed"></a>
 
 ## The implementation decisions, reviewed

@@ -33,6 +33,16 @@ describe('ValueCapture', () => {
         expect(capturedAs({ size: 2, lamp }, named('Spot')).value.lamp).toBe(lamp);
     });
 
+    it('captures a set as a list of its items in their traversal order, each captured as the item type, and keeps no uniqueness', () => {
+        const strings = Type.parse('List<String>');
+
+        expect(capturedAs(new Set(['b', 'a']), strings)).toEqual({ value: ['b', 'a'] });
+        expect(capturedAs(new Set([{ size: 1, extra: 1 }]), Type.createListType(named('Spot')))).toEqual({ value: [{ size: 1, lamp: null }] });
+        expect(capturedAs([new Set([1]), new Set([1])], Type.parse('List<List<Number>>'))).toEqual({ value: [[1], [1]] });
+        expect(capturedAs(new Set(['a', 2]), strings).failure).toMatchObject({ path: '[1]', part: 2, type: 'String' });
+        expect(capturedAs(new Set(['a']), Type.parse('String')).failure).toMatchObject({ path: '', type: 'String' });
+    });
+
     it('captures a reference of another type as null where a nullable reference type is declared, and refuses it where the type is not nullable', () => {
         expect(capturedAs({ size: 2, lamp: new Thermostat('heater') }, named('Spot'))).toEqual({ value: { size: 2, lamp: null } });
         expect(capturedAs(new Thermostat('heater'), named('Light')).failure).toMatchObject({ path: '', type: 'Light' });

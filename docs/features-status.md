@@ -238,7 +238,6 @@ These gaps between the specification and the code, found by audits and by the re
 
 These are decided, as [decisions](decisions.md) records, and wait for the implementation to follow:
 
-- **Collections a host supplies.** A set is captured as a list wherever a list is declared, its items in their order. A declared binding refuses one (NEXO2045), and so does a host call's supplied value (NEXO5015).
 - **A function as a collection item.** Text writing an arrow function as a list's item or a dictionary's value is refused as a syntax error (NEXO1057), as the catalog says; `[x => 1]` gives the structure error NEXO2027.
 
 Deferred items below require their stated trigger before design or implementation resumes.

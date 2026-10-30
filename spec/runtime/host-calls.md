@@ -26,6 +26,7 @@ if (call.kind === 'prepared') {
 | Nothing, a property missing or `undefined` among them | Null where its type is nullable; the projection fails where it is not |
 | Null | Null where its type is nullable; the projection fails where it is not |
 | A value its type admits | The value, a structure as its data shape alone, and a list item by item |
+| A set, a map, or an object of a `key` and a `value` alone, where a list, a dictionary or a pair is declared | The language's list, dictionary or pair, its items or entries in their traversal order, each captured as its own type declares; a list a set gives keeps no uniqueness |
 | A reference of another type, where a nullable reference type is declared | Null, so the value keeps only the reference its type names, as a `Light?` property holding a thermostat is null |
 | Data that reaches itself, a list or an object holding one it lies within | The projection fails with an evaluation error naming the call and where the value reaches itself |
 | Any other value, data its type does not admit among them | The projection fails with an evaluation error naming the call and the part of the value |

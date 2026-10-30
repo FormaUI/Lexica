@@ -153,6 +153,22 @@ describe('collections', () => {
             expect(errorThrownBy(() => prepared.project(new Map([[1, 2]])))).toMatchObject({ code: 'NEXO5015' });
         });
 
+        it('captures a set where a list is declared, a binding\'s, a member\'s answer and a host call\'s supplied value alike, its items in their order and each checked, the list keeping no uniqueness', () => {
+            const registry = nexo.createRegistry([createShop()]);
+            const bindings = registry.createBindings({ tags: new Set(['b', 'a']), groups: [new Set([1, 2]), new Set([3])] }, { types: { tags: 'List<String>', groups: 'List<List<Number>>' } });
+            const evaluateBound = text => registry.resolve(text, bindings, { imports: ['Shop'] }).createEvaluator(bindings).evaluate().value;
+
+            expect(evaluateBound('{ tags = tags, twice = tags.concat(tags), groups = groups }')).toEqual({ tags: ['b', 'a'], twice: ['b', 'a', 'b', 'a'], groups: [[1, 2], [3]] });
+            expect(evaluate('Shop.tags.concat(Shop.tags)')).toEqual(['hot', 'iced', 'hot', 'iced']);
+            expect(errorThrownBy(() => registry.createBindings({ tags: new Set(['a', 1]) }, { types: { tags: 'List<String>' } }))).toMatchObject({ code: 'NEXO2045', message: expect.stringContaining('[1]') });
+
+            const feed = nexo.createModule('Feed', { members: [createFunctionDeclaration('latest', 'List<List<String>>', { invokedBy: 'host' })] });
+            const prepared = nexo.createRegistry([feed]).resolve('Feed.latest()', {}, { imports: ['Feed'] }).createEvaluator({}).prepareHostCall();
+
+            expect(prepared.project(new Set([new Set(['tea']), ['coffee']])).value).toEqual([['tea'], ['coffee']]);
+            expect(errorThrownBy(() => prepared.project(new Set([new Set([2])])))).toMatchObject({ code: 'NEXO5015' });
+        });
+
         it('refuses a declaration naming a dictionary whose keys are of no key type', () => {
             const refused = errorThrownBy(() => nexo.createRegistry([nexo.createModule('Bad', { members: [createPropertyDeclaration('table', 'Dictionary<List<Number>, String>', { updates: constantUpdates, impl: () => new Map() })] })]));
 

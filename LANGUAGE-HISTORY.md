@@ -22,6 +22,7 @@ Until the beta, a version may break what the one before it allowed, and each ent
 **Runtime**
 
 - [Extensions](spec/runtime/extensions.md#extensions-declaring): an extension declares no unnamed indexer (NEXO4564).
+- [Capturing a supplied value](spec/runtime/host-calls.md#runtime-host-calls-capturing): a set is captured as a list wherever a list is declared, in a declared binding and a host call's supplied value as in a member's answer, its items in their order and each checked.
 - [The definition](spec/runtime/definition.md#definition): an extension access's `extension` is empty, `{}`, where the member alone is written, and an `indexerAccess` holds none.
 
 **Breaking:**

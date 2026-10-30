@@ -1,6 +1,6 @@
 /**
- * ValueCapture — a value from outside a script captured as the type declared for it, as a value a host supplies is: a value its type admits taken, a structure as its data shape alone, and a reference of another type
- * null where a nullable reference type is declared
+ * ValueCapture — a value from outside a script captured as the type declared for it, as a value a host supplies is: a value its type admits taken, a list from an array or a set, a structure as its data shape alone,
+ * and a reference of another type null where a nullable reference type is declared
  */
 
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
@@ -19,7 +19,8 @@ export class ValueCapture {
     }
 
     /**
-     * The value captured as its type at every level of it: a value its type admits taken, a structure as its declared fields alone and a list item by item; nothing, or null, null where its type is nullable; and a
+     * The value captured as its type at every level of it: a value its type admits taken, a structure as its declared fields alone and a list item by item, from an array or a set, its items in their traversal
+     * order and no uniqueness kept; nothing, or null, null where its type is nullable; and a
      * reference of another type null where a nullable reference type is declared, so the value keeps only the reference its type names. Anything else is given to `fail`, which throws, with the part of the value
      * by its path within it, the value itself by none, the part and the type it is declared; and data that reaches itself, a list or an object holding one of the lists or objects it lies within, is given to `fail`
      * as well, with the reason `'cycle'`, since data never does.
@@ -65,12 +66,15 @@ export class ValueCapture {
             return null;
         }
 
+        // A list is supplied as an array or a set, a set's items in their traversal order, the list it gives holding no uniqueness.
         if (type.isList) {
-            if (!Array.isArray(value) || ArrayUtils.findMissingIndex(value) !== -1) {
+            const items = value instanceof Set ? [...value] : value;
+
+            if (!Array.isArray(items) || ArrayUtils.findMissingIndex(items) !== -1) {
                 fail(path, value, type);
             }
 
-            return this.#captureWithin(value, type, path, fail, () => value.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail)));
+            return this.#captureWithin(value, type, path, fail, () => items.map((item, index) => this.#capture(item, type.itemType, `${path}[${index}]`, fail)));
         }
 
         // A dictionary is supplied as a map or the language's, each key and value captured as its type declares, and a pair as the language's or an object of a key and a value alone.
