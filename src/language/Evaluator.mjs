@@ -1120,12 +1120,12 @@ export class Evaluator {
                     return null;
                 }
 
-                evaluator.#fail('NEXO5022', `'${written}' is read on a value of Any, and its receiver is null: write '?.' before it to read it where its receiver is not null`, evaluator.#pointerOf(node));
+                evaluator.#fail('NEXO5022', `'${written}' is read on a value of Any, and its receiver is null: write '${Evaluator.#accessOf(node).extension === undefined ? '?.' : '?:'}' before it to read it where its receiver is not null`, evaluator.#pointerOf(node));
             }
 
             const receiverType = evaluator.#getActualType(receiver, `the access '${written}'`, evaluator.#failSelectionOf(node));
-            // A plain object's object fields are its data, found on each object, since objects of one type need not hold the same fields.
-            const isObjectField = node.kind === 'memberAccess' && receiverType.kind === 'object' && Object.hasOwn(receiver, node.name);
+            // A plain object's object fields are its data, found on each object, since objects of one type need not hold the same fields; an extension access reads extension members alone.
+            const isObjectField = node.kind === 'memberAccess' && node.extension === undefined && receiverType.kind === 'object' && Object.hasOwn(receiver, node.name);
             const value = isObjectField ? evaluator.#readStoredValue(receiver, node.name) : evaluator.#evaluateDeferredSelection(node, resolution.candidates, receiver, receiverType, selections, evaluateArguments, context);
 
             if (value === null) {

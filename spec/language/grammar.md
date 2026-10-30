@@ -158,12 +158,15 @@ computed-property-access      = ( "." | "?." ) "[" simple-expression "]"
 member-call                   = ( "." | "?." ) member-name
                                 "(" [ argument-list ] ")"
 indexer-access                = ( "[" | "?[" ) simple-expression "]"
-extension-access              = ( ":" | "?:" ) extension-name extension-member
+extension-access              = ( ":" | "?:" ) extension-member
+                                [ "(" [ argument-list ] ")" ]
+extension-member              = [ extension-name "." ] member-name
 extension-name                = [ namespace-name "." ] identifier
-                              (* a namespace-name where the script's imports
-                                 give a module that name *)
-extension-member              = "." member-name [ "(" [ argument-list ] ")" ]
-                              | "[" simple-expression "]"
+                              (* the names after the colon, up to anything but a
+                                 dot and a name, are one to three: the member last,
+                                 the extension's name before it, and before that a
+                                 namespace-name, where the script's imports give a
+                                 module that name *)
 
 collection-expression         = list-expression | dictionary-expression
                               (* "[" begins one where an input stands, and an indexer
@@ -266,7 +269,7 @@ The grammar uses several terms more narrowly than the prose:
 | `namespace-name` | An identifier naming a module's namespace where a value stands, or qualifying a type's or an extension's name: the local name the script's imports give a module, its own or an alias |
 | `module-name` | An identifier naming a registered module by its own name, as an import's source names the module it imports from |
 | `namespace-access` | A module member read, a function reference, or a qualified form called, through a module's namespace; a script importing no module has none |
-| `extension-access` | An extension selected explicitly, `:` or `?:` and the extension's name, its local name or one its module qualifies, then the one member operation it supplies; a named indexer's key follows as an `indexer-access`, as after a `dot-property-access` |
+| `extension-access` | An extension member read with `:` or `?:`: the member's name last, after its extension's name where one is written, itself after its module's local name where one qualifies it; a call's arguments follow a function's name, and a named indexer's key follows as an `indexer-access`, as after a `dot-property-access` |
 | `type-name` | The name of the type a cast or a conversion names, written bare: its local name, any identifier, a reserved word included, as a member's name is after `.`, qualified by the local name the script's imports give its module and a dot where written so; a qualified name parses alike whatever the script imports, and resolution decides whether the script imports the module |
 | `input` | What a chain can start from |
 | `receiver` | The starting form of a member chain or cast target: an input or a parenthesized cast |

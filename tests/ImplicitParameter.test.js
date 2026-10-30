@@ -75,7 +75,7 @@ const resolve = (text, bound = values) => resolveWith([createPantry()], text, bo
 describe('the implicit parameter', () => {
     describe('of an expression argument', () => {
         it('is the item a function of the item is called with, so its body, an arrow function, a function a name holds and a module\'s function by reference give alike', () => {
-            const forms = ['words.max(it.weight())', 'words.max(w => w.weight())', 'let weigh = w => w.weight()\nreturn words.max(weigh)', 'words.max(pantry.weight)'];
+            const forms = ['words.max(it:weight())', 'words.max(w => w:weight())', 'let weigh = w => w:weight()\nreturn words.max(weigh)', 'words.max(pantry.weight)'];
 
             expect(forms.map(text => evaluate(text))).toEqual([40, 40, 40, 40]);
         });
@@ -91,18 +91,18 @@ describe('the implicit parameter', () => {
         });
 
         it('is a function the member calls only while its invocation lasts, with one item of the list\'s item type, whether a body or an arrow function gives it', () => {
-            for (const expression of ['it.size', 'w => w.size']) {
-                expect(errorThrownBy(() => evaluate(`{ kept = words.keepBy(${expression}), late = chosen.callKept() }`)), expression).toMatchObject({
+            for (const expression of ['it:size', 'w => w:size']) {
+                expect(errorThrownBy(() => evaluate(`{ kept = words:keepBy(${expression}), late = chosen:callKept() }`)), expression).toMatchObject({
                     code: 'NEXO5008',
                     message: expect.stringContaining("The function given as 'expression' of 'keepBy' is called after 'keepBy' returned"),
                     location: { pointer: '/expression/objectFields/0/value/arguments/0' },
                 });
-                expect(errorThrownBy(() => evaluate(`words.weighPair(${expression})`)), expression).toMatchObject({
+                expect(errorThrownBy(() => evaluate(`words:weighPair(${expression})`)), expression).toMatchObject({
                     code: 'NEXO5503',
                     message: expect.stringContaining("The function given as 'expression' of 'weighPair' is called with 2 arguments, and its contract declares 1"),
                     location: { pointer: '/expression/arguments/0' },
                 });
-                expect(errorThrownBy(() => evaluate(`words.weighNumber(${expression})`)), expression).toMatchObject({
+                expect(errorThrownBy(() => evaluate(`words:weighNumber(${expression})`)), expression).toMatchObject({
                     code: 'NEXO5503',
                     message: expect.stringContaining("The function given as 'expression' of 'weighNumber' is called with 42, and its contract declares String"),
                     location: { pointer: '/expression/arguments/0' },
@@ -117,7 +117,7 @@ describe('the implicit parameter', () => {
 
     describe('of a predicate argument', () => {
         it('is the item a function of the item is called with, its truthiness what the member receives, whatever form gives it', () => {
-            const forms = ['words.where(it.vegan())', 'words.where(w => w.vegan())', 'let vegan = w => w.vegan()\nreturn words.where(vegan)', 'words.where(pantry.vegan)'];
+            const forms = ['words.where(it:vegan())', 'words.where(w => w:vegan())', 'let vegan = w => w:vegan()\nreturn words.where(vegan)', 'words.where(pantry.vegan)'];
 
             expect(forms.map(text => evaluate(text))).toEqual([['oat'], ['oat'], ['oat'], ['oat']]);
             expect(evaluate('words.where(w => if w == "milk" then "yes" else null end)')).toEqual(['milk']);
@@ -129,13 +129,13 @@ describe('the implicit parameter', () => {
         });
 
         it('refuses a function the member calls after it returned or failed, whether a body or an arrow function gives it', () => {
-            for (const predicate of ['it.vegan()', 'w => w.vegan()']) {
+            for (const predicate of ['it:vegan()', 'w => w:vegan()']) {
                 const held = {};
                 const registry = createImportingRegistry([createPantry(held)]);
                 const bindings = registry.createBindings(values);
-                const evaluator = registry.resolve(`words.keepWhereAndFail(${predicate})`, bindings).createEvaluator(bindings);
+                const evaluator = registry.resolve(`words:keepWhereAndFail(${predicate})`, bindings).createEvaluator(bindings);
 
-                expect(errorThrownBy(() => evaluate(`{ kept = words.keepWhere(${predicate}), late = chosen.callKept() }`)), predicate).toMatchObject({ code: 'NEXO5008', message: expect.stringContaining("is called after 'keepWhere' returned") });
+                expect(errorThrownBy(() => evaluate(`{ kept = words:keepWhere(${predicate}), late = chosen:callKept() }`)), predicate).toMatchObject({ code: 'NEXO5008', message: expect.stringContaining("is called after 'keepWhere' returned") });
                 expect(errorThrownBy(() => evaluator.evaluate()), predicate).toMatchObject({ code: 'NEXO5007', message: expect.stringContaining('The pantry is closed') });
                 expect(errorThrownBy(() => held.expression('oat')), predicate).toMatchObject({ code: 'NEXO5008', message: expect.stringContaining("is called after 'keepWhereAndFail' returned") });
             }
@@ -144,15 +144,15 @@ describe('the implicit parameter', () => {
 
     describe('of a function given as an option', () => {
         it('is the item, as a positional argument\'s is, a function a local holds standing for an arrow function, which no option is', () => {
-            expect(evaluate('words.choose({ by = it.size, keep = it != "milk" })')).toBe(6);
-            expect(evaluate('let size = w => w.size\nlet kept = w => w != "milk"\nreturn words.choose({ by = size, keep = kept })')).toBe(6);
-            expect(evaluate('words.choose({ by = pantry.weight, keep = pantry.vegan })')).toBe(30);
+            expect(evaluate('words:choose({ by = it:size, keep = it != "milk" })')).toBe(6);
+            expect(evaluate('let size = w => w:size\nlet kept = w => w != "milk"\nreturn words:choose({ by = size, keep = kept })')).toBe(6);
+            expect(evaluate('words:choose({ by = pantry.weight, keep = pantry.vegan })')).toBe(30);
         });
 
         it('is the argument an implicit body option is called with, an option that has no value to read, by its name or through root', () => {
-            expect(evaluate('chosen.check({ test = it.size > 2 })')).toBe(true);
-            expect(errorThrownBy(() => resolve('chosen.check({ test = it.size > 2, note = test })')).message).toContain("Option 'test' is an implicit body evaluated by the member");
-            expect(errorThrownBy(() => resolve('chosen.check({ test = it.size > 2, note = root.test })')).message).toContain("Option 'test' is an implicit body evaluated by the member");
+            expect(evaluate('chosen:check({ test = it:size > 2 })')).toBe(true);
+            expect(errorThrownBy(() => resolve('chosen:check({ test = it:size > 2, note = test })')).message).toContain("Option 'test' is an implicit body evaluated by the member");
+            expect(errorThrownBy(() => resolve('chosen:check({ test = it:size > 2, note = root.test })')).message).toContain("Option 'test' is an implicit body evaluated by the member");
         });
     });
 
@@ -160,16 +160,16 @@ describe('the implicit parameter', () => {
         it('is each item as it is for a function of the item, null among them, and a value that is not for a body', () => {
             expect(evaluate('gaps.where(w => w == null)')).toEqual([null]);
             expect(evaluate('gaps.where(it == null)')).toEqual([]);
-            expect(evaluate('gaps.max(w => w?.size)')).toBe(3);
+            expect(evaluate('gaps.max(w => w?:size)')).toBe(3);
             expect(errorThrownBy(() => resolve('gaps.where(pantry.vegan)')).message).toContain("'pantry.vegan' names no function that takes those or answers that");
         });
     });
 
     describe('of an argument of a reference a local holds', () => {
         it('is the one the qualified form gives it, an implicit body where the member takes a function, which resolution decides', () => {
-            expect(evaluate('pantry.passes(chosen, it.size > 2)')).toBe(true);
-            expect(evaluate('let passes = pantry.passes\nreturn passes(chosen, it.size > 2)')).toBe(true);
-            expect(evaluate('let passes = pantry.passes\nreturn passes(chosen, it.size > 5)')).toBe(false);
+            expect(evaluate('pantry.passes(chosen, it:size > 2)')).toBe(true);
+            expect(evaluate('let passes = pantry.passes\nreturn passes(chosen, it:size > 2)')).toBe(true);
+            expect(evaluate('let passes = pantry.passes\nreturn passes(chosen, it:size > 5)')).toBe(false);
         });
 
         it('is refused where the function called gives it no value, by resolution, and where the text alone shows none, by the structure', () => {
@@ -181,13 +181,13 @@ describe('the implicit parameter', () => {
 
     describe('of an implicit body', () => {
         it('is read within an object expression following no value, which keeps it', () => {
-            expect(evaluate('chosen.is({ long = it.size > 2 }.long)')).toBe(true);
+            expect(evaluate('chosen:is({ long = it:size > 2 }.long)')).toBe(true);
         });
     });
 
     describe('in nested bodies', () => {
         it('is shadowed by a body of its own, and kept by a plain object and by an arrow function, which captures it where it is written', () => {
-            expect(evaluate('words { same = words.where(it.size == 3).count, larger = words.where(w => w.size > it.size).count, inner = { size = it.size } }')).toEqual([
+            expect(evaluate('words { same = words.where(it:size == 3).count, larger = words.where(w => w:size > it:size).count, inner = { size = it:size } }')).toEqual([
                 { same: 2, larger: 1, inner: { size: 3 } },
                 { same: 2, larger: 0, inner: { size: 4 } },
                 { same: 2, larger: 1, inner: { size: 3 } },
@@ -200,7 +200,7 @@ describe('the implicit parameter', () => {
         });
 
         it('is the item of a projection, which root does not change, reading the fields already built', () => {
-            expect(evaluate('words { name = it, details = { shown = root.name, size = it.size } }')).toEqual([
+            expect(evaluate('words { name = it, details = { shown = root.name, size = it:size } }')).toEqual([
                 { name: 'oat', details: { shown: 'oat', size: 3 } },
                 { name: 'milk', details: { shown: 'milk', size: 4 } },
                 { name: 'rye', details: { shown: 'rye', size: 3 } },

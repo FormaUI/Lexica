@@ -222,9 +222,9 @@ describe('the runtime codes', () => {
 
         it('NEXO2040: creating or entering an evaluator, or projecting a prepared call, once its resolution is no longer current', () => {
             const growing = createImportingRegistry([createPantry()]);
-            const resolution = growing.resolve('word.held', { word: 'oat' });
+            const resolution = growing.resolve('word:held', { word: 'oat' });
             const evaluator = resolution.createEvaluator({ word: 'oat' });
-            const call = growing.resolve('word.order(2) { count = it, held = word.held }', { word: 'oat' }).createEvaluator({ word: 'oat' }).prepareHostCall();
+            const call = growing.resolve('word:order(2) { count = it, held = word:held }', { word: 'oat' }).createEvaluator({ word: 'oat' }).prepareHostCall();
 
             growing.registerModule(nexo.createModule('bakery', { typeOf: () => null }));
 
@@ -234,7 +234,7 @@ describe('the runtime codes', () => {
         });
 
         it('NEXO2025: creating an evaluator with bindings of another resolution key', () => {
-            const resolution = registry.resolve('word.size', { word: 'oat' });
+            const resolution = registry.resolve('word:size', { word: 'oat' });
 
             expectNexoError(errorThrownBy(() => resolution.createEvaluator({ word: 5 })), 'NEXO2025', 'structure');
         });
@@ -242,7 +242,7 @@ describe('the runtime codes', () => {
         it('NEXO4001: creating an evaluator for a resolution whose used member or conversion has no implementation', () => {
             const bare = createImportingRegistry([createBare()]);
 
-            const member = errorThrownBy(() => bare.resolve('word.weight', { word: 'oat' }).createEvaluator({ word: 'oat' }));
+            const member = errorThrownBy(() => bare.resolve('word:weight', { word: 'oat' }).createEvaluator({ word: 'oat' }));
             const conversion = errorThrownBy(() => bare.resolve('(word to Mug).size', { word: 'oat' }).createEvaluator({ word: 'oat' }));
 
             expectNexoError(member, 'NEXO4001', 'module');
@@ -255,7 +255,7 @@ describe('the runtime codes', () => {
             const holder = {};
 
             behaviors = { size: () => holder.evaluator.evaluate() };
-            holder.evaluator = evaluatorOf('word.size');
+            holder.evaluator = evaluatorOf('word:size');
 
             expectNexoError(errorThrownBy(() => holder.evaluator.evaluate()), 'NEXO5010', 'evaluation');
         });
@@ -270,7 +270,7 @@ describe('the runtime codes', () => {
         });
 
         it('NEXO3600: a path into the result of a host call that supplies nothing', () => {
-            expectNexoError(errorThrownBy(() => registry.resolve('word.drop()', { word: 'oat' }).typeAt([])), 'NEXO3600', 'validation');
+            expectNexoError(errorThrownBy(() => registry.resolve('word:drop()', { word: 'oat' }).typeAt([])), 'NEXO3600', 'validation');
         });
 
         it('NEXO3601: a path indexing what is not a list', () => {
@@ -284,25 +284,25 @@ describe('the runtime codes', () => {
 
     describe('of evaluation', () => {
         it('NEXO5014: preparing a script that ends in no host call', () => {
-            expectNexoError(errorThrownBy(() => evaluatorOf('word.size').prepareHostCall()), 'NEXO5014', 'evaluation');
+            expectNexoError(errorThrownBy(() => evaluatorOf('word:size').prepareHostCall()), 'NEXO5014', 'evaluation');
         });
 
         it('NEXO5023: evaluating a script that ends in a host call', () => {
-            expectNexoError(failureOf('word.order(2)'), 'NEXO5023', 'evaluation');
+            expectNexoError(failureOf('word:order(2)'), 'NEXO5023', 'evaluation');
         });
 
         it('NEXO5015: a value a host supplies that its host call\'s declared result does not admit', () => {
-            const call = evaluatorOf('word.order(2)').prepareHostCall();
+            const call = evaluatorOf('word:order(2)').prepareHostCall();
 
             expectNexoError(errorThrownBy(() => call.project('many')), 'NEXO5015', 'evaluation');
         });
 
         it('NEXO5001: a value a strict cast rejects, naming the type its value is of', () => {
-            const failure = failureOf('(word.device as Light) == null');
+            const failure = failureOf('(word:device as Light) == null');
 
             expectNexoError(failure, 'NEXO5001', 'evaluation');
             expect(failure.message).toContain('The cast to Light rejected its value: it is a Device that isn\'t a Light');
-            expect(evaluatorOf('(try word.device as Light) == null').evaluate().value).toBe(true);
+            expect(evaluatorOf('(try word:device as Light) == null').evaluate().value).toBe(true);
         });
 
         it('NEXO5016: a value a conversion rejects', () => {
@@ -357,14 +357,14 @@ describe('the runtime codes', () => {
         it('NEXO5006: a module returning a value of a type other than the one it declared', () => {
             behaviors = { size: () => 'three' };
 
-            expectNexoError(failureOf('word.size'), 'NEXO5006', 'evaluation');
+            expectNexoError(failureOf('word:size'), 'NEXO5006', 'evaluation');
         });
 
         it('NEXO5006: a module returning a number no finite number holds, described as it is, alone or within data', () => {
             for (const [answer, described] of [[Infinity, 'Infinity'], [-Infinity, '-Infinity'], [NaN, 'NaN'], [[1, -Infinity, NaN], '[1,-Infinity,NaN]'], [{ low: NaN, label: 'Infinity' }, '{"low":NaN,"label":"Infinity"}']]) {
                 behaviors = { size: () => answer };
 
-                const error = failureOf('word.size');
+                const error = failureOf('word:size');
 
                 expectNexoError(error, 'NEXO5006', 'evaluation');
                 expect(error.message, described).toContain(`answered ${described}, and it declares Number`);
@@ -374,32 +374,32 @@ describe('the runtime codes', () => {
         it('NEXO5007: a member whose implementation throws', () => {
             behaviors = { size: () => { throw new Error('no scale'); } };
 
-            expectNexoError(failureOf('word.size'), 'NEXO5007', 'evaluation');
+            expectNexoError(failureOf('word:size'), 'NEXO5007', 'evaluation');
         });
 
         it('NEXO5008: a function given to a member called after that member\'s invocation has ended', () => {
-            expectNexoError(failureOf('{ kept = word.keep(w => w.size > 2), called = word.callKept() }'), 'NEXO5008', 'evaluation');
+            expectNexoError(failureOf('{ kept = word:keep(w => w:size > 2), called = word:callKept() }'), 'NEXO5008', 'evaluation');
         });
 
         it('NEXO5503: a member calling a function it was given with arguments its callback contract does not declare', () => {
             behaviors = { check: ({ args }) => args.test() };
 
-            expectNexoError(failureOf('word.check(w => w.size > 2)'), 'NEXO5503', 'evaluation');
+            expectNexoError(failureOf('word:check(w => w:size > 2)'), 'NEXO5503', 'evaluation');
 
             behaviors = { check: ({ args }) => args.test(5) };
 
-            expectNexoError(failureOf('word.check(w => w.size > 2)'), 'NEXO5503', 'evaluation');
+            expectNexoError(failureOf('word:check(w => w:size > 2)'), 'NEXO5503', 'evaluation');
         });
 
         it('NEXO5009: a hook that throws, before or after an invocation or after a completed evaluation', () => {
-            expectNexoError(failureOf('word.size', undefined, { beforeInvoke: () => { throw new Error('refused'); } }), 'NEXO5009', 'evaluation');
-            expectNexoError(failureOf('word.size', undefined, { afterInvoke: () => { throw new Error('no record'); } }), 'NEXO5009', 'evaluation');
-            expectNexoError(failureOf('word.size', undefined, { afterEvaluation: () => { throw new Error('no cleanup'); } }), 'NEXO5009', 'evaluation');
+            expectNexoError(failureOf('word:size', undefined, { beforeInvoke: () => { throw new Error('refused'); } }), 'NEXO5009', 'evaluation');
+            expectNexoError(failureOf('word:size', undefined, { afterInvoke: () => { throw new Error('no record'); } }), 'NEXO5009', 'evaluation');
+            expectNexoError(failureOf('word:size', undefined, { afterEvaluation: () => { throw new Error('no cleanup'); } }), 'NEXO5009', 'evaluation');
         });
 
         it('NEXO5011: evaluating without beforeInvoke a script that reads a maintained member', () => {
-            expectNexoError(failureOf('word.quoted'), 'NEXO5011', 'evaluation');
-            expectNexoError(failureOf('word.quoted', undefined, { afterInvoke: () => {} }), 'NEXO5011', 'evaluation');
+            expectNexoError(failureOf('word:quoted'), 'NEXO5011', 'evaluation');
+            expectNexoError(failureOf('word:quoted', undefined, { afterInvoke: () => {} }), 'NEXO5011', 'evaluation');
         });
     });
 
@@ -424,11 +424,11 @@ describe('the runtime codes', () => {
         it('NEXO5504: a function given to a member that gives a value its callback contract does not declare', () => {
             behaviors = {};
 
-            expectNexoError(errorThrownBy(() => directEvaluatorOf([createPantry()], 'word.check(w => flag)', { word: 'oat', flag: true }, { word: 'oat', flag: 'yes' }).evaluate()), 'NEXO5504', 'evaluation');
+            expectNexoError(errorThrownBy(() => directEvaluatorOf([createPantry()], 'word:check(w => flag)', { word: 'oat', flag: true }, { word: 'oat', flag: 'yes' }).evaluate()), 'NEXO5504', 'evaluation');
         });
 
         it('NEXO4001: a used member or conversion without an implementation, reached by an evaluator made without the entry point\'s check', () => {
-            const member = errorThrownBy(() => directEvaluatorOf([createBare()], 'word.weight', { word: 'oat' }).evaluate());
+            const member = errorThrownBy(() => directEvaluatorOf([createBare()], 'word:weight', { word: 'oat' }).evaluate());
             const conversion = errorThrownBy(() => directEvaluatorOf([createBare()], '(word to Mug).size', { word: 'oat' }).evaluate());
 
             expectNexoError(member, 'NEXO4001', 'module');
@@ -436,9 +436,9 @@ describe('the runtime codes', () => {
             expect(member.location).toEqual({ pointer: '/expression', offset: 0, line: 1, column: 1 });
             expect(conversion.location).toEqual({ pointer: '/expression/receiver', offset: 1, line: 1, column: 2 });
 
-            const indexers = nexo.createModule('indexers', { types: [extensionDeclaration('Cells', 'Boolean', [createIndexerDeclaration(null, 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')] })])] });
+            const indexers = nexo.createModule('indexers', { types: [extensionDeclaration('Cells', 'Boolean', [createIndexerDeclaration('cell', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('key', 'String')] })])] });
 
-            expect(errorThrownBy(() => directEvaluatorOf([indexers], 'flag["k"]', { flag: true }).evaluate())).toMatchObject({ code: 'NEXO4001', message: expect.stringContaining("The module 'indexers' gives '[…]' no implementation") });
+            expect(errorThrownBy(() => directEvaluatorOf([indexers], 'flag:cell["k"]', { flag: true }).evaluate())).toMatchObject({ code: 'NEXO4001', message: expect.stringContaining("The module 'indexers' gives 'cell' no implementation") });
         });
     });
 
@@ -451,31 +451,31 @@ describe('the runtime codes', () => {
         };
 
         it('NEXO5012: a deferred access whose receiver\'s actual type lacks the member', () => {
-            expectNexoError(holding(1, 'word.held.device'), 'NEXO5012', 'evaluation');
+            expectNexoError(holding(1, '(word:held):device'), 'NEXO5012', 'evaluation');
         });
 
         it('NEXO5013: a deferred access whose selection would be a host call', () => {
-            expectNexoError(holding('oat', '{ count = word.held.order(1) }'), 'NEXO5013', 'evaluation');
+            expectNexoError(holding('oat', '{ count = (word:held):order(1) }'), 'NEXO5013', 'evaluation');
         });
 
         it('NEXO5021: a value of Any its parameter does not admit', () => {
-            expectNexoError(holding('twice', 'word.repeat(word.held)'), 'NEXO5021', 'evaluation');
+            expectNexoError(holding('twice', 'word:repeat(word:held)'), 'NEXO5021', 'evaluation');
         });
 
         it('NEXO5022: a direct access on null at a deferred access', () => {
-            expectNexoError(holding({ inner: null }, 'word.held.inner.size'), 'NEXO5022', 'evaluation');
+            expectNexoError(holding({ inner: null }, '(word:held).inner.size'), 'NEXO5022', 'evaluation');
         });
 
         it('NEXO5024: an equality of values of types that fit neither way', () => {
-            expectNexoError(holding(1, 'word.held == "oat"'), 'NEXO5024', 'evaluation');
+            expectNexoError(holding(1, 'word:held == "oat"'), 'NEXO5024', 'evaluation');
         });
 
         it('NEXO5025: an equality of a list with a value that is not null', () => {
-            expectNexoError(holding([1], 'word.held == word.held'), 'NEXO5025', 'evaluation');
+            expectNexoError(holding([1], 'word:held == word:held'), 'NEXO5025', 'evaluation');
         });
 
         it('NEXO5028: a result holding a value of Any that is no data', () => {
-            expectNexoError(holding(new Thermostat('heater'), 'word.held'), 'NEXO5028', 'evaluation');
+            expectNexoError(holding(new Thermostat('heater'), 'word:held'), 'NEXO5028', 'evaluation');
         });
     });
 
@@ -485,7 +485,7 @@ describe('the runtime codes', () => {
 
             behaviors = { size: () => { throw thrown; } };
 
-            const failure = failureOf('word.size');
+            const failure = failureOf('word:size');
 
             expectNexoError(failure, 'NEXO5007', 'evaluation');
             expect(failure.cause).toBe(thrown);
@@ -496,7 +496,7 @@ describe('the runtime codes', () => {
             for (const thrown of ['no scale', 42, null, undefined, Object.create(null)]) {
                 behaviors = { size: () => { throw thrown; } };
 
-                const failure = failureOf('word.size');
+                const failure = failureOf('word:size');
 
                 expectNexoError(failure, 'NEXO5007', 'evaluation');
                 expect(Object.hasOwn(failure, 'cause')).toBe(true);
@@ -509,7 +509,7 @@ describe('the runtime codes', () => {
 
             behaviors = { size: () => { throw thrown; } };
 
-            const failure = failureOf('word.size');
+            const failure = failureOf('word:size');
 
             expect(failure.code).toBe('NEXO5007');
             expect(failure.cause).toBe(thrown);
@@ -522,7 +522,7 @@ describe('the runtime codes', () => {
 
             behaviors = { size: () => inner.evaluate() };
 
-            const failure = failureOf('word.size');
+            const failure = failureOf('word:size');
 
             expectNexoError(failure, 'NEXO5005', 'evaluation');
             expect(failure.message).toBe(innerFailure.message);
@@ -538,12 +538,12 @@ describe('the runtime codes', () => {
             };
 
             behaviors = { size: () => { throw built; } };
-            expectWrapped(failureOf('word.size'), 'NEXO5007');
+            expectWrapped(failureOf('word:size'), 'NEXO5007');
 
             behaviors = {};
-            expectWrapped(failureOf('word.size', undefined, { beforeInvoke: () => { throw built; } }), 'NEXO5009');
-            expectWrapped(failureOf('word.size', undefined, { afterInvoke: () => { throw built; } }), 'NEXO5009');
-            expectWrapped(failureOf('word.size', undefined, { afterEvaluation: () => { throw built; } }), 'NEXO5009');
+            expectWrapped(failureOf('word:size', undefined, { beforeInvoke: () => { throw built; } }), 'NEXO5009');
+            expectWrapped(failureOf('word:size', undefined, { afterInvoke: () => { throw built; } }), 'NEXO5009');
+            expectWrapped(failureOf('word:size', undefined, { afterEvaluation: () => { throw built; } }), 'NEXO5009');
 
             behaviors = { convert: () => { throw built; } };
             expectWrapped(failureOf('(word to Cup).size'), 'NEXO5003');
@@ -564,7 +564,7 @@ describe('the runtime codes', () => {
                 },
             };
 
-            const failure = failureOf('word.check(w => 1 / none > 0)', { word: 'oat', none: 0 });
+            const failure = failureOf('word:check(w => 1 / none > 0)', { word: 'oat', none: 0 });
 
             expect(failure).toBe(raised);
             expectNexoError(failure, 'NEXO5005', 'evaluation');
@@ -584,7 +584,7 @@ describe('the runtime codes', () => {
                 },
             };
 
-            const failure = failureOf('word.check(w => 1 / none > 0)', { word: 'oat', none: 0 });
+            const failure = failureOf('word:check(w => 1 / none > 0)', { word: 'oat', none: 0 });
 
             expectNexoError(failure, 'NEXO5007', 'evaluation');
             expect(failure.cause).toBe(thrown);
@@ -609,8 +609,8 @@ describe('the runtime codes', () => {
             behaviors = {};
 
             const refusal = Object.assign(new Error('refused'), { code: 'PANTRY0003' });
-            const before = failureOf('word.size', undefined, { beforeInvoke: () => { throw refusal; } });
-            const after = failureOf('word.size', undefined, { afterInvoke: () => { throw 'no record'; } });
+            const before = failureOf('word:size', undefined, { beforeInvoke: () => { throw refusal; } });
+            const after = failureOf('word:size', undefined, { afterInvoke: () => { throw 'no record'; } });
 
             expectNexoError(before, 'NEXO5009', 'evaluation');
             expect(before.cause).toBe(refusal);
@@ -624,7 +624,7 @@ describe('the runtime codes', () => {
             behaviors = {};
 
             const cleanup = new Error('no cleanup');
-            const completed = failureOf('word.size', undefined, { afterEvaluation: () => { throw cleanup; } });
+            const completed = failureOf('word:size', undefined, { afterEvaluation: () => { throw cleanup; } });
 
             expectNexoError(completed, 'NEXO5009', 'evaluation');
             expect(completed.cause).toBe(cleanup);

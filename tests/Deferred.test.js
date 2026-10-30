@@ -103,7 +103,7 @@ describe('values of Any', () => {
         });
 
         it('gives, asked for them, the candidate declarations: the used ones, and each deferred access\'s accessible declarations of its name and form at its pointer, an overestimate while a deferred access remains', () => {
-            const candidates = resolve('{ glow = shelf.item("light").glow, shout = shelf.item("word").shout, key = shelf.item("device")["k"] }').getCandidateDeclarations();
+            const candidates = resolve('{ glow = shelf.item("light").glow, shout = shelf.item("word"):shout, key = shelf.item("device")["k"] }').getCandidateDeclarations();
 
             expect(candidates.isOverestimate).toBe(true);
             expect(candidates.declarations.map(({ name, qualifiedName, pointer }) => [name, qualifiedName, pointer])).toEqual([
@@ -131,7 +131,7 @@ describe('values of Any', () => {
         it('selects a member by the actual type of its receiver\'s value: a reference\'s, an inherited one\'s, a string\'s, a list\'s and an indexer\'s', () => {
             expect(evaluate('shelf.item("light").glow')).toBe('lamp glows');
             expect(evaluate('shelf.item("light").power')).toBe('home');
-            expect(evaluate('shelf.item("word").shout')).toBe('OAT');
+            expect(evaluate('shelf.item("word"):shout')).toBe('OAT');
             expect(evaluate('shelf.item("numbers").count')).toBe(2);
             expect(evaluate('shelf.item("mixed").count')).toBe(2);
             expect(evaluate('shelf.item("empty").count')).toBe(0);

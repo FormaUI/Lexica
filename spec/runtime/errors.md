@@ -236,6 +236,7 @@ A module whose declarations break the declaration contract, a type or a member n
 | `NEXO4561` | An operator declaring type parameters | A module error naming the operator |
 | `NEXO4562` | A declaration holding a value that reaches itself through its lists and objects | A module error naming the declaration and the declaration key |
 | `NEXO4563` | A declared dictionary whose key type is no key type, as `Dictionary<List<Number>, String>` | A module error naming the declaration and the key type |
+| `NEXO4564` | An extension declaring an indexer without a name | A module error naming the extension, saying an unnamed indexer is its target's owner's alone |
 
 <a id="runtime-validation-errors"></a>
 

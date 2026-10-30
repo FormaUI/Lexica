@@ -93,15 +93,15 @@ describe('type parameters', () => {
 
     describe('bound by a callback\'s result', () => {
         it('take the type each form of the callback gives: an arrow function, an implicit body, a module\'s function by reference and an expression', () => {
-            expect(typeOf('numbers.map(n => n > 1)')).toBe('List<Boolean>');
-            expect(typeOf('numbers.map(it + 1)')).toBe('List<Number>');
-            expect(typeOf('numbers.map(kit.double)')).toBe('List<Number>');
-            expect(typeOf('words.mapBy(it == "oat")')).toBe('List<Boolean>');
-            expect(evaluate('{ arrow = numbers.map(n => n > 1), reference = numbers.map(kit.double), expression = words.mapBy(it == "oat") }')).toEqual({ arrow: [false, true], reference: [2, 4], expression: [true, false] });
+            expect(typeOf('numbers:map(n => n > 1)')).toBe('List<Boolean>');
+            expect(typeOf('numbers:map(it + 1)')).toBe('List<Number>');
+            expect(typeOf('numbers:map(kit.double)')).toBe('List<Number>');
+            expect(typeOf('words:mapBy(it == "oat")')).toBe('List<Boolean>');
+            expect(evaluate('{ arrow = numbers:map(n => n > 1), reference = numbers:map(kit.double), expression = words:mapBy(it == "oat") }')).toEqual({ arrow: [false, true], reference: [2, 4], expression: [true, false] });
         });
 
         it('bind the result its inputs never take, since a receiver binds the callback\'s inputs first', () => {
-            expect(typeOf('kit.pair(lamp, lamp).map(l => l == lamp)')).toBe('List<Boolean>');
+            expect(typeOf('kit.pair(lamp, lamp):map(l => l == lamp)')).toBe('List<Boolean>');
         });
     });
 });

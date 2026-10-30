@@ -29,13 +29,13 @@ export interface NexoScriptOptions {
     readonly imports?: readonly NexoSuppliedImport[];
 }
 
-/** The extension an access selects explicitly: its name as written, and its module's local name where the module qualifies it. */
+/** An extension access's selection: the extension's name as written, where the access names one, and its module's local name where the module qualifies it; empty where the member alone is written. */
 export interface NexoDefinitionExtension {
-    readonly name: string;
+    readonly name?: string;
     readonly module?: string;
 }
 
-/** A property access, the member a call names, or a named indexer's name: its receiver, its name or a computed property access's expression, whether it is optional, and the extension it selects. */
+/** A property access, the member a call names, or a named indexer's name: its receiver, its name or a computed property access's expression, whether it is optional, and, for an extension access, its selection. */
 export interface NexoDefinitionMemberAccess {
     readonly kind: 'memberAccess';
     readonly receiver: NexoDefinitionNode;
@@ -56,7 +56,7 @@ export type NexoDefinitionNode =
     | NexoDefinitionMemberAccess
     /** A call: of the member its callee names, or of the function the local its callee names holds. */
     | { readonly kind: 'call'; readonly callee: NexoDefinitionMemberAccess | { readonly kind: 'local'; readonly name: string }; readonly arguments: readonly NexoDefinitionNode[] }
-    | { readonly kind: 'indexerAccess'; readonly receiver: NexoDefinitionNode; readonly argument: NexoDefinitionNode; readonly optional?: true; readonly extension?: NexoDefinitionExtension }
+    | { readonly kind: 'indexerAccess'; readonly receiver: NexoDefinitionNode; readonly argument: NexoDefinitionNode; readonly optional?: true }
     | { readonly kind: 'object'; readonly context?: NexoDefinitionNode; readonly locals?: readonly NexoDefinitionLocal[]; readonly objectFields: readonly NexoDefinitionObjectField[] }
     /** A list a collection expression writes: its items in order. */
     | { readonly kind: 'list'; readonly items: readonly NexoDefinitionNode[] }

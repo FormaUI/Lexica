@@ -42,11 +42,12 @@ Whitespace, including [line breaks](#line-structure-line-breaks), and comments a
 
 ### Assignment and member punctuation
 
-Object fields, locals and conditional bindings put `=` between a name and its value. A colon in a member chain begins an [extension access](extensions.md#extensions-access), `device:Device.usage`, and anywhere else belongs only inside strings and comments.
+Object fields, locals and conditional bindings put `=` between a name and its value. A colon in a chain begins an [extension access](extensions.md#extensions-access), `device:usage`, and anywhere else belongs only inside strings and comments.
 
-- `count: it.devices.count` is a syntax error that suggests `count = …`.
+- A colon after an object field's, a local's or a conditional binding's name is a syntax error that suggests `count = …`.
+- Elsewhere a colon after a name begins an extension access, whatever the spacing. `f(count: it.devices.count)` is refused because `it` names no module, never read as a named argument.
 - `=` in another position is a syntax error that explains that `==` compares values.
-- Computed property access is written after a dot. `it:[name]` and `it?:[name]`, which don't name an extension, are syntax errors that suggest `it[name]` for an unnamed indexer or `it.[name]` for a computed property access, and their optional forms.
+- Computed property access is written after a dot. `it:[name]` and `it?:[name]`, which name no member, are syntax errors that suggest `it[name]` for an unnamed indexer or `it.[name]` for a computed property access, and their optional forms.
 
 <a id="tokens-and-whitespace-numbers-and-the-minus-sign"></a>
 
@@ -100,7 +101,7 @@ An identifier's spelling decides no meaning; where it stands does:
 - **Unprefixed, where a value stands,** a reserved word keeps its language meaning, and any other identifier reads the nearest local, object field, conditional binding or function parameter of its name, and otherwise the script parameter.
 - **After `@`,** a [lexical reference](#names-and-reserved-words-lexical-references) reads the nearest local, object field, conditional binding or function parameter of its name, the spelling of a reserved word among them: `@to`; and otherwise the import binding of its name, the local name an import gives a module or a type: after `import Nexo = Home`, `@Nexo.rooms` reads `Home.rooms`. An import binding read with `@` begins its namespace or names its type, as its bare name does, and is never a value.
 - **After `~`,** the [script parameter](scripts.md#scripts-parameter-references) of its name is selected explicitly: `~to`.
-- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, after an [extension access](extensions.md#extensions-access)'s `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ Home = 1 }` declares the object field `Home`.
+- **Where the position expects a name,** after `.` or `?.`, after `as` or `to`, among an [extension access](extensions.md#extensions-access)'s names after its `:` or `?:`, and where a declaration names what it declares, the identifier is read in that role, whatever its spelling: `node.root` reads the member `root`, and `{ Home = 1 }` declares the object field `Home`.
 - **Where the script imports a module,** the [local name](modules.md#names-and-reserved-words-module-names) its import gives the module, its own or an alias, written unprefixed where a value stands begins its namespace. It is not a reserved word, but an identifier the script's imports give that meaning in that position alone, so `@Home` reads the nearest local of its name, and the import binding only where none is in scope, `~Home` the script parameter of its name, and a member, an object field or any other name it spells keeps its role. A name no import gives that meaning is read as any identifier is.
 
 Declarations keep their own restrictions besides: module names are unique, compared case-insensitively, and a type is named once within its module, as [registering a module](../runtime/modules.md#modules-registries) sets out. Ambiguity is checked when resolving a reference, against the declarations applicable at that location. Declarations are not refused merely because their names could become ambiguous in another context. These rules supplement the grammar, whose one `identifier` production does not make an identifier valid in every position.
@@ -292,7 +293,7 @@ Every position between two tokens is one of three kinds: inside a one-line const
 | A computed property access's opening | `x.[`, `x?.[` |
 | A call's `(`, on the line of the name it calls | `device(`, `double(` |
 | An indexer's opening bracket, on the line of what it indexes | `setting[`, `rooms[`, `x?[` |
-| An extension selector, `:` or `?:` with its extension's name, qualified or not | `:Energy.Device`, `?:Device` |
+| An extension access's `:` or `?:` with its names | `:usage`, `?:Energy.Device.usage` |
 | A qualified name in a type position, after `as`, `to` or `import` | `as Home.Device`, `to Measures.Temperature` |
 | A cast's or a conversion's keyword with its type | `as Light`, `to Number` |
 | A prefix operator with the start of its operand | `-padding`, `not it.occupied()`, `try value to Number` |
@@ -311,7 +312,7 @@ A namespace's member read where a value stands, `Home.rooms`, is a chain, and fo
 | A function's parameter list | After its `(`, after a comma, before its `)` |
 | An object expression | After `{`, after a comma, before `}` |
 | A collection expression | After `[`, after a comma, before `]` |
-| A chain | Before `.`, `?.`, `:` or `?:`, and before an extension access's `.member` |
+| A chain | Before `.`, `?.`, `:` or `?:` |
 | A binary operator | Before the operator, where its expression is [enclosed](#line-structure-operator-expressions), and never after it |
 | A local's, an object field's, a dictionary entry's or a conditional binding's value | After its `=` |
 | An arrow function | After `=>` |

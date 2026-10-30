@@ -363,7 +363,7 @@ export class Parser {
 
         if (this.#token.type !== ')') {
             for (;;) {
-                if (this.#startsNamedArgument()) {
+                if (this.#startsEntry()) {
                     const options = isMember ? `; a member that takes options is given them as the object fields of an object, as { ${this.#token.value} = … }` : '';
 
                     throw this.#createSyntaxError('NEXO1012', `An argument is written as its value alone, as '${written}(…)' takes it${options}`, this.#token.start);
@@ -1266,41 +1266,67 @@ export class Parser {
     }
 
     /**
-     * Reads an extension access: `:`, or `?:` where it is optional, the extension's name, qualified where its first word is a name the script's imports give a module and a dot and a word follow it, and the one member
-     * operation the extension supplies, a dot property access or a member call after its dot, or an indexer's key in brackets. A colon brackets follow directly names no extension, so it gives the unnamed indexer and the
-     * computed property access the brackets may mean (NEXO1014); an extension's name with no member after it gives what follows a member (NEXO1000).
+     * Reads an extension access: `:`, or `?:` where it is optional, its names, each after a dot but the first, and a call's arguments where parentheses follow. Its names are one to three, its member last, its extension's
+     * name before it and that extension's module's before that, which the script's imports give a module, whatever its spacing: names that fit none of these forms are refused, never read as a shorter access and an
+     * ordinary one after it (NEXO1071). A colon no name follows names no member, brackets after it giving the unnamed indexer and the computed property access they may mean (NEXO1014).
      */
     #parseExtensionAccess(start) {
         const colon = this.#token;
         const written = this.#text.slice(start, colon.start);
-        const dot = colon.type === '?:' ? '?.' : '.';
-        const optionalBrackets = colon.type === '?:' ? '?[' : '[';
 
         if (!this.#isWord(this.#tokens[this.#index + 1])) {
-            throw this.#createSyntaxError('NEXO1014', `A colon in a chain names the extension its member is selected from: write '${written}${optionalBrackets}…]' for the unnamed indexer, or '${written}${dot}[…]' for a property read by a computed name`, colon.start);
+            const next = this.#tokens[this.#index + 1];
+            const isOptional = colon.type === '?:';
+            const message = next.type === '[' || next.type === '?['
+                ? `write '${written}${isOptional ? '?[' : '['}…]' for the unnamed indexer, or '${written}${isOptional ? '?.' : '.'}[…]' for a property read by a computed name`
+                : `the name of the member it reads follows it${isOptional ? "; no '?:' chooses between two values, which '??' does" : ''}`;
+
+            throw this.#createSyntaxError('NEXO1014', `A colon in a chain begins an extension access: ${message}`, colon.start);
         }
 
-        const children = [this.#take()];
-        const first = this.#take();
+        const children = [this.#take(), this.#take()];
+        const names = [children[1]];
 
-        children.push(first);
+        // The text alone decides where the names end: every dot a word follows continues them.
+        while (this.#token.type === '.' && this.#isWord(this.#tokens[this.#index + 1])) {
+            const name = this.#tokens[this.#index + 1];
 
-        // The text alone decides where the name ends: a namespace's local name and a dot before another word qualify it.
-        if (first.type === 'identifier' && this.#namespaceNames.has(first.value) && this.#token.type === '.' && this.#isWord(this.#tokens[this.#index + 1])) {
             children.push(this.#take(), this.#take());
+            names.push(name);
         }
 
-        if (this.#token.type === '.') {
-            children.push(this.#parseDotPropertyAccessOrMemberCall(this.#take()));
-        } else if (this.#token.type === '[') {
-            children.push(this.#parseIndexer());
-        } else {
-            const fallback = colon.type === '?:' ? "; no '?:' chooses between two values, which '??' does" : '';
+        this.#refuseExtensionNames(written, colon, names);
 
-            throw this.#createUnexpectedTokenError('NEXO1000', `'.' and the member the extension supplies, or its key in '[…]'${fallback}`);
+        const member = names.at(-1);
+        const memberName = SyntaxTree.wordOf(member, this.#text);
+
+        this.#refuseEnclosedAccessArgument(this.#token, `${colon.type}${memberName}`);
+
+        if (this.#token.type === '(') {
+            children.push(...this.#parseArguments(memberName, true));
+        } else if (this.#token.type === 'literal') {
+            throw this.#createSyntaxError('NEXO1508', `An argument after a member's name is enclosed in parentheses, as a call's is, '${colon.type}${memberName}(…)'`, this.#token.start);
         }
 
         return Parser.#node('extension-access', children);
+    }
+
+    /**
+     * Refuses an extension access's names where they fit none of its forms (NEXO1071): more than three, or three whose first is no name the script's imports give a module, each name filling one role alone, so the
+     * names are never read as a shorter access with another after it.
+     */
+    #refuseExtensionNames(written, colon, names) {
+        const text = names.map(name => SyntaxTree.wordOf(name, this.#text)).join('.');
+
+        if (names.length > 3) {
+            throw this.#createSyntaxError('NEXO1071', `An extension access names its member last, after its extension and that extension's module, three names at most, and '${written}${colon.type}${text}' writes ${names.length}: group the access before reading what it answers, as '(${written}${colon.type}${names.slice(0, 3).map(name => SyntaxTree.wordOf(name, this.#text)).join('.')})'`, names[3].start);
+        }
+
+        const [first] = names;
+
+        if (names.length === 3 && !(first.type === 'identifier' && this.#namespaceNames.has(first.value))) {
+            throw this.#createSyntaxError('NEXO1071', `'${SyntaxTree.wordOf(first, this.#text)}' names no module the script imports, and the first of an extension access's three names is its extension's module: '${written}${colon.type}${text}' fits no extension access`, first.start);
+        }
     }
 
     /** Reads what follows a dot, or the `?.` of an optional access: a property read by a computed name in brackets, a dot property access, or a member call. */
@@ -1342,33 +1368,14 @@ export class Parser {
         return Parser.#node('member-call', [dot, nameToken, ...this.#parseArguments(name, true)]);
     }
 
-    /**
-     * Whether what stands here is written as a named argument would be, which no call takes: a name and `=`, as a field gives its value, or a name and a colon, as `relativeTo: other` writes one,
-     * rather than a chain the colon is refused in, whose colon brackets follow, or a name and then brackets, as `device:["mode"]` and `device:setting["mode"]` do.
-     */
-    #startsNamedArgument() {
-        return this.#startsEntry() || this.#startsColonEntry();
-    }
-
     /** Whether a word and `=` begin what stands here, as a field, a local's name or a conditional binding's does, whatever the word, a reserved word among them. */
     #startsEntry() {
         return this.#isWord(this.#token) && this.#tokens[this.#index + 1]?.type === '=';
     }
 
-    /**
-     * Whether a word and a colon begin what stands here, as no field, local or conditional binding writes its value, rather than a chain from the word that the colon continues: brackets directly after the colon, which
-     * the chain refuses, or an extension access, a word directly after the colon and then a dot or brackets, as `device:Energy.usage` and `device:Device["mode"]` are. A space after the colon makes it an entry's, as
-     * `k: panel["id"]` is.
-     */
+    /** Whether a word and a colon begin what stands here, where a field, a local or a conditional binding is named, which writes its value after `=`, whatever follows the colon and however it is spaced. */
     #startsColonEntry() {
-        if (!this.#isWord(this.#token) || this.#tokens[this.#index + 1]?.type !== ':') {
-            return false;
-        }
-
-        const afterColon = this.#tokens[this.#index + 2];
-        const afterName = this.#tokens[this.#index + 3]?.type;
-
-        return afterColon.spaced || !(afterColon.type === '[' || (this.#isWord(afterColon) && (afterName === '[' || afterName === '.')));
+        return this.#isWord(this.#token) && this.#tokens[this.#index + 1]?.type === ':';
     }
 
     /** Whether the token writes a word: a name, a keyword, `it`, or the word of a literal, which a declaration, a member's name and a type's take as they are, whatever the word means where an expression stands. */

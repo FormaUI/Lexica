@@ -50,7 +50,7 @@ Property access, function calls and indexers are distinct constructs. A member's
 | Function call | `receiver.function(…)` | `receiver?.function(…)` | `room.device("lamp")` |
 | Named indexer | `receiver.indexer[key]` | `receiver?.indexer[key]` | `device.setting["mode"]` |
 | Unnamed indexer | `receiver[key]` | `receiver?[key]` | `rooms[0]` |
-| [Extension access](extensions.md#extensions-access) | `receiver:Extension.member` | `receiver?:Extension.member` | `device:Device.usage` |
+| [Extension access](extensions.md#extensions-access) | `receiver:member` | `receiver?:member` | `device:usage` |
 
 ```nexo
 room.devices.count                                // A dot property access.
@@ -146,7 +146,7 @@ The text reads `x.name[key]` as it is written, the member `name` and then bracke
 - Where the receiver's type has a named indexer `name` the script can reach, `x.name[key]` invokes it with the key.
 - Otherwise `name` is a property, and the brackets invoke the [unnamed indexer](#property-access-calls-and-indexers-unnamed-indexers) of the type it answers, as `room.devices[0]` reads the room's first device.
 
-The two readings never both apply, since a named indexer and a property of one name on one type collide, and [owner precedence](extensions.md#extensions-owners) chooses one declaration of a name. Resolution reads the pair together: where the member access names a named indexer of its receiver's type, it supplies the receiver and the indexer's name and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index. Once a named indexer applies, the brackets are its key whatever they hold: a key it refuses, as `device.setting[3]` for a setting's name, is that indexer's validation error, and never makes the brackets index the answer of a property instead.
+The two readings never both apply, since a named indexer and a property of one name on one type collide, and [an access](extensions.md#extensions-owners) chooses one declaration of a name, `.` among the owner's and `:` among the extensions'. Resolution reads the pair together: where the member access names a named indexer of its receiver's type, it supplies the receiver and the indexer's name and is not evaluated on its own, so nothing is evaluated between the receiver and its key. Only where it does not is the member access a property read, whose answer the brackets index. Once a named indexer applies, the brackets are its key whatever they hold: a key it refuses, as `device.setting[3]` for a setting's name, is that indexer's validation error, and never makes the brackets index the answer of a property instead.
 
 A group leaves the definition as it is, so `(device.setting)["mode"]` is `device.setting["mode"]`.
 
@@ -179,7 +179,7 @@ A computed name never selects a named indexer. In `device.[p][k]`, `device.[p]` 
 | `rooms?[i]` | Null for a null list, `i` unevaluated; otherwise the item at `i` |
 | `device["mode"]` | The setting `mode`, as `device.setting["mode"]` reads it |
 
-An indexer's **signatures** are the indexers a type or an extension declares of one name, or unnamed, each taking a key of its own type: Nexo's own `List` declares three, a `Number` and an `Index` looked up and a `Range` sliced. Their key types are disjoint, two whose key types fit one way or the other, both nullable, or either of which takes a type parameter or `Any`, being refused when they are registered (NEXO4068 for unnamed ones, NEXO4029 for named ones). An access selects the indexer as it selects any member, and then the signature whose key type its key's type is assignable to, a key of null or a never the first's; a key no signature takes, and one of `Any` where several signatures stand, is refused (NEXO3084), never falling through to another member. On a value of `Any`, the signature its key's value is of is selected when it is evaluated.
+An indexer's **signatures** are the indexers a type or an extension declares of one name, or a type declares unnamed, each taking a key of its own type: Nexo's own `List` declares three, a `Number` and an `Index` looked up and a `Range` sliced. Their key types are disjoint, two whose key types fit one way or the other, both nullable, or either of which takes a type parameter or `Any`, being refused when they are registered (NEXO4068 for unnamed ones, NEXO4029 for named ones). An access selects the indexer as it selects any member, and then the signature whose key type its key's type is assignable to, a key of null or a never the first's; a key no signature takes, and one of `Any` where several signatures stand, is refused (NEXO3084), never falling through to another member. On a value of `Any`, the signature its key's value is of is selected when it is evaluated.
 
 [Which unnamed indexer applies](modules.md#namespaces-indexers) follows the type's owner, as any member's does. A type with none refuses `x[key]`, and where `key` is a string and `x` has a property it could name, the validation error gives the computed form, `x.[key]`.
 
@@ -197,8 +197,9 @@ A form these rules leave without a meaning is refused with the form that has one
 
 | Written | Refused, giving |
 | --- | --- |
-| `device:setting["mode"]`, a member's name where an extension's stands | `device.setting["mode"]`, where an extension of that name isn't reachable |
-| `it:[name]` or `it?:[name]`, brackets where an extension's name stands | `it[name]` for an unnamed indexer, or `it.[name]` for a computed property access |
+| `device.usage`, an extension's member read with `.` | `device:usage` |
+| `device:readings.first`, a member's name where an extension's stands | `(device:readings).first`, where no extension has that name |
+| `it:[name]` or `it?:[name]`, brackets where a member's name stands | `it[name]` for an unnamed indexer, or `it.[name]` for a computed property access |
 | `rooms.[0]`, a number where a computed property's name stands | `rooms[0]` |
 | `room["name"]` on a type without an unnamed indexer | `room.["name"]` |
 | `room.device["lamp"]`, a function's argument in brackets | `room.device("lamp")` |

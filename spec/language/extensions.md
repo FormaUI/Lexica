@@ -2,13 +2,15 @@
 
 <a id="extensions"></a>
 
-An **extension** is a named group of the members, indexers and operators a module adds to a type another module owns. It lets a module give a domain's types what that domain knows of them, as `Energy` gives `Home`'s devices their energy use, without owning them: an unqualified access reads the owner's member first and an extension's where the owner declares none, and an extension access selects one explicitly.
+An **extension** is a named group of the members and operators a module adds to a type another module owns. It lets a module give a domain's types what that domain knows of them, as `Energy` gives `Home`'s devices their energy use, without owning them.
+
+A script reads a type's own members with `.` and its extension members with `:`, so where a member comes from is always visible:
 
 ```nexo
 {
-    usage = device.usage,           // Energy's extension, the one that applies.
-    power = device.power,           // Home's own, since the owner wins.
-    metered = device:Device.power   // Energy's, selected explicitly.
+    usage = device:usage,           // Energy's extension member.
+    power = device.power,           // Home's own member.
+    metered = device:Device.power   // Energy's, through its extension Device.
 }
 ```
 
@@ -23,15 +25,23 @@ In this document:
 
 ## Owners and extensions
 
-A module may declare members on any type, its own in their declarations or another module's in its [extensions](../runtime/extensions.md#extensions-declaring). The module that declares a type **owns** it, and a member another module declares on it, in one of its extensions, is an **extension member**, as `Energy`'s `device.usage` is. An unqualified member resolves by the owner of its receiver's static type, among the declarations applicable to the receiver and accessible to the script, those of Nexo's own module and of the modules the script [imports](modules.md#scripts-imports):
+The module that declares a type **owns** it. A member another module declares on the type, in one of its [extensions](../runtime/extensions.md#extensions-declaring), is an **extension member**, as `Energy`'s `usage` is on `Home`'s `Device`.
 
-- An applicable member the owner declares wins over every extension, so `device.power` reads `Home`'s, whatever `Energy` declares. A member the owner declares on a supertype it also owns takes part with the owner's priority, while one another module declares on a supertype is applicable with no priority over other extensions. An extension on a more specific receiver never defeats an applicable member of the owner.
-- Otherwise the applicable extension whose target is more specific than every other applicable extension's target is selected, by the specificity [a module's own collisions](modules.md#namespaces-a-modules-own-collisions) follow. One applicable extension resolves as any member does, so `device.usage` reads `Energy`'s; and were a module `Solar` to declare `usage` in an extension on `Light`, `light.usage` reads `Solar`'s and `thermostat.usage` `Energy`'s, whatever order the two modules registered in.
-- Where no applicable extension's target is more specific than every other's, the access is refused as ambiguous when the script is resolved, before anything is evaluated: two extensions targeting the same type, and applicable targets neither of which is more specific than the other. Each still registers, since refusing one would leave it unreachable where explicit access selects it. Were `Solar` to declare `usage` on `Device` instead, in an extension also named `Device`, `device.usage` is refused in a script importing both, and reads `Energy`'s in one importing `Energy` alone:
+- **`.` reads the owner's members.** `device.power` reads the `power` `Home` declares. A member the owner declares on a supertype it owns takes part too. The owner's members include those it declares in an extension of its own types, as Nexo's own `flatten` is on a list of lists.
+- **`:` reads extension members.** `device:usage` reads `Energy`'s `usage`. An extension member is never read with `.`: `device.usage` is refused, giving `device:usage` (NEXO3090).
+- **The two never compete.** A type's owner and an extension may each declare a member of one name, as `Home` and `Energy` each declare `power`: `device.power` reads `Home`'s and `device:power` reads `Energy`'s.
+
+The declarations an access considers are those of Nexo's own module and of the modules the script [imports](modules.md#scripts-imports). An [internal](../runtime/modules.md#modules-internal-declarations) declaration is never a candidate, and registration order never decides.
+
+Among the extensions a `:` access applies to, the one whose target is the most specific is selected, by the specificity [a module's own collisions](modules.md#namespaces-a-modules-own-collisions) follow. Were `Solar` to declare `usage` in an extension on `Light`, `light:usage` reads `Solar`'s and `thermostat:usage` reads `Energy`'s.
+
+Where no applicable extension's target is more specific than every other's, the access is refused as ambiguous when the script is resolved (NEXO3024), and naming the extension resolves it. Were `Solar` to declare `usage` on `Device` too, in an extension also named `Device`:
 
 > Member 'usage' on 'Device' is ambiguous between modules 'Energy' and 'Solar'. Use 'device:Energy.Device.usage' or 'device:Solar.Device.usage' to select one.
 
-Applicability follows the receiver's type and the access form, so one name on unrelated types is never ambiguous, and an [internal](../runtime/modules.md#modules-internal-declarations) declaration is not a candidate, so an accessible extension resolves where the owner's member of its name is internal. Registration order never decides. Nexo's own module owns the language's types, `List`, `Number`, `String` and `Boolean` among them, so `rooms.count` reads Nexo's whatever an extension declares; that module has no namespace, and its name is reserved nowhere. Indexers follow the same precedence, as [indexer selection](modules.md#namespaces-indexers) sets out, and so do [operators](../runtime/modules.md#modules-operators): a cast or a conversion is selected among the operators of its name and destination applicable to its receiver, the owner's winning, the extension's whose target is more specific than every other's resolving where the owner declares none, and several none of which is more specific refused as ambiguous, since no syntax selects one module's operator, extension access among them.
+Each still registers, since naming the extension reaches it.
+
+**Operators.** A cast or a conversion is written with `as` or `to`, never with `.` or `:`, so it is selected among every applicable [operator](../runtime/modules.md#modules-operators): the owner's first, then the extension's whose target is the most specific, several none of which is more specific being refused as ambiguous.
 
 <a id="extensions-different-targets"></a>
 
@@ -44,32 +54,43 @@ Extensions whose targets differ may declare members of one name, in one module o
 { name: 'StringList', kind: 'extension', target: 'List<String>', members: [/* total */] }
 ```
 
-Ordinary lookup first takes the extensions whose targets the receiver satisfies, by the [assignability rules](types.md#types-assignability), and then applies ownership and specificity, as [owners and extensions](#extensions-owners) set out: `values.total` reads `NumericList`'s for a `List<Number>`, and `StringList`'s for a `List<String>`. An empty list, a `List<Never>`, satisfies both targets through list covariance, and neither target is more specific than the other, so `values.total` is refused as ambiguous, and an [extension access](#extensions-access) resolves it: `values:NumericList.total`, `values:StringList.total`, or one its module qualifies, `values:Measurements.NumericList.total`. The selected extension's target still accepts the receiver, since selecting one never bypasses type checking.
+A `:` access first takes the extensions whose targets the receiver satisfies, by the [assignability rules](types.md#types-assignability), and then the most specific of them: `values:total` reads `NumericList`'s for a `List<Number>`, and `StringList`'s for a `List<String>`.
+
+An empty list, a `List<Never>`, satisfies both targets through list covariance, and neither is more specific, so `values:total` is refused as ambiguous. Naming the extension resolves it: `values:NumericList.total`, `values:StringList.total`, or `values:Measurements.NumericList.total` qualified by its module. The named extension's target still accepts the receiver, since naming one never bypasses type checking.
 
 <a id="extensions-access"></a>
 
 ## Extension access
 
-`receiver:Extension.member` selects an [extension](../runtime/extensions.md#extensions-declaring) explicitly: the expression before `:` is the receiver, the name after it identifies the extension that supplies the member, and the member keeps its own form.
+An **extension access** reads an extension member with `:`. It takes one of three forms, and the last name is always the member:
+
+| Form | Example | What it names |
+| --- | --- | --- |
+| `receiver:member` | `device:usage` | The member, among the extensions that apply to the receiver |
+| `receiver:Extension.member` | `device:Device.usage` | The member of that extension |
+| `receiver:Module.Extension.member` | `device:Energy.Device.usage` | The member of that extension, the extension qualified by its module |
+
+The member keeps its own form, a property, a function or a named indexer, and `?:` is the optional form:
 
 | Member form | Required form | Optional form |
 | --- | --- | --- |
-| Property | `device:Device.usage` | `device?:Device.usage` |
-| Function | `device:Device.reset(3)` | `device?:Device.reset(3)` |
-| Named indexer | `device:Device.setting["mode"]` | `device?:Device.setting["mode"]` |
-| Unnamed indexer | `device:Device["mode"]` | `device?:Device["mode"]` |
+| Property | `device:usage` | `device?:usage` |
+| Function | `device:reset(3)` | `device?:reset(3)` |
+| Named indexer | `device:setting["mode"]` | `device?:setting["mode"]` |
 
-- **The extension's name.** After `:` stands an extension's name, its local name or one its module qualifies, `device:Energy.Device.usage`, where a name the script's [imports](modules.md#scripts-imports) give a module, its own or an alias, followed by a dot, is the qualifier, so the text alone decides where the name ends, and an extension named as a module the script imports is written qualified, `device:Solar.Energy.usage`. Resolution reads it as a script's [type name](types.md#types-type-identity) is read, an extension the script imports by name first, `values:Numeric.total` after `import Numeric = Measurements.NumericList`, and otherwise the public extensions of Nexo's own and of the modules the script imports, one only, several refused with their qualified names given: ordinary types take no part, so beside `Home`'s type `Device`, `device:Device.usage` selects `Energy`'s extension, and a name only an ordinary type has is refused.
-- **Its members alone.** Lookup is limited to the extension's members, so a member it does not declare is an error at that selection, never falling through to another extension or to the receiver's own members, and an extension that ordinary lookup outranks is still reached. The receiver satisfies the extension's target, binding its parameters as [binding a call's parameters](types.md#types-type-parameters-binding) sets out, and visibility and the host's policy apply as to any access.
-- **One member operation.** The selection applies to one member operation, and what follows it applies to that operation's answer as usual: `device:Device.details.name` reads the `name` of what `details` answers, and `device:Device.readings[0]` indexes it, unless `readings` is a named indexer, whose declaration decides. A later colon selects another extension for the intermediate value: `device:Device.readings:ListExtensions.first`.
-- **A postfix of its receiver.** It binds as a member access does, so in `left + right:NumberExtensions.description` it belongs to `right`, and in `(left + right):NumberExtensions.description` to the sum.
-- **Null.** `:` takes a receiver that cannot be null, one that can being refused with the form `?:`, as `.` is with `?.`, and a null found during evaluation failing the access. `?:` evaluates its receiver once and, where it is null, answers null without evaluating the member's arguments or keys, as `?.` does, the extension's name still resolved and its declaration still checked. The items of a `List<Device?>` don't make the list null.
-- **A function without a call** is a function reference bound to its receiver: `device:Device.active` evaluates and captures `device` once, when the reference is created, and takes the member's own arguments alone, under the restrictions every [reference to a module's function](functions.md#functions-module-functions) follows, so a function the host invokes has none. Where the receiver is supplied later, an arrow function writes it: `d => d:Device.active()`.
-- **A receiver of `Any`.** The selection names the declaration, so its arguments are read by it, and the receiver is checked against the target when it is evaluated, as [values of `Any`](types.md#types-any) set out; selecting an extension doesn't make an unknown type known, so what inference still needs from the value is refused as for any call.
-- **Evaluation.** The receiver is evaluated once and checked against the target, and a failed check invokes nothing; the arguments or keys follow the member's contract, the host's `beforeInvoke` decides before the member is invoked, a property's getter and an indexer included, and the answer is checked as any member's is. A host call selected so keeps its terminal position, its preparation and its projection, and a resolution reports the selected member among its used declarations.
+- **Each name has one role.** Before the member stands the extension's name, qualified by its module or not. A module's name is one the script's [imports](modules.md#scripts-imports) give a module, its own or an alias. A name that doesn't fill its role is refused, never read as a shorter access followed by ordinary access: `count: it.devices.count` is refused, since `it` names no module.
+- **Spacing never decides.** `device: usage` and `device:usage` are one access, as every token's spacing is.
+- **The extension's name** is read as a script's [type name](types.md#types-type-identity) is: an extension the script imports by name first, `values:Numeric.total` after `import Numeric = Measurements.NumericList`, then the public extensions of Nexo's own module and of the modules the script imports. Ordinary types take no part, so beside `Home`'s type `Device`, `device:Device.usage` names `Energy`'s extension. A name no extension has, several extensions share unqualified, or a namespace stands before is refused (NEXO3026, NEXO3061).
+- **Its members alone.** A named extension's lookup is limited to its members, so a member it does not declare is refused (NEXO3062), never falling through to another extension or to the owner's members.
+- **After the member.** A call or a key closes the access, and what follows applies to its answer: `device:reset(3).ok`, `device:readings[0].value`. A `.` after a member with neither would make that member the extension's name, so ordinary access on its answer is written in parentheses: `(device:readings).first`.
+- **A postfix of its receiver.** It binds as a member access does, so in `left + right:description` it belongs to `right`, and in `(left + right):description` to the sum.
+- **Null.** `:` takes a receiver that cannot be null, and one that can is refused with the form `?:` (NEXO3063), as `.` is with `?.`. `?:` evaluates its receiver once and, where it is null, answers null without evaluating the member's arguments or keys. The items of a `List<Device?>` don't make the list null.
+- **A function without a call** is a function reference bound to its receiver: `device:active` evaluates and captures `device` once, when the reference is created. It takes the member's own arguments, of every kind the member takes, wherever it is called from, a local holding it included, under the restrictions every [reference to a module's function](functions.md#functions-module-functions) follows, so a function the host invokes has none. Where the receiver is supplied later, an arrow function writes it: `d => d:active()`.
+- **A receiver of `Any`.** The member is selected when the receiver is evaluated, among the extensions that apply to its actual type, as [values of `Any`](types.md#types-any) set out; a named extension's target is checked against it then.
+- **Evaluation.** The receiver is evaluated once and checked against the target, and a failed check invokes nothing. The arguments or keys follow the member's contract, the host's `beforeInvoke` decides before the member is invoked, and the answer is checked as any member's is. A host call reached this way keeps its terminal position, its preparation and its projection.
 
 <a id="extensions-type-parameters"></a>
 
 ## Type parameters
 
-An extension's name may declare [type parameters](types.md#types-type-parameters), `ListExtensions<T>`, which its target and every one of its members share, and which the receiver binds afresh at each access, as [binding a call's parameters](types.md#types-type-parameters-binding) sets out; an extension that targets its own parameter, `Checks<T>` targeting `T`, extends a receiver of any type. Within an extension, its own module's types and Nexo's resolve unqualified and a foreign type is written qualified, as [type name lookup](types.md#types-type-name-lookup) sets out.
+An extension's name may declare [type parameters](types.md#types-type-parameters), `ListExtensions<T>`, which its target and every one of its members share, and which the receiver binds afresh at each access, as [binding a call's parameters](types.md#types-type-parameters-binding) sets out. An extension that targets its own parameter, `Checks<T>` targeting `T`, extends a receiver of any type. Within an extension, its own module's types and Nexo's resolve unqualified and a foreign type is written qualified, as [type name lookup](types.md#types-type-name-lookup) sets out.

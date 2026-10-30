@@ -21,7 +21,7 @@ const NODE_PROPERTIES = {
     local: { properties: ['kind', 'name'], required: ['name'] },
     memberAccess: { properties: ['kind', 'receiver', 'name', 'optional', 'extension'], required: ['receiver', 'name'] },
     call: { properties: ['kind', 'callee', 'arguments'], required: ['callee', 'arguments'] },
-    indexerAccess: { properties: ['kind', 'receiver', 'optional', 'argument', 'extension'], required: ['receiver', 'argument'] },
+    indexerAccess: { properties: ['kind', 'receiver', 'optional', 'argument'], required: ['receiver', 'argument'] },
     object: { properties: ['kind', 'context', 'locals', 'objectFields'], required: ['objectFields'] },
     list: { properties: ['kind', 'items'], required: ['items'] },
     dictionary: { properties: ['kind', 'entries'], required: ['entries'] },
@@ -58,8 +58,8 @@ const CAST_RECEIVER_KINDS = new Set(['it', 'scriptParameter', 'root', 'namespace
 /** The keys a dictionary's entry holds, both written: its key, the string its key literal writes, and its value. */
 const DICTIONARY_ENTRY_PROPERTIES = { properties: ['key', 'value'], required: ['key', 'value'] };
 
-/** The properties an extension selection holds: the extension's name, as written, and its module's local name, where it qualifies it. */
-const EXTENSION_PROPERTIES = { properties: ['name', 'module'], required: ['name'] };
+/** The properties an extension access's selection holds: the extension's name, as written, where one is, and its module's local name, where it qualifies it; none where the member alone is written. */
+const EXTENSION_PROPERTIES = { properties: ['name', 'module'], required: [] };
 
 /** The operators an arithmetic node holds. */
 const ARITHMETIC_OPERATORS = ['+', '-', '*', '/', '%'];
@@ -939,8 +939,8 @@ export class DefinitionValidator {
     }
 
     /**
-     * Validates the extension an access selects explicitly: its name as written, an identifier, and its module, where it qualifies it, a local name the definition's imports give a module (NEXO2028). A computed property
-     * access selects none, since it reads a property by a name it computes.
+     * Validates an extension access's selection: empty where the member alone is written; otherwise the extension's name as written, an identifier, and its module, where it qualifies that name, a local name the
+     * definition's imports give a module (NEXO2028). A computed property access is no extension access, since it reads a property by a name it computes.
      */
     #validateExtension(node, pointer) {
         const extensionPointer = `${pointer}/extension`;
@@ -951,6 +951,15 @@ export class DefinitionValidator {
         }
 
         this.#requireProperties(extension, extensionPointer, EXTENSION_PROPERTIES);
+
+        if (extension.name === undefined) {
+            if (extension.module !== undefined) {
+                this.#fail('NEXO2000', "An extension's module qualifies the extension's name, which the selection holds beside it", `${extensionPointer}/module`);
+            }
+
+            return Object.freeze({});
+        }
+
         this.#requireName(extension.name, `${extensionPointer}/name`);
 
         if (extension.module !== undefined) {

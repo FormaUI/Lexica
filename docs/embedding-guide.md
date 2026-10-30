@@ -75,7 +75,7 @@ A registry holds the modules a host registers. Resolving a script against it che
 ```js
 const registry = nexo.createRegistry([shop]);
 const bindings = registry.createBindings({ product: 'tea', code: 'TEN' });
-const resolution = registry.resolve('{ price = product.price, cut = product.discount(code) }', bindings, { imports: ['Shop'] });
+const resolution = registry.resolve('{ price = product:price, cut = product:discount(code) }', bindings, { imports: ['Shop'] });
 
 resolution.type;                       // '{ price: Price, cut: Number }'
 resolution.typeAt(['price', 'amount']); // 'Number'

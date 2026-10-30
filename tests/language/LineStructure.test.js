@@ -30,11 +30,11 @@ describe('LineStructure', () => {
             expectRefused('room.\n["size"]', 'NEXO1041', 2, 1, "A computed property access's '.' and its '[' stand on one line: write '.['");
         });
 
-        it('refuse one within an import, an extension selector and a qualified type name', () => {
+        it('refuse one within an import, an extension access\'s names and a qualified type name', () => {
             expectRefused('import\nHome\nHome.rooms', 'NEXO1041', 2, 1, "An import's words stand on one line: write 'import Home'");
-            expectRefused('item:\nWords.shout', 'NEXO1041', 2, 1, "An extension selector's ':' and its extension's name stand on one line");
+            expectRefused('item:\nWords.shout', 'NEXO1041', 2, 1, "An extension access's ':' and its names stand on one line");
+            expectRefused('item:Words\n    .shout', 'NEXO1041', 2, 5, "An extension access's ':' and its names stand on one line");
             expectRefused('import Home\n(device as Home.\nLight).power', 'NEXO1041', 3, 1, "A qualified type name's words stand on one line");
-            expect(nexo.parse('item:Words\n    .shout').expression).toMatchObject({ kind: 'memberAccess', name: 'shout', extension: { name: 'Words' } });
         });
 
         it('take a comment that holds no line break, and a line comment after a completed construct', () => {
@@ -55,7 +55,8 @@ describe('LineStructure', () => {
                 'room { size =\n    it.size }',
                 'let width =\n    1\nreturn width',
                 'rooms.map(r =>\n    r.size)',
-                'item:Words\n    .shout',
+                'item:shout(\n    1\n)',
+                '(item:shout)\n    .size',
             ];
 
             texts.forEach(text => expect(() => nexo.parse(text), text).not.toThrow());

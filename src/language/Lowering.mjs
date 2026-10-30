@@ -346,15 +346,23 @@ export class Lowering {
     }
 
     /**
-     * An extension access: the member operation it holds, lowered on the receiver, optional where its colon or every access is, selecting the extension it names, its module's local name where its name is qualified;
-     * a call's member access holds the selection, as it holds the call's receiver.
+     * An extension access: the member its last name names, read on the receiver, optional where its colon or every access is, and called where its arguments follow; its selection holds the extension's name where one
+     * is written, and that extension's module's local name where it is qualified, and is empty where the member alone is written. A call's member access holds the selection, as it holds the call's receiver.
      */
     #lowerExtensionAccess(part, receiver, start, optional) {
-        const [, first, , qualified] = part.children;
-        const extension = qualified === undefined ? { name: SyntaxTree.wordOf(first, this.#text) } : { name: SyntaxTree.wordOf(qualified, this.#text), module: first.value };
-        const node = this.#lowerMemberExpression(part.children.at(-1), receiver, start, optional);
+        const opening = part.children.findIndex(child => SyntaxTree.isToken(child) && child.type === '(');
+        const path = opening === -1 ? part.children.slice(1) : part.children.slice(1, opening);
+        const names = path.filter(child => child.type !== '.');
+        const member = names.at(-1);
+        const extension = names.length === 1 ? {} : names.length === 2 ? { name: SyntaxTree.wordOf(names[0], this.#text) } : { name: SyntaxTree.wordOf(names[1], this.#text), module: names[0].value };
+        const access = { kind: 'memberAccess', receiver, name: SyntaxTree.wordOf(member, this.#text), ...(optional ? { optional } : {}), extension };
+        let node = access;
 
-        (node.kind === 'call' ? node.callee : node).extension = extension;
+        if (opening !== -1) {
+            this.#spans.set(access, { start, end: SyntaxTree.endOf(member) });
+            node = { kind: 'call', callee: access, arguments: this.#argumentsOf(part.children.slice(opening + 1, -1)) };
+        }
+
         this.#spans.set(node, { start, end: SyntaxTree.endOf(part) });
 
         return node;

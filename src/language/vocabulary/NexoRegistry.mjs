@@ -883,6 +883,11 @@ export class NexoRegistry {
             if (isOwnType && !isNarrowedOwnValueType) {
                 fail('NEXO4045', `The extension '${type.name}' targets ${target}, a type its own module owns, which takes its members within its own declaration`, type.name, 'target');
             }
+
+            // Brackets after a value read its type's owner's unnamed indexer alone, so no form would reach an extension's.
+            if (type.members.some(member => member.kind === 'indexer' && member.name === undefined)) {
+                fail('NEXO4564', `The extension '${type.name}' declares an indexer without a name, which no access reaches: an unnamed indexer is its target's owner's alone, and an extension names its indexers`, type.name, 'members');
+            }
         }
 
         for (const type of module.types) {

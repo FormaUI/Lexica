@@ -52,7 +52,7 @@ const metadataOf = (text, values) => resolve(text, values).evaluate().metadata;
 
 describe('result metadata', () => {
     it('describes a member\'s result by its origin and the tolerance its declaration gives, a part with no record inheriting both', () => {
-        const { objectFields } = metadataOf('{ size = name.size, length = name.length }');
+        const { objectFields } = metadataOf('{ size = name:size, length = name.length }');
 
         expect(objectFields.size).toEqual({ origin: expect.any(Object), tolerance: 0.5 });
         expect(objectFields.length).toEqual({ origin: expect.any(Object), tolerance: null });
@@ -61,7 +61,7 @@ describe('result metadata', () => {
     });
 
     it('keeps the metadata of the part an access selects: a field of a member\'s result, and one of an object a local holds', () => {
-        const { objectFields } = metadataOf('let dimensions = { width = name.size.width }\nreturn { direct = name.size.width, held = dimensions.width, measured = name.size { width = it.width } }');
+        const { objectFields } = metadataOf('let dimensions = { width = (name:size).width }\nreturn { direct = (name:size).width, held = dimensions.width, measured = name:size { width = it.width } }');
 
         expect(objectFields.direct.tolerance).toBe(0.5);
         expect(objectFields.held.tolerance).toBe(0.5);
@@ -69,7 +69,7 @@ describe('result metadata', () => {
     });
 
     it('follows locals, bodies, function calls and the object root to the expression that produced the value', () => {
-        const { objectFields } = metadataOf('let measure = () => name.size\nreturn { let measured = name.size, kept = measured, done = do measured end, called = measure(), base = name.size, again = root.base }');
+        const { objectFields } = metadataOf('let measure = () => name:size\nreturn { let measured = name:size, kept = measured, done = do measured end, called = measure(), base = name:size, again = root.base }');
 
         expect([objectFields.kept, objectFields.done, objectFields.called, objectFields.again].map(field => field.tolerance)).toEqual([0.5, 0.5, 0.5, 0.5]);
         expect(objectFields.kept.origin).toBe(objectFields.done.origin);
@@ -78,7 +78,7 @@ describe('result metadata', () => {
     });
 
     it('gives a computed value an origin and a null tolerance of its own, which overrides the tolerance it would inherit', () => {
-        const { objectFields } = metadataOf('name.size { exact = it.width + 0, measured = it.width }');
+        const { objectFields } = metadataOf('name:size { exact = it.width + 0, measured = it.width }');
 
         expect(objectFields.exact.tolerance).toBeNull();
         expect(objectFields.measured.tolerance).toBe(0.5);
@@ -86,7 +86,7 @@ describe('result metadata', () => {
     });
 
     it('gives a selected branch\'s origin, the same across evaluations of one resolution and different for each branch', () => {
-        const resolution = resolve('{ chosen = if wide then name.size.width else name.length end }', { name: 'tea', wide: true });
+        const resolution = resolve('{ chosen = if wide then (name:size).width else name.length end }', { name: 'tea', wide: true });
         const first = resolution.evaluate().metadata.objectFields.chosen;
         const again = resolution.evaluate().metadata.objectFields.chosen;
         const other = resolution.evaluate({ name: 'tea', wide: false }).metadata.objectFields.chosen;
@@ -98,7 +98,7 @@ describe('result metadata', () => {
     });
 
     it('describes a result\'s nested identities as its own evaluation left them, however many evaluations come before its metadata is read', () => {
-        const resolution = resolve('{ rows = name.parts { label = it.label, chosen = if wide then name.size.width else name.length end } }', { name: 'tea', wide: true });
+        const resolution = resolve('{ rows = name:parts { label = it.label, chosen = if wide then (name:size).width else name.length end } }', { name: 'tea', wide: true });
         const first = resolution.evaluate();
         const later = resolution.evaluate({ name: 'tea', wide: false });
         const { rows } = first.metadata.objectFields;
@@ -110,11 +110,11 @@ describe('result metadata', () => {
     });
 
     it('never compares origins across resolutions', () => {
-        expect(metadataOf('{ size = name.size }').objectFields.size.origin).not.toBe(metadataOf('{ size = name.size }').objectFields.size.origin);
+        expect(metadataOf('{ size = name:size }').objectFields.size.origin).not.toBe(metadataOf('{ size = name:size }').objectFields.size.origin);
     });
 
     it('describes each item of a projection and the reference it came from, which the value never holds', () => {
-        const { value, metadata } = resolve('name.parts { label = it.label }').evaluate();
+        const { value, metadata } = resolve('name:parts { label = it.label }').evaluate();
 
         expect(value).toEqual([{ label: 'a' }, { label: 'b' }]);
         expect(metadata.sources).toEqual([{ kind: 'reference', value: parts[0] }, { kind: 'reference', value: parts[1] }]);
@@ -127,7 +127,7 @@ describe('result metadata', () => {
     });
 
     it('describes the data and the null each item of a projection came from, data as a frozen copy, by the input\'s established type', () => {
-        const { metadata } = resolve('name.sizes { width = it.width }').evaluate();
+        const { metadata } = resolve('name:sizes { width = it.width }').evaluate();
 
         expect(metadata.sources).toEqual([{ kind: 'data', value: { width: 1, height: 2 } }, { kind: 'null' }]);
         expect(Object.isFrozen(metadata.sources[0].value)).toBe(true);
@@ -139,7 +139,7 @@ describe('result metadata', () => {
     });
 
     it('traces a stored value read through the root and through a value, directly and by a computed name, to the branch its field selected, of an equal value and another tolerance', () => {
-        const text = 'let held = { picked = if flag then name.size.width else name.length end }\nreturn { picked = if flag then name.size.width else name.length end, viaRoot = root.picked, viaRootComputed = root.[key], viaValue = held.picked, viaValueComputed = held.[key] }';
+        const text = 'let held = { picked = if flag then (name:size).width else name.length end }\nreturn { picked = if flag then (name:size).width else name.length end, viaRoot = root.picked, viaRootComputed = root.[key], viaValue = held.picked, viaValueComputed = held.[key] }';
         const reads = ['viaRoot', 'viaRootComputed', 'viaValue', 'viaValueComputed'];
         const { evaluate } = resolve(text, { name: 'tea', flag: true, key: 'picked' });
 
@@ -161,7 +161,7 @@ describe('result metadata', () => {
         const references = items => items.map(item => ({ kind: 'reference', value: item }));
 
         it('records a projection of a list no projection built with its own sources as its provenance, entry for entry', () => {
-            const { metadata } = resolve('name.crowd { name = it.label }').evaluate();
+            const { metadata } = resolve('name:crowd { name = it.label }').evaluate();
 
             expect(metadata.provenance).toEqual(references([parts[0], parts[1], parts[0]]));
             expect(metadata.provenance.every((entry, index) => entry === metadata.sources[index])).toBe(true);
@@ -169,7 +169,7 @@ describe('result metadata', () => {
         });
 
         it("keeps a second projection's sources its immediate input while its provenance names the references the first projection read, an input standing twice twice", () => {
-            const { value, metadata } = resolve('name.crowd { name = it.label } { label = it.name }').evaluate();
+            const { value, metadata } = resolve('name:crowd { name = it.label } { label = it.name }').evaluate();
 
             expect(value).toEqual([{ label: 'a' }, { label: 'b' }, { label: 'a' }]);
             expect(metadata.sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'b' } }, { kind: 'data', value: { name: 'a' } }]);
@@ -179,7 +179,7 @@ describe('result metadata', () => {
         });
 
         it('meets the four-step chain as object projections write it: a filter, then two projections, the final items naming their original references', () => {
-            const { value, metadata } = resolve('name.crowd.where(it.label == "a") { name = it.label } { label = it.name }').evaluate();
+            const { value, metadata } = resolve('(name:crowd).where(it.label == "a") { name = it.label } { label = it.name }').evaluate();
 
             expect(value).toEqual([{ label: 'a' }, { label: 'a' }]);
             expect(metadata.sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'a' } }]);
@@ -187,21 +187,21 @@ describe('result metadata', () => {
         });
 
         it('meets the four-step chain written with select: each projection keeps its immediate sources, and the final items name their original references', () => {
-            const { value, metadata } = resolve('name.crowd.where(it.label == "a").select({ name = it.label }).select({ label = it.name })').evaluate();
+            const { value, metadata } = resolve('(name:crowd).where(it.label == "a").select({ name = it.label }).select({ label = it.name })').evaluate();
 
             expect(value).toEqual([{ label: 'a' }, { label: 'a' }]);
             expect(metadata.sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'a' } }]);
             expect(metadata.provenance).toEqual(references([parts[0], parts[0]]));
-            expect(resolve('name.crowd.select(it.label)').evaluate().metadata).toMatchObject({ sources: references([parts[0], parts[1], parts[0]]), provenance: references([parts[0], parts[1], parts[0]]) });
+            expect(resolve('(name:crowd).select(it.label)').evaluate().metadata).toMatchObject({ sources: references([parts[0], parts[1], parts[0]]), provenance: references([parts[0], parts[1], parts[0]]) });
         });
 
         it("realigns each item's lineage through every member answering its receiver's items, reordered, partitioned or taken once each", () => {
             const lineageOf = text => resolve(text).evaluate().metadata;
-            const projected = 'name.crowd { name = it.label }';
+            const projected = 'name:crowd { name = it.label }';
 
             expect(lineageOf(`${projected}.reverse`).provenance).toEqual(references([parts[0], parts[1], parts[0]]));
             expect(lineageOf(`${projected}.reverse`).sources).toEqual(references([parts[0], parts[1], parts[0]]));
-            expect(lineageOf('name.crowd { name = it.label } { label = it.name }.reverse').sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'b' } }, { kind: 'data', value: { name: 'a' } }]);
+            expect(lineageOf('name:crowd { name = it.label } { label = it.name }.reverse').sources).toEqual([{ kind: 'data', value: { name: 'a' } }, { kind: 'data', value: { name: 'b' } }, { kind: 'data', value: { name: 'a' } }]);
             expect(lineageOf(`${projected}.drop(1)`).provenance).toEqual(references([parts[1], parts[0]]));
             expect(lineageOf(`${projected}.takeWhile(it.name == "a")`).provenance).toEqual(references([parts[0]]));
             expect(lineageOf(`${projected}.distinctBy(it.name)`).provenance).toEqual(references([parts[0], parts[1]]));
@@ -213,21 +213,21 @@ describe('result metadata', () => {
             const twinsOf = entries => entries.map(entry => (entry.kind === 'reference' ? twins.indexOf(entry.value) : entry));
             const labels = values => values.map(value => ({ kind: 'data', value }));
 
-            expect(metadataOf('name.twins.select(it.label).drop(1).select(it)').sources).toEqual(labels(['a', 'b']));
-            expect(twinsOf(metadataOf('name.twins.select(it.label).drop(1).select(it)').provenance)).toEqual([1, 2]);
-            expect(metadataOf('name.twins.select(it.label).reverse.select(it)').sources).toEqual(labels(['b', 'a', 'a']));
-            expect(twinsOf(metadataOf('name.twins.select(it.label).reverse.select(it)').provenance)).toEqual([2, 1, 0]);
-            expect(twinsOf(metadataOf('name.twins.select(it.label).orderByDescending(it).select(it)').provenance)).toEqual([2, 0, 1]);
-            expect(twinsOf(metadataOf('name.twins.select(it.label).distinct.select(it)').provenance)).toEqual([0, 2]);
-            expect(metadataOf('name.twins.select(it.label).where(it == "c").select(it)')).toMatchObject({ sources: [], provenance: [] });
+            expect(metadataOf('(name:twins).select(it.label).drop(1).select(it)').sources).toEqual(labels(['a', 'b']));
+            expect(twinsOf(metadataOf('(name:twins).select(it.label).drop(1).select(it)').provenance)).toEqual([1, 2]);
+            expect(metadataOf('(name:twins).select(it.label).reverse.select(it)').sources).toEqual(labels(['b', 'a', 'a']));
+            expect(twinsOf(metadataOf('(name:twins).select(it.label).reverse.select(it)').provenance)).toEqual([2, 1, 0]);
+            expect(twinsOf(metadataOf('(name:twins).select(it.label).orderByDescending(it).select(it)').provenance)).toEqual([2, 0, 1]);
+            expect(twinsOf(metadataOf('(name:twins).select(it.label).distinct.select(it)').provenance)).toEqual([0, 2]);
+            expect(metadataOf('(name:twins).select(it.label).where(it == "c").select(it)')).toMatchObject({ sources: [], provenance: [] });
             // An object projection's reversal, of a sequence that is no palindrome, and a list of lists, whose answer its capture maps to another list.
-            expect([twinsOf(metadataOf('name.twins { n = it.label }.reverse').sources), twinsOf(metadataOf('name.twins { n = it.label }.reverse').provenance)]).toEqual([[2, 1, 0], [2, 1, 0]]);
-            expect(twinsOf(metadataOf('name.twins.select([it.label]).reverse.select(it)').provenance)).toEqual([2, 1, 0]);
+            expect([twinsOf(metadataOf('name:twins { n = it.label }.reverse').sources), twinsOf(metadataOf('name:twins { n = it.label }.reverse').provenance)]).toEqual([[2, 1, 0], [2, 1, 0]]);
+            expect(twinsOf(metadataOf('(name:twins).select([it.label]).reverse.select(it)').provenance)).toEqual([2, 1, 0]);
         });
 
         it("describes a filter or a reordering of a selection's answer by its own origin and tolerance, with the sources and provenance of the occurrences it kept, though no item has a record", () => {
             const twinsOf = entries => entries.map(entry => twins.indexOf(entry.value));
-            const { objectFields } = metadataOf('{ selected = name.twins.select(it.label), kept = name.twins.select(it.label).where(it == "a"), reversed = name.twins.select(it.label).reverse, none = name.twins.select(it.label).where(false) }');
+            const { objectFields } = metadataOf('{ selected = (name:twins).select(it.label), kept = (name:twins).select(it.label).where(it == "a"), reversed = (name:twins).select(it.label).reverse, none = (name:twins).select(it.label).where(false) }');
 
             expect(objectFields.kept).toEqual({ origin: expect.any(Object), tolerance: null, sources: twins.slice(0, 2).map(twin => ({ kind: 'reference', value: twin })), provenance: expect.any(Array) });
             expect([twinsOf(objectFields.kept.sources), twinsOf(objectFields.kept.provenance)]).toEqual([[0, 1], [0, 1]]);
@@ -235,7 +235,7 @@ describe('result metadata', () => {
             expect(objectFields.none).toMatchObject({ sources: [], provenance: [] });
             expect(new Set([objectFields.selected.origin, objectFields.kept.origin, objectFields.reversed.origin]).size).toBe(3);
             // A projection after the filter records its actual immediate sources, the labels, and keeps the original references as its provenance.
-            const projected = metadataOf('name.twins.select(it.label).drop(1) { n = it }');
+            const projected = metadataOf('(name:twins).select(it.label).drop(1) { n = it }');
 
             expect(projected.sources).toEqual([{ kind: 'data', value: 'a' }, { kind: 'data', value: 'b' }]);
             expect(twinsOf(projected.provenance)).toEqual([1, 2]);
@@ -249,18 +249,18 @@ describe('result metadata', () => {
                 return { items: items?.length, sources: sources === undefined ? undefined : twinsOf(sources), provenance: twinsOf(provenance) };
             };
 
-            expect(lineageOf('name.twins { id = it.label }[1..]')).toEqual({ items: 2, sources: [1, 2], provenance: [1, 2] });
-            expect(lineageOf('name.twins { id = it.label }[^2..^0]')).toEqual({ items: 2, sources: [1, 2], provenance: [1, 2] });
-            expect(lineageOf('name.twins { id = it.label }[0..0]')).toEqual({ items: 0, sources: [], provenance: [] });
-            expect(lineageOf('name.twins { id = it.label }.pick([1, 0, 1])')).toEqual({ items: 3, sources: [1, 0, 1], provenance: [1, 0, 1] });
-            expect(lineageOf('name.twins.select(it.label).pick([2, 2])')).toEqual({ items: undefined, sources: [2, 2], provenance: [2, 2] });
-            expect(lineageOf('name.twins.select(it.label)[1..].select(it)')).toMatchObject({ provenance: [1, 2] });
-            expect(lineageOf('name.twins.select(it.label).pick([1, 1]).select(it)')).toMatchObject({ provenance: [1, 1] });
+            expect(lineageOf('name:twins { id = it.label }[1..]')).toEqual({ items: 2, sources: [1, 2], provenance: [1, 2] });
+            expect(lineageOf('name:twins { id = it.label }[^2..^0]')).toEqual({ items: 2, sources: [1, 2], provenance: [1, 2] });
+            expect(lineageOf('name:twins { id = it.label }[0..0]')).toEqual({ items: 0, sources: [], provenance: [] });
+            expect(lineageOf('name:twins { id = it.label }.pick([1, 0, 1])')).toEqual({ items: 3, sources: [1, 0, 1], provenance: [1, 0, 1] });
+            expect(lineageOf('(name:twins).select(it.label).pick([2, 2])')).toEqual({ items: undefined, sources: [2, 2], provenance: [2, 2] });
+            expect(lineageOf('(name:twins).select(it.label)[1..].select(it)')).toMatchObject({ provenance: [1, 2] });
+            expect(lineageOf('(name:twins).select(it.label).pick([1, 1]).select(it)')).toMatchObject({ provenance: [1, 1] });
         });
 
         it("realigns each item's lineage through an ordering and its refinement, and records nothing of the keys that ordered it", () => {
             const lineageOf = text => resolve(text).evaluate().metadata;
-            const projected = 'name.crowd { name = it.label }';
+            const projected = 'name:crowd { name = it.label }';
 
             expect(lineageOf(`${projected}.orderByDescending(it.name)`).provenance).toEqual(references([parts[1], parts[0], parts[0]]));
             expect(lineageOf(`${projected}.orderBy(it.name).thenByDescending(it.name)`).sources).toEqual(references([parts[0], parts[0], parts[1]]));
@@ -268,7 +268,7 @@ describe('result metadata', () => {
         });
 
         it('carries a null source as a recorded provenance entry, apart from absent provenance, data provenance as its frozen copy', () => {
-            const { metadata } = resolve('name.sizes { width = it.width } { w = it.width }').evaluate();
+            const { metadata } = resolve('name:sizes { width = it.width } { w = it.width }').evaluate();
 
             expect(metadata.sources).toEqual([{ kind: 'data', value: { width: 1 } }, { kind: 'null' }]);
             expect(metadata.provenance).toEqual([{ kind: 'data', value: { width: 1, height: 2 } }, { kind: 'null' }]);
@@ -278,17 +278,17 @@ describe('result metadata', () => {
         });
 
         it('follows a projected list through a local and into an object field', () => {
-            expect(metadataOf('let named = name.crowd { name = it.label }\nreturn named { label = it.name }').provenance).toEqual(references([parts[0], parts[1], parts[0]]));
-            expect(metadataOf('{ rows = name.crowd { n = it.label } { m = it.n } }').objectFields.rows.provenance).toEqual(references([parts[0], parts[1], parts[0]]));
+            expect(metadataOf('let named = name:crowd { name = it.label }\nreturn named { label = it.name }').provenance).toEqual(references([parts[0], parts[1], parts[0]]));
+            expect(metadataOf('{ rows = name:crowd { n = it.label } { m = it.n } }').objectFields.rows.provenance).toEqual(references([parts[0], parts[1], parts[0]]));
         });
 
         it("realigns a filter's kept items' sources and provenance in its order, so a projection after it keeps the first projection's references", () => {
-            const filtered = metadataOf('name.crowd { name = it.label }.where(it.name == "a")');
+            const filtered = metadataOf('name:crowd { name = it.label }.where(it.name == "a")');
 
             expect(filtered.sources).toEqual(references([parts[0], parts[0]]));
             expect(filtered.provenance).toEqual(references([parts[0], parts[0]]));
             expect(filtered.items).toHaveLength(2);
-            expect(metadataOf('name.crowd { name = it.label }.where(it.name == "b") { label = it.name }').provenance).toEqual(references([parts[1]]));
+            expect(metadataOf('name:crowd { name = it.label }.where(it.name == "b") { label = it.name }').provenance).toEqual(references([parts[1]]));
 
             const unprojected = metadataOf('items.where(it > 1)', { items: [1, 2, 3] });
 

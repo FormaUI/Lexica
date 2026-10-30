@@ -61,11 +61,11 @@ const resolve = (text, bound = values) => resolveWith([createPantry()], text, bo
 
 describe('a function parameter', () => {
     it('takes a function in any form a function argument takes: an arrow function, a function a name holds, a module\'s function by reference, or an implicit body', () => {
-        const forms = ['word.is(w => w.size > 2)', 'let long = w => w.size > 2\nreturn word.is(long)', 'word.is(pantry.vegan)', 'word.is(it.size > 2)'];
+        const forms = ['word:is(w => w:size > 2)', 'let long = w => w:size > 2\nreturn word:is(long)', 'word:is(pantry.vegan)', 'word:is(it:size > 2)'];
 
         expect(forms.map(text => evaluate(text).value)).toEqual([true, true, true, true]);
         expect(forms.map(text => evaluate(text, { ...values, word: 'ry' }).value)).toEqual([false, false, false, false]);
-        expect(evaluate('words { vegan = it.is(pantry.vegan), long = it.is(it.size > 3), rye = it.is(w => w == "rye") }').value).toEqual([
+        expect(evaluate('words { vegan = it:is(pantry.vegan), long = it:is(it:size > 3), rye = it:is(w => w == "rye") }').value).toEqual([
             { vegan: true, long: false, rye: false },
             { vegan: false, long: true, rye: false },
             { vegan: false, long: false, rye: true },
@@ -73,85 +73,85 @@ describe('a function parameter', () => {
     });
 
     it('of an extension of any type takes a receiver of any type, its callback taking the receiver as its own type, and answers null without calling it where ?. meets null', () => {
-        expect(evaluate('{ list = words.is(ws => ws.count > 2), number = (4).is(pantry.even), text = word.is(w => w.size == 3) }').value).toEqual({ list: true, number: true, text: true });
-        expect(evaluate('missing?.is(w => w.size > 2)')).toEqual({ value: null, invoked: [], asked: [] });
-        expect(resolve('missing?.is(it.size > 2)').type).toBe('Boolean?');
-        expect(errorThrownBy(() => resolve('word.is(pantry.even)'))).toMatchObject({ kind: 'validation' });
+        expect(evaluate('{ list = words:is(ws => ws.count > 2), number = (4):is(pantry.even), text = word:is(w => w:size == 3) }').value).toEqual({ list: true, number: true, text: true });
+        expect(evaluate('missing?:is(w => w:size > 2)')).toEqual({ value: null, invoked: [], asked: [] });
+        expect(resolve('missing?:is(it:size > 2)').type).toBe('Boolean?');
+        expect(errorThrownBy(() => resolve('word:is(pantry.even)'))).toMatchObject({ kind: 'validation' });
     });
 
     it('refuses a function that is none, one that does not take the receiver\'s type, one of another number of arguments, and one answering anything but a Boolean', () => {
-        expect(errorThrownBy(() => resolve('word.is(metered)', { ...values, metered: true }))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The parameter 'test' of 'is' takes a function, as an arrow function, a function a name holds, a module's function by reference or an implicit body gives, and finds Boolean") });
-        expect(errorThrownBy(() => resolve('word.is((a, b) => true)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes 2 arguments, and its contract passes 1') });
-        expect(errorThrownBy(() => resolve('word.is(w => w.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Number, and its contract takes Boolean') });
-        expect(errorThrownBy(() => resolve('word.is(it.size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The implicit body given as 'test' of 'is' gives Number, and its contract takes Boolean") });
-        expect(errorThrownBy(() => resolve('word.is(w => if w.size > 2 then true else null end)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Boolean?, and its contract takes Boolean') });
+        expect(errorThrownBy(() => resolve('word:is(metered)', { ...values, metered: true }))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The parameter 'test' of 'is' takes a function, as an arrow function, a function a name holds, a module's function by reference or an implicit body gives, and finds Boolean") });
+        expect(errorThrownBy(() => resolve('word:is((a, b) => true)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes 2 arguments, and its contract passes 1') });
+        expect(errorThrownBy(() => resolve('word:is(w => w:size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Number, and its contract takes Boolean') });
+        expect(errorThrownBy(() => resolve('word:is(it:size)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("The implicit body given as 'test' of 'is' gives Number, and its contract takes Boolean") });
+        expect(errorThrownBy(() => resolve('word:is(w => if w:size > 2 then true else null end)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives Boolean?, and its contract takes Boolean') });
     });
 
     it('takes a Boolean that cannot be null where its contract declares one, converting no truthiness, and fails where a module\'s function answers anything else', () => {
-        expect(errorThrownBy(() => evaluate('word.is(pantry.fresh)'))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("The member 'fresh' answered") });
-        expect(errorThrownBy(() => resolve('word.is(w => w)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives String, and its contract takes Boolean') });
+        expect(errorThrownBy(() => evaluate('word:is(pantry.fresh)'))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("The member 'fresh' answered") });
+        expect(errorThrownBy(() => resolve('word:is(w => w)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('gives String, and its contract takes Boolean') });
     });
 
     it('reads what its function reads: a module\'s function as its declaration says, and an arrow function or an implicit body the reads it makes', () => {
-        expect(evaluate('word.is(pantry.vegan)').asked).toEqual(['is', 'vegan']);
-        expect(evaluate('word.is(w => w.size > 2)').asked).toEqual(['is', 'size']);
-        expect(evaluate('word.is(it.size > 2)').asked).toEqual(['is', 'size']);
+        expect(evaluate('word:is(pantry.vegan)').asked).toEqual(['is', 'vegan']);
+        expect(evaluate('word:is(w => w:size > 2)').asked).toEqual(['is', 'size']);
+        expect(evaluate('word:is(it:size > 2)').asked).toEqual(['is', 'size']);
         expect(evaluate('let test = pantry.vegan\nreturn 1').asked).toEqual([]);
     });
 });
 
 describe('implicit bodies', () => {
     it('are recognized by an it of the argument\'s own scope, and an it a projection, an expression or a predicate argument within it supplies makes it none', () => {
-        expect(evaluate('word.is(it.size > 2)').value).toBe(true);
-        expect(errorThrownBy(() => resolve('word.is(words { s = it.size }.count > 0)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes a function') });
-        expect(errorThrownBy(() => resolve('word.is(words.where(it.vegan()).count > 0)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes a function') });
+        expect(evaluate('word:is(it:size > 2)').value).toBe(true);
+        expect(errorThrownBy(() => resolve('word:is(words { s = it:size }.count > 0)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes a function') });
+        expect(errorThrownBy(() => resolve('word:is(words.where(it:vegan()).count > 0)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining('takes a function') });
     });
 
     it('count an it an arrow function within them reads, since an arrow function keeps the it of the place it is written', () => {
-        expect(evaluate('let apply = function(f, n) f(n) end\nreturn word.is(apply(n => it.size > n, 2))').value).toBe(true);
+        expect(evaluate('let apply = function(f, n) f(n) end\nreturn word:is(apply(n => it:size > n, 2))').value).toBe(true);
     });
 
     it('read every other name where they are written, a local and a script parameter among them, and their it alone as the argument the member calls them with', () => {
-        expect(evaluate('let limit = 2\nreturn { long = word.is(it.size > limit), longer = word.is(it.size > ~limit) }', { ...values, limit: 5 }).value).toEqual({ long: true, longer: false });
-        expect(evaluate('words { longer = it.is(it.size > other.size) }').value).toEqual([{ longer: false }, { longer: false }, { longer: false }]);
+        expect(evaluate('let limit = 2\nreturn { long = word:is(it:size > limit), longer = word:is(it:size > ~limit) }', { ...values, limit: 5 }).value).toEqual({ long: true, longer: false });
+        expect(evaluate('words { longer = it:is(it:size > other:size) }').value).toEqual([{ longer: false }, { longer: false }, { longer: false }]);
     });
 
     it('leave an arrow function the it of the place it is written, which a top level has none of', () => {
-        expect(evaluate('words { shorter = word.is(w => it.size > w.size) }').value).toEqual([{ shorter: false }, { shorter: true }, { shorter: false }]);
-        expect(errorThrownBy(() => resolve('word.is(w => it.size > 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'it' is the implicit parameter, and there is none here") });
+        expect(evaluate('words { shorter = word:is(w => it:size > w:size) }').value).toEqual([{ shorter: false }, { shorter: true }, { shorter: false }]);
+        expect(errorThrownBy(() => resolve('word:is(w => it.size > 2)'))).toMatchObject({ kind: 'validation', message: expect.stringContaining("'it' is the implicit parameter, and there is none here") });
     });
 
     it('are evaluated only as the member calls them, so one it never calls reads nothing', () => {
-        expect(evaluate('word.ignore(it.size > 2)')).toMatchObject({ value: true, invoked: [] });
+        expect(evaluate('word:ignore(it:size > 2)')).toMatchObject({ value: true, invoked: [] });
     });
 
     it('are recorded as written, an argument node like any other, the resolution telling them apart', () => {
         const registry = nexo.createRegistry([createPantry()]);
 
-        expect(nexo.parse('word.is(it.size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size' }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
-        expect(nexo.format('word.is(it.size > 2)')).toBe('word.is(it.size > 2)');
+        expect(nexo.parse('word:is(it:size > 2)').expression.arguments).toEqual([{ kind: 'comparison', operands: [{ kind: 'memberAccess', receiver: { kind: 'it' }, name: 'size', extension: {} }, { kind: 'literal', value: 2 }], operators: ['>'] }]);
+        expect(nexo.format('word:is(it:size > 2)')).toBe('word:is(it:size > 2)');
     });
 });
 
 describe('functions passed to members', () => {
     it('are called only while the member\'s invocation lasts, a call after that failing, an implicit body and a reference alike', () => {
-        for (const test of ['w => w.size > 2', 'it.size > 2', 'pantry.vegan']) {
-            expect(errorThrownBy(() => evaluate(`{ kept = word.keep(${test}), called = word.callKept() }`))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("is called after 'keep' returned") });
+        for (const test of ['w => w:size > 2', 'it:size > 2', 'pantry.vegan']) {
+            expect(errorThrownBy(() => evaluate(`{ kept = word:keep(${test}), called = word:callKept() }`))).toMatchObject({ kind: 'evaluation', message: expect.stringContaining("is called after 'keep' returned") });
         }
     });
 
     it('expire only the function the member was given, the function beneath it staying callable in another invocation and by itself', () => {
-        for (const test of ['w => w.size > 2', 'pantry.vegan']) {
-            expect(evaluate(`let test = ${test}\nreturn { kept = word.keep(test), again = word.is(test), direct = test(word) }`).value).toEqual({ kept: true, again: true, direct: true });
+        for (const test of ['w => w:size > 2', 'pantry.vegan']) {
+            expect(evaluate(`let test = ${test}\nreturn { kept = word:keep(test), again = word:is(test), direct = test(word) }`).value).toEqual({ kept: true, again: true, direct: true });
         }
     });
 
     it('expire when the member fails as when it returns, a call after its failure refused', () => {
-        for (const test of ['w => w.size > 2', 'it.size > 2', 'pantry.vegan']) {
+        for (const test of ['w => w:size > 2', 'it:size > 2', 'pantry.vegan']) {
             const held = {};
             const registry = nexo.createRegistry([createPantry([], held)]);
             const bindings = registry.createBindings(values);
-            const evaluator = registry.resolve(`word.keepAndFail(${test})`, bindings, { imports: ['pantry'] }).createEvaluator(bindings);
+            const evaluator = registry.resolve(`word:keepAndFail(${test})`, bindings, { imports: ['pantry'] }).createEvaluator(bindings);
 
             expect(errorThrownBy(() => evaluator.evaluate()), test).toMatchObject({ code: 'NEXO5007', message: expect.stringContaining('The pantry is closed') });
             expect(errorThrownBy(() => held.test('oat')), test).toMatchObject({ code: 'NEXO5008', kind: 'evaluation' });

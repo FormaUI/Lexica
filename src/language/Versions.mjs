@@ -7,8 +7,8 @@ export class Versions {
     static implementation = '1.0.0-alpha.37';
 
     /** The language specification version the implementation follows. */
-    static language = '1.0.0-alpha.39';
+    static language = '1.0.0-alpha.40';
 
     /** The definition format version the implementation supports. */
-    static definition = 36;
+    static definition = 37;
 }

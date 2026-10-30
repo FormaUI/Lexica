@@ -42,7 +42,7 @@ describe('a host of plain data', () => {
 
     it('resolves against its registry, telling the type, the declarations used and where each stands', () => {
         const registry = createImportingRegistry([createShop()]);
-        const resolution = registry.resolve('{ total = order.total, cut = order.discount(code) }', registry.createBindings({ order: 'a', code: 'TEN' }));
+        const resolution = registry.resolve('{ total = order:total, cut = order:discount(code) }', registry.createBindings({ order: 'a', code: 'TEN' }));
 
         expect(resolution.hostCall).toBeNull();
         expect(resolution.type).toBe('{ total: Price, cut: Number }');
@@ -72,7 +72,7 @@ describe('a host of plain data', () => {
     });
 
     it('evaluates for a host, giving the environment to each implementation and describing the result', () => {
-        const resolution = createImportingRegistry([createShop()]).resolve('{ total = order.total, cut = order.discount(code) }', { order: 'a', code: 'TEN' });
+        const resolution = createImportingRegistry([createShop()]).resolve('{ total = order:total, cut = order:discount(code) }', { order: 'a', code: 'TEN' });
         const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' }, { prices: { a: 12.5 } });
         const first = evaluator.evaluate();
         const again = evaluator.evaluate();
@@ -85,7 +85,7 @@ describe('a host of plain data', () => {
     });
 
     it('answers a result that is frozen through its value and its metadata, so nothing a caller does changes what an evaluation produced', () => {
-        const result = createImportingRegistry([createShop()]).resolve('{ total = order.total, codes = codes.where(it != "x") }', { order: 'a', codes: ['TEN', 'x'] })
+        const result = createImportingRegistry([createShop()]).resolve('{ total = order:total, codes = codes.where(it != "x") }', { order: 'a', codes: ['TEN', 'x'] })
             .createEvaluator({ order: 'a', codes: ['TEN', 'x'] }, { prices: { a: 3 } })
             .evaluate();
 
@@ -95,14 +95,14 @@ describe('a host of plain data', () => {
     });
 
     it('reads a maintained member through the samples its host answers', () => {
-        const resolution = createImportingRegistry([createShop()]).resolve('product.stock', { product: 'p' });
+        const resolution = createImportingRegistry([createShop()]).resolve('product:stock', { product: 'p' });
 
         expect(resolution.createEvaluator({ product: 'p' }).evaluate({ beforeInvoke: () => [7] }).value).toBe(7);
         expect(resolution.createEvaluator({ product: 'p' }).evaluate({ beforeInvoke: () => ({ pending: true }) })).toMatchObject({ value: null, isPending: true });
     });
 
     it('reuses a resolution with bindings of its resolution key alone', () => {
-        const resolution = createImportingRegistry([createShop()]).resolve('{ cut = order.discount(code), note = extra.note }', { order: 'a', code: 'TEN', extra: { note: 'x' } });
+        const resolution = createImportingRegistry([createShop()]).resolve('{ cut = order:discount(code), note = extra.note }', { order: 'a', code: 'TEN', extra: { note: 'x' } });
 
         expect(resolution.createEvaluator({ order: 'a', code: 'TEN', extra: { note: 'y' } }).evaluate().value).toEqual({ cut: 10, note: 'y' });
         expect(errorThrownBy(() => resolution.createEvaluator({ order: 'a', code: 'NONE', extra: { note: 'x' } }))).toMatchObject({ kind: 'structure', message: expect.stringContaining('These bindings resolve the script otherwise than the bindings it was resolved with') });
@@ -110,7 +110,7 @@ describe('a host of plain data', () => {
 
     it('refuses to evaluate a resolution a module registered since has made stale, wherever the evaluator was created', () => {
         const registry = createImportingRegistry([createShop()]);
-        const resolution = registry.resolve('order.held', { order: 'a' });
+        const resolution = registry.resolve('order:held', { order: 'a' });
         const evaluator = resolution.createEvaluator({ order: 'a' }, { prices: { a: 1 } });
 
         expect(evaluator.evaluate().value).toBe(7);
@@ -128,7 +128,7 @@ describe('a host of plain data', () => {
 
         it('keeps a resolution that may not recognize current, so its evaluator evaluates on and its results\' origins stay comparable with those before', () => {
             const registry = createImportingRegistry([createShop()]);
-            const resolution = registry.resolve('{ cut = order.discount(code) }', { order: 'a', code: 'TEN' });
+            const resolution = registry.resolve('{ cut = order:discount(code) }', { order: 'a', code: 'TEN' });
             const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' });
             const before = evaluator.evaluate();
 
@@ -145,7 +145,7 @@ describe('a host of plain data', () => {
 
         it('keeps a prepared call projecting across a registration that changes nothing it reads, each projection reading the locals it was prepared with', () => {
             const registry = createImportingRegistry([createShop()]);
-            const resolution = registry.resolve('let cut = order.discount(code)\nreturn order.restocks() { count = it, cut = cut }', { order: 'a', code: 'TEN' });
+            const resolution = registry.resolve('let cut = order:discount(code)\nreturn order:restocks() { count = it, cut = cut }', { order: 'a', code: 'TEN' });
             const call = resolution.createEvaluator({ order: 'a', code: 'TEN' }).prepareHostCall();
             const before = call.project(3);
 
@@ -160,11 +160,11 @@ describe('a host of plain data', () => {
 
         it('makes a host call supplying a nullable reference stale once a module declaring a typeOf registers, since capturing one may recognize it, and keeps current one that supplies data or nothing', () => {
             const registry = createImportingRegistry([createShop()]);
-            const supplier = registry.resolve('order.supplier() { found = it != null }', { order: 'a' });
+            const supplier = registry.resolve('order:supplier() { found = it != null }', { order: 'a' });
             const call = supplier.createEvaluator({ order: 'a' }).prepareHostCall();
-            const restocks = registry.resolve('order.restocks()', { order: 'a' });
+            const restocks = registry.resolve('order:restocks()', { order: 'a' });
             const counted = restocks.createEvaluator({ order: 'a' }).prepareHostCall();
-            const closing = registry.resolve('order.close()', { order: 'a' });
+            const closing = registry.resolve('order:close()', { order: 'a' });
 
             registry.registerModule(createRecognizing());
 
@@ -175,7 +175,7 @@ describe('a host of plain data', () => {
 
         it('keeps current a resolution given a value parameter of Any, which gives the script no value of Any, whatever registers', () => {
             const registry = createImportingRegistry([createShop()]);
-            const resolution = registry.resolve('order.takes(order)', { order: 'a' });
+            const resolution = registry.resolve('order:takes(order)', { order: 'a' });
 
             registry.registerModule(createRecognizing());
 
@@ -185,7 +185,7 @@ describe('a host of plain data', () => {
 
         it('keeps a resolution that may recognize current across a module declaring no typeOf, where one declaring a typeOf was registered before it, and stale after the next that declares one', () => {
             const registry = createImportingRegistry([createShop(), createRecognizing()]);
-            const resolution = registry.resolve('order.held', { order: 'a' });
+            const resolution = registry.resolve('order:held', { order: 'a' });
 
             registry.registerModule(nexo.createModule('extra', {}));
 
@@ -199,7 +199,7 @@ describe('a host of plain data', () => {
 
         it('makes a resolution stale that may recognize through a branch no evaluation takes, once a module declaring a typeOf registers, and keeps it current through any other registration', () => {
             const registry = createImportingRegistry([createShop()]);
-            const resolution = registry.resolve('if wanted then order.held else 0 end', { order: 'a', wanted: false });
+            const resolution = registry.resolve('if wanted then order:held else 0 end', { order: 'a', wanted: false });
             const evaluator = resolution.createEvaluator({ order: 'a', wanted: false });
 
             expect(evaluator.evaluate().value).toBe(0);
@@ -231,17 +231,17 @@ describe('a host of plain data', () => {
         const resolve = (type, text) => sums(type).resolve(text, { n: 1 });
 
         for (const type of ['Number', 'Number?']) {
-            expect(resolve(type, 'n.add(null)').type, type).toBe('Number?');
-            expect(resolve(type, 'n.add(n.none)').type, type).toBe('Number?');
-            expect(resolve(type, 'n.add(2)').type, type).toBe('Number');
-            expect(resolve(type, 'n.add(null)').createEvaluator({ n: 1 }).evaluate().value, type).toBeNull();
-            expect(resolve(type, 'n.add(n.none)').createEvaluator({ n: 1 }).evaluate().value, type).toBeNull();
+            expect(resolve(type, 'n:add(null)').type, type).toBe('Number?');
+            expect(resolve(type, 'n:add(n:none)').type, type).toBe('Number?');
+            expect(resolve(type, 'n:add(2)').type, type).toBe('Number');
+            expect(resolve(type, 'n:add(null)').createEvaluator({ n: 1 }).evaluate().value, type).toBeNull();
+            expect(resolve(type, 'n:add(n:none)').createEvaluator({ n: 1 }).evaluate().value, type).toBeNull();
             expect(invoked, type).toEqual([]);
         }
     });
 
     it('refuses an evaluator evaluating within its own evaluation, and evaluates again once it is done', () => {
-        const resolution = createImportingRegistry([createShop()]).resolve('order.discount(code)', { order: 'a', code: 'TEN' });
+        const resolution = createImportingRegistry([createShop()]).resolve('order:discount(code)', { order: 'a', code: 'TEN' });
         const evaluator = resolution.createEvaluator({ order: 'a', code: 'TEN' });
         let inner = null;
 
@@ -294,7 +294,7 @@ describe('the declaration shape', () => {
 
     it('gives each implementation one object it reads by name: the receiver, the arguments by parameter name and the environment', () => {
         const received = [];
-        const resolution = createImportingRegistry([createMenu(received)]).resolve('{ price = item.price, discounted = item.discounted(50) }', { item: 'latte' });
+        const resolution = createImportingRegistry([createMenu(received)]).resolve('{ price = item:price, discounted = item:discounted(50) }', { item: 'latte' });
         const { value } = resolution.createEvaluator({ item: 'latte' }, { rate: 2 }).evaluate();
 
         expect(value).toEqual({ price: 5, discounted: 5 });
@@ -306,19 +306,19 @@ describe('the declaration shape', () => {
         const registry = createImportingRegistry([createMenu(received)]);
         const evaluate = (text, item) => registry.resolve(text, { item }, { imports: ['menu'] }).createEvaluator({ item }).evaluate().value;
 
-        expect(['item.vegan()', 'menu.vegan(item)', '[item].any(menu.vegan)'].map(text => [evaluate(text, 'oat latte'), evaluate(text, 'latte')])).toEqual([[true, false], [true, false], [true, false]]);
+        expect(['item:vegan()', 'menu.vegan(item)', '[item].any(menu.vegan)'].map(text => [evaluate(text, 'oat latte'), evaluate(text, 'latte')])).toEqual([[true, false], [true, false], [true, false]]);
         expect(received).toEqual([{}, {}, ...Array(2).fill([{ item: 'oat latte' }, { item: 'latte' }]).flat()]);
     });
 
     it('resolves a script that uses a declaration without an implementation, and refuses to evaluate it, naming the declaration, its module and the field', () => {
-        const resolution = createImportingRegistry([createMenu()]).resolve('item.special', { item: 'latte' });
+        const resolution = createImportingRegistry([createMenu()]).resolve('item:special', { item: 'latte' });
 
         expect(resolution.type).toBe('String');
         expect(errorThrownBy(() => resolution.createEvaluator({ item: 'latte' }))).toMatchObject({ kind: 'module', message: expect.stringContaining('so a script that uses it is resolved and never evaluated'), location: { module: 'menu', declaration: 'special', declarationKey: 'impl' } });
     });
 
     it('decides before anything is evaluated, so a branch evaluation would not take refuses its script too', () => {
-        const resolution = createImportingRegistry([createMenu()]).resolve('if item.vegan() then item.price else item.special.price end', { item: 'oat latte' });
+        const resolution = createImportingRegistry([createMenu()]).resolve('if item:vegan() then item:price else item:special:price end', { item: 'oat latte' });
 
         expect(errorThrownBy(() => resolution.createEvaluator({ item: 'oat latte' }))).toMatchObject({ kind: 'module', location: { declaration: 'special' } });
     });
@@ -329,16 +329,16 @@ describe('the declaration shape', () => {
             types: [extensionDeclaration('StringExtensions', 'String', [createFunctionDeclaration('cut', 'Number', { updates: { changes: 'constant', reads: 'fresh' }, parameters: [percent], impl: ({ args }) => args.percent })])],
         })]);
 
-        expect(registry.resolve('item.cut(5)', { item: 'latte' }).createEvaluator({ item: 'latte' }).evaluate().value).toBe(5);
-        expect(errorThrownBy(() => registry.resolve('item.cut()', { item: 'latte' }))).toBeInstanceOf(NexoError);
+        expect(registry.resolve('item:cut(5)', { item: 'latte' }).createEvaluator({ item: 'latte' }).evaluate().value).toBe(5);
+        expect(errorThrownBy(() => registry.resolve('item:cut()', { item: 'latte' }))).toBeInstanceOf(NexoError);
     });
 
     it('refuses a function call written as an indexer, giving the call to write', () => {
-        expect(errorThrownBy(() => createImportingRegistry([createMenu()]).resolve('item.discounted[50]', { item: 'latte' })).message).toContain("'discounted' uses call syntax: write 'item.discounted(50)'");
+        expect(errorThrownBy(() => createImportingRegistry([createMenu()]).resolve('item:discounted[50]', { item: 'latte' })).message).toContain("'discounted' uses call syntax: write 'item:discounted(50)'");
     });
 
     it('evaluates an expression of a mixed module that uses its implemented declarations alone', () => {
-        const resolution = createImportingRegistry([createMenu()]).resolve('if item.vegan() then item.price else 0 end', { item: 'oat latte' });
+        const resolution = createImportingRegistry([createMenu()]).resolve('if item:vegan() then item:price else 0 end', { item: 'oat latte' });
 
         expect(resolution.createEvaluator({ item: 'oat latte' }).evaluate().value).toBe(9);
     });
@@ -377,6 +377,6 @@ describe('the declaration shape', () => {
         const evaluate = text => registry.resolve(text, { word: 'oat' }, { imports: ['clock'] }).createEvaluator({ word: 'oat' }).evaluate().value;
 
         expect(evaluate('clock.now')).toBe(0);
-        expect(evaluate('word.now')).toBe(3);
+        expect(evaluate('word:now')).toBe(3);
     });
 });

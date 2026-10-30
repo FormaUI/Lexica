@@ -120,15 +120,12 @@ export class DefinitionWriter {
                 return DefinitionWriter.#localNameText(node.name);
             case 'memberAccess':
                 return typeof node.name === 'string'
-                    ? `${DefinitionWriter.#within(node.receiver, CHAIN_PRECEDENCE, level)}${DefinitionWriter.#joiner(node)}${node.name}`
+                    ? `${DefinitionWriter.#receiverText(node, level)}${DefinitionWriter.#joiner(node)}${node.name}`
                     : `${DefinitionWriter.#within(node.receiver, CHAIN_PRECEDENCE, level)}${DefinitionWriter.#dot(node)}[${DefinitionWriter.#write(node.name, level)}]`;
             case 'call':
                 return `${node.callee.kind === 'local' ? DefinitionWriter.#localNameText(node.callee.name) : DefinitionWriter.#write(node.callee, level)}(${DefinitionWriter.#arguments(node, level)})`;
-            case 'indexerAccess': {
-                const brackets = node.extension === undefined ? (node.optional === true ? '?[' : '[') : `${node.optional === true ? '?:' : ':'}${DefinitionWriter.#extensionText(node.extension)}[`;
-
-                return `${DefinitionWriter.#within(node.receiver, CHAIN_PRECEDENCE, level)}${brackets}${DefinitionWriter.#write(node.argument, level)}]`;
-            }
+            case 'indexerAccess':
+                return `${DefinitionWriter.#within(node.receiver, CHAIN_PRECEDENCE, level)}${node.optional === true ? '?[' : '['}${DefinitionWriter.#write(node.argument, level)}]`;
             case 'optionalChain':
                 return DefinitionWriter.#write(node.chain, level);
             case 'list':
@@ -199,14 +196,29 @@ export class DefinitionWriter {
         return node.optional === true ? '?.' : '.';
     }
 
-    /** What joins a named access to its receiver: its dot, or, where it selects an extension explicitly, `:` or `?:`, the extension's name as the definition holds it and a dot. */
+    /** What joins a named access to its receiver: its dot, or, for an extension access, `:` or `?:` and the names before its member's, as the definition holds them, each followed by a dot. */
     static #joiner(node) {
-        return node.extension === undefined ? DefinitionWriter.#dot(node) : `${node.optional === true ? '?:' : ':'}${DefinitionWriter.#extensionText(node.extension)}.`;
+        if (node.extension === undefined) {
+            return DefinitionWriter.#dot(node);
+        }
+
+        const { module, name } = node.extension;
+
+        return `${node.optional === true ? '?:' : ':'}${module === undefined ? '' : `${module}.`}${name === undefined ? '' : `${name}.`}`;
     }
 
-    /** An extension's name as an extension access writes it: its name, qualified by its module's local name where the definition qualifies it. */
-    static #extensionText(extension) {
-        return extension.module === undefined ? extension.name : `${extension.module}.${extension.name}`;
+    /**
+     * The receiver of a named access as it is written before its joiner: grouped where it is an extension access's member read without a call and a dot follows it, which would make its member the extension's name,
+     * as `(device:readings).first` writes it, and as its precedence writes it otherwise.
+     */
+    static #receiverText(node, level) {
+        const { receiver } = node;
+
+        if (node.extension === undefined && receiver.kind === 'memberAccess' && receiver.extension !== undefined) {
+            return `(${DefinitionWriter.#write(receiver, level)})`;
+        }
+
+        return DefinitionWriter.#within(node.receiver, CHAIN_PRECEDENCE, level);
     }
 
     /**

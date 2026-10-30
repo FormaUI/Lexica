@@ -20,11 +20,11 @@ const createHome = () => nexo.createModule('Home', withHome({}, {
     Light: [answering('glow', 'home light')],
 }));
 
-/** Energy, which extends the home's devices: their power, their usage, a secret and an unnamed indexer of its own. */
-const createEnergy = () => nexo.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [answering('power', 'energy'), answering('usage', 'energy'), answering('secret', 'energy'), indexing('energy')])] });
+/** Energy, which extends the home's devices: their power, their usage and a secret. */
+const createEnergy = () => nexo.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [answering('power', 'energy'), answering('usage', 'energy'), answering('secret', 'energy')])] });
 
-/** Solar, which extends the target given, the home's lights unless another is given: its usage, its level, and an unnamed indexer of its own. */
-const createSolar = (target = 'Home.Light') => nexo.createModule('Solar', { types: [extensionDeclaration('Panel', target, [answering('usage', 'solar'), answering('level', 'solar'), indexing('solar')])] });
+/** Solar, which extends the target given, the home's lights unless another is given: its usage and its level. */
+const createSolar = (target = 'Home.Light') => nexo.createModule('Solar', { types: [extensionDeclaration('Panel', target, [answering('usage', 'solar'), answering('level', 'solar')])] });
 
 const values = { device: new Device('fan'), light: new Light('lamp'), thermostat: new Thermostat('heater'), numbers: [1, 2] };
 
@@ -40,47 +40,43 @@ const evaluateWith = (modules, text, bound = values) => {
 const refusalWith = (modules, text, bound = values) => errorThrownBy(() => createImportingRegistry(modules).resolve(text, bound, { imports: importsOf(modules) }));
 
 describe('the selection of a member', () => {
-    it('takes the owner\'s applicable member over every extension, whatever order the modules registered in', () => {
-        expect(evaluateWith([createHome(), createEnergy()], 'device.power')).toBe('home');
-        expect(evaluateWith([createHome(), createEnergy()], 'device["mode"]')).toBe('home');
+    it("reads the owner's member with '.' and an extension's with ':', the two never competing", () => {
+        expect(evaluateWith([createHome(), createEnergy()], '{ own = device.power, extension = device:power, indexed = device["mode"] }')).toEqual({ own: 'home', extension: 'energy', indexed: 'home' });
     });
 
-    it('takes the owner\'s member on a supertype it owns with the owner\'s priority, which an extension of a more specific receiver never defeats', () => {
-        expect(evaluateWith([createHome(), createSolar()], '{ level = light.level, glow = light.glow }')).toEqual({ level: 'home device', glow: 'home light' });
+    it("reads the owner's member on a supertype it owns with '.', whatever an extension of a more specific receiver declares, which ':' reads", () => {
+        expect(evaluateWith([createHome(), createSolar()], '{ level = light.level, glow = light.glow, solar = light:level }')).toEqual({ level: 'home device', glow: 'home light', solar: 'solar' });
     });
 
-    it('takes the applicable extension whose target is more specific than every other\'s where the owner declares none, whatever order the modules registered in', () => {
+    it('takes the applicable extension whose target is more specific than every other\'s, whatever order the modules registered in', () => {
         for (const modules of [[createHome(), createEnergy(), createSolar()], [createHome(), createSolar(), createEnergy()]]) {
-            expect(evaluateWith(modules, '{ light = light.usage, thermostat = thermostat.usage }')).toEqual({ light: 'solar', thermostat: 'energy' });
+            expect(evaluateWith(modules, '{ light = light:usage, thermostat = thermostat:usage }')).toEqual({ light: 'solar', thermostat: 'energy' });
         }
     });
 
     it('registers extensions of one target, and refuses an access both apply to, naming the modules and the extension accesses that select each', () => {
         const modules = [createHome(), createEnergy(), createSolar('Home.Device')];
 
-        expect(refusalWith(modules, 'device.usage')).toMatchObject({
+        expect(refusalWith(modules, 'device:usage')).toMatchObject({
             code: 'NEXO3024',
             message: expect.stringContaining("'usage' on Device is ambiguous between the modules 'Energy' and 'Solar': write 'device:Energy.Device.usage' or 'device:Solar.Panel.usage' to select one"),
         });
-        expect(refusalWith([createHome(), nexo.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [indexing('energy')])] }), createSolar('Home.Device')], 'device.secret')).toMatchObject({ code: 'NEXO3023' });
+        expect(refusalWith([createHome(), nexo.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [answering('usage', 'energy')])] }), createSolar('Home.Device')], 'device.secret')).toMatchObject({ code: 'NEXO3023' });
         expect(evaluateWith([createHome(), createEnergy(), createSolar('Home.Device')], 'device.power')).toBe('home');
     });
 
-    it('reads Nexo\'s own members of its own types, whatever an extension declares', () => {
+    it("reads Nexo's own members of its own types with '.', and an extension's of their name with ':'", () => {
         const counting = nexo.createModule('Counting', { types: [extensionDeclaration('Numbers', 'List<Number>', [answering('count', 'counting')])] });
 
-        expect(evaluateWith([counting], 'numbers.count', { numbers: [1, 2] })).toBe(2);
+        expect(evaluateWith([counting], '{ own = numbers.count, extension = numbers:count }', { numbers: [1, 2] })).toEqual({ own: 2, extension: 'counting' });
     });
 
-    it('selects an unnamed indexer as it selects a member: the owner\'s first, an extension\'s where it declares none, and none among competing extensions', () => {
-        const solarAndEnergy = [createHome(), createEnergy(), createSolar()];
-
-        expect(evaluateWith(solarAndEnergy, '{ light = light["mode"], thermostat = thermostat["mode"] }')).toEqual({ light: 'home', thermostat: 'home' });
-        expect(evaluateWith([nexo.createModule('Home', withHome()), createEnergy(), createSolar()], '{ light = light["mode"], thermostat = thermostat["mode"] }')).toEqual({ light: 'solar', thermostat: 'energy' });
-        expect(refusalWith([nexo.createModule('Home', withHome()), createEnergy(), createSolar('Home.Device')], 'device["mode"]')).toMatchObject({ code: 'NEXO3024', message: expect.stringContaining("write 'device:Energy.Device[…]' or 'device:Solar.Panel[…]' to select one") });
+    it("reads an unnamed indexer of the receiver's owner alone, refusing an extension that declares one, which no access would reach", () => {
+        expect(evaluateWith([createHome(), createEnergy(), createSolar()], '{ light = light["mode"], thermostat = thermostat["mode"] }')).toEqual({ light: 'home', thermostat: 'home' });
+        expect(errorThrownBy(() => nexo.createRegistry([createHome(), nexo.createModule('Energy', { types: [extensionDeclaration('Device', 'Home.Device', [indexing('energy')])] })]))).toMatchObject({ code: 'NEXO4564', kind: 'module' });
     });
 
-    it('gives a member another module declares on a supertype no priority over the extensions, the most specific of them selected', () => {
+    it("reads a member another module declares on a supertype with '.', as a type's own, and an extension's of a more specific receiver with ':'", () => {
         class Gadget {}
         class Lamp extends Gadget {}
 
@@ -90,13 +86,14 @@ describe('the selection of a member', () => {
         const registry = createImportingRegistry([gear, lamps, shine]);
         const bindings = registry.createBindings({ lamp: new Lamp() });
 
-        expect(registry.resolve('lamp.tag', bindings).createEvaluator(bindings).evaluate().value).toBe('shine');
+        expect(registry.resolve('{ own = lamp.tag, extension = lamp:tag }', bindings).createEvaluator(bindings).evaluate().value).toEqual({ own: 'gear', extension: 'shine' });
     });
 });
 
 describe('an internal declaration', () => {
-    it('is no candidate, so an accessible extension resolves where the owner\'s member of its name is internal', () => {
-        expect(evaluateWith([createHome(), createEnergy()], 'device.secret')).toBe('energy');
+    it("is no candidate, and never makes an extension member of its name one '.' reads", () => {
+        expect(evaluateWith([createHome(), createEnergy()], 'device:secret')).toBe('energy');
+        expect(refusalWith([createHome(), createEnergy()], 'device.secret')).toMatchObject({ code: 'NEXO3023' });
     });
 
     it('is refused where it alone applies, through any form, as if no declaration of its name were accessible', () => {

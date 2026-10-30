@@ -87,7 +87,7 @@ describe('LanguageResolver', () => {
         });
 
         it('keeps nothing of a fitting candidate\'s arguments, while its fit and its type are kept', () => {
-            const resolved = resolve('missing?.trim(next(1))');
+            const resolved = resolve('missing?:trim(next(1))');
 
             expect(keptOf(resolved, '/expression/result/chain/arguments/0')).toEqual({ uses: [], copies: [], isResolved: false });
             expect(resolved.getResolution('/expression/result/chain')).toMatchObject({ kind: 'invocation', candidates: [{ name: 'trim' }, { name: 'trim' }], arguments: [] });
@@ -98,14 +98,17 @@ describe('LanguageResolver', () => {
     describe('a computed property access', () => {
         it('keeps each name\'s resolution by its name and records each use as its name is resolved, its own pointer holding its own resolution', () => {
             const property = (name, result = 'Number') => Declarations.createPropertyDeclaration(name, result, { updates: constantUpdates, impl: () => 1 });
-            const lit = new NexoRegistry([Vocabulary.module, new NexoModule('shop', { types: [extensionDeclaration('Words', 'String', [property('glow'), property('dim'), property('long', 'Boolean')])] })]);
+            const lit = new NexoRegistry([Vocabulary.module, new NexoModule('shop', {
+                typeOf: value => (value instanceof Word ? 'Word' : null),
+                types: [{ name: 'Word', kind: 'reference', isInstance: value => value instanceof Word, members: [property('glow'), property('dim'), property('long', 'Boolean')] }],
+            })]);
             const definition = parseImporting(lit, 'return word.[if word.long then "glow" else "dim" end]');
-            const resolved = new LanguageResolver(lit, new ParameterBindings(lit, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
+            const resolved = new LanguageResolver(lit, new ParameterBindings(lit, { word: new Word('oat') }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
             const { kind, resolutionsByName } = resolved.getResolution('/expression/result');
 
             expect(kind).toBe('computedPropertyAccess');
             expect([...resolutionsByName].map(([name, resolution]) => [name, resolution.kind, resolution.declaration.name])).toEqual([['glow', 'invocation', 'glow'], ['dim', 'invocation', 'dim']]);
-            expect(resolved.usedDeclarations.map(use => `${use.qualifiedName}@${use.pointer}`)).toEqual(['String.long@/expression/result/name/condition', 'String.glow@/expression/result', 'String.dim@/expression/result']);
+            expect(resolved.usedDeclarations.map(use => `${use.qualifiedName}@${use.pointer}`)).toEqual(['Word.long@/expression/result/name/condition', 'Word.glow@/expression/result', 'Word.dim@/expression/result']);
         });
     });
 
@@ -173,7 +176,7 @@ describe('LanguageResolver', () => {
             const fading = new NexoRegistry([Vocabulary.module, new NexoModule('shop', {
                 types: [extensionDeclaration(target === 'T' ? 'Fades<T>' : 'Fades', target, [Declarations.createPropertyDeclaration('fade', 'String', { updates: constantUpdates, impl: ({ receiver }) => receiver })])],
             })]);
-            const definition = parseImporting(fading, 'return word.fade');
+            const definition = parseImporting(fading, 'return word:fade');
 
             return new LanguageResolver(fading, new ParameterBindings(fading, { word: 'oat' }), ParsedTexts.locationsOf(definition)).resolveDefinition(definition).usedDeclarations.map(use => use.qualifiedName);
         };
@@ -191,7 +194,7 @@ describe('LanguageResolver', () => {
                 types: [extensionDeclaration('Fades', 'String', [fade()]), extensionDeclaration('AllFades<T>', 'T', [fade()])],
                 members: [Declarations.createFunctionDeclaration('held', 'Any', { updates: constantUpdates, impl: () => 'oat' })],
             })]);
-            const definition = ParsedTexts.parse('return shop.held().fade', [{ module: 'shop' }]);
+            const definition = ParsedTexts.parse('return shop.held():fade', [{ module: 'shop' }]);
             const resolved = new LanguageResolver(fading, new ParameterBindings(fading, {}), ParsedTexts.locationsOf(definition)).resolveDefinition(definition);
             const [stringFade, anyFade] = fading.getReceiverMembers('fade');
 

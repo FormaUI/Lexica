@@ -80,12 +80,12 @@ A setting is a string, so an example that needs a number converts it, as `device
 
 | Member | Signature | Changes | Tolerance |
 | --- | --- | --- | --- |
-| `device.usage` | `Number`, in kilowatt-hours today | Observable: `meter` | `0.1` |
-| `device.power` | `Number`, in watts, as the meter measured it | Observable: `meter` | `1` |
-| `device.meter` | `Meter`, the device itself, as its meter sees it | Constant | |
+| `device:usage` | `Number`, in kilowatt-hours today | Observable: `meter` | `0.1` |
+| `device:power` | `Number`, in watts, as the meter measured it | Observable: `meter` | `1` |
+| `device:meter` | `Meter`, the device itself, as its meter sees it | Constant | |
 
 Its observation type `meter`, of the receiver, is an invalidation, reporting each new meter reading.
 
-`Energy` also declares the reference type `Meter`, the meter's view of a device: `device.meter`, a constant `Meter`, answers the device itself, which `Meter`'s `isInstance` accepts, since it accepts every device, and a declared cast from `Meter` to `Home.Device`, with no `impl`, answers it as a device again. `device as Meter` is refused, because the declared cast goes from `Meter` to `Device` only; `Meter` accepting every device doesn't make the two types related.
+`Energy` also declares the reference type `Meter`, the meter's view of a device: `device:meter`, a constant `Meter`, answers the device itself, which `Meter`'s `isInstance` accepts, since it accepts every device, and a declared cast from `Meter` to `Home.Device`, with no `impl`, answers it as a device again. `device as Meter` is refused, because the declared cast goes from `Meter` to `Device` only; `Meter` accepting every device doesn't make the two types related.
 
-`device.usage` is an extension member, read as `device.usage`, or through its extension explicitly, `device:Device.usage`. `device.power` is declared both by `Home`, which owns `Device`, and by `Energy`: written `device.power`, it reads `Home`'s, since the owner's member wins, and `device:Device.power` reads the meter's.
+Its members are extension members, read with `:`: `device:usage`, or through its extension, `device:Device.usage`. `Home`, which owns `Device`, and `Energy` both declare `power`: `device.power` reads `Home`'s, and `device:power` reads the meter's.

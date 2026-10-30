@@ -80,7 +80,7 @@ A module declares types of its own, reference and structured, each holding its m
 | Type selector, mapping | A selector a fixed argument chooses a type through, and a mapping of one of its keys to a type | [Type selectors](../language/vocabulary.md#vocabulary-type-selectors) |
 | Observation type, observation target | What a member names to learn that its result may have changed, and what it may observe | [Observations](observations.md#observations) |
 
-A module declares members on any type, its own in their declarations and another module's in its extensions, and an unqualified access resolves by the owner of its receiver's type, as [owners and extensions](../language/extensions.md#extensions-owners) set out. Any type or member may be [internal](#modules-internal-declarations), available within its module alone.
+A module declares members on any type, its own in their declarations and another module's in its extensions, and `.` reads the owner's members while `:` reads the extensions', as [owners and extensions](../language/extensions.md#extensions-owners) set out. Any type or member may be [internal](#modules-internal-declarations), available within its module alone.
 
 <a id="modules-declaring-a-type"></a>
 
@@ -168,7 +168,7 @@ A type or a member declares `internal: true` to be available within its declarin
   | A public reference type declaring an internal supertype | Refused |
   | A mapping of a key to the internal `ReadingState` | Refused |
 
-- **At resolution.** A script does not reach an internal declaration through any form: a member read or called, a data shape's property read by name or by computed property access, a qualified form, an extension access, a reference to a module's function, an indexer, and a cast or a conversion naming an internal type or selecting an internal operator. An internal declaration is not a candidate where [owner precedence](../language/extensions.md#extensions-owners) chooses, so an accessible extension resolves where the owner's member of its name is internal.
+- **At resolution.** A script does not reach an internal declaration through any form: a member read or called, a data shape's property read by name or by computed property access, a qualified form, an extension access, a reference to a module's function, an indexer, and a cast or a conversion naming an internal type or selecting an internal operator. An internal declaration is never a candidate, so `.` refuses a member whose only applicable declaration is internal, whatever an extension declares of its name, which `:` reads.
 - **In tooling.** Completion and every listing a script's author reads leave internal declarations out.
 
 `internal` decides what scripts and other modules' declarations name, and nothing else: an implementation is JavaScript, and works with its values and its helpers as it always does, and a value a result holds keeps what it holds, an internal property among them, since what a script can name and what its host receives are separate.

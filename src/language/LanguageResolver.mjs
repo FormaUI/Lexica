@@ -126,9 +126,16 @@ export class LanguageResolver {
         this.#namespaceNames = this.#imported.namespaceNames;
     }
 
-    /** The receiver members of the name the script's imports make available, Nexo's own among them. */
+    /** The receiver members of the name `.` reads that the script's imports make available, Nexo's own among them, extension members, which `:` reads, left out. */
     #receiverMembersNamed(name) {
-        return this.#imported.getAvailable(this.#registry.getReceiverMembers(name));
+        return this.#imported.getAvailable(this.#membersReadBy({ name }));
+    }
+
+    /** The receiver members of the access's name it reads, whatever the script imports: extension members for an extension access, and every other member for any access else. */
+    #membersReadBy(access) {
+        const isExtensionAccess = access.extension !== undefined;
+
+        return this.#registry.getReceiverMembers(access.name).filter(declaration => this.#memberSelector.isExtensionMember(declaration) === isExtensionAccess);
     }
 
     /**
@@ -1509,11 +1516,11 @@ export class LanguageResolver {
     #resolveIndexerAccess(node, pointer, scope) {
         const access = node.receiver;
 
-        if (access.kind === 'memberAccess' && typeof access.name === 'string' && access.receiver.kind !== 'namespace' && access.extension !== undefined && node.extension === undefined) {
+        if (access.kind === 'memberAccess' && typeof access.name === 'string' && access.receiver.kind !== 'namespace' && access.extension !== undefined) {
             return this.#resolveExtensionIndexerAccess(node, pointer, scope);
         }
 
-        if (access.kind !== 'memberAccess' || typeof access.name !== 'string' || access.receiver.kind === 'namespace' || access.extension !== undefined || node.extension !== undefined) {
+        if (access.kind !== 'memberAccess' || typeof access.name !== 'string' || access.receiver.kind === 'namespace' || access.extension !== undefined) {
             return this.#resolveMemberAccess(node, pointer, scope);
         }
 
@@ -1539,14 +1546,20 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves brackets after an access that selects an extension explicitly: the extension's named indexer of the access's name, the access giving its receiver, its name and its extension and never read alone, where the
-     * extension declares one; and otherwise the unnamed indexer of what the access answers, as brackets after any member's answer index it.
+     * Resolves brackets after an extension access: an extension's named indexer of the access's name, the access giving its receiver, its name and its selection and never read alone, where the extension it names, or
+     * for an access naming none an extension the script's imports make available, declares one; and otherwise the unnamed indexer of what the access answers, as brackets after any member's answer index it.
      */
     #resolveExtensionIndexerAccess(node, pointer, scope) {
         const access = node.receiver;
         const accessPointer = `${pointer}/receiver`;
-        const extension = this.#resolveExtension(access.extension, `${accessPointer}/extension`);
-        const isNamedIndexer = this.#registry.getReceiverMembers(access.name).some(declaration => declaration.kind === 'indexer' && this.#registry.getContainingType(declaration) === extension);
+        const extension = access.extension.name === undefined ? null : this.#resolveExtension(access.extension, `${accessPointer}/extension`);
+        const declared = extension === null ? this.#imported.getAvailable(this.#membersReadBy(access)) : this.#registry.getReceiverMembers(access.name).filter(declaration => this.#registry.getContainingType(declaration) === extension);
+        const isNamedIndexer = declared.some(declaration => declaration.kind === 'indexer');
+
+        // A function's arguments are written in parentheses, so brackets after its name are a call written as an indexer.
+        if (!isNamedIndexer && declared.length > 0 && declared.every(declaration => declaration.kind === 'function')) {
+            this.#fail('NEXO3054', `'${access.name}' uses call syntax: write '${DefinitionWriter.quote(LanguageResolver.#createCall(access, [node.argument]), this.#namespaceNames)}'`, pointer);
+        }
 
         if (!isNamedIndexer) {
             return this.#resolveMemberAccess(node, pointer, scope);
@@ -1620,26 +1633,25 @@ export class LanguageResolver {
     }
 
     /**
-     * The hint an extension access naming no extension gives where a member's name stands in its extension's place, as `device:setting["mode"]` writes one: the access of the receiver's member of that name, which a dot
-     * writes, as `device.setting["mode"]`, where a member the script reaches of that name applies to the receiver; none otherwise.
+     * The hint an extension access naming no extension gives where an extension member's name stands in its extension's place, as `device:readings.first` writes one: the access of what that member answers, grouped,
+     * `(device:readings).first`, where an extension member the script reaches of that name applies to the receiver; none otherwise.
      */
     #memberHintOf(node, receiverType) {
         const access = LanguageResolver.#accessOf(node);
         const { name, module } = access.extension;
         const isKnown = !LanguageResolver.#isNullOrNever(receiverType) && receiverType.kind !== 'any';
+        const members = this.#imported.getAvailable(this.#membersReadBy({ name, extension: {} }));
 
-        if (module !== undefined || !isKnown || !this.#receiverMembersNamed(name).some(declaration => this.#typeChecker.matchesReceiver(declaration, receiverType))) {
+        if (module !== undefined || !isKnown || !members.some(declaration => this.#typeChecker.matchesReceiver(declaration, receiverType))) {
             return '';
         }
 
-        const member = { kind: 'memberAccess', receiver: access.receiver, name, ...(access.optional === true ? { optional: true } : {}) };
-        // The access of the member writes no extension, the member's name in its place.
-        const rest = Object.fromEntries(Object.entries(access).filter(([key]) => key !== 'extension'));
-        const written = node.kind === 'indexerAccess' && node.name === undefined
-            ? { kind: 'indexerAccess', receiver: member, argument: node.argument }
-            : node.kind === 'call' ? { ...node, callee: { ...rest, receiver: member } } : { ...rest, receiver: member };
+        const member = { kind: 'memberAccess', receiver: access.receiver, name, ...(access.optional === true ? { optional: true } : {}), extension: {} };
+        // The access of what the member answers is an ordinary one, written after the member's group.
+        const rest = Object.fromEntries(Object.entries(access).filter(([key]) => key !== 'extension' && key !== 'optional'));
+        const written = node.kind === 'call' ? { ...node, callee: { ...rest, receiver: member } } : { ...rest, receiver: member };
 
-        return `: write '${DefinitionWriter.quote(written, this.#namespaceNames)}' for the member '${name}' of the receiver`;
+        return `: write '${DefinitionWriter.quote(written, this.#namespaceNames)}' for the access of what the extension member '${name}' answers`;
     }
 
     /** How the script writes the extension's name: the local name a type import gives it, else qualified by the local name its module's import gives, else its own name for one of Nexo's, and qualified by its module otherwise. */
@@ -1659,21 +1671,78 @@ export class LanguageResolver {
     }
 
     /**
-     * Resolves an access that selects an extension explicitly, on a receiver of the type, its null policy applied: among the extension's members of the access's name and form alone, its unnamed indexers for brackets, a
-     * member it does not declare refused (NEXO3062), never falling through to another declaration. The selector chooses for the receiver, one outside the extension's target refused (NEXO3027); a receiver of unknown
-     * type chooses none, as it does in ordinary lookup; a value of Any invokes the one member the extension declares, its receiver checked against the target as it is evaluated. A function read without a call is a
-     * reference bound to its receiver. It answers the result, the resolution and the use, which the caller stores.
+     * Resolves an extension access on a receiver of the type, its null policy applied. Naming no extension, it selects among the extension members of its name the script's imports make available, the most specific
+     * extension's; naming one, among that extension's members of its name alone. A member none of them declares is refused (NEXO3062), never falling through to the owner's members or to
+     * another extension's. A function read without a call is a reference bound to its receiver. It answers the result, the resolution and the use, which the caller stores.
      */
     #resolveThroughExtension(node, pointer, scope, receiverType, extensionPointer) {
+        return LanguageResolver.#accessOf(node).extension.name === undefined
+            ? this.#resolveExtensionMember(node, pointer, scope, receiverType)
+            : this.#resolveThroughNamedExtension(node, pointer, scope, receiverType, extensionPointer);
+    }
+
+    /**
+     * Resolves an extension access naming no extension: the selector chooses among the extension members of its name the script's imports make available that apply to the receiver, the most specific, several none of which
+     * is more specific refused as ambiguous (NEXO3024), giving the access naming each extension; one only modules the script does not import declare refused giving the import (NEXO3005), and none at all (NEXO3062),
+     * giving the owner's member of its name where one applies. A receiver of unknown type chooses none, and a value of Any selects among them as it is evaluated, as ordinary access does.
+     */
+    #resolveExtensionMember(node, pointer, scope, receiverType) {
+        const access = LanguageResolver.#accessOf(node);
+        const declared = this.#membersReadBy(access);
+
+        if (LanguageResolver.#isNullOrNever(receiverType)) {
+            return this.#resolveOnUnknownType(node, pointer, scope, receiverType, declared);
+        }
+
+        if (receiverType.kind === 'any') {
+            return this.#resolveDeferredAccess(node, pointer, scope);
+        }
+
+        const selection = this.#memberSelector.select(this.#imported.getAvailable(declared), receiverType);
+        const subject = `'${access.name}' on ${receiverType.toNonNullable()}`;
+
+        if (selection.kind === 'none') {
+            this.#refuseUnimported(declared, receiverType, subject, pointer);
+
+            const form = this.#memberForm(receiverType, access.name, DefinitionWriter.quote(access.receiver, this.#namespaceNames));
+
+            this.#fail('NEXO3062', `No extension the script reaches declares '${access.name}' for ${receiverType.toNonNullable()}${form === null ? '' : `: write '${form}' for its owner's member`}`, pointer);
+        }
+
+        if (selection.kind === 'internal') {
+            this.#failInternal(subject, this.#registry.getDeclaringModuleName(selection.declarations[0]), pointer);
+        }
+
+        if (selection.kind === 'ambiguous') {
+            this.#fail('NEXO3024', `'${access.name}' ${this.#formatCompetingDeclarations(selection.declarations, receiverType, access.receiver)}`, pointer);
+        }
+
+        const { declaration } = selection;
+        const name = this.#qualifiedNameOf(declaration, receiverType);
+
+        if (node.kind === 'memberAccess' && declaration.kind === 'function') {
+            return this.#resolveBoundFunctionReference(declaration, node, pointer, receiverType, name);
+        }
+
+        this.#requireDeclaredForm(declaration, node, pointer);
+
+        return this.#resolveInvocation(declaration, node, pointer, scope, { node: access.receiver, type: receiverType, isNullable: receiverType.isNullable }, name);
+    }
+
+    /**
+     * Resolves an extension access naming its extension: among the extension's members of the access's name and form alone, a member it does not declare refused (NEXO3062). The selector chooses for the receiver, one
+     * outside the extension's target refused (NEXO3027); a receiver of unknown type chooses none, as it does in ordinary lookup; a value of Any invokes the one member the extension declares, its receiver checked against
+     * the target as it is evaluated.
+     */
+    #resolveThroughNamedExtension(node, pointer, scope, receiverType, extensionPointer) {
         const access = LanguageResolver.#accessOf(node);
         const extension = this.#resolveExtension(access.extension, extensionPointer, this.#memberHintOf(node, receiverType));
         // A message names the extension as the access writes it.
         const written = access.extension.module === undefined ? access.extension.name : `${access.extension.module}.${access.extension.name}`;
-        const isUnnamedIndexer = node.kind === 'indexerAccess' && node.name === undefined;
-        const declared = (isUnnamedIndexer ? this.#registry.getUnnamedIndexers() : this.#registry.getReceiverMembers(access.name)).filter(declaration => this.#registry.getContainingType(declaration) === extension);
+        const declared = this.#registry.getReceiverMembers(access.name).filter(declaration => this.#registry.getContainingType(declaration) === extension);
 
         if (declared.length === 0) {
-            this.#fail('NEXO3062', `The extension '${written}' declares no ${isUnnamedIndexer ? 'unnamed indexer' : `member '${access.name}'`}`, pointer);
+            this.#fail('NEXO3062', `The extension '${written}' declares no member '${access.name}'`, pointer);
         }
 
         if (LanguageResolver.#isNullOrNever(receiverType)) {
@@ -1684,7 +1753,7 @@ export class LanguageResolver {
         const selection = isAny ? { kind: 'selected', declaration: declared[0] } : this.#memberSelector.select(declared, receiverType);
 
         if (selection.kind === 'internal' || (isAny && this.#memberSelector.getAccessible(declared).length === 0)) {
-            this.#failInternal(`'${written}${isUnnamedIndexer ? '[…]' : `.${access.name}`}'`, this.#registry.getDeclaringModuleName(extension), pointer);
+            this.#failInternal(`'${written}.${access.name}'`, this.#registry.getDeclaringModuleName(extension), pointer);
         }
 
         if (selection.kind !== 'selected') {
@@ -1692,7 +1761,7 @@ export class LanguageResolver {
         }
 
         const { declaration } = selection;
-        const name = `${written}${isUnnamedIndexer ? '[]' : `.${declaration.name}`}`;
+        const name = `${written}.${declaration.name}`;
 
         if (node.kind === 'memberAccess' && declaration.kind === 'function') {
             return this.#resolveBoundFunctionReference(declaration, node, pointer, receiverType, name);
@@ -1998,9 +2067,10 @@ export class LanguageResolver {
             return { result: { type: receiverType.isNullable ? fieldType.toNullable() : fieldType, kind: 'value', isFixed: false }, resolution: { kind: 'objectField', name: access.name }, use: null };
         }
 
-        const declared = this.#registry.getReceiverMembers(access.name);
+        const declared = this.#membersReadBy(access);
 
         if (declared.length === 0) {
+            this.#refuseExtensionMemberRead(node, pointer, receiverType, isComputed);
             this.#fail(isComputed ? 'NEXO3056' : 'NEXO3001', `'${access.name}' is no member of the vocabulary${this.#joinedNameHintOf(node, receiverType)}`, pointer);
         }
 
@@ -2008,6 +2078,7 @@ export class LanguageResolver {
         const selection = this.#memberSelector.select(candidates, receiverType);
 
         if (selection.kind === 'none') {
+            this.#refuseExtensionMemberRead(node, pointer, receiverType, isComputed);
             this.#refuseUnimported(declared, receiverType, `'${access.name}' on ${receiverType.toNonNullable()}`, pointer);
         }
 
@@ -2046,6 +2117,23 @@ export class LanguageResolver {
     }
 
     /**
+     * Refuses an extension member read by a written name after a dot, where no member `.` reads applies to the receiver and an extension member of its name, accessible to scripts, does (NEXO3090), giving the
+     * extension access to write, whether or not the script imports its module, which that access then asks for.
+     */
+    #refuseExtensionMemberRead(node, pointer, receiverType, isComputed) {
+        const access = LanguageResolver.#accessOf(node);
+        const extensionMembers = this.#memberSelector.getAccessible(this.#membersReadBy({ name: access.name, extension: {} }));
+
+        if (isComputed || !extensionMembers.some(declaration => this.#typeChecker.resolveApplyingReceiverType(declaration, receiverType) !== undefined)) {
+            return;
+        }
+
+        const extensionAccess = node.kind === 'call' ? { ...node, callee: { ...access, extension: {} } } : { ...access, extension: {} };
+
+        this.#fail('NEXO3090', `'${access.name}' is an extension member, which ':' reads: write '${DefinitionWriter.quote(extensionAccess, this.#namespaceNames)}'`, pointer);
+    }
+
+    /**
      * Resolves an access on a value of Any, whose member is selected when that value is evaluated, by its actual type, through the selector, as an access its receiver's type selects during resolution is: a property read
      * whatever its name, since a plain object's fields are named by its data, and a call or an indexer of a member some accessible declaration of its name, or an unnamed indexer, takes in that form. Its arguments are read
      * without the declaration, each a value, never an implicit body or a function, whose reading would depend on the declaration (NEXO3029). It answers a value of Any, and records no use, since it chooses no declaration
@@ -2055,7 +2143,7 @@ export class LanguageResolver {
         const access = LanguageResolver.#accessOf(node);
         const isUnnamedIndexer = node.kind === 'indexerAccess' && access.name === undefined;
         const written = isUnnamedIndexer ? '[…]' : access.name;
-        const declared = isUnnamedIndexer ? this.#registry.getUnnamedIndexers() : this.#registry.getReceiverMembers(access.name);
+        const declared = isUnnamedIndexer ? this.#registry.getUnnamedIndexers() : this.#membersReadBy(access);
         const accessible = this.#memberSelector.getAccessible(this.#imported.getAvailable(declared));
         const candidates = isUnnamedIndexer ? accessible : accessible.filter(candidate => FORM_NODE_KINDS[candidate.kind] === node.kind);
 
@@ -2263,7 +2351,7 @@ export class LanguageResolver {
         const declarations = namedDeclarations.filter(declaration => declaration.kind !== 'indexer');
 
         if (declarations.length === 0) {
-            this.#fail(namedDeclarations.length > 0 ? 'NEXO3011' : 'NEXO3001', namedDeclarations.length > 0 ? `'${access.name}' is an indexer, which no namespace qualifies: write its receiver and ':${access.name}[…]'` : `The module '${moduleName}' declares no member '${access.name}'`, pointer);
+            this.#fail(namedDeclarations.length > 0 ? 'NEXO3011' : 'NEXO3001', namedDeclarations.length > 0 ? `'${access.name}' is an indexer, which no namespace qualifies: write its receiver and '${this.#memberSelector.isExtensionMember(namedDeclarations[0]) ? ':' : '.'}${access.name}[…]'` : `The module '${moduleName}' declares no member '${access.name}'`, pointer);
         }
 
         const moduleMemberDeclaration = declarations.find(declaration => !this.#registry.takesReceiver(declaration));
@@ -2302,8 +2390,8 @@ export class LanguageResolver {
         if (modules.length > 1) {
             const extensions = declarations.map(declaration => this.#registry.getContainingType(declaration));
             const receiver = DefinitionWriter.quote(receiverNode, this.#namespaceNames);
-            const accesses = extensions.every(extension => extension?.kind === 'extension')
-                ? declarations.map((declaration, index) => `'${receiver}:${this.#formatExtensionName(extensions[index])}${declaration.name === undefined ? '[…]' : `.${declaration.name}`}'`)
+            const accesses = declarations.every(declaration => this.#memberSelector.isExtensionMember(declaration))
+                ? declarations.map((declaration, index) => `'${receiver}:${this.#formatExtensionName(extensions[index])}.${declaration.name}'`)
                 : [];
 
             return `on ${receiverType.toNonNullable()} is ambiguous between the modules ${modules.map(name => `'${name}'`).join(' and ')}${accesses.length === 0 ? '' : `: write ${accesses.join(' or ')} to select one`}`;
@@ -2594,7 +2682,7 @@ export class LanguageResolver {
      * Its type is the result type they share, made nullable, or left to the optional chain an optional access of null ends, and null where they share none or the name is no member's. Nothing applied to such a receiver is evaluated, so its arguments leave no resolution behind.
      * It answers its result and its resolution, with no use, since it chooses no declaration, and records neither.
      */
-    #resolveOnUnknownType(node, pointer, scope, receiverType, declared = this.#registry.getReceiverMembers(LanguageResolver.#accessOf(node).name), offset = 0) {
+    #resolveOnUnknownType(node, pointer, scope, receiverType, declared = this.#membersReadBy(LanguageResolver.#accessOf(node)), offset = 0) {
         const access = LanguageResolver.#accessOf(node);
         const isAccess = node.kind === 'memberAccess';
         const candidates = this.#memberSelector.getAccessible(this.#imported.getAvailable(declared));
@@ -2685,7 +2773,9 @@ export class LanguageResolver {
 
         // An indexer takes one key in brackets, which a node written another way may not give.
         if (kind === 'indexer' && node.arguments?.length !== 1) {
-            this.#fail(code, `'${access.name}' ${described}: write '${DefinitionWriter.quote(access.receiver, this.#namespaceNames)}${access.optional === true ? '?.' : '.'}${access.name}[…]'`, pointer);
+            const joiner = access.extension === undefined ? '.' : ':';
+
+            this.#fail(code, `'${access.name}' ${described}: write '${DefinitionWriter.quote(access.receiver, this.#namespaceNames)}${access.optional === true ? '?' : ''}${joiner}${access.name}[…]'`, pointer);
         }
 
         this.#fail(code, `'${access.name}' ${described}: write '${DefinitionWriter.quote(LanguageResolver.#writtenAs(node, kind), this.#namespaceNames)}'`, pointer);
@@ -3309,11 +3399,11 @@ export class LanguageResolver {
         return node.kind === 'call' ? { ...node, callee: { ...node.callee, optional: true } } : { ...node, optional: true };
     }
 
-    /** The property access that writes the node's name after its receiver, optional where the node is. */
+    /** The property access that writes the node's name after its receiver, optional where the node is, and an extension access where the node is one. */
     static #createPropertyAccess(node) {
         const access = LanguageResolver.#accessOf(node);
 
-        return { kind: 'memberAccess', receiver: access.receiver, name: access.name, ...(access.optional === true ? { optional: true } : {}) };
+        return { kind: 'memberAccess', receiver: access.receiver, name: access.name, ...(access.optional === true ? { optional: true } : {}), ...(access.extension === undefined ? {} : { extension: access.extension }) };
     }
 
     /**

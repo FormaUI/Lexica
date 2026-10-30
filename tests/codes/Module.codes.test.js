@@ -665,9 +665,15 @@ describe('the module error codes', () => {
         });
 
         it('NEXO4068: two unnamed indexers for one receiver type of one module', () => {
-            expectModuleCode(registering(module('charts', onStrings([indexerDeclaration(), indexerDeclaration()]))), 'NEXO4068');
-            expect(expectModuleError(registering(module('charts', onStrings([indexerDeclaration(), indexerDeclaration()]))))).toEqual({ message: expect.stringContaining('An unnamed indexer of String is declared already'), module: 'charts', type: 'Words', declaration: '[]', declarationKey: 'kind' });
+            expectModuleCode(registering(module('charts', withHome({}, { Device: [indexerDeclaration(), indexerDeclaration()] }))), 'NEXO4068');
+            expect(expectModuleError(registering(module('charts', withHome({}, { Device: [indexerDeclaration(), indexerDeclaration()] }))))).toEqual({ message: expect.stringContaining('An unnamed indexer of Device is declared already'), module: 'charts', type: 'Device', declaration: '[]', declarationKey: 'kind' });
             expect(registering(module('charts', withHome({}, { Light: [indexerDeclaration()], Device: [indexerDeclaration()] })))).not.toThrow();
+        });
+
+        it('NEXO4564: an extension declaring an indexer without a name', () => {
+            expectModuleCode(registering(module('charts', onStrings([indexerDeclaration()]))), 'NEXO4564');
+            expect(expectModuleError(registering(module('charts', onStrings([indexerDeclaration()]))))).toEqual({ message: expect.stringContaining("The extension 'Words' declares an indexer without a name"), module: 'charts', declaration: 'Words', declarationKey: 'members' });
+            expect(registering(module('charts', onStrings([indexerDeclaration({ name: 'cell' })])))).not.toThrow();
         });
     });
 });

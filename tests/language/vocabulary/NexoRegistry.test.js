@@ -210,7 +210,7 @@ describe('NexoRegistry', () => {
 
         it('answer the unnamed indexers, which no name finds, apart from the named ones, which their names do', () => {
             const unnamed = indexerDeclaration();
-            const registry = new NexoRegistry([new NexoModule('home', onStrings([indexerDeclaration({ name: 'letter' }), unnamed]))]);
+            const registry = new NexoRegistry([new NexoModule('home', withHome({}, { Device: [indexerDeclaration({ name: 'letter' }), unnamed] }))]);
 
             expect(registry.getUnnamedIndexers()).toEqual([expect.objectContaining({ kind: 'indexer', parameters: unnamed.parameters })]);
             expect(registry.getUnnamedIndexers()[0]).not.toHaveProperty('name');

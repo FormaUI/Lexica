@@ -4,6 +4,32 @@ Each version of the Nexo language, newest first, with what it changed. A languag
 
 Until the beta, a version may break what the one before it allowed, and each entry says what it breaks.
 
+<a id="v1-0-0-alpha-40"></a>
+
+## `1.0.0-alpha.40`
+
+*October 30, 2026 · definition format 37*
+
+**Language**
+
+- [Owners and extensions](spec/language/extensions.md#extensions-owners): `.` reads a type's own members and `:` its extension members, so the two never compete. `device.usage` is refused, giving `device:usage` (NEXO3090).
+- [Extension access](spec/language/extensions.md#extensions-access): an extension member is read as `receiver:member`, `receiver:Extension.member` or `receiver:Module.Extension.member`, the last name always the member.
+- [Extension access](spec/language/extensions.md#extensions-access): each name fills its role, whatever the spacing. Names that fit no form are refused (NEXO1071), never read as a shorter access.
+- [Extension access](spec/language/extensions.md#extensions-access): a call or a key closes the access. Ordinary access on a bare member's answer is grouped, `(device:readings).first`.
+- [Indexer selection](spec/language/modules.md#namespaces-indexers): `x[key]` reads the unnamed indexer of the receiver's owner alone, and an extension's named indexer is read as `x:name[key]`.
+
+**Runtime**
+
+- [Extensions](spec/runtime/extensions.md#extensions-declaring): an extension declares no unnamed indexer (NEXO4564).
+- [The definition](spec/runtime/definition.md#definition): an extension access's `extension` is empty, `{}`, where the member alone is written, and an `indexerAccess` holds none.
+
+**Breaking:**
+
+- A script reads an extension member with `:`, where it read it with `.`.
+- A colon after a name is an extension access wherever an expression stands, so `f(a: b)` is no longer refused as a named argument but read as one.
+- A module's extension declares no unnamed indexer, and `x:Extension[key]` is no form.
+- A definition is of version 37.
+
 <a id="v1-0-0-alpha-39"></a>
 
 ## `1.0.0-alpha.39`

@@ -124,8 +124,8 @@ describe('reference types', () => {
         const totals = (...targets) => createImportingRegistry([nexo.createModule('shop', {
             types: targets.map((target, index) => extensionDeclaration(`Totals${index}${target.includes('<T>') ? '<T>' : ''}`, target, [createPropertyDeclaration('total', 'String', { updates: constantUpdates, impl: () => target })])),
         })]);
-        const evaluateWith = (registry, values) => registry.resolve('items.total', values).createEvaluator(values).evaluate().value;
-        const refused = errorThrownBy(() => totals('List<Number>', 'List<String>').resolve('items.total', { items: [] }));
+        const evaluateWith = (registry, values) => registry.resolve('items:total', values).createEvaluator(values).evaluate().value;
+        const refused = errorThrownBy(() => totals('List<Number>', 'List<String>').resolve('items:total', { items: [] }));
 
         expect(refused).toMatchObject({ code: 'NEXO3024' });
         expect(refused.message).toContain("'total' is declared for List<Number> and List<String>, which List<Never> satisfies, and none of them is more specific than the other");
@@ -153,7 +153,7 @@ describe('reference types', () => {
         const wrong = nexo.createModule('wrong', withHome({ types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('lamp', 'Light', { updates: constantUpdates, impl: () => heater })])] }));
         const registry = createImportingRegistry([wrong]);
 
-        expect(errorThrownBy(() => registry.resolve('(word.lamp as Light) == null', { word: 'a' }).createEvaluator({ word: 'a' }).evaluate())).toMatchObject({ code: 'NEXO5006' });
+        expect(errorThrownBy(() => registry.resolve('(word:lamp as Light) == null', { word: 'a' }).createEvaluator({ word: 'a' }).evaluate())).toMatchObject({ code: 'NEXO5006' });
     });
 });
 

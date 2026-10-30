@@ -51,11 +51,11 @@ describe('indexers and computed properties', () => {
             expect(nexo.format('(a.b)[k]')).toBe('a.b[k]');
         });
 
-        it('reads a member\'s name after a colon as an extension\'s, and refuses a colon brackets follow, giving the forms with a dot and the brackets', () => {
-            expect(nexo.parse('device:setting["mode"]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'device' }, extension: { name: 'setting' }, argument: { kind: 'literal', value: 'mode' } });
+        it('reads a name after a colon as an extension member\'s, a named indexer\'s among them, and refuses a colon brackets follow, giving the forms with a dot and the brackets', () => {
+            expect(nexo.parse('device:setting["mode"]').expression).toEqual({ kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver: { kind: 'scriptParameter', name: 'device' }, name: 'setting', extension: {} }, argument: { kind: 'literal', value: 'mode' } });
             expect(errorThrownBy(() => nexo.parse('it:["mode"]')).message).toContain("'it.[…]'");
             expect(errorThrownBy(() => nexo.parse('it?:["mode"]')).message).toContain("'it?.[…]'");
-            expect(errorThrownBy(() => nexo.parse('a.b ?: c'))).toMatchObject({ kind: 'syntax' });
+            expect(errorThrownBy(() => nexo.parse('a.b ?: 0'))).toMatchObject({ kind: 'syntax' });
         });
 
         it('refuses an indexer of no key or of several, and optional brackets after a dot', () => {
@@ -65,7 +65,7 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses an indexer node holding a name, and a definition of version 32', () => {
-            const named = { version: 36, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
+            const named = { version: 37, imports: [], expression: { kind: 'indexerAccess', receiver: { kind: 'scriptParameter', name: 'a' }, name: 'b', argument: { kind: 'literal', value: 1 } } };
 
             expect(errorThrownBy(() => nexo.validate(named))).toMatchObject({ kind: 'structure' });
             expect(errorThrownBy(() => nexo.validate({ version: 32, expression: { kind: 'it' } }))).toMatchObject({ kind: 'structure' });
@@ -74,12 +74,12 @@ describe('indexers and computed properties', () => {
 
     describe('a named indexer', () => {
         it('is invoked with its key where the receiver\'s type declares it, the access its name is written in never read alone', () => {
-            expect(evaluate('item.letter[1]', { item: 'latte' })).toBe('a');
-            expect(evaluate('item.letter[9]', { item: 'latte' })).toBeNull();
+            expect(evaluate('item:letter[1]', { item: 'latte' })).toBe('a');
+            expect(evaluate('item:letter[9]', { item: 'latte' })).toBeNull();
         });
 
         it('refuses a key it does not take as its own error, never reading the brackets another way', () => {
-            const error = refusalOf('item.letter["x"]', { item: 'latte' });
+            const error = refusalOf('item:letter["x"]', { item: 'latte' });
 
             expect(error).toBeInstanceOf(NexoError);
             expect(error.kind).toBe('validation');
@@ -88,17 +88,17 @@ describe('indexers and computed properties', () => {
         });
 
         it('refuses being written without its key or as a call, giving its form', () => {
-            expect(refusalOf('item.letter', { item: 'latte' }).message).toContain("'letter' is an indexer: write 'item.letter[…]'");
-            expect(refusalOf('item.letter(1)', { item: 'latte' }).message).toContain("'letter' is an indexer: write 'item.letter[1]'");
+            expect(refusalOf('item:letter', { item: 'latte' }).message).toContain("'letter' is an indexer: write 'item:letter[…]'");
+            expect(refusalOf('item:letter(1)', { item: 'latte' }).message).toContain("'letter' is an indexer: write 'item:letter[1]'");
         });
 
         it('takes optional brackets after its name, which add nothing, its access\'s own marker alone making its receiver optional, an optional enclosed access among them', () => {
-            expect(evaluate('item.letter?[1]', { item: 'latte' })).toBe('a');
-            expect(evaluate('item?.letter?[1]', { item: 'latte' })).toBe('a');
-            expect(evaluate('item?.letter?[1]', { item: null })).toBeNull();
-            expect(evaluate('(?item.letter[1])', { item: 'latte' })).toBe('a');
-            expect(evaluate('(?item.letter[1])', { item: null })).toBeNull();
-            expect(nexo.format('(?item.letter[1])')).toBe('item?.letter?[1]');
+            expect(evaluate('item:letter?[1]', { item: 'latte' })).toBe('a');
+            expect(evaluate('item?:letter?[1]', { item: 'latte' })).toBe('a');
+            expect(evaluate('item?:letter?[1]', { item: null })).toBeNull();
+            expect(evaluate('(?item:letter[1])', { item: 'latte' })).toBe('a');
+            expect(evaluate('(?item:letter[1])', { item: null })).toBeNull();
+            expect(nexo.format('(?item:letter[1])')).toBe('item?:letter?[1]');
         });
 
         it('refuses a receiver that can be null where only its brackets are optional, which protect nothing before its name', () => {
@@ -106,8 +106,8 @@ describe('indexers and computed properties', () => {
                 types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('maybe', 'String?', { updates: constantUpdates, impl: ({ receiver }) => (receiver === '' ? null : receiver) })])],
             })]);
 
-            expect(errorThrownBy(() => registry.resolve('item.maybe.letter?[1]', { item: 'latte' })).message).toContain("write 'item.maybe?.letter?[1]'");
-            expect(registry.resolve('item.maybe?.letter?[1]', { item: '' }).createEvaluator({ item: '' }).evaluate().value).toBeNull();
+            expect(errorThrownBy(() => registry.resolve('item:maybe:letter?[1]', { item: 'latte' })).message).toContain("write 'item:maybe?:letter?[1]'");
+            expect(registry.resolve('item:maybe?:letter?[1]', { item: '' }).createEvaluator({ item: '' }).evaluate().value).toBeNull();
         });
 
         it('answers null for a null receiver written optionally, its key unevaluated', () => {
@@ -116,8 +116,8 @@ describe('indexers and computed properties', () => {
                 types: [extensionDeclaration('StringExtensions', 'String', [createPropertyDeclaration('key', 'Number', { updates: constantUpdates, impl: ({ receiver }) => (keys.push(receiver), 1) })])],
             })]);
 
-            expect(registry.resolve('item?.letter[other.key]', { item: null, other: 'x' }).createEvaluator({ item: null, other: 'x' }).evaluate().value).toBeNull();
-            expect(registry.resolve('item?.letter[other.key]', { item: 'latte', other: 'x' }).createEvaluator({ item: 'latte', other: 'x' }).evaluate().value).toBe('a');
+            expect(registry.resolve('item?:letter[other:key]', { item: null, other: 'x' }).createEvaluator({ item: null, other: 'x' }).evaluate().value).toBeNull();
+            expect(registry.resolve('item?:letter[other:key]', { item: 'latte', other: 'x' }).createEvaluator({ item: 'latte', other: 'x' }).evaluate().value).toBe('a');
             expect(keys).toEqual(['x']);
         });
 
@@ -133,17 +133,38 @@ describe('indexers and computed properties', () => {
             })]);
             const bound = { item: ' latte ', other: 'x' };
 
-            expect(registry.resolve('item.trimmed.letter[other.key]', bound).createEvaluator(bound).evaluate().value).toBe('a');
+            expect(registry.resolve('item:trimmed:letter[other:key]', bound).createEvaluator(bound).evaluate().value).toBe('a');
             expect(invoked).toEqual(['trimmed', 'key']);
         });
 
-        it('is never selected by a computed name, which reads properties alone', () => {
-            expect(refusalOf('item.[name][0]', { item: 'latte', name: 'letter' }).message).toContain("'letter' is an indexer");
-            expect(evaluate('item.[name][0]', { item: 'oat latte', name: 'words' })).toBe('oat');
+        it("is never selected by a computed name, which reads the owner's properties alone", () => {
+            class Note {
+                constructor(text) {
+                    this.text = text;
+                }
+            }
+
+            const notes = nexo.createModule('notes', {
+                typeOf: value => (value instanceof Note ? 'Note' : null),
+                types: [{
+                    name: 'Note',
+                    kind: 'reference',
+                    isInstance: value => value instanceof Note,
+                    members: [
+                        createIndexerDeclaration('letter', 'String?', { updates: constantUpdates, parameters: [createValueParameterDeclaration('index', 'Number')], impl: ({ receiver, args }) => receiver.text[args.index] ?? null }),
+                        createPropertyDeclaration('words', 'List<String>', { updates: constantUpdates, impl: ({ receiver }) => receiver.text.split(' ') }),
+                    ],
+                }],
+            });
+            const bound = name => ({ note: new Note('oat latte'), name });
+
+            expect(errorThrownBy(() => resolveWith([notes], 'note.[name][0]', bound('letter'))).message).toContain("'letter' is an indexer");
+            expect(evaluateWith([notes], 'note.[name][0]', bound('words'))).toBe('oat');
+            expect(errorThrownBy(() => resolveWith([createText()], 'item.[name][0]', { item: 'oat latte', name: 'words' }))).toMatchObject({ code: 'NEXO3056' });
         });
 
         it('resolves each part of a chain of named indexers once, so a long chain resolves as quickly as a short one', () => {
-            expect(evaluate(`item${'?.letter[0]'.repeat(30)}`, { item: 'latte' })).toBe('l');
+            expect(evaluate(`item${'?:letter[0]'.repeat(30)}`, { item: 'latte' })).toBe('l');
         });
 
         it('refuses a function written with brackets, giving its call', () => {
@@ -151,7 +172,7 @@ describe('indexers and computed properties', () => {
                 types: [extensionDeclaration('StringExtensions', 'String', [createFunctionDeclaration('cut', 'Number', { updates: constantUpdates, parameters: [createValueParameterDeclaration('percent', 'Number')], impl: ({ args }) => args.percent })])],
             })]);
 
-            expect(errorThrownBy(() => registry.resolve('item.cut[5]', { item: 'latte' })).message).toContain("'cut' uses call syntax: write 'item.cut(5)'");
+            expect(errorThrownBy(() => registry.resolve('item:cut[5]', { item: 'latte' })).message).toContain("'cut' uses call syntax: write 'item:cut(5)'");
         });
     });
 
@@ -163,17 +184,17 @@ describe('indexers and computed properties', () => {
         });
 
         it('indexes what the property before its brackets answers, where the receiver\'s type has no named indexer of that name', () => {
-            expect(evaluate('item.words[1]', { item: 'oat latte' })).toBe('latte');
-            expect(evaluate('item.words[1]', { item: 'latte' })).toBeNull();
+            expect(evaluate('item:words[1]', { item: 'oat latte' })).toBe('latte');
+            expect(evaluate('item:words[1]', { item: 'latte' })).toBeNull();
         });
 
         it('requires a receiver that cannot be null, giving the optional brackets, which answer null for a null one', () => {
-            expect(refusalOf('item.someWords[0]', { item: '' }).message).toContain("write 'item.someWords?[0]'");
-            expect(evaluate('item.someWords?[0]', { item: '' })).toBeNull();
-            expect(evaluate('item.someWords?[0]', { item: 'oat latte' })).toBe('oat');
-            expect(evaluate('item?.someWords?[0]', { item: null })).toBeNull();
-            expect(evaluate('(?item.someWords[0])', { item: '' })).toBeNull();
-            expect(evaluate('(?item.someWords[0])', { item: 'oat latte' })).toBe('oat');
+            expect(refusalOf('item:someWords[0]', { item: '' }).message).toContain("write 'item:someWords?[0]'");
+            expect(evaluate('item:someWords?[0]', { item: '' })).toBeNull();
+            expect(evaluate('item:someWords?[0]', { item: 'oat latte' })).toBe('oat');
+            expect(evaluate('item?:someWords?[0]', { item: null })).toBeNull();
+            expect(evaluate('(?item:someWords[0])', { item: '' })).toBeNull();
+            expect(evaluate('(?item:someWords[0])', { item: 'oat latte' })).toBe('oat');
         });
 
         it('refuses a receiver whose type has none, giving the computed property access a string key may mean', () => {
@@ -182,25 +203,33 @@ describe('indexers and computed properties', () => {
         });
 
         it('is what a number where a computed property\'s name stands means', () => {
-            expect(refusalOf('item.words.[0]', { item: 'oat latte' }).message).toContain("write 'item.words[0]'");
+            expect(refusalOf('item:words.[0]', { item: 'oat latte' }).message).toContain("write 'item:words[0]'");
         });
     });
 
     describe('a property read by a computed name', () => {
-        /** A module whose `size` answers what the test gives it and `cup`, a structure, a copy of the one it answers. */
+        class Order {}
+
+        /** A module of orders, whose `size` answers what the test gives it and `cup`, a structure, a copy of the one it answers. */
         const createCups = size => nexo.createModule('cups', {
+            typeOf: value => (value instanceof Order ? 'Order' : null),
             types: [
                 { name: 'Cup', kind: 'structured', members: dataPropertyDeclarations({ volume: 'Number' }) },
-                extensionDeclaration('StringExtensions', 'String', [
-                    createPropertyDeclaration('size', 'Number', { updates: constantUpdates, impl: () => size }),
-                    createPropertyDeclaration('cup', 'Cup', { updates: constantUpdates, impl: () => ({ volume: 2, lid: true }) }),
-                ]),
+                {
+                    name: 'Order',
+                    kind: 'reference',
+                    isInstance: value => value instanceof Order,
+                    members: [
+                        createPropertyDeclaration('size', 'Number', { updates: constantUpdates, impl: () => size }),
+                        createPropertyDeclaration('cup', 'Cup', { updates: constantUpdates, impl: () => ({ volume: 2, lid: true }) }),
+                    ],
+                },
             ],
         });
         const valueOf = (text, size, bound) => createImportingRegistry([createCups(size)]).resolve(text, bound).createEvaluator(bound).evaluate().value;
 
         it('is invoked, checked and copied as the property read by its name is', () => {
-            const bound = { item: 'latte', name: 'size', other: 'cup' };
+            const bound = { item: new Order(), name: 'size', other: 'cup' };
 
             expect(valueOf('{ direct = item.size, computed = item.[name] }', 3, bound)).toEqual({ direct: 3, computed: 3 });
             expect(valueOf('{ direct = item.cup, computed = item.[other] }', 3, bound)).toEqual({ direct: { volume: 2 }, computed: { volume: 2 } });

@@ -85,13 +85,72 @@ Decisions taken without stopping to ask, kept here so they can be reviewed and r
 
 <a id="d9"></a>
 
-## D9 — Stating existing behaviour keeps the version
+## D9 — A clarification keeps the version
+
+*October 30, 2026, narrowed the same day*
+
+- **Decision:** a clarification of the agreed contract keeps the version. A change to the contract, new syntax or new semantics, advances it. Making the implementation follow a rule the specification already states is a fix, which keeps it too.
+- **Why:** a version names a contract, not an implementation. What an implementation happens to do establishes no contract by itself.
+- **Declined:** a new version for each rule written down, which would date the specification's text rather than the language; and treating the implementation's behaviour as the contract wherever the specification was silent.
+
+<a id="d10"></a>
+
+## D10 — Extension members are read with `:` alone
 
 *October 30, 2026*
 
-- **Decision:** rules that state what the implementation already does, where the specification was silent, join `1.0.0-alpha.39` without advancing the version.
-- **Why:** an implementation reporting `1.0.0-alpha.39` already behaves this way, so the version still names one contract. A rename or a new rule, which changes what an implementation does, advances it, as [D1](#d1) did.
-- **Declined:** a new version for each rule written down, which would date the specification's text rather than the language.
+- **Decision:** `.` reads a type's own members and `:` reads extension members. `device.usage` is refused, giving `device:usage` (NEXO3090). The language advances to `1.0.0-alpha.40`, and the definition format to 37.
+- **Why:** the owner agreed that extension members are reached through `:` exclusively, so where a member comes from is always visible, and an owner and an extension never compete.
+- **Declined:** keeping `.` for extension members beside `:`, which keeps the competition the owner rule had to settle.
+
+<a id="d11"></a>
+
+## D11 — The last name is the member
+
+*October 30, 2026*
+
+- **Decision:** an extension access writes one to three names: the member, its extension's name before it, and that extension's module's before that. Each name fills its role, whatever the spacing, and names that fit no form are refused (NEXO1071).
+- **Why:** the owner's model: in `device:Device.details.name`, `Device.details` qualifies and `name` is the member. Reading a shorter access followed by ordinary access would make spacing or vocabulary decide what the text means.
+- **Declined:** reading `count: it.devices.count` as a named argument or as `count:it` followed by `.devices.count`.
+
+<a id="d12"></a>
+
+## D12 — A dot after a bare extension member needs a group
+
+*October 30, 2026*
+
+- **Decision:** a call or a key closes an extension access. Ordinary access on a bare member's answer is grouped, `(device:readings).first`, and a line break never ends the names. Canonical text writes the group.
+- **Why:** it follows from [D11](#d11): the names run until something other than a dot and a name. Resolution gives the grouped form where an extension member has the name (NEXO3026).
+- **Declined:** letting resolution decide whether a name is an extension or a member, which would make the vocabulary decide how text reads.
+
+<a id="d13"></a>
+
+## D13 — The owner's extension of its own type is the owner's
+
+*October 30, 2026*
+
+- **Decision:** members a module declares in an extension of a type it owns are read with `.`, as Nexo's own `flatten` is on a list of lists. Only Nexo can declare one, since a host module's extension targets another module's type (NEXO4045).
+- **Why:** they are the owner's members, narrowed to a receiver its own type declarations can't express. Reading them with `:` would make `rooms.flatten` an extension access.
+
+<a id="d14"></a>
+
+## D14 — An extension declares no unnamed indexer
+
+*October 30, 2026*
+
+- **Decision:** an extension declares no unnamed indexer (NEXO4564). `x[key]` reads the receiver's owner's alone.
+- **Why:** with extension members read through `:`, an unnamed one has no form: `x:[key]` is no access, and `x:Extension[key]` would read `Extension` as a member's name.
+- **Declined:** a colon indexer form, which the owner ruled out.
+
+<a id="d15"></a>
+
+## D15 — The codes of the new access
+
+*October 30, 2026*
+
+- **Decision:** NEXO3090 refuses an extension member read with `.`. NEXO1071 refuses names that fit no form. NEXO1014 keeps a colon no name follows, now `f(a: 5)` and `a ?: 0` among it. NEXO3062 covers a member no applicable extension declares as well as one a named extension does not. NEXO4564 refuses an extension's unnamed indexer.
+- **Why:** each condition has one code. A colon no name follows is one condition however it is spaced or followed, so NEXO1014 stays rather than being retired.
+- **Declined:** retiring NEXO1014 for a new code, which would split one condition.
 
 <a id="implementation-decisions-reviewed"></a>
 

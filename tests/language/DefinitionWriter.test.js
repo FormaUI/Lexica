@@ -65,13 +65,16 @@ describe('DefinitionWriter', () => {
         expect(DefinitionWriter.quoteScript(definition, imports)).toBe('{ a = Measures.rooms, b = 1 }');
     });
 
-    it("writes a call by its callee, a member's after its receiver and a held function's by the local's name, and an extension selection's colon and name, its module's local name qualifying it", () => {
+    it("writes a call by its callee, a member's after its receiver and a held function's by the local's name, and an extension access's colon and names, its member last, grouping one a dot follows", () => {
         const receiver = parameter('x');
 
         expect(DefinitionWriter.quote({ kind: 'call', callee: { kind: 'memberAccess', receiver, name: 'pad', optional: true }, arguments: [literal(1)] })).toBe('x?.pad(1)');
         expect(DefinitionWriter.quote({ kind: 'call', callee: { kind: 'local', name: 'if' }, arguments: [] })).toBe('@if()');
         expect(DefinitionWriter.quote({ kind: 'memberAccess', receiver, name: 'usage', extension: { name: 'Device', module: 'Energy' } })).toBe('x:Energy.Device.usage');
-        expect(DefinitionWriter.quote({ kind: 'indexerAccess', receiver, argument: literal(0), optional: true, extension: { name: 'Cells' } })).toBe('x?:Cells[0]');
+        expect(DefinitionWriter.quote({ kind: 'call', callee: { kind: 'memberAccess', receiver, name: 'reset', optional: true, extension: {} }, arguments: [literal(1)] })).toBe('x?:reset(1)');
+        expect(DefinitionWriter.quote({ kind: 'indexerAccess', receiver: { kind: 'memberAccess', receiver, name: 'cell', extension: { name: 'Cells' } }, argument: literal(0) })).toBe('x:Cells.cell[0]');
+        expect(DefinitionWriter.quote({ kind: 'memberAccess', receiver: { kind: 'memberAccess', receiver, name: 'readings', extension: {} }, name: 'first' })).toBe('(x:readings).first');
+        expect(DefinitionWriter.quote({ kind: 'memberAccess', receiver: { kind: 'memberAccess', receiver, name: 'readings', extension: {} }, name: 'first', extension: {} })).toBe('x:readings:first');
         expect(DefinitionWriter.quote({ kind: 'memberAccess', receiver: { kind: 'namespace', name: 'if' }, name: 'open' }, new Set(['if']))).toBe('@if.open');
     });
 });

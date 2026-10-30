@@ -173,12 +173,20 @@ export class LineStructure {
                 return { kind: 'refused', construct: "A member step's '.' and its name" };
             case 'computed-property-access':
                 return index === 1 ? { kind: 'refused', construct: "A computed property access's '.' and its '['" } : ALLOWED;
-            case 'extension-access':
-                if (SyntaxTree.isToken(child)) {
-                    return { kind: 'refused', construct: "An extension selector's ':' and its extension's name" };
+            case 'extension-access': {
+                // Its names stand on its colon's line, and a call's arguments break as any call's do.
+                const opening = node.children.findIndex(part => is(part, '('));
+
+                if (opening === -1 || index < opening) {
+                    return { kind: 'refused', construct: "An extension access's ':' and its names" };
                 }
 
-                return child.kind === 'indexer' ? { kind: 'refused', construct: "An indexer's '[' and what it indexes" } : ALLOWED;
+                if (index === opening) {
+                    return { kind: 'refused', construct: "A call's '(' and the name it calls" };
+                }
+
+                return is(child, ',') ? { kind: 'refused', construct: 'A comma and what it follows' } : ALLOWED;
+            }
             case 'chain':
             case 'member-chain':
                 if (STEP_KINDS.has(child.kind)) {

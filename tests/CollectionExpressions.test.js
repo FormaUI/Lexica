@@ -17,7 +17,7 @@ const refusalOf = (text, values = {}) => errorThrownBy(() => nexo.createRegistry
 describe('collection expressions', () => {
     describe('in text and definitions', () => {
         it('reads a list and a dictionary by their written form, an empty one of each among them, into the nodes of definition version 35', () => {
-            expect(nexo.parse('[10, 20, 30]')).toEqual({ version: 36, imports: [], expression: { kind: 'list', items: [{ kind: 'literal', value: 10 }, { kind: 'literal', value: 20 }, { kind: 'literal', value: 30 }] } });
+            expect(nexo.parse('[10, 20, 30]')).toEqual({ version: 37, imports: [], expression: { kind: 'list', items: [{ kind: 'literal', value: 10 }, { kind: 'literal', value: 20 }, { kind: 'literal', value: 30 }] } });
             expect(nexo.parse(`["coffee" = 3, 'tea' = 2,]`).expression).toEqual({ kind: 'dictionary', entries: [{ key: 'coffee', value: { kind: 'literal', value: 3 } }, { key: 'tea', value: { kind: 'literal', value: 2 } }] });
             expect(nexo.parse('[]').expression).toEqual({ kind: 'list', items: [] });
             expect(nexo.parse('[=]').expression).toEqual({ kind: 'dictionary', entries: [] });
@@ -53,14 +53,14 @@ describe('collection expressions', () => {
 
             expect(duplicate).toMatchObject({ code: 'NEXO2043', kind: 'structure', location: { pointer: '/expression/entries/1', line: 1, column: 11 } });
             expect(duplicate.message).toContain('"a" is the key of an entry before this one');
-            expect(errorThrownBy(() => nexo.validate({ version: 36, imports: [], expression: { kind: 'dictionary', entries: [{ key: 'a', value: { kind: 'literal', value: 1 } }, { key: 'a', value: { kind: 'literal', value: 2 } }] } }))).toMatchObject({ code: 'NEXO2043', location: { pointer: '/expression/entries/1' } });
+            expect(errorThrownBy(() => nexo.validate({ version: 37, imports: [], expression: { kind: 'dictionary', entries: [{ key: 'a', value: { kind: 'literal', value: 1 } }, { key: 'a', value: { kind: 'literal', value: 2 } }] } }))).toMatchObject({ code: 'NEXO2043', location: { pointer: '/expression/entries/1' } });
         });
 
         it('holds simple expressions alone, refusing a do block and an arrow function as an item, and validates a definition\'s key as a string', () => {
             expect(errorThrownBy(() => nexo.parse('[do 1 end]'))).toMatchObject({ code: 'NEXO2011', message: expect.stringContaining("A list's item is a simple expression") });
             expect(errorThrownBy(() => nexo.parse('["a" = do 1 end]'))).toMatchObject({ code: 'NEXO2011', message: expect.stringContaining("A dictionary's value is a simple expression") });
             expect(errorThrownBy(() => nexo.parse('[x => 1]'))).toMatchObject({ code: 'NEXO2027', location: { pointer: '/expression/items/0' } });
-            expect(errorThrownBy(() => nexo.validate({ version: 36, imports: [], expression: { kind: 'dictionary', entries: [{ key: 1, value: { kind: 'literal', value: 1 } }] } }))).toMatchObject({ code: 'NEXO2000', location: { pointer: '/expression/entries/0/key' } });
+            expect(errorThrownBy(() => nexo.validate({ version: 37, imports: [], expression: { kind: 'dictionary', entries: [{ key: 1, value: { kind: 'literal', value: 1 } }] } }))).toMatchObject({ code: 'NEXO2000', location: { pointer: '/expression/entries/0/key' } });
         });
 
         it('refuses a definition of version 34, which holds no collection expression, naming both versions', () => {

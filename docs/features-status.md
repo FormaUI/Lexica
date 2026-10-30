@@ -2,12 +2,12 @@
 
 ## Current state
 
-**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.39` and definition version 36.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
+**The language and its runtime are implemented as the specification describes them, language `1.0.0-alpha.40` and definition version 37, but for the gaps below.** What remains is DOMQL's migration to them, the [open decisions](#open-decisions), [tooling](#tooling) and [the release](#release).
 
 | Version | Implementation | Specification |
 | --- | --- | --- |
-| Language | `1.0.0-alpha.39` | `1.0.0-alpha.39` |
-| Definition format | 36 | 36 |
+| Language | `1.0.0-alpha.40` | `1.0.0-alpha.40` |
+| Definition format | 37 | 37 |
 
 The bundle and type declarations are built. npm and NuGet packages are packed locally but unpublished. Every example the specification and the README give resolves against [the examples' vocabulary](../spec/language/examples-vocabulary.md) and evaluates in the gate, a host call's preparation and projection among them, and each example the specification gives as an error is refused.
 
@@ -49,7 +49,7 @@ Each feature, the contract that states it, its state in the implementation, and 
 | Indexers and computed property access | [Named indexers](../spec/language/members.md#property-access-calls-and-indexers-named-indexers), [computed property access](../spec/language/members.md#computed-property-access) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
 | Types identified by their module | [Type identity](../spec/language/types.md#types-type-identity) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
 | Imports, aliases and type imports, a host's among them, namespaces, module members and qualified access | [Imports](../spec/language/modules.md#scripts-imports), [namespaces](../spec/language/modules.md#namespaces) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
-| Extensions, selected by owner and specificity, and extension access | [Extensions](../spec/language/extensions.md) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| Extensions: the owner's members read with `.`, extension members with `:`, the most specific extension selected | [Extensions](../spec/language/extensions.md) | Implemented, with a [gap](#open-decisions): a bound extension reference held in a local takes values alone | [`alpha.40`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-40) |
 | Type parameters, inferred at each call | [Type parameters](../spec/language/types.md#types-type-parameters) | Implemented; a type parameter's default is an [open decision](#open-decisions) | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
 | `Any`, its members selected as it is evaluated | [Values of `Any`](../spec/language/types.md#types-any) | Implemented in part: a function given to a deferred call is [deferred](#deferred) | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
 | Reference types in hierarchies, and the casts among them | [Reference types](../spec/language/types.md#reference-types) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
@@ -235,10 +235,12 @@ These gaps between the specification and the code, found by audits and by the re
 - **Codes.** NEXO5012 is raised for an ambiguous deferred selection and for each argument a selected member can't take, and for a value of `Any` an extension access is given outside the extension's target, conditions its catalogue row doesn't name, against the rule that distinct conditions never share a code; NEXO3045, NEXO3065, NEXO4021 and NEXO4067 are catalogued and never raised.
 - **Declarations.** `createPredicateParameterDeclaration` takes no options, which `nexo.d.ts` declares; a member helper drops `internal` and passes `invokedBy` to a property, which `createModule` then refuses; a value parameter's `context` is never checked; and a type's copy keeps a key holding `undefined`, which [valid declarations](../spec/runtime/modules.md#modules-declarations) count as left out.
 - **Errors.** `NexoError` exposes `syntax`, `module` and `locate`, beside the three factories `nexo.d.ts` declares, and result paths are validated by `nexo.paths.validate` alone, never by `typeAt` and `valueAt`.
-- **A bound extension reference.** A reference such as `let k = words:Words.keep` is called by its member's rules, but takes values alone: `k(it.length > 1)` is refused (NEXO3010). Should it take its member's argument kinds, as a held reference to a module's function does?
-- **A space after `:`.** `f(a: B.c)` is refused as a named argument (NEXO1012) while `f(a:B.c)` is an extension access, and `count: it.devices.count` reads as one at the top level. Should a space decide between them, though trivia never matters elsewhere?
-- **Collections a host supplies.** A declared binding and a host call's supplied value accept a map and a `{ key, value }` object, but refuse a set (NEXO2045, NEXO5015), which an undeclared binding and a member's answer accept. Should capture accept a set too?
-- **An arrow function as a collection item.** `[x => 1]` gives the structure error NEXO2027, where the catalog gives text the syntax error NEXO1057, as `{ a = x => x }` does. Which code is right?
+
+These are decided, as [decisions](decisions.md) records, and wait for the implementation to follow:
+
+- **A bound extension reference** keeps its member's argument kinds wherever it is called, as [extension access](../spec/language/extensions.md#extensions-access) states. Held in a local, `let k = words:keep`, it takes values alone: `k(it.length > 1)` is refused (NEXO3010).
+- **Collections a host supplies.** A set is captured as a list wherever a list is declared, its items in their order. A declared binding refuses one (NEXO2045), and so does a host call's supplied value (NEXO5015).
+- **A function as a collection item.** Text writing an arrow function as a list's item or a dictionary's value is refused as a syntax error (NEXO1057), as the catalog says; `[x => 1]` gives the structure error NEXO2027.
 
 Deferred items below require their stated trigger before design or implementation resumes.
 

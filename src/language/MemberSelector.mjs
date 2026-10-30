@@ -1,5 +1,6 @@
 /**
- * MemberSelector — the one selection of a declaration among those of a name for a receiver: a member, a named indexer or an unnamed one, the owner of the receiver's type first and the most specific extension otherwise
+ * MemberSelector — the one selection of a declaration among those of a name an access reads for a receiver: a member, a named indexer or an unnamed one, the owner of the receiver's type first and the most specific
+ * otherwise; and which members an extension access reads
  */
 
 import { Vocabulary } from './vocabulary/Vocabulary.mjs';
@@ -26,11 +27,11 @@ export class MemberSelector {
     }
 
     /**
-     * Selects, among the candidates, the declaration a receiver of the type reads, as a member is selected wherever it is written: of those applicable to the receiver, an internal one is no candidate; an applicable member
-     * the owner of the receiver's type declares within the types it owns wins over every extension, the most specific of them hiding the others; and otherwise the applicable extension whose receiver type is more specific than
-     * every other's is selected, a member another module declares within a supertype among them, with no priority over the extensions. It answers the competing declarations where none is more specific than every other.
+     * Selects, among the candidates an access reads, the declaration a receiver of the type reads, as a member is selected wherever it is written: of those applicable to the receiver, an internal one is no candidate; an
+     * applicable member the owner of the receiver's type declares on the types it owns wins over every other, the most specific of them hiding the others; and otherwise the applicable declaration whose receiver type is more
+     * specific than every other's is selected, a member another module declares within a supertype, or an extension member, among them. It answers the competing declarations where none is more specific than every other.
      * Registration order never decides.
-     * @param {object[]} candidates The declarations of the name, or the unnamed indexers.
+     * @param {object[]} candidates The declarations of the name the access reads, `.` the members of types and `:` the extension members, or the unnamed indexers.
      * @returns {Selection}
      */
     select(candidates, receiverType) {
@@ -60,6 +61,16 @@ export class MemberSelector {
         return signatures.length > 1 && declarations.every(declaration => signatures.includes(declaration));
     }
 
+    /**
+     * Whether the member is an extension member, which `:` reads and `.` never does: one an extension declares, unless its module owns the extension's target, as Nexo's own `flatten` is, an extension of lists of
+     * lists, whose members are its owner's as the members of the types it declares are.
+     */
+    isExtensionMember(declaration) {
+        const containing = this.#registry.getContainingType(declaration);
+
+        return containing?.kind === 'extension' && this.#registry.getDeclaringModuleName(declaration) !== MemberSelector.#ownerOf(this.#registry.getReceiverTypes(declaration)[0]);
+    }
+
     /** The candidates a receiver of unknown type may read, which choose no declaration: the accessible ones, an internal one no candidate. */
     getAccessible(candidates) {
         return candidates.filter(declaration => !this.#registry.isInternal(declaration));
@@ -74,10 +85,10 @@ export class MemberSelector {
         return type.moduleName ?? Vocabulary.moduleName;
     }
 
-    /** Whether the member is one the owner declares within a type of its own, a type or Nexo's own value type, never an extension, whose members are extensions whatever module declares them. */
+    /** Whether the member is one the owner declares on a type of its own, within the type or Nexo's own value type, or in an extension of a type it owns, never an extension member. */
     #isOwnedBy(declaration, owner) {
         const containing = this.#registry.getContainingType(declaration);
 
-        return owner !== null && containing !== undefined && containing.kind !== 'extension' && this.#registry.getDeclaringModuleName(declaration) === owner;
+        return owner !== null && containing !== undefined && !this.isExtensionMember(declaration) && this.#registry.getDeclaringModuleName(declaration) === owner;
     }
 }

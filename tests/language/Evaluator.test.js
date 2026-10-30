@@ -54,25 +54,25 @@ const createHost = ({ beforeInvoke = () => undefined, afterInvoke = () => {}, af
 
 describe('Evaluator', () => {
     it('evaluates an expression without a host, in Node and with no browser', () => {
-        expect(createEvaluator('{ total = name.price * quantity, count = names.count }', { name: 'tea', quantity: 2, names: ['tea', 'milk'] }).evaluate()).toMatchObject({ value: { total: 6, count: 2 }, isPending: false });
+        expect(createEvaluator('{ total = name:price * quantity, count = names.count }', { name: 'tea', quantity: 2, names: ['tea', 'milk'] }).evaluate()).toMatchObject({ value: { total: 6, count: 2 }, isPending: false });
     });
 
     it('gives every implementation the environment, which Nexo never reads', () => {
-        expect(createEvaluator('name.rate', { name: 'tea' }, { env: { rate: 7 } }).evaluate().value).toBe(7);
+        expect(createEvaluator('name:rate', { name: 'tea' }, { env: { rate: 7 } }).evaluate().value).toBe(7);
     });
 
     it('calls beforeInvoke and afterInvoke around each invocation, with the member, its receiver and where it stands, and afterEvaluation once', () => {
         const host = createHost();
         const requests = [];
 
-        createEvaluator('{ a = name.price, b = name.rate }', { name: 'tea' }, { env: { rate: 1 } }).evaluate({ ...host, beforeInvoke: request => (requests.push(request), host.beforeInvoke(request)) });
+        createEvaluator('{ a = name:price, b = name:rate }', { name: 'tea' }, { env: { rate: 1 } }).evaluate({ ...host, beforeInvoke: request => (requests.push(request), host.beforeInvoke(request)) });
 
         expect(host.calls).toEqual(['before:price@/expression/objectFields/0/value', 'after:price=3', 'before:rate@/expression/objectFields/1/value', 'after:rate=1', 'ended:completed']);
         expect(requests[0]).toMatchObject({ receiver: 'tea', args: {}, pointer: '/expression/objectFields/0/value' });
     });
 
     it('names a member invoked within a script function\'s body by the part of the body it is, which the definition holds, whichever call reached it', () => {
-        const text = 'let f = function(n)\n    return n.price\nend\nreturn { a = f(name), b = f(other) }';
+        const text = 'let f = function(n)\n    return n:price\nend\nreturn { a = f(name), b = f(other) }';
         const requests = [];
 
         createEvaluator(text, { name: 'tea', other: 'milk' }).evaluate({ beforeInvoke: request => void requests.push(request) });
@@ -88,7 +88,7 @@ describe('Evaluator', () => {
         const host = createHost();
         const invoked = [];
 
-        createEvaluator('if false then name.price else 0 end', { name: 'tea' }, { invoked }).evaluate(host);
+        createEvaluator('if false then name:price else 0 end', { name: 'tea' }, { invoked }).evaluate(host);
 
         expect(host.calls).toEqual(['ended:completed']);
         expect(invoked).toEqual([]);
@@ -97,7 +97,7 @@ describe('Evaluator', () => {
     it('answers null for a member of a receiver known to be null, evaluating the receiver once and selecting and invoking nothing', () => {
         const host = createHost();
         const invoked = [];
-        const evaluation = createEvaluator('{ none = nothing?.price, indexed = nothing?[0], some = name.price }', { name: 'tea', nothing: null }, { invoked }).evaluate(host);
+        const evaluation = createEvaluator('{ none = nothing?.price, indexed = nothing?[0], some = name:price }', { name: 'tea', nothing: null }, { invoked }).evaluate(host);
 
         expect(evaluation.value).toEqual({ none: null, indexed: null, some: 3 });
         expect(invoked).toEqual(['price:tea']);
@@ -107,34 +107,34 @@ describe('Evaluator', () => {
     it('reads a maintained member through the samples beforeInvoke answers', () => {
         const host = createHost({ beforeInvoke: request => (request.declaration.name === 'quoted' ? [42] : undefined) });
 
-        expect(createEvaluator('name.quoted', { name: 'tea' }).evaluate(host)).toMatchObject({ value: 42, isPending: false });
+        expect(createEvaluator('name:quoted', { name: 'tea' }).evaluate(host)).toMatchObject({ value: 42, isPending: false });
     });
 
     it('leaves a member pending where beforeInvoke answers that its sample is, invoking nothing and ending pending', () => {
         const outcomes = [];
         const host = createHost({ beforeInvoke: () => ({ pending: true }), afterEvaluation: outcome => outcomes.push(outcome) });
 
-        expect(createEvaluator('{ quote = name.quoted }', { name: 'tea' }).evaluate(host)).toMatchObject({ value: { quote: null }, isPending: true });
+        expect(createEvaluator('{ quote = name:quoted }', { name: 'tea' }).evaluate(host)).toMatchObject({ value: { quote: null }, isPending: true });
         expect(host.calls).toEqual(['before:quoted@/expression/objectFields/0/value', 'ended:pending']);
         expect(outcomes).toEqual([{ kind: 'pending', value: { quote: null } }]);
     });
 
     it('refuses a maintained member without a host to sample it', () => {
-        expect(errorThrownBy(() => createEvaluator('name.quoted', { name: 'tea' }).evaluate())).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('maintained by an observation') });
-        expect(errorThrownBy(() => createEvaluator('name.quoted', { name: 'tea' }).evaluate({ afterInvoke: () => {} }))).toMatchObject({ kind: 'evaluation' });
+        expect(errorThrownBy(() => createEvaluator('name:quoted', { name: 'tea' }).evaluate())).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('maintained by an observation') });
+        expect(errorThrownBy(() => createEvaluator('name:quoted', { name: 'tea' }).evaluate({ afterInvoke: () => {} }))).toMatchObject({ kind: 'evaluation' });
     });
 
     it('ends failed where the evaluation fails, and throws the failure', () => {
         const host = createHost();
-        const failure = errorThrownBy(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate(host));
+        const failure = errorThrownBy(() => createEvaluator('name:price / 0', { name: 'tea' }).evaluate(host));
 
         expect(failure).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('divides by zero') });
         expect(host.calls).toEqual(['before:price@/expression/left', 'after:price=3', 'ended:failed']);
     });
 
     it('fails the evaluation at the member where beforeInvoke or afterInvoke throws', () => {
-        const before = errorThrownBy(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ beforeInvoke: () => { throw new Error('no session'); } }));
-        const after = errorThrownBy(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterInvoke: () => { throw new Error('no record'); } }));
+        const before = errorThrownBy(() => createEvaluator('name:price', { name: 'tea' }).evaluate({ beforeInvoke: () => { throw new Error('no session'); } }));
+        const after = errorThrownBy(() => createEvaluator('name:price', { name: 'tea' }).evaluate({ afterInvoke: () => { throw new Error('no record'); } }));
 
         expect(before).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('no session'), location: { pointer: '/expression' } });
         expect(after).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('no record'), location: { pointer: '/expression' } });
@@ -143,19 +143,19 @@ describe('Evaluator', () => {
     it('fails a completed evaluation whose afterEvaluation throws, and keeps a failure thrown, the cleanup failure recorded on it', () => {
         const cleanup = new Error('cleanup');
 
-        const completed = errorThrownBy(() => createEvaluator('name.price', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
+        const completed = errorThrownBy(() => createEvaluator('name:price', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
 
         expect(completed).toMatchObject({ code: 'NEXO5009', kind: 'evaluation' });
         expect(completed.cause).toBe(cleanup);
 
-        const failure = errorThrownBy(() => createEvaluator('name.price / 0', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
+        const failure = errorThrownBy(() => createEvaluator('name:price / 0', { name: 'tea' }).evaluate({ afterEvaluation: () => { throw cleanup; } }));
 
         expect(failure).toMatchObject({ kind: 'evaluation', message: expect.stringContaining('divides by zero') });
         expect(failure.suppressed).toBe(cleanup);
     });
 
     it('keeps each evaluation its own, so one after a pending evaluation starts complete', () => {
-        const evaluator = createEvaluator('name.quoted', { name: 'tea' });
+        const evaluator = createEvaluator('name:quoted', { name: 'tea' });
 
         expect(evaluator.evaluate({ beforeInvoke: () => ({ pending: true }) }).isPending).toBe(true);
         expect(evaluator.evaluate({ beforeInvoke: () => [5] })).toMatchObject({ value: 5, isPending: false });
@@ -208,9 +208,9 @@ return f(1)`;
             return { value: createEvaluator(text, values, { invoked }).evaluate().value, invoked };
         };
 
-        expect(evaluate('{ let p = name.price, n = 1 }', { name: 'tea' })).toEqual({ value: { n: 1 }, invoked: [] });
-        expect(evaluate('{ let p = name.price, a = p, b = p + 1 }', { name: 'tea' })).toEqual({ value: { a: 3, b: 4 }, invoked: ['price:tea'] });
-        expect(evaluate('names { let p = it.price, a = p, b = p }', { names: ['tea', 'milk'] })).toEqual({ value: [{ a: 3, b: 3 }, { a: 4, b: 4 }], invoked: ['price:tea', 'price:milk'] });
+        expect(evaluate('{ let p = name:price, n = 1 }', { name: 'tea' })).toEqual({ value: { n: 1 }, invoked: [] });
+        expect(evaluate('{ let p = name:price, a = p, b = p + 1 }', { name: 'tea' })).toEqual({ value: { a: 3, b: 4 }, invoked: ['price:tea'] });
+        expect(evaluate('names { let p = it:price, a = p, b = p }', { names: ['tea', 'milk'] })).toEqual({ value: [{ a: 3, b: 3 }, { a: 4, b: 4 }], invoked: ['price:tea', 'price:milk'] });
     });
 
     it('reads each name from the nearest scope declaring it, a function\'s parameter, an object expression\'s local, a field and a body\'s local each hiding an outer name', () => {

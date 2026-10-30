@@ -52,7 +52,7 @@ describe('the members of collections', () => {
         });
 
         it('differs from an object projection, which keeps a null item null and evaluates no field for it', () => {
-            expect(evaluate('gaps { n = it.seen }')).toEqual({ value: [{ n: 1 }, null, { n: 2 }], type: 'List<{ n: Number }?>' });
+            expect(evaluate('gaps { n = it:seen }')).toEqual({ value: [{ n: 1 }, null, { n: 2 }], type: 'List<{ n: Number }?>' });
             expect(seen).toEqual([1, 2]);
         });
     });
@@ -60,9 +60,9 @@ describe('the members of collections', () => {
     describe('partitions and joins', () => {
         it('takes and drops by an index less than the count, whatever the count, and while a predicate holds, evaluating it against nothing after the first it fails', () => {
             expect([valueOf('xs.take(2)'), valueOf('xs.drop(2)'), valueOf('xs.take(10)'), valueOf('xs.take(-1)'), valueOf('xs.drop(0)')]).toEqual([[3, 1], [2], [3, 1, 2], [], [3, 1, 2]]);
-            expect(valueOf('xs.takeWhile(it.seen > 2)')).toEqual([3]);
+            expect(valueOf('xs.takeWhile(it:seen > 2)')).toEqual([3]);
             expect(seen).toEqual([3, 1]);
-            expect(valueOf('xs.dropWhile(it.seen > 2)')).toEqual([1, 2]);
+            expect(valueOf('xs.dropWhile(it:seen > 2)')).toEqual([1, 2]);
             expect(seen).toEqual([3, 1]);
         });
 
@@ -81,9 +81,9 @@ describe('the members of collections', () => {
         });
 
         it("evaluates a filter's predicate and a key once for each item, in order", () => {
-            expect(valueOf('xs.where(it.seen > 1)')).toEqual([3, 2]);
+            expect(valueOf('xs.where(it:seen > 1)')).toEqual([3, 2]);
             expect(seen).toEqual([3, 1, 2]);
-            expect(valueOf('xs.distinctBy(it.seen)')).toEqual([3, 1, 2]);
+            expect(valueOf('xs.distinctBy(it:seen)')).toEqual([3, 1, 2]);
             expect(seen).toEqual([3, 1, 2]);
         });
     });
@@ -91,9 +91,9 @@ describe('the members of collections', () => {
     describe('tests and aggregates', () => {
         it('answers any and all over no items as false and true, stopping at the first decisive item, a null item falsy to a body', () => {
             expect([valueOf('none.any(it > 0)'), valueOf('none.all(it > 0)')]).toEqual([false, true]);
-            expect(valueOf('xs.any(it.seen == 1)')).toBe(true);
+            expect(valueOf('xs.any(it:seen == 1)')).toBe(true);
             expect(seen).toEqual([3, 1]);
-            expect(valueOf('xs.all(it.seen > 2)')).toBe(false);
+            expect(valueOf('xs.all(it:seen > 2)')).toBe(false);
             expect(seen).toEqual([3, 1]);
             expect(valueOf('gaps.all(it > 0)')).toBe(false);
         });
@@ -108,7 +108,7 @@ describe('the members of collections', () => {
         });
 
         it('answers the position of the first item a predicate is truthy for, evaluating it against none after, a null item falsy to a body, and null where none is', () => {
-            expect(valueOf('xs.indexWhere(it.seen < 3)')).toBe(1);
+            expect(valueOf('xs.indexWhere(it:seen < 3)')).toBe(1);
             expect(seen).toEqual([3, 1]);
             expect([valueOf('gaps.indexWhere(it > 1)'), valueOf('xs.indexWhere(it > 5)'), valueOf('gaps.indexWhere(x => x == null)')]).toEqual([2, null, 1]);
         });

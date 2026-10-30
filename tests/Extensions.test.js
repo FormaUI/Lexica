@@ -32,17 +32,17 @@ const evaluate = text => resolve(text).createEvaluator(values).evaluate().value;
 
 describe('extensions', () => {
     it('add members to their targets, read on a value of the target as any member is', () => {
-        expect(evaluate('word.shout')).toBe('OAT');
-        expect(resolve('word.shout').usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['String.shout']);
+        expect(evaluate('word:shout')).toBe('OAT');
+        expect(resolve('word:shout').usedDeclarations.map(({ qualifiedName }) => qualifiedName)).toEqual(['String.shout']);
     });
 
     it('bind the parameters their names declare from the receiver, whatever a parameter is named, for every member of theirs', () => {
-        expect(resolve('counts.middle').type).toBe('Number?');
-        expect(evaluate('counts.middle')).toBe(2);
+        expect(resolve('counts:middle').type).toBe('Number?');
+        expect(evaluate('counts:middle')).toBe(2);
     });
 
     it('extend a receiver of any type through a parameter they declare and target, bound afresh to each call\'s receiver', () => {
-        expect(evaluate('{ word = word.echoes(w => w == "oat"), count = counts.echoes(c => c.count == 3) }')).toEqual({ word: true, count: true });
+        expect(evaluate('{ word = word:echoes(w => w == "oat"), count = counts:echoes(c => c.count == 3) }')).toEqual({ word: true, count: true });
     });
 
     it('are never reached through their module\'s namespace, which reaches the members of its own types alone', () => {

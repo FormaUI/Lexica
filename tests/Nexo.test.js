@@ -101,7 +101,7 @@ describe('nexo', () => {
         const registry = createImportingRegistry([module]);
         const evaluate = text => registry.resolve(text, { word: 'oat' }).createEvaluator({ word: 'oat' }).evaluate().value;
 
-        expect(evaluate('{ zoom = word.zoom, size = (word to Cup).size }')).toEqual({ zoom: 6, size: 3 });
+        expect(evaluate('{ zoom = word:zoom, size = (word to Cup).size }')).toEqual({ zoom: 6, size: 3 });
         expect(registry.getImplementation(registry.getObservationType('tick'))).toBe(tick);
         expect(registry.getImplementation(registry.getObservationType('tick'))({ request: { type: 'tick' } }).stop()).toBe('tick');
     });
@@ -150,7 +150,7 @@ describe('nexo', () => {
 
         expect(registry.moduleNames).toEqual(['Nexo', 'price']);
         expect(registry.resolve('items { total = it.price * it.quantity }.count', { items })).toMatchObject({ hostCall: null, type: 'Number' });
-        expect(registry.resolve('"10".price + 1')).toMatchObject({ hostCall: null, type: 'Number' });
+        expect(registry.resolve('"10":price + 1')).toMatchObject({ hostCall: null, type: 'Number' });
         expect(createImportingRegistry().moduleNames).toEqual(['Nexo']);
         expect(errorThrownBy(() => createImportingRegistry().resolve('"10".price'))).toMatchObject({ kind: 'validation', location: { line: 1 } });
     });
@@ -176,7 +176,7 @@ describe('nexo', () => {
             types: [extensionDeclaration('NumberExtensions', 'Number', [{ name: 'double', kind: 'property', result: 'Number', updates: { changes: 'constant', reads: 'fresh' } }])],
         }));
 
-        expect(registry.resolve('(2).double')).toMatchObject({ hostCall: null, type: 'Number' });
+        expect(registry.resolve('(2):double')).toMatchObject({ hostCall: null, type: 'Number' });
     });
 
     it('says which build it is and which specification it follows', () => {

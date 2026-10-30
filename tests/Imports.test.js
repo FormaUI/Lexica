@@ -56,36 +56,36 @@ const refusal = (text, imports = []) => errorThrownBy(() => resolve(text, import
 describe('what a script\'s imports make available', () => {
     describe('members', () => {
         it('are reached by their declaring module\'s import, an extension of another module\'s type without that module\'s', () => {
-            expect(evaluate('import Energy\ndevice.usage')).toBe(3);
+            expect(evaluate('import Energy\ndevice:usage')).toBe(3);
             expect(refusal('import Energy\ndevice.name')).toMatchObject({ code: 'NEXO3005', location: { pointer: '/expression' }, message: expect.stringContaining("'name' on Device is declared only by 'Home', which the script does not import: write 'import Home' at the script's start") });
-            expect(evaluate('import Home\nimport Energy\n{ name = device.name, usage = device.usage }')).toEqual({ name: 'fan', usage: 3 });
+            expect(evaluate('import Home\nimport Energy\n{ name = device.name, usage = device:usage }')).toEqual({ name: 'fan', usage: 3 });
         });
 
         it('are a type\'s own and those it inherits through its type\'s import, wherever they apply, which gives no namespace and leaves another module\'s extension of it to its own import', () => {
             expect(evaluate('import Home.Light\n{ dimmed = light.dim(2), name = light.name }')).toEqual({ dimmed: 'lamp at 2', name: 'lamp' });
-            expect(refusal('import Home.Light\nlight.usage')).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("declared only by 'Energy'") });
+            expect(refusal('import Home.Light\nlight:usage')).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("declared only by 'Energy'") });
             expect(refusal('import Home.Light\nHome.rooms')).toMatchObject({ code: 'NEXO3003', location: { pointer: '/expression/receiver' } });
             // A member is available as the declaration it is, so one a light inherits is read on any device it applies to.
             expect(evaluate('import Home.Light\ndevice.name')).toBe('fan');
         });
 
         it('are an extension\'s through its import, which names no type', () => {
-            expect(evaluate('import Energy.Devices\ndevice.usage')).toBe(3);
+            expect(evaluate('import Energy.Devices\ndevice:usage')).toBe(3);
             expect(refusal('import Energy.Devices\ndevice.name')).toMatchObject({ code: 'NEXO3005' });
             expect(refusal('import Energy.Devices\ndevice as Devices')).toMatchObject({ code: 'NEXO3019' });
         });
 
         it('leave a dependency\'s type whole without its module\'s import, whose members, its data among them, need it', () => {
-            expect(evaluate('import Energy\ndevice.meter')).toEqual({ degrees: 21 });
-            expect(refusal('import Energy\ndevice.meter.degrees')).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("'degrees' on Reading is declared only by 'Garden'") });
-            expect(evaluate('import Energy\nimport Garden\ndevice.meter.degrees')).toBe(21);
+            expect(evaluate('import Energy\ndevice:meter')).toEqual({ degrees: 21 });
+            expect(refusal('import Energy\n(device:meter).degrees')).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("'degrees' on Reading is declared only by 'Garden'") });
+            expect(evaluate('import Energy\nimport Garden\n(device:meter).degrees')).toBe(21);
         });
 
         it('include an unnamed indexer and an operator, each by its declaring module\'s import', () => {
             expect(refusal('import Energy\nroom[0]')).toMatchObject({ code: 'NEXO3005', location: { pointer: '/expression' }, message: expect.stringContaining("The unnamed indexer of Room is declared only by 'Home'") });
             expect(evaluate('import Home\nroom[0]?.name')).toBe('lamp');
-            expect(refusal('import Energy\ndevice.meter to String')).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("The conversion from Reading to String is declared only by 'Garden'") });
-            expect(evaluate('import Energy\nimport Garden\ndevice.meter to String')).toBe('21 degrees');
+            expect(refusal('import Energy\ndevice:meter to String')).toMatchObject({ code: 'NEXO3005', message: expect.stringContaining("The conversion from Reading to String is declared only by 'Garden'") });
+            expect(evaluate('import Energy\nimport Garden\ndevice:meter to String')).toBe('21 degrees');
         });
 
         it('are a deferred access\'s candidates, so one none of whose declarations is imported is refused', () => {
@@ -96,7 +96,7 @@ describe('what a script\'s imports make available', () => {
 
         it('are what a host supplies as a written import makes them', () => {
             expect(evaluate('device.name', ['Home'])).toBe('fan');
-            expect(evaluate('import Energy\n{ name = device.name, usage = device.usage }', ['Home'])).toEqual({ name: 'fan', usage: 3 });
+            expect(evaluate('import Energy\n{ name = device.name, usage = device:usage }', ['Home'])).toEqual({ name: 'fan', usage: 3 });
         });
     });
 
