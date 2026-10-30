@@ -29,6 +29,65 @@ The [specification](../spec/README.md) defines the contract; the [design](nexo-d
 - **Documents move with their change.** The specification, the README, the [embedding guide](embedding-guide.md), the type declarations and this file change in the commit that changes what they describe.
 - **Every diagnostic has its code,** given when its condition is introduced, and the tests of each condition assert its code, never only its message.
 
+<a id="features"></a>
+
+## Features
+
+Each feature, the contract that states it, its state in the implementation, and the language version the implementation has followed it since, whose changes [the language history](../LANGUAGE-HISTORY.md) records. A state names a gap the implementation keeps from its contract, open until it is decided, and what is deferred.
+
+### The language
+
+| Feature | Contract | State | Since |
+| --- | --- | --- | --- |
+| Scripts, their parameters, bodies and locals | [Scripts](../spec/language/scripts.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Tokens, names, strings and comments | [Lexical structure](../spec/language/lexical-structure.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Line structure | [Line structure](../spec/language/lexical-structure.md#line-structure) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| Objects, the object root and null | [Values](../spec/language/values.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Tests, equality, arithmetic, comparisons, logic, conditionals, coalescing, attempts and interpolated strings | [Expressions](../spec/language/expressions.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Casts and conversions | [Casts](../spec/language/types.md#casts), [conversions](../spec/language/values.md#conversions) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Functions a script declares, and function references | [Functions](../spec/language/functions.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Members, their arguments and their kinds, and host calls in a script | [Members](../spec/language/members.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Indexers and computed property access | [Named indexers](../spec/language/members.md#property-access-calls-and-indexers-named-indexers), [computed property access](../spec/language/members.md#computed-property-access) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
+| Types identified by their module | [Type identity](../spec/language/types.md#types-type-identity) | Implemented | [`alpha.33`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-33) |
+| Imports, aliases and type imports, a host's among them, namespaces, module members and qualified access | [Imports](../spec/language/modules.md#scripts-imports), [namespaces](../spec/language/modules.md#namespaces) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| Extensions, selected by owner and specificity, and extension access | [Extensions](../spec/language/extensions.md) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| Type parameters, inferred at each call | [Type parameters](../spec/language/types.md#types-type-parameters) | Implemented; a type parameter's default is an [open decision](#open-decisions) | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| `Any`, its members selected as it is evaluated | [Values of `Any`](../spec/language/types.md#types-any) | Implemented in part: a function given to a deferred call is [deferred](#deferred) | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| Reference types in hierarchies, and the casts among them | [Reference types](../spec/language/types.md#reference-types) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| Structured values an object expression constructs where they are declared | [Constructing a structure](../spec/language/types.md#types-constructing-a-structure) | Implemented | [`alpha.36`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-36) |
+| Lists, dictionaries, pairs and collection expressions, with their members | [Collections](../spec/language/collections.md) | Implemented, with a [gap](#open-decisions): `distinctBy`'s key, and the membership of values key equality doesn't compare | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
+| Positions, ranges, slicing and ordering | [Positions](../spec/language/collections.md#collections-positions), [ordering](../spec/language/collections.md#collections-list-ordering) | Implemented | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
+| The members of numbers and strings | [Number members](../spec/language/vocabulary.md#vocabulary-number-members), [string members](../spec/language/vocabulary.md#vocabulary-string-members) | Implemented | [`alpha.36`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-36) |
+| Boolean functions, the tests a module declares | [Boolean functions](../spec/language/vocabulary.md#vocabulary-boolean-functions) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Type selectors | [Type selectors](../spec/language/vocabulary.md#vocabulary-type-selectors) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| The conditions a script fails on, each with its code | [Errors](../spec/language/errors.md) | Implemented, with a [gap](#open-decisions): NEXO5012 shared by several conditions, and four codes never raised | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+
+### The runtime
+
+| Feature | Contract | State | Since |
+| --- | --- | --- | --- |
+| Bindings, recognition and declared types | [Bindings](../spec/runtime/bindings.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Resolution, its reports, result paths and locations | [Resolution](../spec/runtime/resolution.md) | Implemented, with a [gap](#open-decisions): a path validated by `nexo.paths.validate` alone | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Resolutions that stay current across registrations | [Reusing a resolution](../spec/runtime/resolution.md#runtime-reuse) | Implemented | [`alpha.36`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-36) |
+| Evaluation, its hooks, and results with their metadata | [Evaluation](../spec/runtime/evaluation.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| The lineage of projected items | [Provenance](../spec/runtime/evaluation.md#runtime-results-provenance) | Implemented, with a [gap](#open-decisions): a dictionary's metadata | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
+| Values in a host's forms | [A value in a host's form](../spec/runtime/evaluation.md#runtime-host-forms) | Implemented | [`alpha.35`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-35) |
+| Preparing host calls and projecting what their host supplies | [Host calls](../spec/runtime/host-calls.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Modules: their declarations, operators, internal declarations, duplicates and registries | [Modules](../spec/runtime/modules.md) | Implemented, with a [gap](#open-decisions): a type's copy keeps a key holding `undefined` | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| Declaring members, their parameter keys and the declaration helpers | [Members](../spec/runtime/members.md) | Implemented, with a [gap](#open-decisions): parameter defaults, options the helpers drop, and a value parameter's `context` left unchecked | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Extensions a module declares | [Extensions](../spec/runtime/extensions.md) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| Observation types and targets | [Observations](../spec/runtime/observations.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| Type selectors' keys as mappings | [Type selectors](../spec/runtime/type-selectors.md) | Implemented | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| The definition, its structural validation and canonical text | [Definition](../spec/runtime/definition.md) | Implemented | [`alpha.1`–`.32`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-1-to-32) |
+| The error object, its factories and locations | [Errors](../spec/runtime/errors.md) | Implemented, with a [gap](#open-decisions): `NexoError`'s undeclared methods | [`alpha.34`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-34) |
+| The host API named for Nexo | [Hosting Nexo](../spec/runtime/hosting.md) | Implemented | [`alpha.39`](../LANGUAGE-HISTORY.md#v1-0-0-alpha-39) |
+| A tolerant reading that collects diagnostics without throwing | [Tooling](#tooling) | Planned | — |
+| Formatting that keeps a text's source form | [Tooling](#tooling) | Planned | — |
+| Editor diagnostics and completion | [Tooling](#tooling) | Planned | — |
+| Published packages, and the beta | [Release](#release) | Planned | — |
+
+The bundle and type declarations are built, as [the build](../README.md#build) sets out.
+
 <a id="domqls-migration"></a>
 
 ## DOMQL's migration
@@ -158,37 +217,6 @@ Publish both, and test them as consumers install them: NuGet in a published appl
 
 Beta means no breaking redesign is planned and remaining limitations are documented. Breaking changes after beta require migration guidance.
 
-<a id="temporary-implementation-coverage"></a>
-
-## Temporary implementation coverage
-
-Conditions the implementation reported that only language `1.0.0-alpha.33` had, coded so every diagnostic it threw carried a code while units 1 to 3 removed them; none remains, each retired to the specification's ledger as its unit landed. They stay out of the specification's catalog; each code retires to the retired codes of its catalog, [the language's](../spec/language/errors.md#diagnostics-retired-codes) or [the runtime's](../spec/runtime/errors.md#runtime-retired-codes), when its condition's unit lands, and is never reused.
-
-## Implemented capabilities
-
-These capabilities work in the current implementation. The planned replacements and remaining limitations are described above. Each capability's contract stands in the specification's [language](../spec/README.md#the-language) or [runtime](../spec/README.md#the-runtime), or in both where it divides between them.
-
-| Area | Implemented | Contract |
-| --- | --- | --- |
-| Scripts | Parameters, bindings, names, bodies, and locals | [Scripts](../spec/language/scripts.md) |
-| Lexical structure | Tokens, `..` and `^` among them, names, strings, comments, and line structure | [Lexical structure](../spec/language/lexical-structure.md), [line structure](../spec/language/lexical-structure.md#line-structure) |
-| Values | Objects, the object root, null, results and their exported forms, conversions, and values of `Any` | [Values](../spec/language/values.md) |
-| Collections | Lists, dictionaries and pairs, collection expressions, positions, variance, and the members of lists, dictionaries and pairs, construction, grouping, ordering, slicing, `pick` and the positions of items among them | [Collections](../spec/language/collections.md) |
-| Expressions | Operators, conditionals, coalescing, attempts, and interpolated strings | [Expressions](../spec/language/expressions.md) |
-| Functions | Regular and arrow functions, function references, and implicit bodies | [Functions](../spec/language/functions.md) |
-| Member access | Member forms, bracket property access, an indexer's signatures, arguments, and one selector, at resolution and for a value of `Any` as it is evaluated | [Members](../spec/language/members.md) |
-| Extensions | Extensions declared on another module's types, selected by ownership and their targets' specificity, extensions on different targets, and extension access | [Extensions](../spec/language/extensions.md) |
-| Module registration | Unified declarations with implementations; whole-registration checks, revisions, and module-local collision checks | [Declarations](../spec/runtime/modules.md#modules-declarations), [registries](../spec/runtime/modules.md#modules-registries), [collisions](../spec/language/modules.md#namespaces-a-modules-own-collisions) |
-| Vocabulary | A number's rounding, bounds and `sequence`, a string's length, case, searching, replacement, splitting and slicing, Nexo's own conversions, and Boolean functions | [Nexo's vocabulary](../spec/language/vocabulary.md#vocabulary-nexos-own), [Boolean functions](../spec/language/vocabulary.md#vocabulary-boolean-functions) |
-| Observations | Observation types and module-declared observation targets | [Observations](../spec/runtime/observations.md#observations), [targets](../spec/runtime/observations.md#observations-targets) |
-| Type selection | Type selectors and mappings | [Type selectors](../spec/language/vocabulary.md#vocabulary-type-selectors), [declaring them](../spec/runtime/type-selectors.md) |
-| Namespaces | Imports, aliases and type imports, a script's and its host's, what they make available, module members, qualified access, and null propagation | [Namespaces](../spec/language/modules.md#namespaces), [qualified access](../spec/language/modules.md#namespaces-qualified-access) |
-| Text and definitions | Parse, validate, format, quote, and get a location, each with the imports a host supplies; canonical text for definition version 36, its imports, collection expressions and positions among it | [Definition](../spec/runtime/definition.md) |
-| Types | Reference types with their hierarchy, membership and recognition, structured types and the structures an object expression constructs where they are declared, extensions, declared type parameters, `Any`, `List<T>`, `Dictionary<K, V>` and `Pair<K, V>` with their variances, `Index` and `Range`, one type relation, and casts, a declared cast across hierarchies among them | [Types](../spec/language/types.md), [membership and recognition](../spec/runtime/modules.md#runtime-reference-types) |
-| Runtime | Bindings a registry makes, recognizing references or capturing data as a declared type, resolution with its used declarations, deferred accesses and candidate declarations, reuse by resolution key while a resolution is current, evaluation with host hooks, and frozen results with every projected item's source | [Bindings](../spec/runtime/bindings.md#runtime-bindings), [resolution](../spec/runtime/resolution.md), [evaluation](../spec/runtime/evaluation.md#runtime-evaluation), [results](../spec/runtime/evaluation.md#runtime-results), [host calls](../spec/runtime/host-calls.md) |
-| Diagnostics | Error codes, kinds, messages and locations; a hook's or an implementation's failure wrapped with what it threw as its cause | [The language's errors](../spec/language/errors.md), [the runtime's](../spec/runtime/errors.md) |
-| Build | Bundle and type declarations | [Build](../README.md#build) |
-
 <a id="open-decisions"></a>
 
 ## Open decisions
@@ -232,3 +260,9 @@ Deferred items below require their stated trigger before design or implementatio
 | Calling a module's internal declarations through Nexo | JavaScript implementations can reach their own values directly. | An internal-call API with a defined module context |
 | Wrapping canonical text by width | `format` follows the structural layout alone and never wraps; a width needs a layout policy of its own that keeps canonical text deterministic and every one-line construct whole past it | A host or a tool that needs text kept within a width |
 | Equality of structured values, objects and lists, as keys, members and distinct items | Key equality covers numbers, strings, Booleans, references and null; the equality of the rest needs its hashing, type identity and capture designed together | A host whose keys or distinct items are data of those kinds |
+
+<a id="temporary-implementation-coverage"></a>
+
+## Temporary implementation coverage
+
+Conditions the implementation reports that no catalog holds, each coded so every diagnostic it throws carries a code until the work that removes the condition lands. None remains: the last, conditions of language `1.0.0-alpha.33` alone, retired as their replacements landed. Such a code stays out of the specification's catalogs, retires to the retired codes of its catalog, [the language's](../spec/language/errors.md#diagnostics-retired-codes) or [the runtime's](../spec/runtime/errors.md#runtime-retired-codes), when the work that removes its condition lands, and is never reused.

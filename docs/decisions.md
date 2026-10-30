@@ -69,3 +69,43 @@ The decisions taken while carrying out work without stopping for a question, eac
 **Decision.** The alignment test requires the history's newest entry to be the language version the specification describes, with its definition format, and the working instructions require a commit that advances the version to add its entry.
 
 **Why.** The gate then refuses a version advance that leaves the history behind, as it already refuses one that leaves the README, the design or the status overview behind.
+
+<a id="d6"></a>
+
+## D6 — The runtime's feature status reshapes the status overview rather than adding a document
+
+*October 30, 2026.*
+
+**What it settles.** A feature status for the runtime, as Roslyn keeps one for its compiler, was to be added under `docs/`, beside the status overview that already tracks what the implementation implements.
+
+**Decision.** The status overview takes Roslyn's shape: a table of features, each with the contract that states it, its state and the language version the implementation follows it since, the language's and the runtime's apart. Roslyn's columns for branches, developers, reviewers and IDE buddies are left out, and the sections a table cannot hold, DOMQL's migration, tooling, the release, the open decisions and the deferred work, stay below it.
+
+**Why.** Nexo has one implementation, so the runtime's feature status and the implementation's status are one subject, and the working instructions give each subject one home; a second document would split it and drift from the first. The columns left out name the people of a team this project does not have.
+
+**Declined.** A separate `docs/` document beside the status overview.
+
+<a id="d7"></a>
+
+## D7 — A feature's version is the language version the implementation follows, not the implementation's own
+
+*October 30, 2026.*
+
+**What it settles.** Roslyn records the version a feature merged into, and Nexo carries two versions: the implementation's, its packages' release version, and the language's, the specification it follows.
+
+**Decision.** Each feature names the language version the implementation has followed it since, linking that version's entry in the language history.
+
+**Why.** The implementation's version has stood at `1.0.0-alpha.37` throughout, since no package has been published, so every feature would name it; the language version is the one that moved with each feature, and the one a host pins.
+
+**Declined.** The implementation's version, which says nothing until a release advances it.
+
+<a id="d8"></a>
+
+## D8 — A feature's state names the gap or the deferral it keeps
+
+*October 30, 2026.*
+
+**What it settles.** The status overview recorded the gaps between the specification and the code, and the deferred work, apart from the capabilities they affect, so a reader of a capability could not see them.
+
+**Decision.** A feature's state says *Implemented*, *Implemented, with a gap*, naming the gap and linking the open decisions, *Implemented in part*, linking what is deferred, or *Planned*.
+
+**Why.** A host choosing whether to rely on a feature needs its gaps beside it, and the open decisions and the deferred work stay where their reasoning is kept.
