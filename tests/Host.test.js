@@ -380,3 +380,28 @@ describe('the declaration shape', () => {
         expect(evaluate('word:now')).toBe(3);
     });
 });
+
+describe('a member\'s answer', () => {
+    const answering = result => createImportingRegistry([nexo.createModule('replies', {
+        types: [
+            { name: 'Price', kind: 'structured', members: dataPropertyDeclarations({ amount: 'Number', currency: 'String' }) },
+            extensionDeclaration('Replies', 'String', [createPropertyDeclaration('reply', result, { updates: { changes: 'constant', reads: 'fresh' }, impl: ({ env }) => env.answer })]),
+        ],
+    })]);
+    const replying = (result, answer) => {
+        const registry = answering(result);
+
+        return () => registry.resolve('"a":reply').createEvaluator({}, { answer }).evaluate().value;
+    };
+
+    it.each([
+        ['Number', null], ['Number', undefined], ['Number', NaN], ['String', null], ['Boolean', undefined], ['List<Number>', null], ['List<Number>', [1, null]], ['Price', null], ['Price', undefined],
+        ['Price', { amount: 1 }], ['Number?', undefined], ['Price?', undefined], ['List<Number?>', [undefined]], ['Dictionary<String, Number>', null], ['Pair<String, Number>', undefined],
+    ])('refuses %s answered as %s, as no value of the type', (result, answer) => {
+        expect(errorThrownBy(replying(result, answer))).toMatchObject({ code: 'NEXO5006' });
+    });
+
+    it.each([['Number?', null], ['Price?', null], ['List<Number?>', [1, null]], ['String?', 'x'], ['Price', { amount: 1, currency: 'EUR' }]])('takes %s answered as %j', (result, answer) => {
+        expect(replying(result, answer)()).toEqual(answer);
+    });
+});

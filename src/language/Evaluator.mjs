@@ -2054,7 +2054,24 @@ export class Evaluator {
     static #compileTypeCheck(type, registry, asked) {
         const admits = Evaluator.#compileNonNullTypeCheck(type, registry, asked);
 
-        return value => (value === undefined ? false : value === null ? type.isNullable : admits(value));
+        // A collection, an object, a structure, a scalar and a position refuse null and nothing in their own checks, so where the type is not nullable its check is theirs alone; any other's, a reference's
+        // membership among them, is never asked of either.
+        if (!type.isNullable && Evaluator.#refusesAbsence(type, registry)) {
+            return admits;
+        }
+
+        const { isNullable } = type;
+
+        return value => (value === undefined ? false : value === null ? isNullable : admits(value));
+    }
+
+    /** Whether the type's own check refuses null and nothing: a list's, a dictionary's, a pair's, an object's and a named type's that no module declares as a reference type, which no check of `Any` or a type parameter does. */
+    static #refusesAbsence(type, registry) {
+        if (type.isList || type.isDictionary || type.isPair) {
+            return true;
+        }
+
+        return type.kind === 'object' || (type.kind === 'named' && !registry.isReferenceType(type));
     }
 
     /** A compiled function holds the registry alone, never an evaluator, so it holds nothing an evaluation bound; a structure that holds itself is checked as deep as its value goes. */
@@ -2080,9 +2097,10 @@ export class Evaluator {
             case 'typeParameter':
                 return () => true;
             case 'object': {
-                const fields = [...type.fieldTypes].map(([name, fieldType]) => [name, Evaluator.#compileTypeCheck(fieldType, registry, asked)]);
+                const names = [...type.fieldTypes.keys()];
+                const checks = [...type.fieldTypes.values()].map(fieldType => Evaluator.#compileTypeCheck(fieldType, registry, asked));
 
-                return value => ObjectUtils.isNonArrayObject(value) && fields.every(([name, conforms]) => conforms(value[name]));
+                return value => ObjectUtils.isNonArrayObject(value) && Evaluator.#fieldsConform(value, names, checks);
             }
             default: {
                 const { name } = type;
@@ -2093,7 +2111,7 @@ export class Evaluator {
                 }
 
                 if (type.moduleName === null && NexoModule.scalarTypeNames.includes(name)) {
-                    return value => ValueCapture.belongsToScalar(value, name);
+                    return ValueCapture.getScalarCheck(name);
                 }
 
                 // A position is the language's own value of its kind.
@@ -2107,19 +2125,36 @@ export class Evaluator {
                     return () => false;
                 }
 
-                let fields = null;
+                let names = null;
+                let checks = null;
 
                 return value => {
                     if (!ObjectUtils.isNonArrayObject(value)) {
                         return false;
                     }
 
-                    fields ??= [...registry.getDataShape(type)].map(([field, fieldType]) => [field, Evaluator.#compileTypeCheck(fieldType, registry, asked)]);
+                    if (names === null) {
+                        const shape = registry.getDataShape(type);
 
-                    return fields.every(([field, conforms]) => conforms(value[field]));
+                        names = [...shape.keys()];
+                        checks = [...shape.values()].map(fieldType => Evaluator.#compileTypeCheck(fieldType, registry, asked));
+                    }
+
+                    return Evaluator.#fieldsConform(value, names, checks);
                 };
             }
         }
+    }
+
+    /** Whether each field the names name holds a value its check, at the same place, admits, in order, the first that doesn't ending the checks. */
+    static #fieldsConform(value, names, checks) {
+        for (let index = 0; index < names.length; index++) {
+            if (!checks[index](value[names[index]])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -2297,9 +2332,8 @@ export class Evaluator {
             this.#fail('NEXO4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${NexoModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
         }
 
-        // A module member is read and called through its namespace, and has no receiver.
-        const received = takesReceiver ? { receiver } : {};
-        // A request names its call by where it stands in the definition, so a call within a script function's body names the part of the body it is, whichever call of the function reached it.
+        // A request names its call by where it stands in the definition, so a call within a script function's body names the part of the body it is, whichever call of the function reached it. A module member is read and
+        // called through its namespace, and has no receiver.
         const pointer = this.#hooks === null ? null : this.#resolvedDefinition.resolveDefinitionPointer(this.#pointerOf(node));
         const request = this.#hooks === null ? null : takesReceiver ? { declaration, receiver, args, pointer, isDeferred } : { declaration, args, pointer, isDeferred };
         const samples = this.#beforeInvoke(request, declaration, node);
@@ -2311,7 +2345,14 @@ export class Evaluator {
         let value;
 
         try {
-            value = implementation({ ...received, args, env: this.#environment, ...(declaration.updates?.reads === 'maintained' ? { samples } : {}) });
+            // The input names the receiver, the arguments, the environment and a maintained member's samples, in that order.
+            const input = takesReceiver ? { receiver, args, env: this.#environment } : { args, env: this.#environment };
+
+            if (declaration.updates?.reads === 'maintained') {
+                input.samples = samples;
+            }
+
+            value = implementation(input);
         } catch (error) {
             // A failure Nexo raised, within a function the member was given or a nested evaluation among them, keeps its own code and place; anything else the implementation threw, a NexoError it built among them,
             // is the cause of Nexo's own, exactly as thrown.

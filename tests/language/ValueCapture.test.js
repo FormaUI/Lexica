@@ -71,6 +71,18 @@ describe('ValueCapture', () => {
         expect(capturedAs(new Map([['hall', [{ size: 1 }]]]), rooms).value).toBeInstanceOf(Dictionary);
     });
 
+    it('gives each scalar type\'s check, which refuses null and nothing, and none for another type', () => {
+        const checks = ['Number', 'String', 'Boolean'].map(name => ValueCapture.getScalarCheck(name));
+
+        expect(checks.map(check => [check(1), check('a'), check(true), check(null), check(undefined), check(NaN)])).toEqual([
+            [true, false, false, false, false, false],
+            [false, true, false, false, false, false],
+            [false, false, true, false, false, false],
+        ]);
+        expect(ValueCapture.getScalarCheck('List')).toBeUndefined();
+        expect(ValueCapture.getScalarCheck('toString')).toBeUndefined();
+    });
+
     it('tells a scalar type\'s values: a finite number, a string and a Boolean', () => {
         expect([ValueCapture.belongsToScalar(1, 'Number'), ValueCapture.belongsToScalar(Infinity, 'Number'), ValueCapture.belongsToScalar('a', 'String'), ValueCapture.belongsToScalar(false, 'Boolean'), ValueCapture.belongsToScalar(1, 'List')]).toEqual([true, false, true, true, false]);
     });

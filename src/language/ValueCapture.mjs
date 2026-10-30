@@ -235,17 +235,20 @@ export class ValueCapture {
         return path === '' ? name : `${path}.${name}`;
     }
 
+    /** Each scalar type's check of a value, by its name: a finite number, a string and a Boolean. */
+    static #scalarChecks = new Map([
+        ['Number', value => Number.isFinite(value)],
+        ['String', value => typeof value === 'string'],
+        ['Boolean', value => typeof value === 'boolean'],
+    ]);
+
+    /** The check of the scalar type the name names, one of `NexoModule.scalarTypeNames`, which a check compiled once for the type calls with no name to tell; undefined for any other name. */
+    static getScalarCheck(typeName) {
+        return ValueCapture.#scalarChecks.get(typeName);
+    }
+
     /** Whether the value belongs to the scalar type the name names, one of `NexoModule.scalarTypeNames`: a finite number, a string or a Boolean. */
     static belongsToScalar(value, typeName) {
-        switch (typeName) {
-            case 'Number':
-                return Number.isFinite(value);
-            case 'String':
-                return typeof value === 'string';
-            case 'Boolean':
-                return typeof value === 'boolean';
-            default:
-                return false;
-        }
+        return ValueCapture.#scalarChecks.get(typeName)?.(value) ?? false;
     }
 }
