@@ -84,6 +84,10 @@ describe('Evaluator', () => {
         expect(ParsedTexts.locationsOf(ParsedTexts.parse(text)).locate(requests[0].pointer)).toMatchObject({ line: 2, column: 12 });
     });
 
+    it('binds a script function\'s parameters to the values it is called with, in order, at each call', () => {
+        expect(createEvaluator('let f = (a, b, c) => [c, b, a]\nreturn { x = f(1, 2, 3), y = f(4, 5, 6), z = f(f(7, 8, 9)[0], 0, 1) }', {}).evaluate().value).toEqual({ x: [3, 2, 1], y: [6, 5, 4], z: [1, 0, 9] });
+    });
+
     it('names an invocation by the same pointer at every evaluation, its request naming its parts in order', () => {
         const evaluator = createEvaluator('let f = function(n)\n    return n:price\nend\nreturn { a = f(name), b = f(other) }', { name: 'tea', other: 'milk' });
         const requests = [];

@@ -1642,7 +1642,13 @@ export class Evaluator {
             const enclosingLocalsFrame = this.#localsFrame;
             const enclosingObjectRoot = this.#objectRoot;
 
-            this.#localsFrame = { names: parameters, context: callee.context, values: new Map(parameters.map((parameter, index) => [parameter, { value: argumentValues[index], selections: null }])), enclosing: callee.capturedFrame };
+            const values = new Map();
+
+            for (let index = 0; index < parameters.length; index++) {
+                values.set(parameters[index], { value: argumentValues[index], selections: null });
+            }
+
+            this.#localsFrame = { names: parameters, context: callee.context, values, enclosing: callee.capturedFrame };
             this.#objectRoot = callee.objectRoot;
 
             try {
