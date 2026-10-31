@@ -1966,7 +1966,7 @@ export class Evaluator {
                 names.add(part.name);
             }
 
-            for (const key in part) {
+            for (const key of Object.keys(part)) {
                 Evaluator.#gatherLocalsRead(part[key], names);
             }
         }

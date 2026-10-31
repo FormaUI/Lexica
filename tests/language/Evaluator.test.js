@@ -237,6 +237,16 @@ return f(1)`;
         expect(valueOf('let a = 1\nreturn { let b = a + 1, c = do\n    let a = 5\n    return a + b\nend }')).toEqual({ c: 7 });
     });
 
+    it("reads a definition's own keys alone where it looks for the fields an entry reads, whatever a prototype adds", () => {
+        Object.defineProperty(Object.prototype, 'added', { value: { kind: 'local', name: 'a' }, enumerable: true, configurable: true, writable: true });
+
+        try {
+            expect(createEvaluator('{ a = 1, b = a + 1 }', {}).evaluate().value).toEqual({ a: 1, b: 2 });
+        } finally {
+            delete Object.prototype.added;
+        }
+    });
+
     it('keeps a field for each entry after it that reads it anywhere within, evaluated once', () => {
         const invoked = [];
         const text = '{ p = name:price, items = [p, 1], label = $"{p} each", nested = { inner = p }, other = 0, held = do\n    let q = p\n    return q * 2\nend }';

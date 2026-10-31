@@ -25,6 +25,19 @@ describe('DefinitionValidator', () => {
             expect(objectsOf(copy).filter(part => originals.has(part) || Object.isFrozen(part))).toEqual([]);
         });
 
+        it("copies a node's own keys alone, whatever its prototype adds", () => {
+            // An object-valued property every object inherits, as a library may add, which a copy following it would follow without end.
+            Object.defineProperty(Object.prototype, 'added', { value: { kind: 'local', name: 'a' }, enumerable: true, configurable: true, writable: true });
+
+            try {
+                const copy = DefinitionValidator.copyOf(expression);
+
+                expect([Object.hasOwn(copy, 'added'), Object.keys(copy)]).toEqual([false, Object.keys(expression)]);
+            } finally {
+                delete Object.prototype.added;
+            }
+        });
+
         it('marks each script parameter as the node marks it, written alone or hidden, and nothing else', () => {
             const marksOf = node => objectsOf(node).filter(part => part.kind === 'scriptParameter').map(part => ({ name: part.name, isWrittenAlone: DefinitionValidator.isWrittenAlone(part), isHidden: DefinitionValidator.isHidden(part) }));
 

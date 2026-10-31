@@ -151,8 +151,8 @@ export class DefinitionValidator {
     }
 
     /**
-     * A deep copy of a canonical definition's node, each parameter node a text wrote alone, and each one hidden where it stands, marked as one in the copy too. A node's keys are the definition format's own, so each is
-     * assigned as it is; only a parameter node is ever marked, so no other is looked up.
+     * A deep copy of a canonical definition's node, its own keys alone, each parameter node a text wrote alone, and each one hidden where it stands, marked as one in the copy too. A node's keys are the definition
+     * format's own, so each is assigned as it is; only a parameter node is ever marked, so no other is looked up.
      */
     static copyOf(node) {
         if (Array.isArray(node)) {
@@ -171,7 +171,7 @@ export class DefinitionValidator {
 
         const copy = {};
 
-        for (const key in node) {
+        for (const key of Object.keys(node)) {
             copy[key] = DefinitionValidator.copyOf(node[key]);
         }
 
