@@ -150,24 +150,39 @@ export class DefinitionValidator {
         return DefinitionValidator.#hiddenScriptParameters.has(node);
     }
 
-    /** A deep copy of a canonical definition's node, each parameter node a text wrote alone, and each one hidden where it stands, marked as one in the copy too. */
+    /**
+     * A deep copy of a canonical definition's node, each parameter node a text wrote alone, and each one hidden where it stands, marked as one in the copy too. A node's keys are the definition format's own, so each is
+     * assigned as it is; only a parameter node is ever marked, so no other is looked up.
+     */
     static copyOf(node) {
         if (Array.isArray(node)) {
-            return node.map(item => DefinitionValidator.copyOf(item));
+            const copy = new Array(node.length);
+
+            for (let index = 0; index < node.length; index++) {
+                copy[index] = DefinitionValidator.copyOf(node[index]);
+            }
+
+            return copy;
         }
 
         if (node === null || typeof node !== 'object') {
             return node;
         }
 
-        const copy = Object.fromEntries(Object.entries(node).map(([key, value]) => [key, DefinitionValidator.copyOf(value)]));
+        const copy = {};
 
-        if (DefinitionValidator.#scriptParametersWrittenAlone.has(node)) {
-            DefinitionValidator.#scriptParametersWrittenAlone.add(copy);
+        for (const key in node) {
+            copy[key] = DefinitionValidator.copyOf(node[key]);
         }
 
-        if (DefinitionValidator.#hiddenScriptParameters.has(node)) {
-            DefinitionValidator.#hiddenScriptParameters.add(copy);
+        if (node.kind === 'scriptParameter') {
+            if (DefinitionValidator.#scriptParametersWrittenAlone.has(node)) {
+                DefinitionValidator.#scriptParametersWrittenAlone.add(copy);
+            }
+
+            if (DefinitionValidator.#hiddenScriptParameters.has(node)) {
+                DefinitionValidator.#hiddenScriptParameters.add(copy);
+            }
         }
 
         return copy;
