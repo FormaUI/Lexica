@@ -67,6 +67,9 @@ export class Vocabulary {
     /** @type {ReadonlySet<object> | undefined} */
     static #projectingMembers;
 
+    /** @type {ReadonlySet<object> | undefined} */
+    static #itemGivingMembers;
+
     /**
      * Whether the member is one of Nexo's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered, taken once each or repeated, so its answer carries each answered item's
      * lineage, which the position it stood at, kept by `ItemPositions` with the answer, says: `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, the members that order,
@@ -85,6 +88,16 @@ export class Vocabulary {
         Vocabulary.#projectingMembers ??= Vocabulary.#listMembersNamed(['select']);
 
         return Vocabulary.#projectingMembers.has(declaration);
+    }
+
+    /**
+     * Whether the member is one of Nexo's own that calls each function it is given with one argument alone, an item of its receiver as it stands there: every member of a list that takes an expression or a predicate,
+     * and a dictionary's `where` and `select`, which give each of its values.
+     */
+    static givesReceiverItems(declaration) {
+        Vocabulary.#itemGivingMembers ??= new Set(['List', 'Dictionary'].flatMap(name => Vocabulary.getTypeDeclaration(name).members).filter(member => member.parameters?.some(parameter => parameter.kind === 'expression' || parameter.kind === 'predicate')));
+
+        return Vocabulary.#itemGivingMembers.has(declaration);
     }
 
     /** The members of Nexo's own lists of the names, by identity. */

@@ -418,4 +418,18 @@ describe('a member\'s answer', () => {
         expect(evaluator.evaluate().value).toBe(2);
         expect(asked).toBe(2);
     });
+
+    it('asks again whether each reference a list member of Nexo\'s own gives its function is of its type, as well as each it answers', () => {
+        let asked = 0;
+        const registry = createImportingRegistry([nexo.createModule('lamps', {
+            types: [{ name: 'Lamp', kind: 'reference', isInstance: value => ++asked > 0 && value?.isLamp === true }],
+        })]);
+        const bindings = registry.createBindings({ fixtures: [{ isLamp: true }, { isLamp: true }] }, { types: { fixtures: 'List<lamps.Lamp>' } });
+        const evaluator = registry.resolve('fixtures.where(it != null).count', bindings).createEvaluator(bindings, {});
+
+        asked = 0;
+
+        expect(evaluator.evaluate().value).toBe(2);
+        expect(asked).toBe(4);
+    });
 });

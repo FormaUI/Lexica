@@ -160,10 +160,23 @@ The answer is still captured, copied, recorded and reported as before, and every
 | Account summary: evaluate | −6% (−13% to −1%), all nine rounds faster | unchanged |
 | Portfolio report: evaluate | −2% to −7% across four runs, some rounds slower in three of them, so not established | unchanged |
 
+A function given to one of Nexo's own members relies on the same check. Every member of a list that takes an expression or a predicate, and a dictionary's `where` and `select`, calls each function it is given with one argument alone, an item of its receiver. A test holds each of them to that. The function skips its argument's check where:
+
+- **Resolution selected the member,** so the receiver's type is established.
+- **The function takes one argument, of the receiver's item type.**
+- **That type may hold no reference.**
+
+The function's result is checked as before. Measured in seven paired rounds against the commit before it:
+
+| Case | Time | Allocation |
+| --- | --- | --- |
+| Account summary: evaluate | −8% (−10% to −4%), all rounds faster | unchanged |
+| Portfolio report: evaluate | −17% (−24% to −14%), all rounds faster | −5% |
+
 Where the remaining time goes, as profiling found it. The contract requires the guarantees this work gives, not this way of giving them, so a cheaper way that keeps each guarantee may exist:
 
 - **Every answer is checked** against its declared type, a list item by item and a structure field by field, but where [a check of data is relied on](#relying-on-a-check-of-data).
-- **Every value a member gives a callback is checked** against the callback's contract, a structure field by field. A list member of Nexo's own gives its callback its receiver's items, which the same reasoning could cover, but only once each member is shown to give nothing else.
+- **Every value a host's member gives a callback is checked** against the callback's contract, a structure field by field, and so is a reference one of Nexo's own members gives.
 - **Every structured value Nexo makes is recorded** by the value in a weak map, so a value of `Any` keeps its type. Recording is about a third of binding, and a table for each registry measured no saving beyond noise.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
 - **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.

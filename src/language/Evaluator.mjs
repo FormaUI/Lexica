@@ -1075,6 +1075,21 @@ export class Evaluator {
     }
 
     /**
+     * Whether the argument a function is called with needs no check of its own: the member is one of Nexo's own that calls the functions it is given with its receiver's items alone, the function takes one argument,
+     * the receiver's type resolution established holds items of that argument's type, and that type may hold no reference. Each item was checked as that type where the receiver was made, as an answer relying on
+     * its items' checks has it.
+     */
+    #givesCheckedItems({ declaration, receiverType }, parameterTypes) {
+        if (receiverType === undefined || parameterTypes.length !== 1 || !Vocabulary.givesReceiverItems(declaration)) {
+            return false;
+        }
+
+        const itemType = receiverType.toNonNullable().itemContextType;
+
+        return itemType !== null && itemType.equals(parameterTypes[0]) && !this.#registry.mayHoldReference(itemType);
+    }
+
+    /**
      * A function an extension access reads without a call: its receiver evaluated once, as the reference is created, and a reference to the function bound to it, which a call gives the receiver it captured before its own
      * arguments. A null receiver, which only an optional access admits, answers null, and a value of Any is checked against the extension's target first.
      */
@@ -1534,7 +1549,9 @@ export class Evaluator {
             // The member calls the function it is given with the arguments the callback contract declares, each checked as the contract's types say, the checks compiled once for every call.
             const { functions, parameterTypes, resultType, isBody } = argument.callback;
             const asked = `the function given as '${parameter.name}' of '${NexoModule.writtenNameOf(resolution.declaration)}'`;
-            const isOfParameterType = parameterTypes.map(parameterType => Evaluator.#compileTypeCheck(parameterType, this.#registry, asked));
+            // An argument the member gives from its receiver's items is checked as the receiver's items were, null standing for no check of its own.
+            const givesCheckedItems = this.#givesCheckedItems(resolution, parameterTypes);
+            const isOfParameterType = parameterTypes.map(parameterType => (givesCheckedItems ? null : Evaluator.#compileTypeCheck(parameterType, this.#registry, asked)));
             const isOfResultType = resultType === null ? null : Evaluator.#compileTypeCheck(resultType, this.#registry, asked);
 
             return {
@@ -1720,7 +1737,7 @@ export class Evaluator {
                 }
 
                 for (let index = 0; index < argumentValues.length; index++) {
-                    if (!isOfParameterType[index](argumentValues[index])) {
+                    if (isOfParameterType[index] !== null && !isOfParameterType[index](argumentValues[index])) {
                         this.#fail('NEXO5503', `The function given as '${name}' of '${memberName}' is called with ${Evaluator.#describe(argumentValues[index])}, and its contract declares ${parameterTypes[index]}`, pointer);
                     }
                 }

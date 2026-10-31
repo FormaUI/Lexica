@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { Dictionary } from '#nexo/language/Dictionary.mjs';
 import { Range } from '#nexo/language/Range.mjs';
 import { Type } from '#nexo/language/Type.mjs';
 import { ItemPositions } from '#nexo/language/vocabulary/ItemPositions.mjs';
@@ -109,6 +110,30 @@ describe('Vocabulary', () => {
         const slice = list.members.find(member => member.kind === 'indexer' && member.parameters[0].type === 'Range');
 
         expect(ItemPositions.getPositions(slice.impl({ receiver, args: { range: new Range(1, null) }, env: {} }))).toEqual([1, 2]);
+    });
+
+    it('calls each function a list or a dictionary member of its own is given with one argument alone, an item of its receiver as it stands there', () => {
+        const dictionary = Vocabulary.getTypeDeclaration('Dictionary');
+        const giving = [...list.members, ...dictionary.members].filter(member => Vocabulary.givesReceiverItems(member));
+        const items = [{ at: 0 }, { at: 1 }, { at: 2 }];
+        // A refinement refines an ordered list, which ordering by one key for every item gives, its items in their places.
+        const ordered = read('orderBy', items, { expression: () => 0 });
+        const receiverOf = member => (dictionary.members.includes(member) ? new Dictionary(items.map((item, index) => [index, item])) : member.name.startsWith('then') ? ordered : items);
+        const argumentsGiven = member => {
+            const calls = [];
+
+            member.impl({ receiver: receiverOf(member), args: { expression: (...values) => calls.push(values) }, env: {} });
+
+            return calls;
+        };
+
+        expect(giving.map(writtenOf)).toEqual([
+            'List<T>.max', 'List<T>.min', 'List<T>.sum', 'List<T>.where', 'List<T>.select', 'List<T>.selectMany', 'List<T>.takeWhile', 'List<T>.dropWhile', 'List<T>.any', 'List<T>.all', 'List<T>.indexWhere',
+            'List<T>.average', 'List<T>.minBy', 'List<T>.maxBy', 'List<T>.orderBy', 'List<T>.orderByDescending', 'List<T>.thenBy', 'List<T>.thenByDescending', 'List<T>.distinctBy', 'List<T>.toDictionary', 'List<T>.groupBy',
+            'Dictionary<K, V>.where', 'Dictionary<K, V>.select',
+        ]);
+        expect(giving.map(member => argumentsGiven(member)).filter(calls => calls.length === 0 || calls.some(values => values.length !== 1 || !items.includes(values[0])))).toEqual([]);
+        expect([...list.members, ...dictionary.members].filter(member => member.parameters?.some(parameter => parameter.kind === 'function'))).toEqual([]);
     });
 
     it('declares the members of a number and of a string, a string\'s slice its unnamed indexer, and none of a Boolean', () => {
