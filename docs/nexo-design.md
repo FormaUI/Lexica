@@ -173,6 +173,16 @@ The function's result is checked as before. Measured in seven paired rounds agai
 | Account summary: evaluate | −8% (−10% to −4%), all rounds faster | unchanged |
 | Portfolio report: evaluate | −17% (−24% to −14%), all rounds faster | −5% |
 
+### The second performance pass
+
+Each change below was measured alone, in seven paired rounds against the commit before it, and kept where its rounds agree. A change is given as the median of the rounds and, in brackets, their range.
+
+| Change | Account summary: evaluate | Portfolio report: evaluate |
+| --- | --- | --- |
+| A function given to one of Nexo's own members relies on the check its argument had | −8% (−10% to −4%) | −17% (−24% to −14%) |
+| An answer of Nexo's own is relied on, as [relying on a check of data](#relying-on-a-check-of-data) sets out | no change | −15% (−25% to −10%) |
+| Each evaluation, and each prepared call, records its objects' field selections in a store of its own, released with it, rather than in one the evaluator keeps for good | −10% (−18% to −10%) | −5% (−9% to +7%), not established |
+
 A profile's share is not what removing the work saves: copies a profile put at a sixth of the portfolio report saved nothing measurable once removed, as [decisions](decisions.md#d25) records.
 
 Where the remaining time goes, as profiling found it. The contract requires the guarantees this work gives, not this way of giving them, so a cheaper way that keeps each guarantee may exist:

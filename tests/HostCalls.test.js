@@ -191,6 +191,13 @@ describe('prepared calls', () => {
         expect(evaluated.metadata.objectFields.via.tolerance).toBe(0.1);
         expect(prepared.project(40).metadata.objectFields.via.tolerance).toBe(0.1);
         expect(prepared.project(30).metadata.objectFields.via.tolerance).toBe(0.1);
+
+        // Each call an evaluator prepared keeps its own locals' selections, whatever it prepared after it.
+        const evaluator = resolve(`${local}light:dim({ to = 40 }) { via = o.v }`, bindings, [module]).createEvaluator(bindings);
+        const first = evaluator.prepareHostCall();
+        const second = evaluator.prepareHostCall();
+
+        expect([first.project(30), second.project(30), first.project(20)].map(projected => projected.metadata.objectFields.via.tolerance)).toEqual([0.1, 0.1, 0.1]);
     });
 
     it('project each value their host supplies, checked against the type the call declares, answering as an evaluation does', () => {

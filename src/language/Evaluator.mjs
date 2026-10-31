@@ -175,7 +175,9 @@ export class Evaluator {
 
     /**
      * The selections each field of an object made, as `#selections` holds them, by the object and then the field's name: every completed field of an outermost object, which a read through a reference to it reuses as it is built, and
-     * each field that made any of another object an object expression built. Each object is built anew by the evaluation that reads it, so the store is kept as long as the evaluator, a local built before a host call read by its projection.
+     * each field that made any of another object an object expression built. Each object is built anew by the evaluation that reads it, so a store is made for each evaluation, and for each prepared host call, whose projections
+     * share it, since they read the objects its locals built. A store is released with the evaluation, or with its prepared call; one an evaluator kept for good would grow with every evaluation's objects until a collection,
+     * and recording in it measured a tenth of the account summary's evaluation.
      * @type {WeakMap<object, Map<string, Map<object, object | string> | null>>}
      */
     #objectFieldSelections = new WeakMap();
@@ -248,6 +250,8 @@ export class Evaluator {
      * @param {EvaluationHooks | null} [hooks] The hooks its host gives the evaluation.
      */
     evaluate(hooks = null) {
+        this.#objectFieldSelections = new WeakMap();
+
         return this.#evaluateForHost(hooks, () => this.#evaluateScript());
     }
 
@@ -269,6 +273,10 @@ export class Evaluator {
 
         const { node, pointer, declaration } = hostCall;
         const resolution = this.#resolvedDefinition.resolutionOf(node);
+        const objectFieldSelections = new WeakMap();
+
+        this.#objectFieldSelections = objectFieldSelections;
+
         const { terminalNode, localsFrame } = this.#evaluateLocalsBefore();
         // A qualified form's receiver is its first argument, and a module member has none, so nothing it lacks skips it.
         const takesReceiver = declaration === null || this.#registry.takesReceiver(declaration);
@@ -296,7 +304,11 @@ export class Evaluator {
 
         // A call whose host supplies nothing has nothing to project.
         if (declaration.result !== undefined) {
-            call.project = (value, hooks = null) => this.#evaluateForHost(hooks, () => this.#project(localsFrame, terminalNode, value));
+            call.project = (value, hooks = null) => {
+                this.#objectFieldSelections = objectFieldSelections;
+
+                return this.#evaluateForHost(hooks, () => this.#project(localsFrame, terminalNode, value));
+            };
         }
 
         return Object.freeze(call);
