@@ -179,11 +179,11 @@ Measured on October 31, 2026, in five paired rounds against the commit before th
 
 | Case | Before | After | Time | Allocation |
 | --- | --- | --- | --- | --- |
-| Account summary: evaluate | 30.5 µs | 18.7 µs | −39% (−43% to −38%) | −28% |
-| Account summary: evaluate, reporting reads | 32.4 µs | 21.3 µs | −34% (−37% to −32%) | −25% |
-| Account summary: bind and evaluate | 54.4 µs | 36.3 µs | −34% (−34% to −33%) | −37% |
-| Portfolio report: evaluate | 25.9 ms | 12.5 ms | −52% (−52% to −50%) | −18% |
-| Portfolio report: bind | 17.3 ms | 6.6 ms | −61% (−62% to −61%) | −78% |
+| Account summary: evaluate | 31.0 µs | 16.4 µs | −47% (−48% to −46%) | −30% |
+| Account summary: evaluate, reporting reads | 31.4 µs | 17.9 µs | −43% (−43% to −43%) | −28% |
+| Account summary: bind and evaluate | 53.7 µs | 34.5 µs | −36% (−36% to −36%) | −38% |
+| Portfolio report: evaluate | 26.1 ms | 11.4 ms | −57% (−58% to −55%) | −23% |
+| Portfolio report: bind | 16.8 ms | 7.0 ms | −59% (−60% to −58%) | −78% |
 | Preparing: parse, resolve and create an evaluator | | | no change | |
 
 Each change below was measured alone, in seven paired rounds against the commit before it, and kept where its rounds agree. A change is given as the median of the rounds and, in brackets, their range.
