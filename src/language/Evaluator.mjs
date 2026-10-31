@@ -2597,7 +2597,8 @@ export class Evaluator {
                 this.#fail('NEXO5028', 'The result holds a value of Any that is no data, as a reference or a function is; read the facts it needs through an object expression', this.#pointerOf(node));
             }
 
-            const { value, copiedIdentities } = this.#copyResult(result);
+            const value = this.#copyResult(result);
+            const copiedIdentities = this.#copiedIdentities;
 
             // The metadata is described where it is first read, from identities no later evaluation changes, so a caller that reads the value alone pays nothing for it.
             return { node, value, identities: Evaluator.#withSelections(copiedIdentities, this.#selections) };
@@ -2633,18 +2634,39 @@ export class Evaluator {
     }
 
     /**
-     * Copies the data, from one traversal, into `value`, a frozen copy sharing no structure with the original, and `copiedIdentities`, the identities that follow its structure: for a list projected from elements, the element each item
-     * came from, for an object field, the selections made for its value, as `selections`, and null where nothing beneath holds either. Each call answers its own, so a caller reads the identities of the part it copied.
-     * @returns {{ value: unknown, copiedIdentities: object | null }}
+     * The identities the last `#copyResult` left beside its copy, which its caller reads as it returns, before copying anything else: for a list projected from elements, the element each item came from, for an object
+     * field, the selections made for its value, as `selections`, and null where nothing beneath holds either. Handing them over this way spares a pair for each part copied, a scalar among them.
+     * @type {object | null}
+     */
+    #copiedIdentities = null;
+
+    /**
+     * Copies the data, from one traversal, into a frozen copy sharing no structure with the original, which it answers, and the identities that follow its structure, which it leaves in `#copiedIdentities`. Each
+     * call leaves its own, so a caller reads the identities of the part it copied.
      */
     #copyResult(value) {
+        this.#copiedIdentities = null;
+
+        if (value === null || typeof value !== 'object') {
+            return value;
+        }
+
         // A result exports a dictionary as its entries, in their order, and a pair as its key and its value, each a frozen object of data, so it never turns back into a dictionary or a pair when it is bound again.
         if (value instanceof Dictionary) {
-            return { value: Object.freeze({ entries: Object.freeze(value.entries.map(entry => this.#copyResult(entry).value)) }), copiedIdentities: null };
+            const entries = Object.freeze(value.entries.map(entry => this.#copyResult(entry)));
+
+            this.#copiedIdentities = null;
+
+            return Object.freeze({ entries });
         }
 
         if (value instanceof Pair) {
-            return { value: Object.freeze({ key: this.#copyResult(value.key).value, value: this.#copyResult(value.value).value }), copiedIdentities: null };
+            const key = this.#copyResult(value.key);
+            const copied = Object.freeze({ key, value: this.#copyResult(value.value) });
+
+            this.#copiedIdentities = null;
+
+            return copied;
         }
 
         if (Array.isArray(value)) {
@@ -2653,17 +2675,20 @@ export class Evaluator {
             let hasIdentities = false;
 
             for (const item of value) {
-                const copied = this.#copyResult(item);
+                copy.push(this.#copyResult(item));
 
-                copy.push(copied.value);
-                itemIdentities.push(copied.copiedIdentities);
-                hasIdentities ||= copied.copiedIdentities !== null;
+                const identities = this.#copiedIdentities;
+
+                itemIdentities.push(identities);
+                hasIdentities ||= identities !== null;
             }
 
             const sources = this.#sourcesByList.get(value) ?? null;
             const provenance = this.#provenanceByList.get(value) ?? null;
 
-            return { value: Object.freeze(copy), copiedIdentities: sources === null && provenance === null && !hasIdentities ? null : { sources, provenance, items: itemIdentities } };
+            this.#copiedIdentities = sources === null && provenance === null && !hasIdentities ? null : { sources, provenance, items: itemIdentities };
+
+            return Object.freeze(copy);
         }
 
         if (ObjectUtils.isNonArrayObject(value)) {
@@ -2672,8 +2697,8 @@ export class Evaluator {
             let fieldIdentities = null;
 
             for (const name of Object.keys(value)) {
-                const copied = this.#copyResult(value[name]);
-                const field = copied.value;
+                const field = this.#copyResult(value[name]);
+                const copied = this.#copiedIdentities;
 
                 // A read copies every field of every row, so an ordinary field is assigned here, where the assignment sees only the copies' shapes; sharing the one in `defineDataProperty` with live state's writes made reads measurably slower.
                 if (name === '__proto__') {
@@ -2682,7 +2707,8 @@ export class Evaluator {
                     copy[name] = field;
                 }
 
-                const identities = Evaluator.#withSelections(copied.copiedIdentities, fieldSelections?.get(name) ?? null);
+                const selections = fieldSelections === undefined ? null : (fieldSelections.get(name) ?? null);
+                const identities = selections === null ? copied : Evaluator.#withSelections(copied, selections);
 
                 if (identities !== null) {
                     fieldIdentities ??= {};
@@ -2690,10 +2716,12 @@ export class Evaluator {
                 }
             }
 
-            return { value: Object.freeze(copy), copiedIdentities: fieldIdentities === null ? null : { fields: fieldIdentities } };
+            this.#copiedIdentities = fieldIdentities === null ? null : { fields: fieldIdentities };
+
+            return Object.freeze(copy);
         }
 
-        return { value, copiedIdentities: null };
+        return value;
     }
 
     /**
