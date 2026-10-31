@@ -346,7 +346,7 @@ Forty decisions were taken while implementing the declarations, member selection
 - **Why:** the user asked for safe improvements. A faster Nexo that answers differently is a different Nexo.
 - **Declined:**
   - Skipping the checks of Nexo's own members' answers. One run measured it at about a tenth of an evaluation, no more than runs vary, so the gain is not established. It relied on no implementation changing a value it is given, which the contract didn't state. It was adopted after D26, below.
-  - Collecting a text's locations at its first error, about a tenth of a parse. A kept script would hold its lowered definition beside its validated one.
+  - Collecting a text's locations at its first error, about a tenth of a parse. A kept script would hold its lowered definition beside its validated one. The third pass collects them from the text read again, which holds nothing more.
   - A structure-type table for each registry, and one empty list shared by every type without type arguments. Neither measured beyond noise.
   - Freezing a filter's positions in place. `pick` gives the script's own list as its positions.
   - Keeping an answer's list as its own copy where its structures each stand as they are and it carries no lineage, and a flat structure already recorded as its type standing without its keys checked again. A profile put copying at about a sixth of the portfolio report. Paired runs measured no gain in time, −0.3% with rounds from −10% to +10%, and 9% more allocation.

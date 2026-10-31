@@ -2,30 +2,52 @@
  * TextLocations — where in a source text each part of its definition came from, by JSON Pointer
  */
 
+import { Lowering } from './Lowering.mjs';
 import { NexoError } from './NexoError.mjs';
+import { Parser } from './Parser.mjs';
 
 /** @typedef {import('./Parser.mjs').Span} Span */
 
 export class TextLocations {
     #text;
-    /** @type {Map<string, Span>} */
-    #spans = new Map();
+
+    /** The imports a host supplied to the text, which decide how it reads. @type {readonly object[]} */
+    #suppliedImports;
 
     /**
-     * @param {string} text The source text.
-     * @param {object} definition The definition read from it.
-     * @param {WeakMap<object, Span>} spans The span of text each node, field, argument and written import came from.
+     * The span of each part of the definition by its pointer, collected at the first location asked for, from the text read again, and kept from then on; null until then. A text reads into one definition alone, so the
+     * spans read again are the ones it was parsed with. Collecting them as each text was parsed measured a seventh of parsing, for a location most texts are never asked for, and keeping the definition it lowered until
+     * then would hold more than the text it reads from.
+     * @type {Map<string, Span> | null}
      */
-    constructor(text, definition, spans) {
-        this.#text = text;
-        definition.imports.forEach((entry, index) => {
-            const span = spans.get(entry);
+    #spans = null;
 
-            if (span) {
-                this.#spans.set(`/imports/${index}`, span);
-            }
-        });
-        this.#collect(definition.expression, '/expression', spans);
+    /**
+     * @param {string} text The source text, which parsed.
+     * @param {readonly object[]} [suppliedImports] The imports a host supplied to it, in a definition's shape, checked already.
+     */
+    constructor(text, suppliedImports = []) {
+        this.#text = text;
+        this.#suppliedImports = suppliedImports;
+    }
+
+    /** The span of each part of the definition by its pointer, collected from the text read again where none was collected yet. */
+    #getSpans() {
+        if (this.#spans === null) {
+            const { definition, spans } = Lowering.lower(new Parser(this.#text, this.#suppliedImports).parse(), this.#suppliedImports);
+
+            this.#spans = new Map();
+            definition.imports.forEach((entry, index) => {
+                const span = spans.get(entry);
+
+                if (span) {
+                    this.#spans.set(`/imports/${index}`, span);
+                }
+            });
+            this.#collect(definition.expression, '/expression', spans);
+        }
+
+        return this.#spans;
     }
 
     /** The text the definition was read from, from which its syntax tree is read again where a tool asks for it, since no definition keeps one. */
@@ -33,17 +55,12 @@ export class TextLocations {
         return this.#text;
     }
 
-    /** The pointer of the part the span is of, with the text position it began at; the definition's root where no part of it has the span. */
-    locateSpan(span) {
-        const pointer = [...this.#spans].find(([, candidate]) => candidate === span)?.[0] ?? '/expression';
-
-        return { pointer, ...NexoError.locate(this.#text, span.start) };
-    }
-
     /** The text position the pointer's part began at, or the nearest enclosing part's. */
     locate(pointer) {
+        const spans = this.#getSpans();
+
         for (let current = pointer; ; current = current.slice(0, current.lastIndexOf('/'))) {
-            const span = this.#spans.get(current);
+            const span = spans.get(current);
 
             if (span) {
                 return { pointer, ...NexoError.locate(this.#text, span.start) };
@@ -55,6 +72,7 @@ export class TextLocations {
         }
     }
 
+    /** Records the span of the node at the pointer, and of every part beneath it. */
     #collect(node, pointer, spans) {
         const span = spans.get(node);
 

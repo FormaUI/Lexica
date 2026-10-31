@@ -217,4 +217,12 @@ Where the remaining time goes, as profiling found it. The contract requires the 
 - **Every structured value Nexo makes is recorded** in a private field the value holds, so a value of `Any` keeps its type. A host's own flat structure is copied rather than recorded, as any other answer is.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
 - **Resolution's index** builds each node's pointer again and looks up its resolution by that string, which a profile put at a sixth of resolving; finding it by the string resolution stored measured 4% faster, not established, as [decisions](decisions.md#d25) records.
-- **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.
+- **Resolution** maps every node of the definition by its pointer as it finishes, to what it resolved.
+
+### The third performance pass
+
+Each change below was measured alone, in five paired rounds against the commit before it, and kept where its rounds agree.
+
+| Change | Case | Time | Allocation |
+| --- | --- | --- | --- |
+| A text's locations are collected from the text read again, at the first location asked for, rather than as each text is parsed. A kept script holds its text alone, and the first location costs one more parse | Parse | −8% (−22% to −5%) | −11% |
