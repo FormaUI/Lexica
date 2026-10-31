@@ -42,6 +42,16 @@ return {
     lateInvoices = customers.select(it.invoices).flatten.where(not it.paid and it.daysOverdue > 30).count
 }`;
 
+/** How many fields the large script's object holds. */
+export const LARGE_SCRIPT_FIELDS = 150;
+
+/** A script of many fields, each what the customer owes above a threshold of its own, which measures how preparing a script grows with its size. */
+export const LARGE_SCRIPT = `import Billing
+
+return {
+${Array.from({ length: LARGE_SCRIPT_FIELDS }, (_, index) => `    above${index} = customer.invoices.where(not it.paid and it.amount > ${index * 10}).sum(it.amount)`).join(',\n')}
+}`;
+
 /** Creates the billing app's module, as the README declares it. */
 export const createBillingModule = nexo => {
     const { createPropertyDeclaration: property } = nexo.declarations;

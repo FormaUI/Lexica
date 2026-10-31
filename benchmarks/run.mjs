@@ -15,7 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { nexo } from '../src/nexo.js';
 import { createCustomers, TODAY } from './billing/data.mjs';
-import { ACCOUNT_SUMMARY, PORTFOLIO_REPORT, createBillingModule } from './billing/nexo.mjs';
+import { ACCOUNT_SUMMARY, LARGE_SCRIPT, LARGE_SCRIPT_FIELDS, PORTFOLIO_REPORT, createBillingModule } from './billing/nexo.mjs';
 import { reportPortfolio, summarizeAccount } from './billing/plain.mjs';
 import { measure } from './measure.mjs';
 
@@ -129,6 +129,35 @@ const createGroups = implementation => {
 
                         // Each resolution is new, so its first evaluation compiles it, as a host's first evaluation of each script it resolves does.
                         return () => registry.resolve(ACCOUNT_SUMMARY, bindings).createEvaluator(bindings, env).evaluate();
+                    },
+                },
+            ],
+        },
+        {
+            name: `Preparing a script of ${LARGE_SCRIPT_FIELDS} fields`,
+            cases: [
+                {
+                    name: 'Nexo: parse',
+                    create: () => {
+                        let run = 0;
+
+                        return () => implementation.parse(`${LARGE_SCRIPT}\n// ${run++}`);
+                    },
+                },
+                {
+                    name: 'Nexo: resolve',
+                    create: () => {
+                        const bindings = bindCustomer(customers[0]);
+
+                        return () => registry.resolve(LARGE_SCRIPT, bindings);
+                    },
+                },
+                {
+                    name: 'Nexo: resolve, evaluate once',
+                    create: () => {
+                        const bindings = bindCustomer(customers[0]);
+
+                        return () => registry.resolve(LARGE_SCRIPT, bindings).createEvaluator(bindings, env).evaluate();
                     },
                 },
             ],

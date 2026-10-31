@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { nexo } from '#nexo/nexo.js';
 import { createCustomers, TODAY } from '../benchmarks/billing/data.mjs';
-import { ACCOUNT_SUMMARY, PORTFOLIO_REPORT, createBillingModule } from '../benchmarks/billing/nexo.mjs';
+import { ACCOUNT_SUMMARY, LARGE_SCRIPT, LARGE_SCRIPT_FIELDS, PORTFOLIO_REPORT, createBillingModule } from '../benchmarks/billing/nexo.mjs';
 import { reportPortfolio, summarizeAccount } from '../benchmarks/billing/plain.mjs';
 
 // The benchmark compares the billing app's two forms, so they must do the same work: these keep them equal.
@@ -20,6 +20,18 @@ describe('the benchmark\'s billing app', () => {
     it('writes its scripts in canonical text', () => {
         expect(nexo.format(ACCOUNT_SUMMARY)).toBe(ACCOUNT_SUMMARY);
         expect(nexo.format(PORTFOLIO_REPORT)).toBe(PORTFOLIO_REPORT);
+        expect(nexo.format(LARGE_SCRIPT)).toBe(LARGE_SCRIPT);
+    });
+
+    it('gives each field of the large script what the customer owes above its threshold', () => {
+        const [customer] = customers;
+        const bindings = bindCustomer(customer);
+        const value = registry.resolve(LARGE_SCRIPT, bindings).createEvaluator(bindings, env).evaluate().value;
+        const owedAbove = threshold => customer.invoices.filter(invoice => !invoice.paid && invoice.amount > threshold).reduce((total, invoice) => total + invoice.amount, 0);
+
+        expect(Object.keys(value)).toHaveLength(LARGE_SCRIPT_FIELDS);
+        expect([value.above0, value.above20, value.above149]).toEqual([owedAbove(0), owedAbove(200), owedAbove(1490)]);
+        expect(value.above0).toBeGreaterThan(0);
     });
 
     it('gives each customer the account summary its JavaScript gives', () => {
