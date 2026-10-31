@@ -203,8 +203,15 @@ export class Type {
             return false;
         }
 
-        if (this.typeArguments.length !== otherType.typeArguments.length || this.typeArguments.some((typeArgument, index) => !typeArgument.equals(otherType.typeArguments[index]))) {
+        if (this.typeArguments.length !== otherType.typeArguments.length) {
             return false;
+        }
+
+        // A loop rather than a callback, so a comparison allocates nothing, as a structure's record is compared for each value copied.
+        for (let index = 0; index < this.typeArguments.length; index++) {
+            if (!this.typeArguments[index].equals(otherType.typeArguments[index])) {
+                return false;
+            }
         }
 
         if (this.fieldTypes !== null) {

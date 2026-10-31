@@ -16,6 +16,17 @@ describe('StructureTypes', () => {
         expect(StructureTypes.getType({ x: 1 }, registry)).toBeUndefined();
     });
 
+    it('holds the record in the value itself, which no reflection reads, freezing keeps and no copy carries', () => {
+        const value = { x: 1 };
+
+        StructureTypes.recordType(value, registry, point);
+        Object.freeze(value);
+
+        expect([Reflect.ownKeys(value), Object.getOwnPropertySymbols(value), JSON.stringify(value)]).toEqual([['x'], [], '{"x":1}']);
+        expect(StructureTypes.getType(value, registry)).toBe(point);
+        expect([StructureTypes.getType({ ...value }, registry), StructureTypes.getType(structuredClone(value), registry)]).toEqual([undefined, undefined]);
+    });
+
     it('replaces a value\'s type where it is recorded again', () => {
         const value = { x: 1 };
         const vector = Type.createNamedType('Vector', false, 'Shapes');

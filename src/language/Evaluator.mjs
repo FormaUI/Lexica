@@ -1871,11 +1871,11 @@ export class Evaluator {
                 }
             }
 
-            const structure = Object.freeze(Object.fromEntries(shape.map(name => [name, Object.hasOwn(object, name) ? object[name] : null])));
+            const structure = Object.fromEntries(shape.map(name => [name, Object.hasOwn(object, name) ? object[name] : null]));
 
             StructureTypes.recordType(structure, evaluator.#registry, type);
 
-            return structure;
+            return Object.freeze(structure);
         };
     }
 
@@ -2012,7 +2012,6 @@ export class Evaluator {
 
                 // It holds the registry alone, never an evaluator, so it holds nothing an evaluation bound.
                 let fields = null;
-                let fieldNames = null;
                 let isFlat = false;
                 // The type each copy keeps through a value of Any.
                 const structured = type.toNonNullable();
@@ -2024,14 +2023,11 @@ export class Evaluator {
 
                     if (fields === null) {
                         fields = [...registry.getDataShape(type)].map(([name, fieldType]) => [name, Evaluator.#compileStructureCopy(fieldType, registry)]);
-                        fieldNames = new Set(fields.map(([name]) => name));
                         isFlat = fields.every(([, copyField]) => copyField === null);
                     }
 
-                    // An answer that is a plain object of its declared fields alone, none of them a structure, is its declared shape already, as a built-in member's is.
-                    if (isFlat && Evaluator.#holdsExactly(value, fieldNames)) {
-                        StructureTypes.recordType(value, registry, structured);
-
+                    // A structure Nexo made of the type, of none but its declared fields, none of them a structure, is its declared shape already, as each is made, and a host's own is copied.
+                    if (isFlat && StructureTypes.getType(value, registry)?.equals(structured) === true) {
                         return value;
                     }
 
@@ -2052,25 +2048,6 @@ export class Evaluator {
             default:
                 return null;
         }
-    }
-
-    /** Whether the value is a plain object whose own keys are the names of the declared fields alone. */
-    static #holdsExactly(value, fieldNames) {
-        if (Object.getPrototypeOf(value) !== Object.prototype) {
-            return false;
-        }
-
-        let found = 0;
-
-        for (const key in value) {
-            if (!fieldNames.has(key)) {
-                return false;
-            }
-
-            found++;
-        }
-
-        return found === fieldNames.size;
     }
 
     /**
@@ -2431,8 +2408,8 @@ export class Evaluator {
             }
         }
 
-        // A member answering its receiver's items keeps the position each stood at there, and an ordering the keys that ordered them, with the list it answered, which a capture and a copy can replace with another,
-        // so both are read from that list.
+        // A member answering its receiver's items hands over the position each stood at there, and an ordering keeps the keys that ordered them with the list it answered, which a capture and a copy can replace with another,
+        // so both are read from that list as the member returns.
         const implemented = value;
         const answersReceiverItems = takesReceiver && Vocabulary.answersReceiverItems(declaration);
         const positions = answersReceiverItems ? ItemPositions.takePositions(implemented) : undefined;

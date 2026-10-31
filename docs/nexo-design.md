@@ -183,6 +183,9 @@ Each change below was measured alone, in seven paired rounds against the commit 
 | An answer of Nexo's own is relied on, as [relying on a check of data](#relying-on-a-check-of-data) sets out | no change | −15% (−25% to −10%) |
 | Each evaluation, and each prepared call, records its objects' field selections in a store of its own, released with it, rather than in one the evaluator keeps for good | −10% (−18% to −10%) | −5% (−9% to +7%), not established |
 | A member of Nexo's own hands its answer's positions to its invocation as it returns, rather than writing them to a global map for each answer | −6% (−9% to −4%) | −3% (−15% to +9%), not established |
+| A structure's type is recorded in a private field of the structure, rather than in a global weak map; binding the report's customers is 41% faster (−42% to −37%), and binding and evaluating the summary 14% | −5% (−6% to −1%) | −17% (−21% to −11%) |
+
+Recording in a private field raised allocation: binding by 3%, and the portfolio report's evaluation by 13%, which copies no structure, for a cause not found yet.
 
 A profile's share is not what removing the work saves: copies a profile put at a sixth of the portfolio report saved nothing measurable once removed, as [decisions](decisions.md#d25) records.
 
@@ -190,6 +193,6 @@ Where the remaining time goes, as profiling found it. The contract requires the 
 
 - **Every host member's answer is checked** against its declared type, a list item by item and a structure field by field, and so is an answer of Nexo's own that may hold a reference.
 - **Every value a host's member gives a callback is checked** against the callback's contract, a structure field by field, and so is a reference one of Nexo's own members gives.
-- **Every structured value Nexo makes is recorded** by the value in a weak map, so a value of `Any` keeps its type. Recording is about a third of binding, and a table for each registry measured no saving beyond noise.
+- **Every structured value Nexo makes is recorded** in a private field the value holds, so a value of `Any` keeps its type. A host's own flat structure is copied rather than recorded, as any other answer is.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
 - **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.
