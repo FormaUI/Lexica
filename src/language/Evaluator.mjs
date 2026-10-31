@@ -182,7 +182,8 @@ export class Evaluator {
      * each field that made any of another object an object expression built. Each object is built anew by the evaluation that reads it, so a store is made for each evaluation, and for each prepared host call, whose projections
      * share it, since they read the objects its locals built. A store is released with the evaluation, or with its prepared call; one an evaluator kept for good would grow with every evaluation's objects until a collection,
      * and recording in it measured a tenth of the account summary's evaluation.
-     * @type {WeakMap<object, Map<string, Map<object, object | string> | null>>}
+     * Each object holds a list of each field's name beside its selections, as `#select` records them, a field that made none left out, which reads as one recorded with none.
+     * @type {WeakMap<object, unknown[]>}
      */
     #objectFieldSelections = new WeakMap();
 
@@ -1596,11 +1597,10 @@ export class Evaluator {
             const enclosingObjectRoot = evaluator.#objectRoot;
             const enclosingLocalsFrame = evaluator.#localsFrame;
             const objectRoot = buildsObjectRoot === true ? {} : null;
-            const rootSelections = objectRoot === null ? null : new Map();
+            let rootSelections = null;
 
             if (objectRoot !== null) {
                 evaluator.#objectRoot = objectRoot;
-                evaluator.#objectFieldSelections.set(objectRoot, rootSelections);
             }
 
             try {
@@ -1651,9 +1651,19 @@ export class Evaluator {
                         }
                     }
 
+                    // A field of the outermost object is recorded where it made any selection, as it completes, for `root` to read, so the list recorded is added to in place.
                     if (plan.isField) {
                         objectRoot[plan.name] = argumentValue;
-                        rootSelections.set(plan.name, selections);
+
+                        if (selections !== null) {
+                            const isFirst = rootSelections === null;
+
+                            rootSelections = Evaluator.#select(rootSelections, plan.name, selections);
+
+                            if (isFirst) {
+                                evaluator.#objectFieldSelections.set(objectRoot, rootSelections);
+                            }
+                        }
                     }
 
                     if (plan.isReadLater) {
@@ -1949,16 +1959,15 @@ export class Evaluator {
         const enclosingLocalsFrame = this.#localsFrame;
         const enclosingObjectRoot = this.#objectRoot;
         // An application no other encloses builds the outermost object, this object, which `root` refers to in its body; any other builds within that object.
-        const rootSelections = enclosingObjectRoot === null ? new Map() : null;
+        const isRoot = enclosingObjectRoot === null;
         let fieldSelections = null;
 
         if (node.locals !== undefined) {
             this.#localsFrame = { names: localNames, node, context, values: [], selections: [], enclosing: enclosingLocalsFrame };
         }
 
-        if (rootSelections !== null) {
+        if (isRoot) {
             this.#objectRoot = object;
-            this.#objectFieldSelections.set(object, rootSelections);
         }
 
         try {
@@ -1969,11 +1978,15 @@ export class Evaluator {
 
                 object[field.name] = value;
 
-                // The outermost object's every field is recorded as it completes, for `root` to read; another object's, where it made any selection.
-                if (rootSelections !== null) {
-                    rootSelections.set(field.name, this.#selections);
-                } else if (this.#selections !== null) {
-                    (fieldSelections ??= new Map()).set(field.name, this.#selections);
+                // A field is recorded where it made any selection, the outermost object's as it completes, for `root` to read, so the list recorded is added to in place; a field recorded with none reads alike.
+                if (this.#selections !== null) {
+                    const isFirst = fieldSelections === null;
+
+                    fieldSelections = Evaluator.#select(fieldSelections, field.name, this.#selections);
+
+                    if (isFirst && isRoot) {
+                        this.#objectFieldSelections.set(object, fieldSelections);
+                    }
                 }
 
                 if (field.isReadLater) {
@@ -1986,7 +1999,7 @@ export class Evaluator {
             this.#objectRoot = enclosingObjectRoot;
         }
 
-        if (fieldSelections !== null) {
+        if (fieldSelections !== null && !isRoot) {
             this.#objectFieldSelections.set(object, fieldSelections);
         }
 
@@ -2294,7 +2307,7 @@ export class Evaluator {
             return null;
         }
 
-        const selections = this.#objectFieldSelections.get(receiver)?.get(name) ?? null;
+        const selections = Evaluator.#selectionOf(this.#objectFieldSelections.get(receiver) ?? null, name) ?? null;
 
         if (selections !== null) {
             this.#selections = Evaluator.#joinSelections(this.#selections, selections);
@@ -2719,7 +2732,7 @@ export class Evaluator {
                     copy[name] = field;
                 }
 
-                const selections = fieldSelections === undefined ? null : (fieldSelections.get(name) ?? null);
+                const selections = Evaluator.#selectionOf(fieldSelections ?? null, name) ?? null;
                 const identities = selections === null ? copied : Evaluator.#withSelections(copied, selections);
 
                 if (identities !== null) {
