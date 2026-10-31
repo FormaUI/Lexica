@@ -1545,10 +1545,11 @@ export class Evaluator {
 
         const { buildsObjectRoot } = resolution;
         const isOptions = resolution.declaration.arguments === 'options';
+        const isReadByLater = isOptions ? Evaluator.#readByLater(resolution.arguments.map(argument => argument.parameter.name), resolution.arguments.map(argument => (argument.isDefault ? null : argument.node))) : null;
         const argumentPlans = resolution.arguments.map((argument, index) => {
             const { parameter } = argument;
             const isOption = isOptions && !argument.isDefault && parameter.kind !== 'expression' && parameter.kind !== 'predicate' && argument.callback?.isBody !== true;
-            const isReadLater = isOption && resolution.arguments.slice(index + 1).some(later => !later.isDefault && Evaluator.#readsLocal(later.node, parameter.name));
+            const isReadLater = isOption && isReadByLater[index];
             const isField = isOption && buildsObjectRoot === true;
 
             if (argument.isDefault || parameter.fixed) {
@@ -1851,9 +1852,10 @@ export class Evaluator {
         const isOfReferences = resolution?.kind === 'projection' && this.#registry.isReferenceType(resolution.itemType.toNonNullable());
         const localNames = node.locals === undefined ? null : node.locals.map(local => local.name);
         // A field the entries after it read is in scope for them, by the name the definition gives it.
+        const isReadByLater = Evaluator.#readByLater(node.objectFields.map(field => field.name), node.objectFields.map(field => field.value));
         const fields = node.objectFields.map((field, index) => ({
             name: field.name,
-            isReadLater: node.objectFields.slice(index + 1).some(later => Evaluator.#readsLocal(later.value, field.name)),
+            isReadLater: isReadByLater[index],
             evaluate: this.#getCompiledFunction(field.value),
         }));
 
@@ -1934,17 +1936,40 @@ export class Evaluator {
         return Object.freeze(copy);
     }
 
-    /** Whether the node reads a local or a field of the name anywhere within it, or calls the function it holds. */
-    static #readsLocal(node, name) {
-        if (Array.isArray(node)) {
-            return node.some(item => Evaluator.#readsLocal(item, name));
+    /**
+     * Whether each entry's name, a field's or an option's, is read by an entry after it: by a local or a field of the name read, or the function it holds called, anywhere within one, which an entry left out, null,
+     * never is. Each entry is walked once, from the last back, gathering the names it reads, rather than each entry's later ones walked again for each name.
+     */
+    static #readByLater(names, nodes) {
+        const read = new Set();
+        const isRead = new Array(names.length);
+
+        for (let index = names.length - 1; index >= 0; index--) {
+            isRead[index] = read.has(names[index]);
+
+            if (nodes[index] !== null) {
+                Evaluator.#gatherLocalsRead(nodes[index], read);
+            }
         }
 
-        if (node === null || typeof node !== 'object') {
-            return false;
-        }
+        return isRead;
+    }
 
-        return (node.kind === 'local' && node.name === name) || Object.values(node).some(value => Evaluator.#readsLocal(value, name));
+    /** Adds to the names the name of each local read anywhere beneath the part, a scope beneath it that hides one of its names among them. */
+    static #gatherLocalsRead(part, names) {
+        if (Array.isArray(part)) {
+            for (const item of part) {
+                Evaluator.#gatherLocalsRead(item, names);
+            }
+        } else if (part !== null && typeof part === 'object') {
+            if (part.kind === 'local') {
+                names.add(part.name);
+            }
+
+            for (const key in part) {
+                Evaluator.#gatherLocalsRead(part[key], names);
+            }
+        }
     }
 
     /**

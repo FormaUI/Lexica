@@ -236,4 +236,12 @@ return f(1)`;
         expect(valueOf('let a = 1\nreturn { outer = a, a = 2, later = a }')).toEqual({ outer: 1, a: 2, later: 2 });
         expect(valueOf('let a = 1\nreturn { let b = a + 1, c = do\n    let a = 5\n    return a + b\nend }')).toEqual({ c: 7 });
     });
+
+    it('keeps a field for each entry after it that reads it anywhere within, evaluated once', () => {
+        const invoked = [];
+        const text = '{ p = name:price, items = [p, 1], label = $"{p} each", nested = { inner = p }, other = 0, held = do\n    let q = p\n    return q * 2\nend }';
+
+        expect(createEvaluator(text, { name: 'tea' }, { invoked }).evaluate().value).toEqual({ p: 3, items: [3, 1], label: '3 each', nested: { inner: 3 }, other: 0, held: 6 });
+        expect(invoked).toEqual(['price:tea']);
+    });
 });
