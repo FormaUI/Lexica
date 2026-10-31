@@ -13,9 +13,49 @@ import { NexoModule } from './vocabulary/NexoModule.mjs';
 export class ValueCapture {
     #registry;
 
+    /** What capturing each named type takes, as `#namedCaptures` holds it for the registry. */
+    #captures;
+
     /** @param {import('./vocabulary/NexoRegistry.mjs').NexoRegistry} registry The registry whose types the value is captured as, whose modules recognize a reference of another type. */
     constructor(registry) {
         this.#registry = registry;
+        this.#captures = ValueCapture.#namedCaptures.get(registry);
+
+        if (this.#captures === undefined) {
+            this.#captures = new Map();
+            ValueCapture.#namedCaptures.set(registry, this.#captures);
+        }
+    }
+
+    /**
+     * What capturing a named type takes, settled once for each type a registry declares, by the registry and then the type's identity: a scalar's check, a reference type, a structure's data shape, as a list of each
+     * property's name beside its type, with its type without null, which records each structure captured, or none, which fails every value. A registry's declarations never change once registered, so an entry is valid
+     * for the registry's life and released with it; recognizing a reference asks the registry anew each time, since a registration can change it. Settling it for each value measured a tenth of binding.
+     * @type {WeakMap<object, Map<string, { kind: 'scalar', check: (value: unknown) => boolean } | { kind: 'reference' } | { kind: 'structured', shape: [string, import('./Type.mjs').Type][], type: import('./Type.mjs').Type } | { kind: 'none' }>>}
+     */
+    static #namedCaptures = new WeakMap();
+
+    /** What capturing the named type takes, settled at its first capture. */
+    #getNamedCapture(type) {
+        let named = this.#captures.get(type.identity);
+
+        if (named === undefined) {
+            const declaration = this.#registry.getTypeDeclaration(type);
+
+            if (type.moduleName === null && NexoModule.scalarTypeNames.includes(type.name)) {
+                named = { kind: 'scalar', check: ValueCapture.#scalarChecks.get(type.name) };
+            } else if (declaration?.kind === 'reference') {
+                named = { kind: 'reference' };
+            } else if (declaration?.kind === 'structured') {
+                named = { kind: 'structured', shape: [...this.#registry.getDataShape(type)], type: type.toNonNullable() };
+            } else {
+                named = { kind: 'none' };
+            }
+
+            this.#captures.set(type.identity, named);
+        }
+
+        return named;
     }
 
     /**
@@ -186,17 +226,17 @@ export class ValueCapture {
      * data, which fails whatever its nullability.
      */
     #captureNamed(value, type, fail) {
-        if (type.moduleName === null && NexoModule.scalarTypeNames.includes(type.name)) {
-            if (!ValueCapture.belongsToScalar(value, type.name)) {
+        const named = this.#getNamedCapture(type);
+
+        if (named.kind === 'scalar') {
+            if (!named.check(value)) {
                 fail(this.#path(), value, type);
             }
 
             return value;
         }
 
-        const declaration = this.#registry.getTypeDeclaration(type);
-
-        if (declaration?.kind === 'reference') {
+        if (named.kind === 'reference') {
             const asked = this.#asked;
 
             if (this.#registry.belongsTo(value, type, asked)) {
@@ -210,7 +250,7 @@ export class ValueCapture {
             fail(this.#path(), value, type);
         }
 
-        if (declaration?.kind !== 'structured' || !ObjectUtils.isNonArrayObject(value)) {
+        if (named.kind !== 'structured' || !ObjectUtils.isNonArrayObject(value)) {
             fail(this.#path(), value, type);
         }
 
@@ -219,13 +259,13 @@ export class ValueCapture {
         let structure;
 
         try {
-            structure = this.#captureFields(value, this.#registry.getDataShape(type), fail);
+            structure = this.#captureFields(value, named.shape, fail);
         } finally {
             this.#leave(value);
         }
 
         // A captured structure keeps its type through a value of Any, as one a member answers does, recorded before it is frozen.
-        StructureTypes.recordType(structure, this.#registry, type.toNonNullable());
+        StructureTypes.recordType(structure, this.#registry, named.type);
 
         return Object.freeze(structure);
     }

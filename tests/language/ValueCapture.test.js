@@ -43,6 +43,16 @@ describe('ValueCapture', () => {
         expect(Object.isFrozen(lamp)).toBe(false);
     });
 
+    it('captures a named type as the registry it captures for declares it, two registries declaring one name each giving their own shape', () => {
+        const declaring = members => new NexoRegistry([Vocabulary.module, new NexoModule('home', { types: [{ name: 'Spot', kind: 'structured', members: dataPropertyDeclarations(members) }] })]);
+        const captureIn = (members, value) => new ValueCapture(declaring(members)).capture(value, named('Spot'), () => {
+            throw new Error('refused');
+        });
+
+        expect(captureIn({ size: 'Number' }, { size: 1, label: 'a' })).toEqual({ size: 1 });
+        expect(captureIn({ label: 'String' }, { size: 1, label: 'a' })).toEqual({ label: 'a' });
+    });
+
     it('captures a set as a list of its items in their traversal order, each captured as the item type, and keeps no uniqueness', () => {
         const strings = Type.parse('List<String>');
 
