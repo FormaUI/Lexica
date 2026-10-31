@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { LanguageResolver } from '#nexo/language/LanguageResolver.mjs';
 import { ParameterBindings } from '#nexo/language/ParameterBindings.mjs';
 import { ParsedTexts } from '#nexo/language/ParsedTexts.mjs';
+import { ResolvedDefinition } from '#nexo/language/ResolvedDefinition.mjs';
 import { Declarations } from '#nexo/language/vocabulary/Declarations.mjs';
 import { NexoModule } from '#nexo/language/vocabulary/NexoModule.mjs';
 import { NexoRegistry } from '#nexo/language/vocabulary/NexoRegistry.mjs';
@@ -74,6 +75,30 @@ describe('ResolvedDefinition', () => {
         for (const { node, pointer } of nodes) {
             expect({ pointer: resolved.pointerOf(node), resolution: resolved.resolutionOf(node) }).toEqual({ pointer, resolution: resolved.getResolution(pointer) });
         }
+    });
+
+    it("keeps each declaration once at each pointer of the definition it is used at, in the order first used, every call of a function using its body's again", () => {
+        const resolved = resolve('let next = x => x.count + numbers.count\nreturn next(numbers) + next(numbers)');
+
+        expect(resolved.usedDeclarations.map(use => `${use.qualifiedName}@${use.pointer}`)).toEqual([
+            'List.count@/expression/locals/0/value/body/left',
+            'List.count@/expression/locals/0/value/body/right',
+        ]);
+    });
+
+    it("takes a pointer within a call's copy of a function's body back to the body it copies, the innermost copy first, and leaves one a copy's pointer only begins", () => {
+        const copies = [
+            { pointer: '/expression/arguments/1', bodyPointer: '/expression/locals/0/value/body' },
+            { pointer: '/expression/arguments/1/arguments/0', bodyPointer: '/expression/locals/1/value/body' },
+        ];
+
+        expect(['/expression/arguments/1', '/expression/arguments/1/left', '/expression/arguments/1/arguments/0/right', '/expression/arguments/10', '/expression'].map(pointer => ResolvedDefinition.resolveDefinitionPointer(pointer, copies))).toEqual([
+            '/expression/locals/0/value/body',
+            '/expression/locals/0/value/body/left',
+            '/expression/locals/1/value/body/right',
+            '/expression/arguments/10',
+            '/expression',
+        ]);
     });
 
     it('gives no pointer and no resolution for a node the definition does not hold', () => {

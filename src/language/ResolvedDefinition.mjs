@@ -2,6 +2,9 @@
  * ResolvedDefinition — a definition resolved against the vocabulary: the host call it ends in, the type of its result, and what each of its nodes resolved to
  */
 
+/** The character that begins each segment of a JSON Pointer. */
+const SLASH = '/'.charCodeAt(0);
+
 export class ResolvedDefinition {
     #definition;
     #type;
@@ -48,11 +51,20 @@ export class ResolvedDefinition {
      */
     #definitionUsesOf(usedDeclarations) {
         const kept = [];
+        // The declarations kept at each pointer, so a use is looked for among those at its own pointer alone.
+        const keptAt = new Map();
 
         for (const use of usedDeclarations) {
             const pointer = this.resolveDefinitionPointer(use.pointer);
+            let declarations = keptAt.get(pointer);
 
-            if (!kept.some(other => other.declaration === use.declaration && other.pointer === pointer)) {
+            if (declarations === undefined) {
+                declarations = new Set();
+                keptAt.set(pointer, declarations);
+            }
+
+            if (!declarations.has(use.declaration)) {
+                declarations.add(use.declaration);
                 kept.push({ ...use, pointer });
             }
         }
@@ -107,7 +119,17 @@ export class ResolvedDefinition {
 
     /** The body copy whose pointer the pointer is or lies beneath, the innermost one, which is resolved after the one it lies in. */
     static #bodyCopyOf(pointer, functionBodyCopies) {
-        return functionBodyCopies.findLast(bodyCopy => pointer === bodyCopy.pointer || pointer.startsWith(`${bodyCopy.pointer}/`));
+        for (let index = functionBodyCopies.length - 1; index >= 0; index--) {
+            const bodyCopy = functionBodyCopies[index];
+            const { length } = bodyCopy.pointer;
+
+            // The pointer is the copy's, or one beneath it, whose next segment begins with a slash.
+            if (pointer.startsWith(bodyCopy.pointer) && (pointer.length === length || pointer.charCodeAt(length) === SLASH)) {
+                return bodyCopy;
+            }
+        }
+
+        return undefined;
     }
 
     #mayRecognize;
