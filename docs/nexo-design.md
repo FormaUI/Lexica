@@ -175,6 +175,17 @@ The function's result is checked as before. Measured in seven paired rounds agai
 
 ### The second performance pass
 
+Measured on October 31, 2026, in five paired rounds against the commit before the pass, every round agreeing:
+
+| Case | Before | After | Time | Allocation |
+| --- | --- | --- | --- | --- |
+| Account summary: evaluate | 30.5 µs | 18.7 µs | −39% (−43% to −38%) | −28% |
+| Account summary: evaluate, reporting reads | 32.4 µs | 21.3 µs | −34% (−37% to −32%) | −25% |
+| Account summary: bind and evaluate | 54.4 µs | 36.3 µs | −34% (−34% to −33%) | −37% |
+| Portfolio report: evaluate | 25.9 ms | 12.5 ms | −52% (−52% to −50%) | −18% |
+| Portfolio report: bind | 17.3 ms | 6.6 ms | −61% (−62% to −61%) | −78% |
+| Preparing: parse, resolve and create an evaluator | | | no change | |
+
 Each change below was measured alone, in seven paired rounds against the commit before it, and kept where its rounds agree. A change is given as the median of the rounds and, in brackets, their range.
 
 | Change | Account summary: evaluate | Portfolio report: evaluate |
@@ -203,4 +214,5 @@ Where the remaining time goes, as profiling found it. The contract requires the 
 - **Every value a host's member gives a callback is checked** against the callback's contract, a structure field by field, and so is a reference one of Nexo's own members gives.
 - **Every structured value Nexo makes is recorded** in a private field the value holds, so a value of `Any` keeps its type. A host's own flat structure is copied rather than recorded, as any other answer is.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
+- **Resolution's index** builds each node's pointer again and looks up its resolution by that string, about a sixth of resolving; resolution recording what it resolved by the node would spare it.
 - **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.

@@ -351,11 +351,14 @@ Forty decisions were taken while implementing the declarations, member selection
   - Freezing a filter's positions in place. `pick` gives the script's own list as its positions.
   - Keeping an answer's list as its own copy where its structures each stand as they are and it carries no lineage, and a flat structure already recorded as its type standing without its keys checked again. A profile put copying at about a sixth of the portfolio report. Paired runs measured no gain in time, −0.3% with rounds from −10% to +10%, and 9% more allocation.
   - Calling a function of one argument without collecting its arguments in a list. Paired runs measured the portfolio report from 5% faster to 18% slower.
+  - Comparing a structure's record by type equality, so a copy never records an equal type again. Paired runs measured no change in time or allocation.
+  - Holding an object's field selections in a private field of the object, as a structure's type is held. Paired runs measured every case 5% slower, the field changing each object's shape after it is built.
   - Fusing a chain of Nexo's own list members into one loop. It interleaves what the members evaluate, which changes the order of host calls, the first failure and what hooks hear.
 - **Adopted after [D26](#d26):**
   - A list member of Nexo's own that answers its receiver's items relies on the check those items had, where resolution selected it, the answer keeps the receiver's item type, and that type may hold no reference, as the [design](nexo-design.md#relying-on-a-check-of-data) sets out. Paired runs measured the account summary's evaluation 6% faster in every round. The portfolio report measured between 2% and 7% faster across four runs, with slower rounds in three, so that gain is not established. These paired runs replace the single run's tenth.
   - Every answer of Nexo's own whose type may hold neither a reference nor a value of `Any` is neither captured nor checked, where resolution selected the member, rather than the answers of its receiver's items alone. Paired runs measured the portfolio report's evaluation 15% faster, every round agreeing, and the account summary's unchanged.
   - A function given to one of Nexo's own members relies on the check its argument had, an item of the member's receiver, under the same conditions. Paired runs measured the portfolio report's evaluation 17% faster and the account summary's 8%, every round agreeing.
+- **The second pass:** the changes kept after these, each measured alone, are listed in the [design](nexo-design.md#the-second-performance-pass). Together they made the portfolio report's evaluation 52% faster, binding its customers 61%, and the account summary's evaluation 39%.
 - **Correction:** the commit that keeps a structure's unchanged record says it saves a quarter of the portfolio report's allocation. Measured alone, it saves 9%.
 
 <a id="d26"></a>
