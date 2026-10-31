@@ -13,6 +13,9 @@ import { NexoModule } from './NexoModule.mjs';
 import { TypeNameScope } from './TypeNameScope.mjs';
 import { Vocabulary } from './Vocabulary.mjs';
 
+/** The receiver types of a module member, which no type contains. */
+const NO_RECEIVER_TYPES = Object.freeze([]);
+
 export class NexoRegistry {
     /** @type {Map<string, import('./NexoModule.mjs').NexoModule>} */
     #modules = new Map();
@@ -57,6 +60,14 @@ export class NexoRegistry {
 
     /** The type each notation of a declaration writes, every name in it resolved to its identity, by the declaration and then the notation. @type {WeakMap<object, Map<string, Type>>} */
     #declaredTypeCache = new WeakMap();
+
+    /**
+     * The types each member a type contains is read on, by the member, settled at the first time they are asked for. A member's containing type never changes once written, so an entry is valid until the member's
+     * module is refused, which removes it with the containing type, and is released with the member; a member no type contains has none, never kept. Building them anew for each request measured a tenth of
+     * resolving.
+     * @type {WeakMap<object, readonly Type[]>}
+     */
+    #receiverTypes = new WeakMap();
 
     /** The data shape of each structured type, by its declaration: valid for good, since a declaration is frozen and the types its notations write are kept for good, and released with the declaration. @type {WeakMap<object, ReadonlyMap<string, Type>>} */
     #dataShapeCache = new WeakMap();
@@ -189,7 +200,10 @@ export class NexoRegistry {
         } catch (error) {
             // A refused module's declarations belong to no module of the registry, and its members to none of its types.
             declarations.forEach(declaration => this.#declaringModules.delete(declaration));
-            typesOfMembers.forEach((type, member) => this.#containingTypes.delete(member));
+            typesOfMembers.forEach((type, member) => {
+                this.#containingTypes.delete(member);
+                this.#receiverTypes.delete(member);
+            });
 
             throw error;
         } finally {
@@ -363,27 +377,39 @@ export class NexoRegistry {
     getReceiverTypes(declaration) {
         const type = this.#containingTypes.get(declaration);
 
+        if (type === undefined) {
+            return NO_RECEIVER_TYPES;
+        }
+
+        let receiverTypes = this.#receiverTypes.get(declaration);
+
+        if (receiverTypes === undefined) {
+            receiverTypes = Object.freeze([this.#receiverTypeOf(declaration, type)]);
+            this.#receiverTypes.set(declaration, receiverTypes);
+        }
+
+        return receiverTypes;
+    }
+
+    /** The type the member is read on within the type or the extension that contains it. */
+    #receiverTypeOf(declaration, type) {
         // An extension's member is read on its extension's target, which the extension's own context resolves.
-        if (type?.kind === 'extension') {
-            return [this.getDeclaredType(type, type.target)];
+        if (type.kind === 'extension') {
+            return this.getDeclaredType(type, type.target);
         }
 
         // Nexo's own value types are named without a module, as a notation writes them; a member one declares as its own for a narrower receiver, as `List`'s `flatten` is for a list of lists, is read on that receiver.
-        if (type?.kind === 'generic') {
+        if (type.kind === 'generic') {
             const narrowed = type.receivers?.get(declaration);
 
-            return [narrowed === undefined ? new Type('named', { name: type.name, typeArguments: type.typeParameters.map(name => Type.createTypeParameter(name)), isNullable: false }) : this.getDeclaredType(declaration, narrowed)];
+            return narrowed === undefined ? new Type('named', { name: type.name, typeArguments: type.typeParameters.map(name => Type.createTypeParameter(name)), isNullable: false }) : this.getDeclaredType(declaration, narrowed);
         }
 
-        if (type?.kind === 'scalar') {
-            return [Type.createNamedType(type.name)];
+        if (type.kind === 'scalar') {
+            return Type.createNamedType(type.name);
         }
 
-        if (type !== undefined) {
-            return [Type.createNamedType(type.name, false, this.getDeclaringModuleName(declaration))];
-        }
-
-        return [];
+        return Type.createNamedType(type.name, false, this.getDeclaringModuleName(declaration));
     }
 
     /** Whether the declaration is internal, available within its declaring module alone: a type or a member that says so, and a member within an internal type, whatever its own flag says, since its type bounds it. */

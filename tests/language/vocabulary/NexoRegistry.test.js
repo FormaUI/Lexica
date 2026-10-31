@@ -164,6 +164,19 @@ describe('NexoRegistry', () => {
         expect(registry.getReceiverMembers('size').flatMap(member => registry.getReceiverTypes(member)).map(type => type.name)).toEqual(['Room', 'Device']);
     });
 
+    it('reads a member on the type containing it, giving one frozen list each time it is asked, and a module member on none', () => {
+        const words = new NexoModule('words', { ...onStrings([propertyDeclaration({ name: 'level' })]), members: [propertyDeclaration({ name: 'now' })] });
+        const registry = new NexoRegistry([Vocabulary.module, new NexoModule('host', withHome({}, { Room: [propertyDeclaration({ name: 'size' })] })), words]);
+        const receiverTypesOf = name => registry.getReceiverMembers(name).map(member => registry.getReceiverTypes(member).map(String));
+        const [size] = registry.getReceiverMembers('size');
+
+        expect(['size', 'level', 'round', 'count', 'flatten'].map(receiverTypesOf)).toEqual([[['Room']], [['String']], [['Number']], [['List<T>'], ['Dictionary<K, V>']], [['List<List<T>>']]]);
+        expect(registry.getReceiverTypes(size)[0].identity).toBe('host.Room');
+        expect(registry.getReceiverTypes(size)).toBe(registry.getReceiverTypes(size));
+        expect(Object.isFrozen(registry.getReceiverTypes(size))).toBe(true);
+        expect(registry.getReceiverTypes(words.members[0])).toEqual([]);
+    });
+
     describe('module members, which take no receiver', () => {
         it('are declared once by name within their module, and register beside an extension\'s member of their name, which is no duplicate', () => {
             const now = propertyDeclaration({ name: 'now' });
