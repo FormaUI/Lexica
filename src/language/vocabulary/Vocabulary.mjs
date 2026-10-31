@@ -500,11 +500,11 @@ export class Vocabulary {
     static #positionsWhere(items, test) {
         const positions = [];
 
-        items.forEach((item, position) => {
-            if (test(item, position)) {
+        for (let position = 0; position < items.length; position++) {
+            if (test(items[position], position)) {
                 positions.push(position);
             }
-        });
+        }
 
         return positions;
     }
