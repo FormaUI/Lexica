@@ -204,6 +204,7 @@ Each change below was measured alone, in seven paired rounds against the commit 
 | Capture freezes each part of the data it makes as it makes it, rather than binding walking the captured value again to freeze it; binding the report's customers 28% faster (−31% to −27%), allocating 45% less, and binding and evaluating the summary 9% | −9.5% (−17% to −8%) | +2.5% (−1% to +5%), within noise |
 | Capture settles what each named type takes once for its registry, a scalar's check or a structure's shape as a list, rather than looking it up for each value; binding the report's customers 25% faster (−27% to −25%), allocating 62% less, and binding and evaluating the summary 2% | no change | no change |
 | A filter of Nexo's own walks its receiver in a loop, rather than through `forEach` and a function for each item | −7% (−10% to −5%) | −5.5% (−9% to −4%) |
+| `sum`, `average`, `min` and `max` gather their numbers in one loop, rather than a mapped list and then a filtered one; allocation falls 5% for the report | −4% (−5.5% to +2.5%), within noise | −3% (−5.5% to 0%), within noise |
 
 Recording in a private field raised allocation: binding by 3%, and the portfolio report's evaluation by 13%, which copies no structure, for a cause not found yet.
 

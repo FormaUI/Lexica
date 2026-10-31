@@ -551,6 +551,16 @@ export class Vocabulary {
 
     /** The numbers an expression produces for the items, leaving out the items it produces null for. */
     static #numbers(items, expression) {
-        return items.map(item => expression(item)).filter(number => number !== null);
+        const numbers = [];
+
+        for (let index = 0; index < items.length; index++) {
+            const number = expression(items[index]);
+
+            if (number !== null) {
+                numbers.push(number);
+            }
+        }
+
+        return numbers;
     }
 }
