@@ -34,6 +34,14 @@ export class LanguageResolver {
     /** @type {Map<string, object>} */
     #resolutions = new Map();
 
+    /**
+     * The pointer each node of the definition stands at, recorded as resolution reaches the node there, a call's copy of a function's body among them, so the resolved definition finds a node's resolution by the pointer
+     * it is stored at rather than walking the definition again to build each pointer anew, which measured a sixth of resolving. A node is reached at the one pointer it stands at, however many readings resolve it; a node
+     * made only to be resolved in another's place, and a body copy a refused reading made, is recorded and never asked for, and is released with the node, which nothing else holds.
+     * @type {WeakMap<object, string>}
+     */
+    #pointers = new WeakMap();
+
     /** @type {object[]} */
     #usedDeclarations = [];
 
@@ -83,7 +91,7 @@ export class LanguageResolver {
         const recognizesSupplied = suppliedType !== null && (suppliedType.kind === 'any' || this.#registry.holdsNullableReference(suppliedType));
         const mayRecognize = recognizesSupplied || deferredAccesses.length > 0 || this.#usedDeclarations.some(({ declaration }) => this.#registry.givesAny(declaration));
 
-        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#usedDeclarations, deferredAccesses, this.#functionBodyCopies, mayRecognize);
+        return new ResolvedDefinition(definition, type, hostCall, this.#resolutions, this.#pointers, this.#usedDeclarations, deferredAccesses, this.#functionBodyCopies, mayRecognize);
     }
 
     /**
@@ -156,6 +164,8 @@ export class LanguageResolver {
 
     /** Resolves the node in the script's terminal position, where a host call may stand: the script's expression, the result a body there returns and the body a `do` there holds. */
     #resolveTerminal(node, pointer, scope) {
+        this.#pointers.set(node, pointer);
+
         switch (node.kind) {
             case 'body':
                 return this.#resolveBody(node, pointer, scope, true);
@@ -183,6 +193,8 @@ export class LanguageResolver {
     }
 
     #resolveNode(node, pointer, scope) {
+        this.#pointers.set(node, pointer);
+
         switch (node.kind) {
             case 'literal':
                 return this.#resolveLiteral(node);
@@ -934,7 +946,11 @@ export class LanguageResolver {
 
     /** Resolves a negation: what it negates, any value, and answers a Boolean, true where that value is falsey. */
     #resolveNot(node, pointer, scope) {
-        // An equality is negated as `!=` writes it, so the member a refusal gives is negated too.
+        // An equality is negated as `!=` writes it, so the member a refusal gives is negated too, and it is recorded where it stands, as a node resolved alone is.
+        if (node.operand.kind === 'equality') {
+            this.#pointers.set(node.operand, `${pointer}/operand`);
+        }
+
         const operand = node.operand.kind === 'equality' ? this.#resolveEquality(node.operand, `${pointer}/operand`, scope, true) : this.#resolveNode(node.operand, `${pointer}/operand`, scope);
 
         this.#requireValue(operand, "What 'not' negates", `${pointer}/operand`);
@@ -1699,8 +1715,10 @@ export class LanguageResolver {
             return this.#resolveMemberAccess(node, pointer, scope);
         }
 
-        // The access's receiver is resolved once, and given to whichever reading applies, so a chain of indexers resolves each part once.
+        // The access's receiver is resolved once, and given to whichever reading applies, so a chain of indexers resolves each part once; the access is recorded where it stands, since neither reading resolves it as a node alone.
         const accessPointer = `${pointer}/receiver`;
+
+        this.#pointers.set(node.receiver, accessPointer);
         const receiver = accessReceiver ?? this.#resolveNode(access.receiver, `${accessPointer}/receiver`, scope);
         const kind = this.#memberKindNamedBy(access, receiver);
 
@@ -1757,7 +1775,9 @@ export class LanguageResolver {
         const holder = node.kind === 'call' ? 'callee' : node.kind === 'indexerAccess' ? 'receiver' : null;
         const names = [];
 
+        // Each name is recorded where it stands, since the access each step resolves in its place is made for the step.
         for (let access = holder === null ? node : node[holder], at = holder === null ? pointer : `${pointer}/${holder}`; ; access = access.receiver, at = `${at}/receiver`) {
+            this.#pointers.set(access, at);
             names.unshift({ access, pointer: at });
 
             if (access.continues !== true) {
@@ -2666,6 +2686,9 @@ export class LanguageResolver {
      * namespace by its local name, as the script does, and names the module by its own.
      */
     #resolveThroughNamespace(node, pointer, scope, contract = null) {
+        // A reference passed as an argument reaches here alone, so it is recorded where it stands, as a node resolved alone is.
+        this.#pointers.set(node, pointer);
+
         const access = LanguageResolver.#accessOf(node);
         const moduleName = this.#imported.getNamespaceModule(access.receiver.name);
         const written = `${access.receiver.name}.${access.name}`;

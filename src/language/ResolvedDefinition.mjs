@@ -10,17 +10,15 @@ export class ResolvedDefinition {
     #usedDeclarations;
     #deferredAccesses;
 
-    /** Each node of the definition's expression, by the node itself, with its JSON Pointer and what it resolved to. @type {Map<object, { pointer: string, resolution: object | undefined }>} */
-    #nodes = new Map();
-
-    /** The name of each field of each object expression of the definition's expression, in order, by the expression's node. @type {Map<object, string[]>} */
-    #fieldNames = new Map();
+    /** The JSON Pointer each node of the definition's expression stands at, by the node, a call's copy of a function's body among them, as resolution recorded it reaching the node. @type {WeakMap<object, string>} */
+    #pointers;
 
     /**
      * @param {object} definition The request's definition, whose every node is an object of its own.
      * @param {import('./Type.mjs').Type | null} type The type of its result, null for a host call that supplies nothing.
      * @param {{ node: object, pointer: string, name: string, declaration: object | null } | null} hostCall The host call the script ends in, null for one that gives a value.
      * @param {Map<string, object>} resolutions What each member node, by its JSON Pointer, resolved to.
+     * @param {WeakMap<object, string>} pointers The JSON Pointer each node resolution reached stands at, by the node.
      * @param {object[]} usedDeclarations The declarations the request uses, each with the pointer that used it, a call's copy of a function's body among them, and its qualified name, the name a message gives it, qualified
      * by the type its declaration is for.
      * @param {{ name: string | null, pointer: string, candidates: object[] }[]} deferredAccesses The accesses whose member is selected during evaluation, each with the name it accesses, null for an unnamed indexer,
@@ -29,17 +27,16 @@ export class ResolvedDefinition {
      * @param {boolean} mayRecognize Whether evaluating it may ask a module's `typeOf` of a value, in any branch, reached or not; true where left out, so a resolution that doesn't say is made stale by every module
      * declaring a `typeOf`, never kept current past one.
      */
-    constructor(definition, type, hostCall, resolutions, usedDeclarations, deferredAccesses, functionBodyCopies = [], mayRecognize = true) {
+    constructor(definition, type, hostCall, resolutions, pointers, usedDeclarations, deferredAccesses, functionBodyCopies = [], mayRecognize = true) {
         this.#mayRecognize = mayRecognize;
         this.#definition = definition;
         this.#type = type;
         this.#hostCall = hostCall;
         this.#resolutions = resolutions;
+        this.#pointers = pointers;
         this.#functionBodyCopies = functionBodyCopies;
         this.#usedDeclarations = Object.freeze(this.#definitionUsesOf(usedDeclarations));
         this.#deferredAccesses = Object.freeze(this.#definitionAccessesOf(deferredAccesses));
-        this.#index(definition.expression, '/expression');
-        functionBodyCopies.forEach(bodyCopy => this.#index(bodyCopy.node, bodyCopy.pointer));
     }
 
     /** @type {{ node: object, pointer: string, bodyPointer: string }[]} */
@@ -174,7 +171,7 @@ export class ResolvedDefinition {
      * @internal
      */
     resolutionOf(node) {
-        return this.#nodes.get(node)?.resolution;
+        return this.#resolutions.get(this.#pointers.get(node));
     }
 
     /**
@@ -182,114 +179,6 @@ export class ResolvedDefinition {
      * @internal
      */
     pointerOf(node) {
-        return this.#nodes.get(node)?.pointer;
-    }
-
-    /**
-     * The name of each field of the object expression node of the definition, in order: the name it was given, or the one it infers.
-     * @internal
-     */
-    fieldNamesOf(node) {
-        return this.#fieldNames.get(node);
-    }
-
-    /** Records the node at the pointer and every node beneath it, each with its pointer and its resolution. */
-    #index(node, pointer) {
-        this.#nodes.set(node, { pointer, resolution: this.#resolutions.get(pointer) });
-
-        // What a node continues from or ends at: an access's receiver, a call's callee, an object expression's context and an optional chain's chain.
-        for (const property of ['receiver', 'callee', 'context', 'chain']) {
-            if (node[property] !== undefined) {
-                this.#index(node[property], `${pointer}/${property}`);
-            }
-        }
-
-        switch (node.kind) {
-            case 'memberAccess':
-                if (typeof node.name !== 'string') {
-                    this.#index(node.name, `${pointer}/name`);
-                }
-                break;
-            case 'indexerAccess':
-                this.#index(node.argument, `${pointer}/argument`);
-                break;
-            case 'object':
-                node.locals?.forEach((local, index) => this.#index(local.value, `${pointer}/locals/${index}/value`));
-                node.objectFields.forEach((field, index) => this.#index(field.value, `${pointer}/objectFields/${index}/value`));
-                this.#fieldNames.set(node, node.objectFields.map(field => field.name));
-                break;
-            case 'equality':
-                this.#index(node.left, `${pointer}/left`);
-                this.#index(node.right, `${pointer}/right`);
-                break;
-            case 'conditional':
-                if (node.binding !== undefined) {
-                    this.#index(node.binding.value, `${pointer}/binding/value`);
-                }
-
-                for (const branch of ['condition', 'consequent', 'alternative']) {
-                    if (node[branch] !== undefined) {
-                        this.#index(node[branch], `${pointer}/${branch}`);
-                    }
-                }
-                break;
-            case 'body':
-                node.locals.forEach((local, index) => this.#index(local.value, `${pointer}/locals/${index}/value`));
-                this.#index(node.result, `${pointer}/result`);
-                break;
-            case 'do':
-                this.#index(node.body, `${pointer}/body`);
-                break;
-            case 'function':
-                this.#index(node.body, `${pointer}/body`);
-                break;
-            case 'call':
-                node.arguments.forEach((argument, index) => this.#index(argument, `${pointer}/arguments/${index}`));
-                break;
-            case 'list':
-                node.items.forEach((item, index) => this.#index(item, `${pointer}/items/${index}`));
-                break;
-            case 'dictionary':
-                node.entries.forEach((entry, index) => this.#index(entry.value, `${pointer}/entries/${index}/value`));
-                break;
-            case 'interpolatedString':
-                node.parts.forEach((part, index) => {
-                    if (part.kind === 'expression') {
-                        this.#index(part.expression, `${pointer}/parts/${index}/expression`);
-                    }
-                });
-                break;
-            case 'and':
-            case 'or':
-            case 'comparison':
-                node.operands.forEach((operand, index) => this.#index(operand, `${pointer}/operands/${index}`));
-                break;
-            case 'fromEndIndex':
-                this.#index(node.offset, `${pointer}/offset`);
-                break;
-            case 'range':
-                for (const boundary of ['start', 'end']) {
-                    if (node[boundary] !== undefined) {
-                        this.#index(node[boundary], `${pointer}/${boundary}`);
-                    }
-                }
-
-                break;
-            case 'not':
-            case 'arithmeticNegation':
-            case 'cast':
-            case 'conversion':
-            case 'try':
-                this.#index(node.operand, `${pointer}/operand`);
-                break;
-            case 'arithmetic':
-                this.#index(node.left, `${pointer}/left`);
-                this.#index(node.right, `${pointer}/right`);
-                break;
-            case 'coalescing':
-                this.#index(node.value, `${pointer}/value`);
-                this.#index(node.fallback, `${pointer}/fallback`);
-                break;
-        }
+        return this.#pointers.get(node);
     }
 }

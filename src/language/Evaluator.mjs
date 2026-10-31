@@ -1849,12 +1849,10 @@ export class Evaluator {
         // An item's source is of the kind its established type gives it, a reference where its items are of a reference type, whatever the value itself is.
         const resolution = this.#resolvedDefinition.resolutionOf(node);
         const isOfReferences = resolution?.kind === 'projection' && this.#registry.isReferenceType(resolution.itemType.toNonNullable());
-        const names = this.#resolvedDefinition.fieldNamesOf(node);
         const localNames = node.locals === undefined ? null : node.locals.map(local => local.name);
         // A field the entries after it read is in scope for them, by the name the definition gives it.
         const fields = node.objectFields.map((field, index) => ({
-            name: names[index],
-            local: field.name,
+            name: field.name,
             isReadLater: node.objectFields.slice(index + 1).some(later => Evaluator.#readsLocal(later.value, field.name)),
             evaluate: this.#getCompiledFunction(field.value),
         }));
@@ -1990,7 +1988,7 @@ export class Evaluator {
                 }
 
                 if (field.isReadLater) {
-                    this.#localsFrame = { names: [field.local], context, values: [value], selections: [this.#selections], enclosing: this.#localsFrame };
+                    this.#localsFrame = { names: [field.name], context, values: [value], selections: [this.#selections], enclosing: this.#localsFrame };
                 }
             }
         } finally {

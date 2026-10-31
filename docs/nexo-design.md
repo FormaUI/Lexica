@@ -216,13 +216,14 @@ Where the remaining time goes, as profiling found it. The contract requires the 
 - **Every value a host's member gives a callback is checked** against the callback's contract, a structure field by field, and so is a reference one of Nexo's own members gives.
 - **Every structured value Nexo makes is recorded** in a private field the value holds, so a value of `Any` keeps its type. A host's own flat structure is copied rather than recorded, as any other answer is.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
-- **Resolution's index** builds each node's pointer again and looks up its resolution by that string, which a profile put at a sixth of resolving; finding it by the string resolution stored measured 4% faster, not established, as [decisions](decisions.md#d25) records.
-- **Resolution** maps every node of the definition by its pointer as it finishes, to what it resolved.
 
 ### The third performance pass
 
-Each change below was measured alone, in five paired rounds against the commit before it, and kept where its rounds agree.
+The third pass adds a case to the benchmark: resolving the account summary and evaluating it once. A resolution is compiled at its first evaluation, which the other cases never time, and a host pays resolving, compiling and the first evaluation once for each script it prepares.
 
-| Change | Case | Time | Allocation |
-| --- | --- | --- | --- |
-| A text's locations are collected from the text read again, at the first location asked for, rather than as each text is parsed. A kept script holds its text alone, and the first location costs one more parse | Parse | −8% (−22% to −5%) | −11% |
+Each change below was measured alone, in paired rounds against the commit before it, and kept where its rounds agree. Parsing measures about 2% slower in time and in allocation on the side being measured even against an unchanged copy, so a change of that size to parsing is no change.
+
+| Change | Time | Allocation |
+| --- | --- | --- |
+| A text's locations are collected from the text read again, at the first location asked for, rather than as each text is parsed. A kept script holds its text alone, and the first location costs one more parse | Parse: −8% (−22% to −5%) | Parse: −11% |
+| Resolution records the pointer each node stands at as it reaches the node, and the resolved definition finds a node's resolution through it, rather than walking the definition again to build each pointer anew and index every node | Resolve: −17% (−21% to −17%). Resolve and evaluate once: −9.5% (−10% to −9%) | Resolve: −7%. Resolve and evaluate once: −5% |
