@@ -980,7 +980,7 @@ export class Evaluator {
         const alternatives = resolution.alternatives === undefined ? null : new Map(resolution.alternatives.map(alternative => [alternative.declaration, { invocation: this.#getCompiledInvocation(alternative.declaration, alternative.type), parameterNames: alternative.parameterNames }]));
         const evaluateCallee = alternatives === null ? null : this.#getCompiledFunction(node.callee);
         const parameterNames = declaration.parameters?.map(parameter => parameter.name) ?? [];
-        const invocation = this.#getCompiledInvocation(declaration, resultType, alternatives === null && this.#keepsCheckedItems(declaration, resultType, resolution.receiverType));
+        const invocation = this.#getCompiledInvocation(declaration, resultType, alternatives === null && this.#reliesOnAnswer(declaration, resultType));
         const evaluateArguments = this.#compileArguments(resolution);
 
         return (evaluator, context) => {
@@ -1028,11 +1028,11 @@ export class Evaluator {
     }
 
     /**
-     * The invocation of the declaration whose implementation answers a value of the result type, as the call it serves resolved it: its implementation, whether it takes a receiver, the check and the copy of its answer, and
-     * whether the call relies on the check its answer's items had, made once for each declaration, result type and reliance and shared by every evaluator of the resolution, so one generic declaration answering two types has
-     * two. The result type is the declaration's own, its type parameters bound for the call, which a null the call propagates or the types of other functions it may call never make wider.
+     * The invocation of the declaration whose implementation answers a value of the result type, as the call it serves resolved it: its implementation, whether it takes a receiver, the capture, the check and the copy of
+     * its answer, and whether the call relies on its answer as the language's and of its type, made once for each declaration, result type and reliance and shared by every evaluator of the resolution, so one generic
+     * declaration answering two types has two. The result type is the declaration's own, its type parameters bound for the call, which a null the call propagates or the types of other functions it may call never make wider.
      */
-    #getCompiledInvocation(declaration, resultType, keepsCheckedItems = false) {
+    #getCompiledInvocation(declaration, resultType, reliesOnAnswer = false) {
         let invocations = this.#compiledInvocations.get(declaration);
 
         if (invocations === undefined) {
@@ -1040,7 +1040,7 @@ export class Evaluator {
             this.#compiledInvocations.set(declaration, invocations);
         }
 
-        let invocation = invocations.find(candidate => candidate.resultType.equals(resultType) && candidate.keepsCheckedItems === keepsCheckedItems);
+        let invocation = invocations.find(candidate => candidate.resultType.equals(resultType) && candidate.reliesOnAnswer === reliesOnAnswer);
 
         if (invocation === undefined) {
             invocation = Object.freeze({
@@ -1048,8 +1048,9 @@ export class Evaluator {
                 implementation: this.#registry.getImplementation(declaration),
                 takesReceiver: this.#registry.takesReceiver(declaration),
                 resultType,
-                keepsCheckedItems,
-                captureCollections: Evaluator.#compileCollectionCapture(resultType),
+                reliesOnAnswer,
+                // An answer relied on holds the language's collections already, which is all a capture makes.
+                captureCollections: reliesOnAnswer ? null : Evaluator.#compileCollectionCapture(resultType),
                 isOfResultType: Evaluator.#compileTypeCheck(resultType, this.#registry, `the answer of '${NexoModule.writtenNameOf(declaration)}'`),
                 copyStructure: Evaluator.#compileStructureCopy(resultType, this.#registry),
             });
@@ -1060,24 +1061,18 @@ export class Evaluator {
     }
 
     /**
-     * Whether the answer of a call needs no check of its items: the member is one of Nexo's own lists' that answers items of its receiver, the receiver's type resolution established is a list of the answer's item type, and
-     * that type may hold no reference. Each item was then checked as that type where the receiver was made, and data shared with a host stays as it was checked. A reference's membership is its type's to answer, so an
-     * answer that may hold one is checked again, and so is any other member's.
+     * Whether the answer of a call needs neither a capture nor a check: the member is one of Nexo's own, which resolution selected, and its result type may hold no reference, nor a value of Any. Its implementation
+     * answers the language's own values, built of its receiver's items, its arguments, its functions' results and the numbers it computes, each of the type resolution established for it, so the answer is of the type its
+     * declaration gives the call; data shared with a host stays as it was checked. A reference's membership is its type's to answer, so an answer that may hold one is checked again, and so is any other member's.
      */
-    #keepsCheckedItems(declaration, resultType, receiverType) {
-        if (receiverType === undefined || !Vocabulary.answersReceiverItems(declaration) || !resultType.isList || resultType.isNullable) {
-            return false;
-        }
-
-        const receiverList = receiverType.toNonNullable();
-
-        return receiverList.isList && receiverList.itemType.equals(resultType.itemType) && !this.#registry.mayHoldReference(resultType.itemType);
+    #reliesOnAnswer(declaration, resultType) {
+        return this.#registry.getDeclaringModuleName(declaration) === Vocabulary.moduleName && !this.#registry.mayHoldReference(resultType);
     }
 
     /**
      * Whether the argument a function is called with needs no check of its own: the member is one of Nexo's own that calls the functions it is given with its receiver's items alone, the function takes one argument,
-     * the receiver's type resolution established holds items of that argument's type, and that type may hold no reference. Each item was checked as that type where the receiver was made, as an answer relying on
-     * its items' checks has it.
+     * the receiver's type resolution established holds items of that argument's type, and that type may hold no reference. Each item was checked as that type where the receiver was made, or is of it as an answer of Nexo's own is,
+     * since data shared with a host stays as it was.
      */
     #givesCheckedItems({ declaration, receiverType }, parameterTypes) {
         if (receiverType === undefined || parameterTypes.length !== 1 || !Vocabulary.givesReceiverItems(declaration)) {
@@ -2372,7 +2367,7 @@ export class Evaluator {
      * selected as it is evaluated.
      */
     #invokeImplementation(invocation, receiver, args, node, isDeferred = false) {
-        const { declaration, implementation, takesReceiver, resultType, keepsCheckedItems, captureCollections, isOfResultType, copyStructure } = invocation;
+        const { declaration, implementation, takesReceiver, resultType, reliesOnAnswer, captureCollections, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
             this.#fail('NEXO4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${NexoModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
@@ -2435,8 +2430,7 @@ export class Evaluator {
             value = captureCollections(value);
         }
 
-        // A list of its receiver's items that one of Nexo's own members made, as its positions show, holds items its receiver's check covers where the invocation keeps their checks.
-        if (!(keepsCheckedItems && positions !== undefined) && !isOfResultType(value)) {
+        if (!reliesOnAnswer && !isOfResultType(value)) {
             this.#fail('NEXO5006', `${this.#subjectOf(declaration, node)} answered ${Evaluator.#describe(value)}, and it declares ${resultType}`, this.#pointerOf(node));
         }
 

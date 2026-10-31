@@ -419,6 +419,23 @@ describe('a member\'s answer', () => {
         expect(asked).toBe(2);
     });
 
+    it('asks again whether each reference a structure holds is of its type, where a member of Nexo\'s own answers structures that hold one', () => {
+        let asked = 0;
+        const registry = createImportingRegistry([nexo.createModule('lamps', {
+            types: [
+                { name: 'Lamp', kind: 'reference', isInstance: value => ++asked > 0 && value?.isLamp === true },
+                { name: 'Socket', kind: 'structured', members: dataPropertyDeclarations({ lamp: 'Lamp' }) },
+            ],
+        })]);
+        const bindings = registry.createBindings({ sockets: [{ lamp: { isLamp: true } }, { lamp: { isLamp: true } }] }, { types: { sockets: 'List<lamps.Socket>' } });
+        const evaluator = registry.resolve('sockets.reverse.count', bindings).createEvaluator(bindings, {});
+
+        asked = 0;
+
+        expect(evaluator.evaluate().value).toBe(2);
+        expect(asked).toBe(2);
+    });
+
     it('asks again whether each reference a list member of Nexo\'s own gives its function is of its type, as well as each it answers', () => {
         let asked = 0;
         const registry = createImportingRegistry([nexo.createModule('lamps', {

@@ -345,7 +345,7 @@ Forty decisions were taken while implementing the declarations, member selection
 - **Measured in pairs:** a gain is established by paired runs against the commit before it, every round agreeing and the median beyond what a run against an unchanged copy shows. A single run's change can't be told from noise of the same size. Paired runs confirmed the pass, and showed the account summary's evaluation 16% faster, which single runs had put within noise.
 - **Why:** the user asked for safe improvements. A faster Nexo that answers differently is a different Nexo.
 - **Declined:**
-  - Skipping the checks of Nexo's own members' answers. One run measured it at about a tenth of an evaluation, no more than runs vary, so the gain is not established. It relied on no implementation changing a value it is given, which the contract didn't state.
+  - Skipping the checks of Nexo's own members' answers. One run measured it at about a tenth of an evaluation, no more than runs vary, so the gain is not established. It relied on no implementation changing a value it is given, which the contract didn't state. It was adopted after D26, below.
   - Collecting a text's locations at its first error, about a tenth of a parse. A kept script would hold its lowered definition beside its validated one.
   - A structure-type table for each registry, and one empty list shared by every type without type arguments. Neither measured beyond noise.
   - Freezing a filter's positions in place. `pick` gives the script's own list as its positions.
@@ -354,6 +354,7 @@ Forty decisions were taken while implementing the declarations, member selection
   - Fusing a chain of Nexo's own list members into one loop. It interleaves what the members evaluate, which changes the order of host calls, the first failure and what hooks hear.
 - **Adopted after [D26](#d26):**
   - A list member of Nexo's own that answers its receiver's items relies on the check those items had, where resolution selected it, the answer keeps the receiver's item type, and that type may hold no reference, as the [design](nexo-design.md#relying-on-a-check-of-data) sets out. Paired runs measured the account summary's evaluation 6% faster in every round. The portfolio report measured between 2% and 7% faster across four runs, with slower rounds in three, so that gain is not established. These paired runs replace the single run's tenth.
+  - Every answer of Nexo's own whose type may hold neither a reference nor a value of `Any` is neither captured nor checked, where resolution selected the member, rather than the answers of its receiver's items alone. Paired runs measured the portfolio report's evaluation 15% faster, every round agreeing, and the account summary's unchanged.
   - A function given to one of Nexo's own members relies on the check its argument had, an item of the member's receiver, under the same conditions. Paired runs measured the portfolio report's evaluation 17% faster and the account summary's 8%, every round agreeing.
 - **Correction:** the commit that keeps a structure's unchanged record says it saves a quarter of the portfolio report's allocation. Measured alone, it saves 9%.
 

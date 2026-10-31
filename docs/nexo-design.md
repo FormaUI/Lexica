@@ -146,21 +146,21 @@ What changed, each change measured alone and kept where it helped:
 
 ### Relying on a check of data
 
-Data shared with a host is [read-only once it passes](../spec/runtime/evaluation.md#runtime-shared-data), so a check of data holds for as long as the data does. A list member of Nexo's own that answers items of its receiver, as `where`, `orderBy` and `take` do, relies on the check those items had where all of these hold:
+Data shared with a host is [read-only once it passes](../spec/runtime/evaluation.md#runtime-shared-data), so a check of data holds for as long as the data does. A member of Nexo's own answers the language's own values, built of its receiver's items, its arguments, its functions' results and the numbers it computes. Each of those is of the type resolution established for it, so the answer is of the type its declaration gives the call. Its answer is neither captured nor checked where both of these hold:
 
-- **Resolution selected the member,** so the receiver's type is established, never a value of `Any`'s.
-- **The answer's item type is the receiver's.**
-- **That type may hold no reference.** A reference's membership is its type's to answer, so an answer that may hold one is checked again.
-- **The member's own positions show** that its answer holds its receiver's items.
+- **Resolution selected the member,** so its receiver's and its arguments' types are established, never selected on a value of `Any`.
+- **The result type may hold no reference, nor a value of `Any`.** A reference's membership is its type's to answer, so an answer that may hold one is checked again.
 
-The answer is still captured, copied, recorded and reported as before, and every other member's answer is checked. Measured in paired runs against the commit before it:
+The answer is still copied, recorded and reported as before, and every host member's answer is captured and checked. The rule first covered only the members that answer their receiver's own items, as `where` does, shown by the positions each item stood at. Measured in paired runs against the commit before each:
 
-| Case | Time | Allocation |
-| --- | --- | --- |
-| Account summary: evaluate | −6% (−13% to −1%), all nine rounds faster | unchanged |
-| Portfolio report: evaluate | −2% to −7% across four runs, some rounds slower in three of them, so not established | unchanged |
+| Change | Case | Time | Allocation |
+| --- | --- | --- | --- |
+| Members answering their receiver's items | Account summary: evaluate | −6% (−13% to −1%), all nine rounds faster | unchanged |
+| | Portfolio report: evaluate | −2% to −7% across four runs, some rounds slower in three of them, so not established | unchanged |
+| Every member of Nexo's own | Account summary: evaluate | +1% (−4% to +4%), no change | unchanged |
+| | Portfolio report: evaluate | −15% (−25% to −10%), all seven rounds faster | −1% |
 
-A function given to one of Nexo's own members relies on the same check. Every member of a list that takes an expression or a predicate, and a dictionary's `where` and `select`, calls each function it is given with one argument alone, an item of its receiver. A test holds each of them to that. The function skips its argument's check where:
+A function given to one of Nexo's own members relies on the check its argument had. Every member of a list that takes an expression or a predicate, and a dictionary's `where` and `select`, calls each function it is given with one argument alone, an item of its receiver. A test holds each of them to that. The function skips its argument's check where:
 
 - **Resolution selected the member,** so the receiver's type is established.
 - **The function takes one argument, of the receiver's item type.**
@@ -177,7 +177,7 @@ A profile's share is not what removing the work saves: copies a profile put at a
 
 Where the remaining time goes, as profiling found it. The contract requires the guarantees this work gives, not this way of giving them, so a cheaper way that keeps each guarantee may exist:
 
-- **Every answer is checked** against its declared type, a list item by item and a structure field by field, but where [a check of data is relied on](#relying-on-a-check-of-data).
+- **Every host member's answer is checked** against its declared type, a list item by item and a structure field by field, and so is an answer of Nexo's own that may hold a reference.
 - **Every value a host's member gives a callback is checked** against the callback's contract, a structure field by field, and so is a reference one of Nexo's own members gives.
 - **Every structured value Nexo makes is recorded** by the value in a weak map, so a value of `Any` keeps its type. Recording is about a third of binding, and a table for each registry measured no saving beyond noise.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
