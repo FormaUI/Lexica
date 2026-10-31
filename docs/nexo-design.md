@@ -190,6 +190,7 @@ Each change below was measured alone, in seven paired rounds against the commit 
 | A call's arguments hand the invocation the lifetimes of the functions they made, which it closes, rather than every invocation searching an index of open functions by its arguments | −10% (−12% to −3%) | −4% (−9% to −1%) |
 | The selections a place made are one list of each node beside its selection, rather than a map; allocation falls 6% for the summary and 3% for the report | −1% (−5% to 0%), within noise | −2% (−5% to +1%), within noise |
 | An object's field selections are one list, recorded once a field has made any, rather than a map recorded for every outermost object; allocation falls 5% | −6% (−9% to −5%) | −2% (−3% to +1%), within noise |
+| Capture freezes each part of the data it makes as it makes it, rather than binding walking the captured value again to freeze it; binding the report's customers 28% faster (−31% to −27%), allocating 45% less, and binding and evaluating the summary 9% | −9.5% (−17% to −8%) | +2.5% (−1% to +5%), within noise |
 
 Recording in a private field raised allocation: binding by 3%, and the portfolio report's evaluation by 13%, which copies no structure, for a cause not found yet.
 

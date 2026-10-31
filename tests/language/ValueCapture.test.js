@@ -33,6 +33,16 @@ describe('ValueCapture', () => {
         expect(capturedAs({ size: 2, lamp }, named('Spot')).value.lamp).toBe(lamp);
     });
 
+    it('freezes each list, object, structure, dictionary and pair it makes as it makes it, never a reference it holds', () => {
+        const { value } = capturedAs([{ size: 2, lamp }], Type.createListType(named('Spot')));
+        const dictionary = capturedAs(new Map([['a', { size: 1 }]]), Type.parse('Dictionary<String, home.Spot>')).value;
+        const pair = capturedAs({ key: 'a', value: [1] }, Type.parse('Pair<String, List<Number>>')).value;
+        const object = capturedAs({ spot: { size: 1 } }, Type.createObjectType(new Map([['spot', named('Spot')]]))).value;
+
+        expect([value, value[0], dictionary, dictionary.values[0], pair, pair.value, object, object.spot].map(part => Object.isFrozen(part))).toEqual([true, true, true, true, true, true, true, true]);
+        expect(Object.isFrozen(lamp)).toBe(false);
+    });
+
     it('captures a set as a list of its items in their traversal order, each captured as the item type, and keeps no uniqueness', () => {
         const strings = Type.parse('List<String>');
 

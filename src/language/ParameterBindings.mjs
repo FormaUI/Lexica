@@ -97,7 +97,7 @@ export class ParameterBindings {
     /**
      * A top-level binding of a declared type, the notation read in the binding scope, its names qualified or not. A reference type keeps its contract: the value belongs to it, checked by its membership, and no `typeOf`
      * is asked of it. Any other type captures the value as a value its host supplies is captured: a structure as its data shape alone, a property left out null where its type is nullable, a reference of another type
-     * null where a nullable reference type is declared, and data the type doesn't admit refused (NEXO2045), naming the part; the capture is frozen as bound data is, its references kept as they are.
+     * null where a nullable reference type is declared, and data the type doesn't admit refused (NEXO2045), naming the part; the capture freezes the data it makes, as bound data is, its references kept as they are.
      */
     #bindDeclared(name, value, typeName) {
         const fail = (code, message) => {
@@ -135,7 +135,8 @@ export class ParameterBindings {
             throw NexoErrors.structure('NEXO2045', `The value bound to '${name}' is declared ${type}, and ${given}, where ${partType} is declared`, { binding: name });
         }, `the binding '${name}'`);
 
-        return { type, value: this.#freezeAs(captured, type) };
+        // The capture freezes each part of the data it makes, never a reference it holds, which stays the host's own.
+        return { type, value: captured };
     }
 
     /**
@@ -171,29 +172,6 @@ export class ParameterBindings {
             default:
                 return true;
         }
-    }
-
-    /** The captured value frozen through its data, as its type gives it: its lists, its objects and its structures, never a reference it holds, which stays the host's own. */
-    #freezeAs(value, type) {
-        if (value === null || typeof value !== 'object' || this.#registry.isReferenceType(type)) {
-            return value;
-        }
-
-        if (type.isList) {
-            value.forEach(item => this.#freezeAs(item, type.itemType));
-        } else if (type.isDictionary) {
-            value.keys.forEach(key => this.#freezeAs(key, type.typeArguments[0]));
-            value.values.forEach(entry => this.#freezeAs(entry, type.typeArguments[1]));
-        } else if (type.isPair) {
-            this.#freezeAs(value.key, type.typeArguments[0]);
-            this.#freezeAs(value.value, type.typeArguments[1]);
-        } else if (type.kind === 'object') {
-            type.fieldTypes.forEach((fieldType, field) => this.#freezeAs(value[field], fieldType));
-        } else {
-            this.#registry.getDataShape(type)?.forEach((propertyType, property) => this.#freezeAs(value[property], propertyType));
-        }
-
-        return Object.freeze(value);
     }
 
     /** What a value is, for a message: its text where it is data, and what kind of value it is otherwise. */

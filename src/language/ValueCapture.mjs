@@ -1,6 +1,6 @@
 /**
  * ValueCapture — a value from outside a script captured as the type declared for it, as a value a host supplies is: a value its type admits taken, a list from an array or a set, a structure as its data shape alone,
- * and a reference of another type null where a nullable reference type is declared
+ * and a reference of another type null where a nullable reference type is declared, each list, object, structure, dictionary and pair it makes frozen as it is made
  */
 
 import { ArrayUtils } from '../common/ArrayUtils.mjs';
@@ -122,7 +122,7 @@ export class ValueCapture {
                     captured[index] = this.#captureStep(items[index], type.itemType, index, fail);
                 }
 
-                return captured;
+                return Object.freeze(captured);
             } finally {
                 this.#leave(value);
             }
@@ -136,7 +136,7 @@ export class ValueCapture {
             this.#enter(value, type, fail);
 
             try {
-                return new Dictionary(entries.map(([key, entry], index) => [this.#captureStep(key, keyType, { entry: index, part: 'key' }, fail), this.#captureStep(entry, valueType, { entry: index, part: 'value' }, fail)]));
+                return Object.freeze(new Dictionary(entries.map(([key, entry], index) => [this.#captureStep(key, keyType, { entry: index, part: 'key' }, fail), this.#captureStep(entry, valueType, { entry: index, part: 'value' }, fail)])));
             } finally {
                 this.#leave(value);
             }
@@ -154,7 +154,7 @@ export class ValueCapture {
             this.#enter(value, type, fail);
 
             try {
-                return new Pair(this.#captureStep(value.key, keyType, 'key', fail), this.#captureStep(value.value, valueType, 'value', fail));
+                return Object.freeze(new Pair(this.#captureStep(value.key, keyType, 'key', fail), this.#captureStep(value.value, valueType, 'value', fail)));
             } finally {
                 this.#leave(value);
             }
@@ -171,7 +171,7 @@ export class ValueCapture {
                 this.#enter(value, type, fail);
 
                 try {
-                    return this.#captureFields(value, type.fieldTypes, fail);
+                    return Object.freeze(this.#captureFields(value, type.fieldTypes, fail));
                 } finally {
                     this.#leave(value);
                 }
@@ -224,10 +224,10 @@ export class ValueCapture {
             this.#leave(value);
         }
 
-        // A captured structure keeps its type through a value of Any, as one a member answers does.
+        // A captured structure keeps its type through a value of Any, as one a member answers does, recorded before it is frozen.
         StructureTypes.recordType(structure, this.#registry, type.toNonNullable());
 
-        return structure;
+        return Object.freeze(structure);
     }
 
     /** The path of a field within the path of the value that holds it. */
