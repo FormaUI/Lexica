@@ -86,7 +86,7 @@ describe('Vocabulary', () => {
         const receiver = ['a', 'a', 'b'];
         const isA = item => item === 'a';
         const itself = item => item;
-        const positionsOf = (name, args, on = receiver) => ItemPositions.getPositions(read(name, on, args));
+        const positionsOf = (name, args, on = receiver) => ItemPositions.takePositions(read(name, on, args));
 
         expect({
             where: positionsOf('where', { expression: isA }),
@@ -109,7 +109,7 @@ describe('Vocabulary', () => {
 
         const slice = list.members.find(member => member.kind === 'indexer' && member.parameters[0].type === 'Range');
 
-        expect(ItemPositions.getPositions(slice.impl({ receiver, args: { range: new Range(1, null) }, env: {} }))).toEqual([1, 2]);
+        expect(ItemPositions.takePositions(slice.impl({ receiver, args: { range: new Range(1, null) }, env: {} }))).toEqual([1, 2]);
     });
 
     it('calls each function a list or a dictionary member of its own is given with one argument alone, an item of its receiver as it stands there', () => {

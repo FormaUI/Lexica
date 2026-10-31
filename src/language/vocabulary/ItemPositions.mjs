@@ -1,30 +1,44 @@
 /**
- * ItemPositions — where in its receiver each item stood of a list one of Nexo's own members answered of its receiver's items, kept with that list, so the item's lineage follows its occurrence rather than its value
+ * ItemPositions — where in its receiver each item stood of a list one of Nexo's own members answered of its receiver's items, handed with that list to the invocation that answers it, so the item's lineage follows its
+ * occurrence rather than its value
  */
 
 export class ItemPositions {
     /**
-     * The receiver's positions of the items of each list `createAnswer` created, by the list. A list never changes, so an entry is valid for good, and it is released with its list, which the map holds weakly; no
-     * evaluation reads another's lists, so none shares an entry.
-     * @type {WeakMap<object, readonly number[]>}
+     * The list `createAnswer` created last, and the receiver's position of each of its items, which `takePositions` hands over once. A member creates its answer after everything it evaluates, its functions' calls among
+     * them, and its invocation takes the positions as the member returns, so no other answer is created between the two. The slot is valid until another answer is created, and releases the list and its positions
+     * once taken; a global map of every answer's positions, written for each, measured a twentieth of an evaluation.
      */
-    static #positions = new WeakMap();
+    static #answer = null;
+
+    /** @type {readonly number[] | null} */
+    static #positions = null;
 
     /**
-     * The receiver's items at the positions, in the positions' order, a position given twice giving its item twice, as a frozen list that keeps the positions, which `getPositions` reads. Each position is one the
-     * receiver has an item at, which its member has checked.
+     * The receiver's items at the positions, in the positions' order, a position given twice giving its item twice, as a frozen list whose positions `takePositions` hands over. Each position is one the receiver has an
+     * item at, which its member has checked, and the member never changes the positions it gives.
      */
     static createAnswer(receiver, positions) {
         const answer = Object.freeze(positions.map(position => receiver[position]));
 
-        ItemPositions.#positions.set(answer, Object.freeze([...positions]));
+        ItemPositions.#answer = answer;
+        ItemPositions.#positions = positions;
 
         return answer;
     }
 
-    /** The position in its receiver of each item of a list `createAnswer` created, in the list's order, or undefined for any other list. */
-    static getPositions(list) {
-        return ItemPositions.#positions.get(list);
+    /** The position in its receiver of each item of the list, in the list's order, where `createAnswer` created it last and none has taken them, handed over once; undefined for any other list. */
+    static takePositions(list) {
+        if (list !== ItemPositions.#answer) {
+            return undefined;
+        }
+
+        const positions = ItemPositions.#positions;
+
+        ItemPositions.#answer = null;
+        ItemPositions.#positions = null;
+
+        return positions;
     }
 
     /** The positions from the start to before the end, in order, none where the end is not after the start. */

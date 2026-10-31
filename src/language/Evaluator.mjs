@@ -2435,7 +2435,7 @@ export class Evaluator {
         // so both are read from that list.
         const implemented = value;
         const answersReceiverItems = takesReceiver && Vocabulary.answersReceiverItems(declaration);
-        const positions = answersReceiverItems ? ItemPositions.getPositions(implemented) : undefined;
+        const positions = answersReceiverItems ? ItemPositions.takePositions(implemented) : undefined;
 
         // A collection a host gives in a form of its own, a set, a map or a pair's object, is the language's where the member declares one.
         if (captureCollections !== null) {

@@ -16,14 +16,15 @@ describe('ListOrdering', () => {
     it('answers a frozen ordered list, its receiver unchanged, which thenBy refines run by run and whose copy it carries', () => {
         const items = Object.freeze([{ group: 2, name: 'a' }, { group: 1, name: 'c' }, { group: 1, name: 'b' }]);
         const ordered = ListOrdering.orderBy(items, byGroup, false, 'orderBy');
+        // Each answer hands over the position its items stood at in its own receiver as its member returns.
+        const orderedPositions = ItemPositions.takePositions(ordered);
         const copy = ordered.map(item => ({ ...item }));
 
         expect(ordered.map(byName)).toEqual(['c', 'b', 'a']);
         expect(Object.isFrozen(ordered)).toBe(true);
         expect(items.map(byName)).toEqual(['a', 'c', 'b']);
         expect(ListOrdering.thenBy(ordered, byName, false, 'thenBy').map(byName)).toEqual(['b', 'c', 'a']);
-        // Each answer keeps the position its items stood at in its own receiver.
-        expect([ItemPositions.getPositions(ordered), ItemPositions.getPositions(ListOrdering.thenBy(ordered, byName, false, 'thenBy'))]).toEqual([[1, 2, 0], [1, 0, 2]]);
+        expect([orderedPositions, ItemPositions.takePositions(ListOrdering.thenBy(ordered, byName, false, 'thenBy'))]).toEqual([[1, 2, 0], [1, 0, 2]]);
 
         ListOrdering.carry(ordered, copy);
 

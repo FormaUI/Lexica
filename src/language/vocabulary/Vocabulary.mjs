@@ -72,7 +72,7 @@ export class Vocabulary {
 
     /**
      * Whether the member is one of Nexo's own lists' that answers items of its receiver, as they stand there, kept, left out, reordered, taken once each or repeated, so its answer carries each answered item's
-     * lineage, which the position it stood at, kept by `ItemPositions` with the answer, says: `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, the members that order,
+     * lineage, which the position it stood at, handed by `ItemPositions` with the answer, says: `where`, `take`, `drop`, `takeWhile`, `dropWhile`, `distinct`, `distinctBy`, `reverse`, the members that order,
      * `orderBy`, `orderByDescending`, `thenBy` and `thenByDescending`, the unnamed indexer's signature that slices by a range, and `pick`.
      */
     static answersReceiverItems(declaration) {
