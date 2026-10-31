@@ -9,6 +9,7 @@ import { Imports } from './Imports.mjs';
 import { NexoError, NexoErrors } from './NexoError.mjs';
 import { Names } from './Names.mjs';
 import { ResolvedDefinition } from './ResolvedDefinition.mjs';
+import { ScopeLocals } from './ScopeLocals.mjs';
 import { Type } from './Type.mjs';
 import { NexoModule } from './vocabulary/NexoModule.mjs';
 import { Vocabulary } from './vocabulary/Vocabulary.mjs';
@@ -69,7 +70,7 @@ export class LanguageResolver {
     resolveDefinition(definition) {
         this.#resolveImports(definition.imports);
 
-        const result = this.#resolveTerminal(definition.expression, '/expression', { contextType: null, contextKey: {}, locals: new Map(), facts: NO_FACTS, objectRootType: null });
+        const result = this.#resolveTerminal(definition.expression, '/expression', { contextType: null, contextKey: {}, locals: ScopeLocals.empty, facts: NO_FACTS, objectRootType: null });
 
         // A host call that supplies nothing gives no result, and one that supplies values gives, for each, what its result projection makes of it, or the value itself.
         const type = result.suppliesNothing === true ? null : result.type;
@@ -941,7 +942,7 @@ export class LanguageResolver {
 
     /** The scope a conditional binding's consequent is resolved in: the scope around it, with the binding's name a local holding its value, of the result given. */
     static #consequentScopeOf(node, scope, result) {
-        return { ...scope, locals: new Map(scope.locals).set(node.binding.name, { result, initializer: node.binding.value, scope, conditional: node }) };
+        return { ...scope, locals: scope.locals.with(node.binding.name, { result, initializer: node.binding.value, scope, conditional: node }) };
     }
 
     /** Resolves a negation: what it negates, any value, and answers a Boolean, true where that value is falsey. */
@@ -1130,7 +1131,7 @@ export class LanguageResolver {
 
             // A function is resolved where it is called, against that call's arguments, so its local holds the scope it was declared in.
             if (local.value.kind === 'function') {
-                locals = new Map(locals).set(local.name, LanguageResolver.#functionLocalOf(local.value, valuePointer, localScope));
+                locals = locals.with(local.name, LanguageResolver.#functionLocalOf(local.value, valuePointer, localScope));
 
                 return;
             }
@@ -1142,7 +1143,7 @@ export class LanguageResolver {
             }
 
             isFixed &&= result.isFixed;
-            locals = new Map(locals).set(local.name, { result, initializer: local.value, scope: localScope });
+            locals = locals.with(local.name, { result, initializer: local.value, scope: localScope });
         });
 
         const resultPointer = `${pointer}/result`;
@@ -1507,7 +1508,7 @@ export class LanguageResolver {
         let locals = target.scope.locals;
 
         parameters.forEach((parameter, index) => {
-            locals = new Map(locals).set(parameter, { result: argumentResults[index], value: argumentNodes?.[index] ?? null, scope: callerScope });
+            locals = locals.with(parameter, { result: argumentResults[index], value: argumentNodes?.[index] ?? null, scope: callerScope });
         });
 
         const bodyCopy = DefinitionValidator.copyOf(body);
@@ -2621,7 +2622,7 @@ export class LanguageResolver {
 
             if (parameter.kind !== 'value') {
                 if (optionsObject !== null) {
-                    argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { optionKind: parameter.kind === 'function' ? 'implicitBody' : parameter.kind, result: null }) };
+                    argumentScope = { ...argumentScope, locals: argumentScope.locals.with(parameter.name, { optionKind: parameter.kind === 'function' ? 'implicitBody' : parameter.kind, result: null }) };
                 }
 
                 continue;
@@ -2638,7 +2639,7 @@ export class LanguageResolver {
             }
 
             if (optionsObject !== null) {
-                argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { result: outcome.result, initializer: given.node, scope: argumentScope }) };
+                argumentScope = { ...argumentScope, locals: argumentScope.locals.with(parameter.name, { result: outcome.result, initializer: given.node, scope: argumentScope }) };
             }
 
             if (objectExpression !== null) {
@@ -3270,7 +3271,7 @@ export class LanguageResolver {
 
                 // An expression or a predicate option is evaluated by the member, and has no single value: a name or a field of it after its initializer refuses a read, hiding any enclosing name of its spelling.
                 if (optionsObject !== null) {
-                    argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { optionKind: parameter.kind, result: null }) };
+                    argumentScope = { ...argumentScope, locals: argumentScope.locals.with(parameter.name, { optionKind: parameter.kind, result: null }) };
                 }
 
                 if (objectExpression !== null) {
@@ -3283,7 +3284,7 @@ export class LanguageResolver {
                 // An implicit body option is called by the member against the argument it supplies, and has no single value, as an expression option has none.
                 if (callback.isBody === true) {
                     if (optionsObject !== null) {
-                        argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { optionKind: 'implicitBody', result: null }) };
+                        argumentScope = { ...argumentScope, locals: argumentScope.locals.with(parameter.name, { optionKind: 'implicitBody', result: null }) };
                     }
 
                     if (objectExpression !== null) {
@@ -3312,7 +3313,7 @@ export class LanguageResolver {
 
                 // A value or a function option is in scope after its value, through the options after it, read as it was evaluated; one of the outermost object is completed, and read through root after it as the value it was given, of that value's type.
                 if (optionsObject !== null) {
-                    argumentScope = { ...argumentScope, locals: new Map(argumentScope.locals).set(parameter.name, { result, initializer: given.node, scope: argumentScope }) };
+                    argumentScope = { ...argumentScope, locals: argumentScope.locals.with(parameter.name, { result, initializer: given.node, scope: argumentScope }) };
                 }
 
                 if (objectExpression !== null) {
@@ -3429,7 +3430,7 @@ export class LanguageResolver {
             const valuePointer = `${pointer}/locals/${index}/value`;
 
             if (local.value.kind === 'function') {
-                locals = new Map(locals).set(local.name, LanguageResolver.#functionLocalOf(local.value, valuePointer, scopeHere()));
+                locals = locals.with(local.name, LanguageResolver.#functionLocalOf(local.value, valuePointer, scopeHere()));
 
                 return;
             }
@@ -3440,7 +3441,7 @@ export class LanguageResolver {
                 this.#fail('NEXO3048', `The local '${local.name}' is ${LanguageResolver.#descriptionOf(result.kind)}, and a local is a value`, valuePointer);
             }
 
-            locals = new Map(locals).set(local.name, { result, initializer: local.value, scope: scopeHere() });
+            locals = locals.with(local.name, { result, initializer: local.value, scope: scopeHere() });
         });
 
         const fieldTypes = new Map();
@@ -3478,7 +3479,7 @@ export class LanguageResolver {
             fieldTypes.set(name, result.type);
 
             // A field is in scope after its value, through the fields after it, its value read as it was evaluated.
-            locals = new Map(locals).set(name, { result, initializer: field.value, scope: scopeHere() });
+            locals = locals.with(name, { result, initializer: field.value, scope: scopeHere() });
 
             // A field of the outermost object is completed, and read through a reference to the root written after it, as the value its evaluation gave.
             if (objectExpression !== null) {
