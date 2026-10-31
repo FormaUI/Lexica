@@ -269,8 +269,6 @@ export class Evaluator {
     prepareHostCall() {
         const { hostCall } = this.#resolvedDefinition;
 
-        this.#closableCallbacks.clear();
-
         if (hostCall === null) {
             this.#fail('NEXO5014', 'The script gives a value and ends in no host call, so there is nothing to prepare; evaluate it', '/expression');
         }
@@ -394,8 +392,6 @@ export class Evaluator {
     #evaluateForHost(hooks, produce) {
         this.#hooks = hooks;
         this.#isPending = false;
-        this.#closableCallbacks.clear();
-
         let outcome = null;
 
         // The outcome is made only where an `afterEvaluation` hook is told it, and the metadata only where it is read.
@@ -1013,13 +1009,14 @@ export class Evaluator {
             }
 
             const args = evaluateArguments(evaluator, context);
+            const lifetimes = evaluator.#givenLifetimes;
 
             if (args === null) {
                 return null;
             }
 
             if (alternatives === null) {
-                return evaluator.#invokeImplementation(invocation, receiver, args, node);
+                return evaluator.#invokeImplementation(invocation, receiver, args, node, false, lifetimes);
             }
 
             const callee = evaluateCallee(evaluator, context);
@@ -1027,7 +1024,7 @@ export class Evaluator {
 
             (evaluator.#selections ??= new Map()).set(node, callee.reference);
 
-            return evaluator.#invokeImplementation(chosen.invocation, receiver, Evaluator.#renameArguments(args, parameterNames, chosen.parameterNames), node);
+            return evaluator.#invokeImplementation(chosen.invocation, receiver, Evaluator.#renameArguments(args, parameterNames, chosen.parameterNames), node, false, lifetimes);
         };
     }
 
@@ -1537,7 +1534,11 @@ export class Evaluator {
      */
     #compileArguments(resolution) {
         if (resolution.arguments.length === 0) {
-            return () => NO_ARGUMENTS;
+            return evaluator => {
+                evaluator.#givenLifetimes = null;
+
+                return NO_ARGUMENTS;
+            };
         }
 
         const { buildsObjectRoot } = resolution;
@@ -1589,6 +1590,8 @@ export class Evaluator {
 
         return (evaluator, context) => {
             const args = {};
+            // The lifetime of each function the call gives its member, which the invocation closes, handed to it as the arguments are made.
+            let lifetimes = null;
             const enclosingObjectRoot = evaluator.#objectRoot;
             const enclosingLocalsFrame = evaluator.#localsFrame;
             const objectRoot = buildsObjectRoot === true ? {} : null;
@@ -1613,7 +1616,10 @@ export class Evaluator {
                         const capturedFrame = evaluator.#localsFrame;
                         const capturedObjectRoot = evaluator.#objectRoot;
 
-                        args[plan.name] = evaluator.#createCallback(plan, argumentValues => (plan.skipsNullItem && argumentValues[0] === null ? null : evaluator.#evaluateWithin(capturedFrame, capturedObjectRoot, evaluate, argumentValues[0])));
+                        const lifetime = { isOpen: true };
+
+                        (lifetimes ??= []).push(lifetime);
+                        args[plan.name] = evaluator.#createCallback(plan, lifetime, argumentValues => (plan.skipsNullItem && argumentValues[0] === null ? null : evaluator.#evaluateWithin(capturedFrame, capturedObjectRoot, evaluate, argumentValues[0])));
                     } else {
                         let value;
 
@@ -1633,7 +1639,15 @@ export class Evaluator {
 
                         // A function reference is evaluated where it is written, once, and goes to the member as a callback it calls, while the expression's own names and fields hold the value itself.
                         argumentValue = value;
-                        args[plan.name] = plan.kind === 'callback' ? evaluator.#createCallback(plan, argumentValues => evaluator.#callFunction(value, argumentValues, plan.functions, plan.node)) : value;
+
+                        if (plan.kind === 'callback') {
+                            const lifetime = { isOpen: true };
+
+                            (lifetimes ??= []).push(lifetime);
+                            args[plan.name] = evaluator.#createCallback(plan, lifetime, argumentValues => evaluator.#callFunction(value, argumentValues, plan.functions, plan.node));
+                        } else {
+                            args[plan.name] = value;
+                        }
                     }
 
                     if (plan.isField) {
@@ -1648,6 +1662,7 @@ export class Evaluator {
 
                 return args;
             } finally {
+                evaluator.#givenLifetimes = lifetimes;
                 evaluator.#objectRoot = enclosingObjectRoot;
                 evaluator.#localsFrame = enclosingLocalsFrame;
             }
@@ -1728,13 +1743,12 @@ export class Evaluator {
     }
 
     /**
-     * Creates the function a member is given for a parameter that takes one, and registers its lifetime, which `#invokeImplementation` closes when the member's invocation ends, however it ends: each call checks the member's arguments
+     * Creates the function a member is given for a parameter that takes one, open while its lifetime is, which `#invokeImplementation` closes when the member's invocation ends, however it ends: each call checks the member's arguments
      * against the callback contract's parameter types, gives them to the body, which evaluates the argument's expression against the first or calls the function the argument gave, checks the body's result against the contract's
      * result type, and answers it, or its truthiness for a predicate. A call after the invocation fails, while the function the body calls stays callable wherever else it is given or called.
      */
-    #createCallback(plan, body) {
+    #createCallback(plan, lifetime, body) {
         const { name, memberName, parameterTypes, resultType, isOfParameterType, isOfResultType, isPredicate, pointer } = plan;
-        const lifetime = { isOpen: true };
         const callback = (...argumentValues) => {
             try {
                 if (!lifetime.isOpen) {
@@ -1769,17 +1783,16 @@ export class Evaluator {
             }
         };
 
-        this.#closableCallbacks.set(callback, lifetime);
-
         return callback;
     }
 
     /**
-     * The lifetime of each function given to a member that its invocation has yet to close, by the function. Each is removed as it is closed; one the evaluator never closes, given to a host call or to an invocation
-     * an argument's failure prevented, keeps its lifetime as it is and leaves this index when the next evaluation, preparation or projection begins, since no invocation of this evaluator is under way then.
-     * @type {Map<Function, { isOpen: boolean }>}
+     * The lifetimes of the functions the arguments made last give their member, or null where they give none, which the caller reads as the arguments are made, before evaluating anything else, and hands to the
+     * invocation, which closes them. One the evaluator never closes, given to a host call or to an invocation an argument's failure prevented, keeps its lifetime as it is. An index of every open function, which
+     * each invocation searched by its arguments, measured a few hundredths of an evaluation.
+     * @type {{ isOpen: boolean }[] | null}
      */
-    #closableCallbacks = new Map();
+    #givenLifetimes = null;
 
     /** The errors a function given to a member raised, which reach the expression as they are, not as the member's failure. @type {WeakSet<object>} */
     #callbackErrors = new WeakSet();
@@ -2269,7 +2282,7 @@ export class Evaluator {
 
         const args = this.#evaluateArguments(resolution, context);
 
-        return args === null ? null : this.#invokeImplementation(this.#getCompiledInvocation(resolution.declaration, resolution.type), receiver, args, node);
+        return args === null ? null : this.#invokeImplementation(this.#getCompiledInvocation(resolution.declaration, resolution.type), receiver, args, node, false, this.#givenLifetimes);
     }
 
     /**
@@ -2360,7 +2373,7 @@ export class Evaluator {
      * against the invocation's result type, tells the host's `afterInvoke`, and answers a copy of the structures the answer holds. Its failures are located at the node that invoked it. Its request says whether the member was
      * selected as it is evaluated.
      */
-    #invokeImplementation(invocation, receiver, args, node, isDeferred = false) {
+    #invokeImplementation(invocation, receiver, args, node, isDeferred = false, lifetimes = null) {
         const { declaration, implementation, takesReceiver, answersReceiverItems, projectsItems, readsMaintained, resultType, reliesOnAnswer, captureCollections, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
@@ -2403,12 +2416,9 @@ export class Evaluator {
             this.#fail('NEXO5007', `${this.#subjectOf(declaration, node)} failed: ${Evaluator.#messageOf(error)}`, this.#pointerOf(node), { cause: error });
         } finally {
             // A function the member was given is called only while its invocation lasts.
-            for (const name in args) {
-                const lifetime = this.#closableCallbacks.get(args[name]);
-
-                if (lifetime !== undefined) {
+            if (lifetimes !== null) {
+                for (const lifetime of lifetimes) {
                     lifetime.isOpen = false;
-                    this.#closableCallbacks.delete(args[name]);
                 }
             }
         }
