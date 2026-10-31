@@ -168,6 +168,22 @@ describe('LanguageResolver', () => {
             expect(codeOf('{ let peek = () => root.a, a = 1, b = peek() }')).toBe('NEXO3044');
             expect(String(resolve('{ a = 1, b = { let peek = () => root.a, c = peek() } }').type)).toBe('{ a: Number, b: { c: Number } }');
         });
+
+        it('names the fields completed where a reference reads one it lacks, and none before the first', () => {
+            /** The message of the error resolving the script fails with. */
+            const messageOf = result => {
+                try {
+                    resolve(result);
+                } catch (error) {
+                    return error.message;
+                }
+
+                return null;
+            };
+
+            expect(messageOf('{ a = 1, b = "x", c = root.z, d = 2 }')).toMatch(/those completed are a, b \(/);
+            expect(messageOf('{ let early = () => root.z, a = 1, b = { c = early() } }')).toMatch(/none is completed there \(/);
+        });
     });
 
     describe('the name a use is qualified by', () => {
