@@ -184,6 +184,7 @@ Each change below was measured alone, in seven paired rounds against the commit 
 | Each evaluation, and each prepared call, records its objects' field selections in a store of its own, released with it, rather than in one the evaluator keeps for good | −10% (−18% to −10%) | −5% (−9% to +7%), not established |
 | A member of Nexo's own hands its answer's positions to its invocation as it returns, rather than writing them to a global map for each answer | −6% (−9% to −4%) | −3% (−15% to +9%), not established |
 | A structure's type is recorded in a private field of the structure, rather than in a global weak map; binding the report's customers is 41% faster (−42% to −37%), and binding and evaluating the summary 14% | −5% (−6% to −1%) | −17% (−21% to −11%) |
+| A frame holds its names' values and their selections in two lists beside its names, a call's parameters the list of its arguments itself, rather than a map of an object for each; allocation falls 17% and 19% | −4% (−7% to −2%) | no change |
 
 Recording in a private field raised allocation: binding by 3%, and the portfolio report's evaluation by 13%, which copies no structure, for a cause not found yet.
 
