@@ -186,6 +186,7 @@ Each change below was measured alone, in seven paired rounds against the commit 
 | A structure's type is recorded in a private field of the structure, rather than in a global weak map; binding the report's customers is 41% faster (−42% to −37%), and binding and evaluating the summary 14% | −5% (−6% to −1%) | −17% (−21% to −11%) |
 | A frame holds its names' values and their selections in two lists beside its names, a call's parameters the list of its arguments itself, rather than a map of an object for each; allocation falls 17% and 19% | −4% (−7% to −2%) | no change |
 | The result's copy answers each part as it is and leaves its identities beside it, copying a scalar without a pair of the two; binding and evaluating the summary 4% faster, and allocation 6% less | −2.5% (−5% to −1%), within what an unchanged copy shows | no change |
+| A compiled invocation decides once whether its member answers its receiver's items, projects them or reads maintained values, rather than at each invocation | −5.5% (−8% to −3%) | −3% (−5% to −2%) |
 
 Recording in a private field raised allocation: binding by 3%, and the portfolio report's evaluation by 13%, which copies no structure, for a cause not found yet.
 

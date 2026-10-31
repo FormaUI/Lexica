@@ -1056,10 +1056,16 @@ export class Evaluator {
         let invocation = invocations.find(candidate => candidate.resultType.equals(resultType) && candidate.reliesOnAnswer === reliesOnAnswer);
 
         if (invocation === undefined) {
+            const takesReceiver = this.#registry.takesReceiver(declaration);
+
             invocation = Object.freeze({
                 declaration,
                 implementation: this.#registry.getImplementation(declaration),
-                takesReceiver: this.#registry.takesReceiver(declaration),
+                takesReceiver,
+                // What the protocol does with the member's answer, and whether it reads samples, decided once for the declaration rather than at each invocation.
+                answersReceiverItems: takesReceiver && Vocabulary.answersReceiverItems(declaration),
+                projectsItems: takesReceiver && Vocabulary.projectsItems(declaration),
+                readsMaintained: declaration.updates?.reads === 'maintained',
                 resultType,
                 reliesOnAnswer,
                 // An answer relied on holds the language's collections already, which is all a capture makes.
@@ -2355,7 +2361,7 @@ export class Evaluator {
      * selected as it is evaluated.
      */
     #invokeImplementation(invocation, receiver, args, node, isDeferred = false) {
-        const { declaration, implementation, takesReceiver, resultType, reliesOnAnswer, captureCollections, isOfResultType, copyStructure } = invocation;
+        const { declaration, implementation, takesReceiver, answersReceiverItems, projectsItems, readsMaintained, resultType, reliesOnAnswer, captureCollections, isOfResultType, copyStructure } = invocation;
 
         if (implementation === undefined) {
             this.#fail('NEXO4001', `The module '${this.#registry.getDeclaringModuleName(declaration)}' gives '${NexoModule.writtenNameOf(declaration)}' no implementation`, this.#pointerOf(node));
@@ -2365,7 +2371,7 @@ export class Evaluator {
         // called through its namespace, and has no receiver.
         const pointer = this.#hooks === null ? null : this.#resolvedDefinition.resolveDefinitionPointer(this.#pointerOf(node));
         const request = this.#hooks === null ? null : takesReceiver ? { declaration, receiver, args, pointer, isDeferred } : { declaration, args, pointer, isDeferred };
-        const samples = this.#beforeInvoke(request, declaration, node);
+        const samples = this.#beforeInvoke(request, declaration, node, readsMaintained);
 
         if (samples === null) {
             return null;
@@ -2377,7 +2383,7 @@ export class Evaluator {
             // The input names the receiver, the arguments, the environment and a maintained member's samples, in that order.
             const input = takesReceiver ? { receiver, args, env: this.#environment } : { args, env: this.#environment };
 
-            if (declaration.updates?.reads === 'maintained') {
+            if (readsMaintained) {
                 input.samples = samples;
             }
 
@@ -2410,7 +2416,6 @@ export class Evaluator {
         // A member answering its receiver's items hands over the position each stood at there, and an ordering keeps the keys that ordered them with the list it answered, which a capture and a copy can replace with another,
         // so both are read from that list as the member returns.
         const implemented = value;
-        const answersReceiverItems = takesReceiver && Vocabulary.answersReceiverItems(declaration);
         const positions = answersReceiverItems ? ItemPositions.takePositions(implemented) : undefined;
 
         // A collection a host gives in a form of its own, a set, a map or a pair's object, is the language's where the member declares one.
@@ -2440,7 +2445,7 @@ export class Evaluator {
         // A member answering its receiver's items keeps the lineage each occurrence had there, as each item's own record already follows it; one answering a value for each item, as a projection does, records each item as its source.
         if (answersReceiverItems) {
             this.#realignLineage(receiver, positions, answered);
-        } else if (takesReceiver && Vocabulary.projectsItems(declaration)) {
+        } else if (projectsItems) {
             const itemType = this.#resolvedDefinition.resolutionOf(node)?.receiverType?.itemType ?? null;
 
             this.#recordLineage(receiver, answered, itemType !== null && this.#registry.isReferenceType(itemType.toNonNullable()));
@@ -2476,9 +2481,9 @@ export class Evaluator {
      * The evaluator's step before an invocation, at the point the host's hook is named for: calls the host's `beforeInvoke` where there is one and answers the samples a member's invocation reads, or null where one is pending,
      * marking the evaluation pending, so the member answers null. A failure of the hook fails the evaluation at the member. Without the hook, it refuses a member that reads maintained values, since nothing answers its samples.
      */
-    #beforeInvoke(request, declaration, node) {
+    #beforeInvoke(request, declaration, node, readsMaintained) {
         if (request === null || this.#hooks.beforeInvoke === undefined) {
-            if (declaration.updates?.reads === 'maintained') {
+            if (readsMaintained) {
                 this.#fail('NEXO5011', `${this.#subjectOf(declaration, node)} is maintained by an observation, and reading it waits for the first sample, which a synchronous evaluation cannot`, this.#pointerOf(node));
             }
 
