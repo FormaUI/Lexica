@@ -173,6 +173,8 @@ The function's result is checked as before. Measured in seven paired rounds agai
 | Account summary: evaluate | −8% (−10% to −4%), all rounds faster | unchanged |
 | Portfolio report: evaluate | −17% (−24% to −14%), all rounds faster | −5% |
 
+A profile's share is not what removing the work saves: copies a profile put at a sixth of the portfolio report saved nothing measurable once removed, as [decisions](decisions.md#d25) records.
+
 Where the remaining time goes, as profiling found it. The contract requires the guarantees this work gives, not this way of giving them, so a cheaper way that keeps each guarantee may exist:
 
 - **Every answer is checked** against its declared type, a list item by item and a structure field by field, but where [a check of data is relied on](#relying-on-a-check-of-data).
