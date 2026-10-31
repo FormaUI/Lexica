@@ -216,5 +216,5 @@ Where the remaining time goes, as profiling found it. The contract requires the 
 - **Every value a host's member gives a callback is checked** against the callback's contract, a structure field by field, and so is a reference one of Nexo's own members gives.
 - **Every structured value Nexo makes is recorded** in a private field the value holds, so a value of `Any` keeps its type. A host's own flat structure is copied rather than recorded, as any other answer is.
 - **Each object an expression builds** records the selections its fields made, in a weak map by the object, for its metadata.
-- **Resolution's index** builds each node's pointer again and looks up its resolution by that string, about a sixth of resolving; resolution recording what it resolved by the node would spare it.
+- **Resolution's index** builds each node's pointer again and looks up its resolution by that string, which a profile put at a sixth of resolving; finding it by the string resolution stored measured 4% faster, not established, as [decisions](decisions.md#d25) records.
 - **Parsing and resolution** each map every node of the definition by its pointer as they finish, parsing to the text it came from and resolution to what it resolved. A kept script holds its locations rather than the definition it lowered, so collecting them at the first error would hold more.
