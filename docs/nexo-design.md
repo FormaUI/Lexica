@@ -220,7 +220,23 @@ Where the remaining time goes, as profiling found it. The contract requires the 
 
 ### The third performance pass
 
-The third pass adds a case to the benchmark: resolving the account summary and evaluating it once. A resolution is compiled at its first evaluation, which the other cases never time, and a host pays resolving, compiling and the first evaluation once for each script it prepares.
+The third pass prepares a script faster: it parses, resolves and compiles. It adds two cases to the benchmark:
+
+- **Resolving the account summary and evaluating it once.** A resolution is compiled at its first evaluation, which the other cases never time, and a host pays resolving, compiling and the first evaluation once for each script it prepares.
+- **Preparing a script of 150 fields.** A cost that grows faster than a script never showed in scripts of a few lines; resolving grew with the square of a script's uses and of an object's fields.
+
+Measured on October 31, 2026, in five paired rounds against the commit before the pass, every round agreeing:
+
+| Case | Before | After | Time | Allocation |
+| --- | --- | --- | --- | --- |
+| Account summary: parse | 334 µs | 308 µs | −7% (−9.5% to −2%) | −13% |
+| Account summary: resolve | 296 µs | 199 µs | −32.5% (−33% to −29.5%) | −25% |
+| Account summary: resolve and evaluate once | 410 µs | 308 µs | −25% (−26% to −24%) | −26% |
+| 150 fields: parse | 9.8 ms | 7.8 ms | −20% (−37.5% to −13.5%) | −16% |
+| 150 fields: resolve | 12.5 ms | 7.5 ms | −40% (−41% to −40%) | −40% |
+| 150 fields: resolve and evaluate once | 38.9 ms | 13.3 ms | −67% (−82.5% to −55.5%) | −81% |
+
+The pass changed no code that evaluating a compiled script or binding runs. Paired runs measured those cases from 8% slower to 1% faster. A run of the same commit against itself, the same day, measured the summary's evaluation 10% faster, every round agreeing, so changes of that size are none.
 
 Each change below was measured alone, in paired rounds against the commit before it, and kept where its rounds agree. Parsing measures about 2% slower in time and in allocation on the side being measured even against an unchanged copy, so a change of that size to parsing is no change.
 
@@ -234,3 +250,5 @@ Each change below was measured alone, in paired rounds against the commit before
 | A resolved definition keeps each declaration once at each pointer by looking among those at the use's own pointer, rather than among every use kept, and compares a body copy's pointer without building a string; resolving grew with the square of a script's uses, 96 µs a field at 400 fields against 54 at 100, and now nearly in proportion | 150 fields, resolve: −11% (−20% to −5.5%). Resolve and evaluate once: −7% (−13% to −5%). The account summary: no change | No change |
 | A scope adds a name over the one it extends, flattening every sixteen names into one map, rather than copying every name in scope for each local, field, binding, parameter and option; adding an object's fields copied every field before each, which grew with the square of its fields | 150 fields, resolve: −4% (−11% to −2%). The account summary: no change | 150 fields, resolve: −17%, resolve and evaluate once: −13%. The account summary, resolve: −4% |
 | A scope holds the outermost object as its expression and the fields it has completed, a list shared while it grows at its end, and the object root's type is made where `root` is read, rather than made for each field completed with every field before it copied | 150 fields, resolve: −5% (−19% to 0%), one round of nine 0.4% slower. Resolve and evaluate once: −5% (−18% to +1%). The account summary: no change | 150 fields, resolve: −19%, resolve and evaluate once: −16% |
+
+Two walks over a definition's nodes in this pass read every key `for…in` gives, an inherited one among them, until a fix made them read a node's own keys again. A property a library adds to `Object.prototype` had made both recurse without end.
