@@ -189,7 +189,8 @@ export class Evaluator {
     /**
      * The selections made for the value being evaluated at its place in the result, by the node that made each: the branch a conditional or a coalescing selected, as its node, and the name a bracket property access selected; null where none has been made.
      * A result's identities hold them as their `selections`.
-     * @type {Map<object, object | string> | null}
+     * Each node stands beside its selection in one list, as `#select` records them.
+     * @type {unknown[] | null}
      */
     #selections = null;
 
@@ -520,7 +521,7 @@ export class Evaluator {
                         const value = evaluateBindingValue(evaluator, context);
                         const isTruthy = Evaluator.#isTruthy(value);
 
-                        (evaluator.#selections ??= new Map()).set(node, isTruthy ? node.consequent : node.alternative);
+                        evaluator.#selections = Evaluator.#select(evaluator.#selections, node, isTruthy ? node.consequent : node.alternative);
 
                         if (!isTruthy) {
                             return alternative(evaluator, context);
@@ -545,7 +546,7 @@ export class Evaluator {
                 return (evaluator, context) => {
                     const isTrue = Evaluator.#isTruthy(condition(evaluator, context));
 
-                    (evaluator.#selections ??= new Map()).set(node, isTrue ? node.consequent : node.alternative);
+                    evaluator.#selections = Evaluator.#select(evaluator.#selections, node, isTrue ? node.consequent : node.alternative);
 
                     return (isTrue ? consequent : alternative)(evaluator, context);
                 };
@@ -560,7 +561,7 @@ export class Evaluator {
                 return (evaluator, context) => {
                     const answer = value(evaluator, context);
 
-                    (evaluator.#selections ??= new Map()).set(node, answer === null ? node.fallback : node.value);
+                    evaluator.#selections = Evaluator.#select(evaluator.#selections, node, answer === null ? node.fallback : node.value);
 
                     return answer === null ? fallback(evaluator, context) : answer;
                 };
@@ -577,7 +578,7 @@ export class Evaluator {
                         const value = operands[index](evaluator, context);
 
                         if (index === last || Evaluator.#isTruthy(value) === decidesWhenTruthy) {
-                            (evaluator.#selections ??= new Map()).set(node, node.operands[index]);
+                            evaluator.#selections = Evaluator.#select(evaluator.#selections, node, node.operands[index]);
 
                             return value;
                         }
@@ -615,7 +616,7 @@ export class Evaluator {
                     const functionKey = Evaluator.#getFunctionKey(callee);
 
                     if (functions.size > 1) {
-                        (evaluator.#selections ??= new Map()).set(node, functionKey);
+                        evaluator.#selections = Evaluator.#select(evaluator.#selections, node, functionKey);
                     }
 
                     if (functions.get(functionKey).invocation?.takesReceiver === true) {
@@ -1022,7 +1023,7 @@ export class Evaluator {
             const callee = evaluateCallee(evaluator, context);
             const chosen = alternatives.get(callee.reference);
 
-            (evaluator.#selections ??= new Map()).set(node, callee.reference);
+            evaluator.#selections = Evaluator.#select(evaluator.#selections, node, callee.reference);
 
             return evaluator.#invokeImplementation(chosen.invocation, receiver, Evaluator.#renameArguments(args, parameterNames, chosen.parameterNames), node, false, lifetimes);
         };
@@ -1827,7 +1828,7 @@ export class Evaluator {
             const selections = this.#selections;
 
             this.#selections = enclosingSelections;
-            selections?.forEach((selection, node) => (this.#selections ??= new Map()).set(node, selection));
+            this.#selections = Evaluator.#joinSelections(this.#selections, selections);
         }
     }
 
@@ -2237,9 +2238,7 @@ export class Evaluator {
         const localSelections = frame.selections[index] ?? null;
 
         if (localSelections !== null) {
-            const selections = (this.#selections ??= new Map());
-
-            localSelections.forEach((selection, node) => selections.set(node, selection));
+            this.#selections = Evaluator.#joinSelections(this.#selections, localSelections);
         }
 
         return frame.values[index];
@@ -2266,7 +2265,7 @@ export class Evaluator {
         // A computed property access computes its name once and reads the property it selects, which is recorded for the value's place in the result.
         const name = this.#evaluateNode(node.name, context);
 
-        (this.#selections ??= new Map()).set(node, name);
+        this.#selections = Evaluator.#select(this.#selections, node, name);
 
         return this.#evaluateResolvedAccess(resolution.resolutionsByName.get(name), receiver, node, context);
     }
@@ -2298,9 +2297,7 @@ export class Evaluator {
         const selections = this.#objectFieldSelections.get(receiver)?.get(name) ?? null;
 
         if (selections !== null) {
-            const recorded = (this.#selections ??= new Map());
-
-            selections.forEach((selection, node) => recorded.set(node, selection));
+            this.#selections = Evaluator.#joinSelections(this.#selections, selections);
         }
 
         return receiver[name] ?? null;
@@ -2776,7 +2773,7 @@ export class Evaluator {
                     }
 
                     const { functions } = resolution;
-                    const called = functions.length === 1 ? functions[0] : functions.find(entry => Evaluator.#getFunctionKey(entry) === selections?.get(node));
+                    const called = functions.length === 1 ? functions[0] : functions.find(entry => Evaluator.#getFunctionKey(entry) === Evaluator.#selectionOf(selections, node));
 
                     if (called === undefined) {
                         return this.#getExpressionRecord(node, null, null);
@@ -2793,7 +2790,7 @@ export class Evaluator {
                 case 'memberAccess':
                 case 'indexerAccess': {
                     const resolution = this.#resolvedDefinition.resolutionOf(node);
-                    const candidate = resolution?.kind === 'computedPropertyAccess' ? (selections?.get(node) ?? null) : null;
+                    const candidate = resolution?.kind === 'computedPropertyAccess' ? (Evaluator.#selectionOf(selections, node) ?? null) : null;
                     const selected = resolution?.kind === 'computedPropertyAccess' ? (candidate === null ? null : resolution.resolutionsByName.get(candidate)) : resolution;
 
                     // A field read through the object root follows its initializer.
@@ -2810,7 +2807,7 @@ export class Evaluator {
                     return this.#resolveObjectExpressionRecord(node, value, identities, contextRecord);
                 default:
                     if (SELECTING_KINDS.has(node.kind)) {
-                        const selected = selections?.get(node);
+                        const selected = Evaluator.#selectionOf(selections, node);
 
                         if (selected === undefined) {
                             return this.#getExpressionRecord(node, null, null);
@@ -2834,7 +2831,7 @@ export class Evaluator {
         let candidate = null;
 
         if (resolution?.kind === 'computedPropertyAccess') {
-            candidate = selections?.get(node) ?? null;
+            candidate = Evaluator.#selectionOf(selections, node) ?? null;
 
             if (candidate === null) {
                 return this.#getExpressionRecord(node, null, null);
@@ -2976,6 +2973,59 @@ export class Evaluator {
         }
 
         return inherited;
+    }
+
+    /**
+     * The selections with the node's recorded, the list itself where it is one already: a node recorded before takes the newer selection in its place, and null, where none was made, a new list. A map for each
+     * place that made any measured a few hundredths of an evaluation's allocation, and a place makes few, so a list of each node beside its selection, searched in turn, holds them.
+     * @param {unknown[] | null} selections
+     */
+    static #select(selections, node, selection) {
+        if (selections === null) {
+            return [node, selection];
+        }
+
+        for (let index = 0; index < selections.length; index += 2) {
+            if (selections[index] === node) {
+                selections[index + 1] = selection;
+
+                return selections;
+            }
+        }
+
+        selections.push(node, selection);
+
+        return selections;
+    }
+
+    /** The selections with every one the others hold recorded in turn, as `#select` records each, or a copy of the others where there were none, since a list is added to in place. */
+    static #joinSelections(selections, others) {
+        if (others === null) {
+            return selections;
+        }
+
+        if (selections === null) {
+            return others.slice();
+        }
+
+        for (let index = 0; index < others.length; index += 2) {
+            Evaluator.#select(selections, others[index], others[index + 1]);
+        }
+
+        return selections;
+    }
+
+    /** The selection recorded for the node, or undefined where none is. */
+    static #selectionOf(selections, node) {
+        if (selections !== null) {
+            for (let index = 0; index < selections.length; index += 2) {
+                if (selections[index] === node) {
+                    return selections[index + 1];
+                }
+            }
+        }
+
+        return undefined;
     }
 
     /** The identities of a value with the selections made for it beside them, as their `selections`, or the identities alone where none were made. */
