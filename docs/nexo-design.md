@@ -103,7 +103,7 @@ The benchmark measures Nexo against the work a script stands for. It is a billin
 | --- | --- |
 | Account summary | The README's script for one customer of 1,000: evaluating it, evaluating it with hooks reporting reads, and binding the customer and evaluating |
 | Portfolio report | One script over all 1,000 customers and their nearly 12,000 invoices: evaluating it, and binding the customers |
-| Preparing the account summary | Parsing a text no parse has kept, resolving it, and creating an evaluator |
+| Preparing the account summary | Parsing a text no parse has kept, resolving it, creating an evaluator, and resolving it and evaluating it once, which compiles the new resolution as a host's first evaluation of a script does |
 
 Each case reports two figures:
 

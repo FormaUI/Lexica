@@ -122,6 +122,15 @@ const createGroups = implementation => {
                         return () => summary.createEvaluator(bindings, env);
                     },
                 },
+                {
+                    name: 'Nexo: resolve, evaluate once',
+                    create: () => {
+                        const bindings = bindCustomer(customers[0]);
+
+                        // Each resolution is new, so its first evaluation compiles it, as a host's first evaluation of each script it resolves does.
+                        return () => registry.resolve(ACCOUNT_SUMMARY, bindings).createEvaluator(bindings, env).evaluate();
+                    },
+                },
             ],
         },
     ];
